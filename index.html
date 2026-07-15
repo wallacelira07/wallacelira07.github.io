@@ -201,19 +201,45 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
 
     <script>
-        // Configuração do Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCvXsD2v_AGx3vN3kM2z_uIllkRO-Lr2pc",
-            authDomain: "sistema-wallace-lira.firebaseapp.com",
-            projectId: "sistema-wallace-lira",
-            storageBucket: "sistema-wallace-lira.firebasestorage.app",
-            messagingSenderId: "648799873363",
-            appId: "1:648799873363:web:28e6796ee70afc3a4b99a6"
-        };
+        let auth; // Declarar fora para usar depois
 
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
+        // Aguardar Firebase carregar
+        function initializeFirebase() {
+            if (typeof firebase === 'undefined') {
+                console.log('Firebase ainda não carregou, tentando novamente...');
+                setTimeout(initializeFirebase, 500);
+                return;
+            }
+
+            console.log('Firebase carregado com sucesso!');
+
+            // Configuração do Firebase
+            const firebaseConfig = {
+                apiKey: "AIzaSyCvXsD2v_AGx3vN3kM2z_uIllkRO-Lr2pc",
+                authDomain: "sistema-wallace-lira.firebaseapp.com",
+                projectId: "sistema-wallace-lira",
+                storageBucket: "sistema-wallace-lira.firebasestorage.app",
+                messagingSenderId: "648799873363",
+                appId: "1:648799873363:web:28e6796ee70afc3a4b99a6"
+            };
+
+            // Inicializar Firebase
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+
+            // Verificar se já está logado
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    showDashboard(user.email);
+                } else {
+                    document.getElementById('loginScreen').style.display = 'block';
+                    document.getElementById('dashboardScreen').style.display = 'none';
+                }
+            });
+        }
+
+        // Iniciar quando a página carregar
+        window.addEventListener('load', initializeFirebase);
 
         // FUNÇÃO DE LOGIN
         function login() {
@@ -302,16 +328,6 @@
                 document.getElementById('password').value = '';
             });
         }
-
-        // Verificar se já está logado ao carregar a página
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                showDashboard(user.email);
-            } else {
-                document.getElementById('loginScreen').style.display = 'block';
-                document.getElementById('dashboardScreen').style.display = 'none';
-            }
-        });
 
         // Permitir login ao pressionar Enter
         document.addEventListener('keypress', function(event) {
