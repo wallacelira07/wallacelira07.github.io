@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Wallace Lira — Painel Completo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+
+  :root{
+    --bg: #0b0c0e;
+    --surface: #16181b;
+    --surface-2: #1d2024;
+    --border: #2a2d31;
+    --border-strong: #383c42;
+    --text: #eceae4;
+    --text-mid: #a9a79f;
+    --text-dim: #6f6d66;
+    --accent: #3987e5;
+    --accent-2: #9085e9;
+    --green: #34c98a;
+    --amber: #e8a63a;
+    --red: #e2554f;
+    --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    padding: 2.5rem 1.5rem 5rem;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+
+  .cover{
+    position:relative;
+    background: radial-gradient(ellipse at top left, rgba(57,135,229,0.18), transparent 55%),
+                radial-gradient(ellipse at bottom right, rgba(52,201,138,0.12), transparent 50%),
+                linear-gradient(160deg, #0d1420 0%, #0b0c0e 70%);
+    border:1px solid var(--border-strong);
+    border-radius:14px;
+    padding:2.5rem 2.2rem;
+    margin-bottom:2.5rem;
+    overflow:hidden;
+  }
+  .cover::before{
+    content:'';position:absolute;top:-40%;right:-10%;
+    width:420px;height:420px;border-radius:50%;
+    background:radial-gradient(circle, rgba(57,135,229,0.15), transparent 70%);
+  }
+  .cover-eyebrow{
+    font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+    color:var(--accent);text-transform:uppercase;
+    display:flex;align-items:center;gap:0.5rem;margin-bottom:0.9rem;
+  }
+  .cover-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .cover h1{
+    font-size:2.3rem;font-weight:700;letter-spacing:-0.02em;
+    line-height:1.1;margin-bottom:0.6rem;position:relative;z-index:1;
+  }
+  .cover .cover-sub{color:var(--text-mid);font-size:0.95rem;margin-bottom:1.8rem;position:relative;z-index:1}
+  .cover-metrics{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;
+    position:relative;z-index:1;
+    padding-top:1.5rem;border-top:1px solid var(--border-strong);
+  }
+  .cover-metrics .cm-lbl{font-size:0.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem}
+  .cover-metrics .cm-val{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--border-strong);
+    padding-bottom:1.25rem;margin-bottom:2rem;
+  }
+  .masthead h1{
+    font-size:1.65rem;font-weight:600;letter-spacing:-0.01em;
+  }
+  .masthead .sub{color:var(--text-mid);font-size:0.85rem;margin-top:0.3rem}
+  .status-pill{
+    background: rgba(52,201,138,0.12); color:var(--green);
+    border:1px solid rgba(52,201,138,0.35);
+    padding:0.35rem 0.9rem;border-radius:100px;
+    font-size:0.75rem;font-weight:600;letter-spacing:0.02em;
+  }
+
+  .kpi-strip{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    background:var(--border);border:1px solid var(--border);
+    border-radius:10px;overflow:hidden;margin-bottom:2.5rem;
+  }
+  .kpi{background:var(--surface);padding:1.1rem 1.3rem}
+  .kpi .lbl{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem}
+  .kpi .val{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:0.72rem;color:var(--text-mid);margin-top:0.25rem}
+  .g{color:var(--green)}.a{color:var(--amber)}.r{color:var(--red)}.b{color:var(--accent)}.p{color:var(--accent-2)}
+
+  .section-num{
+    display:flex;align-items:baseline;gap:0.6rem;
+    margin:2.5rem 0 0.9rem;
+  }
+  .section-num .n{
+    font-family:var(--mono);font-size:0.7rem;color:var(--text-dim);
+    border:1px solid var(--border-strong);border-radius:4px;
+    padding:0.15rem 0.4rem;
+  }
+  .section-num h2{font-size:0.95rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em}
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:1.1rem 1.3rem;
+  }
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+
+  .row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0.5rem 0;border-bottom:1px solid var(--border);
+    font-size:0.86rem;
+  }
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--text-mid)}
+  .row .v{font-variant-numeric:tabular-nums;font-weight:500}
+
+  .badge{
+    display:inline-block;font-size:0.72rem;font-weight:600;
+    padding:0.2rem 0.65rem;border-radius:100px;
+  }
+  .badge.bg{background:rgba(52,201,138,0.12);color:var(--green)}
+  .badge.ba{background:rgba(232,166,58,0.14);color:var(--amber)}
+  .badge.br{background:rgba(226,85,79,0.14);color:var(--red)}
+  .badge.bb{background:rgba(57,135,229,0.14);color:var(--accent)}
+
+  .progress{height:6px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin-top:0.55rem}
+  .progress .fill{height:100%;border-radius:4px}
+  .progress-lbl{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.9rem}
+  .tab{
+    background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text-mid);font-size:0.75rem;font-weight:500;
+    padding:0.4rem 0.75rem;border-radius:7px;cursor:pointer;
+  }
+  .tab.active{background:rgba(57,135,229,0.14);color:var(--accent);border-color:rgba(57,135,229,0.4)}
+  .pane{display:none}
+  .pane.active{display:block}
+
+  table{width:100%;border-collapse:collapse;font-size:0.82rem}
+  th{
+    text-align:left;font-size:0.68rem;font-weight:600;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:0.04em;
+    padding:0.4rem 0.5rem;border-bottom:1px solid var(--border-strong);
+  }
+  th.r{text-align:right}
+  td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text)}
+  td.r{text-align:right;font-variant-numeric:tabular-nums}
+  td.mono{color:var(--text-dim);font-family:var(--mono);font-size:0.75rem}
+  tr.last-parcel td{color:var(--amber)}
+  tr:last-child td{border-bottom:none}
+  .tfoot{
+    display:flex;justify-content:space-between;padding:0.5rem;
+    border-top:1px solid var(--border-strong);margin-top:0.3rem;
+    font-size:0.72rem;color:var(--text-dim);
+  }
+  .tfoot .total{font-weight:600;color:var(--text)}
+
+  .callout{
+    padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem;margin-top:0.7rem;
+  }
+  .callout.danger{background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.3);color:#f0918d}
+  .callout.warn{background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.3);color:#eec38a}
+  .callout.ok{background:rgba(52,201,138,0.1);border:1px solid rgba(52,201,138,0.3);color:#8bdcb8}
+
+  .chart-box{position:relative;width:100%;height:190px;margin-top:0.5rem}
+
+  footer{
+    display:flex;justify-content:space-between;margin-top:3rem;
+    padding-top:1rem;border-top:1px solid var(--border);
+    font-size:0.72rem;color:var(--text-dim);
+  }
+
+  @media(max-width:820px){
+    .kpi-strip{grid-template-columns:repeat(2,1fr)}
+    .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  }
+
+  /* --- Tabs de nivel superior (Painel / Graficos) --- */
+  .master-tabs{
+    display:flex;gap:0.5rem;margin-bottom:2rem;
+    border-bottom:1px solid var(--border-strong);
+  }
+  .master-tab{
+    background:none;border:none;color:var(--text-dim);
+    font-size:0.85rem;font-weight:600;padding:0.7rem 1.2rem;
+    cursor:pointer;border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+  }
+  .master-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .master-pane{display:none}
+  .master-pane.active{display:block}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento</div>
+    <h1>Painel Financeiro V1.8</h1>
+    <div class="cover-sub">Ciclo 25/06 → 24/07/2026 · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
+    <div class="cover-metrics">
+      <div><div class="cm-lbl">Patrimônio</div><div class="cm-val g">R$ 115.448</div></div>
+      <div><div class="cm-lbl">Meta do milhão</div><div class="cm-val p">11,54%</div></div>
+      <div><div class="cm-lbl">Modo operacional</div><div class="cm-val g">Alto</div></div>
+      <div><div class="cm-lbl">Caixa variável</div><div class="cm-val g">R$ 311,28</div></div>
+    </div>
+  </div>
+
+  <div class="master-tabs">
+    <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel Completo</button>
+    <button class="master-tab" onclick="showMaster('graficos', this)">📈 Gráficos</button>
+    <button class="master-tab" onclick="showMaster('cenarios', this)">🛡️ Cenários</button>
+  </div>
+
+  <div id="painel" class="master-pane active">
+
+
+    <div class="kpi-strip">
+    <div class="kpi">
+      <div class="lbl">Patrimônio financeiro</div>
+      <div class="val g">R$ 115.448</div>
+      <div class="sub">11,54% da Meta do Milhão</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Total operacional</div>
+      <div class="val">R$ 11.045</div>
+      <div class="sub">Necessidade bruta R$ 14.245 · líquida R$ 13.774</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Caixa variável</div>
+      <div class="val g">R$ 311,28</div>
+      <div class="sub">ECC zerado · disponível/dia R$ 35,72</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Modo operacional</div>
+      <div class="val g">Alto</div>
+      <div class="sub">Saldo do ciclo R$ 23.743,51</div>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <div class="section-num"><span class="n">01</span><h2>Ciclo financeiro</h2></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Dias decorridos</div><div style="font-size:1.1rem;font-weight:600" id="diasDecorridos">—</div></div>
+      <div style="text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Hoje</div><div style="font-weight:600" id="hojeData">—</div></div>
+      <div style="text-align:right"><div style="font-size:0.7rem;color:var(--text-dim)">Dias restantes</div><div style="font-size:1.1rem;font-weight:600" id="diasRestantes">—</div></div>
+    </div>
+    <div class="progress"><div class="fill" id="cicloProgress" style="width:0%;background:var(--accent)"></div></div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section-num"><span class="n">02</span><h2>Modo operacional</h2></div>
+  <div class="grid-3" style="margin-bottom:1rem">
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Salário</div><div style="font-size:1.2rem;font-weight:600">R$ 33.708,78</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Reembolsos a receber</div><div style="font-size:1.2rem;font-weight:600">R$ 2.429,59</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Entradas totais do ciclo</div><div style="font-size:1.2rem;font-weight:600;color:var(--accent)">R$ 37.298,76</div></div>
+  </div>
+  <div class="card" style="border-left:3px solid var(--green)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div><div style="font-size:1.05rem;font-weight:600;color:var(--green)">Salário Alto</div><div style="font-size:0.75rem;color:var(--text-dim)">Saldo do ciclo R$ 23.743,51 (≥ R$ 8.000)</div></div>
+      <span class="badge bg">Alto</span>
+    </div>
+    <div style="font-size:0.82rem;color:#8bdcb8">Cumprir todos os aportes e direcionar todo excedente para Caixa Lance e BTG/Necton.</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section-num"><span class="n">03</span><h2>Patrimônio financeiro</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.3rem">Total</div>
+      <div style="font-size:1.7rem;font-weight:700;color:var(--green);margin-bottom:0.7rem">R$ 115.448,48</div>
+      <div class="row"><span class="k">CC-301 · Reserva de emergência</span><span class="v">R$ 100.066,05</span></div>
+      <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v">R$ 14.673,40</span></div>
+      <div class="row"><span class="k">CC-303 · Caixa Lance</span><span class="v">R$ 204,28</span></div>
+      <div class="row"><span class="k">CC-201 · Escola de Júlio</span><span class="v">R$ 505,12</span></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div class="chart-box"><canvas id="cPatrim"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section-num"><span class="n">04</span><h2>Meta do milhão</h2></div>
+  <div class="card" style="border-left:3px solid var(--accent)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Acumulado</div><div style="font-weight:600">R$ 115.448,48</div></div>
+      <div style="text-align:right"><div style="font-size:0.72rem;color:var(--text-mid)">Falta</div><div style="font-weight:600">R$ 884.551,95</div></div>
+      <span class="badge bb">11,54%</span>
+    </div>
+    <div class="progress"><div class="fill" style="width:11.54%;background:var(--accent)"></div></div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section-num"><span class="n">05</span><h2>Caixas operacionais</h2></div>
+  <div class="grid-3">
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div style="font-weight:600">R$ 820,67</div><div class="progress"><div class="fill" style="width:31.6%;background:var(--amber)"></div></div><div class="progress-lbl"><span>31,6%</span><span>R$ 2.600</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa</div><div style="font-weight:600">R$ 493,63</div><div class="progress"><div class="fill" style="width:41.1%;background:var(--amber)"></div></div><div class="progress-lbl"><span>41,1%</span><span>R$ 1.200</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div style="font-weight:600">R$ 656,67</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">100% coberto · excedente R$23,84</span><span>Provisionado R$680,51</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div style="font-weight:600;color:var(--red)">R$ 0,00</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">LREI0001: emprestou R$178,64</span><span>R$ 2.000</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div style="font-weight:600;color:var(--red)">R$ 0,00</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span>R$ 2.000</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div style="font-weight:600">R$ 0,00</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>2x Júlio + 1x Vanessa/ano · aporte R$100/mês</span><span>R$ 1.600</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div style="font-weight:600">R$ 0,00</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>Nova · aporte R$200/mês até 14/09</span><span>R$ 400</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div style="font-weight:600">R$ 0,00</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>Nova · aporte R$425/mês (permanente)</span><span>R$ 5.100</span></div></div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>
+  <div class="card" style="border-left:3px solid var(--green)">
+    <div class="grid-3" style="margin-bottom:0.7rem">
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Saldo real</div><div style="font-weight:600">R$ 2.348,20</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Comprometido</div><div style="font-weight:600;color:var(--amber)">R$ 2.036,92</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Disponível</div><div style="font-weight:600;color:var(--green)">R$ 311,28</div></div>
+    </div>
+    <div class="chart-box" style="height:150px"><canvas id="cVariavel"></canvas></div>
+    <div class="callout ok">ECC zerado. LREI0001 (Manutenção → Variável) + extinção PIX Wallace resolveram o estouro anterior. Diferença de R$158,76 investigada e resolvida. Reforço adicional de R$57,04 do reembolso Wärtsilä confirmado em 14/07/2026, preparando a caixa para a chegada da família da Vanessa em 17/07/2026.</div>
+    <div class="callout warn">LREI0001 (R$178,64 devidos à Manutenção) segue ativo — Caixa Variável já tem folga (R$548,20 acima da meta) para liquidar quando confirmado.</div>
+  </div>
+
+  <!-- 7 -->
+  <div class="section-num"><span class="n">07</span><h2>Livro razão caixa variável (LRCV)</h2></div>
+  <div class="card">
+    <div class="row"><span class="k">TX28001 — Pamonha e canjica Santo Antônio</span><span class="v" style="color:var(--red)">− R$ 70,00</span></div>
+    <div class="row"><span class="k">TX28002 — Pamonha e canjica Santo Antônio</span><span class="v" style="color:var(--red)">− R$ 60,00</span></div>
+    <div class="row"><span class="k">TX28003 — Devolução frango (mainha)</span><span class="v" style="color:var(--green)">+ R$ 64,00</span></div>
+    <div class="tfoot"><span>Saídas R$130,00 · Entradas R$64,00</span><span class="total">Líquido − R$66,00</span></div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section-num"><span class="n">08</span><h2>ECC — estouro controlado do ciclo</h2></div>
+  <div class="grid-3">
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--green)">RESOLVIDO</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Valor</div><div style="font-weight:600">R$ 0,00</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Impacto próximo ciclo</div><div style="font-weight:600">R$ 0,00</div></div>
+  </div>
+
+  <!-- 9 -->
+  <div class="section-num"><span class="n">09</span><h2>Visa Infinite</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.3rem">Total comprometido</div>
+      <div style="font-size:1.4rem;font-weight:700;margin-bottom:0.7rem">R$ 8.551,76</div>
+      <div class="row"><span class="k">Compras Wallace (LRW)</span><span class="v">R$ 1.608,23</span></div>
+      <div class="row"><span class="k">Compras Vanessa (LRV)</span><span class="v">R$ 270,02</span></div>
+      <div class="row"><span class="k">Parcelas (LRP)</span><span class="v">R$ 2.414,56</span></div>
+      <div class="row"><span class="k">Assinaturas (LRS)</span><span class="v">R$ 417,35</span></div>
+      <div class="row"><span class="k">Recorrências (LRR)</span><span class="v">R$ 1.369,51</span></div>
+      <div class="row"><span class="k">Consórcios (LRCON)</span><span class="v">R$ 1.950,77</span></div>
+      <div class="row"><span class="k">Corporativo (LRC)</span><span class="v">R$ 483,43</span></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div class="chart-box"><canvas id="cVisa"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="section-num"><span class="n">10</span><h2>Mercado Pago</h2></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Fatura atual (aberta)</div><div style="font-weight:600;font-size:1.1rem">R$ 1.749,35</div></div>
+      <div style="font-size:0.72rem;color:var(--text-dim)">Fecha 29/07 · Vence 04/08</div>
+    </div>
+    <div class="row"><span class="k">Parcelas próprias (LRMP)</span><span class="v">R$ 471,47</span></div>
+    <div class="row"><span class="k">Transporte corporativo Recife</span><span class="v">R$ 1.277,88</span></div>
+  </div>
+
+  <!-- 11 -->
+  <div class="section-num"><span class="n">11</span><h2>Passivos patrimoniais</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid)">Financiamento da casa</div>
+      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem">R$ 61.311,95</div>
+      <div style="font-size:0.72rem;color:var(--text-dim)">Prestação R$588,66 · 147 meses restantes</div>
+      <span class="badge bg" style="margin-top:0.5rem">Em dia</span>
+    </div>
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
+      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem">R$ 19.987,85</div>
+      <div class="progress"><div class="fill" style="width:73.94%;background:var(--green)"></div></div>
+      <div class="progress-lbl"><span>73,94% pago</span><span>Parcela R$501,50</span></div>
+      <span class="badge bg" style="margin-top:0.5rem">Contemplada com o bem</span>
+    </div>
+  </div>
+
+  <!-- 12 -->
+  <div class="section-num"><span class="n">12</span><h2>Consórcio casa nova (I0464 · Cota 12)</h2></div>
+  <div class="card" style="border-left:3px solid var(--accent)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Carta de crédito</div><div style="font-weight:600;font-size:1.1rem">R$ 450.000,00</div></div>
+      <span class="badge ba">Não contemplada</span>
+    </div>
+    <div class="row"><span class="k">Parcela (cartão de crédito)</span><span class="v">R$ 1.449,45</span></div>
+    <div class="row"><span class="k">Pago até o momento</span><span class="v">0,21%</span></div>
+    <div class="row"><span class="k">Valor para quitação</span><span class="v">R$ 552.050,77 (99,79%)</span></div>
+    <div class="row"><span class="k">Próxima assembleia</span><span class="v">21/07/2026</span></div>
+    <div class="progress"><div class="fill" style="width:0.21%;background:var(--accent)"></div></div>
+  </div>
+
+  <!-- 13 -->
+  <div class="section-num"><span class="n">13</span><h2>Projeto casa nova</h2></div>
+  <div class="card" style="border-left:3px solid var(--accent)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital disponível (LFTS11 + Caixa Lance)</div><div style="font-weight:600;font-size:1.1rem">R$ 14.877,44</div></div>
+      <span class="badge ba">8,27%</span>
+    </div>
+    <div class="progress"><div class="fill" style="width:8.27%;background:var(--accent)"></div></div>
+    <div class="progress-lbl"><span>Meta lance R$ 180.000,00</span><span>Falta R$ 165.122,56</span></div>
+  </div>
+
+  <!-- 14 -->
+  <div class="section-num"><span class="n">14</span><h2>Escola de Júlio</h2></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo</div><div style="font-weight:600">R$ 505,12</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Meta</div><div style="font-weight:600">R$ 9.236,00</div></div>
+      <span class="badge ba">5,46%</span>
+    </div>
+    <div class="progress"><div class="fill" style="width:5.46%;background:var(--amber)"></div></div>
+  </div>
+
+  <!-- 15 -->
+  <div class="section-num"><span class="n">15</span><h2>Livros razão</h2></div>
+  <div class="card">
+    <div class="tabs" id="lrTabs">
+      <button class="tab active" onclick="showLR('lrw',this)">Wallace (30)</button>
+      <button class="tab" onclick="showLR('lrv',this)">Vanessa (16)</button>
+      <button class="tab" onclick="showLR('lrb',this)">Boletos (9)</button>
+      <button class="tab" onclick="showLR('lrp',this)">Parcelas (15)</button>
+      <button class="tab" onclick="showLR('lrs',this)">Assinaturas (11)</button>
+      <button class="tab" onclick="showLR('lrr',this)">Recorrências (6)</button>
+      <button class="tab" onclick="showLR('lrcon',this)">Consórcios (2)</button>
+      <button class="tab" onclick="showLR('lrc',this)">Corporativo (6)</button>
+      <button class="tab" onclick="showLR('lrmp',this)">Merc. Pago (8)</button>
+      <button class="tab" onclick="showLR('lrcv',this)">Caixa Var. (9)</button>
+      <button class="tab" onclick="showLR('lrei',this)">Empréstimos (1)</button>
+      <button class="tab" onclick="showLR('lrdoacao',this)">Doações (1)</button>
+      <button class="tab" onclick="showLR('lrpv',this)">Pix Vanessa (13)</button>
+    </div>
+
+    <div id="lrw" class="pane active">
+      <table><thead><tr><th>TX</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX000001</td><td>Magalu</td><td class="r">R$ 66,89</td></tr>
+      <tr><td class="mono">TX000005</td><td>Tapioca</td><td class="r">R$ 81,00</td></tr>
+      <tr><td class="mono">TX000006</td><td>Mercado Clovis</td><td class="r">R$ 8,50</td></tr>
+      <tr><td class="mono">TX000007</td><td>Abastece Aí</td><td class="r">R$ 103,00</td></tr>
+      <tr><td class="mono">TX000008</td><td>Ki Frango</td><td class="r">R$ 64,00</td></tr>
+      <tr><td class="mono">TX000009</td><td>Aleks Bolos</td><td class="r">R$ 44,00</td></tr>
+      <tr><td class="mono">TX000010</td><td>Clauveniência</td><td class="r">R$ 45,00</td></tr>
+      <tr><td class="mono">TX000012</td><td>Mendonça Pasteis</td><td class="r">R$ 75,97</td></tr>
+      <tr><td class="mono">TX000013</td><td>H57 Store</td><td class="r">R$ 9,19</td></tr>
+      <tr><td class="mono">TX000014</td><td>Elias Andrade</td><td class="r">R$ 120,00</td></tr>
+      <tr><td class="mono">TX000015</td><td>Tamylla</td><td class="r">R$ 32,00</td></tr>
+      <tr><td class="mono">TX000016</td><td>Tamylla</td><td class="r">R$ 36,00</td></tr>
+      <tr><td class="mono">TX000017</td><td>Pizza Nostra</td><td class="r">R$ 241,00</td></tr>
+      <tr><td class="mono">TX000018</td><td>Brothers Club</td><td class="r">R$ 85,00</td></tr>
+      <tr><td class="mono">TX000020</td><td>Hortifruti</td><td class="r">R$ 10,00</td></tr>
+      <tr><td class="mono">TX000021</td><td>H57 Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000022</td><td>Geroncio</td><td class="r">R$ 60,00</td></tr>
+      <tr><td class="mono">TX000025</td><td>Mini Mercado</td><td class="r">R$ 40,98</td></tr>
+      <tr><td class="mono">TX000026</td><td>Panificadora</td><td class="r">R$ 23,80</td></tr>
+      <tr><td class="mono">TX000027</td><td>Amazon Prime Video</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000029</td><td>Madoska Sorvetes</td><td class="r">R$ 127,43</td></tr>
+      <tr><td class="mono">TX000030</td><td>Pastianne Restaurante</td><td class="r">R$ 126,28</td></tr>
+      <tr><td class="mono">TXR000003</td><td>Pague Menos</td><td class="r">R$ 75,87</td></tr>
+      <tr><td class="mono">TX000031</td><td>H57Store</td><td class="r">R$ 40,98</td></tr>
+      <tr><td class="mono">TX000032</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
+      <tr><td class="mono">TX000034</td><td>H57Store</td><td class="r">R$ 26,36</td></tr>
+      <tr><td class="mono">TX000035</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      <tr><td class="mono">TX000036</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      <tr><td class="mono">TX000078</td><td>H57Store</td><td class="r">R$ 25,93</td></tr>
+      <tr><td class="mono">TX000079</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>30 lançamentos · Próximo: TX000080</span><span class="total">R$ 1.654,16</span></div>
+    </div>
+
+    <div id="lrv" class="pane">
+      <table><thead><tr><th>TX</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX000019</td><td>Padaria Dorgival</td><td class="r">R$ 31,70</td></tr>
+      <tr><td class="mono">TX000023</td><td>Dorgival</td><td class="r">R$ 21,30</td></tr>
+      <tr><td class="mono">TX000024</td><td>Mini Mercado</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000028</td><td>H57Store</td><td class="r">R$ 9,88</td></tr>
+      <tr><td class="mono">TXR000001</td><td>Carolina</td><td class="r">R$ 65,00</td></tr>
+      <tr><td class="mono">TXR000002</td><td>Panificadora</td><td class="r">R$ 22,00</td></tr>
+      <tr><td class="mono">TXR000004</td><td>H57 Store</td><td class="r">R$ 15,97</td></tr>
+      <tr><td class="mono">TXR000005</td><td>Drogaria Drogavista</td><td class="r">R$ 45,19</td></tr>
+      <tr><td class="mono">TXR000006</td><td>Dorgival de Oliveira B</td><td class="r">R$ 34,00</td></tr>
+      <tr><td class="mono">TXR000007</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000033</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
+      <tr><td class="mono">TX000002</td><td>Uber (Família)</td><td class="r">R$ 21,98</td></tr>
+      <tr><td class="mono">TX000003</td><td>Uber (Família)</td><td class="r">R$ 21,74</td></tr>
+      <tr><td class="mono">TX000004</td><td>Uber (Família)</td><td class="r">R$ 24,78</td></tr>
+      <tr><td class="mono">TX000011</td><td>Uber (Família)</td><td class="r">R$ 9,21</td></tr>
+      <tr><td class="mono">TX000076</td><td>DL</td><td class="r">R$ 24,03</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>16 lançamentos</span><span class="total">R$ 382,76</span></div>
+    </div>
+
+    <div id="lrb" class="pane">
+      <table><thead><tr><th>TX</th><th>Item</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXB000001</td><td>Prestação da casa</td><td class="r">R$ 588,66</td></tr>
+      <tr><td class="mono">TXB000002</td><td>Condomínio Bellagio</td><td class="r">R$ 210,00</td></tr>
+      <tr><td class="mono">TXB000003</td><td>Curso de inglês</td><td class="r">R$ 695,00</td></tr>
+      <tr><td class="mono">TXB000004</td><td>Água</td><td class="r">R$ 102,18</td></tr>
+      <tr><td class="mono">TXB000005</td><td>Gás</td><td class="r">R$ 24,02</td></tr>
+      <tr><td class="mono">TXB000006</td><td>Anderson Ramos</td><td class="r">R$ 210,00</td></tr>
+      <tr><td class="mono">TXB000007</td><td>FIES Vanessa</td><td class="r">R$ 245,00</td></tr>
+      <tr><td class="mono">TXB000008</td><td>Conselho Regional</td><td class="r">R$ 163,24</td></tr>
+      <tr><td class="mono">TXB000009</td><td>Energia (média)</td><td class="r">R$ 325,00</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>9 lançamentos</span><span class="total">R$ 2.563,10</span></div>
+    </div>
+
+    <div id="lrp" class="pane">
+      <table><thead><tr><th>TX</th><th>Compra</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXP000001</td><td>Teacher Matias</td><td class="mono">4/12</td><td class="r">R$ 120,00</td></tr>
+      <tr><td class="mono">TXP000002</td><td>DeckFriend</td><td class="mono">4/12</td><td class="r">R$ 58,64</td></tr>
+      <tr><td class="mono">TXP000003</td><td>Korpos Estética</td><td class="mono">7/12</td><td class="r">R$ 189,99</td></tr>
+      <tr><td class="mono">TXP000004</td><td>RL Artesão</td><td class="mono">2/5</td><td class="r">R$ 66,87</td></tr>
+      <tr><td class="mono">TXP000005</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 38,28</td></tr>
+      <tr><td class="mono">TXP000006</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 68,01</td></tr>
+      <tr><td class="mono">TXP000007</td><td>Mercado Livre MP</td><td class="mono">5/6</td><td class="r">R$ 48,33</td></tr>
+      <tr><td class="mono">TXP000008</td><td>Seguro Tokio Marine</td><td class="mono">7/10</td><td class="r">R$ 200,99</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000009</td><td>Aram Beach Hotel 🔚</td><td class="mono">2/2</td><td class="r">R$ 486,64</td></tr>
+      <tr><td class="mono">TXP000010</td><td>PicPay Wallace Patri</td><td class="mono">11/12</td><td class="r">R$ 183,47</td></tr>
+      <tr><td class="mono">TXP000015</td><td>Kinesioceteos</td><td class="mono">3/5</td><td class="r">R$ 74,85</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000011</td><td>Hub Smart Home 🔚</td><td class="mono">2/2</td><td class="r">R$ 36,49</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000012</td><td>Edilson Lourenço 🔚</td><td class="mono">2/2</td><td class="r">R$ 425,00</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000013</td><td>Silmara Macedo 🔚</td><td class="mono">2/2</td><td class="r">R$ 375,00</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000014</td><td>Hotmart Fernando 🔚</td><td class="mono">12/12</td><td class="r">R$ 42,00</td></tr>
+      </tbody></table>
+      <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto</div>
+      <div class="tfoot"><span>15 lançamentos · âmbar = última parcela</span><span class="total">R$ 2.414,56</span></div>
+    </div>
+
+    <div id="lrs" class="pane">
+      <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXS000001</td><td>iFood</td><td class="r">R$ 5,99</td></tr>
+      <tr><td class="mono">TXS000002</td><td>Claude</td><td class="r">R$ 110,00</td></tr>
+      <tr><td class="mono">TXS000003</td><td>Google Youtube</td><td class="r">R$ 7,99</td></tr>
+      <tr><td class="mono">TXS000004</td><td>Uber One</td><td class="r">R$ 21,90</td></tr>
+      <tr><td class="mono">TXS000005</td><td>ChatGPT</td><td class="r">R$ 39,99</td></tr>
+      <tr><td class="mono">TXS000006</td><td>Netflix</td><td class="r">R$ 72,80</td></tr>
+      <tr><td class="mono">TXS000007</td><td>YouTube Premium</td><td class="r">R$ 53,90</td></tr>
+      <tr><td class="mono">TXS000008</td><td>Fábio Sabino</td><td class="r">R$ 7,99</td></tr>
+      <tr><td class="mono">TXS000009</td><td>Amazon Prime</td><td class="r">R$ 19,90</td></tr>
+      <tr><td class="mono">TXS000010</td><td>Google MEGA</td><td class="r">R$ 30,99</td></tr>
+      <tr><td class="mono">TXS000011</td><td>Intelbras Cloud</td><td class="r">R$ 45,90</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>11 assinaturas</span><span class="total">R$ 417,35</span></div>
+    </div>
+
+    <div id="lrr" class="pane">
+      <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXR000001</td><td>Vivo</td><td class="r">R$ 523,00</td></tr>
+      <tr><td class="mono">TXR000002</td><td>Brisanet</td><td class="r">R$ 114,99</td></tr>
+      <tr><td class="mono">TXR000003</td><td>Digna</td><td class="r">R$ 152,41</td></tr>
+      <tr><td class="mono">TXR000004</td><td>Campo Santo da Paz</td><td class="r">R$ 77,79</td></tr>
+      <tr><td class="mono">TXR000005</td><td>Faculdade Engenharia</td><td class="r">R$ 441,33</td></tr>
+      <tr><td class="mono">TXR000006</td><td>New Car Rastreador</td><td class="r">R$ 59,99</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>6 recorrências</span><span class="total">R$ 1.369,51</span></div>
+    </div>
+
+    <div id="lrcon" class="pane">
+      <table><thead><tr><th>TX</th><th>Descrição</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXCON000001</td><td>Porto Consórcio (complementar)</td><td class="r">R$ 501,32</td></tr>
+      <tr><td class="mono">TXCON000002</td><td>Porto Consórcio (principal)</td><td class="r">R$ 1.449,45</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>2 lançamentos</span><span class="total">R$ 1.950,77</span></div>
+    </div>
+
+    <div id="lrc" class="pane">
+      <table><thead><tr><th>TX</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX22001</td><td>LM Service</td><td class="r">R$ 102,96</td></tr>
+      <tr><td class="mono">TX22002</td><td>Porto Gallo</td><td class="r">R$ 42,56</td></tr>
+      <tr><td class="mono">TX22003</td><td>Café da Villa</td><td class="r">R$ 150,00</td></tr>
+      <tr><td class="mono">TX22004</td><td>La Ursa</td><td class="r">R$ 146,62</td></tr>
+      <tr><td class="mono">TX22005</td><td>Cacau Show Café</td><td class="r">R$ 19,80</td></tr>
+      <tr><td class="mono">TX22006</td><td>Cacau Show Sorvete</td><td class="r">R$ 21,49</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>6 lançamentos · Reembolso pendente R$483,43</span><span class="total">R$ 483,43</span></div>
+    </div>
+
+    <div id="lrmp" class="pane">
+      <table><thead><tr><th>TX</th><th>Descrição</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXMP000001</td><td>Mercado Livre</td><td class="mono">3/6</td><td class="r">R$ 56,39</td></tr>
+      <tr><td class="mono">TXMP000002</td><td>Mercado Livre</td><td class="mono">6/12</td><td class="r">R$ 106,04</td></tr>
+      <tr><td class="mono">TXMP000003</td><td>Mercado Livre</td><td class="mono">6/8</td><td class="r">R$ 50,40</td></tr>
+      <tr class="last-parcel"><td class="mono">TXMP000004</td><td>Mercado Livre 🔚</td><td class="mono">6/6</td><td class="r">R$ 68,36</td></tr>
+      <tr><td class="mono">TXMP000005</td><td>Mercado Livre</td><td class="mono">10/24</td><td class="r">R$ 166,62</td></tr>
+      <tr><td class="mono">TXMP000006</td><td>Mercado Livre</td><td class="mono">3/6</td><td class="r">R$ 23,66</td></tr>
+      <tr><td class="mono">TXMP000007</td><td>Transporte Recife (volta)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
+      <tr><td class="mono">TXMP000008</td><td>Transporte Recife (ida)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
+      </tbody></table>
+      <div class="tfoot"><span>8 lançamentos · Fecha 29/07 · Vence 04/08</span><span class="total">R$ 1.749,35</span></div>
+    </div>
+
+    <div id="lrcv" class="pane">
+      <table><thead><tr><th>TX</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX28001</td><td>Pamonha e canjica Santo Antônio</td><td class="r" style="color:var(--red)">− R$ 70,00</td></tr>
+      <tr><td class="mono">TX28002</td><td>Pamonha e canjica Santo Antônio</td><td class="r" style="color:var(--red)">− R$ 60,00</td></tr>
+      <tr><td class="mono">TX28003</td><td>Devolução frango (mainha)</td><td class="r" style="color:var(--green)">+ R$ 64,00</td></tr>
+      <tr><td class="mono">TX000039</td><td>Empréstimo pessoal ao pai (Edgley)</td><td class="r" style="color:var(--red)">− R$ 150,00</td></tr>
+      <tr><td class="mono">TX000040</td><td>Devolução empréstimo (pai)</td><td class="r" style="color:var(--green)">+ R$ 150,00</td></tr>
+      <tr><td class="mono">TX000038</td><td>PIX Cleston Da Silva</td><td class="r" style="color:var(--red)">− R$ 33,00</td></tr>
+      <tr><td class="mono">TX000044</td><td>Pagamento Magalupay</td><td class="r" style="color:var(--red)">− R$ 112,61</td></tr>
+      <tr><td class="mono">TX000045</td><td>Depósito teste Necton</td><td class="r" style="color:var(--red)">− R$ 1,00</td></tr>
+      <tr><td class="mono">TX000037</td><td>Sinal pediatra Júlio (via Vanessa)</td><td class="r" style="color:var(--red)">− R$ 50,00</td></tr>
+      </tbody></table>
+      <div class="callout ok">PIX Wallace extinta em 13/07/2026: 6 lançamentos migrados para Caixa Variável, saldo de R$40,00 transferido integralmente.</div>
+      <div class="tfoot"><span>Saídas R$476,61 · Entradas R$214,00</span><span class="total">Líquido − R$262,61</span></div>
+    </div>
+
+    <div id="lrei" class="pane">
+      <table><thead><tr><th>ID</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>
+      <tr><td class="mono">LREI0001</td><td>CC-202 · Manutenção</td><td>CC-101 · Caixa Variável</td><td class="r">R$ 178,64</td><td><span class="badge br">Ativo</span></td></tr>
+      </tbody></table>
+      <div class="callout warn">Recompor via reembolso Wärtsilä ou salário de 25/07/2026.</div>
+    </div>
+
+    <div id="lrdoacao" class="pane">
+      <table><thead><tr><th>TX</th><th>Descrição</th><th>Responsável</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXRP2P001</td><td>Crédito P2P doado à Vanessa</td><td>Wallace</td><td class="r">R$ 11,00</td></tr>
+      </tbody></table>
+      <div class="callout ok">Custo do Wallace (1/10 do capital P2P de R$110,00). Não gera receita, não entra no total de compras da Vanessa (LRV).</div>
+      <div class="tfoot"><span>1 lançamento</span><span class="total">R$ 11,00</span></div>
+    </div>
+
+    <div id="lrpv" class="pane">
+      <table><thead><tr><th>TX</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX000042</td><td>Transferência Pix Geral (autonomia)</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 300,00</td></tr>
+      <tr><td class="mono">TX000043</td><td>PIX diversos Vanessa</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 30,00</td></tr>
+      <tr><td class="mono">TX000055</td><td>Recebido de Wallace (pediatra Júlio)</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 50,00</td></tr>
+      <tr><td class="mono">TX000046</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 62,00</td></tr>
+      <tr><td class="mono">TX000047</td><td>PIX Vitoria Drieli</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 111,00</td></tr>
+      <tr><td class="mono">TX000048</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 44,00</td></tr>
+      <tr><td class="mono">TX000049</td><td>PIX para Wallace</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 30,00</td></tr>
+      <tr><td class="mono">TX000050</td><td>PIX Vitoria Drieli</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 26,00</td></tr>
+      <tr><td class="mono">TX000051</td><td>PIX Rebeca de Souza Oliveira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 31,50</td></tr>
+      <tr><td class="mono">TX000052</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 68,00</td></tr>
+      <tr><td class="mono">TX000053</td><td>PIX Vanessa - uso próprio</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 9,36</td></tr>
+      <tr><td class="mono">TX000054</td><td>H57 Store Minimercados</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 14,99</td></tr>
+      <tr><td class="mono">TX000056</td><td>Sinal pediatra Júlio (repasse)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 50,00</td></tr>
+      </tbody></table>
+      <div class="callout ok">Saldo real da Caixa Pix Geral (confirmado no app, 13/07/2026): <strong>R$ 226,52</strong>. O total abaixo é só o fluxo líquido destes 13 PIX específicos, não o saldo da caixa.</div>
+      <div class="tfoot"><span>13 lançamentos (fluxo do período)</span><span class="total">− R$ 66,85</span></div>
+    </div>
+  </div>
+
+  <!-- 16 -->
+  <div class="section-num"><span class="n">16</span><h2>Meta de investimento</h2></div>
+  <div class="card" style="border-left:3px solid var(--green)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Meta mensal (20% do salário)</div><div style="font-weight:600">R$ 6.741,76</div></div>
+      <span class="badge bg">Meta superada</span>
+    </div>
+    <div class="row"><span class="k">Valor separado (BTG 25/06)</span><span class="v" style="color:var(--green)">R$ 11.700,51</span></div>
+    <div class="row"><span class="k">Excedente acima da meta</span><span class="v" style="color:var(--green)">R$ 4.958,75</span></div>
+  </div>
+
+  <!-- 17 -->
+  <div class="section-num"><span class="n">17</span><h2>Carteira de opções</h2></div>
+  <div class="card">
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas</div>
+    <div class="grid-2" style="margin-bottom:0.7rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital travado</div><div style="font-weight:600;font-size:1.1rem">R$ 19.422,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro em aberto</div><div style="font-weight:600;font-size:1.1rem;color:var(--green)">R$ 94,81</div></div>
+    </div>
+    <table><thead><tr><th>Ativo</th><th>Strike</th><th>Venc.</th><th>Contratos</th><th class="r">Prêmio</th><th class="r">Lucro</th></tr></thead><tbody>
+    <tr><td>PETR4 PUT</td><td>36,86</td><td>JUL/26</td><td style="text-align:center">1</td><td class="r">R$ 39,97</td><td class="r" style="color:var(--green)">R$ 19,97</td></tr>
+    <tr><td>PETR4 PUT</td><td>36,86</td><td>AGO/26</td><td style="text-align:center">2</td><td class="r">R$ 154,84</td><td class="r" style="color:var(--green)">R$ 74,84</td></tr>
+    <tr><td>ITUB4 PUT</td><td>41,82</td><td>21/08/26</td><td style="text-align:center">2</td><td class="r">R$ 177,04</td><td class="r" style="color:var(--text-dim)">R$ 0,00</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- 18 -->
+  <div class="section-num"><span class="n">18</span><h2>Operações P2P</h2></div>
+  <div class="card">
+    <div class="grid-4">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital total</div><div style="font-weight:600">R$ 110,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600">9 / 10</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div style="font-weight:600">R$ 99,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div style="font-weight:600">R$ 0,00</div></div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Custo R$11,00/crédito · Venda R$20,00/crédito (quando ocorrer) · Nenhuma venda deste lote ainda · 1 crédito doado à Vanessa (13/07)</div>
+  </div>
+
+  <!-- 19 -->
+  <div class="section-num"><span class="n">19</span><h2>Reembolsos Wärtsilä</h2></div>
+  <div class="card">
+    <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)">R$ 2.485,39</span></div>
+    <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600">R$ 2.429,59</span></div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos inclui o reembolso de R$1.805,39 confirmado hoje (14/07). A receber é a última solicitação (Amount Due Employee), ainda sem data de pagamento — não distinguimos mais "pendente" de "previsto", é um único valor.</div>
+  </div>
+
+  <!-- 20 -->
+  <div class="section-num"><span class="n">20</span><h2>Indicadores e evolução da necessidade</h2></div>
+  <div class="grid-3" style="margin-bottom:1rem">
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total operacional</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem">R$ 11.045,10</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem">R$ 3.200,00</div><div style="font-size:0.66rem;color:var(--text-dim)">Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Necessidade total (bruta)</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem">R$ 14.245,10</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
+  </div>
+  <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div style="font-size:0.78rem;color:var(--text-mid)">Necessidade líquida do salário (dia 25)</div>
+      <span class="badge bg">Já garantido: R$ 471,47</span>
+    </div>
+    <div style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem">R$ 13.773,63</div>
+    <div style="font-size:0.72rem;color:var(--text-dim)">Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido nas Caixas Mercado Pago e Visa Infinite. Wärtsilä nunca entra nessa conta — é reembolsável, sempre R$0 de impacto. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026, cobrindo 100% do provisionamento não-reembolsável do Mercado Pago.</div>
+  </div>
+  <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div style="font-size:0.78rem;color:var(--text-mid)">Necessidade líquida do salário — próximos ciclos</div>
+      <span class="badge bg">Queda total: R$2.735,92</span>
+    </div>
+    <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$471,47) e boletos/assinaturas/recorrências/consórcios estáveis.</div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div style="font-size:0.78rem;color:var(--text-mid)">Evolução do Total Operacional conforme parcelas encerram</div>
+      <span class="badge bg">Alívio R$2.735,92 até Mar/27</span>
+    </div>
+    <div class="chart-box"><canvas id="cEvol"></canvas></div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">O que é: TOTAL_OPERACIONAL (boletos + parcelamentos Visa Infinite + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais) mês a mês. Recalculado em 14/07/2026 simulando parcela por parcela (LRP) e o aporte real de cada caixa patrimonial (zera quando atinge a meta — Aniversário Júlio para em Set/26, Combustível e Churrasco reduzem entre Set-Dez/26). Premissa: boletos, assinaturas, recorrências e consórcios tratados como constantes (sem dados de vencimento próprios ainda).</div>
+  </div>
+
+  <!-- 21 -->
+  <div class="section-num"><span class="n">21</span><h2>Resumo executivo</h2></div>
+  <div class="card">
+    <div class="row"><span class="k" style="font-weight:600">Patrimônio financeiro</span><span style="font-size:1.1rem;font-weight:700">R$ 115.448,48</span></div>
+    <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb">11,54%</span></div>
+    <div class="row"><span class="k">Modo operacional</span><span class="badge bg">Alto</span></div>
+    <div class="row"><span class="k">Visa Infinite</span><span class="v">R$ 8.551,76</span></div>
+    <div class="row"><span class="k">Mercado Pago</span><span class="v">R$ 1.749,35</span></div>
+    <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v">R$ 656,67</span></div>
+    <div class="row"><span class="k">ECC</span><span class="v" style="color:var(--green)">Zerado</span></div>
+    <div class="row"><span class="k">Total operacional</span><span class="v">R$ 11.045,10</span></div>
+    <div class="row"><span class="k">Total op. em Mar/27</span><span class="v" style="color:var(--green)">R$ 8.309,18</span></div>
+    <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba">8,27%</span></div>
+    <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba">0,21%</span></div>
+    <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba">5,46%</span></div>
+    <div class="row"><span class="k">Meta investimento</span><span class="badge bg">Superada +R$4.958</span></div>
+    <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge br">LREI0001 R$178,64</span></div>
+  </div>
+
+  <div class="callout ok" style="margin-top:1.5rem">
+    ECC resolvido via empréstimo interno (LREI0001). Pendência de R$995,20 do teto extraordinário da Caixa Eventos (teto máximo, não valor fixo) a cobrir prioritariamente com salário de 25/07.
+  </div>
+
+  
+
+
+  </div>
+
+  <div id="graficos" class="master-pane">
+
+
+    <!-- 1 -->
+  <div class="section-num"><span class="n">01</span><h2>Composição do Total Operacional — R$ 11.045,10</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="chart-box tall"><canvas id="g_cTotalOp"></canvas></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Detalhamento por categoria</div>
+      <div class="chart-box wide"><canvas id="g_cTotalOpBar"></canvas></div>
+      <div class="total-line"><span>Total operacional</span><span class="v">R$ 11.045,10</span></div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section-num"><span class="n">02</span><h2>Composição da fatura Visa Infinite — R$ 8.551,76</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="chart-box tall"><canvas id="g_cVisa"></canvas></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Detalhamento por categoria</div>
+      <div class="chart-box wide"><canvas id="g_cVisaBar"></canvas></div>
+      <div class="total-line"><span>Total comprometido</span><span class="v">R$ 8.551,76</span></div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section-num"><span class="n">03</span><h2>Patrimônio financeiro — R$ 115.448,48</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="chart-box tall"><canvas id="g_cPatrim"></canvas></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Progresso das metas patrimoniais</div>
+      <div class="chart-box wide"><canvas id="g_cMetas"></canvas></div>
+      <div class="legend-note">Meta do Milhão · Projeto Casa Nova · Consórcio Auto · Escola de Júlio</div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section-num"><span class="n">04</span><h2>Caixa variável — antes e depois do empréstimo interno</h2></div>
+  <div class="card">
+    <div class="chart-box"><canvas id="g_cVariavel"></canvas></div>
+    <div class="legend-note">LREI0001: Caixa Manutenção emprestou R$178,64 para resolver o ECC do ciclo</div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section-num"><span class="n">05</span><h2>Necessidade líquida do salário — próximos ciclos</h2></div>
+  <div class="card">
+    <div class="chart-box"><canvas id="g_cNecessidadeLiquida"></canvas></div>
+    <div class="total-line"><span>Queda até Mar/27</span><span class="v" style="color:var(--green)">− R$ 2.735,92</span></div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section-num"><span class="n">06</span><h2>Evolução do Total Operacional — Jul/26 a Mar/27</h2></div>
+  <div class="card">
+    <div class="chart-box"><canvas id="g_cEvol"></canvas></div>
+    <div class="total-line"><span>Alívio estrutural acumulado</span><span class="v" style="color:var(--green)">− R$ 2.735,92</span></div>
+  </div>
+
+  <!-- 7 -->
+  <div class="section-num"><span class="n">07</span><h2>Caixas operacionais vs metas</h2></div>
+  <div class="card">
+    <div class="chart-box tall"><canvas id="g_cCaixas"></canvas></div>
+  </div>
+
+  
+
+
+  </div>
+
+  <div id="cenarios" class="master-pane">
+    <div class="section-num"><span class="n">01</span><h2>Sua renda real (últimos 12 meses) — quanto você precisa ganhar</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">4 referências: quando você não trabalha, o ponto de empate, sua média real e a média dos seus meses bons. Verde = sobra. Vermelho = falta.</div>
+      <div class="chart-box"><canvas id="cCenarioSalario"></canvas></div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong>: Necessidade Total (R$14.245,10) − Reembolsos (R$2.429,59). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$18.283,64 · Desvio padrão: R$9.273,21 (44,7% da média — renda muito instável mês a mês).</div>
+    </div>
+
+    <div class="section-num"><span class="n">02</span><h2>Pontos de virada (dados reais)</h2></div>
+    <div class="grid-3" style="margin-bottom:1rem">
+      <div class="card" style="border-left:3px solid var(--red)">
+        <div style="font-size:0.72rem;color:var(--text-mid)">Pior mês já recebido</div>
+        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--red)">R$ 7.649,62</div>
+        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: −R$4.165,89. Modo Crítico — já aconteceu de verdade.</div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--amber)">
+        <div style="font-size:0.72rem;color:var(--text-mid)">Ponto de equilíbrio (saldo=0)</div>
+        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0">R$ 11.815,51</div>
+        <div style="font-size:0.68rem;color:var(--text-dim)">4 dos 12 meses reais ficaram abaixo disso.</div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--green)">
+        <div style="font-size:0.72rem;color:var(--text-mid)">Média real (12 meses)</div>
+        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--green)">R$ 20.740,48</div>
+        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: +R$8.924,97. Alto na média — mas com desvio grande.</div>
+      </div>
+    </div>
+
+    <div class="section-num"><span class="n">03</span><h2>O que NUNCA é cortado, mesmo no cenário crítico</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+        <span class="badge bg">Boletos</span>
+        <span class="badge bg">Parcelas (Visa Infinite)</span>
+        <span class="badge bg">Assinaturas</span>
+        <span class="badge bg">Recorrências</span>
+        <span class="badge bg">Consórcios</span>
+        <span class="badge bg" style="border-color:var(--green);color:var(--green)">Escola Júlio (preservada sempre que possível)</span>
+      </div>
+      <div class="total-line" style="margin-top:0.8rem"><span>Soma do que não pode cortar (Boletos+Parcelas+Assinaturas+Recorrências+Consórcios)</span><span class="v" style="color:var(--red)">R$ 8.715,29</span></div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Este é o piso absoluto: mesmo no cenário mais crítico, R$8.715,29 têm que sair todo ciclo, custe o que custar. Ordem de corte quando o modo é Baixo/Crítico: 1) Churrasco → 2) Combustível → 3) Eventos → 4) Manutenção.</div>
+    </div>
+
+    <div class="section-num"><span class="n">04</span><h2>Reserva de Emergência — quanto tempo aguenta</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Dois cenários: pagando tudo normalmente (Necessidade Total) vs. desemprego extremo, cortando tudo que dá e pagando só o piso do campo 03.</div>
+      <div class="grid-2" style="margin-bottom:0.8rem">
+        <div class="card" style="border-left:3px solid var(--amber)">
+          <div style="font-size:0.72rem;color:var(--text-mid)">Cenário normal (paga tudo)</div>
+          <div style="font-weight:700;font-size:1.2rem;margin:0.3rem 0">R$ 14.245,10 <span style="font-size:0.7rem;font-weight:400;color:var(--text-dim)">/ciclo</span></div>
+          <div style="font-weight:600;color:var(--amber)">≈ 7,02 ciclos (~7 meses)</div>
+        </div>
+        <div class="card" style="border-left:3px solid var(--red)">
+          <div style="font-size:0.72rem;color:var(--text-mid)">Desemprego extremo (só o piso)</div>
+          <div style="font-weight:700;font-size:1.2rem;margin:0.3rem 0">R$ 8.715,29 <span style="font-size:0.7rem;font-weight:400;color:var(--text-dim)">/ciclo</span></div>
+          <div style="font-weight:600;color:var(--red)">≈ 11,48 ciclos (~11 meses)</div>
+        </div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-dim)">Reserva atual: R$100.066,05. No cenário de desemprego total (cortando Custos Variáveis, PIX Vanessa e todas as caixas patrimoniais, pagando só Boletos+Parcelas+Assinaturas+Recorrências+Consórcios), a Reserva aguenta ~4,5 meses a mais que pagando tudo normal. Regra do sistema: Reserva de Emergência e Escola de Júlio nunca podem ser credoras de empréstimo interno, nem nesse cenário.</div>
+    </div>
+
+    <div class="section-num"><span class="n">05</span><h2>Estimador de Salário do Mês</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Como funciona: você manda a folha de ponto (horas por categoria) em algum dia do mês, eu aplico as taxas abaixo — extraídas por regressão dos seus 12 contracheques reais — e gero o líquido estimado antes do pagamento oficial. Quando o contracheque chegar, você confere e eu refino as taxas se houver desvio.</div>
+      <div class="row"><span class="k">Status da última estimativa</span><span class="v" style="color:var(--text-dim)">Aguardando folha de ponto</span></div>
+      <div class="total-line" style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border)"><span>Componentes de alta confiança (fórmula exata)</span><span></span></div>
+      <div class="row"><span class="k">Periculosidade Campo II</span><span class="v">30% do salário base</span></div>
+      <div class="row"><span class="k">Adicional de Supervisão</span><span class="v">5% do salário base</span></div>
+      <div class="row"><span class="k">INSS (teto atual)</span><span class="v">R$ 988,07 fixo</span></div>
+      <div class="row"><span class="k">IRRF</span><span class="v">Base × 27,5% − R$908,73</span></div>
+      <div class="total-line" style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border)"><span>Taxas médias por hora (confiança média, ±15%)</span><span></span></div>
+      <div class="grid-3">
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">Hora extra 50%</div><div style="font-weight:600">R$ 121,50/h</div></div>
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">Hora extra 100%</div><div style="font-weight:600">R$ 160,62/h</div></div>
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">Banco de horas 50%</div><div style="font-weight:600">R$ 123,44/h</div></div>
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">Adicional noturno</div><div style="font-weight:600">R$ 15,97/h</div></div>
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">Sobreaviso</div><div style="font-weight:600">R$ 72,76/h</div></div>
+        <div><div style="font-size:0.68rem;color:var(--text-dim)">DSR (fator aprox.)</div><div style="font-weight:600">×1,20</div></div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.7rem"><strong style="color:var(--green)">✓ Confirmado:</strong> quando você fica em casa sem trabalho (sem ir a campo), a Periculosidade não é paga — regra, não erro. Fórmula desse cenário: Base + Adicional Supervisão (5%) + Auxílio Creche, sem Periculosidade. Validada com exatidão contra set/25 (zero desvio). Projetada pro salário base atual (R$10.913,66): líquido estimado <strong>≈ R$8.006,87</strong>. Você avisa quando um mês se enquadra nesse cenário.</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Sistema Wallace Lira · ERP V10 · Layout V1.8 oficial congelado</span>
+    <span>Próxima TX: TX000080</span>
+  </footer>
+
+</div>
+
+<script>
+// ===== Datas dinâmicas do ciclo (recalcula toda vez que a página abre) =====
+(function(){
+  const inicio = new Date(2026,5,25); // 25/06/2026 (mês 0-indexed)
+  const fim = new Date(2026,6,24);    // 24/07/2026
+  const hoje = new Date();
+  const diaMs = 86400000;
+  const totalDias = Math.round((fim-inicio)/diaMs);
+  let decorridos = Math.round((hoje-inicio)/diaMs);
+  decorridos = Math.max(0, Math.min(decorridos, totalDias));
+  const restantes = totalDias - decorridos;
+  const pct = Math.round(decorridos/totalDias*100);
+  const fmtData = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  document.addEventListener('DOMContentLoaded', ()=>{
+    set('diasDecorridos', decorridos);
+    set('diasRestantes', restantes);
+    set('hojeData', fmtData(hoje));
+    set('atualizadoEm', 'Atualizado em '+fmtData(hoje));
+    const bar = document.getElementById('cicloProgress');
+    if(bar) bar.style.width = pct+'%';
+  });
+})();
+
+function showMaster(id, btn){
+  document.querySelectorAll('.master-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.master-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function showLR(id, btn){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const valueLeaderPlugin = {
+  id: 'valueLeader',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    const values = chart.data.datasets[0].data;
+    ctx.save();
+    meta.data.forEach((point, i) => {
+      const x = point.x, y = point.y;
+      const lineTop = y - 16;
+      ctx.strokeStyle = 'rgba(169,167,159,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x, lineTop);
+      ctx.stroke();
+      const label = 'R$ ' + Math.round(values[i]).toLocaleString('pt-BR');
+      ctx.fillStyle = '#e8e6df';
+      ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, lineTop - 4);
+    });
+    ctx.restore();
+  }
+};
+
+(function(){
+const muted = '#a9a79f', dim='#6f6d66', grid='#2a2d31';
+Chart.defaults.color = muted;
+Chart.defaults.font.family = "-apple-system, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 11;
+function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+new Chart(document.getElementById('cPatrim'), {
+  type:'doughnut',
+  data:{labels:['Reserva','BTG/Necton','Caixa Lance','Escola Júlio'],
+    datasets:[{data:[100066.05,14673.40,204.04,504.56],
+    backgroundColor:['#3987e5','#9085e9','#34c98a','#e8a63a'],borderColor:'#16181b',borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
+});
+
+new Chart(document.getElementById('cVisa'), {
+  type:'doughnut',
+  data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+    datasets:[{data:[2339.71,1950.77,1608.23,1369.51,483.43,417.35,382.76],
+    backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],
+    borderColor:'#16181b',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:8,font:{size:9}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
+});
+
+new Chart(document.getElementById('cVariavel'), {
+  type:'bar',
+  data:{labels:['Saldo real','Comprometido','Disponível'],
+    datasets:[{data:[2348.20,2036.92,311.28],
+    backgroundColor:['#3987e5','#e8a63a','#34c98a'],borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
+});
+
+new Chart(document.getElementById('cEvol'), {
+  type:'line',
+  plugins:[valueLeaderPlugin],
+  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+    datasets:[{data:[11045.10,9679.97,9148.17,8867.03,8599.17,8499.17,8309.18,8309.18],
+    borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
+    borderWidth:2,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
+    pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},min:7000,max:11600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+});
+
+new Chart(document.getElementById('cNecessidadeLiquida'), {
+  type:'line',
+  plugins:[valueLeaderPlugin],
+  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+    datasets:[{data:[13773.63,12408.50,11876.70,11595.56,11327.70,11227.70,11037.71,11037.71],
+    borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
+    borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
+    pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},min:10500,max:14400,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+});
+})();
+
+(function(){
+const muted='#a9a79f', dim='#6f6d66', grid='#2a2d31', surface='#16181b';
+Chart.defaults.color = muted;
+Chart.defaults.font.family = "-apple-system, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 11;
+function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+// 1. Total Operacional
+const totalOpLabels = ['Boletos','Parcelas','Consórcios','Recorrências','Aportes Pat.','Prov. MP','Assinaturas'];
+const totalOpData = [2563.10,2339.71,1950.77,1369.51,1133.34,471.47,417.35];
+const totalOpColors = ['#3987e5','#9085e9','#e2554f','#34c98a','#e8a63a','#6f6d66','#e879b0'];
+
+new Chart(document.getElementById('g_cTotalOp'), {
+  type:'doughnut',
+  data:{labels:totalOpLabels, datasets:[{data:totalOpData, backgroundColor:totalOpColors, borderColor:surface, borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:9,padding:12,font:{size:10}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)+' ('+(c.raw/10245.25*100).toFixed(1)+'%)'}}}}
+});
+
+new Chart(document.getElementById('g_cTotalOpBar'), {
+  type:'bar',
+  data:{labels:totalOpLabels, datasets:[{data:totalOpData, backgroundColor:totalOpColors, borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{color:grid},ticks:{font:{size:9},callback:v=>'R$'+Math.round(v/100)/10+'k'}},
+      y:{grid:{display:false},ticks:{font:{size:10}}}}}
+});
+
+// 2. Visa Infinite
+const visaLabels = ['Parcelas','Consórcios','Compras Wallace','Recorrências','Corporativo','Assinaturas','Compras Vanessa'];
+const visaData = [2339.71,1950.77,1608.23,1369.51,483.43,417.35,382.76];
+const visaColors = ['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'];
+
+new Chart(document.getElementById('g_cVisa'), {
+  type:'doughnut',
+  data:{labels:visaLabels, datasets:[{data:visaData, backgroundColor:visaColors, borderColor:surface, borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:9,padding:10,font:{size:9}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)+' ('+(c.raw/8175.12*100).toFixed(1)+'%)'}}}}
+});
+
+new Chart(document.getElementById('g_cVisaBar'), {
+  type:'bar',
+  data:{labels:visaLabels, datasets:[{data:visaData, backgroundColor:visaColors, borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{color:grid},ticks:{font:{size:9},callback:v=>'R$'+Math.round(v/100)/10+'k'}},
+      y:{grid:{display:false},ticks:{font:{size:9}}}}}
+});
+
+// 3. Patrimônio
+new Chart(document.getElementById('g_cPatrim'), {
+  type:'doughnut',
+  data:{labels:['Reserva Emergência','BTG/Necton (LFTS11)','Caixa Lance','Escola de Júlio'],
+    datasets:[{data:[100066.05,14673.40,204.04,504.56],
+    backgroundColor:['#3987e5','#9085e9','#34c98a','#e8a63a'],borderColor:surface,borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:9,padding:12,font:{size:10}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)+' ('+(c.raw/115448.05*100).toFixed(1)+'%)'}}}}
+});
+
+new Chart(document.getElementById('g_cMetas'), {
+  type:'bar',
+  data:{labels:['Meta Milhão','Casa Nova','Consórcio Auto','Escola Júlio'],
+    datasets:[{data:[11.54,8.27,73.94,5.46],
+    backgroundColor:['#9085e9','#3987e5','#34c98a','#e8a63a'],borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'%'}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},max:100,ticks:{callback:v=>v+'%',font:{size:10}}}}}
+});
+
+// 4. Caixa Variável
+new Chart(document.getElementById('g_cVariavel'), {
+  type:'bar',
+  data:{labels:['Saldo real','Comprometido (LRW+LRV)','Disponível'],
+    datasets:[{data:[2348.20,2036.92,311.28],
+    backgroundColor:['#3987e5','#e8a63a','#34c98a'],borderRadius:6}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:11}}},
+      y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
+});
+
+// 5. Evolução
+new Chart(document.getElementById('g_cEvol'), {
+  type:'line',
+  plugins:[valueLeaderPlugin],
+  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+    datasets:[{label:'Total Operacional', data:[11045.10,9679.97,9148.17,8867.03,8599.17,8499.17,8309.18,8309.18],
+    borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.1)',
+    borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:surface,
+    pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:11}}},
+      y:{grid:{color:grid},min:7000,max:11600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+});
+
+// 6. Caixas vs Metas
+new Chart(document.getElementById('g_cCaixas'), {
+  type:'bar',
+  data:{labels:['Boletos','PIX Vanessa','Wärtsilä','Manutenção','Eventos','Escola Júlio','Churrasco','Saúde Família','Aniversário Júlio','Seguro/Emplac.'],
+    datasets:[
+      {label:'Saldo atual', data:[819.74,493.07,656.67,0,0,504.56,0,0,0,0], backgroundColor:'#3987e5', borderRadius:4, barThickness:16},
+      {label:'Meta', data:[2600,1200,680.10,2000,2000,9236,500,1600,400,5100], backgroundColor:'#e8a63a', borderRadius:4, barThickness:16}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},
+    tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:9},maxRotation:25}},
+      y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
+});
+
+// 5. Necessidade Líquida do Salário
+new Chart(document.getElementById('g_cNecessidadeLiquida'), {
+  type:'line',
+  plugins:[valueLeaderPlugin],
+  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+    datasets:[{data:[13773.63,12408.50,11876.70,11595.56,11327.70,11227.70,11037.71,11037.71],
+    borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
+    borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
+    pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},min:10500,max:14400,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+});
+})();
+
+(function(){
+const grid='#2a2d31';
+function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+const cenarioLabelPlugin = {
+  id:'cenarioLabel',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    const values = chart.data.datasets[0].data;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = "600 9px -apple-system, 'Segoe UI', Roboto, sans-serif";
+    meta.data.forEach((bar,i)=>{
+      const v = values[i];
+      const y = Math.max(bar.y-8, 12);
+      ctx.fillStyle = '#e8e6df';
+      ctx.fillText('R$ '+Math.round(v).toLocaleString('pt-BR'), bar.x, y);
+    });
+    ctx.restore();
+  }
+};
+new Chart(document.getElementById('cCenarioSalario'), {
+  type:'bar',
+  plugins:[cenarioLabelPlugin],
+  data:{labels:['Não trabalha','Ponto de\nempate','Média\n(sobra)','Meses bons\n(média)'],
+    datasets:[{data:[8006.87,11815.51,20740.48,29424.00],
+    backgroundColor:['#e0574c','#e8a63a','#34c98a','#34c98a'],
+    borderRadius:4,barThickness:56}]},
+
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24,bottom:8}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      title:c=>c[0].label.replace('\n',' '),
+      label:c=>fmt(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10.5}}},
+      y:{grid:{color:grid},max:22000,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+});
+})();
+</script>
+</body>
+</html>
