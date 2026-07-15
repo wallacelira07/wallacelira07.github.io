@@ -96,17 +96,6 @@
             border-radius: 5px;
         }
 
-        .success-message {
-            color: #27ae60;
-            font-size: 14px;
-            margin-top: 10px;
-            text-align: center;
-            display: none;
-            padding: 10px;
-            background: #d5f4e6;
-            border-radius: 5px;
-        }
-
         /* TELA DO PAINEL (depois do login) */
         #dashboardScreen {
             display: none;
@@ -155,22 +144,6 @@
             overflow: auto;
         }
 
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         /* RESPONSIVO */
         @media (max-width: 600px) {
             #loginScreen {
@@ -195,14 +168,13 @@
         <h1>🔐 Sistema Wallace Lira</h1>
         <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" placeholder="seu@email.com" required autocomplete="email">
+            <input type="email" id="email" placeholder="seu@email.com" required>
         </div>
         <div class="form-group">
             <label for="password">Senha</label>
-            <input type="password" id="password" placeholder="Sua senha" required autocomplete="current-password">
+            <input type="password" id="password" placeholder="Sua senha" required>
         </div>
         <button id="loginBtn" type="button">Entrar</button>
-        <div class="success-message" id="successMessage"></div>
         <div class="error-message" id="errorMessage"></div>
     </div>
 
@@ -220,66 +192,50 @@
         </div>
     </div>
 
-    <!-- FIREBASE SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <!-- FIREBASE COMPAT SDK (compatível com GitHub Pages) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script>
         let auth = null;
         let firebaseReady = false;
 
-        // ===== INICIALIZAR FIREBASE =====
-        function initializeFirebase() {
-            if (typeof firebase === 'undefined') {
-                console.log('Firebase ainda não carregou, tentando novamente...');
-                setTimeout(initializeFirebase, 300);
-                return;
-            }
+        // Configuração Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvXsD2v_AGx3vN3kM2z_uIllkRO-Lr2pc",
+            authDomain: "sistema-wallace-lira.firebaseapp.com",
+            projectId: "sistema-wallace-lira",
+            storageBucket: "sistema-wallace-lira.firebasestorage.app",
+            messagingSenderId: "648799873363",
+            appId: "1:648799873363:web:28e6796ee70afc3a4b99a6"
+        };
 
-            console.log('✅ Firebase SDK carregado!');
+        // Inicializar Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            firebaseReady = true;
+            console.log('✅ Firebase inicializado!');
 
-            const firebaseConfig = {
-                apiKey: "AIzaSyCvXsD2v_AGx3vN3kM2z_uIllkRO-Lr2pc",
-                authDomain: "sistema-wallace-lira.firebaseapp.com",
-                projectId: "sistema-wallace-lira",
-                storageBucket: "sistema-wallace-lira.firebasestorage.app",
-                messagingSenderId: "648799873363",
-                appId: "1:648799873363:web:28e6796ee70afc3a4b99a6"
-            };
-
-            try {
-                firebase.initializeApp(firebaseConfig);
-                auth = firebase.auth();
-                firebaseReady = true;
-                console.log('✅ Firebase inicializado com sucesso!');
-
-                // Verificar se já está logado
-                auth.onAuthStateChanged(user => {
-                    if (user) {
-                        console.log('Usuário já logado:', user.email);
-                        showDashboard(user.email);
-                    } else {
-                        console.log('Nenhum usuário logado');
-                        showLoginScreen();
-                    }
-                });
-            } catch (error) {
-                console.error('❌ Erro ao inicializar Firebase:', error);
-                showErrorMessage('Erro ao conectar com o Firebase. Tente recarregar a página.');
-            }
+            // Monitorar estado do usuário
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    console.log('Usuário logado:', user.email);
+                    showDashboard(user.email);
+                } else {
+                    console.log('Nenhum usuário logado');
+                    showLoginScreen();
+                }
+            });
+        } catch (error) {
+            console.error('❌ Erro ao inicializar Firebase:', error);
+            showErrorMessage('Erro ao conectar com o Firebase');
         }
 
-        // Chamar quando a página carregar
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeFirebase);
-        } else {
-            initializeFirebase();
-        }
-
-        // ===== FUNÇÃO DE LOGIN =====
+        // FUNÇÃO DE LOGIN
         function login() {
             if (!firebaseReady || !auth) {
-                showErrorMessage('Firebase não está pronto. Aguarde alguns segundos e tente novamente.');
+                showErrorMessage('Sistema não está pronto. Aguarde...');
                 return;
             }
 
@@ -288,145 +244,97 @@
             const errorDiv = document.getElementById('errorMessage');
             const loginBtn = document.getElementById('loginBtn');
 
-            // Limpar mensagens anteriores
             errorDiv.style.display = 'none';
             errorDiv.textContent = '';
 
-            // Validação
             if (!email || !password) {
                 showErrorMessage('Preencha email e senha');
                 return;
             }
 
-            if (!email.includes('@')) {
-                showErrorMessage('Email inválido');
-                return;
-            }
-
-            // Desabilitar botão e mostrar carregando
             loginBtn.disabled = true;
             loginBtn.textContent = 'Entrando...';
 
-            // Autenticar
             auth.signInWithEmailAndPassword(email, password)
-                .then(userCredential => {
-                    console.log('✅ Login bem-sucedido:', userCredential.user.email);
-                    showDashboard(userCredential.user.email);
+                .then(function(result) {
+                    console.log('✅ Login bem-sucedido');
+                    showDashboard(result.user.email);
                 })
-                .catch(error => {
+                .catch(function(error) {
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'Entrar';
-                    console.error('❌ Erro no login:', error);
+                    console.error('❌ Erro:', error.code);
 
-                    let mensagem = 'Erro ao fazer login';
-                    if (error.code === 'auth/user-not-found') {
-                        mensagem = 'Usuário não encontrado';
-                    } else if (error.code === 'auth/wrong-password') {
-                        mensagem = 'Senha incorreta';
-                    } else if (error.code === 'auth/invalid-email') {
-                        mensagem = 'Email inválido';
-                    } else if (error.code === 'auth/user-disabled') {
-                        mensagem = 'Usuário desativado';
-                    } else if (error.code === 'auth/too-many-requests') {
-                        mensagem = 'Muitas tentativas. Tente novamente mais tarde';
-                    } else {
-                        mensagem = error.message || 'Erro desconhecido';
-                    }
-                    showErrorMessage(mensagem);
+                    let msg = 'Erro ao fazer login';
+                    if (error.code === 'auth/user-not-found') msg = 'Usuário não encontrado';
+                    else if (error.code === 'auth/wrong-password') msg = 'Senha incorreta';
+                    else if (error.code === 'auth/invalid-email') msg = 'Email inválido';
+                    else if (error.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Tente depois';
+
+                    showErrorMessage(msg);
                 });
         }
 
-        // ===== MOSTRAR PAINEL =====
+        // MOSTRAR PAINEL
         function showDashboard(userEmail) {
-            console.log('Exibindo dashboard para:', userEmail);
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('dashboardScreen').style.display = 'flex';
-            document.getElementById('userEmail').textContent = `👤 ${userEmail}`;
-
-            // Carregar o painel
+            document.getElementById('userEmail').textContent = '👤 ' + userEmail;
             loadDashboard();
         }
 
-        // ===== CARREGAR PAINEL HTML =====
+        // CARREGAR PAINEL HTML
         function loadDashboard() {
-            const dashboardContent = document.getElementById('dashboardContent');
-            dashboardContent.innerHTML = '<p style="padding: 20px; text-align: center;">Carregando painel...</p>';
+            const content = document.getElementById('dashboardContent');
+            content.innerHTML = '<p style="padding: 20px; text-align: center;">⏳ Carregando painel...</p>';
 
             fetch('Sistema_Wallace_Lira_Completo.html')
-                .then(response => {
+                .then(function(response) {
                     if (!response.ok) throw new Error('Arquivo não encontrado');
                     return response.text();
                 })
-                .then(html => {
-                    // Remover scripts problemáticos do HTML carregado
+                .then(function(html) {
+                    // Remover scripts
                     html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-                    
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const bodyContent = doc.body.innerHTML;
-                    
-                    dashboardContent.innerHTML = bodyContent;
-                    console.log('✅ Painel carregado com sucesso');
+                    content.innerHTML = html;
+                    console.log('✅ Painel carregado');
                 })
-                .catch(error => {
-                    console.error('❌ Erro ao carregar painel:', error);
-                    dashboardContent.innerHTML = `
-                        <div style="padding: 40px; text-align: center; color: #e74c3c;">
-                            <h2>⚠️ Erro ao carregar o painel</h2>
-                            <p>Verifique se o arquivo "Sistema_Wallace_Lira_Completo.html" está na mesma pasta que este arquivo.</p>
-                            <p style="font-size: 12px; color: #999; margin-top: 20px;">Erro: ${error.message}</p>
-                        </div>
-                    `;
+                .catch(function(error) {
+                    console.error('❌ Erro ao carregar:', error);
+                    content.innerHTML = '<div style="padding: 40px; text-align: center; color: #e74c3c;"><h2>⚠️ Erro ao carregar painel</h2><p>Verifique se "Sistema_Wallace_Lira_Completo.html" está na mesma pasta.</p></div>';
                 });
         }
 
-        // ===== MOSTRAR TELA DE LOGIN =====
+        // MOSTRAR LOGIN
         function showLoginScreen() {
             document.getElementById('loginScreen').style.display = 'block';
             document.getElementById('dashboardScreen').style.display = 'none';
         }
 
-        // ===== FAZER LOGOUT =====
+        // LOGOUT
         function logoutUser() {
-            if (!auth) return;
-            
-            auth.signOut()
-                .then(() => {
-                    console.log('✅ Logout realizado');
-                    document.getElementById('email').value = '';
-                    document.getElementById('password').value = '';
-                    showLoginScreen();
-                })
-                .catch(error => {
-                    console.error('❌ Erro ao fazer logout:', error);
-                    showErrorMessage('Erro ao fazer logout');
-                });
+            auth.signOut().then(function() {
+                console.log('✅ Logout realizado');
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                showLoginScreen();
+            }).catch(function(error) {
+                showErrorMessage('Erro ao fazer logout');
+            });
         }
 
-        // ===== MOSTRAR MENSAGENS =====
+        // MOSTRAR ERRO
         function showErrorMessage(msg) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = msg;
             errorDiv.style.display = 'block';
-            console.error('❌', msg);
         }
 
-        function showSuccessMessage(msg) {
-            const successDiv = document.getElementById('successMessage');
-            successDiv.textContent = msg;
-            successDiv.style.display = 'block';
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 3000);
-        }
-
-        // ===== EVENTOS =====
+        // EVENTOS
         document.getElementById('loginBtn').addEventListener('click', login);
-
         document.getElementById('email').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
         });
-
         document.getElementById('password').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
         });
