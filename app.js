@@ -2,6 +2,23 @@
 // uma por IIFE - consolidado aqui, todas as IIFEs abaixo usam esta via closure) =====
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 
+// ===== Janela rolante de 12 meses (padrao unico definido 17/07/2026, V50 item 4) =====
+// Pedido do usuario: "crie o padrao de mostrar essas projecoes com 12 meses... todo mes que mudar as
+// 00hs do primeiro dia do mes, empurre 1 mes a frente". gerarMeses(n) sempre comeca no MES CALENDARIO
+// atual (baseado na data real do dispositivo/servidor no momento em que a pagina carrega) e gera os
+// proximos n meses sequenciais - nunca hardcoded, nunca pula mes. Toda virada de mes (00h do dia 1),
+// a proxima carga da pagina automaticamente desloca a janela inteira 1 mes a frente, sem intervencao.
+function gerarMeses(n){
+  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const agora = new Date();
+  const labels = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() + i, 1);
+    labels.push(nomes[d.getMonth()] + '/' + String(d.getFullYear()).slice(-2));
+  }
+  return labels;
+}
+
 // plugin global: rotula valor em cima/ao lado de cada barra (vertical ou horizontal) - compartilhado
 // por TODOS os graficos de barra do arquivo (auditoria 16/07/2026: cVariavel era o unico grafico de
 // barra sem rotulo de valor por barra, causando desalinhamento visual entre o resumo em texto acima
@@ -51,7 +68,7 @@ tem valores hardcoded nesses pontos, herdados da versao anterior do HTML.
 ======================================================*/
 const REG = {
   patrimonio: {
-    total: 115448.85,          // Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.28 + Escola Julio 505.12
+    total: 115449.57,          // RECONCILIADO 16/07/2026 (V44): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.48 + Escola Julio 505.64
     metaMilhaoPct: 11.54,       // Progresso Meta Milhao = total / R$1.000.000
     metaMilhao: 1000000,
     metaEscolaJulio: 9236.00
@@ -59,6 +76,9 @@ const REG = {
   operacional: {
     salario: 33708.78,
     reembolsosAReceber: 2429.59,
+    reembolsoCicloTotal: 4914.98,        // Recebidos (2.485,39) + A Receber (2.429,59) - regra V50
+    reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
+    reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
     totalOperacional: 11117.00,
     orcamentoOperacional: 3200.00,
@@ -71,27 +91,31 @@ const REG = {
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
   caixaVariavel: {
-    saldoReal: 2348.20,
-    comprometido: 2036.92,
-    disponivel: 311.28
+    saldoReal: 2749.77,     // RECONCILIADO 16/07/2026 (V44)
+    comprometido: 2556.44,  // +TX000081 (Nobre Carnes R$206,40) +TX000082 (Sup Ideal R$313,12)
+    disponivel: 193.33
   },
   visa: {
-    totalComprometido: 8661.54,
-    pessoal: 8068.33
+    totalComprometido: 9080.08,
+    pessoal: 8596.65   // totalComprometido - LRC (R$483,43, corporativo)
   },
-  mercadoPago: 1749.35,
+  cartaoInfinite: { total: 8560.56 },
+  cartaoMB: { total: 519.52 },
+  mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
   lrei0001: 178.64,
+  suporteCoIrmaEventos: 167.40, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
 
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
-  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.28, escolaJulio:505.12 },
-  visaDetalhe: { parcelas:2414.56, consorcios:1950.77, wallace:1664.15, recorrencias:1369.51, corp:483.43, assinaturas:417.35, vanessa:361.77 },
+  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, escolaJulio:505.64 },
+  visaDetalhe: { parcelas:2414.56, consorcios:1950.77, wallace:1563.17, recorrencias:1369.51, corp:483.43, assinaturas:417.35, vanessa:437.64 },
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:519.52, recorrencias:0, corp:0, assinaturas:0, vanessa:0 },
   totalOpDetalhe: { boletos:2600, parcelas:2414.56, consorcios:1950.77, recorrencias:1369.51, aportesPat:1893.34, provMP:471.47, assinaturas:417.35 },
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.21, autoPct:73.94, escolaPct:5.47 },
   caixasOperacionais: {
-    boletos:            { saldo:820.67, meta:2600 },
-    pixVanessa:          { saldo:493.63, meta:1200 },
+    boletos:            { saldo:821.51, meta:2600 },
+    pixVanessa:          { saldo:0.00,   meta:1200 },  // RECONCILIADO 16/07/2026 (V44): cofrinho zerado apos TX000083+085
     manutencao:          { saldo:0,      meta:2000 },
     eventos:             { saldo:0,      meta:2000 },
     saudeFamilia:        { saldo:0,      meta:1600 },
@@ -113,14 +137,13 @@ const REG = {
     piso: [9223.66,7821.63,7369.83,7088.69,7320.83,7220.83,6979.37,6979.37,6979.37,6979.37,6979.37,6979.37]
   },
   superavitNormal: {
-    liquido: [16048.51,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64], // conservador (mediana) enquanto nao houver dado real do mes
+    liquido: [18545.51,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64], // liquido[0] = salario estimado (16.048,51) + sobra pessoal do reembolso apos cascata (2.497,00, regra V50: paga Wartsila->corp MP->corp cartao->sobra pessoal). Meses 2-12 seguem conservadores (mediana, sem reembolso projetado - sem dado real, nao chutado).
     necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,11581.08,11581.08,11581.08,11581.08,11581.08,11581.08]
   },
   livrosRazaoTotais: {
-    // Totais oficiais reconciliados (mesma fonte usada nos tfoot de cada livro razao no HTML).
-    // BALANCETE (ERP) tinha valores desatualizados para LRW/LRV (auditoria 16/07/2026) - sincronizado.
-    LRW:   { total:1664.15, qtd:31 },
-    LRV:   { total:361.77,  qtd:15 },
+    // Totais oficiais reconciliados 16/07/2026 (TX000080-085 + reconciliacao V44).
+    LRW:   { total:2006.82, qtd:30 },
+    LRV:   { total:437.64,  qtd:16 },
     LRB:   { total:2598.58, qtd:9  },
     LRP:   { total:2414.56, qtd:15 },
     LRS:   { total:417.35,  qtd:11 },
@@ -128,8 +151,8 @@ const REG = {
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
     LRMP:  { total:1749.35, qtd:8  },
-    LRCV:  { total:-66.85,  qtd:13 },
-    LRPV:  { total:11.00,   qtd:1  }
+    LRCV:  { total:943.60,  qtd:18 },
+    LRPV:  { total:-135.66, qtd:16 }
   },
 
   reembolsos: { recebidosNoCiclo: 2485.39 },
@@ -140,10 +163,30 @@ const REG = {
     desvioPadrao: 9273.21
   },
   evolucao: {
-    // Series de 8 pontos (Jul/26..Mar/27, pula Fev/27) usadas nos graficos cEvol/g_cEvol e
-    // cNecessidadeLiquida/g_cNecessidadeLiquida - antes duplicadas como array literal em 2 lugares cada.
-    totalOperacional:   [11117.00,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08],
-    necessidadeLiquida: [13362.10,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18]
+    // PADRAO 12 MESES ROLANTE (V50, item 4): series estendidas de 8 para 12 pontos, repetindo o
+    // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
+    // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
+    // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
+    totalOperacional:   [11117.00,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08],
+    necessidadeLiquida: [13362.10,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18]
+  },
+
+  // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
+  balanco: {
+    fisico: { casa:110000.00, apartamento:155000.00, jazigo:11000.00, solar:14800.00, carro:140000.00, total:430800.00 },
+    financeiro: { reserva:100066.05, btg:14673.40, nectonContaCorrente:429.70, consorcioCasaPago:2898.90, total:118068.05 },
+    pgbl: 132214.74,   // nao liquido, fora do total financeiro e da Meta do Milhao
+    fgts: 77683.60,    // nao liquido, fora do total financeiro e da Meta do Milhao
+    passivos: { financiamentoCasa:61326.91, consorcioAutoContemplado:18998.83, total:80325.74 },
+    ativosTotal: 548868.05,
+    patrimonioLiquido: 468542.31,
+    reservas: {
+      boletos:821.51, escolaJulio:505.64, caixaLance:204.48, manutencao:0, eventos:0,
+      churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:1531.63
+    },
+    operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, total:2909.73 },
+    obrigacoes: { visa:9181.06, mercadoPago:1751.16, wartsila:656.67 },
+    fluxo: { entradas:36138.37, saidas:14317.00, resultado:21821.37 }
   }
 };
 
@@ -254,8 +297,8 @@ function hydrate(){
   t('cvDisponivel', fmt(R.caixaVariavel.disponivel));
 
   // visa infinite
-  t('visaTotal', fmt(R.visa.totalComprometido));
-  t('visaPessoal', fmt(R.visa.pessoal));
+  t('visaTotal', fmt(R.cartaoInfinite.total));
+  t('visaPessoal', fmt(R.cartaoInfinite.total - R.visaDetalhe.corp));
   t('visaLRW', fmt(R.visaDetalhe.wallace));
   t('visaLRV', fmt(R.visaDetalhe.vanessa));
   t('visaLRP', fmt(R.visaDetalhe.parcelas));
@@ -263,6 +306,16 @@ function hydrate(){
   t('visaLRR', fmt(R.visaDetalhe.recorrencias));
   t('visaLRCON', fmt(R.visaDetalhe.consorcios));
   t('visaLRC', fmt(R.visaDetalhe.corp));
+  // mastercard black
+  t('mbTotal', fmt(R.cartaoMB.total));
+  t('mbPessoal', fmt(R.cartaoMB.total - R.mbDetalhe.corp));
+  t('mbLRW', fmt(R.mbDetalhe.wallace));
+  t('mbLRV', fmt(R.mbDetalhe.vanessa));
+  t('mbLRP', fmt(R.mbDetalhe.parcelas));
+  t('mbLRS', fmt(R.mbDetalhe.assinaturas));
+  t('mbLRR', fmt(R.mbDetalhe.recorrencias));
+  t('mbLRCON', fmt(R.mbDetalhe.consorcios));
+  t('mbLRC', fmt(R.mbDetalhe.corp));
 
   // mercado pago
   t('mpFatura', fmt(R.mercadoPago));
@@ -283,12 +336,12 @@ function hydrate(){
 
   // cenario historico (Cenarios secao 01/02) - formulas: saldo(salario) = salario + reembolsos - necessidadeTotalBruta
   const CH = R.cenarioHistorico;
-  const saldoDe = liquido => liquido + R.operacional.reembolsosAReceber - R.operacional.necessidadeTotalBruta;
+  const saldoDe = liquido => liquido + R.operacional.reembolsoSobraPessoal - R.operacional.necessidadeTotalBruta;
   t('chMediana', CH.mediana.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('chDesvpad', CH.desvioPadrao.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('chPiorValor', fmt(CH.piorMes));
   t('chPiorSaldo', fmtSign(saldoDe(CH.piorMes)));
-  t('chEquilibrio', fmt(R.operacional.necessidadeTotalBruta - R.operacional.reembolsosAReceber));
+  t('chEquilibrio', fmt(R.operacional.necessidadeTotalBruta - R.operacional.reembolsoSobraPessoal));
   t('chMediaValor', fmt(CH.media));
   t('chMediaSaldo', fmtSign(saldoDe(CH.media)));
 
@@ -305,6 +358,11 @@ function hydrate(){
   // reembolsos e meta de investimento
   t('reembRecebidos', fmt(R.reembolsos.recebidosNoCiclo));
   t('reembAReceber', fmt(R.operacional.reembolsosAReceber));
+  t('reembCicloTotal', fmt(R.operacional.reembolsoCicloTotal));
+  t('reembPagaWartsila', fmt(R.faturaWartsila));
+  t('reembPagaMP', fmt(R.operacional.reembolsoPagaMPCorporativo));
+  t('reembPagaCartao', fmt(R.visaDetalhe.corp));
+  t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
 
@@ -314,9 +372,117 @@ function hydrate(){
   t('snCicloAtual', '+ '+fmt(R.superavitNormal.liquido[0] - R.superavitNormal.necessidade[0]));
 
   t('csNecTotal', R.operacional.necessidadeTotalBruta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
-  t('csReembolsos', R.operacional.reembolsosAReceber.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  t('csReembolsos', R.operacional.reembolsoSobraPessoal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+
+  // ===== Balanço Patrimonial (Reestruturação V2.0, 16/07/2026) =====
+  const B = R.balanco;
+  t('balFisicoTotal', fmt(B.fisico.total));
+  t('balFinanceiroTotal', fmt(B.financeiro.total));
+  t('balPgbl', fmt(B.pgbl));
+  t('balFgts', fmt(B.fgts));
+  t('balPassivosTotal', fmt(B.passivos.total));
+  t('balAtivosTotal', fmt(B.ativosTotal));
+  t('balPassivosTotal2', fmt(B.passivos.total));
+  t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
+  t('balResBoletos', fmt(B.reservas.boletos));
+  t('balResEscola', fmt(B.reservas.escolaJulio));
+  t('balResLance', fmt(B.reservas.caixaLance));
+  t('balResManut', fmt(B.reservas.manutencao)+' (emprestada)');
+  t('balResEventos', fmt(B.reservas.eventos)+' (usada no ciclo)');
+  t('balResChurrasco', fmt(B.reservas.churrasco));
+  t('balResSaude', fmt(B.reservas.saudeFamilia));
+  t('balResSeguro', fmt(B.reservas.seguroEmplacamento));
+  t('balResAniv', fmt(B.reservas.aniversarioJulio));
+  t('balReservasTotal', fmt(B.reservas.total));
+  t('balOpCaixaVariavel', fmt(B.operacional.caixaVariavel));
+  t('balOpPixVanessa', fmt(B.operacional.pixVanessaSaldoReal));
+  t('balOperacionalTotal', fmt(B.operacional.total));
+  t('balObrVisa', fmt(B.obrigacoes.visa));
+  t('balObrMP', fmt(B.obrigacoes.mercadoPago));
+  t('balObrWartsila', fmt(B.obrigacoes.wartsila));
+  t('balFluxoEntradas', fmt(B.fluxo.entradas));
+  t('balFluxoSaidas', fmt(B.fluxo.saidas));
+  t('balFluxoResultado', fmt(B.fluxo.resultado));
+  t('bal4qModo', R.operacional.modoOperacional);
+  t('bal4qTotalOp', fmt(R.operacional.totalOperacional));
+  t('bal4qPatrimonio', fmt(B.patrimonioLiquido));
+  t('bal4qExcedente', fmt(B.fluxo.resultado));
+  t('patPrevidencia', fmt(B.pgbl));
+  t('patFgts', fmt(B.fgts));
 }
 document.addEventListener('DOMContentLoaded', hydrate);
+
+// ===== Auditoria automatica (item 15 do Plano Mestre, criada 17/07/2026 V54) =====
+// Roda sozinha ao carregar a pagina. Como o REG e um snapshot agregado (nao guarda TX individuais
+// no cliente - isso mora no ERP/Excel), esta auditoria confere a MATEMATICA INTERNA do REG: se os
+// totais batem com a soma das suas partes. Nao substitui a auditoria do ERP (que tem granularidade
+// de transacao), e uma segunda camada de seguranca no lado do site. Loga no console; se achar
+// divergencia, mostra um aviso discreto no rodape (nao intrusivo, nao trava a pagina).
+function auditoriaAutomatica(){
+  const problemas = [];
+  const round2 = v => Math.round(v*100)/100;
+  const bate = (a,b,tol=0.02) => Math.abs(a-b) <= tol;
+
+  // 1) Visa Infinite + Mastercard Black = total combinado
+  const somaCartoes = round2(REG.cartaoInfinite.total + REG.cartaoMB.total);
+  if(!bate(somaCartoes, REG.visa.totalComprometido)){
+    problemas.push(`Cartões: Infinite(${REG.cartaoInfinite.total})+MB(${REG.cartaoMB.total})=${somaCartoes} ≠ visa.totalComprometido(${REG.visa.totalComprometido})`);
+  }
+
+  // 2) Balanço: Ativos = Físico + Financeiro
+  const somaAtivos = round2(REG.balanco.fisico.total + REG.balanco.financeiro.total);
+  if(!bate(somaAtivos, REG.balanco.ativosTotal)){
+    problemas.push(`Balanço Ativos: Físico+Financeiro=${somaAtivos} ≠ ativosTotal(${REG.balanco.ativosTotal})`);
+  }
+
+  // 3) Balanço: Patrimônio Líquido = Ativos - Passivos
+  const liquidoCalc = round2(REG.balanco.ativosTotal - REG.balanco.passivos.total);
+  if(!bate(liquidoCalc, REG.balanco.patrimonioLiquido)){
+    problemas.push(`Patrimônio Líquido: Ativos-Passivos=${liquidoCalc} ≠ patrimonioLiquido(${REG.balanco.patrimonioLiquido})`);
+  }
+
+  // 4) Reembolso: cascata bate com o total do ciclo
+  const cascataTotal = round2(656.67 + REG.operacional.reembolsoPagaMPCorporativo + 483.43 + REG.operacional.reembolsoSobraPessoal);
+  if(!bate(cascataTotal, REG.operacional.reembolsoCicloTotal)){
+    problemas.push(`Cascata reembolso: soma das 4 pernas=${cascataTotal} ≠ reembolsoCicloTotal(${REG.operacional.reembolsoCicloTotal})`);
+  }
+
+  // 5) Caixa Variável: Disponível = Saldo Real - Comprometido
+  const dispCalc = round2(REG.caixaVariavel.saldoReal - REG.caixaVariavel.comprometido);
+  if(!bate(dispCalc, REG.caixaVariavel.disponivel)){
+    problemas.push(`Caixa Variável: SaldoReal-Comprometido=${dispCalc} ≠ disponivel(${REG.caixaVariavel.disponivel})`);
+  }
+
+  // 6) Gestão Operacional (Balanço) = Caixa Variável + PIX Vanessa saldo real
+  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal);
+  if(!bate(opCalc, REG.balanco.operacional.total)){
+    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
+  }
+
+  // 7) Reservas (Balanço) = soma das 9 caixas de reserva
+  const r = REG.balanco.reservas;
+  const resCalc = round2(r.boletos+r.escolaJulio+r.caixaLance+r.manutencao+r.eventos+r.churrasco+r.saudeFamilia+r.seguroEmplacamento+r.aniversarioJulio);
+  if(!bate(resCalc, r.total)){
+    problemas.push(`Reservas: soma das 9 caixas=${resCalc} ≠ total(${r.total})`);
+  }
+
+  if(problemas.length === 0){
+    console.log('%c✅ Auditoria automática: 0 divergências encontradas na matemática do REG.', 'color:#34c98a;font-weight:600');
+  } else {
+    console.warn('⚠️ Auditoria automática encontrou divergências:');
+    problemas.forEach(p => console.warn('  - ' + p));
+    const footer = document.querySelector('footer');
+    if(footer){
+      const aviso = document.createElement('span');
+      aviso.style.color = '#e2554f';
+      aviso.style.fontWeight = '600';
+      aviso.textContent = `⚠️ ${problemas.length} divergência(s) SSOT — ver console`;
+      footer.appendChild(aviso);
+    }
+  }
+  return problemas;
+}
+document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
 
 // ===== Ciclo financeiro 100% dinâmico (recalcula sempre que o arquivo é aberto, qualquer mês/ano) =====
 // Regra do sistema: ciclo vai do dia 25 de um mês ao dia 24 do mês seguinte.
@@ -433,6 +599,17 @@ new Chart(document.getElementById('cVisa'), {
     tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
+new Chart(document.getElementById('cVisaMB'), {
+  type:'doughnut',
+  data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+    datasets:[{data:Object.values(REG.mbDetalhe),
+    backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],
+    borderColor:'#16181b',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}},
+    tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
+});
+
 new Chart(document.getElementById('cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
@@ -448,7 +625,7 @@ new Chart(document.getElementById('cVariavel'), {
 new Chart(document.getElementById('cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+  data:{labels:gerarMeses(12),
     datasets:[{data:REG.evolucao.totalOperacional,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
@@ -462,7 +639,7 @@ new Chart(document.getElementById('cEvol'), {
 new Chart(document.getElementById('cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+  data:{labels:gerarMeses(12),
     datasets:[{data:REG.evolucao.necessidadeLiquida,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
@@ -498,7 +675,7 @@ new Chart(document.getElementById('cCenarioSalario'), {
   type:'bar',
   plugins:[cenarioLabelPlugin],
   data:{labels:['Não trabalha','Ponto de\nempate','Média\n(sobra)','Meses bons\n(média)'],
-    datasets:[{data:[REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsosAReceber,REG.cenarioHistorico.media,29424.00],
+    datasets:[{data:[REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,29424.00],
     backgroundColor:['#e0574c','#e8a63a','#34c98a','#34c98a'],
     borderRadius:4,barThickness:56}]},
 
@@ -634,7 +811,7 @@ new Chart(document.getElementById('g_cMetas'), {
 new Chart(document.getElementById('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+  data:{labels:gerarMeses(12),
     datasets:[{data:REG.evolucao.totalOperacional,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
@@ -648,7 +825,7 @@ new Chart(document.getElementById('g_cEvol'), {
 new Chart(document.getElementById('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'],
+  data:{labels:gerarMeses(12),
     datasets:[{data:REG.evolucao.necessidadeLiquida,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
@@ -671,7 +848,7 @@ const caixasNotas = [
   '31,6% da meta',
   '41,1% da meta',
   'LREI0001: emprestou R$178,64 para a Caixa Variável',
-  'Usado no teto extraordinário (Eventos Vanessa/Natal-RN)',
+  'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo',
   '2x Júlio + 1x Vanessa/ano · aporte R$100/mês',
   'Nova · aporte R$200/mês até 14/09',
   'Nova · aporte R$425/mês (permanente)'
@@ -715,8 +892,8 @@ new Chart(document.getElementById('g_cCaixas'), {
 // 08 — Alivio de pressao: soma dos aportes das 4 caixas incrementais (Aniversario Julio, Escola
 // Julio, Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar seu aporte ao bater
 // meta/prazo. Confirmado com o Wallace 15/07/2026: as 4 geram alivio quando completarem.
-const alivioLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Mar/27'];
-const alivioData = [1225, 1225, 1025, 1025, 525, 525, 525, 525];
+const alivioLabels = gerarMeses(12);
+const alivioData = [1225, 1225, 1025, 1025, 525, 525, 525, 525, 525, 525, 525, 525]; // estendido p/ 12 meses (V50): repete o ultimo valor estavel (525) apos as 4 caixas completarem - sem novo evento de alivio conhecido alem disso.
 const alivioEventos = {2:'Aniversário Júlio completa (14/09) — R$200/mês liberados', 4:'Escola Júlio completa (01/11) — R$500/mês liberados'};
 
 const alivioStepPlugin = {
@@ -773,7 +950,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Necessidade Total Bruta projetada = PROJ_TOTAL_OP_* (SWP_INPUT, reconstruida 16/07/2026 a partir do
   // livro LRP) + Orcamento Operacional R$3.200 constante. Mar/27 em diante mantido constante (sem dados
   // de parcelamento/aporte alem desse horizonte).
-  const snLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27'];
+  const snLabels = gerarMeses(12);
   const snLiquido = REG.superavitNormal.liquido;
   const snNecessidade = REG.superavitNormal.necessidade;
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
@@ -837,7 +1014,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   // 3/6 do MP termina ~Set/26; a de 10/24 avança devagar). Consorcio NAO tem previsao de acabar
   // (confirmado pelo usuario) - fica fixo, assim como Boletos/Recorrencias/Assinaturas.
   // Liquido sem trabalhar fixo R$7.667,73 (12 contracheques reais).
-  const dzLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27'];
+  const dzLabels = gerarMeses(12);
   const dzLiquido = REG.deficitZero.liquidoSemTrabalhar;
   const dzPiso = REG.deficitZero.piso;
   const dzDeficit = dzPiso.map(p=>Math.round((dzLiquido-p)*100)/100);

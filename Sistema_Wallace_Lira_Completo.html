@@ -25,6 +25,7 @@
     <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel Completo</button>
     <button class="master-tab" onclick="showMaster('graficos', this)">📈 Gráficos</button>
     <button class="master-tab" onclick="showMaster('cenarios', this)">🛡️ Cenários</button>
+    <button class="master-tab" onclick="showMaster('balancov2', this)">🏛️ Balanço</button>
   </div>
 
   <div id="painel" class="master-pane active">
@@ -89,12 +90,34 @@
       <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v" id="patBtg">—</span></div>
       <div class="row"><span class="k">CC-303 · Caixa Lance</span><span class="v" id="patLance">—</span></div>
       <div class="row"><span class="k">CC-201 · Escola de Júlio</span><span class="v" id="patEscola">—</span></div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Escola de Júlio entra no Patrimônio Financeiro e na Meta do Milhão — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Escola de Júlio contam como patrimônio. Reconciliado em 15/07/2026: total ajustado de R$115.448,48 para R$115.448,85 (soma exata dos 4 saldos oficiais do SWP_INPUT).</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Escola de Júlio entra no Patrimônio Financeiro e na Meta do Milhão — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Escola de Júlio contam como patrimônio. Reconciliado em 16/07/2026: total ajustado para R$115.449,57 (soma exata dos 4 saldos oficiais, saldos reais atualizados dos cofrinhos).</div>
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
       <div class="chart-box"><canvas id="cPatrim"></canvas></div>
     </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div>
+        <div style="font-size:1.4rem;font-weight:700" id="patPrevidencia">—</div>
+      </div>
+      <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+    </div>
+    <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">6% do salário (Wallace) + 6% de contrapartida (Wärtsilä), gestão da empresa. Saque apenas em caso de demissão ou aposentadoria — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, que consideram só patrimônio líquido/investível (confirmado pelo usuário 16/07/2026). Conta separada da BTG/Necton (LFTS11) acima.</div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div>
+        <div style="font-size:1.4rem;font-weight:700" id="patFgts">R$ 77.683,60</div>
+      </div>
+      <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+    </div>
+    <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Conta 198100004332\152579-RJ, admissão 13/02/2012. Saque apenas em hipóteses legais específicas (demissão sem justa causa, aposentadoria, etc) — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, mesmo tratamento do PGBL acima. Saldo total (16/07/2026); sem detalhamento mês a mês ainda.</div>
   </div>
 
   <!-- 4 -->
@@ -116,7 +139,7 @@
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">100% coberto · excedente R$23,84</span><span>Provisionado R$680,51</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div style="font-weight:600;color:var(--red)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">LREI0001: emprestou R$178,64</span><span id="cxManutMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span id="cxEventosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>2x pediatra + 2x dentista Júlio + 1x Vanessa/ano · aporte R$135/mês</span><span id="cxSaudeMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa/ano · aporte R$135/mês</span><span id="cxSaudeMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>Nova · aporte R$200/mês até 14/09</span><span id="cxAnivMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span>Nova · aporte R$425/mês (permanente)</span><span id="cxSeguroMeta">—</span></div></div>
   </div>
@@ -124,14 +147,15 @@
   <!-- 6 -->
   <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
-    <div class="grid-3" style="margin-bottom:0.7rem;text-align:center">
+    <div class="cv-legend-row" style="margin-bottom:0.7rem">
       <div><div style="font-size:0.7rem;color:var(--text-dim)">Saldo real</div><div style="font-weight:600" id="cvSaldoReal">—</div></div>
       <div><div style="font-size:0.7rem;color:var(--text-dim)">Comprometido</div><div style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
       <div><div style="font-size:0.7rem;color:var(--text-dim)">Disponível</div><div style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
     </div>
     <div class="chart-box" style="height:150px"><canvas id="cVariavel"></canvas></div>
-    <div class="callout ok">ECC zerado. LREI0001 (Manutenção → Variável) + extinção PIX Wallace resolveram o estouro anterior. Diferença de R$158,76 investigada e resolvida. Reforço adicional de R$57,04 do reembolso Wärtsilä confirmado em 14/07/2026, preparando a caixa para a chegada da família da Vanessa em 17/07/2026.</div>
-    <div class="callout warn">LREI0001 (R$178,64 devidos à Manutenção) segue ativo — Caixa Variável tem R$348,20 de folga acima da meta (saldo real R$2.348,20 vs meta R$2.000,00), suficiente para liquidar quando confirmado.</div>
+    <div class="callout ok" style="border-left:3px solid var(--green)">✅ ECC resolvido (16/07/2026): TX000081 (Nobre Carnes, R$206,40) + TX000082 (Sup Ideal, R$313,12) tinham estourado a Caixa Variável para -R$208,24. Zerado via transferência de suporte da PIX Vanessa (R$208,24) — Disponível voltou a <strong>R$0,00</strong>. Regra nova (V39): PIX Vanessa e Caixa Variável são caixas "co-irmãs" — suporte mútuo entre elas não gera empréstimo formal (LREI), diferente do resto do sistema.</div>
+    <div class="callout ok">Histórico: ECC anterior foi zerado em 14/07/2026 via LREI0001 (Manutenção → Variável) + extinção PIX Wallace + reforço R$57,04 do reembolso Wärtsilä.</div>
+    <div class="callout warn">LREI0001 (R$178,64 devidos à Manutenção) segue ativo — a folga que cobriria isso não existe mais após o novo ECC de 16/07/2026.</div>
   </div>
 
   <!-- 7 -->
@@ -152,16 +176,16 @@
   </div>
 
   <!-- 9 -->
-  <div class="section-num"><span class="n">09</span><h2>Visa Infinite</h2></div>
+  <div class="section-num"><span class="n">09</span><h2>Visa Infinite (4844 · Wallace, aposentado / 4845 · Vanessa, ativo)</h2></div>
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
         <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
         <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
       </div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Corporativo (R$483,43) é 100% reembolsável pela Wärtsilä — não é dívida pessoal real, mesmo estando na mesma fatura.</div>
-      <div class="row"><span class="k">Compras Wallace (LRW)</span><span class="v" id="visaLRW">—</span></div>
-      <div class="row"><span class="k">Compras Vanessa (LRV)</span><span class="v" id="visaLRV">—</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Corporativo (R$483,43) é 100% reembolsável pela Wärtsilä — não é dívida pessoal real, mesmo estando na mesma fatura. Wallace aposentou este cartão em 16/07/2026 (usa só o Mastercard Black agora) — o que aparece aqui é histórico (LRW-I) + o que ainda não migrou (parcelas/assinaturas/recorrências/consórcios/corporativo) + tudo que a Vanessa ainda compra nele (LRV-I).</div>
+      <div class="row"><span class="k">Compras Wallace (LRW-I, histórico)</span><span class="v" id="visaLRW">—</span></div>
+      <div class="row"><span class="k">Compras Vanessa (LRV-I)</span><span class="v" id="visaLRV">—</span></div>
       <div class="row"><span class="k">Parcelas (LRP)</span><span class="v" id="visaLRP">—</span></div>
       <div class="row"><span class="k">Assinaturas (LRS)</span><span class="v" id="visaLRS">—</span></div>
       <div class="row"><span class="k">Recorrências (LRR)</span><span class="v" id="visaLRR">—</span></div>
@@ -171,6 +195,29 @@
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
       <div class="chart-box"><canvas id="cVisa"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 09b -->
+  <div class="section-num"><span class="n">09</span><h2>Mastercard Black (2244 · Wallace, ativo / 2250 · Vanessa, em trânsito)</h2></div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div style="font-size:1.4rem;font-weight:700" id="mbTotal">—</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="mbPessoal">—</div></div>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Cartão único do Wallace a partir de 16/07/2026 (regra V39). Assinaturas/recorrências dele migram aos poucos (usuário avisa uma por uma). Vanessa ainda não usa — cartão final 2250 está em trânsito, ela continua 100% no Visa Infinite até chegar.</div>
+      <div class="row"><span class="k">Compras Wallace (LRW-MB)</span><span class="v" id="mbLRW">—</span></div>
+      <div class="row"><span class="k">Compras Vanessa (LRV-MB)</span><span class="v" id="mbLRV">—</span></div>
+      <div class="row"><span class="k">Parcelas (LRP-MB)</span><span class="v" id="mbLRP">R$ 0,00</span></div>
+      <div class="row"><span class="k">Assinaturas (LRS-MB)</span><span class="v" id="mbLRS">R$ 0,00</span></div>
+      <div class="row"><span class="k">Recorrências (LRR-MB)</span><span class="v" id="mbLRR">R$ 0,00</span></div>
+      <div class="row"><span class="k">Consórcios (LRCON-MB)</span><span class="v" id="mbLRCON">R$ 0,00</span></div>
+      <div class="row"><span class="k">Corporativo (LRC-MB)</span><span class="v" id="mbLRC">R$ 0,00</span></div>
+    </div>
+    <div class="card">
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div class="chart-box"><canvas id="cVisaMB"></canvas></div>
     </div>
   </div>
 
@@ -291,9 +338,12 @@
       <tr><td class="mono">TX000078</td><td class="mono">13/07</td><td>H57Store</td><td class="r">R$ 25,93</td></tr>
       <tr><td class="mono">TX000079</td><td class="mono">14/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
       <tr><td class="mono">TXR000007</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000081</td><td class="mono">16/07</td><td>Nobre Carnes LI <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 206,40</td></tr>
+      <tr><td class="mono">TX000082</td><td class="mono">16/07</td><td>Sup Ideal <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 313,12</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no lançamento original (retroativo, sem rastro de data confiável)</div>
-      <div class="tfoot"><span>31 lançamentos · Próximo: TX000080</span><span class="total" id="tfLRW">—</span></div>
+      <div class="callout ok">Cartão final 2244 (Itaú Personnalité) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado.</div>
+      <div class="tfoot"><span>30 lançamentos · Próximo: TX000087</span><span class="total" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -433,16 +483,21 @@
       <tr><td class="mono">TX000044</td><td class="mono">06/07</td><td>Pagamento Magalupay</td><td class="r" style="color:var(--red)">− R$ 112,61</td></tr>
       <tr><td class="mono">TX000045</td><td class="mono">10/07</td><td>Depósito teste Necton</td><td class="r" style="color:var(--red)">− R$ 1,00</td></tr>
       <tr><td class="mono">TX000037</td><td class="mono">13/07</td><td>Sinal pediatra Júlio (via Vanessa)</td><td class="r" style="color:var(--red)">− R$ 50,00</td></tr>
+      <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>Recebimento de empréstimo interno (Manutenção → Variável)</td><td class="r" style="color:var(--green)">+ R$ 178,64</td></tr>
+      <tr><td class="mono">—</td><td class="mono">13/07</td><td>Suporte Eventos e Viagens → Variável (mesmo propósito: visita família Vanessa)</td><td class="r" style="color:var(--green)">+ R$ 167,40</td></tr>
+      <tr><td class="mono">—</td><td class="mono">14/07</td><td>Excedente reembolso Wärtsilä (após cobrir fatura Mercado Pago)</td><td class="r" style="color:var(--green)">+ R$ 57,04</td></tr>
+      <tr><td class="mono">TX000083</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Caixa Variável (co-irmãs, zera ECC)</td><td class="r" style="color:var(--green)">+ R$ 208,24</td></tr>
+      <tr><td class="mono">TX000085</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Custos Variáveis (co-irmãs)</td><td class="r" style="color:var(--green)">+ R$ 399,13</td></tr>
       </tbody></table>
       <div class="callout ok">PIX Wallace extinta em 13/07/2026: 6 lançamentos migrados para Caixa Variável, saldo de R$40,00 transferido integralmente.</div>
-      <div class="tfoot"><span>Saídas R$476,61 · Entradas R$214,00</span><span class="total">Líquido − R$262,61</span></div>
+      <div class="tfoot"><span>Saídas R$476,61 · Entradas R$1.224,45</span><span class="total" style="color:var(--green)">Líquido + R$747,84</span></div>
     </div>
 
     <div id="lrei" class="pane">
       <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>
       <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>CC-202 · Manutenção</td><td>CC-101 · Caixa Variável</td><td class="r">R$ 178,64</td><td><span class="badge br">Ativo</span></td></tr>
       </tbody></table>
-      <div class="callout warn">Recompor via reembolso Wärtsilä ou salário de 25/07/2026. Caixa Variável segue com folga (saldo real R$2.348,20 vs meta R$2.000,00 = R$348,20 acima), suficiente para liquidar quando confirmado — mesmo após pagar os R$178,64, restaria R$169,56 acima da meta.</div>
+      <div class="callout warn">Recompor via reembolso Wärtsilä ou salário de 25/07/2026. Caixa Variável segue com folga (saldo real R$2.749,77 vs meta R$2.000,00), suficiente para liquidar quando confirmado.</div>
     </div>
 
     <div id="lrdoacao" class="pane">
@@ -450,7 +505,7 @@
       <tr><td class="mono">TXRP2P001</td><td>Crédito P2P doado à Vanessa</td><td>Wallace</td><td class="r">R$ 11,00</td></tr>
       </tbody></table>
       <div class="callout ok">Custo do Wallace (1/10 do capital P2P de R$110,00). Não gera receita, não entra no total de compras da Vanessa (LRV).</div>
-      <div class="tfoot"><span>1 lançamento</span><span class="total" id="tfLRPV">—</span></div>
+      <div class="tfoot"><span>1 lançamento</span><span class="total" id="tfLRDOACAO">—</span></div>
     </div>
 
     <div id="lrpv" class="pane">
@@ -468,9 +523,11 @@
       <tr><td class="mono">TX000053</td><td class="mono">10/07</td><td>PIX Vanessa - uso próprio</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 9,36</td></tr>
       <tr><td class="mono">TX000054</td><td class="mono">12/07</td><td>H57 Store Minimercados</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 14,99</td></tr>
       <tr><td class="mono">TX000056</td><td class="mono">13/07</td><td>Sinal pediatra Júlio (repasse)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 50,00</td></tr>
+      <tr><td class="mono">TX000080</td><td class="mono">16/07</td><td>Dupomar Hortifrutti</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 133,81</td></tr>
+      <tr><td class="mono">TX000084</td><td class="mono">16/07</td><td>Reforço da caixa PIX Vanessa (PV) → PIX Geral (PGV)</td><td style="color:var(--green)">Entrada</td><td class="r">R$ 95,00</td></tr>
       </tbody></table>
-      <div class="callout ok">Saldo real da Caixa Pix Geral (confirmado no app, 13/07/2026): <strong>R$ 226,52</strong>. O total abaixo é só o fluxo líquido destes 13 PIX específicos, não o saldo da caixa.</div>
-      <div class="tfoot"><span>13 lançamentos (fluxo do período)</span><span class="total" id="tfLRCV">—</span></div>
+      <div class="callout ok">Saldo real da Caixa Pix Geral: <strong>R$ 159,96</strong> (após PIX de R$95,00 recebido de Wallace em 16/07/2026). O total abaixo é o fluxo líquido de todas as 16 transações rastreadas na aba (-R$135,66), não o saldo da caixa. <strong>Atenção:</strong> houve uma divergência de -R$27,75 entre o saldo esperado (R$187,71) e o informado (R$159,96), não explicada — documentada, não forçada.</div>
+      <div class="tfoot"><span>16 lançamentos (fluxo do período)</span><span class="total" id="tfLRPV">—</span></div>
     </div>
   </div>
 
@@ -522,7 +579,14 @@
   <div class="card">
     <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)" id="reembRecebidos">—</span></div>
     <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600" id="reembAReceber">—</span></div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos inclui o reembolso de R$1.805,39 confirmado hoje (14/07). A receber é a última solicitação (Amount Due Employee), ainda sem data de pagamento — não distinguimos mais "pendente" de "previsto", é um único valor.</div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k" style="font-weight:700">Total do ciclo</span><span class="v" style="font-weight:700" id="reembCicloTotal">—</span></div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos inclui o reembolso de R$1.805,39 confirmado hoje (14/07). A receber é a última solicitação (Amount Due Employee), ainda sem data de pagamento — não distinguimos mais "pendente" de "previsto", é um único valor. Reembolso não tem dia fixo pra entrar — depende do trabalho/aprovação.</div>
+    <div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.7rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
+    <div class="row" style="margin-top:0.3rem"><span class="k">1. Fatura do cartão Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
+    <div class="row"><span class="k">2. Corporativo Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
+    <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. Sobra pessoal (Mercado Pago)</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+    <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra pessoal (linha 4) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
   </div>
 
   <!-- 20 -->
@@ -629,7 +693,7 @@
   </div>
 
   <!-- 4 -->
-  <div class="section-num"><span class="n">04</span><h2>Caixa variável — antes e depois do empréstimo interno</h2></div>
+  <div class="section-num"><span class="n">04</span><h2>Caixa variável</h2></div>
   <div class="card">
     <div class="chart-box"><canvas id="g_cVariavel"></canvas></div>
     <div class="legend-note">LREI0001: Caixa Manutenção emprestou R$178,64 para resolver o ECC do ciclo</div>
@@ -663,6 +727,13 @@
     <div class="legend-note">Aniversário Júlio (R$200/mês) para em Set/26 (prazo 14/09) · Escola Júlio (R$500/mês) para em Nov/26 (prazo documentado 01/11/2026, coberto por 13º/férias) · Saúde Família (R$100/mês) e Seguro/Emplacamento (R$425/mês) NÃO completam dentro desta janela (Jul/26-Mar/27) no ritmo atual — Saúde levaria ~16 meses, Seguro ~12 meses. Simulação por aporte fixo mensal; reembolsos médicos da Saúde Família podem acelerar isso de forma imprevisível.</div>
   </div>
 
+    <div class="section-num"><span class="n">09</span><h2>Energia Solar — antes vs. depois (apartamento)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Aguardando troca do medidor para bidirecional pela Energisa — prazo até 22/07/2026. Comparação mês a mês: ano anterior real (laranja) vs. este ano projetado com solar ativo (verde), lado a lado.</div>
+      <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
+      <div class="legend-note">Ano anterior: consumo real do seu apartamento, tarifa Jun/2026 (R$1,0625/kWh, já com ICMS/PIS/COFINS embutidos). Mai/26 (*) interpolado — sem leitura direta nesse mês. Projeção pós-solar (R$69,87/mês fixo): tarifa mínima de disponibilidade (30 kWh) + Contribuição de Iluminação Pública (R$38,00, imposto municipal fixo que a energia solar NÃO isenta). Número azul acima do par = economia mensal estimada. <strong>Assim que as faturas reais pós-solar chegarem, substituo os valores projetados pelos reais, mês a mês.</strong></div>
+    </div>
+
   
 
 
@@ -673,7 +744,7 @@
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">4 referências: quando você não trabalha, o ponto de empate, sua média real e a média dos seus meses bons. Verde = sobra. Vermelho = falta.</div>
       <div class="chart-box"><canvas id="cCenarioSalario"></canvas></div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong>: Necessidade Total (R$<span id="csNecTotal">—</span>) − Reembolsos (R$<span id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong> (do ciclo atual, 25/06-24/07): Necessidade Total (R$<span id="csNecTotal">—</span>) − Reembolso pessoal, após pagar Wärtsilä + corporativo MP + corporativo cartão (R$<span id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
       <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$<span id="chMediana">—</span> · Desvio padrão: R$<span id="chDesvpad">—</span> (44,7% da média — renda muito instável mês a mês).</div>
     </div>
 
@@ -775,7 +846,7 @@
           <tbody id="snTableBody"></tbody>
         </table>
       </div>
-      <div class="total-line" style="margin-top:0.6rem"><span>Superávit no ciclo atual (líquido calculado)</span><span class="v" style="color:var(--green)" id="snCicloAtual">—</span></div>
+      <div class="total-line" style="margin-top:0.6rem"><span>Superávit projetado no próximo ciclo (líquido calculado)</span><span class="v" style="color:var(--green)" id="snCicloAtual">—</span></div>
     </div>
 
     <div class="section-num"><span class="n">06</span><h2>Operação Déficit Zero — 12 meses sem embarcar</h2></div>
@@ -796,17 +867,129 @@
       <div class="total-line" style="margin-top:0.6rem"><span>Déficit vira superávit em</span><span class="v" style="color:var(--green)">Set/26 (3º mês)</span></div>
     </div>
 
-    <div class="section-num"><span class="n">07</span><h2>Energia Solar — antes vs. depois (só seu apartamento)</h2></div>
-    <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Aguardando troca do medidor para bidirecional pela Energisa — prazo até 22/07/2026. Comparação mês a mês: ano anterior real (laranja) vs. este ano projetado com solar ativo (verde), lado a lado.</div>
-      <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
-      <div class="legend-note">Ano anterior: consumo real do seu apartamento, tarifa Jun/2026 (R$1,0625/kWh, já com ICMS/PIS/COFINS embutidos). Mai/26 (*) interpolado — sem leitura direta nesse mês. Projeção pós-solar (R$69,87/mês fixo): tarifa mínima de disponibilidade (30 kWh) + Contribuição de Iluminação Pública (R$38,00, imposto municipal fixo que a energia solar NÃO isenta). Número azul acima do par = economia mensal estimada. <strong>Assim que as faturas reais pós-solar chegarem, substituo os valores projetados pelos reais, mês a mês.</strong></div>
+  </div>
+
+  <div id="balancov2" class="master-pane">
+
+    <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
+      <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.3rem">Reestruturação Patrimonial — 16/07/2026</div>
+      <div style="font-size:0.72rem;color:var(--text-dim)">Estrutura aditiva: reorganiza a leitura do sistema em 6 grupos + Balanço Patrimonial, sem alterar nenhum indicador da V1 (Painel/Gráficos/Cenários permanecem como fonte oficial do dia a dia). Existem pendências e ressalvas metodológicas sinalizadas abaixo — este painel é uma primeira versão, não uma leitura definitiva.</div>
     </div>
+
+    <!-- 1 -->
+    <div class="section-num"><span class="n">01</span><h2>🏛️ Patrimônio Físico</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Casa financiada (avaliação, contrato 844440436673-3)</span><span class="v">R$ 110.000,00</span></div>
+      <div class="row"><span class="k">Apartamento quitado (avaliação, contrato 878770598847-7)</span><span class="v">R$ 155.000,00</span></div>
+      <div class="row"><span class="k">Jazigo (quitado, Parque da Paz, 12/09/2024)</span><span class="v">R$ 11.000,00</span></div>
+      <div class="row"><span class="k">Sistema de geração solar (custo)</span><span class="v">R$ 14.800,00</span></div>
+      <div class="row"><span class="k">Honda Civic Touring CVT 2020 (consórcio contemplado 20/12/2024)</span><span class="v">R$ 140.000,00</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFisicoTotal">R$ 430.800,00</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Carro pelo valor de compra/NF em 20/12/2024 — pode não refletir o valor de mercado atual (depreciação de carro usado), não ajustado por falta de avaliação recente.</div>
+    </div>
+
+    <!-- 2 -->
+    <div class="section-num"><span class="n">02</span><h2>🏛️ Patrimônio Financeiro</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Reserva de Emergência</span><span class="v">R$ 100.066,05</span></div>
+      <div class="row"><span class="k">BTG/Necton (94 LFTS11)</span><span class="v">R$ 14.673,40</span></div>
+      <div class="row"><span class="k">Consórcio da Casa (2 parcelas pagas, Porto Seguro, não contemplado)</span><span class="v">R$ 2.898,90</span></div>
+      <div class="row"><span class="k">Necton — conta corrente (parado, fora do LFTS11)</span><span class="v">R$ 429,70</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFinanceiroTotal">R$ 118.068,05</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Consórcio do Auto saiu daqui — foi contemplado em 20/12/2024, agora o carro está no Patrimônio Físico e o saldo devedor virou Passivo real (ver abaixo). Consórcio da Casa (Porto Seguro, Grupo I0464) segue não contemplado, continua como poupança compulsória.</div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
+        <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Igual ao INSS — só desconta do salário, não é gestão ativa do Wallace. Aparece aqui junto ao patrimônio para visibilidade, mas <strong>não entra no total do Patrimônio Financeiro nem na Meta do Milhão</strong> (que é patrimônio líquido de gestão ativa dele).</div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div><div style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
+        <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Mesmo tratamento do PGBL — recurso compulsório, saque condicionado, não gerido ativamente. Não entra no total do Patrimônio Financeiro nem na Meta do Milhão.</div>
+    </div>
+
+    <!-- 3 -->
+    <div class="section-num"><span class="n">03</span><h2>📉 Passivos Patrimoniais</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Financiamento da casa (saldo devedor)</span><span class="v" style="color:var(--red)">R$ 61.326,91</span></div>
+      <div class="row"><span class="k">Consórcio do Auto (contemplado 20/12/2024, alienação fiduciária)</span><span class="v" style="color:var(--red)">R$ 18.998,83</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--red)" id="balPassivosTotal">R$ 80.325,74</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Consórcio do Auto voltou aqui — agora que foi contemplado e o carro tem alienação fiduciária, é dívida real garantida pelo veículo. Consórcio da Casa não entra (ainda não contemplado, segue no Patrimônio Financeiro).</div>
+    </div>
+
+    <!-- 4 -->
+    <div class="section-num"><span class="n">04</span><h2>🏦 Balanço Patrimonial</h2></div>
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="row"><span class="k">Ativos (Físico + Financeiro)</span><span class="v" id="balAtivosTotal">R$ 548.868,05</span></div>
+      <div class="row"><span class="k">Passivos</span><span class="v" style="color:var(--red)" id="balPassivosTotal2">R$ 80.325,74</span></div>
+      <div class="row" style="font-weight:700;font-size:1.1rem;border-top:1px solid var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Patrimônio Líquido</span><span class="v" style="color:var(--green)" id="balPatrimonioLiquido">R$ 468.542,31</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">PGBL e FGTS (R$209.898,34 juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.</div>
+    </div>
+
+    <!-- 5 -->
+    <div class="section-num"><span class="n">05</span><h2>📦 Gestão das Reservas</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Caixa Boletos</span><span class="v" id="balResBoletos">R$ 821,51</span></div>
+      <div class="row"><span class="k">Escola de Júlio</span><span class="v" id="balResEscola">R$ 505,64</span></div>
+      <div class="row"><span class="k">Caixa Lance</span><span class="v" id="balResLance">R$ 204,48</span></div>
+      <div class="row"><span class="k">Caixa Manutenção</span><span class="v" style="color:var(--text-dim)" id="balResManut">R$ 0,00 (emprestada)</span></div>
+      <div class="row"><span class="k">Caixa Eventos e Viagens</span><span class="v" style="color:var(--text-dim)" id="balResEventos">R$ 0,00 (usada no ciclo)</span></div>
+      <div class="row"><span class="k">Caixa Churrasco</span><span class="v" style="color:var(--text-dim)" id="balResChurrasco">R$ 0,00</span></div>
+      <div class="row"><span class="k">Saúde da Família</span><span class="v" style="color:var(--text-dim)" id="balResSaude">R$ 0,00</span></div>
+      <div class="row"><span class="k">Seguro e Emplacamento</span><span class="v" style="color:var(--text-dim)" id="balResSeguro">R$ 0,00</span></div>
+      <div class="row"><span class="k">Aniversário de Júlio</span><span class="v" style="color:var(--text-dim)" id="balResAniv">R$ 0,00</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balReservasTotal">R$ 1.531,63</span></div>
+    </div>
+
+    <!-- 6 -->
+    <div class="section-num"><span class="n">06</span><h2>🛒 Gestão Operacional</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Caixa Variável</span><span class="v" id="balOpCaixaVariavel">R$ 2.749,77</span></div>
+      <div class="row"><span class="k">Caixa PIX Vanessa (saldo real da conta dela)</span><span class="v" id="balOpPixVanessa">R$ 159,96</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total operacional</span><span class="v" style="color:var(--green)" id="balOperacionalTotal">R$ 2.909,73</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Não inclui o registrador PIX_VANESSA (reserva do Wallace) — reconciliado em 16/07/2026, confirmado em R$0,00 (zerado após as transferências do dia).</div>
+    </div>
+
+    <!-- 7 -->
+    <div class="section-num"><span class="n">07</span><h2>🔄 Obrigações Operacionais</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Visa Infinite</span><span class="v" id="balObrVisa">R$ 9.181,06</span></div>
+      <div class="row"><span class="k">Mercado Pago</span><span class="v" id="balObrMP">R$ 1.751,16</span></div>
+      <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="balObrWartsila">R$ 656,67</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Parcelamentos, assinaturas, recorrências e consórcios já compõem o Visa Infinite acima (soma existente, sem recálculo — a especificação pediu para manter esse grupo "praticamente como já existe hoje").</div>
+    </div>
+
+    <!-- 8 -->
+    <div class="section-num"><span class="n">08</span><h2>📊 Fluxo Financeiro do Ciclo</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">R$ 36.138,37</span></div>
+      <div class="row"><span class="k">Obrigações + Custos Variáveis + Aportes</span><span class="v" style="color:var(--red)" id="balFluxoSaidas">R$ 14.317,00</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Resultado (Superávit)</span><span class="v" style="color:var(--green)" id="balFluxoResultado">R$ 21.821,37</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.3rem">⚠️ Nota: "Obrigações + Custos Variáveis + Aportes" deste ciclo está inflado por ser o ciclo de transição (25/06-24/07) — o líquido de julho caiu em 25/06, mas ainda restavam custos do modelo antigo de junho para pagar junto com a estrutura nova de julho (~R$22.007,27 só nessa sobreposição). Ciclos futuros não devem ter essa distorção.</div>
+    </div>
+
+    <!-- 9 -->
+    <div class="section-num"><span class="n">09</span><h2>🛡️ As 4 perguntas dos cenários</h2></div>
+    <div class="card">
+      <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">Alto</strong></span></div>
+      <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span id="bal4qTotalOp">R$ 11.117,00</span> (Total Operacional)</span></div>
+      <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span id="bal4qPatrimonio">R$ 468.542,31</span> (Líquido, Balanço)</span></div>
+      <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span id="bal4qExcedente">R$ 21.821,37</span> (Excedente/Saldo do Ciclo)</span></div>
+    </div>
+
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V10 · Layout V1.8 oficial congelado</span>
-    <span>Próxima TX: TX000080</span>
+    <span>Sistema Wallace Lira · ERP V10 · Layout V1.8 oficial congelado + Balanço</span>
+    <span>Próxima TX: TX000086</span>
   </footer>
 
 </div>
