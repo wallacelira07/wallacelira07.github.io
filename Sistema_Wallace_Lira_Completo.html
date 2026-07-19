@@ -191,25 +191,17 @@
     <div class="callout warn">LREI0001 (R$178,64 devidos à Manutenção) segue ativo — a folga que cobriria isso não existe mais após o novo ECC de 16/07/2026.</div>
   </div>
 
-  <!-- 7 -->
-  <div class="section-num"><span class="n">07</span><h2>Livro razão caixa variável (LRCV)</h2></div>
-  <div class="card">
-    <div class="row"><span class="k">TX28001 — Pamonha e canjica Santo Antônio</span><span class="v" style="color:var(--red)">− R$ 70,00</span></div>
-    <div class="row"><span class="k">TX28002 — Pamonha e canjica Santo Antônio</span><span class="v" style="color:var(--red)">− R$ 60,00</span></div>
-    <div class="row"><span class="k">TX28003 — Devolução frango (mainha)</span><span class="v" style="color:var(--green)">+ R$ 64,00</span></div>
-    <div class="tfoot"><span>Saídas R$130,00 · Entradas R$64,00</span><span class="total">Líquido <span id="tfLRCVresumo">—</span></span></div>
-  </div>
-
-  <!-- 8 -->
-  <div class="section-num"><span class="n">08</span><h2>ECC — estouro controlado do ciclo</h2></div>
+  <!-- 07 -->
+  <div class="section-num"><span class="n">07</span><h2>ECC — estouro do ciclo</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--green)">RESOLVIDO</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Valor</div><div style="font-weight:600">R$ 0,00</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Impacto próximo ciclo</div><div style="font-weight:600">R$ 0,00</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--red)" id="eccStatus">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Disponível (Caixa Variável)</div><div style="font-weight:600" id="eccValor">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fôlego até fim do ciclo (com tolerância)</div><div style="font-weight:600" id="eccFolego">—</div></div>
   </div>
+  <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Livro razão detalhado da Caixa Variável (LRCV) está na aba "Livros razão" mais abaixo — não duplicado aqui.</div>
 
-  <!-- 9 -->
-  <div class="section-num"><span class="n">09</span><h2>Visa Infinite (4844 · Wallace, aposentado / 4845 · Vanessa, ativo)</h2></div>
+  <!-- 08 -->
+  <div class="section-num"><span class="n">08</span><h2>Visa Infinite (4844 · Wallace, aposentado / 4845 · Vanessa, ativo)</h2></div>
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
@@ -323,7 +315,7 @@
   <div class="section-num"><span class="n">15</span><h2>Livros razão</h2></div>
   <div class="card">
     <div class="tabs" id="lrTabs">
-      <button class="tab active" onclick="showLR('lrw',this)">Wallace (30)</button>
+      <button class="tab active" onclick="showLR('lrw',this)">Wallace (49)</button>
       <button class="tab" onclick="showLR('lrv',this)">Vanessa (16)</button>
       <button class="tab" onclick="showLR('lrb',this)">Boletos (9)</button>
       <button class="tab" onclick="showLR('lrp',this)">Parcelas (15)</button>
@@ -340,52 +332,58 @@
 
     <div id="lrw" class="pane active">
       <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX000001</td><td class="mono">—</td><td>Magalu</td><td class="r">R$ 66,89</td></tr>
-      <tr><td class="mono">TX000005</td><td class="mono">—</td><td>Tapioca</td><td class="r">R$ 81,00</td></tr>
-      <tr><td class="mono">TX000006</td><td class="mono">—</td><td>Mercado Clovis</td><td class="r">R$ 8,50</td></tr>
-      <tr><td class="mono">TX000007</td><td class="mono">—</td><td>Abastece Aí</td><td class="r">R$ 103,00</td></tr>
-      <tr><td class="mono">TX000008</td><td class="mono">—</td><td>Ki Frango</td><td class="r">R$ 64,00</td></tr>
-      <tr><td class="mono">TX000009</td><td class="mono">—</td><td>Aleks Bolos</td><td class="r">R$ 44,00</td></tr>
-      <tr><td class="mono">TX000010</td><td class="mono">—</td><td>Clauveniência</td><td class="r">R$ 45,00</td></tr>
-      <tr><td class="mono">TX000012</td><td class="mono">—</td><td>Mendonça Pasteis</td><td class="r">R$ 75,97</td></tr>
-      <tr><td class="mono">TX000013</td><td class="mono">—</td><td>H57 Store</td><td class="r">R$ 9,19</td></tr>
-      <tr><td class="mono">TX000014</td><td class="mono">—</td><td>Elias Andrade</td><td class="r">R$ 120,00</td></tr>
-      <tr><td class="mono">TX000015</td><td class="mono">—</td><td>Tamylla</td><td class="r">R$ 32,00</td></tr>
-      <tr><td class="mono">TX000016</td><td class="mono">—</td><td>Tamylla</td><td class="r">R$ 36,00</td></tr>
-      <tr><td class="mono">TX000017</td><td class="mono">—</td><td>Pizza Nostra</td><td class="r">R$ 241,00</td></tr>
-      <tr><td class="mono">TX000018</td><td class="mono">—</td><td>Brothers Club</td><td class="r">R$ 85,00</td></tr>
-      <tr><td class="mono">TX000020</td><td class="mono">—</td><td>Hortifruti</td><td class="r">R$ 10,00</td></tr>
-      <tr><td class="mono">TX000021</td><td class="mono">—</td><td>H57 Store</td><td class="r">R$ 9,99</td></tr>
-      <tr><td class="mono">TX000022</td><td class="mono">—</td><td>Geroncio</td><td class="r">R$ 60,00</td></tr>
-      <tr><td class="mono">TX000025</td><td class="mono">—</td><td>Mini Mercado</td><td class="r">R$ 40,98</td></tr>
-      <tr><td class="mono">TX000026</td><td class="mono">—</td><td>Panificadora</td><td class="r">R$ 23,80</td></tr>
-      <tr><td class="mono">TX000027</td><td class="mono">—</td><td>Amazon Prime Video</td><td class="r">R$ 9,99</td></tr>
-      <tr><td class="mono">TX000029</td><td class="mono">—</td><td>Madoska Sorvetes</td><td class="r">R$ 127,43</td></tr>
-      <tr><td class="mono">TX000030</td><td class="mono">12/07</td><td>Pastianne Restaurante</td><td class="r">R$ 126,28</td></tr>
-      <tr><td class="mono">TXR000003</td><td class="mono">—</td><td>Pague Menos</td><td class="r">R$ 75,87</td></tr>
+      <tr><td class="mono">TX000001</td><td class="mono">19/06</td><td>Magalu</td><td class="r">R$ 66,89</td></tr>
+      <tr><td class="mono">TX000005</td><td class="mono">27/06</td><td>Tapioca</td><td class="r">R$ 81,00</td></tr>
+      <tr><td class="mono">TX000006</td><td class="mono">27/06</td><td>Mercado Clóvis</td><td class="r">R$ 8,50</td></tr>
+      <tr><td class="mono">TX000007</td><td class="mono">27/06</td><td>Abastece Aí</td><td class="r">R$ 103,00</td></tr>
+      <tr><td class="mono">TX000087</td><td class="mono">27/06</td><td>Abastecimento A. Souza Fechine e Cia Ltda</td><td class="r">R$ 103,00</td></tr>
+      <tr><td class="mono">TX000008</td><td class="mono">28/06</td><td>Ki Frango</td><td class="r">R$ 64,00</td></tr>
+      <tr><td class="mono">TX000009</td><td class="mono">28/06</td><td>Aleks Bolos</td><td class="r">R$ 44,00</td></tr>
+      <tr><td class="mono">TX000010</td><td class="mono">28/06</td><td>Clauveniência</td><td class="r">R$ 45,00</td></tr>
+      <tr><td class="mono">TX000091</td><td class="mono">01/07</td><td>IOF diário rotativo/atraso</td><td class="r">R$ 1,85</td></tr>
+      <tr><td class="mono">TX000092</td><td class="mono">01/07</td><td>IOF adicional rotativo/atraso</td><td class="r">R$ 42,93</td></tr>
+      <tr><td class="mono">TX000012</td><td class="mono">04/07</td><td>Mendonça Pastéis</td><td class="r">R$ 75,97</td></tr>
+      <tr><td class="mono">TX000013</td><td class="mono">04/07</td><td>H57Store</td><td class="r">R$ 9,19</td></tr>
+      <tr><td class="mono">TX000014</td><td class="mono">05/07</td><td>Elias Andrade</td><td class="r">R$ 120,00</td></tr>
+      <tr><td class="mono">TX000015</td><td class="mono">05/07</td><td>Tamylla</td><td class="r">R$ 32,00</td></tr>
+      <tr><td class="mono">TX000016</td><td class="mono">05/07</td><td>Tamylla</td><td class="r">R$ 36,00</td></tr>
+      <tr><td class="mono">TX000017</td><td class="mono">05/07</td><td>Pizza Nostra</td><td class="r">R$ 241,00</td></tr>
+      <tr><td class="mono">TX000018</td><td class="mono">06/07</td><td>Brothers Club</td><td class="r">R$ 85,00</td></tr>
+      <tr><td class="mono">TX000020</td><td class="mono">07/07</td><td>Hortifruti</td><td class="r">R$ 10,00</td></tr>
+      <tr><td class="mono">TX000021</td><td class="mono">07/07</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000026</td><td class="mono">10/07</td><td>Panificadora</td><td class="r">R$ 23,80</td></tr>
+      <tr><td class="mono">TX000027</td><td class="mono">10/07</td><td>Amazon Prime Video</td><td class="r">R$ 9,99</td></tr>
       <tr><td class="mono">TX000031</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 40,98</td></tr>
+      <tr><td class="mono">TXR000007</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000029</td><td class="mono">11/07</td><td>Madoska Sorvetes</td><td class="r">R$ 127,43</td></tr>
       <tr><td class="mono">TX000032</td><td class="mono">11/07</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
+      <tr><td class="mono">TX000030</td><td class="mono">12/07</td><td>Pastianne Restaurante</td><td class="r">R$ 126,28</td></tr>
       <tr><td class="mono">TX000034</td><td class="mono">12/07</td><td>H57Store</td><td class="r">R$ 26,36</td></tr>
       <tr><td class="mono">TX000035</td><td class="mono">12/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
       <tr><td class="mono">TX000036</td><td class="mono">12/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      <tr><td class="mono">TX000093</td><td class="mono">13/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
       <tr><td class="mono">TX000078</td><td class="mono">13/07</td><td>H57Store</td><td class="r">R$ 25,93</td></tr>
+      <tr><td class="mono">TX000094</td><td class="mono">14/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
       <tr><td class="mono">TX000079</td><td class="mono">14/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
-      <tr><td class="mono">TXR000007</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TX000089</td><td class="mono">16/07</td><td>Encargos de Rotativo</td><td class="r">R$ 281,34</td></tr>
+      <tr><td class="mono">TX000090</td><td class="mono">16/07</td><td>IOF sobre transação internacional</td><td class="r">R$ 8,75</td></tr>
       <tr><td class="mono">TX000081</td><td class="mono">16/07</td><td>Nobre Carnes LI <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 206,40</td></tr>
       <tr><td class="mono">TX000082</td><td class="mono">16/07</td><td>Sup Ideal <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 313,12</td></tr>
-      <tr><td class="mono">TX000087</td><td class="mono">27/06</td><td>Abastecimento A. Souza Fechine <span style="font-size:0.62rem;color:var(--accent)">· parte em crédito, R$200 pago em voucher</span></td><td class="r">R$ 103,00</td></tr>
-      <tr><td class="mono">TX000089</td><td class="mono">16/07</td><td>Encargos de Rotativo <span style="font-size:0.62rem;color:var(--accent)">· cartão atrasou</span></td><td class="r">R$ 281,34</td></tr>
-      <tr><td class="mono">TX000090</td><td class="mono">16/07</td><td>IOF s/ transação internacional</td><td class="r">R$ 8,75</td></tr>
-      <tr><td class="mono">TX000091</td><td class="mono">01/07</td><td>IOF diário rotativo/atraso</td><td class="r">R$ 1,85</td></tr>
-      <tr><td class="mono">TX000092</td><td class="mono">01/07</td><td>IOF adicional rotativo/atraso</td><td class="r">R$ 42,93</td></tr>
-      <tr><td class="mono">TX000093</td><td class="mono">13/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
-      <tr><td class="mono">TX000094</td><td class="mono">14/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
-      <tr><td class="mono">TX000096</td><td class="mono">17/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· cartão físico 2244</span></td><td class="r">R$ 3,19</td></tr>
-      <tr><td class="mono">TX000097</td><td class="mono">17/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· cartão físico 2244</span></td><td class="r">R$ 4,37</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000096</td><td class="mono">17/07</td><td>H57Store</td><td class="r">R$ 3,19</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000100</td><td class="mono">17/07</td><td>Denis Massas <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 32,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000101</td><td class="mono">17/07</td><td>Vendedora <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 71,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000102</td><td class="mono">17/07</td><td>H57Store</td><td class="r">R$ 6,99</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000103</td><td class="mono">17/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 12,79</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000097</td><td class="mono">17/07</td><td>H57Store</td><td class="r">R$ 4,37</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000098</td><td class="mono">18/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 12,79</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000099</td><td class="mono">18/07</td><td>H57Store</td><td class="r">R$ 3,19</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000104</td><td class="mono">18/07</td><td>Filezão São Cristóvão</td><td class="r">R$ 38,26</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000105</td><td class="mono">18/07</td><td>Maria Do Socorro Da</td><td class="r">R$ 40,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000106</td><td class="mono">18/07</td><td>MP *Solangeartesã</td><td class="r">R$ 10,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000108</td><td class="mono">18/07</td><td>iFood *Brothers Burger</td><td class="r">R$ 230,67</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no lançamento original (retroativo, sem rastro de data confiável)</div>
-      <div class="callout ok">Cartão final 2244 (Itaú Personnalité) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado.</div>
-      <div class="tfoot"><span>42 lançamentos</span><span class="total" id="tfLRW">—</span></div>
+      <div class="callout ok">Cartão final 2244 (Itaú Personnalité) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado. 🟡 fundo amarelo = últimos 2 dias.</div>
+      <div class="tfoot"><span>49 lançamentos</span><span class="total" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -519,23 +517,49 @@
 
     <div id="lrcv" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TX000037</td><td class="mono">13/07</td><td>PIX Vanessa - sinal consulta pediatra Júlio</td><td class="r" style="color:var(--red)">− R$ 50,00</td></tr>
+      <tr><td class="mono">TX000038</td><td class="mono">04/07</td><td>PIX Cleston Da Silva</td><td class="r" style="color:var(--red)">− R$ 33,00</td></tr>
+      <tr><td class="mono">TX000044</td><td class="mono">06/07</td><td>Pagamento Magalupay</td><td class="r" style="color:var(--red)">− R$ 112,61</td></tr>
+      <tr><td class="mono">TX000062</td><td class="mono">06/07</td><td>PIX Clovis Cabral Barbosa</td><td class="r" style="color:var(--red)">− R$ 20,00</td></tr>
+      <tr><td class="mono">TX000063</td><td class="mono">05/07</td><td>PIX União Campinense das Equipes Sociais</td><td class="r" style="color:var(--red)">− R$ 10,00</td></tr>
       <tr><td class="mono">TX28001</td><td class="mono">27/06</td><td>Pamonha e canjica Santo Antônio</td><td class="r" style="color:var(--red)">− R$ 70,00</td></tr>
       <tr><td class="mono">TX28002</td><td class="mono">12/07</td><td>Pamonha e canjica Santo Antônio</td><td class="r" style="color:var(--red)">− R$ 60,00</td></tr>
       <tr><td class="mono">TX28003</td><td class="mono">12/07</td><td>Devolução frango (mainha)</td><td class="r" style="color:var(--green)">+ R$ 64,00</td></tr>
-      <tr><td class="mono">TX000039</td><td class="mono">03/07</td><td>Empréstimo pessoal ao pai (Edgley)</td><td class="r" style="color:var(--red)">− R$ 150,00</td></tr>
-      <tr><td class="mono">TX000040</td><td class="mono">03/07</td><td>Devolução empréstimo (pai)</td><td class="r" style="color:var(--green)">+ R$ 150,00</td></tr>
-      <tr><td class="mono">TX000038</td><td class="mono">04/07</td><td>PIX Cleston Da Silva</td><td class="r" style="color:var(--red)">− R$ 33,00</td></tr>
-      <tr><td class="mono">TX000044</td><td class="mono">06/07</td><td>Pagamento Magalupay</td><td class="r" style="color:var(--red)">− R$ 112,61</td></tr>
-      <tr><td class="mono">TX000045</td><td class="mono">10/07</td><td>Depósito teste Necton</td><td class="r" style="color:var(--red)">− R$ 1,00</td></tr>
-      <tr><td class="mono">TX000037</td><td class="mono">13/07</td><td>Sinal pediatra Júlio (via Vanessa)</td><td class="r" style="color:var(--red)">− R$ 50,00</td></tr>
-      <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>Recebimento de empréstimo interno (Manutenção → Variável)</td><td class="r" style="color:var(--green)">+ R$ 178,64</td></tr>
-      <tr><td class="mono">—</td><td class="mono">13/07</td><td>Suporte Eventos e Viagens → Variável (mesmo propósito: visita família Vanessa)</td><td class="r" style="color:var(--green)">+ R$ 167,40</td></tr>
-      <tr><td class="mono">—</td><td class="mono">14/07</td><td>Excedente reembolso Wärtsilä (após cobrir fatura Mercado Pago)</td><td class="r" style="color:var(--green)">+ R$ 57,04</td></tr>
-      <tr><td class="mono">TX000083</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Caixa Variável (co-irmãs, zera ECC)</td><td class="r" style="color:var(--green)">+ R$ 208,24</td></tr>
-      <tr><td class="mono">TX000085</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Custos Variáveis (co-irmãs)</td><td class="r" style="color:var(--green)">+ R$ 399,13</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000088</td><td class="mono">17/07</td><td>PIX Cleston da Silva - água mineral</td><td class="r" style="color:var(--red)">− R$ 22,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000107</td><td class="mono">18/07</td><td>PIX Luciano Sartori Paqui</td><td class="r" style="color:var(--red)">− R$ 20,00</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000109</td><td class="mono">18/07</td><td>PIX Edgley Dias de Araújo</td><td class="r" style="color:var(--red)">− R$ 60,00</td></tr>
       </tbody></table>
-      <div class="callout ok">PIX Wallace extinta em 13/07/2026: 6 lançamentos migrados para Caixa Variável, saldo de R$40,00 transferido integralmente.</div>
-      <div class="tfoot"><span>Saídas R$476,61 · Entradas R$1.224,45</span><span class="total" style="color:var(--green)">Líquido + R$747,84</span></div>
+      <div class="tfoot"><span>Saídas R$ 457,61 · Entradas R$ 64,00</span><span class="total" style="color:var(--red)">Líquido − R$ 393,61</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin:0.3rem 0">🟡 fundo amarelo = últimos 2 dias (17-18/07)</div>
+
+      <details style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.8rem">
+        <summary style="cursor:pointer;font-size:0.8rem;color:var(--text-mid);font-weight:600">▸ Movimentações internas (empréstimos, repasses, excedentes — 19 lançamentos)</summary>
+        <table style="margin-top:0.6rem"><thead><tr><th>TX</th><th>Data</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
+        <tr><td class="mono">TX000072</td><td class="mono">29/05</td><td>Devolução Pix Geral Vanessa</td><td class="r" style="color:var(--green)">+ R$ 10,00</td></tr>
+        <tr><td class="mono">TX000073</td><td class="mono">29/05</td><td>Devolução Pix Geral Vanessa</td><td class="r" style="color:var(--green)">+ R$ 1,00</td></tr>
+        <tr><td class="mono">TX000057</td><td class="mono">27/06</td><td>Excedente retirado da Caixa PIX Vanessa (própria)</td><td class="r" style="color:var(--green)">+ R$ 300,00</td></tr>
+        <tr><td class="mono">TX000041</td><td class="mono">30/06</td><td>Pagamento fatura Visa Infinite (junho)</td><td class="r" style="color:var(--green)">+ R$ 15.489,00</td></tr>
+        <tr><td class="mono">TX000039</td><td class="mono">03/07</td><td>Empréstimo pessoal ao pai (Edgley)</td><td class="r" style="color:var(--green)">+ R$ 150,00</td></tr>
+        <tr><td class="mono">TX000040</td><td class="mono">03/07</td><td>Devolução empréstimo (pai)</td><td class="r" style="color:var(--green)">+ R$ 150,00</td></tr>
+        <tr><td class="mono">TX000065</td><td class="mono">03/07</td><td>Excedente Fatura Mercado Pago → Caixa Lance</td><td class="r" style="color:var(--green)">+ R$ 264,97</td></tr>
+        <tr><td class="mono">TX000066</td><td class="mono">03/07</td><td>Excedente → Caixa Lance</td><td class="r" style="color:var(--green)">+ R$ 30,00</td></tr>
+        <tr><td class="mono">TX000067</td><td class="mono">03/07</td><td>Excedente Caixa Boletos → Caixa Lance</td><td class="r" style="color:var(--green)">+ R$ 462,29</td></tr>
+        <tr><td class="mono">TX000074</td><td class="mono">03/07</td><td>Devolução Pix Geral Vanessa</td><td class="r" style="color:var(--green)">+ R$ 30,00</td></tr>
+        <tr><td class="mono">TX000060</td><td class="mono">06/07</td><td>Venda de 6 créditos P2P (estoque anterior)</td><td class="r" style="color:var(--green)">+ R$ 120,00</td></tr>
+        <tr><td class="mono">TX000061</td><td class="mono">06/07</td><td>Excedente venda P2P → Caixa Lance</td><td class="r" style="color:var(--red)">− R$ 120,00</td></tr>
+        <tr><td class="mono">TX000064</td><td class="mono">06/07</td><td>Excedente → Caixa Lance</td><td class="r" style="color:var(--red)">− R$ 5,81</td></tr>
+        <tr><td class="mono">TX000070</td><td class="mono">07/07</td><td>Reembolso Wärtsilä separado p/ fatura</td><td class="r" style="color:var(--green)">+ R$ 680,00</td></tr>
+        <tr><td class="mono">TX000068</td><td class="mono">09/07</td><td>Venda de 1 crédito P2P (Stone)</td><td class="r" style="color:var(--green)">+ R$ 20,00</td></tr>
+        <tr><td class="mono">TX000045</td><td class="mono">10/07</td><td>Depósito teste Necton</td><td class="r" style="color:var(--green)">+ R$ 1,00</td></tr>
+        <tr><td class="mono">TX000058</td><td class="mono">10/07</td><td>PIX repasse FIES Vanessa (Caixa Boletos)</td><td class="r" style="color:var(--green)">+ R$ 245,00</td></tr>
+        <tr><td class="mono">TX000059</td><td class="mono">10/07</td><td>Compra de 10 créditos P2P (novo lote)</td><td class="r" style="color:var(--red)">− R$ 110,00</td></tr>
+        <tr><td class="mono">TX000083</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Variável (cobre ECC)</td><td class="r" style="color:var(--green)">+ R$ 208,24</td></tr>
+        <tr><td class="mono">TX000085</td><td class="mono">16/07</td><td>Suporte PIX Vanessa → Custos Variáveis</td><td class="r" style="color:var(--green)">+ R$ 399,13</td></tr>
+        </tbody></table>
+        <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.5rem">Empréstimos internos, repasses de boleto, excedentes redirecionados pra Caixa Lance e vendas de P2P — não são "gasto do dia a dia", são encanamento entre caixas. Somados aqui só pra rastreabilidade (P6), não entram no líquido acima.</div>
+      </details>
+
+      <div class="callout ok" style="margin-top:0.8rem">PIX Wallace extinta em 13/07/2026: 6 lançamentos migrados para Caixa Variável, saldo de R$40,00 transferido integralmente.</div>
     </div>
 
     <div id="lrei" class="pane">
@@ -630,7 +654,9 @@
     <div class="row" style="margin-top:0.3rem"><span class="k">1. Fatura do cartão Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
     <div class="row"><span class="k">2. Corporativo Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
     <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
-    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. Sobra pessoal (Mercado Pago)</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. Sobra pessoal (crédito no Mercado Pago)</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+    <div class="row" style="margin-top:0.3rem"><span class="k">5. MP pessoal (o que você deve na fatura)</span><span class="v" id="reembMPPessoal">—</span></div>
+    <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">Linha 5 ≠ linha 4 — não confundir. Linha 5 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali. Linha 4 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo, vira crédito seu no Mercado Pago (dinheiro diferente, mesmo destino).</div>
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra pessoal (linha 4) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
   </div>
 
@@ -652,7 +678,7 @@
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div style="font-size:0.78rem;color:var(--text-mid)">Necessidade líquida do salário — próximos ciclos</div>
-      <span class="badge bg">Queda total: R$2.735,92</span>
+      <span class="badge bg" id="quedaTotalNL">Queda total: —</span>
     </div>
     <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
     <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$997,48 — MP pessoal R$514,05 + Visa Infinite corporativo R$483,43, atualizado 17/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.</div>
@@ -673,9 +699,10 @@
     <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span id="r21MetaMilhaoPct">—</span>%</span></div>
     <div class="row"><span class="k">Modo operacional</span><span class="badge bg" id="r21ModoOp">—</span></div>
     <div class="row"><span class="k">Visa Infinite</span><span class="v" id="r21Visa">—</span></div>
+    <div class="row"><span class="k">Mastercard Black</span><span class="v" id="r21MB">—</span></div>
     <div class="row"><span class="k">Mercado Pago</span><span class="v" id="r21MP">—</span></div>
     <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="r21Wartsila">—</span></div>
-    <div class="row"><span class="k">ECC</span><span class="v" style="color:var(--green)">Zerado</span></div>
+    <div class="row"><span class="k">ECC</span><span class="v" id="r21ECC">—</span></div>
     <div class="row"><span class="k">Total operacional</span><span class="v" id="r21TotalOp">—</span></div>
     <div class="row"><span class="k">Total op. em Mar/27</span><span class="v" style="color:var(--green)" id="r21TotalOpMar27">—</span></div>
     <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba">8,27%</span></div>
@@ -981,7 +1008,6 @@
     <!-- 5 -->
     <div class="section-num"><span class="n">05</span><h2>📦 Gestão das Reservas</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Caixa Boletos</span><span class="v" id="balResBoletos">R$ 821,51</span></div>
       <div class="row"><span class="k">Escola de Júlio</span><span class="v" id="balResEscola">R$ 505,64</span></div>
       <div class="row"><span class="k">Caixa Lance</span><span class="v" id="balResLance">R$ 204,48</span></div>
       <div class="row"><span class="k">Caixa Manutenção</span><span class="v" style="color:var(--text-dim)" id="balResManut">R$ 0,00 (emprestada)</span></div>
@@ -998,17 +1024,20 @@
     <div class="card">
       <div class="row"><span class="k">Caixa Variável</span><span class="v" id="balOpCaixaVariavel">R$ 2.749,77</span></div>
       <div class="row"><span class="k">Caixa PIX Vanessa (saldo real da conta dela)</span><span class="v" id="balOpPixVanessa">R$ 159,96</span></div>
+      <div class="row"><span class="k">Caixa Boletos</span><span class="v" id="balResBoletos">R$ 821,51</span></div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total operacional</span><span class="v" style="color:var(--green)" id="balOperacionalTotal">R$ 2.909,73</span></div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Não inclui o registrador PIX_VANESSA (reserva do Wallace) — reconciliado em 16/07/2026, confirmado em R$0,00 (zerado após as transferências do dia).</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Não inclui o registrador PIX_VANESSA (reserva do Wallace) — reconciliado em 16/07/2026, confirmado em R$0,00 (zerado após as transferências do dia). Caixa Boletos movida de Reservas para cá (18/07/2026, V85) — é pote de trabalho mensal (recebe e paga boletos todo ciclo), não meta patrimonial de longo prazo.</div>
     </div>
 
     <!-- 7 -->
     <div class="section-num"><span class="n">07</span><h2>🔄 Obrigações Operacionais</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Visa Infinite</span><span class="v" id="balObrVisa">R$ 9.181,06</span></div>
-      <div class="row"><span class="k">Mercado Pago</span><span class="v" id="balObrMP">R$ 1.751,16</span></div>
+      <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado/Vanessa)</span><span class="v" id="balObrVisa">R$ 8.840,49</span></div>
+      <div class="row"><span class="k">Mastercard Black (2244/4628, cartão principal)</span><span class="v" id="balObrMB">R$ 1.664,20</span></div>
+      <div class="row"><span class="k">Mercado Pago</span><span class="v" id="balObrMP">R$ 1.791,93</span></div>
       <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="balObrWartsila">R$ 656,67</span></div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Parcelamentos, assinaturas, recorrências e consórcios já compõem o Visa Infinite acima (soma existente, sem recálculo — a especificação pediu para manter esse grupo "praticamente como já existe hoje").</div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">R$ 12.953,29</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Ciclo de transição: migração pro Mastercard Black é gradual, item por item, só sai do Visa Infinite quando a fatura MB confirma a cobrança de verdade (não em bloco por promessa de migração). Confirmados até agora: Brisanet, New Car, Faculdade (2ª cobrança), Spotify, Amazon Prime. O resto (consórcios, Vivo, Claude, Netflix etc.) migra conforme for aparecendo na fatura MB nos próximos ciclos.</div>
     </div>
 
     <!-- 8 -->

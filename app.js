@@ -126,17 +126,17 @@ const REG = {
   },
   caixaVariavel: {
     saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
-    comprometido: 3114.10,  // V80: +R$318,93 (4 compras cartao via Meta AI). Era R$2.795,17.
-    disponivel: -466.33,    // V82: ECC ativo, folego na tolerancia continua R$385,90 (PIX nao muda comprometido). Era -R$406,33.
+    comprometido: 3135.28,  // V86: +R$21,18 (Panificadora+H57Store). Era R$3.114,10.
+    disponivel: -487.51,    // V86: SALDO_REAL(2647.77)-COMPROMETIDO(3135.28). Era -R$466,33.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 10483.51,   // V80 (18/07/2026): +R$318,93 (4 compras Meta AI) + corrige gap da V77 (MB estava parado em R$539,87). Infinite(9.498,74)+MB(984,77).
+    totalComprometido: 10504.69,   // V87: total geral nao muda. Infinite(8.840,49)+MB(1.664,20) - so migracao gradual confirmada por fatura real, nao em bloco.
     pessoal: 10000.08   // totalComprometido - LRC (R$483,43, corporativo)
   },
-  cartaoInfinite: { total: 9498.74 },   // V70: inclui V69b (+R$40 ANTHROPIC que faltou) + LRS Spotify (+R$23,90). Era R$9.434,84 (V69).
-  cartaoMB: { total: 984.77 },  // V80: +R$318,93 (4 compras Meta AI) +R$140,85 gap da V77 que nunca tinha sincronizado aqui. Era R$527,08.
+  cartaoInfinite: { total: 8840.49 },   // CORRIGIDO 19/07/2026 (V87): migracao e gradual (item por item, so o que a fatura MB confirma sai daqui). Era R$5.305,73 (V85, tinha reagido demais - zerou consorcios/maioria de LRS-LRR que ainda nao migraram de fato).
+  cartaoMB: { total: 1664.20 },  // CORRIGIDO 19/07/2026 (V87): so os itens com cobranca real confirmada na fatura MB (LRW-MB + Brisanet+NewCar+FaculdadeMB+Spotify+AmazonPrime). Era R$5.198,96 (V86, migracao em bloco excessiva).
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
@@ -146,8 +146,8 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2414.56, consorcios:1950.77, wallace:1563.17, recorrencias:1369.51, corp:483.43, assinaturas:417.35, vanessa:437.64 },
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:519.52, recorrencias:0, corp:0, assinaturas:0, vanessa:0 },
+  visaDetalhe: { parcelas:2419.49, consorcios:1950.77, wallace:1965.17, recorrencias:1194.53, corp:483.43, assinaturas:389.46, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V87): usuario esclareceu - migracao e GRADUAL, item por item, so o que tem cobranca REAL confirmada na fatura MB sai do Visa. Consorcios e a maioria de LRS/LRR ainda nao apareceram numa fatura MB de verdade neste ciclo, entao ficam no Visa (transicao). Reverte o excesso da V85 que tinha movido tudo em bloco so por causa de uma promessa de migracao, sem esperar a fatura confirmar.
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:1005.95, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // CORRIGIDO 19/07/2026 (V87): so o que tem cobranca REAL confirmada no MB - recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90). Consorcios e o resto de LRS/LRR ainda nao migraram de fato, ficam no Visa este ciclo.
   totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:514.05, assinaturas:433.26 }, // V70 (18/07/2026): assinaturas +R$23,90 (Spotify, nova)
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
@@ -179,7 +179,7 @@ const REG = {
   },
   livrosRazaoTotais: {
     // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:2949.94, qtd:52 }, // V80: LRW-I(1.965,17)+LRW-MB(984,77). +4 lancamentos (TX000104-106,108).
+    LRW:   { total:2949.94, qtd:49 }, // V85: qtd corrigido para a contagem real (era 52, tabela reconstruida com 49 linhas reais)
     LRV:   { total:437.64,  qtd:16 },
     LRB:   { total:2598.58, qtd:9  },
     LRP:   { total:2419.49, qtd:15 }, // V68: +R$4,93 (15 TXP corrigidos via fatura Bradesco literal)
@@ -228,11 +228,11 @@ const REG = {
     ativosTotal: 548868.05,
     patrimonioLiquido: 468542.31,
     reservas: {
-      boletos:821.51, escolaJulio:505.64, caixaLance:204.48, manutencao:0, eventos:0,
-      churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:1531.63
-    },
-    operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, total:2909.73 },
-    obrigacoes: { visa:9181.06, mercadoPago:1751.16, wartsila:656.67 },
+      boletos:0, escolaJulio:505.64, caixaLance:204.48, manutencao:0, eventos:0,
+      churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
+    }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
+    operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, caixaBoletos:821.51, total:3731.24 },
+    obrigacoes: { visa:8840.49, mastercardBlack:1664.20, mercadoPago:1791.93, wartsila:656.67, total:12953.29 }, // V87: migracao gradual - so item confirmado por fatura real sai do Visa
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };
@@ -263,7 +263,8 @@ function hydrate(){
   t('r21Patrimonio', fmt(R.patrimonio.total));
   t('r21MetaMilhaoPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('r21ModoOp', R.operacional.modoOperacional);
-  t('r21Visa', fmt(R.visa.totalComprometido));
+  t('r21Visa', fmt(R.cartaoInfinite.total));
+  t('r21MB', fmt(R.cartaoMB.total));
   t('r21MP', fmt(R.mercadoPago));
   t('r21Wartsila', fmt(R.faturaWartsila));
   t('r21TotalOp', fmt(R.operacional.totalOperacional));
@@ -299,8 +300,10 @@ function hydrate(){
   t('tfLRC', fmt(L.LRC.total));
   t('tfLRMP', fmt(L.LRMP.total));
   t('tfLRPV', fmt(L.LRPV.total));
-  t('tfLRCV', fmtSinal(L.LRCV.total));
-  t('tfLRCVresumo', fmtSinal(L.LRCV.total));
+  // tfLRCV/tfLRCVresumo removidos (18/07/2026, V84): a tabela LRCV foi dividida em "PIX/gastos reais"
+  // (visível) vs "movimentações internas" (recolhível, <details>) porque misturar as duas fazia o
+  // total "líquido" não significar nada (soma de gasto real + repasse de boleto + LREI + venda de P2P).
+  // Os 2 rodapés agora são texto estático mantido manualmente junto com as linhas da tabela.
 
   // ===== Batch final (16/07/2026) - varredura completa a pedido do usuario =====
   const fmtInt = v => 'R$ '+Math.round(v).toLocaleString('pt-BR');
@@ -410,6 +413,7 @@ function hydrate(){
   t('reembPagaMP', fmt(R.operacional.reembolsoPagaMPCorporativo));
   t('reembPagaCartao', fmt(R.visaDetalhe.corp));
   t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
+  t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // V85: 5o campo pedido pelo usuario - total MP menos corporativo, nao confundir com a sobra da cascata (linha 4)
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
 
@@ -431,7 +435,7 @@ function hydrate(){
   t('balAtivosTotal', fmt(B.ativosTotal));
   t('balPassivosTotal2', fmt(B.passivos.total));
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
-  t('balResBoletos', fmt(B.reservas.boletos));
+  t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
   t('balResManut', fmt(B.reservas.manutencao)+' (emprestada)');
@@ -445,8 +449,10 @@ function hydrate(){
   t('balOpPixVanessa', fmt(B.operacional.pixVanessaSaldoReal));
   t('balOperacionalTotal', fmt(B.operacional.total));
   t('balObrVisa', fmt(B.obrigacoes.visa));
+  t('balObrMB', fmt(B.obrigacoes.mastercardBlack));
   t('balObrMP', fmt(B.obrigacoes.mercadoPago));
   t('balObrWartsila', fmt(B.obrigacoes.wartsila));
+  t('balObrTotal', fmt(B.obrigacoes.total));
   t('balFluxoEntradas', fmt(B.fluxo.entradas));
   t('balFluxoSaidas', fmt(B.fluxo.saidas));
   t('balFluxoResultado', fmt(B.fluxo.resultado));
@@ -500,10 +506,10 @@ function auditoriaAutomatica(){
     problemas.push(`Caixa Variável: SaldoReal-Comprometido=${dispCalc} ≠ disponivel(${REG.caixaVariavel.disponivel})`);
   }
 
-  // 6) Gestão Operacional (Balanço) = Caixa Variável + PIX Vanessa saldo real
-  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal);
+  // 6) Gestão Operacional (Balanço) = Caixa Variável + PIX Vanessa saldo real + Caixa Boletos (movida da Reserva na V85)
+  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos);
   if(!bate(opCalc, REG.balanco.operacional.total)){
-    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
+    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa+CaixaBoletos=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
   }
 
   // 7) Reservas (Balanço) = soma das 9 caixas de reserva
@@ -644,6 +650,26 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     });
 
     // Simulador Fim de Ciclo
+    // Card ECC (secao 07 do painel principal) - status real, nao mais hardcoded "RESOLVIDO"
+    const eccStatusEl = document.getElementById('eccStatus');
+    if(eccStatusEl){
+      eccStatusEl.textContent = cv.disponivel >= 0 ? 'RESOLVIDO' : (folego >= 0 ? 'ATIVO (dentro da tolerância)' : 'ATIVO (estourou a tolerância)');
+      eccStatusEl.style.color = cv.disponivel >= 0 ? '#34c98a' : (folego >= 0 ? '#e8a63a' : '#e2554f');
+    }
+    set('eccValor', fmt(cv.disponivel));
+    set('eccFolego', fmt(folego));
+
+    // Badge "Queda total" (Necessidade líquida) - calculado ao vivo a partir da MESMA serie usada
+    // no grafico (18/07/2026, V85: estava hardcoded, descolado do dado real ha varias rodadas).
+    const nlSerie = alignSeries(REG.evolucao.necessidadeLiquida);
+    const quedaTotal = Math.round((nlSerie[0] - nlSerie[nlSerie.length-1])*100)/100;
+    set('quedaTotalNL', 'Queda total: '+fmt(quedaTotal));
+    const r21EccEl = document.getElementById('r21ECC');
+    if(r21EccEl){
+      r21EccEl.textContent = cv.disponivel >= 0 ? 'Zerado' : (folego >= 0 ? 'Ativo (na tolerância)' : 'Ativo (estourado)');
+      r21EccEl.style.color = cv.disponivel >= 0 ? 'var(--green)' : (folego >= 0 ? 'var(--accent)' : 'var(--red)');
+    }
+
     set('simDiasRestantes', restantes+(restantes===1?' dia':' dias'));
     set('simTeto', fmt(tetoEfetivo)+(cv.tolerenciaTemp>0 ? ' *' : ''));
     set('simComprometido', fmt(cv.comprometido));
@@ -677,6 +703,17 @@ function showMaster(id, btn){
   document.querySelectorAll('.master-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
+  // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
+  // ainda esta escondida (display:none) no carregamento inicial - o Chart.js nao consegue medir o
+  // canvas com largura/altura zero e o grafico fica quebrado/em branco, mesmo depois da aba aparecer.
+  // Forcar resize() em todas as instancias existentes toda vez que uma pagina fica visivel resolve -
+  // Chart.js mantem um registro global (Chart.instances) que nao precisa de nenhum controle manual.
+  if(typeof Chart !== 'undefined' && Chart.instances){
+    requestAnimationFrame(()=>{
+      Object.values(Chart.instances).forEach(c=>{ try{ c.resize(); }catch(e){} });
+    });
+  }
 }
 
 function showLR(id, btn){
@@ -770,10 +807,10 @@ new Chart(document.getElementById('cEvol'), {
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:7000,max:11600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:8000,max:12600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
 new Chart(document.getElementById('cNecessidadeLiquida'), {
@@ -784,10 +821,10 @@ new Chart(document.getElementById('cNecessidadeLiquida'), {
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:10000,max:13800,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:10400,max:14700,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 })();
 
@@ -824,7 +861,7 @@ new Chart(document.getElementById('cCenarioSalario'), {
       title:c=>c[0].label.replace('\n',' '),
       label:c=>fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10.5}}},
-      y:{grid:{color:grid},max:22000,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},max:32000,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 })();
 
@@ -918,22 +955,23 @@ new Chart(document.getElementById('g_cVariavel'), {
       y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
 });
 
-// 03 — Progresso das metas patrimoniais (corrigido 15/07/2026 com o Wallace).
+// 03 — Progresso das metas patrimoniais (corrigido 15/07/2026 com o Wallace; Escola Julio removida 18/07/2026 V85).
 // Caixa Lance NÃO tem meta propria - e um pulmao que acumula ate um valor relevante para investir
 // (evitar taxa de corretagem desproporcional em aportes pequenos), nao entra neste grafico.
 // BTG/Necton tambem nao tem meta propria - contribui para a Meta do Milhao (R$1.000.000).
-// As 4 metas reais monitoradas aqui: Meta do Milhao (patrimonio total), Casa Nova (consorcio),
-// Consorcio Auto, Escola de Julio.
-const metasNomes = ['Meta Milhão','Casa Nova','Consórcio Auto','Escola Júlio'];
-const metasPct = Object.values(REG.metasPatrimoniais);
+// Escola de Julio NAO entra aqui (removida do Patrimonio Total desde V47, 16/07/2026) - e uma
+// reserva/caixa propria, acompanhada na secao 14 (Escola de Julio), nao e uma "meta patrimonial".
+// As 3 metas reais monitoradas aqui: Meta do Milhao (patrimonio total), Casa Nova (consorcio),
+// Consorcio Auto.
+const metasNomes = ['Meta Milhão','Casa Nova','Consórcio Auto'];
+const metasPct = [REG.metasPatrimoniais.milhaoPct, REG.metasPatrimoniais.casaNovaPct, REG.metasPatrimoniais.autoPct];
 // Rotulo curto sobre a barra: so porcentagem + texto minimo
-const metasRaw = ['11,54% do milhão','0,42% pago','75,22% pago','5,47% da meta'];
+const metasRaw = ['11,54% do milhão','0,42% pago','75,22% pago'];
 // Descricao completa, so no tooltip ao passar o mouse
 const metasDetalhe = [
   '11,54% · R$115.373,63 de R$1.000.000',
   'Consórcio Casa Nova (cota 12, grupo I0464) · quitação R$550.601,43 (99,58%)',
-  'Carta R$76.670,02, saldo devedor R$18.998,83',
-  'R$505,64 de R$9.236'
+  'Carta R$76.670,02, saldo devedor R$18.998,83'
 ];
 
 new Chart(document.getElementById('g_cMetas'), {
@@ -941,8 +979,8 @@ new Chart(document.getElementById('g_cMetas'), {
   plugins:[metaValuePlugin],
   data:{labels:metasNomes,
     datasets:[{data:metasPct, raw:metasRaw,
-    backgroundColor:['#9085e9','#3987e5','#34c98a','#e8a63a'],borderRadius:4}]},
-  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:70}},
+    backgroundColor:['#9085e9','#3987e5','#34c98a'],borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:70,top:15}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>metasDetalhe[c.dataIndex]}}},
     scales:{x:{grid:{color:grid},max:105,ticks:{callback:v=>v+'%',font:{size:10}}},
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
@@ -956,10 +994,10 @@ new Chart(document.getElementById('g_cEvol'), {
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:7000,max:11600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:8000,max:12600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
 new Chart(document.getElementById('g_cNecessidadeLiquida'), {
@@ -970,10 +1008,10 @@ new Chart(document.getElementById('g_cNecessidadeLiquida'), {
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26}},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:10000,max:13800,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:10400,max:14700,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,
