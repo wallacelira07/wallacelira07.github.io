@@ -139,8 +139,8 @@ const REG = {
   },
   caixaVariavel: {
     saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
-    comprometido: 3316.28,  // V93b (19/07): -R$3,19 (TX000096 duplicata cancelada) +R$184,19 (4 lancamentos faltantes da fatura Bradesco: Seguro Superprotegido, DryClean USA, Vendedora, MP*Melimais). Era R$3.135,28.
-    disponivel: -668.51,    // V93b: SALDO_REAL(2647.77)-COMPROMETIDO(3316.28). Era -R$487,51.
+    comprometido: 3589.76,  // CORRIGIDO 19/07/2026: recomputado = LRW(3152,12)+LRV(437,64), formula oficial da secao 13 da Politica. Os R$184,19 de TX112-115 ja tinham sido somados aqui na V93b, mas faltava somar TX000110+TX000111 (R$21,18, achados V86) - nunca tinham entrado neste registrador. Era R$3.316,28.
+    disponivel: -941.99,    // CORRIGIDO 19/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3589.76). Era -R$668,51.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
@@ -200,7 +200,7 @@ const REG = {
   },
   livrosRazaoTotais: {
     // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:2949.94, qtd:49 }, // V85: qtd corrigido para a contagem real (era 52, tabela reconstruida com 49 linhas reais)
+    LRW:   { total:3152.12, qtd:54 }, // CORRIGIDO 19/07/2026 (auditoria site-ERP): recomputado do zero via LRW-I+LRW-MB (ATIVO=SIM) no ERP. Faltavam 6 lancamentos confirmados que nunca entraram na tabela/total: TX000110(13,80)+TX000111(7,38)+TX000112(9,99)+TX000113(132,00)+TX000114(22,30)+TX000115(19,90)=R$205,37. Era R$2.949,94/49 (incluia por engano TX000096 cancelado, R$3,19, e nao incluia os 6 acima).
     LRV:   { total:437.64,  qtd:16 },
     LRB:   { total:2598.58, qtd:9  },
     LRP:   { total:4309.37, qtd:25 }, // V96: +R$80,97 (TXP000025, RBM Relogios, achado na fatura Bradesco literal). Era R$4.228,40/24.
@@ -648,11 +648,15 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
       const nivel = maxIdade<=30 ? {icone:'ℹ️',cor:'#3987e5'} : maxIdade<=60 ? {icone:'⚠️',cor:'#e8a63a'} : {icone:'🔴',cor:'#e2554f'};
       alertas.push({icone:nivel.icone, cor:nivel.cor, txto:`${q.lreiAtivos} empréstimo(s) interno(s) ativo(s) — mais antigo com ${maxIdade} dias`});
     }
-    alertas.push(cv.disponivel >= 0
+    // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),
+    // uma variavel errada para "quanto passou do teto oficial". O teto oficial e comparado contra o COMPROMETIDO
+    // (secao 13 da Politica), nunca contra o disponivel. Valor certo = comprometido - tetoOficial.
+    const excedente = round2(cv.comprometido - cv.tetoOficial);
+    alertas.push(excedente <= 0
       ? {icone:'✅', cor:'#34c98a', txto:'Caixa Variável dentro do teto oficial'}
       : {icone: folego>=0 ? '⚠️' : '🔴', cor: folego>=0 ? '#e8a63a' : '#e2554f',
          txto: folego>=0
-           ? `Caixa Variável acima do teto oficial (${fmt(Math.abs(cv.disponivel))}), coberta pela tolerância temporária — restam ${fmt(folego)} até o teto de ${fmt(tetoEfetivo)}`
+           ? `Caixa Variável acima do teto oficial (${fmt(excedente)}), coberta pela tolerância temporária — restam ${fmt(folego)} até o teto de ${fmt(tetoEfetivo)}`
            : `Caixa Variável estourou inclusive a tolerância temporária em ${fmt(Math.abs(folego))}`});
     if(q.tetoTemporarioAtivo){
       alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Tolerância temporária de ${fmt(cv.tolerenciaTemp)} ativa até o fim do ciclo (24/07) — recomposição prevista via reembolso Wärtsilä ou salário de 25/07`});
