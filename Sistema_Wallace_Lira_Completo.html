@@ -7,10 +7,27 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<script>
+  // Guarda de acesso (defesa em profundidade, 18/07/2026): este painel hoje nao verifica login
+  // se acessado direto pela URL, sem passar pelo index.html. Isso NAO substitui seguranca real
+  // (o arquivo ainda contem os dados no HTML/JS - quem baixar o arquivo direto ve tudo, isso so
+  // barra navegacao casual/link perdido/historico do navegador). Ver nota tecnica sobre isso.
+  (function(){
+    try {
+      var auth = localStorage.getItem('auth');
+      if (!auth) throw new Error('sem sessao');
+      JSON.parse(auth); // valida que e um JSON razoavel, nao garante que o token ainda e valido
+    } catch(e) {
+      document.write('<div style="font-family:sans-serif;text-align:center;padding:4rem 1rem;color:#666"><h2>Sessão não encontrada</h2><p>Redirecionando para o login…</p></div>');
+      window.location.replace('index.html');
+      window.stop && window.stop();
+    }
+  })();
+</script>
 <div class="wrap">
 
   <div class="cover">
-    <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento</div>
+    <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span></div>
     <h1>Painel Financeiro V1.8</h1>
     <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
     <div class="cover-metrics">
@@ -19,6 +36,22 @@
       <div><div class="cm-lbl">Modo operacional</div><div class="cm-val g" id="coverModoOp">—</div></div>
       <div><div class="cm-lbl">Caixa variável</div><div class="cm-val g" id="coverCaixaVar">—</div></div>
     </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem">🔮 Simulador Fim de Ciclo — quanto ainda dá pra gastar na Caixa Variável</div>
+    <div class="grid-4" style="gap:1rem">
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dias restantes</div><div style="font-size:1.15rem;font-weight:700" id="simDiasRestantes">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até 24/07</div><div style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
+    </div>
+    <div id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.6rem">🔍 Verificações de Negócio</div>
+    <div id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
   </div>
 
   <div class="master-tabs">
@@ -89,8 +122,8 @@
       <div class="row"><span class="k">CC-301 · Reserva de emergência</span><span class="v" id="patReserva">—</span></div>
       <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v" id="patBtg">—</span></div>
       <div class="row"><span class="k">CC-303 · Caixa Lance</span><span class="v" id="patLance">—</span></div>
-      <div class="row"><span class="k">CC-201 · Escola de Júlio</span><span class="v" id="patEscola">—</span></div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Escola de Júlio entra no Patrimônio Financeiro e na Meta do Milhão — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Escola de Júlio contam como patrimônio. Reconciliado em 16/07/2026: total ajustado para R$115.449,57 (soma exata dos 4 saldos oficiais, saldos reais atualizados dos cofrinhos).</div>
+      <div class="row"><span class="k">Necton · Conta corrente</span><span class="v" id="patEscola">—</span></div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Escola de Júlio NÃO entra no Patrimônio Financeiro/Meta do Milhão desde 16/07/2026 (V47) — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Necton Conta Corrente contam como patrimônio. Escola de Júlio segue existindo como caixa/reserva própria, acompanhada separadamente. Atualizado 17/07/2026: total ajustado para R$115.373,63 (inclui Necton Conta Corrente R$429,70, confirmado pelo usuário).</div>
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
@@ -243,9 +276,9 @@
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
-      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem">R$ 19.987,85</div>
-      <div class="progress"><div class="fill" style="width:73.94%;background:var(--green)"></div></div>
-      <div class="progress-lbl"><span>73,94% pago</span><span>Parcela R$501,50</span></div>
+      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem">R$ 18.998,83</div>
+      <div class="progress"><div class="fill" style="width:75.22%;background:var(--green)"></div></div>
+      <div class="progress-lbl"><span>75,22% pago</span><span>Parcela R$501,50</span></div>
       <span class="badge bg" style="margin-top:0.5rem">Contemplada com o bem</span>
     </div>
   </div>
@@ -258,10 +291,10 @@
       <span class="badge ba">Não contemplada</span>
     </div>
     <div class="row"><span class="k">Parcela (cartão de crédito)</span><span class="v">R$ 1.449,45</span></div>
-    <div class="row"><span class="k">Pago até o momento</span><span class="v">0,21%</span></div>
-    <div class="row"><span class="k">Valor para quitação</span><span class="v">R$ 552.050,77 (99,79%)</span></div>
+    <div class="row"><span class="k">Pago até o momento</span><span class="v">0,42%</span></div>
+    <div class="row"><span class="k">Valor para quitação</span><span class="v">R$ 550.601,43 (99,58%)</span></div>
     <div class="row"><span class="k">Próxima assembleia</span><span class="v">21/07/2026</span></div>
-    <div class="progress"><div class="fill" style="width:0.21%;background:var(--accent)"></div></div>
+    <div class="progress"><div class="fill" style="width:0.42%;background:var(--accent)"></div></div>
   </div>
 
   <!-- 13 -->
@@ -340,10 +373,19 @@
       <tr><td class="mono">TXR000007</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 9,99</td></tr>
       <tr><td class="mono">TX000081</td><td class="mono">16/07</td><td>Nobre Carnes LI <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 206,40</td></tr>
       <tr><td class="mono">TX000082</td><td class="mono">16/07</td><td>Sup Ideal <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 313,12</td></tr>
+      <tr><td class="mono">TX000087</td><td class="mono">27/06</td><td>Abastecimento A. Souza Fechine <span style="font-size:0.62rem;color:var(--accent)">· parte em crédito, R$200 pago em voucher</span></td><td class="r">R$ 103,00</td></tr>
+      <tr><td class="mono">TX000089</td><td class="mono">16/07</td><td>Encargos de Rotativo <span style="font-size:0.62rem;color:var(--accent)">· cartão atrasou</span></td><td class="r">R$ 281,34</td></tr>
+      <tr><td class="mono">TX000090</td><td class="mono">16/07</td><td>IOF s/ transação internacional</td><td class="r">R$ 8,75</td></tr>
+      <tr><td class="mono">TX000091</td><td class="mono">01/07</td><td>IOF diário rotativo/atraso</td><td class="r">R$ 1,85</td></tr>
+      <tr><td class="mono">TX000092</td><td class="mono">01/07</td><td>IOF adicional rotativo/atraso</td><td class="r">R$ 42,93</td></tr>
+      <tr><td class="mono">TX000093</td><td class="mono">13/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      <tr><td class="mono">TX000094</td><td class="mono">14/07</td><td>Anthropic API Credits</td><td class="r">R$ 20,00</td></tr>
+      <tr><td class="mono">TX000096</td><td class="mono">17/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· cartão físico 2244</span></td><td class="r">R$ 3,19</td></tr>
+      <tr><td class="mono">TX000097</td><td class="mono">17/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· cartão físico 2244</span></td><td class="r">R$ 4,37</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no lançamento original (retroativo, sem rastro de data confiável)</div>
       <div class="callout ok">Cartão final 2244 (Itaú Personnalité) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado.</div>
-      <div class="tfoot"><span>30 lançamentos · Próximo: TX000087</span><span class="total" id="tfLRW">—</span></div>
+      <div class="tfoot"><span>42 lançamentos</span><span class="total" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -386,32 +428,32 @@
 
     <div id="lrp" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Compra</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXP000001</td><td class="mono">—</td><td>Teacher Matias</td><td class="mono">4/12</td><td class="r">R$ 120,00</td></tr>
-      <tr><td class="mono">TXP000002</td><td class="mono">—</td><td>DeckFriend</td><td class="mono">4/12</td><td class="r">R$ 58,64</td></tr>
-      <tr><td class="mono">TXP000003</td><td class="mono">—</td><td>Korpos Estética</td><td class="mono">7/12</td><td class="r">R$ 189,99</td></tr>
-      <tr><td class="mono">TXP000004</td><td class="mono">—</td><td>RL Artesão</td><td class="mono">2/5</td><td class="r">R$ 66,87</td></tr>
-      <tr><td class="mono">TXP000005</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 38,28</td></tr>
-      <tr><td class="mono">TXP000006</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 68,01</td></tr>
-      <tr><td class="mono">TXP000007</td><td class="mono">—</td><td>Mercado Livre MP</td><td class="mono">5/6</td><td class="r">R$ 48,33</td></tr>
-      <tr><td class="mono">TXP000008</td><td class="mono">—</td><td>Seguro Tokio Marine</td><td class="mono">7/10</td><td class="r">R$ 200,99</td></tr>
-      <tr class="last-parcel"><td class="mono">TXP000009</td><td class="mono">—</td><td>Aram Beach Hotel 🔚</td><td class="mono">2/2</td><td class="r">R$ 486,64</td></tr>
-      <tr><td class="mono">TXP000010</td><td class="mono">—</td><td>PicPay Wallace Patri</td><td class="mono">11/12</td><td class="r">R$ 183,47</td></tr>
-      <tr><td class="mono">TXP000015</td><td class="mono">—</td><td>Kinesioceteos</td><td class="mono">3/5</td><td class="r">R$ 74,85</td></tr>
-      <tr class="last-parcel"><td class="mono">TXP000011</td><td class="mono">—</td><td>Hub Smart Home 🔚</td><td class="mono">2/2</td><td class="r">R$ 36,49</td></tr>
-      <tr class="last-parcel"><td class="mono">TXP000012</td><td class="mono">—</td><td>Edilson Lourenço 🔚</td><td class="mono">2/2</td><td class="r">R$ 425,00</td></tr>
-      <tr class="last-parcel"><td class="mono">TXP000013</td><td class="mono">—</td><td>Silmara Macedo 🔚</td><td class="mono">2/2</td><td class="r">R$ 375,00</td></tr>
-      <tr class="last-parcel"><td class="mono">TXP000014</td><td class="mono">—</td><td>Hotmart Fernando 🔚</td><td class="mono">12/12</td><td class="r">R$ 42,00</td></tr>
+      <tr><td class="mono">TXP000001</td><td class="mono">23/03</td><td>Teacher Matias</td><td class="mono">4/12</td><td class="r">R$ 134,14</td></tr>
+      <tr><td class="mono">TXP000002</td><td class="mono">21/03</td><td>DeckFriend</td><td class="mono">4/12</td><td class="r">R$ 13,03</td></tr>
+      <tr><td class="mono">TXP000003</td><td class="mono">05/12/25</td><td>Korpos Estética</td><td class="mono">7/12</td><td class="r">R$ 189,99</td></tr>
+      <tr><td class="mono">TXP000004</td><td class="mono">23/05</td><td>RL Artesão</td><td class="mono">2/5</td><td class="r">R$ 66,83</td></tr>
+      <tr><td class="mono">TXP000005</td><td class="mono">28/05</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 38,25</td></tr>
+      <tr><td class="mono">TXP000006</td><td class="mono">20/05</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 68,01</td></tr>
+      <tr><td class="mono">TXP000007</td><td class="mono">18/02</td><td>Mercado Livre MP</td><td class="mono">5/6</td><td class="r">R$ 48,33</td></tr>
+      <tr><td class="mono">TXP000008</td><td class="mono">03/07</td><td>Seguro Tokio Marine</td><td class="mono">à vista</td><td class="r">R$ 200,99</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000009</td><td class="mono">31/05</td><td>Aram Beach Hotel 🔚</td><td class="mono">2/2</td><td class="r">R$ 486,64</td></tr>
+      <tr><td class="mono">TXP000010</td><td class="mono">21/07</td><td>PicPay Wallace Patri</td><td class="mono">11/12</td><td class="r">R$ 183,47</td></tr>
+      <tr><td class="mono">TXP000015</td><td class="mono">13/05</td><td>Kinesioceteos</td><td class="mono">3/5</td><td class="r">R$ 74,85</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000011</td><td class="mono">20/05</td><td>Hub Smart Home 🔚</td><td class="mono">2/2</td><td class="r">R$ 72,96</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000012</td><td class="mono">19/05</td><td>Edilson Lourenço 🔚</td><td class="mono">2/2</td><td class="r">R$ 425,00</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000013</td><td class="mono">19/05</td><td>Silmara Macedo 🔚</td><td class="mono">2/2</td><td class="r">R$ 375,00</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000014</td><td class="mono">08/07</td><td>Hotmart Fernando 🔚</td><td class="mono">12/12</td><td class="r">R$ 42,00</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">— = data de origem não registrada no ERP (parcelamentos abertos antes do controle de data por lançamento)</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). TXP000008 (Seguro Tokio Marine) não é parcelado — pagamento à vista confirmado pela fatura.</div>
       <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto</div>
       <div class="tfoot"><span>15 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
     </div>
 
     <div id="lrs" class="pane">
       <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXS000001</td><td>iFood</td><td class="r">R$ 5,99</td></tr>
-      <tr><td class="mono">TXS000002</td><td>Claude</td><td class="r">R$ 110,00</td></tr>
-      <tr><td class="mono">TXS000003</td><td>Google Youtube</td><td class="r">R$ 7,99</td></tr>
+      <tr><td class="mono">TXS000001</td><td>iFood (Vanessa)</td><td class="r">R$ 5,99</td></tr>
+      <tr><td class="mono">TXS000002</td><td>Claude (Mastercard Black)</td><td class="r">R$ 110,00</td></tr>
+      <tr style="text-decoration:line-through;opacity:0.5"><td class="mono">TXS000003</td><td>Google Youtube <span style="font-size:0.62rem">· duplicata de TXS000008</span></td><td class="r">R$ 7,99</td></tr>
       <tr><td class="mono">TXS000004</td><td>Uber One</td><td class="r">R$ 21,90</td></tr>
       <tr><td class="mono">TXS000005</td><td>ChatGPT</td><td class="r">R$ 39,99</td></tr>
       <tr><td class="mono">TXS000006</td><td>Netflix</td><td class="r">R$ 72,80</td></tr>
@@ -420,20 +462,23 @@
       <tr><td class="mono">TXS000009</td><td>Amazon Prime</td><td class="r">R$ 19,90</td></tr>
       <tr><td class="mono">TXS000010</td><td>Google MEGA</td><td class="r">R$ 30,99</td></tr>
       <tr><td class="mono">TXS000011</td><td>Intelbras Cloud</td><td class="r">R$ 45,90</td></tr>
+      <tr><td class="mono">TXS000012</td><td>Spotify Premium <span style="font-size:0.62rem;color:var(--accent)">· cartão virtual ...4628</span></td><td class="r">R$ 23,90</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>11 assinaturas</span><span class="total" id="tfLRS">—</span></div>
+      <div class="tfoot"><span>11 assinaturas ativas (12 lançamentos, 1 duplicata riscada)</span><span class="total" id="tfLRS">—</span></div>
     </div>
 
     <div id="lrr" class="pane">
       <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXR000001</td><td>Vivo</td><td class="r">R$ 523,00</td></tr>
-      <tr><td class="mono">TXR000002</td><td>Brisanet</td><td class="r">R$ 114,99</td></tr>
+      <tr><td class="mono">TXR000001</td><td>Vivo (+ Vivo Controle)</td><td class="r">R$ 523,00</td></tr>
+      <tr><td class="mono">TXR000002</td><td>Brisanet (MB)</td><td class="r">R$ 113,13</td></tr>
       <tr><td class="mono">TXR000003</td><td>Digna</td><td class="r">R$ 152,41</td></tr>
       <tr><td class="mono">TXR000004</td><td>Campo Santo da Paz</td><td class="r">R$ 77,79</td></tr>
-      <tr><td class="mono">TXR000005</td><td>Faculdade Engenharia</td><td class="r">R$ 441,33</td></tr>
-      <tr><td class="mono">TXR000006</td><td>New Car Rastreador</td><td class="r">R$ 59,99</td></tr>
+      <tr><td class="mono">TXR000005</td><td>Faculdade Engenharia (Visa Infinite)</td><td class="r">R$ 441,33</td></tr>
+      <tr><td class="mono">TXR000006</td><td>New Car Rastreador (MB)</td><td class="r">R$ 59,99</td></tr>
+      <tr><td class="mono">TXR_FACULDADE_MB</td><td>Faculdade Engenharia (MB, 2ª cobrança transitória)</td><td class="r">R$ 441,33</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>6 recorrências</span><span class="total" id="tfLRR">—</span></div>
+      <div class="tfoot"><span>7 recorrências</span><span class="total" id="tfLRR">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Migração de cartão (V63): todas as recorrências passaram para o Mastercard Black, exceto a Faculdade que teve 2 cobranças neste ciclo (transição). Confirmado via extrato do cartão virtual em 17/07/2026.</div>
     </div>
 
     <div id="lrcon" class="pane">
@@ -494,8 +539,8 @@
     </div>
 
     <div id="lrei" class="pane">
-      <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>
-      <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>CC-202 · Manutenção</td><td>CC-101 · Caixa Variável</td><td class="r">R$ 178,64</td><td><span class="badge br">Ativo</span></td></tr>
+      <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Idade</th><th>Status</th></tr></thead><tbody>
+      <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>CC-202 · Manutenção</td><td>CC-101 · Caixa Variável</td><td class="r">R$ 178,64</td><td id="lrei0001Idade">—</td><td><span class="badge br">Ativo</span></td></tr>
       </tbody></table>
       <div class="callout warn">Recompor via reembolso Wärtsilä ou salário de 25/07/2026. Caixa Variável segue com folga (saldo real R$2.749,77 vs meta R$2.000,00), suficiente para liquidar quando confirmado.</div>
     </div>
@@ -602,7 +647,7 @@
       <span class="badge bg">Já garantido: R$ <span id="s20Garantido">—</span></span>
     </div>
     <div style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
-    <div style="font-size:0.72rem;color:var(--text-dim)">Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido, seguindo a ordem oficial de prioridade do reembolso Wärtsilä: 1) Fatura Wärtsilä (R$0 de impacto, sempre) → 2) Mercado Pago corporativo → 3) Mercado Pago pessoal → 4) Visa Infinite corporativo (regra nova, 15/07/2026) → 5) sobra vai para Caixa Lance. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026 já cobriu 100% do provisionamento não-reembolsável do Mercado Pago (R$471,47). Com a regra nova, o corporativo do Visa Infinite (R$483,43) também entra como garantido, elevando o total de R$471,47 para R$954,90.</div>
+    <div style="font-size:0.72rem;color:var(--text-dim)">Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido, seguindo a ordem oficial de prioridade do reembolso Wärtsilä: 1) Fatura Wärtsilä (R$0 de impacto, sempre) → 2) Mercado Pago corporativo → 3) Mercado Pago pessoal → 4) Visa Infinite corporativo (regra nova, 15/07/2026) → 5) sobra vai para Caixa Lance. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026 já cobriu 100% do provisionamento não-reembolsável do Mercado Pago (R$514,05, atualizado 17/07/2026 com a compra avulsa descoberta na fatura). Com a regra nova, o corporativo do Visa Infinite (R$483,43) também entra como garantido, elevando o total de R$514,05 para R$997,48.</div>
   </div>
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -610,7 +655,7 @@
       <span class="badge bg">Queda total: R$2.735,92</span>
     </div>
     <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$954,90 — MP pessoal R$471,47 + Visa Infinite corporativo R$483,43, regra de prioridade de reembolso Wärtsilä de 15/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$997,48 — MP pessoal R$514,05 + Visa Infinite corporativo R$483,43, atualizado 17/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.</div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -634,8 +679,8 @@
     <div class="row"><span class="k">Total operacional</span><span class="v" id="r21TotalOp">—</span></div>
     <div class="row"><span class="k">Total op. em Mar/27</span><span class="v" style="color:var(--green)" id="r21TotalOpMar27">—</span></div>
     <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba">8,27%</span></div>
-    <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba">0,21%</span></div>
-    <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba">5,46%</span></div>
+    <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba">0,42%</span></div>
+    <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba">5,47%</span></div>
     <div class="row"><span class="k">Meta investimento</span><span class="badge bg">R$11.701,51 investido · Superada +R$4.958</span></div>
     <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge br">LREI0001 R$178,64</span></div>
   </div>

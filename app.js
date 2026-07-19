@@ -19,6 +19,40 @@ function gerarMeses(n){
   return labels;
 }
 
+// ===== CORRECAO 18/07/2026 (V72, bug real apontado em auditoria externa): as series de projecao
+// (evolucao.totalOperacional/necessidadeLiquida, superavitNormal, deficitZero, alivioData) sao arrays
+// fixos indexados 0-11 que assumem "indice 0 = mes em que este arquivo foi gerado". gerarMeses(12)
+// sempre comeca no MES CALENDARIO REAL atual - se a pagina for aberta num mes seguinte sem os arrays
+// serem manualmente re-ancorados, os rotulos avancam mas os arrays nao, deslocando todo mundo (ex: o
+// valor de Julho aparece rotulado como Agosto). ANCHOR_MONTH abaixo declara explicitamente a que mes
+// o indice 0 de todos esses arrays corresponde HOJE. alignSeries()/alignEventos() calculam quantos
+// meses ja se passaram desde essa ancora e deslocam os dados automaticamente antes de desenhar - assim,
+// mesmo que ninguem atualize os arrays por 1-2 meses, o grafico nunca mostra o numero errado no mes
+// errado (so fica "atrasado" - repete o ultimo valor conhecido, nunca inventa um novo).
+const ANCHOR_MONTH = '2026-07'; // atualizar para o mes corrente sempre que os arrays abaixo forem recalculados manualmente
+function mesesDesdeAncora(){
+  const [ay, am] = ANCHOR_MONTH.split('-').map(Number);
+  const agora = new Date();
+  return (agora.getFullYear()-ay)*12 + (agora.getMonth()+1-am);
+}
+function alignSeries(series){
+  const offset = mesesDesdeAncora();
+  if (offset <= 0) return series.slice();
+  const shifted = series.slice(offset);
+  while (shifted.length < series.length) shifted.push(series[series.length-1]);
+  return shifted;
+}
+function alignEventos(eventos){
+  const offset = mesesDesdeAncora();
+  if (offset <= 0) return Object.assign({}, eventos);
+  const shifted = {};
+  for (const k in eventos){
+    const novoIdx = Number(k) - offset;
+    if (novoIdx >= 0) shifted[novoIdx] = eventos[k];
+  }
+  return shifted;
+}
+
 // plugin global: rotula valor em cima/ao lado de cada barra (vertical ou horizontal) - compartilhado
 // por TODOS os graficos de barra do arquivo (auditoria 16/07/2026: cVariavel era o unico grafico de
 // barra sem rotulo de valor por barra, causando desalinhamento visual entre o resumo em texto acima
@@ -68,7 +102,7 @@ tem valores hardcoded nesses pontos, herdados da versao anterior do HTML.
 ======================================================*/
 const REG = {
   patrimonio: {
-    total: 115449.57,          // RECONCILIADO 16/07/2026 (V44): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.48 + Escola Julio 505.64
+    total: 115373.63,          // CORRIGIDO 17/07/2026 (V57): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.48 + Necton Conta Corrente 429.70. Escola Julio NAO entra (removida desde V47/16-07 no ERP - este card estava desatualizado, ainda somava Escola Julio e nao tinha Necton CC).
     metaMilhaoPct: 11.54,       // Progresso Meta Milhao = total / R$1.000.000
     metaMilhao: 1000000,
     metaEscolaJulio: 9236.00
@@ -80,27 +114,29 @@ const REG = {
     reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 11117.00,
+    totalOperacional: 11619.89,     // V70 (18/07/2026): +R$23,90 (Spotify, nova assinatura). Era R$11.595,99.
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14317.00,
-    coberturaGarantida: 954.90,     // MP pessoal 471.47 + Visa Infinite corporativo 483.43
-    necessidadeLiquida: 13362.10,
-    saldoCiclo: 21821.37,
+    necessidadeTotalBruta: 14819.89,     // V70: 14.795,99->14.819,89
+    coberturaGarantida: 997.48,     // MP pessoal 514.05 + Visa Infinite corporativo 483.43. V59: era R$954,90 (MP pessoal R$471,47)
+    necessidadeLiquida: 13822.41,     // V70: 13.798,51->13.822,41
+    saldoCiclo: 21318.48,     // V70: 21.342,38->21.318,48. Modo Operacional nao muda (continua ALTO).
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
   caixaVariavel: {
-    saldoReal: 2749.77,     // RECONCILIADO 16/07/2026 (V44)
-    comprometido: 2556.44,  // +TX000081 (Nobre Carnes R$206,40) +TX000082 (Sup Ideal R$313,12)
-    disponivel: 193.33
+    saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
+    comprometido: 3114.10,  // V80: +R$318,93 (4 compras cartao via Meta AI). Era R$2.795,17.
+    disponivel: -466.33,    // V82: ECC ativo, folego na tolerancia continua R$385,90 (PIX nao muda comprometido). Era -R$406,33.
+    tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
+    tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 9080.08,
-    pessoal: 8596.65   // totalComprometido - LRC (R$483,43, corporativo)
+    totalComprometido: 10483.51,   // V80 (18/07/2026): +R$318,93 (4 compras Meta AI) + corrige gap da V77 (MB estava parado em R$539,87). Infinite(9.498,74)+MB(984,77).
+    pessoal: 10000.08   // totalComprometido - LRC (R$483,43, corporativo)
   },
-  cartaoInfinite: { total: 8560.56 },
-  cartaoMB: { total: 519.52 },
+  cartaoInfinite: { total: 9498.74 },   // V70: inclui V69b (+R$40 ANTHROPIC que faltou) + LRS Spotify (+R$23,90). Era R$9.434,84 (V69).
+  cartaoMB: { total: 984.77 },  // V80: +R$318,93 (4 compras Meta AI) +R$140,85 gap da V77 que nunca tinha sincronizado aqui. Era R$527,08.
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
@@ -108,11 +144,12 @@ const REG = {
   suporteCoIrmaEventos: 167.40, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
 
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
-  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, escolaJulio:505.64 },
+  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
+  escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
   visaDetalhe: { parcelas:2414.56, consorcios:1950.77, wallace:1563.17, recorrencias:1369.51, corp:483.43, assinaturas:417.35, vanessa:437.64 },
   mbDetalhe: { parcelas:0, consorcios:0, wallace:519.52, recorrencias:0, corp:0, assinaturas:0, vanessa:0 },
-  totalOpDetalhe: { boletos:2600, parcelas:2414.56, consorcios:1950.77, recorrencias:1369.51, aportesPat:1893.34, provMP:471.47, assinaturas:417.35 },
-  metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.21, autoPct:73.94, escolaPct:5.47 },
+  totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:514.05, assinaturas:433.26 }, // V70 (18/07/2026): assinaturas +R$23,90 (Spotify, nova)
+  metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
     pixVanessa:          { saldo:0.00,   meta:1200 },  // RECONCILIADO 16/07/2026 (V44): cofrinho zerado apos TX000083+085
@@ -141,21 +178,31 @@ const REG = {
     necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,11581.08,11581.08,11581.08,11581.08,11581.08,11581.08]
   },
   livrosRazaoTotais: {
-    // Totais oficiais reconciliados 16/07/2026 (TX000080-085 + reconciliacao V44).
-    LRW:   { total:2006.82, qtd:30 },
+    // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
+    LRW:   { total:2949.94, qtd:52 }, // V80: LRW-I(1.965,17)+LRW-MB(984,77). +4 lancamentos (TX000104-106,108).
     LRV:   { total:437.64,  qtd:16 },
     LRB:   { total:2598.58, qtd:9  },
-    LRP:   { total:2414.56, qtd:15 },
-    LRS:   { total:417.35,  qtd:11 },
-    LRR:   { total:1369.51, qtd:6  },
+    LRP:   { total:2419.49, qtd:15 }, // V68: +R$4,93 (15 TXP corrigidos via fatura Bradesco literal)
+    LRS:   { total:433.26,  qtd:11 }, // V70: +Spotify (nova assinatura, R$23,90)
+    LRR:   { total:1808.98, qtd:7  }, // V69: Brisanet corrigido -R$1,86
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
-    LRMP:  { total:1749.35, qtd:8  },
-    LRCV:  { total:943.60,  qtd:18 },
+    LRMP:  { total:1791.93, qtd:9  }, // V59: +TXMP000010
+    LRCV:  { total:1045.60,  qtd:21 }, // V82: +TX000109 (PIX Edgley, R$60,00)
     LRPV:  { total:-135.66, qtd:16 }
   },
 
   reembolsos: { recebidosNoCiclo: 2485.39 },
+
+  // ===== QUALIDADE/REGRAS DE NEGOCIO (18/07/2026, V79) - "linter" enxuto: nao guarda transacao
+  // por transacao (REG so tem agregados, por design - inflar isso pesaria o app.js), mas expoe os
+  // poucos contadores/flags que JA sao mantidos no ERP a cada sessao. Atualizar manualmente sempre
+  // que o numero mudar no ERP (mesmo padrao de todo o resto do REG).
+  qualidade: {
+    txSemData: 0,          // contador oficial do ERP (aba AUDITORIA_AUTOMATICA / historico SWP_INPUT). 0 = zerado em 17/07/2026 (V69).
+    lreiAtivos: 1,          // quantidade de emprestimos internos (LREI) em aberto
+    tetoTemporarioAtivo: true // reflete caixaVariavel.tolerenciaTemp > 0
+  },
   cenarioHistorico: {
     piorMes: 7649.62,   // SALARIO_MIN_12M (set/2025)
     mediana: 18283.64,  // SALARIO_MEDIANA_12M
@@ -167,8 +214,8 @@ const REG = {
     // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
-    totalOperacional:   [11117.00,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08],
-    necessidadeLiquida: [13362.10,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18]
+    totalOperacional:   [11619.89,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V70: 1o ponto atualizado 11595,99->11619,89 (Spotify, nova assinatura). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
+    necessidadeLiquida: [13822.41,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // V70: 1o ponto atualizado 13.798,51->13.822,41
   },
 
   // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
@@ -186,7 +233,7 @@ const REG = {
     },
     operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, total:2909.73 },
     obrigacoes: { visa:9181.06, mercadoPago:1751.16, wartsila:656.67 },
-    fluxo: { entradas:36138.37, saidas:14317.00, resultado:21821.37 }
+    fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };
 
@@ -270,7 +317,7 @@ function hydrate(){
   t('patReserva', fmt(R.patrimonioDetalhe.reserva));
   t('patBtg', fmt(R.patrimonioDetalhe.btg));
   t('patLance', fmt(R.patrimonioDetalhe.caixaLance));
-  t('patEscola', fmt(R.patrimonioDetalhe.escolaJulio));
+  t('patEscola', fmt(R.patrimonioDetalhe.nectonContaCorrente));
   t('patAcumulado', fmt(R.patrimonio.total));
   t('patFalta', fmt(R.patrimonio.metaMilhao - R.patrimonio.total));
 
@@ -367,7 +414,7 @@ function hydrate(){
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
 
   t('cxWartsila', fmt(R.faturaWartsila));
-  t('ejSaldo', fmt(R.patrimonioDetalhe.escolaJulio));
+  t('ejSaldo', fmt(R.escolaJulioSaldo));
   t('ejMeta', fmt(R.patrimonio.metaEscolaJulio));
   t('snCicloAtual', '+ '+fmt(R.superavitNormal.liquido[0] - R.superavitNormal.necessidade[0]));
 
@@ -466,11 +513,23 @@ function auditoriaAutomatica(){
     problemas.push(`Reservas: soma das 9 caixas=${resCalc} ≠ total(${r.total})`);
   }
 
+  const healthBadge = document.getElementById('healthBadge');
+
   if(problemas.length === 0){
     console.log('%c✅ Auditoria automática: 0 divergências encontradas na matemática do REG.', 'color:#34c98a;font-weight:600');
+    if(healthBadge){
+      healthBadge.textContent = '✅ Sistema íntegro';
+      healthBadge.style.color = '#34c98a';
+      healthBadge.title = 'Auditoria automática: 0 divergências nas 7 relações matemáticas do REG.';
+    }
   } else {
     console.warn('⚠️ Auditoria automática encontrou divergências:');
     problemas.forEach(p => console.warn('  - ' + p));
+    if(healthBadge){
+      healthBadge.textContent = `⚠️ ${problemas.length} divergência(s) — ver console`;
+      healthBadge.style.color = '#e2554f';
+      healthBadge.title = problemas.join('\n');
+    }
     const footer = document.querySelector('footer');
     if(footer){
       const aviso = document.createElement('span');
@@ -511,14 +570,60 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
   const fmtCurta = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
   const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
 
-  // Disponivel/dia = CAIXA_VARIAVEL_DISPONIVEL (SWP_INPUT) / dias restantes do ciclo (inclui hoje como dia gastavel).
-  // ATENCAO: CAIXA_VARIAVEL_DISPONIVEL abaixo e um valor ESTATICO copiado do ERP na ultima geracao deste
-  // HTML (16/07/2026 = R$311,28) - o dinamico aqui e so o DENOMINADOR (dias restantes), que agora recalcula
-  // sozinho a cada abertura. Se o saldo/comprometido da Caixa Variavel mudar em uma proxima sessao, este
-  // numero precisa ser atualizado manualmente aqui (nao ha acesso ao xlsx a partir do HTML).
-  const CAIXA_VARIAVEL_DISPONIVEL = 311.28;
+  // Disponivel/dia = REG.caixaVariavel.disponivel (SSOT unico) / dias restantes do ciclo (inclui hoje).
+  // CORRIGIDO 18/07/2026: antes havia uma constante estatica CAIXA_VARIAVEL_DISPONIVEL=311.28 copiada
+  // manualmente do ERP em 16/07/2026, nunca mais atualizada - ficou obsoleta (bug real de "split-brain":
+  // o mesmo valor existia em 2 lugares, um vivo (REG.caixaVariavel.disponivel=193.33) e um estatico
+  // parado). Removida a duplicata - agora le direto do REG, um so lugar, sempre correto.
   const diasParaDivisao = Math.max(1, restantes);
-  const dispDia = CAIXA_VARIAVEL_DISPONIVEL / diasParaDivisao;
+  const dispDia = REG.caixaVariavel.disponivel / diasParaDivisao;
+
+  // ===== Aging LREI (18/07/2026, V73): dias em aberto de cada emprestimo interno, calculado ao vivo
+  // a cada carregamento - nunca mais hardcoded (o ERP ja tinha IDADE_DIAS/STATUS_ENVELHECIMENTO mas
+  // ficava parado entre sessoes). Faixas: 0-30 NORMAL, 31-60 ATENCAO, 61+ CRITICO (P4 - toda divida
+  // interna deve ser ressarcida, quanto mais velha, maior o risco de ficar esquecida).
+  const lreiAtivos = [
+    { id:'lrei0001Idade', abertura: new Date(2026,6,12) } // LREI0001: 12/07/2026
+  ];
+  const diasAging = d => Math.round((hoje - d) / 86400000);
+  const faixaAging = dias => dias <= 30 ? '' : (dias <= 60 ? ' color:var(--accent)' : ' color:var(--red);font-weight:700');
+
+  // ===== Simulador Fim de Ciclo (18/07/2026, V79 - inovacao pedida pelo usuario): quanto ainda da
+  // pra gastar na Caixa Variavel ate o fim do ciclo, considerando o teto oficial + tolerancia
+  // temporaria (se ativa). Nao mexe em nenhum outro indicador - e so uma leitura combinada do que
+  // ja existe em REG.caixaVariavel, calculada ao vivo (nunca hardcoded).
+  const cv = REG.caixaVariavel;
+  const tetoEfetivo = cv.tetoOficial + (cv.tolerenciaTemp||0);
+  const folego = Math.round((tetoEfetivo - cv.comprometido)*100)/100;
+  const folegoPorDia = restantes > 0 ? folego/restantes : folego;
+
+  // ===== Verificacoes de Negocio (18/07/2026, V79 - "linter" enxuto): nao varre transacao por
+  // transacao (REG so guarda agregados por design - ver nota em REG.qualidade), so expoe os
+  // contadores/flags que ja sao mantidos manualmente no ERP a cada sessao.
+  function montarAlertasNegocio(){
+    const q = REG.qualidade;
+    const alertas = [];
+    alertas.push(q.txSemData === 0
+      ? {icone:'✅', cor:'#34c98a', txto:'0 transações sem data rastreável'}
+      : {icone:'⚠️', cor:'#e2554f', txto:`${q.txSemData} transaç${q.txSemData===1?'ão':'ões'} sem data — checar aba LRP/registro`});
+    const maxIdade = lreiAtivos.length ? Math.max(...lreiAtivos.map(l=>diasAging(l.abertura))) : 0;
+    if(q.lreiAtivos === 0){
+      alertas.push({icone:'✅', cor:'#34c98a', txto:'Nenhum empréstimo interno (LREI) em aberto'});
+    } else {
+      const nivel = maxIdade<=30 ? {icone:'ℹ️',cor:'#3987e5'} : maxIdade<=60 ? {icone:'⚠️',cor:'#e8a63a'} : {icone:'🔴',cor:'#e2554f'};
+      alertas.push({icone:nivel.icone, cor:nivel.cor, txto:`${q.lreiAtivos} empréstimo(s) interno(s) ativo(s) — mais antigo com ${maxIdade} dias`});
+    }
+    alertas.push(cv.disponivel >= 0
+      ? {icone:'✅', cor:'#34c98a', txto:'Caixa Variável dentro do teto oficial'}
+      : {icone: folego>=0 ? '⚠️' : '🔴', cor: folego>=0 ? '#e8a63a' : '#e2554f',
+         txto: folego>=0
+           ? `Caixa Variável acima do teto oficial (${fmt(Math.abs(cv.disponivel))}), coberta pela tolerância temporária — restam ${fmt(folego)} até o teto de ${fmt(tetoEfetivo)}`
+           : `Caixa Variável estourou inclusive a tolerância temporária em ${fmt(Math.abs(folego))}`});
+    if(q.tetoTemporarioAtivo){
+      alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Tolerância temporária de ${fmt(cv.tolerenciaTemp)} ativa até o fim do ciclo (24/07) — recomposição prevista via reembolso Wärtsilä ou salário de 25/07`});
+    }
+    return alertas;
+  }
 
   document.addEventListener('DOMContentLoaded', ()=>{
     set('diasDecorridos', decorridos);
@@ -529,6 +634,41 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     set('dispDia', dispDia.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
     const bar = document.getElementById('cicloProgress');
     if(bar) bar.style.width = pct+'%';
+    lreiAtivos.forEach(l=>{
+      const el = document.getElementById(l.id);
+      if(el){
+        const dias = diasAging(l.abertura);
+        el.textContent = dias+(dias===1?' dia':' dias');
+        el.setAttribute('style', faixaAging(dias));
+      }
+    });
+
+    // Simulador Fim de Ciclo
+    set('simDiasRestantes', restantes+(restantes===1?' dia':' dias'));
+    set('simTeto', fmt(tetoEfetivo)+(cv.tolerenciaTemp>0 ? ' *' : ''));
+    set('simComprometido', fmt(cv.comprometido));
+    const folegoEl = document.getElementById('simFolego');
+    if(folegoEl){
+      folegoEl.textContent = fmt(folego);
+      folegoEl.style.color = folego >= 0 ? '#34c98a' : '#e2554f';
+    }
+    const msgEl = document.getElementById('simMensagem');
+    if(msgEl){
+      if(folego >= 0){
+        msgEl.innerHTML = (cv.tolerenciaTemp>0 ? '* Teto oficial '+fmt(cv.tetoOficial)+' + tolerância temporária '+fmt(cv.tolerenciaTemp)+' (viagem, até 24/07). ' : '')
+          + `Ainda dá pra gastar <strong>${fmt(folego)}</strong> até o fim do ciclo — um ritmo de <strong>${fmt(folegoPorDia)}/dia</strong> nos ${restantes} dias restantes, sem estourar o teto.`;
+      } else {
+        msgEl.innerHTML = `<strong style="color:#e2554f">Atenção:</strong> já estourou o teto efetivo em ${fmt(Math.abs(folego))}. Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
+      }
+    }
+
+    // Verificações de Negócio
+    const alertasEl = document.getElementById('alertasNegocio');
+    if(alertasEl){
+      alertasEl.innerHTML = montarAlertasNegocio().map(a=>
+        `<div style="color:${a.cor}">${a.icone} ${a.txto}</div>`
+      ).join('');
+    }
   });
 })();
 
@@ -580,7 +720,7 @@ Chart.defaults.font.size = 11;
 
 new Chart(document.getElementById('cPatrim'), {
   type:'doughnut',
-  data:{labels:['Reserva','BTG/Necton','Caixa Lance','Escola Júlio'],
+  data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
     datasets:[{data:Object.values(REG.patrimonioDetalhe),
     backgroundColor:['#3987e5','#9085e9','#34c98a','#e8a63a'],borderColor:'#16181b',borderWidth:3}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
@@ -626,7 +766,7 @@ new Chart(document.getElementById('cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:REG.evolucao.totalOperacional,
+    datasets:[{data:alignSeries(REG.evolucao.totalOperacional),
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
@@ -640,7 +780,7 @@ new Chart(document.getElementById('cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:REG.evolucao.necessidadeLiquida,
+    datasets:[{data:alignSeries(REG.evolucao.necessidadeLiquida),
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
@@ -714,7 +854,7 @@ const metaValuePlugin = {
 
 new Chart(document.getElementById('g_cPatrim'), {
   type:'doughnut',
-  data:{labels:['Reserva','BTG/Necton','Caixa Lance','Escola Júlio'],
+  data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
     datasets:[{data:Object.values(REG.patrimonioDetalhe),
     backgroundColor:['#3987e5','#9085e9','#34c98a','#e8a63a'],borderColor:'#16181b',borderWidth:3}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
@@ -787,13 +927,13 @@ new Chart(document.getElementById('g_cVariavel'), {
 const metasNomes = ['Meta Milhão','Casa Nova','Consórcio Auto','Escola Júlio'];
 const metasPct = Object.values(REG.metasPatrimoniais);
 // Rotulo curto sobre a barra: so porcentagem + texto minimo
-const metasRaw = ['11,54% do milhão','0,21% pago','73,94% pago','5,47% da meta'];
+const metasRaw = ['11,54% do milhão','0,42% pago','75,22% pago','5,47% da meta'];
 // Descricao completa, so no tooltip ao passar o mouse
 const metasDetalhe = [
-  '11,54% · R$115.448,85 de R$1.000.000',
-  'Consórcio Casa Nova (cota 12, grupo I0464) · quitação R$552.050,77 (99,79%)',
-  'Carta R$76.699,35, saldo devedor R$19.987,85',
-  'R$505,12 de R$9.236'
+  '11,54% · R$115.373,63 de R$1.000.000',
+  'Consórcio Casa Nova (cota 12, grupo I0464) · quitação R$550.601,43 (99,58%)',
+  'Carta R$76.670,02, saldo devedor R$18.998,83',
+  'R$505,64 de R$9.236'
 ];
 
 new Chart(document.getElementById('g_cMetas'), {
@@ -812,7 +952,7 @@ new Chart(document.getElementById('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:REG.evolucao.totalOperacional,
+    datasets:[{data:alignSeries(REG.evolucao.totalOperacional),
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
@@ -826,7 +966,7 @@ new Chart(document.getElementById('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:REG.evolucao.necessidadeLiquida,
+    datasets:[{data:alignSeries(REG.evolucao.necessidadeLiquida),
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
@@ -893,8 +1033,9 @@ new Chart(document.getElementById('g_cCaixas'), {
 // Julio, Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar seu aporte ao bater
 // meta/prazo. Confirmado com o Wallace 15/07/2026: as 4 geram alivio quando completarem.
 const alivioLabels = gerarMeses(12);
-const alivioData = [1225, 1225, 1025, 1025, 525, 525, 525, 525, 525, 525, 525, 525]; // estendido p/ 12 meses (V50): repete o ultimo valor estavel (525) apos as 4 caixas completarem - sem novo evento de alivio conhecido alem disso.
-const alivioEventos = {2:'Aniversário Júlio completa (14/09) — R$200/mês liberados', 4:'Escola Júlio completa (01/11) — R$500/mês liberados'};
+const alivioDataRaw = [1225, 1225, 1025, 1025, 525, 525, 525, 525, 525, 525, 525, 525]; // estendido p/ 12 meses (V50): repete o ultimo valor estavel (525) apos as 4 caixas completarem - sem novo evento de alivio conhecido alem disso.
+const alivioData = alignSeries(alivioDataRaw);
+const alivioEventos = alignEventos({2:'Aniversário Júlio completa (14/09) — R$200/mês liberados', 4:'Escola Júlio completa (01/11) — R$500/mês liberados'});
 
 const alivioStepPlugin = {
   id:'alivioStepPlugin',
@@ -951,8 +1092,8 @@ new Chart(document.getElementById('g_cAlivio'), {
   // livro LRP) + Orcamento Operacional R$3.200 constante. Mar/27 em diante mantido constante (sem dados
   // de parcelamento/aporte alem desse horizonte).
   const snLabels = gerarMeses(12);
-  const snLiquido = REG.superavitNormal.liquido;
-  const snNecessidade = REG.superavitNormal.necessidade;
+  const snLiquido = alignSeries(REG.superavitNormal.liquido);
+  const snNecessidade = alignSeries(REG.superavitNormal.necessidade);
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
 
   // Rotulo compacto em "k" (em vez de milhar completo) - o valor de Julho (salario real) e bem maior que
@@ -1016,7 +1157,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Liquido sem trabalhar fixo R$7.667,73 (12 contracheques reais).
   const dzLabels = gerarMeses(12);
   const dzLiquido = REG.deficitZero.liquidoSemTrabalhar;
-  const dzPiso = REG.deficitZero.piso;
+  const dzPiso = alignSeries(REG.deficitZero.piso);
   const dzDeficit = dzPiso.map(p=>Math.round((dzLiquido-p)*100)/100);
 
   const dzDataLabelPlugin = {
