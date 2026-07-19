@@ -127,12 +127,12 @@ const REG = {
     reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 11577.31,     // CORRIGIDO 19/07/2026 (V91): MP pessoal revertido 514,05->471,47 (fatura MP literal do ciclo atual confirma TXMP000010 - R$42,58 - NAO aparece nesta fatura, era compra avulsa ja paga em ciclo anterior, nunca deveria ter entrado no provisionamento recorrente). Era R$11.619,89.
+    totalOperacional: 13467.15,     // V96 (19/07/2026): +R$80,93 (LRP +80,97 RBM Relogios achado na fatura; LRS -0,04 IFood corrigido). Era R$13.386,22.
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14777.31,     // V91: 14.819,89->14.777,31 (mesma correcao MP pessoal)
-    coberturaGarantida: 954.90,     // CORRIGIDO 19/07/2026 (V91): MP pessoal 471.47 (revertido) + Visa Infinite corporativo 483.43. Era R$997,48 (V59, incluia TXMP000010 indevidamente).
-    necessidadeLiquida: 13822.41,     // V91: inalterado - a correcao de MP pessoal cancela exatamente entre necessidadeTotalBruta e coberturaGarantida (mesmo componente nos 2 lados).
-    saldoCiclo: 21361.06,     // V91: 21.318,48->21.361,06 (+R$42,58, reflete a correcao). Modo Operacional nao muda (continua ALTO).
+    necessidadeTotalBruta: 16667.15,     // V96: 16.586,22->16.667,15 (+R$80,93)
+    coberturaGarantida: 954.90,     // Sem alteracao na V95 (seguro auto nao e corporativo/reembolsavel).
+    necessidadeLiquida: 15712.25,     // V96: 15.631,32->15.712,25
+    saldoCiclo: 19471.22,     // V96: 19.552,15->19.471,22 (-R$80,93). Modo Operacional nao muda (continua ALTO).
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
@@ -145,10 +145,10 @@ const REG = {
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 10685.69,   // V93b: Infinite(9.024,68)+MB(1.661,01). Era R$10.504,69.
-    pessoal: 10202.26   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.000,08.
+    totalComprometido: 12575.53,   // V96: Infinite(10.914,52)+MB(1.661,01). Era R$12.494,60.
+    pessoal: 12092.10   // totalComprometido - LRC (R$483,43, corporativo). Era R$12.011,17.
   },
-  cartaoInfinite: { total: 9024.68 },   // V93b (19/07): +R$184,19, 4 lancamentos faltantes da fatura Bradesco literal (achado sinalizado desde V68/V69, nunca fechado: Seguro Superprotegido R$9,99/15-07, DryClean USA R$132,00/14-07, Vendedora R$22,30/14-07, MP*Melimais R$19,90/09-07). Era R$8.840,49.
+  cartaoInfinite: { total: 10914.52 },   // V96 (19/07): +R$80,93 (LRP +80,97 RBM Relogios achado na fatura; LRS -0,04 IFood corrigido). Era R$10.833,59.
   cartaoMB: { total: 1661.01 },  // V93b (19/07): -R$3,19 (TX000096 H57Store R$3,19/17-07 identificado como duplicata da TX000099, R$3,19/18-07 - lista de conciliacao literal do usuario so confirma 1x). Era R$1.664,20.
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
@@ -159,9 +159,9 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2419.49, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.46, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V93b): wallace +R$184,19 (4 lancamentos faltantes). Era R$1.965,17. Nota V87 original: usuario esclareceu - migracao e GRADUAL, item por item, so o que tem cobranca REAL confirmada na fatura MB sai do Visa. Consorcios e a maioria de LRS/LRR ainda nao apareceram numa fatura MB de verdade neste ciclo, entao ficam no Visa (transicao). Reverte o excesso da V85 que tinha movido tudo em bloco so por causa de uma promessa de migracao, sem esperar a fatura confirmar.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:1002.76, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // CORRIGIDO 19/07/2026 (V93b): wallace -R$3,19 (TX000096 duplicata cancelada). Era R$1.005,95. Nota V87 original: so o que tem cobranca REAL confirmada no MB - recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90). Consorcios e o resto de LRS/LRR ainda nao migraram de fato, ficam no Visa este ciclo.
-  totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.26 }, // CORRIGIDO 19/07/2026 (V91): provMP revertido 514,05->471,47 (TXMP000010 nao pertence a esta fatura - one-off ja pago em ciclo anterior)
+  visaDetalhe: { parcelas:4309.37, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.42, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V96): parcelas +R$80,97 (RBM Relogios achado na fatura); assinaturas -R$0,04 (IFood corrigido). Era parcelas 4.228,40 / assinaturas 389,46.
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:1002.76, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // Sem alteracao na V95 (seguro auto e Visa Infinite/4844, nao MB). Recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90) confirmadas no Mastercard Black.
+  totalOpDetalhe: { boletos:2600, parcelas:4309.37, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.22 }, // V96: parcelas +R$80,97 (RBM Relogios); assinaturas -R$0,04 (IFood corrigido)
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
@@ -203,8 +203,8 @@ const REG = {
     LRW:   { total:2949.94, qtd:49 }, // V85: qtd corrigido para a contagem real (era 52, tabela reconstruida com 49 linhas reais)
     LRV:   { total:437.64,  qtd:16 },
     LRB:   { total:2598.58, qtd:9  },
-    LRP:   { total:2419.49, qtd:15 }, // V68: +R$4,93 (15 TXP corrigidos via fatura Bradesco literal)
-    LRS:   { total:433.26,  qtd:11 }, // V70: +Spotify (nova assinatura, R$23,90)
+    LRP:   { total:4309.37, qtd:25 }, // V96: +R$80,97 (TXP000025, RBM Relogios, achado na fatura Bradesco literal). Era R$4.228,40/24.
+    LRS:   { total:433.22,  qtd:11 }, // V96: -R$0,04 (TXS000001 IFood corrigido via fatura). Era R$433,26.
     LRR:   { total:1808.98, qtd:7  }, // V69: Brisanet corrigido -R$1,86
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
@@ -235,8 +235,8 @@ const REG = {
     // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
-    totalOperacional:   [11577.31,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V91: 1o ponto atualizado 11619,89->11577,31 (correcao MP pessoal). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
-    necessidadeLiquida: [13822.41,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // V70: 1o ponto atualizado 13.798,51->13.822,41
+    totalOperacional:   [13467.15,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V96: 1o ponto atualizado 13.386,22->13.467,15 (+RBM Relogios -IFood corrigido). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
+    necessidadeLiquida: [15712.25,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // V96: 1o ponto atualizado 15.631,32->15.712,25
   },
 
   // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
@@ -253,7 +253,7 @@ const REG = {
       churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
     }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
     operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, caixaBoletos:821.51, total:3731.24 },
-    obrigacoes: { visa:9024.68, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:13134.29 }, // V93b: visa +184,19, MB -3,19 (total +181,00). Era visa 8840.49/MB 1664.20/total 12953.29
+    obrigacoes: { visa:10914.52, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15024.13 }, // V96: visa +80,93 (RBM Relogios - IFood corrigido). Era visa 10833.59/total 14943.20
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };

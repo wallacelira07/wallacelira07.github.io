@@ -318,7 +318,7 @@
       <button class="tab active" onclick="showLR('lrw',this)">Wallace (49)</button>
       <button class="tab" onclick="showLR('lrv',this)">Vanessa (16)</button>
       <button class="tab" onclick="showLR('lrb',this)">Boletos (9)</button>
-      <button class="tab" onclick="showLR('lrp',this)">Parcelas (15)</button>
+      <button class="tab" onclick="showLR('lrp',this)">Parcelas (25)</button>
       <button class="tab" onclick="showLR('lrs',this)">Assinaturas (11)</button>
       <button class="tab" onclick="showLR('lrr',this)">Recorrências (6)</button>
       <button class="tab" onclick="showLR('lrcon',this)">Consórcios (2)</button>
@@ -388,24 +388,25 @@
 
     <div id="lrv" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXR000002</td><td class="mono">19/06</td><td>Panificadora</td><td class="r">R$ 22,00</td></tr>
+      <tr><td class="mono">TX000002</td><td class="mono">20/06</td><td>Uber (Família)</td><td class="r">R$ 21,98</td></tr>
+      <tr><td class="mono">TXR000001</td><td class="mono">21/06</td><td>Carolina</td><td class="r">R$ 65,00</td></tr>
+      <tr><td class="mono">TX000003</td><td class="mono">22/06</td><td>Uber (Família)</td><td class="r">R$ 21,74</td></tr>
+      <tr><td class="mono">TX000086</td><td class="mono">22/06</td><td>Farmácias Pague Menos <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 0026</span></td><td class="r">R$ 75,87</td></tr>
+      <tr><td class="mono">TX000004</td><td class="mono">25/06</td><td>Uber (Família)</td><td class="r">R$ 24,78</td></tr>
+      <tr><td class="mono">TXR000004</td><td class="mono">29/06</td><td>H57 Store</td><td class="r">R$ 15,97</td></tr>
+      <tr><td class="mono">TX000011</td><td class="mono">01/07</td><td>Uber (Família)</td><td class="r">R$ 9,21</td></tr>
       <tr><td class="mono">TX000019</td><td class="mono">06/07</td><td>Padaria Dorgival (Dorgival de Oliveira B, Campina Grande)</td><td class="r">R$ 31,70</td></tr>
-      <tr><td class="mono">TX000023</td><td class="mono">—</td><td>Dorgival</td><td class="r">R$ 21,30</td></tr>
-      <tr><td class="mono">TX000024</td><td class="mono">—</td><td>Mini Mercado</td><td class="r">R$ 9,99</td></tr>
+      <tr><td class="mono">TXR000006</td><td class="mono">07/07</td><td>Dorgival de Oliveira B</td><td class="r">R$ 34,00</td></tr>
+      <tr><td class="mono">TX000023</td><td class="mono">09/07</td><td>Dorgival</td><td class="r">R$ 21,30</td></tr>
+      <tr><td class="mono">TX000024</td><td class="mono">10/07</td><td>Mini Mercado (H57Store)</td><td class="r">R$ 9,99</td></tr>
       <tr><td class="mono">TX000028</td><td class="mono">10/07</td><td>H57Store</td><td class="r">R$ 9,88</td></tr>
-      <tr><td class="mono">TXR000001</td><td class="mono">—</td><td>Carolina</td><td class="r">R$ 65,00</td></tr>
-      <tr><td class="mono">TXR000002</td><td class="mono">—</td><td>Panificadora</td><td class="r">R$ 22,00</td></tr>
-      <tr><td class="mono">TXR000004</td><td class="mono">—</td><td>H57 Store</td><td class="r">R$ 15,97</td></tr>
-      <tr><td class="mono">TXR000005</td><td class="mono">—</td><td>Drogaria Drogavista</td><td class="r">R$ 45,19</td></tr>
-      <tr><td class="mono">TXR000006</td><td class="mono">—</td><td>Dorgival de Oliveira B</td><td class="r">R$ 34,00</td></tr>
+      <tr><td class="mono">TXR000005</td><td class="mono">12/07</td><td>Drogaria Drogavista</td><td class="r">R$ 45,19</td></tr>
       <tr><td class="mono">TX000033</td><td class="mono">12/07</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
-      <tr><td class="mono">TX000002</td><td class="mono">—</td><td>Uber (Família)</td><td class="r">R$ 21,98</td></tr>
-      <tr><td class="mono">TX000003</td><td class="mono">—</td><td>Uber (Família)</td><td class="r">R$ 21,74</td></tr>
-      <tr><td class="mono">TX000004</td><td class="mono">—</td><td>Uber (Família)</td><td class="r">R$ 24,78</td></tr>
-      <tr><td class="mono">TX000011</td><td class="mono">—</td><td>Uber (Família)</td><td class="r">R$ 9,21</td></tr>
       <tr><td class="mono">TX000076</td><td class="mono">13/07</td><td>Uber (Família, aparece como "DL" na fatura)</td><td class="r">R$ 24,03</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no lançamento original</div>
-      <div class="tfoot"><span>15 lançamentos</span><span class="total" id="tfLRV">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V96): datas preenchidas via fatura Bradesco literal — o ERP já tinha todas, só o site estava desatualizado. 2 divergências de 1 dia corrigidas (Carolina 22/06→21/06, H57 Store 28/06→29/06, regra fatura sempre vence).</div>
+      <div class="tfoot"><span>16 lançamentos</span><span class="total" id="tfLRV">—</span></div>
     </div>
 
     <div id="lrb" class="pane">
@@ -433,7 +434,6 @@
       <tr><td class="mono">TXP000005</td><td class="mono">28/05</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 38,25</td></tr>
       <tr><td class="mono">TXP000006</td><td class="mono">20/05</td><td>Mercado Livre</td><td class="mono">2/4</td><td class="r">R$ 68,01</td></tr>
       <tr><td class="mono">TXP000007</td><td class="mono">18/02</td><td>Mercado Livre MP</td><td class="mono">5/6</td><td class="r">R$ 48,33</td></tr>
-      <tr><td class="mono">TXP000008</td><td class="mono">03/07</td><td>Seguro Tokio Marine</td><td class="mono">à vista</td><td class="r">R$ 200,99</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000009</td><td class="mono">31/05</td><td>Aram Beach Hotel 🔚</td><td class="mono">2/2</td><td class="r">R$ 486,64</td></tr>
       <tr><td class="mono">TXP000010</td><td class="mono">21/07</td><td>PicPay Wallace Patri</td><td class="mono">11/12</td><td class="r">R$ 183,47</td></tr>
       <tr><td class="mono">TXP000015</td><td class="mono">13/05</td><td>Kinesioceteos</td><td class="mono">3/5</td><td class="r">R$ 74,85</td></tr>
@@ -441,15 +441,26 @@
       <tr class="last-parcel"><td class="mono">TXP000012</td><td class="mono">19/05</td><td>Edilson Lourenço 🔚</td><td class="mono">2/2</td><td class="r">R$ 425,00</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000013</td><td class="mono">19/05</td><td>Silmara Macedo 🔚</td><td class="mono">2/2</td><td class="r">R$ 375,00</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000014</td><td class="mono">08/07</td><td>Hotmart Fernando 🔚</td><td class="mono">12/12</td><td class="r">R$ 42,00</td></tr>
+      <tr><td class="mono">TXP000016</td><td class="mono">03/01</td><td>Seguro Tokio Marine - Auto</td><td class="mono">1/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000017</td><td class="mono">03/02</td><td>Seguro Tokio Marine - Auto</td><td class="mono">2/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000018</td><td class="mono">03/03</td><td>Seguro Tokio Marine - Auto</td><td class="mono">3/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000019</td><td class="mono">03/04</td><td>Seguro Tokio Marine - Auto</td><td class="mono">4/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000020</td><td class="mono">03/05</td><td>Seguro Tokio Marine - Auto</td><td class="mono">5/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000021</td><td class="mono">03/06</td><td>Seguro Tokio Marine - Auto</td><td class="mono">6/10</td><td class="r">R$ 200,99</td></tr>
+      <tr><td class="mono">TXP000008</td><td class="mono">03/07</td><td>Seguro Tokio Marine - Auto</td><td class="mono">7/10</td><td class="r">R$ 200,99</td></tr>
+      <tr style="opacity:0.65"><td class="mono">TXP000022</td><td class="mono">03/08</td><td>Seguro Tokio Marine - Auto <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">8/10</td><td class="r">R$ 200,99</td></tr>
+      <tr style="opacity:0.65"><td class="mono">TXP000023</td><td class="mono">03/09</td><td>Seguro Tokio Marine - Auto <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">9/10</td><td class="r">R$ 200,99</td></tr>
+      <tr class="last-parcel" style="opacity:0.65"><td class="mono">TXP000024</td><td class="mono">03/10</td><td>Seguro Tokio Marine - Auto 🔚 <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">10/10</td><td class="r">R$ 200,99</td></tr>
+      <tr class="last-parcel"><td class="mono">TXP000025</td><td class="mono">06/05</td><td>RBM Relógios 🔚 <span style="font-size:0.62rem;color:var(--accent)">· achado na fatura</span></td><td class="mono">3/3</td><td class="r">R$ 80,97</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). TXP000008 (Seguro Tokio Marine) não é parcelado — pagamento à vista confirmado pela fatura.</div>
-      <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto</div>
-      <div class="tfoot"><span>15 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). CORRIGIDO 19/07/2026 (V95): TXP000008 (Seguro Tokio Marine - Auto) era registrada como pagamento à vista — na verdade é a parcela 7/10 de uma apólice contratada 03/01/2026 (10x R$200,99, cartão 4844/Visa Infinite, prêmio total R$2.010,78). Parcelas 1-6 e 8-10 lançadas (TXP000016-024). Parcelas 8-10 (opacas) ainda não cobradas — valor a confirmar quando a fatura chegar. NOVO 19/07/2026 (V96): TXP000025 (RBM Relógios, 3/3, R$80,97) nunca tinha sido lançada — achada na fatura literal de 19/07 (situação FECHADO).</div>
+      <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto (não considera ainda o fim do seguro auto em outubro/2026)</div>
+      <div class="tfoot"><span>25 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
     </div>
 
     <div id="lrs" class="pane">
       <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXS000001</td><td>iFood (Vanessa)</td><td class="r">R$ 5,99</td></tr>
+      <tr><td class="mono">TXS000001</td><td>iFood (Vanessa) <span style="font-size:0.62rem;color:var(--text-dim)">· cobrada 07/07</span></td><td class="r">R$ 5,95</td></tr>
       <tr><td class="mono">TXS000002</td><td>Claude (Mastercard Black)</td><td class="r">R$ 110,00</td></tr>
       <tr style="text-decoration:line-through;opacity:0.5"><td class="mono">TXS000003</td><td>Google Youtube <span style="font-size:0.62rem">· duplicata de TXS000008</span></td><td class="r">R$ 7,99</td></tr>
       <tr><td class="mono">TXS000004</td><td>Uber One</td><td class="r">R$ 21,90</td></tr>
@@ -457,26 +468,27 @@
       <tr><td class="mono">TXS000006</td><td>Netflix</td><td class="r">R$ 72,80</td></tr>
       <tr><td class="mono">TXS000007</td><td>YouTube Premium</td><td class="r">R$ 53,90</td></tr>
       <tr><td class="mono">TXS000008</td><td>Fábio Sabino</td><td class="r">R$ 7,99</td></tr>
-      <tr><td class="mono">TXS000009</td><td>Amazon Prime</td><td class="r">R$ 19,90</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXS000009</td><td>Amazon Prime <span style="font-size:0.62rem;color:var(--accent)">· MB</span></td><td class="r">R$ 19,90</td></tr>
       <tr><td class="mono">TXS000010</td><td>Google MEGA</td><td class="r">R$ 30,99</td></tr>
       <tr><td class="mono">TXS000011</td><td>Intelbras Cloud</td><td class="r">R$ 45,90</td></tr>
-      <tr><td class="mono">TXS000012</td><td>Spotify Premium <span style="font-size:0.62rem;color:var(--accent)">· cartão virtual ...4628</span></td><td class="r">R$ 23,90</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXS000012</td><td>Spotify Premium <span style="font-size:0.62rem;color:var(--accent)">· cartão virtual MB ...4628</span></td><td class="r">R$ 23,90</td></tr>
       </tbody></table>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black (físico 2244 ou virtual 4628). O resto segue no Visa Infinite até a fatura MB confirmar (migração gradual, item por item — regra V87).</div>
       <div class="tfoot"><span>11 assinaturas ativas (12 lançamentos, 1 duplicata riscada)</span><span class="total" id="tfLRS">—</span></div>
     </div>
 
     <div id="lrr" class="pane">
       <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
       <tr><td class="mono">TXR000001</td><td>Vivo (+ Vivo Controle)</td><td class="r">R$ 523,00</td></tr>
-      <tr><td class="mono">TXR000002</td><td>Brisanet (MB)</td><td class="r">R$ 113,13</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXR000002</td><td>Brisanet (MB)</td><td class="r">R$ 113,13</td></tr>
       <tr><td class="mono">TXR000003</td><td>Digna</td><td class="r">R$ 152,41</td></tr>
       <tr><td class="mono">TXR000004</td><td>Campo Santo da Paz</td><td class="r">R$ 77,79</td></tr>
       <tr><td class="mono">TXR000005</td><td>Faculdade Engenharia (Visa Infinite)</td><td class="r">R$ 441,33</td></tr>
-      <tr><td class="mono">TXR000006</td><td>New Car Rastreador (MB)</td><td class="r">R$ 59,99</td></tr>
-      <tr><td class="mono">TXR_FACULDADE_MB</td><td>Faculdade Engenharia (MB, 2ª cobrança transitória)</td><td class="r">R$ 441,33</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXR000006</td><td>New Car Rastreador (MB)</td><td class="r">R$ 59,99</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXR_FACULDADE_MB</td><td>Faculdade Engenharia (MB, 2ª cobrança transitória)</td><td class="r">R$ 441,33</td></tr>
       </tbody></table>
       <div class="tfoot"><span>7 recorrências</span><span class="total" id="tfLRR">—</span></div>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Migração de cartão (V63): todas as recorrências passaram para o Mastercard Black, exceto a Faculdade que teve 2 cobranças neste ciclo (transição). Confirmado via extrato do cartão virtual em 17/07/2026.</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black. Migração de cartão (V63) segue GRADUAL (V87) — só migra quando a fatura MB confirma de verdade. Vivo, Digna, Campo Santo e Faculdade (1ª cobrança) seguem no Visa Infinite.</div>
     </div>
 
     <div id="lrcon" class="pane">
@@ -502,16 +514,16 @@
 
     <div id="lrmp" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXMP000001</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">3/6</td><td class="r">R$ 56,39</td></tr>
-      <tr><td class="mono">TXMP000002</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">6/12</td><td class="r">R$ 106,04</td></tr>
-      <tr><td class="mono">TXMP000003</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">6/8</td><td class="r">R$ 50,40</td></tr>
-      <tr class="last-parcel"><td class="mono">TXMP000004</td><td class="mono">—</td><td>Mercado Livre 🔚</td><td class="mono">6/6</td><td class="r">R$ 68,36</td></tr>
-      <tr><td class="mono">TXMP000005</td><td class="mono">—</td><td>Mercado Livre</td><td class="mono">10/24</td><td class="r">R$ 166,62</td></tr>
+      <tr><td class="mono">TXMP000005</td><td class="mono">22/10/25</td><td>Mercado Livre</td><td class="mono">10/24</td><td class="r">R$ 166,62</td></tr>
+      <tr class="last-parcel"><td class="mono">TXMP000004</td><td class="mono">15/02</td><td>Mercado Livre 🔚</td><td class="mono">6/6</td><td class="r">R$ 68,36</td></tr>
+      <tr><td class="mono">TXMP000003</td><td class="mono">16/02</td><td>Mercado Livre</td><td class="mono">6/8</td><td class="r">R$ 50,40</td></tr>
+      <tr><td class="mono">TXMP000002</td><td class="mono">20/02</td><td>Mercado Livre</td><td class="mono">6/12</td><td class="r">R$ 106,04</td></tr>
       <tr><td class="mono">TXMP000006</td><td class="mono">19/05</td><td>Mercado Livre</td><td class="mono">3/6</td><td class="r">R$ 23,66</td></tr>
+      <tr><td class="mono">TXMP000001</td><td class="mono">19/05</td><td>Mercado Livre</td><td class="mono">3/6</td><td class="r">R$ 56,39</td></tr>
+      <tr><td class="mono">TXMP000008</td><td class="mono">29/06</td><td>Transporte Recife (ida)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
       <tr><td class="mono">TXMP000007</td><td class="mono">02/07</td><td>Transporte Recife (volta)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
-      <tr><td class="mono">TXMP000008</td><td class="mono">02/07</td><td>Transporte Recife (ida)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no ERP · corp. = 100% reembolsável (prioridade 2 na fila de reembolso, junto ao corporativo)</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V97): datas preenchidas via fatura Mercado Pago literal (vencimento 04/08/2026, total R$1.749,35 — bate exato com os 8 lançamentos abaixo). O ERP já tinha todas as datas certas desde a V91; só o site estava desatualizado (inclusive TXMP000008 mostrava 02/07, ERP e fatura confirmam 29/06). corp. = 100% reembolsável (prioridade 2 na fila de reembolso, junto ao corporativo).</div>
       <div class="tfoot"><span>8 lançamentos · Fecha 29/07 · Vence 04/08</span><span class="total" id="tfLRMP">—</span></div>
     </div>
 
@@ -1040,11 +1052,11 @@
     <!-- 7 -->
     <div class="section-num"><span class="n">07</span><h2>🔄 Obrigações Operacionais</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado/Vanessa)</span><span class="v" id="balObrVisa">R$ 9.024,68</span></div>
+      <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado/Vanessa)</span><span class="v" id="balObrVisa">R$ 10.833,59</span></div>
       <div class="row"><span class="k">Mastercard Black (2244/4628, cartão principal)</span><span class="v" id="balObrMB">R$ 1.661,01</span></div>
       <div class="row"><span class="k">Mercado Pago</span><span class="v" id="balObrMP">R$ 1.791,93</span></div>
       <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="balObrWartsila">R$ 656,67</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">R$ 13.134,29</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">R$ 14.943,20</span></div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Ciclo de transição: migração pro Mastercard Black é gradual, item por item, só sai do Visa Infinite quando a fatura MB confirma a cobrança de verdade (não em bloco por promessa de migração). Confirmados até agora: Brisanet, New Car, Faculdade (2ª cobrança), Spotify, Amazon Prime. O resto (consórcios, Vivo, Claude, Netflix etc.) migra conforme for aparecendo na fatura MB nos próximos ciclos.</div>
     </div>
 
