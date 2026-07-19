@@ -114,12 +114,12 @@ const REG = {
     reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 11619.89,     // V70 (18/07/2026): +R$23,90 (Spotify, nova assinatura). Era R$11.595,99.
+    totalOperacional: 11577.31,     // CORRIGIDO 19/07/2026 (V91): MP pessoal revertido 514,05->471,47 (fatura MP literal do ciclo atual confirma TXMP000010 - R$42,58 - NAO aparece nesta fatura, era compra avulsa ja paga em ciclo anterior, nunca deveria ter entrado no provisionamento recorrente). Era R$11.619,89.
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14819.89,     // V70: 14.795,99->14.819,89
-    coberturaGarantida: 997.48,     // MP pessoal 514.05 + Visa Infinite corporativo 483.43. V59: era R$954,90 (MP pessoal R$471,47)
-    necessidadeLiquida: 13822.41,     // V70: 13.798,51->13.822,41
-    saldoCiclo: 21318.48,     // V70: 21.342,38->21.318,48. Modo Operacional nao muda (continua ALTO).
+    necessidadeTotalBruta: 14777.31,     // V91: 14.819,89->14.777,31 (mesma correcao MP pessoal)
+    coberturaGarantida: 954.90,     // CORRIGIDO 19/07/2026 (V91): MP pessoal 471.47 (revertido) + Visa Infinite corporativo 483.43. Era R$997,48 (V59, incluia TXMP000010 indevidamente).
+    necessidadeLiquida: 13822.41,     // V91: inalterado - a correcao de MP pessoal cancela exatamente entre necessidadeTotalBruta e coberturaGarantida (mesmo componente nos 2 lados).
+    saldoCiclo: 21361.06,     // V91: 21.318,48->21.361,06 (+R$42,58, reflete a correcao). Modo Operacional nao muda (continua ALTO).
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
@@ -148,7 +148,7 @@ const REG = {
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
   visaDetalhe: { parcelas:2419.49, consorcios:1950.77, wallace:1965.17, recorrencias:1194.53, corp:483.43, assinaturas:389.46, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V87): usuario esclareceu - migracao e GRADUAL, item por item, so o que tem cobranca REAL confirmada na fatura MB sai do Visa. Consorcios e a maioria de LRS/LRR ainda nao apareceram numa fatura MB de verdade neste ciclo, entao ficam no Visa (transicao). Reverte o excesso da V85 que tinha movido tudo em bloco so por causa de uma promessa de migracao, sem esperar a fatura confirmar.
   mbDetalhe: { parcelas:0, consorcios:0, wallace:1005.95, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // CORRIGIDO 19/07/2026 (V87): so o que tem cobranca REAL confirmada no MB - recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90). Consorcios e o resto de LRS/LRR ainda nao migraram de fato, ficam no Visa este ciclo.
-  totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:514.05, assinaturas:433.26 }, // V70 (18/07/2026): assinaturas +R$23,90 (Spotify, nova)
+  totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.26 }, // CORRIGIDO 19/07/2026 (V91): provMP revertido 514,05->471,47 (TXMP000010 nao pertence a esta fatura - one-off ja pago em ciclo anterior)
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
@@ -214,7 +214,7 @@ const REG = {
     // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
-    totalOperacional:   [11619.89,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V70: 1o ponto atualizado 11595,99->11619,89 (Spotify, nova assinatura). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
+    totalOperacional:   [11577.31,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V91: 1o ponto atualizado 11619,89->11577,31 (correcao MP pessoal). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
     necessidadeLiquida: [13822.41,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // V70: 1o ponto atualizado 13.798,51->13.822,41
   },
 
@@ -377,6 +377,14 @@ function hydrate(){
   t('s02TituloVisa', fmt(R.visa.totalComprometido));
   t('gVisaTotalLine', fmt(R.visa.totalComprometido));
   t('gVisaPessoalLine', fmt(R.visa.pessoal));
+  // Novo 19/07/2026 (V89, pedido do usuario): Visa+MB liquido de Caixa Variavel.
+  // A Caixa Variavel ja cobre 100% de LRW+LRV (REGRA_FUNCAO_CAIXA_VARIAVEL) - este card mostra
+  // quanto da obrigacao dos 2 cartoes NAO esta coberto por ela (parcelas/assinaturas/recorrencias/consorcios/corp).
+  const cartoesTotal = Math.round((R.cartaoInfinite.total + R.cartaoMB.total)*100)/100;
+  const cartoesLiquidoCV = Math.round((cartoesTotal - R.caixaVariavel.comprometido)*100)/100;
+  t('gCartoesTotalLine', fmt(cartoesTotal));
+  t('gCVComprometidoLine', '− '+fmt(R.caixaVariavel.comprometido));
+  t('gCartoesLiquidoLine', fmt(cartoesLiquidoCV));
   t('s03TituloPat', fmt(R.patrimonio.total));
 
   // alivio (Evolucao Total Operacional)
@@ -919,6 +927,25 @@ new Chart(document.getElementById('g_cVisaBar'), {
     scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
+
+// Novo 19/07/2026 (V89) — Visa+MB liquido de Caixa Variavel (isolado em IIFE propria, regra 14.2)
+(function(){
+  const cvComprometido = REG.caixaVariavel.comprometido;
+  const visaTotal = REG.cartaoInfinite.total;
+  const mbTotal = REG.cartaoMB.total;
+  const liquido = Math.round((visaTotal + mbTotal - cvComprometido)*100)/100;
+  new Chart(document.getElementById('g_cCartoesLiquidoCV'), {
+    type:'bar',
+    plugins:[barValuePlugin],
+    data:{labels:['Visa Infinite','Mastercard Black','Caixa Variável (comprometido)','Líquido não coberto'],
+      datasets:[{data:[visaTotal, mbTotal, -cvComprometido, liquido],
+      backgroundColor:['#3987e5','#9085e9','#e2554f','#e8a63a'],borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:60,left:10}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+      scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
+        y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+})();
 
 // 01 — Composição do Total Operacional (7 categorias confirmadas com o Wallace em 15/07/2026)
 // Boletos=2600 (APORTE_BOLETOS, nao o total bruto do livro LRB) · Prov. MP=471,47 (MP pessoal, nao o total bruto do LRMP)

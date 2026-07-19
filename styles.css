@@ -182,15 +182,22 @@
 
   /* --- Tabs de nivel superior (Painel / Graficos) --- */
   .master-tabs{
-    display:flex;gap:0.5rem;margin-bottom:2rem;
-    border-bottom:1px solid var(--border-strong);
+    display:flex;gap:0.5rem;margin:2rem 0 2.2rem 0;
+    padding:0.6rem 0.6rem 0 0.6rem;
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--border-strong);border-bottom:none;
+    border-radius:10px 10px 0 0;
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(6px);
   }
   .master-tab{
     background:none;border:none;color:var(--text-dim);
-    font-size:0.85rem;font-weight:600;padding:0.7rem 1.2rem;
-    cursor:pointer;border-bottom:2px solid transparent;
-    margin-bottom:-1px;
+    font-size:0.95rem;font-weight:700;padding:0.9rem 1.5rem;
+    cursor:pointer;border-bottom:3px solid transparent;
+    margin-bottom:-1px;border-radius:6px 6px 0 0;
+    transition:background 0.15s,color 0.15s;
   }
-  .master-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .master-tab:hover{background:rgba(255,255,255,0.04);color:var(--text-mid)}
+  .master-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(255,255,255,0.05)}
   .master-pane{display:none}
   .master-pane.active{display:block}
