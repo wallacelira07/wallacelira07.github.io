@@ -100,6 +100,19 @@ os livros razao (LRW/LRV/LRB/...), graficos de composicao (g_cTotalOp,
 g_cVisa, g_cMetas, g_cCaixas) e a pagina Cenarios inteira - hoje ainda
 tem valores hardcoded nesses pontos, herdados da versao anterior do HTML.
 ======================================================*/
+// AUTOMATIZADO 19/07/2026: helper global (real > projetado > mediana) para a serie "Liquido" do
+// cenario Superavit Normal. Definido antes do REG ser consumido em qualquer render para poder ser
+// chamado tanto no resumo executivo (indice 0, ciclo atual) quanto na tabela/grafico completo da
+// pagina Cenarios. Fonte dos dados: REG.superavitNormal.liquidoProjetado/liquidoReal + REG.cenarioHistorico.mediana.
+function liquidoMes(i){
+  const mediana = REG.cenarioHistorico.mediana;
+  const real = (REG.superavitNormal.liquidoReal || {})[i];
+  const projetado = (REG.superavitNormal.liquidoProjetado || {})[i];
+  if(real !== undefined && real !== null) return real;
+  if(projetado !== undefined && projetado !== null) return projetado;
+  return mediana;
+}
+
 const REG = {
   patrimonio: {
     total: 115373.63,          // CORRIGIDO 17/07/2026 (V57): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.48 + Necton Conta Corrente 429.70. Escola Julio NAO entra (removida desde V47/16-07 no ERP - este card estava desatualizado, ainda somava Escola Julio e nao tinha Necton CC).
@@ -126,17 +139,17 @@ const REG = {
   },
   caixaVariavel: {
     saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
-    comprometido: 3135.28,  // V86: +R$21,18 (Panificadora+H57Store). Era R$3.114,10.
-    disponivel: -487.51,    // V86: SALDO_REAL(2647.77)-COMPROMETIDO(3135.28). Era -R$466,33.
+    comprometido: 3316.28,  // V93b (19/07): -R$3,19 (TX000096 duplicata cancelada) +R$184,19 (4 lancamentos faltantes da fatura Bradesco: Seguro Superprotegido, DryClean USA, Vendedora, MP*Melimais). Era R$3.135,28.
+    disponivel: -668.51,    // V93b: SALDO_REAL(2647.77)-COMPROMETIDO(3316.28). Era -R$487,51.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 10504.69,   // V87: total geral nao muda. Infinite(8.840,49)+MB(1.664,20) - so migracao gradual confirmada por fatura real, nao em bloco.
-    pessoal: 10000.08   // totalComprometido - LRC (R$483,43, corporativo)
+    totalComprometido: 10685.69,   // V93b: Infinite(9.024,68)+MB(1.661,01). Era R$10.504,69.
+    pessoal: 10202.26   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.000,08.
   },
-  cartaoInfinite: { total: 8840.49 },   // CORRIGIDO 19/07/2026 (V87): migracao e gradual (item por item, so o que a fatura MB confirma sai daqui). Era R$5.305,73 (V85, tinha reagido demais - zerou consorcios/maioria de LRS-LRR que ainda nao migraram de fato).
-  cartaoMB: { total: 1664.20 },  // CORRIGIDO 19/07/2026 (V87): so os itens com cobranca real confirmada na fatura MB (LRW-MB + Brisanet+NewCar+FaculdadeMB+Spotify+AmazonPrime). Era R$5.198,96 (V86, migracao em bloco excessiva).
+  cartaoInfinite: { total: 9024.68 },   // V93b (19/07): +R$184,19, 4 lancamentos faltantes da fatura Bradesco literal (achado sinalizado desde V68/V69, nunca fechado: Seguro Superprotegido R$9,99/15-07, DryClean USA R$132,00/14-07, Vendedora R$22,30/14-07, MP*Melimais R$19,90/09-07). Era R$8.840,49.
+  cartaoMB: { total: 1661.01 },  // V93b (19/07): -R$3,19 (TX000096 H57Store R$3,19/17-07 identificado como duplicata da TX000099, R$3,19/18-07 - lista de conciliacao literal do usuario so confirma 1x). Era R$1.664,20.
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
@@ -146,8 +159,8 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2419.49, consorcios:1950.77, wallace:1965.17, recorrencias:1194.53, corp:483.43, assinaturas:389.46, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V87): usuario esclareceu - migracao e GRADUAL, item por item, so o que tem cobranca REAL confirmada na fatura MB sai do Visa. Consorcios e a maioria de LRS/LRR ainda nao apareceram numa fatura MB de verdade neste ciclo, entao ficam no Visa (transicao). Reverte o excesso da V85 que tinha movido tudo em bloco so por causa de uma promessa de migracao, sem esperar a fatura confirmar.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:1005.95, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // CORRIGIDO 19/07/2026 (V87): so o que tem cobranca REAL confirmada no MB - recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90). Consorcios e o resto de LRS/LRR ainda nao migraram de fato, ficam no Visa este ciclo.
+  visaDetalhe: { parcelas:2419.49, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.46, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V93b): wallace +R$184,19 (4 lancamentos faltantes). Era R$1.965,17. Nota V87 original: usuario esclareceu - migracao e GRADUAL, item por item, so o que tem cobranca REAL confirmada na fatura MB sai do Visa. Consorcios e a maioria de LRS/LRR ainda nao apareceram numa fatura MB de verdade neste ciclo, entao ficam no Visa (transicao). Reverte o excesso da V85 que tinha movido tudo em bloco so por causa de uma promessa de migracao, sem esperar a fatura confirmar.
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:1002.76, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // CORRIGIDO 19/07/2026 (V93b): wallace -R$3,19 (TX000096 duplicata cancelada). Era R$1.005,95. Nota V87 original: so o que tem cobranca REAL confirmada no MB - recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90). Consorcios e o resto de LRS/LRR ainda nao migraram de fato, ficam no Visa este ciclo.
   totalOpDetalhe: { boletos:2600, parcelas:2419.49, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.26 }, // CORRIGIDO 19/07/2026 (V91): provMP revertido 514,05->471,47 (TXMP000010 nao pertence a esta fatura - one-off ja pago em ciclo anterior)
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
@@ -174,7 +187,15 @@ const REG = {
     piso: [9223.66,7821.63,7369.83,7088.69,7320.83,7220.83,6979.37,6979.37,6979.37,6979.37,6979.37,6979.37]
   },
   superavitNormal: {
-    liquido: [18545.51,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64,18283.64], // liquido[0] = salario estimado (16.048,51) + sobra pessoal do reembolso apos cascata (2.497,00, regra V50: paga Wartsila->corp MP->corp cartao->sobra pessoal). Meses 2-12 seguem conservadores (mediana, sem reembolso projetado - sem dado real, nao chutado).
+    // AUTOMATIZADO 19/07/2026 (pedido do usuario): a serie "liquido" nao e mais hardcoded.
+    // Regra de 3 niveis, resolvida em runtime por calcularLiquidoSerie() (ver mais abaixo no arquivo):
+    //   1) liquidoReal[i]      -> ciclo ja fechado (dia 25 passou), valor real recebido. Maior prioridade.
+    //   2) liquidoProjetado[i] -> ciclo aberto mas com estimativa concreta calculada (Estimador de Salario
+    //                             + sobra de reembolso pos-cascata, regra V50). So existe quando ha calculo real.
+    //   3) cenarioHistorico.mediana (R$18.283,64) -> fallback conservador, nenhum dado especifico do mes.
+    // Editar SEMPRE aqui (liquidoProjetado/liquidoReal), nunca direto no array liquido (que agora e derivado).
+    liquidoProjetado: { 0: 18545.51 }, // Jul/26 (ciclo aberto atual): 16.048,51 (Estimador de Salario) + 2.497,00 (sobra pessoal do reembolso pos-cascata, regra V50).
+    liquidoReal: {}, // preencher {indice: valor} quando um ciclo fechar (dia 25) e o valor real chegar - some do "projetado" automaticamente pela prioridade acima.
     necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,11581.08,11581.08,11581.08,11581.08,11581.08,11581.08]
   },
   livrosRazaoTotais: {
@@ -232,7 +253,7 @@ const REG = {
       churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
     }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
     operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, caixaBoletos:821.51, total:3731.24 },
-    obrigacoes: { visa:8840.49, mastercardBlack:1664.20, mercadoPago:1791.93, wartsila:656.67, total:12953.29 }, // V87: migracao gradual - so item confirmado por fatura real sai do Visa
+    obrigacoes: { visa:9024.68, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:13134.29 }, // V93b: visa +184,19, MB -3,19 (total +181,00). Era visa 8840.49/MB 1664.20/total 12953.29
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };
@@ -428,7 +449,7 @@ function hydrate(){
   t('cxWartsila', fmt(R.faturaWartsila));
   t('ejSaldo', fmt(R.escolaJulioSaldo));
   t('ejMeta', fmt(R.patrimonio.metaEscolaJulio));
-  t('snCicloAtual', '+ '+fmt(R.superavitNormal.liquido[0] - R.superavitNormal.necessidade[0]));
+  t('snCicloAtual', '+ '+fmt(liquidoMes(0) - R.superavitNormal.necessidade[0]));
 
   t('csNecTotal', R.operacional.necessidadeTotalBruta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('csReembolsos', R.operacional.reembolsoSobraPessoal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
@@ -1156,8 +1177,12 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Necessidade Total Bruta projetada = PROJ_TOTAL_OP_* (SWP_INPUT, reconstruida 16/07/2026 a partir do
   // livro LRP) + Orcamento Operacional R$3.200 constante. Mar/27 em diante mantido constante (sem dados
   // de parcelamento/aporte alem desse horizonte).
+  // AUTOMATIZADO 19/07/2026: resolve a serie Liquido em runtime (real > projetado > mediana) via
+  // helper global liquidoMes(i), em vez de ler um array hardcoded. "Vivo" no sentido pedido pelo
+  // usuario: qualquer edicao em REG.superavitNormal.liquidoProjetado/liquidoReal se reflete aqui
+  // sem precisar recalcular a mao os 12 valores - so o(s) mes(es) com dado novo precisa(m) de entrada.
   const snLabels = gerarMeses(12);
-  const snLiquido = alignSeries(REG.superavitNormal.liquido);
+  const snLiquido = alignSeries(snLabels.map((_,i)=>liquidoMes(i)));
   const snNecessidade = alignSeries(REG.superavitNormal.necessidade);
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
 
