@@ -165,9 +165,9 @@ const REG = {
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
   caixaVariavel: {
-    saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
+    saldoReal: 2575.77,     // V116 (20/07/2026): REVERTIDO - a V115 tinha lancado +R$66,96 (TX000122) por engano do Claude (transacao ficticia, nunca existiu). Volta ao valor real da V113/V114.
     comprometido: 3735.54,  // 20/07/2026: -R$19,90 (TX000115 saiu de LRW, virou TXS000013/LRS). = LRW(3291,40)+LRV(444,14). Era R$3.755,44.
-    disponivel: -1087.77,   // 20/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3735.54). Era -R$1.107,67.
+    disponivel: -1159.77,   // V116: REVERTIDO junto com saldoReal.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
@@ -237,8 +237,8 @@ const REG = {
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
     LRMP:  { total:1791.93, qtd:9  }, // V59: +TXMP000010
-    LRCV:  { total:1045.60,  qtd:21 }, // V82: +TX000109 (PIX Edgley, R$60,00)
-    LRPV:  { total:-135.66, qtd:16 }
+    LRCV:  { total:1117.60,  qtd:23 }, // V116: REVERTIDO (TX000122 era ficticia). Volta ao valor real V113.
+    LRPV:  { total:-295.66, qtd:19 } // V117: -TX000122 (Hortifruti/frutas, R$67,00, retroativo 17/07). Era -R$228,66/18.
   },
 
   reembolsos: { recebidosNoCiclo: 2485.39 },
@@ -249,7 +249,7 @@ const REG = {
   // que o numero mudar no ERP (mesmo padrao de todo o resto do REG).
   qualidade: {
     txSemData: 0,          // contador oficial do ERP (aba AUDITORIA_AUTOMATICA / historico SWP_INPUT). 0 = zerado em 17/07/2026 (V69).
-    lreiAtivos: 1,          // quantidade de emprestimos internos (LREI) em aberto
+    lreiAtivos: 1,          // V114: LREI0002 reclassificado como Suporte Co-irma (nao e emprestimo) - so LREI0001 permanece ativo
     tetoTemporarioAtivo: true // reflete caixaVariavel.tolerenciaTemp > 0
   },
   cenarioHistorico: {
@@ -281,7 +281,7 @@ const REG = {
       boletos:0, escolaJulio:505.64, caixaLance:204.48, manutencao:0, eventos:0,
       churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
     }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
-    operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, caixaBoletos:821.51, total:3731.24 },
+    operacional: { caixaVariavel:2575.77, pixVanessaSaldoReal:-0.04, caixaBoletos:821.51, total:3397.24 }, // V117: PGV saldo real recalculado com ciclo completo (frutas+fralda). Era pixVanessaSaldoReal:66.96/total:3464.24.
     obrigacoes: { visa:10932.30, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15041.91 }, // SOBRESCRITO por recalcularAgregadosDerivados() = mesma fonte do card Cartoes (REG.visa.totalComprometido), evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia).
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
