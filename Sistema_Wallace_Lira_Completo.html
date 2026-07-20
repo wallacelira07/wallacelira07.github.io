@@ -131,7 +131,7 @@
     </div>
   </div>
 
-  <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
+  <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-top:1.5rem;margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div>
@@ -387,10 +387,12 @@
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000108</td><td class="mono">18/07</td><td>iFood *Brothers Burger <span style="font-size:0.62rem;color:var(--text-dim)">(maquineta — compra presencial na loja)</span> <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 230,67</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000110</td><td class="mono">19/07</td><td>Panificadora</td><td class="r">R$ 13,80</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000111</td><td class="mono">19/07</td><td>H57Store</td><td class="r">R$ 7,38</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000116</td><td class="mono">19/07</td><td>iFood *Fornatto Pizza Exp <span style="font-size:0.62rem;color:var(--text-dim)">(cartão virtual temporário 2135)</span></td><td class="r">R$ 146,39</td></tr>
+      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000117</td><td class="mono">19/07</td><td>H57Store</td><td class="r">R$ 12,79</td></tr>
       </tbody></table>
       <div class="callout ok">Cartão final 2244 (Itaú Personnalité, bandeira Mastercard Black) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado. 🟡 fundo amarelo = confirmadas no Mastercard Black (16-19/07).</div>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026: auditoria completa site↔ERP encontrou 6 lançamentos confirmados no ERP desde V86/V93b que nunca tinham entrado nesta tabela (TX000110/111, TX000112-115) — adicionados. TX000096 estava sem marcação clara de cancelado — corrigido (riscado, igual ao padrão da aba Assinaturas).</div>
-      <div class="tfoot"><span>54 lançamentos ativos (55 com 1 cancelado riscado)</span><span class="total" id="tfLRW">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026: auditoria completa site↔ERP encontrou 6 lançamentos confirmados no ERP desde V86/V93b que nunca tinham entrado nesta tabela (TX000110/111, TX000112-115) — adicionados. TX000096 estava sem marcação clara de cancelado — corrigido (riscado, igual ao padrão da aba Assinaturas). Depois: TX000116 (1º uso do cartão virtual temporário MB) e TX000117 (H57Store) lançados via Meta AI.</div>
+      <div class="tfoot"><span>56 lançamentos ativos (57 com 1 cancelado riscado)</span><span class="total" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -411,9 +413,10 @@
       <tr><td class="mono">TXR000005</td><td class="mono">12/07</td><td>Drogaria Drogavista</td><td class="r">R$ 45,19</td></tr>
       <tr><td class="mono">TX000033</td><td class="mono">12/07</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
       <tr><td class="mono">TX000076</td><td class="mono">13/07</td><td>Uber (Família, aparece como "DL" na fatura)</td><td class="r">R$ 24,03</td></tr>
+      <tr><td class="mono">TX000118</td><td class="mono">19/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 4845</span></td><td class="r">R$ 6,50</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V96): datas preenchidas via fatura Bradesco literal — o ERP já tinha todas, só o site estava desatualizado. 2 divergências de 1 dia corrigidas (Carolina 22/06→21/06, H57 Store 28/06→29/06, regra fatura sempre vence).</div>
-      <div class="tfoot"><span>16 lançamentos</span><span class="total" id="tfLRV">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V96): datas preenchidas via fatura Bradesco literal — o ERP já tinha todas, só o site estava desatualizado. 2 divergências de 1 dia corrigidas (Carolina 22/06→21/06, H57 Store 28/06→29/06, regra fatura sempre vence). NOVO: TX000118 lançado via Meta AI.</div>
+      <div class="tfoot"><span>17 lançamentos</span><span class="total" id="tfLRV">—</span></div>
     </div>
 
     <div id="lrb" class="pane">
@@ -448,21 +451,12 @@
       <tr class="last-parcel"><td class="mono">TXP000012</td><td class="mono">19/05</td><td>Edilson Lourenço 🔚</td><td class="mono">2/2</td><td class="r">R$ 425,00</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000013</td><td class="mono">19/05</td><td>Silmara Macedo 🔚</td><td class="mono">2/2</td><td class="r">R$ 375,00</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000014</td><td class="mono">08/07</td><td>Hotmart Fernando 🔚</td><td class="mono">12/12</td><td class="r">R$ 42,00</td></tr>
-      <tr><td class="mono">TXP000016</td><td class="mono">03/01</td><td>Seguro Tokio Marine - Auto</td><td class="mono">1/10</td><td class="r">R$ 200,99</td></tr>
-      <tr><td class="mono">TXP000017</td><td class="mono">03/02</td><td>Seguro Tokio Marine - Auto</td><td class="mono">2/10</td><td class="r">R$ 200,99</td></tr>
-      <tr><td class="mono">TXP000018</td><td class="mono">03/03</td><td>Seguro Tokio Marine - Auto</td><td class="mono">3/10</td><td class="r">R$ 200,99</td></tr>
-      <tr><td class="mono">TXP000019</td><td class="mono">03/04</td><td>Seguro Tokio Marine - Auto</td><td class="mono">4/10</td><td class="r">R$ 200,99</td></tr>
-      <tr><td class="mono">TXP000020</td><td class="mono">03/05</td><td>Seguro Tokio Marine - Auto</td><td class="mono">5/10</td><td class="r">R$ 200,99</td></tr>
-      <tr><td class="mono">TXP000021</td><td class="mono">03/06</td><td>Seguro Tokio Marine - Auto</td><td class="mono">6/10</td><td class="r">R$ 200,99</td></tr>
       <tr><td class="mono">TXP000008</td><td class="mono">03/07</td><td>Seguro Tokio Marine - Auto</td><td class="mono">7/10</td><td class="r">R$ 200,99</td></tr>
-      <tr style="opacity:0.65"><td class="mono">TXP000022</td><td class="mono">03/08</td><td>Seguro Tokio Marine - Auto <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">8/10</td><td class="r">R$ 200,99</td></tr>
-      <tr style="opacity:0.65"><td class="mono">TXP000023</td><td class="mono">03/09</td><td>Seguro Tokio Marine - Auto <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">9/10</td><td class="r">R$ 200,99</td></tr>
-      <tr class="last-parcel" style="opacity:0.65"><td class="mono">TXP000024</td><td class="mono">03/10</td><td>Seguro Tokio Marine - Auto 🔚 <span style="font-size:0.62rem;color:var(--text-dim)">· pendente</span></td><td class="mono">10/10</td><td class="r">R$ 200,99</td></tr>
       <tr class="last-parcel"><td class="mono">TXP000025</td><td class="mono">06/05</td><td>RBM Relógios 🔚 <span style="font-size:0.62rem;color:var(--accent)">· achado na fatura</span></td><td class="mono">3/3</td><td class="r">R$ 80,97</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). CORRIGIDO 19/07/2026 (V95): TXP000008 (Seguro Tokio Marine - Auto) era registrada como pagamento à vista — na verdade é a parcela 7/10 de uma apólice contratada 03/01/2026 (10x R$200,99, cartão 4844/Visa Infinite, prêmio total R$2.010,78). Parcelas 1-6 e 8-10 lançadas (TXP000016-024). Parcelas 8-10 (opacas) ainda não cobradas — valor a confirmar quando a fatura chegar. NOVO 19/07/2026 (V96): TXP000025 (RBM Relógios, 3/3, R$80,97) nunca tinha sido lançada — achada na fatura literal de 19/07 (situação FECHADO).</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). REVERTIDO 19/07/2026: a reconstrução da apólice Tokio Marine em 10 parcelas (TXP000016-024, feita na V95) não fazia sentido — usuário confirmou que só a parcela 7/10 (TXP000008) é real, nenhuma outra cobrança existe. As 9 parcelas fabricadas foram removidas do ERP e desta tabela. NOVO 19/07/2026 (V96): TXP000025 (RBM Relógios, 3/3, R$80,97) nunca tinha sido lançada — achada na fatura literal de 19/07 (situação FECHADO).</div>
       <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto (não considera ainda o fim do seguro auto em outubro/2026)</div>
-      <div class="tfoot"><span>25 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
+      <div class="tfoot"><span>16 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
     </div>
 
     <div id="lrs" class="pane">
@@ -508,14 +502,14 @@
 
     <div id="lrc" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX22001</td><td class="mono">—</td><td>LM Service</td><td class="r">R$ 102,96</td></tr>
-      <tr><td class="mono">TX22002</td><td class="mono">—</td><td>Porto Gallo</td><td class="r">R$ 42,56</td></tr>
-      <tr><td class="mono">TX22003</td><td class="mono">—</td><td>Café da Villa</td><td class="r">R$ 150,00</td></tr>
-      <tr><td class="mono">TX22004</td><td class="mono">—</td><td>La Ursa</td><td class="r">R$ 146,62</td></tr>
-      <tr><td class="mono">TX22005</td><td class="mono">—</td><td>Cacau Show Café</td><td class="r">R$ 19,80</td></tr>
-      <tr><td class="mono">TX22006</td><td class="mono">—</td><td>Cacau Show Sorvete</td><td class="r">R$ 21,49</td></tr>
+      <tr><td class="mono">TX22001</td><td class="mono">29/06</td><td>LM Service</td><td class="r">R$ 102,96</td></tr>
+      <tr><td class="mono">TX22002</td><td class="mono">29/06</td><td>Porto Gallo</td><td class="r">R$ 42,56</td></tr>
+      <tr><td class="mono">TX22003</td><td class="mono">01/07</td><td>Café da Villa</td><td class="r">R$ 150,00</td></tr>
+      <tr><td class="mono">TX22004</td><td class="mono">02/07</td><td>La Ursa</td><td class="r">R$ 146,62</td></tr>
+      <tr><td class="mono">TX22005</td><td class="mono">02/07</td><td>Cacau Show Café</td><td class="r">R$ 19,80</td></tr>
+      <tr><td class="mono">TX22006</td><td class="mono">02/07</td><td>Cacau Show Sorvete</td><td class="r">R$ 21,49</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">— = data não registrada no ERP · 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso)</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Datas confirmadas via fatura Bradesco literal (19/07/2026) — já estavam corretas no ERP desde o lançamento original, só nunca tinham chegado nesta tabela do site (bug só de exibição). 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).</div>
       <div class="tfoot"><span>6 lançamentos · Reembolso pendente R$483,43</span><span class="total" id="tfLRC">—</span></div>
     </div>
 
@@ -674,7 +668,7 @@
     <div class="row"><span class="k">2. Corporativo Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
     <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
     <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. MP pessoal (o que você deve na fatura)</span><span class="v" style="font-weight:700" id="reembMPPessoal">—</span></div>
-    <div class="row" style="margin-top:0.3rem"><span class="k" style="font-weight:700">5. Sobra total (crédito no Mercado Pago)</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+    <div class="row" style="margin-top:0.3rem"><span class="k" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
     <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali (verificado 19/07/2026 contra a fatura literal do ciclo atual: 6 parcelas Mercado Livre somam R$471,47 nesta fatura — não R$514,05, valor antigo que incluía indevidamente uma compra avulsa já paga em ciclo anterior). Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino.</div>
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
   </div>
@@ -901,7 +895,7 @@
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Você manda a folha de ponto em algum dia do mês, eu aplico as taxas abaixo (calibradas com 12 contracheques reais Jul/25–Jun/26) e gero o líquido estimado antes do pagamento oficial.</div>
 
       <div style="background:var(--surface-2);border-radius:8px;padding:0.8rem 0.9rem;margin-bottom:0.9rem">
-        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Status</span><span class="v" style="color:var(--green)">Folha Jun/2026 → ciclo 25/07 (Ago/26)</span></div>
+        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Status</span><span class="v" style="color:var(--green)" id="estStatusFonte">Folha Jun/2026 → ciclo 25/07 (Ago/26)</span></div>
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Líquido projetado</span><span class="v" style="font-weight:700;font-size:1.05rem" id="estLiquido">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Necessidade Líquida do ciclo 25/07</span><span class="v" id="estNecLiquida">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0 0"><span class="k" style="font-weight:600">Excedente estimado</span><span class="v" style="color:var(--green);font-weight:700" id="estExcedente">—</span></div>

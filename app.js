@@ -1,6 +1,19 @@
 // ===== Utilitario global unico (auditoria 15/07/2026: havia 4 definicoes duplicadas de fmt(),
 // uma por IIFE - consolidado aqui, todas as IIFEs abaixo usam esta via closure) =====
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+// CORRIGIDO 19/07/2026: varios graficos tinham min/max fixos no eixo Y, calculados a mao numa sessao
+// anterior para o range de dados de entao. Como os dados crescem (ex: comprometido subindo), o teto
+// fixo passou a cortar/estourar a barra ou linha. yRange() calcula um min/max automatico com folga,
+// arredondado, a partir dos dados reais de cada grafico - substitui todo min/max hardcoded.
+function yRange(data, padPct=0.12){
+  const vals = data.filter(v=>typeof v==='number' && !isNaN(v));
+  if(!vals.length) return {min:undefined, max:undefined};
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  const range = (mx-mn) || Math.abs(mx) || 1;
+  const pad = range*padPct;
+  const step = mx >= 5000 ? 100 : mx >= 500 ? 10 : 1;
+  return { min: Math.max(0, Math.floor((mn-pad)/step)*step), max: Math.ceil((mx+pad)/step)*step };
+}
 
 // ===== Janela rolante de 12 meses (padrao unico definido 17/07/2026, V50 item 4) =====
 // Pedido do usuario: "crie o padrao de mostrar essas projecoes com 12 meses... todo mes que mudar as
@@ -104,13 +117,27 @@ tem valores hardcoded nesses pontos, herdados da versao anterior do HTML.
 // cenario Superavit Normal. Definido antes do REG ser consumido em qualquer render para poder ser
 // chamado tanto no resumo executivo (indice 0, ciclo atual) quanto na tabela/grafico completo da
 // pagina Cenarios. Fonte dos dados: REG.superavitNormal.liquidoProjetado/liquidoReal + REG.cenarioHistorico.mediana.
+// REESCRITO 19/07/2026 (regra definida pelo usuario): para o ciclo mais proximo (i=0), a prioridade
+// agora depende do DIA DO MES em que a pagina e aberta, nao so da existencia do dado:
+//   dia >= 25            -> valor REAL recebido (liquidoReal[0]). Se ainda nao foi preenchido (salario
+//                           acabou de cair, usuario ainda nao confirmou), mantem o projetado como melhor
+//                           estimativa disponivel em vez de saltar para a media (evita regressao).
+//   dia 12-24             -> Liquido Projetado do Estimador de Salario (REG.estimador.liquidoProjetadoProximoCiclo),
+//                           calculado a partir da folha de ponto que sai por volta do dia 12.
+//   dia 1-11               -> media ponderada de 12 meses (REG.cenarioHistorico.mediaPonderada12M) -
+//                           fallback conservador, nenhum dado especifico do ciclo ainda.
+// Para os demais indices (i>0, ciclos futuros sem estimador proprio) mantem a logica antiga: real[i]
+// (se algum dia for preenchido) > media ponderada (fallback).
 function liquidoMes(i){
-  const mediana = REG.cenarioHistorico.mediana;
+  const fallback = REG.cenarioHistorico.mediaPonderada12M;
   const real = (REG.superavitNormal.liquidoReal || {})[i];
-  const projetado = (REG.superavitNormal.liquidoProjetado || {})[i];
   if(real !== undefined && real !== null) return real;
-  if(projetado !== undefined && projetado !== null) return projetado;
-  return mediana;
+  if(i === 0){
+    const dia = new Date().getDate();
+    if(dia >= 12 && dia <= 24) return REG.estimador.liquidoProjetadoProximoCiclo;
+    if(dia >= 25) return REG.estimador.liquidoProjetadoProximoCiclo; // real ainda nao confirmado - mantem melhor estimativa
+  }
+  return fallback;
 }
 
 const REG = {
@@ -127,29 +154,29 @@ const REG = {
     reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 13467.15,     // V96 (19/07/2026): +R$80,93 (LRP +80,97 RBM Relogios achado na fatura; LRS -0,04 IFood corrigido). Era R$13.386,22.
+    totalOperacional: 11658.24,     // CORRIGIDO 19/07/2026: -R$1.808,91 (usuario apontou que a reconstrucao da apolice Tokio Marine em 10 parcelas, V95, nao fazia sentido - so a 7/10 real, TXP000008. As 9 parcelas fabricadas foram removidas do ERP). Era R$13.467,15.
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 16667.15,     // V96: 16.586,22->16.667,15 (+R$80,93)
-    coberturaGarantida: 954.90,     // Sem alteracao na V95 (seguro auto nao e corporativo/reembolsavel).
-    necessidadeLiquida: 15712.25,     // V96: 15.631,32->15.712,25
-    saldoCiclo: 19471.22,     // V96: 19.552,15->19.471,22 (-R$80,93). Modo Operacional nao muda (continua ALTO).
+    necessidadeTotalBruta: 14858.24,     // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao Tokio Marine). Era R$16.667,15.
+    coberturaGarantida: 954.90,     // Sem alteracao.
+    necessidadeLiquida: 13903.34,     // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
+    saldoCiclo: 21280.13,     // CORRIGIDO 19/07/2026: +R$1.808,91 (reversao Tokio Marine, Necessidade Total caiu). Era R$19.471,22. Modo Operacional nao muda (continua ALTO).
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
   caixaVariavel: {
     saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
-    comprometido: 3589.76,  // CORRIGIDO 19/07/2026: recomputado = LRW(3152,12)+LRV(437,64), formula oficial da secao 13 da Politica. Os R$184,19 de TX112-115 ja tinham sido somados aqui na V93b, mas faltava somar TX000110+TX000111 (R$21,18, achados V86) - nunca tinham entrado neste registrador. Era R$3.316,28.
-    disponivel: -941.99,    // CORRIGIDO 19/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3589.76). Era -R$668,51.
+    comprometido: 3755.44,  // 19/07/2026: +R$19,29 (TX000117 R$12,79 + TX000118 R$6,50). = LRW(3311,30)+LRV(444,14). Era R$3.736,15.
+    disponivel: -1107.67,   // 19/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3755.44). Era -R$1.088,38.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 12575.53,   // V96: Infinite(10.914,52)+MB(1.661,01). Era R$12.494,60.
-    pessoal: 12092.10   // totalComprometido - LRC (R$483,43, corporativo). Era R$12.011,17.
+    totalComprometido: 10932.30,   // 19/07/2026: Infinite(9.112,11)+MB(1.820,19). +R$19,29 (TX000117 MB + TX000118 Infinite/Vanessa). Era R$10.913,01.
+    pessoal: 10448.87   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.429,58.
   },
-  cartaoInfinite: { total: 10914.52 },   // V96 (19/07): +R$80,93 (LRP +80,97 RBM Relogios achado na fatura; LRS -0,04 IFood corrigido). Era R$10.833,59.
-  cartaoMB: { total: 1661.01 },  // V93b (19/07): -R$3,19 (TX000096 H57Store R$3,19/17-07 identificado como duplicata da TX000099, R$3,19/18-07 - lista de conciliacao literal do usuario so confirma 1x). Era R$1.664,20.
+  cartaoInfinite: { total: 9112.11 },   // 19/07/2026: +R$6,50 (TX000118, H57Store, Vanessa, cartao 4845). Era R$9.105,61.
+  cartaoMB: { total: 1820.19 },  // 19/07/2026: +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.807,40.
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
@@ -159,9 +186,9 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:4309.37, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.42, vanessa:437.64 }, // CORRIGIDO 19/07/2026 (V96): parcelas +R$80,97 (RBM Relogios achado na fatura); assinaturas -R$0,04 (IFood corrigido). Era parcelas 4.228,40 / assinaturas 389,46.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:1002.76, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // Sem alteracao na V95 (seguro auto e Visa Infinite/4844, nao MB). Recorrencias (614,45 = Brisanet 113,13 + New Car 59,99 + Faculdade MB 441,33) e assinaturas (43,80 = Spotify 23,90 + Amazon Prime 19,90) confirmadas no Mastercard Black.
-  totalOpDetalhe: { boletos:2600, parcelas:4309.37, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.22 }, // V96: parcelas +R$80,97 (RBM Relogios); assinaturas -R$0,04 (IFood corrigido)
+  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.42, vanessa:444.14 }, // 19/07/2026: vanessa +R$6,50 (TX000118, H57Store). Era R$437,64.
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:1161.94, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // 19/07/2026: wallace +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.149,15.
+  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.22 }, // CORRIGIDO 19/07/2026: parcelas -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine). Era R$4.309,37.
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
@@ -187,23 +214,24 @@ const REG = {
     piso: [9223.66,7821.63,7369.83,7088.69,7320.83,7220.83,6979.37,6979.37,6979.37,6979.37,6979.37,6979.37]
   },
   superavitNormal: {
-    // AUTOMATIZADO 19/07/2026 (pedido do usuario): a serie "liquido" nao e mais hardcoded.
-    // Regra de 3 niveis, resolvida em runtime por calcularLiquidoSerie() (ver mais abaixo no arquivo):
-    //   1) liquidoReal[i]      -> ciclo ja fechado (dia 25 passou), valor real recebido. Maior prioridade.
-    //   2) liquidoProjetado[i] -> ciclo aberto mas com estimativa concreta calculada (Estimador de Salario
-    //                             + sobra de reembolso pos-cascata, regra V50). So existe quando ha calculo real.
-    //   3) cenarioHistorico.mediana (R$18.283,64) -> fallback conservador, nenhum dado especifico do mes.
-    // Editar SEMPRE aqui (liquidoProjetado/liquidoReal), nunca direto no array liquido (que agora e derivado).
-    liquidoProjetado: { 0: 18545.51 }, // Jul/26 (ciclo aberto atual): 16.048,51 (Estimador de Salario) + 2.497,00 (sobra pessoal do reembolso pos-cascata, regra V50).
-    liquidoReal: {}, // preencher {indice: valor} quando um ciclo fechar (dia 25) e o valor real chegar - some do "projetado" automaticamente pela prioridade acima.
+    // REGRA DEFINIDA PELO USUARIO 19/07/2026: liquidoMes(0) agora segue prioridade por DIA DO MES,
+    // nao mais um valor fixo bundlado. A partir do dia 25 (quando o salario e pago), usa o valor REAL
+    // recebido (liquidoReal, preenchido manualmente quando confirmado). Enquanto isso nao chega, do dia
+    // 12 em diante (quando a folha de ponto gera o Estimador de Salario) usa o Liquido Projetado PURO
+    // (REG.estimador.liquidoProjetadoProximoCiclo, R$16.048,51 - sem somar mais a sobra pessoal do
+    // reembolso, que era um bundle errado apontado pelo usuario: mostrava R$18.545,51 em vez de
+    // R$16.048,51). Antes do dia 12 (sem estimativa concreta ainda), cai na media ponderada de 12 meses
+    // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
+    // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
+    liquidoReal: {}, // preencher {indice: valor} quando um ciclo fechar (dia 25) e o valor real chegar.
     necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,11581.08,11581.08,11581.08,11581.08,11581.08,11581.08]
   },
   livrosRazaoTotais: {
     // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:3152.12, qtd:54 }, // CORRIGIDO 19/07/2026 (auditoria site-ERP): recomputado do zero via LRW-I+LRW-MB (ATIVO=SIM) no ERP. Faltavam 6 lancamentos confirmados que nunca entraram na tabela/total: TX000110(13,80)+TX000111(7,38)+TX000112(9,99)+TX000113(132,00)+TX000114(22,30)+TX000115(19,90)=R$205,37. Era R$2.949,94/49 (incluia por engano TX000096 cancelado, R$3,19, e nao incluia os 6 acima).
-    LRV:   { total:437.64,  qtd:16 },
+    LRW:   { total:3311.30, qtd:56 }, // 19/07/2026: +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$3.298,51/55.
+    LRV:   { total:444.14,  qtd:17 }, // 19/07/2026: +R$6,50 (TX000118, H57Store, cartao 4845). Era R$437,64/16.
     LRB:   { total:2598.58, qtd:9  },
-    LRP:   { total:4309.37, qtd:25 }, // V96: +R$80,97 (TXP000025, RBM Relogios, achado na fatura Bradesco literal). Era R$4.228,40/24.
+    LRP:   { total:2500.46, qtd:16 }, // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine, TXP000016-024 removidas - so a 7/10 real, TXP000008, existe). Era R$4.309,37/25.
     LRS:   { total:433.22,  qtd:11 }, // V96: -R$0,04 (TXS000001 IFood corrigido via fatura). Era R$433,26.
     LRR:   { total:1808.98, qtd:7  }, // V69: Brisanet corrigido -R$1,86
     LRCON: { total:1950.77, qtd:2  },
@@ -228,6 +256,7 @@ const REG = {
     piorMes: 7649.62,   // SALARIO_MIN_12M (set/2025)
     mediana: 18283.64,  // SALARIO_MEDIANA_12M
     media: 20740.48,    // SALARIO_MEDIA_12M
+    mediaPonderada12M: 17969.27, // ADICIONADO 19/07/2026 (pedido do usuario, fallback do liquidoMes quando dia<12 do mes): media dos 12 LIQUIDO_RECEBIDO (aba HISTORICO_CONTRACHEQUES), com peso 0.3 nos 3 meses ja documentados como atipicos (Dez/25 13o+ferias, Jan/26 ferias parcial, Jun/26 base do Estimador) e peso 1.0 nos outros 9 - mesma logica que ja justificava usar mediana em vez de media simples, agora expressa como peso em vez de estatistica de posicao. Metodologia explicita, ajustavel se o usuario quiser outra ponderacao.
     desvioPadrao: 9273.21
   },
   evolucao: {
@@ -235,8 +264,8 @@ const REG = {
     // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
-    totalOperacional:   [13467.15,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // V96: 1o ponto atualizado 13.386,22->13.467,15 (+RBM Relogios -IFood corrigido). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51.
-    necessidadeLiquida: [15712.25,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // V96: 1o ponto atualizado 15.631,32->15.712,25
+    totalOperacional:   [11658.24,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine, ver REG.operacional.totalOperacional). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51 (podem ainda incluir as parcelas 8-10 do Tokio removidas hoje - revisao futura).
+    necessidadeLiquida: [13903.34,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
   },
 
   // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
@@ -303,9 +332,16 @@ function hydrate(){
   t('resDiffMeses', (ciclosExtremo-ciclosNormal).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}));
 
   // Fase 3 - Estimador de Salario (ciclo que comeca 25/07 = Ago/26)
-  t('estLiquido', fmt(R.estimador.liquidoProjetadoProximoCiclo));
+  t('estLiquido', fmt(liquidoMes(0)));
+  { // Rótulo dinâmico: mostra qual fonte da regra de 3 níveis está ativa agora (real/projetado/média).
+    const diaHoje = new Date().getDate();
+    const temReal = (REG.superavitNormal.liquidoReal||{})[0] != null;
+    const fonteLabel = temReal ? 'Real recebido'
+      : (diaHoje>=12 ? 'Projetado (Estimador de Salário)' : 'Média ponderada 12M (sem estimativa ainda)');
+    t('estStatusFonte', 'Folha Jun/2026 → ciclo 25/07 (Ago/26) · '+fonteLabel);
+  }
   t('estNecLiquida', fmt(R.estimador.necessidadeLiquidaProximoCiclo));
-  const excedenteEst = R.estimador.liquidoProjetadoProximoCiclo - R.estimador.necessidadeLiquidaProximoCiclo;
+  const excedenteEst = liquidoMes(0) - R.estimador.necessidadeLiquidaProximoCiclo;
   t('estExcedente', fmt(excedenteEst)+' · Modo Normal');
 
   // Fase 3 - totais dos livros razao (tfoot de cada tabela)
@@ -651,7 +687,7 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),
     // uma variavel errada para "quanto passou do teto oficial". O teto oficial e comparado contra o COMPROMETIDO
     // (secao 13 da Politica), nunca contra o disponivel. Valor certo = comprometido - tetoOficial.
-    const excedente = round2(cv.comprometido - cv.tetoOficial);
+    const excedente = Math.round((cv.comprometido - cv.tetoOficial)*100)/100;
     alertas.push(excedente <= 0
       ? {icone:'✅', cor:'#34c98a', txto:'Caixa Variável dentro do teto oficial'}
       : {icone: folego>=0 ? '⚠️' : '🔴', cor: folego>=0 ? '#e8a63a' : '#e2554f',
@@ -832,32 +868,36 @@ new Chart(document.getElementById('cVariavel'), {
       y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
 });
 
+const totalOpSeries = alignSeries(REG.evolucao.totalOperacional);
+const totalOpRange = yRange(totalOpSeries);
 new Chart(document.getElementById('cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:alignSeries(REG.evolucao.totalOperacional),
+    datasets:[{data:totalOpSeries,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:8000,max:12600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:totalOpRange.min,max:totalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
+const necLiqSeries = alignSeries(REG.evolucao.necessidadeLiquida);
+const necLiqRange = yRange(necLiqSeries);
 new Chart(document.getElementById('cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:alignSeries(REG.evolucao.necessidadeLiquida),
+    datasets:[{data:necLiqSeries,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:10400,max:14700,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:necLiqRange.min,max:necLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 })();
 
@@ -881,11 +921,13 @@ const cenarioLabelPlugin = {
     ctx.restore();
   }
 };
+const cenarioSalarioData = [REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,29424.00];
+const cenarioSalarioRange = yRange(cenarioSalarioData, 0.18);
 new Chart(document.getElementById('cCenarioSalario'), {
   type:'bar',
   plugins:[cenarioLabelPlugin],
   data:{labels:['Não trabalha','Ponto de\nempate','Média\n(sobra)','Meses bons\n(média)'],
-    datasets:[{data:[REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,29424.00],
+    datasets:[{data:cenarioSalarioData,
     backgroundColor:['#e0574c','#e8a63a','#34c98a','#34c98a'],
     borderRadius:4,barThickness:56}]},
 
@@ -894,7 +936,7 @@ new Chart(document.getElementById('cCenarioSalario'), {
       title:c=>c[0].label.replace('\n',' '),
       label:c=>fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10.5}}},
-      y:{grid:{color:grid},max:32000,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},max:cenarioSalarioRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 })();
 
@@ -1038,32 +1080,36 @@ new Chart(document.getElementById('g_cMetas'), {
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
 
+const gTotalOpSeries = alignSeries(REG.evolucao.totalOperacional);
+const gTotalOpRange = yRange(gTotalOpSeries);
 new Chart(document.getElementById('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:alignSeries(REG.evolucao.totalOperacional),
+    datasets:[{data:gTotalOpSeries,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:8000,max:12600,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:gTotalOpRange.min,max:gTotalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
+const gNecLiqSeries = alignSeries(REG.evolucao.necessidadeLiquida);
+const gNecLiqRange = yRange(gNecLiqSeries);
 new Chart(document.getElementById('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMeses(12),
-    datasets:[{data:alignSeries(REG.evolucao.necessidadeLiquida),
+    datasets:[{data:gNecLiqSeries,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:10400,max:14700,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
+      y:{grid:{color:grid},min:gNecLiqRange.min,max:gNecLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,
@@ -1160,7 +1206,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:28,bottom:18}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes incrementais ativos'}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:0,max:1400,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
+      y:{grid:{color:grid},min:0,max:yRange(alivioData,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
 });
 })();
 
