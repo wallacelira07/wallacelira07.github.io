@@ -151,15 +151,15 @@ const REG = {
     salario: 33708.78,
     reembolsosAReceber: 2429.59,
     reembolsoCicloTotal: 4914.98,        // Recebidos (2.485,39) + A Receber (2.429,59) - regra V50
-    reembolsoSobraPessoal: 2497.00,      // apos cascata: paga Wartsila(656,67)->corp MP(1.277,88)->corp cartao(483,43)->sobra pessoal MP. So esse valor abate a Necessidade Total.
+    reembolsoSobraPessoal: 2025.53,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana. Nao editar sem conferir reembolsoCicloTotal/reembolsoPagaMPCorporativo/totalOpDetalhe.provMP.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 11658.24,     // CORRIGIDO 19/07/2026: -R$1.808,91 (usuario apontou que a reconstrucao da apolice Tokio Marine em 10 parcelas, V95, nao fazia sentido - so a 7/10 real, TXP000008. As 9 parcelas fabricadas foram removidas do ERP). Era R$13.467,15.
+    totalOperacional: 11658.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero.
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14858.24,     // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao Tokio Marine). Era R$16.667,15.
+    necessidadeTotalBruta: 14858.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional.
     coberturaGarantida: 954.90,     // Sem alteracao.
-    necessidadeLiquida: 13903.34,     // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
-    saldoCiclo: 21280.13,     // CORRIGIDO 19/07/2026: +R$1.808,91 (reversao Tokio Marine, Necessidade Total caiu). Era R$19.471,22. Modo Operacional nao muda (continua ALTO).
+    necessidadeLiquida: 13903.34,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida.
+    saldoCiclo: 21280.13,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta.
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
@@ -179,7 +179,7 @@ const REG = {
   cartaoMB: { total: 1820.19 },  // 19/07/2026: +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.807,40.
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
-  metaInvestimento: { investido: 11701.51, excedente: 4958.75 },
+  metaInvestimento: { investido: 11701.51, meta: 6741.76, excedente: 4959.75 }, // CORRIGIDO 20/07/2026 (usuario apontou): excedente = investido - meta = 11.701,51-6.741,76 = 4.959,75, nao 4.958,75 (erro de subtracao de R$1,00 - nao tinha relacao com o deposito de ativacao Necton, foi so um erro aritmetico mesmo). meta = 20% do salario Jun/26 (33.708,78).
   lrei0001: 178.64,
   suporteCoIrmaEventos: 167.40, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
 
@@ -282,10 +282,35 @@ const REG = {
       churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
     }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
     operacional: { caixaVariavel:2749.77, pixVanessaSaldoReal:159.96, caixaBoletos:821.51, total:3731.24 },
-    obrigacoes: { visa:10914.52, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15024.13 }, // V96: visa +80,93 (RBM Relogios - IFood corrigido). Era visa 10833.59/total 14943.20
+    obrigacoes: { visa:10932.30, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15041.91 }, // SOBRESCRITO por recalcularAgregadosDerivados() = mesma fonte do card Cartoes (REG.visa.totalComprometido), evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia).
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };
+
+// CALCULADO 20/07/2026 (pedido do usuario, pontos 1 e 2 da auditoria): estes registradores paravam de
+// ser numeros fixos digitados a mao e passam a ser DERIVADOS dos componentes reais, na mesma linha do
+// que ja acontecia com CAIXA_VARIAVEL.disponivel (sempre = saldoReal-comprometido). Isso elimina a classe
+// de bug encontrada nesta sessao (ex: sobra da cascata ficou 2 dias errada porque ninguem lembrou de
+// atualizar o numero fixo quando um componente mudou). Os componentes (totalOpDetalhe, reembolsoCicloTotal
+// etc.) continuam sendo os valores digitados/confirmados - só os agregados que dependem deles viram formula.
+(function recalcularAgregadosDerivados(){
+  const r2 = x => Math.round(x*100)/100;
+  const D = REG.totalOpDetalhe;
+  // Total Operacional = soma literal dos 7 componentes (mesma formula documentada na Politica sec.13/TOTAL_OPERACIONAL)
+  REG.operacional.totalOperacional = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.aportesPat + D.provMP + D.assinaturas);
+  REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
+  REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
+  REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
+  // Sobra da cascata de reembolso Wartsila = Total - as 4 pernas de deducao (regra da Politica sec.5, 5 pernas)
+  REG.operacional.reembolsoSobraPessoal = r2(REG.operacional.reembolsoCicloTotal - 656.67 - REG.operacional.reembolsoPagaMPCorporativo - 483.43 - D.provMP);
+  // Visa total comprometido (usado no card Balanco/Obrigacoes) = mesma fonte do card Cartoes, evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia)
+  REG.balanco.obrigacoes.visa = r2(REG.visa.totalComprometido);
+  REG.balanco.obrigacoes.mastercardBlack = r2(REG.cartaoMB.total);
+  REG.balanco.obrigacoes.total = r2(REG.balanco.obrigacoes.visa + REG.balanco.obrigacoes.mastercardBlack + REG.balanco.obrigacoes.mercadoPago + REG.balanco.obrigacoes.wartsila);
+  // Evolucao (graficos): o ponto do ciclo atual (indice 0) tambem passa a vir do agregado real, nao de um numero copiado a mao
+  REG.evolucao.totalOperacional[0] = REG.operacional.totalOperacional;
+  REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
+})();
 
 function hydrate(){
   const t = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -478,7 +503,7 @@ function hydrate(){
   t('reembPagaMP', fmt(R.operacional.reembolsoPagaMPCorporativo));
   t('reembPagaCartao', fmt(R.visaDetalhe.corp));
   t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
-  t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // V85: 5o campo pedido pelo usuario - total MP menos corporativo, nao confundir com a sobra da cascata (linha 4)
+  t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // CORRIGIDO 20/07/2026: agora e literalmente o item 4 da cascata (usado no calculo de reembolsoSobraPessoal), nao mais um campo paralelo "so informativo".
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
 
@@ -560,9 +585,9 @@ function auditoriaAutomatica(){
   }
 
   // 4) Reembolso: cascata bate com o total do ciclo
-  const cascataTotal = round2(656.67 + REG.operacional.reembolsoPagaMPCorporativo + 483.43 + REG.operacional.reembolsoSobraPessoal);
+  const cascataTotal = round2(656.67 + REG.operacional.reembolsoPagaMPCorporativo + 483.43 + REG.totalOpDetalhe.provMP + REG.operacional.reembolsoSobraPessoal);
   if(!bate(cascataTotal, REG.operacional.reembolsoCicloTotal)){
-    problemas.push(`Cascata reembolso: soma das 4 pernas=${cascataTotal} ≠ reembolsoCicloTotal(${REG.operacional.reembolsoCicloTotal})`);
+    problemas.push(`Cascata reembolso: soma das 5 pernas=${cascataTotal} ≠ reembolsoCicloTotal(${REG.operacional.reembolsoCicloTotal})`);
   }
 
   // 5) Caixa Variável: Disponível = Saldo Real - Comprometido
