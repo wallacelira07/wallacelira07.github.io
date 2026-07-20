@@ -166,17 +166,17 @@ const REG = {
   },
   caixaVariavel: {
     saldoReal: 2647.77,     // V82 (18/07/2026): -R$60,00 (TX000109, PIX Edgley). Era R$2.707,77.
-    comprometido: 3755.44,  // 19/07/2026: +R$19,29 (TX000117 R$12,79 + TX000118 R$6,50). = LRW(3311,30)+LRV(444,14). Era R$3.736,15.
-    disponivel: -1107.67,   // 19/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3755.44). Era -R$1.088,38.
+    comprometido: 3735.54,  // 20/07/2026: -R$19,90 (TX000115 saiu de LRW, virou TXS000013/LRS). = LRW(3291,40)+LRV(444,14). Era R$3.755,44.
+    disponivel: -1087.77,   // 20/07/2026: SALDO_REAL(2647.77)-COMPROMETIDO(3735.54). Era -R$1.107,67.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 10932.30,   // 19/07/2026: Infinite(9.112,11)+MB(1.820,19). +R$19,29 (TX000117 MB + TX000118 Infinite/Vanessa). Era R$10.913,01.
-    pessoal: 10448.87   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.429,58.
+    totalComprometido: 10912.40,   // 20/07/2026: Infinite(9.092,21)+MB(1.820,19). -R$19,90 (TX000115 saiu do Visa Infinite, virou assinatura). Era R$10.932,30.
+    pessoal: 10428.97   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.448,87.
   },
-  cartaoInfinite: { total: 9112.11 },   // 19/07/2026: +R$6,50 (TX000118, H57Store, Vanessa, cartao 4845). Era R$9.105,61.
-  cartaoMB: { total: 1820.19 },  // 19/07/2026: +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.807,40.
+  cartaoInfinite: { total: 9092.21 },   // 20/07/2026: -R$19,90 (TX000115 reclassificado para LRS). Era R$9.112,11.
+  cartaoMB: { total: 1820.19 },
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, meta: 6741.76, excedente: 4959.75 }, // CORRIGIDO 20/07/2026 (usuario apontou): excedente = investido - meta = 11.701,51-6.741,76 = 4.959,75, nao 4.958,75 (erro de subtracao de R$1,00 - nao tinha relacao com o deposito de ativacao Necton, foi so um erro aritmetico mesmo). meta = 20% do salario Jun/26 (33.708,78).
@@ -186,9 +186,9 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2149.36, recorrencias:1194.53, corp:483.43, assinaturas:389.42, vanessa:444.14 }, // 19/07/2026: vanessa +R$6,50 (TX000118, H57Store). Era R$437,64.
+  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2129.46, recorrencias:1194.53, corp:483.43, assinaturas:409.32, vanessa:444.14 }, // 20/07/2026: wallace -R$19,90, assinaturas +R$19,90 (TX000115 reclassificado LRW->LRS, Meli+). Eram wallace R$2.149,36 / assinaturas R$389,42.
   mbDetalhe: { parcelas:0, consorcios:0, wallace:1161.94, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // 19/07/2026: wallace +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.149,15.
-  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:433.22 }, // CORRIGIDO 19/07/2026: parcelas -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine). Era R$4.309,37.
+  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:453.12 }, // 20/07/2026: assinaturas +R$19,90 (TXS000013, Meli+, reclassificado de TX000115/LRW). Era R$433,22.
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
@@ -228,11 +228,11 @@ const REG = {
   },
   livrosRazaoTotais: {
     // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:3311.30, qtd:56 }, // 19/07/2026: +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$3.298,51/55.
+    LRW:   { total:3291.40, qtd:55 }, // 20/07/2026: -R$19,90 (TX000115 reclassificado para LRS - é a assinatura Meli+, não compra avulsa). Era R$3.311,30/56.
     LRV:   { total:444.14,  qtd:17 }, // 19/07/2026: +R$6,50 (TX000118, H57Store, cartao 4845). Era R$437,64/16.
     LRB:   { total:2598.58, qtd:9  },
     LRP:   { total:2500.46, qtd:16 }, // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine, TXP000016-024 removidas - so a 7/10 real, TXP000008, existe). Era R$4.309,37/25.
-    LRS:   { total:433.22,  qtd:11 }, // V96: -R$0,04 (TXS000001 IFood corrigido via fatura). Era R$433,26.
+    LRS:   { total:453.12,  qtd:12 }, // 20/07/2026: +R$19,90 (TXS000013, Meli+ Mercado Livre, reclassificado de TX000115/LRW). Era R$433,22/11.
     LRR:   { total:1808.98, qtd:7  }, // V69: Brisanet corrigido -R$1,86
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
@@ -467,6 +467,24 @@ function hydrate(){
   t('gCartoesTotalLine', fmt(cartoesTotal));
   t('gCVComprometidoLine', '− '+fmt(R.caixaVariavel.comprometido));
   t('gCartoesLiquidoLine', fmt(cartoesLiquidoCV));
+  // ADICIONADO 20/07/2026 (pedido do usuario): Comprometido (provisionado) x Disponivel real em caixa,
+  // pra mostrar a diferenca (quanto falta) e de onde vem a reposicao - mesma logica ja usada no LREI0001
+  // (recomposicao via salario do dia 25 ou sobra do reembolso Wartsila).
+  const cvDisponivel = R.caixaVariavel.disponivel;
+  const reposicaoNecessaria = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
+  t('gCVDisponivelLine', fmt(cvDisponivel));
+  const elDisp = document.getElementById('gCVDisponivelLine');
+  if(elDisp) elDisp.style.color = cvDisponivel < 0 ? '#e2554f' : '#34c98a';
+  const elRepo = document.getElementById('gCVReposicaoLine');
+  if(reposicaoNecessaria > 0){
+    t('gCVReposicaoLine', fmt(reposicaoNecessaria));
+    if(elRepo) elRepo.style.color = '#e2554f';
+    t('gCVReposicaoFonte', `Fonte prevista: salário do dia 25 ou sobra do reembolso Wärtsilä (${fmt(R.operacional.reembolsoSobraPessoal)} disponível hoje) — mesmo mecanismo já usado para o LREI0001.`);
+  } else {
+    t('gCVReposicaoLine', 'Nenhuma');
+    if(elRepo) elRepo.style.color = '#34c98a';
+    t('gCVReposicaoFonte', 'Caixa Variável está dentro do previsto — sem necessidade de reposição externa agora.');
+  }
   t('s03TituloPat', fmt(R.patrimonio.total));
 
   // alivio (Evolucao Total Operacional)
@@ -609,6 +627,28 @@ function auditoriaAutomatica(){
     problemas.push(`Reservas: soma das 9 caixas=${resCalc} ≠ total(${r.total})`);
   }
 
+  // 8) Patrimônio Financeiro = Reserva + BTG/Necton + Caixa Lance + Necton Conta Corrente (ADICIONADO 20/07/2026, pedido do usuário)
+  const pd = REG.patrimonioDetalhe;
+  const patCalc = round2(pd.reserva + pd.btg + pd.caixaLance + pd.nectonContaCorrente);
+  if(!bate(patCalc, REG.patrimonio.total)){
+    problemas.push(`Patrimônio Financeiro: Reserva+BTG+CaixaLance+NectonCC=${patCalc} ≠ patrimonio.total(${REG.patrimonio.total})`);
+  }
+
+  // 9) Meta do Milhão = Patrimônio / R$1.000.000 (ADICIONADO 20/07/2026, pedido do usuário)
+  const metaCalc = round2(REG.patrimonio.total / REG.patrimonio.metaMilhao * 100);
+  if(!bate(metaCalc, REG.patrimonio.metaMilhaoPct, 0.01)){
+    problemas.push(`Meta do Milhão: patrimonio.total/1.000.000=${metaCalc}% ≠ metaMilhaoPct(${REG.patrimonio.metaMilhaoPct}%)`);
+  }
+
+  // 10) Total Operacional = soma dos 7 componentes do totalOpDetalhe (ADICIONADO 20/07/2026, pedido do usuário -
+  // hoje isso NUNCA diverge de verdade porque recalcularAgregadosDerivados() já deriva um do outro, mas o check
+  // fica como rede de segurança caso algum dos dois seja editado manualmente sem tocar no outro no futuro)
+  const D2 = REG.totalOpDetalhe;
+  const totOpCalc = round2(D2.boletos+D2.parcelas+D2.consorcios+D2.recorrencias+D2.aportesPat+D2.provMP+D2.assinaturas);
+  if(!bate(totOpCalc, REG.operacional.totalOperacional)){
+    problemas.push(`Total Operacional: soma dos 7 componentes=${totOpCalc} ≠ operacional.totalOperacional(${REG.operacional.totalOperacional})`);
+  }
+
   const healthBadge = document.getElementById('healthBadge');
 
   if(problemas.length === 0){
@@ -616,7 +656,7 @@ function auditoriaAutomatica(){
     if(healthBadge){
       healthBadge.textContent = '✅ Sistema íntegro';
       healthBadge.style.color = '#34c98a';
-      healthBadge.title = 'Auditoria automática: 0 divergências nas 7 relações matemáticas do REG.';
+      healthBadge.title = 'Auditoria automática: 0 divergências nas 10 relações matemáticas do REG.';
     }
   } else {
     console.warn('⚠️ Auditoria automática encontrou divergências:');
@@ -1021,17 +1061,23 @@ new Chart(document.getElementById('g_cVisaBar'), {
 });
 
 // Novo 19/07/2026 (V89) — Visa+MB liquido de Caixa Variavel (isolado em IIFE propria, regra 14.2)
+// ATUALIZADO 20/07/2026 (pedido do usuario): Mastercard Black vem antes do Visa Infinite em toda
+// legenda/titulo que combine os dois. Adicionadas 2 barras novas: Disponivel real (Saldo Real -
+// Comprometido) e Reposicao necessaria, pra mostrar a diferenca entre o que esta provisionado
+// (Comprometido) e o que existe de verdade em caixa agora (Disponivel).
 (function(){
   const cvComprometido = REG.caixaVariavel.comprometido;
+  const cvDisponivel = REG.caixaVariavel.disponivel;
   const visaTotal = REG.cartaoInfinite.total;
   const mbTotal = REG.cartaoMB.total;
   const liquido = Math.round((visaTotal + mbTotal - cvComprometido)*100)/100;
+  const reposicao = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
   new Chart(document.getElementById('g_cCartoesLiquidoCV'), {
     type:'bar',
     plugins:[barValuePlugin],
-    data:{labels:['Visa Infinite','Mastercard Black','Caixa Variável (comprometido)','Líquido não coberto'],
-      datasets:[{data:[visaTotal, mbTotal, -cvComprometido, liquido],
-      backgroundColor:['#3987e5','#9085e9','#e2554f','#e8a63a'],borderRadius:4}]},
+    data:{labels:['Mastercard Black','Visa Infinite','Caixa Variável (comprometido)','Líquido não coberto','Disponível real em caixa','Reposição necessária'],
+      datasets:[{data:[mbTotal, visaTotal, -cvComprometido, liquido, cvDisponivel, reposicao],
+      backgroundColor:['#9085e9','#3987e5','#e2554f','#e8a63a','#34c98a','#e0574c'],borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:60,left:10}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
       scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
@@ -1232,6 +1278,55 @@ new Chart(document.getElementById('g_cAlivio'), {
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes incrementais ativos'}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
       y:{grid:{color:grid},min:0,max:yRange(alivioData,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
+});
+
+// ADICIONADO 20/07/2026 (pedido do usuario): ciclo 2027 do proximo ano-letivo/renovacao, independente
+// da janela rolante acima (que so alcanca ate Jun/27). Escola de Julio reinicia do zero em Jan/27,
+// R$839,64/mes x 11 meses (Jan-Nov) = R$9.236,04, batendo o teto de R$9.236,00. Seguro/Emplacamento
+// roda os 12 meses inteiros (Jan-Dez), R$5.100/12 = R$425,00/mes. Alivio acontece em Dez/27, quando
+// so o Seguro continua ativo.
+const alivio2027Labels = ['Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27','Jul/27','Ago/27','Set/27','Out/27','Nov/27','Dez/27'];
+const ESCOLA_JULIO_2027_APORTE = 839.64;
+const SEGURO_EMPLACAMENTO_2027_APORTE = Math.round(5100/12*100)/100;
+const alivio2027Data = alivio2027Labels.map((_,i)=> i<11
+  ? Math.round((ESCOLA_JULIO_2027_APORTE + SEGURO_EMPLACAMENTO_2027_APORTE)*100)/100
+  : SEGURO_EMPLACAMENTO_2027_APORTE);
+const alivio2027Eventos = {10: `Escola Júlio 2027 completa (11º aporte) — ${fmt(ESCOLA_JULIO_2027_APORTE)}/mês liberados`};
+
+const alivio2027StepPlugin = {
+  id:'alivio2027StepPlugin',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    ctx.save();
+    ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = 'center'; ctx.fillStyle = '#e8e6df';
+    meta.data.forEach((pt,i)=>{
+      ctx.fillText(fmt(alivio2027Data[i]), pt.x, pt.y - 12);
+      if(alivio2027Eventos[i]){
+        ctx.fillStyle = '#34c98a';
+        ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillText('↓ '+alivio2027Eventos[i].split(' — ')[1], pt.x, pt.y + 18);
+        ctx.fillStyle = '#e8e6df';
+        ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      }
+    });
+    ctx.restore();
+  }
+};
+
+new Chart(document.getElementById('g_cAlivio2027'), {
+  type:'line',
+  plugins:[alivio2027StepPlugin],
+  data:{labels:alivio2027Labels,
+    datasets:[{data:alivio2027Data, stepped:'before',
+    borderColor:'#34c98a', backgroundColor:'rgba(52,201,138,0.08)',
+    borderWidth:2.5, pointBackgroundColor:'#34c98a', pointBorderColor:'#16181b',
+    pointBorderWidth:2, pointRadius:5, fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:28,bottom:18}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes ativos (Escola de Júlio + Seguro/Emplacamento)'}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},min:0,max:yRange(alivio2027Data,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
 });
 })();
 
