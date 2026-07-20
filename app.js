@@ -1271,7 +1271,14 @@ const alivioStepPlugin = {
     ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
     ctx.textAlign = 'center'; ctx.fillStyle = '#e8e6df';
     meta.data.forEach((pt,i)=>{
-      ctx.fillText(fmt(alivioData[i]), pt.x, pt.y - 12);
+      // CORRIGIDO 20/07/2026: com 18 pontos (janela estendida), rotulo em TODO ponto ficava
+      // atropelado/sobreposto quando varios meses seguidos tem o mesmo valor (plato). Agora so
+      // desenha o valor no primeiro ponto de cada plato (inicio) e no ultimo ponto da serie.
+      const mudou = i === 0 || alivioData[i] !== alivioData[i-1];
+      const ultimo = i === meta.data.length - 1;
+      if(mudou || ultimo){
+        ctx.fillText(fmt(alivioData[i]), pt.x, pt.y - 12);
+      }
       const ev = alivioEventos[i];
       if(ev){
         ctx.fillStyle = ev.tipo === 'alivio' ? '#34c98a' : '#e0574c';
