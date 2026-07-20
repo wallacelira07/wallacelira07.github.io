@@ -1236,13 +1236,31 @@ new Chart(document.getElementById('g_cCaixas'), {
       y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
 });
 
-// 08 — Alivio de pressao: soma dos aportes das 4 caixas incrementais (Aniversario Julio, Escola
-// Julio, Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar seu aporte ao bater
-// meta/prazo. Confirmado com o Wallace 15/07/2026: as 4 geram alivio quando completarem.
-const alivioLabels = gerarMeses(12);
-const alivioDataRaw = [1225, 1225, 1025, 1025, 525, 525, 525, 525, 525, 525, 525, 525]; // estendido p/ 12 meses (V50): repete o ultimo valor estavel (525) apos as 4 caixas completarem - sem novo evento de alivio conhecido alem disso.
-const alivioData = alignSeries(alivioDataRaw);
-const alivioEventos = alignEventos({2:'Aniversário Júlio completa (14/09) — R$200/mês liberados', 4:'Escola Júlio completa (01/11) — R$500/mês liberados'});
+// 08 — Alivio de pressao: soma dos aportes das caixas incrementais (Aniversario Julio, Escola Julio,
+// Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar/trocar seu aporte ao bater meta/prazo.
+// MESCLADO 20/07/2026 (pedido do usuario, "nao gostei de grafico separado"): janela FIXA de 18 meses
+// (Jul/26-Dez/27, nao usa gerarMeses/alignSeries porque este e um plano fixo no tempo, nao uma janela
+// rolante a partir de "hoje") pra caber tanto o ciclo atual quanto a virada do ciclo 2027 confirmada pelo
+// usuario: Escola de Julio reinicia do zero em Jan/27 (R$839,64/mes x 11 meses = R$9.236,04, bate o teto
+// R$9.236,00 em novembro). Seguro/Emplacamento e um ciclo CONTINUO de 12 meses desde Jan/26, mesma taxa
+// (R$425/mes) ao virar pro ciclo 2027 - por isso nunca gera evento de alivio/aumento, so continua.
+const alivioLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27','Jul/27','Ago/27','Set/27','Out/27','Nov/27','Dez/27'];
+const ANIVERSARIO_JULIO_APORTE = 200, ESCOLA_JULIO_ATUAL_APORTE = 500, SAUDE_FAMILIA_APORTE = 100,
+      SEGURO_EMPLACAMENTO_APORTE = 425, ESCOLA_JULIO_2027_APORTE = 839.64;
+const alivioData = alivioLabels.map((_,i)=>{
+  let v = SEGURO_EMPLACAMENTO_APORTE; // ciclo continuo, sempre ativo nos 18 meses
+  if(i < 2) v += ANIVERSARIO_JULIO_APORTE;       // completa Set/26 (14/09)
+  if(i < 4) v += ESCOLA_JULIO_ATUAL_APORTE;      // completa Nov/26 (01/11, coberto por 13o/ferias)
+  if(i < 16) v += SAUDE_FAMILIA_APORTE;          // projeta completar ~Nov/27 (16 meses, ritmo atual)
+  if(i >= 6 && i <= 16) v += ESCOLA_JULIO_2027_APORTE; // ciclo 2027: Jan/27-Nov/27 (11 meses)
+  return Math.round(v*100)/100;
+});
+const alivioEventos = {
+  2: {tipo:'alivio',  texto:'Aniversário Júlio completa (14/09) — R$200,00/mês liberados'},
+  4: {tipo:'alivio',  texto:'Escola Júlio (ciclo atual) completa (01/11) — R$500,00/mês liberados'},
+  6: {tipo:'aumento', texto:'Escola Júlio 2027 inicia (do zero) — +R$839,64/mês'},
+  16:{tipo:'alivio',  texto:'Saúde Família + Escola Júlio 2027 completam — R$939,64/mês liberados'}
+};
 
 const alivioStepPlugin = {
   id:'alivioStepPlugin',
@@ -1254,10 +1272,12 @@ const alivioStepPlugin = {
     ctx.textAlign = 'center'; ctx.fillStyle = '#e8e6df';
     meta.data.forEach((pt,i)=>{
       ctx.fillText(fmt(alivioData[i]), pt.x, pt.y - 12);
-      if(alivioEventos[i]){
-        ctx.fillStyle = '#34c98a';
-        ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
-        ctx.fillText('↓ '+alivioEventos[i].split(' — ')[1], pt.x, pt.y + 18);
+      const ev = alivioEventos[i];
+      if(ev){
+        ctx.fillStyle = ev.tipo === 'alivio' ? '#34c98a' : '#e0574c';
+        ctx.font = "600 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        const seta = ev.tipo === 'alivio' ? '↓ ' : '↑ ';
+        ctx.fillText(seta+ev.texto.split(' — ')[1], pt.x, pt.y + 18);
         ctx.fillStyle = '#e8e6df';
         ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       }
@@ -1276,57 +1296,8 @@ new Chart(document.getElementById('g_cAlivio'), {
     pointBorderWidth:2, pointRadius:5, fill:true}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:28,bottom:18}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes incrementais ativos'}}},
-    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
       y:{grid:{color:grid},min:0,max:yRange(alivioData,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
-});
-
-// ADICIONADO 20/07/2026 (pedido do usuario): ciclo 2027 do proximo ano-letivo/renovacao, independente
-// da janela rolante acima (que so alcanca ate Jun/27). Escola de Julio reinicia do zero em Jan/27,
-// R$839,64/mes x 11 meses (Jan-Nov) = R$9.236,04, batendo o teto de R$9.236,00. Seguro/Emplacamento
-// roda os 12 meses inteiros (Jan-Dez), R$5.100/12 = R$425,00/mes. Alivio acontece em Dez/27, quando
-// so o Seguro continua ativo.
-const alivio2027Labels = ['Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27','Jul/27','Ago/27','Set/27','Out/27','Nov/27','Dez/27'];
-const ESCOLA_JULIO_2027_APORTE = 839.64;
-const SEGURO_EMPLACAMENTO_2027_APORTE = Math.round(5100/12*100)/100;
-const alivio2027Data = alivio2027Labels.map((_,i)=> i<11
-  ? Math.round((ESCOLA_JULIO_2027_APORTE + SEGURO_EMPLACAMENTO_2027_APORTE)*100)/100
-  : SEGURO_EMPLACAMENTO_2027_APORTE);
-const alivio2027Eventos = {10: `Escola Júlio 2027 completa (11º aporte) — ${fmt(ESCOLA_JULIO_2027_APORTE)}/mês liberados`};
-
-const alivio2027StepPlugin = {
-  id:'alivio2027StepPlugin',
-  afterDatasetsDraw(chart){
-    const {ctx} = chart;
-    const meta = chart.getDatasetMeta(0);
-    ctx.save();
-    ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
-    ctx.textAlign = 'center'; ctx.fillStyle = '#e8e6df';
-    meta.data.forEach((pt,i)=>{
-      ctx.fillText(fmt(alivio2027Data[i]), pt.x, pt.y - 12);
-      if(alivio2027Eventos[i]){
-        ctx.fillStyle = '#34c98a';
-        ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
-        ctx.fillText('↓ '+alivio2027Eventos[i].split(' — ')[1], pt.x, pt.y + 18);
-        ctx.fillStyle = '#e8e6df';
-        ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
-      }
-    });
-    ctx.restore();
-  }
-};
-
-new Chart(document.getElementById('g_cAlivio2027'), {
-  type:'line',
-  plugins:[alivio2027StepPlugin],
-  data:{labels:alivio2027Labels,
-    datasets:[{data:alivio2027Data, stepped:'before',
-    borderColor:'#34c98a', backgroundColor:'rgba(52,201,138,0.08)',
-    borderWidth:2.5, pointBackgroundColor:'#34c98a', pointBorderColor:'#16181b',
-    pointBorderWidth:2, pointRadius:5, fill:true}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:28,bottom:18}},
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes ativos (Escola de Júlio + Seguro/Emplacamento)'}}},
-    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
-      y:{grid:{color:grid},min:0,max:yRange(alivio2027Data,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
 });
 })();
 

@@ -818,16 +818,9 @@
   <!-- 8 -->
   <div class="section-num"><span class="n">08</span><h2>Alívio de pressão — caixas incrementais zerando aporte</h2></div>
   <div class="card">
-    <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Caixas operacionais (Boletos, PIX Vanessa, Manutenção, Eventos) sempre fazem aporte cheio — não geram alívio. Estas 4 caixas incrementais zeram o aporte ao bater meta/prazo, liberando fôlego no orçamento:</div>
-    <div class="chart-box"><canvas id="g_cAlivio"></canvas></div>
-    <div class="legend-note">Aniversário Júlio (R$200/mês) para em Set/26 (prazo 14/09) · Escola Júlio (R$500/mês) para em Nov/26 (prazo documentado 01/11/2026, coberto por 13º/férias) · Saúde Família (R$100/mês) e Seguro/Emplacamento (R$425/mês) NÃO completam dentro desta janela (Jul/26-Mar/27) no ritmo atual — Saúde levaria ~16 meses, Seguro ~12 meses. Simulação por aporte fixo mensal; reembolsos médicos da Saúde Família podem acelerar isso de forma imprevisível.</div>
-  </div>
-
-  <div class="card" style="margin-top:1rem">
-    <div style="font-weight:700;margin-bottom:0.3rem">Ciclo 2027 — Escola de Júlio + Seguro/Emplacamento (Jan-Dez/27)</div>
-    <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Planejamento confirmado 20/07/2026 para o próximo ciclo anual (independente da janela rolante de 12 meses acima, que só alcança até Jun/27): Escola de Júlio reinicia do zero em Jan/27 com aporte de R$839,64/mês por 11 meses (Jan-Nov), batendo o teto de R$9.236,00 em novembro. Seguro/Emplacamento roda os 12 meses inteiros (Jan-Dez), R$5.100 ÷ 12 = R$425,00/mês. Enquanto as duas estão ativas (Jan-Nov), o aporte somado é R$1.264,64/mês; em dezembro, com a Escola já zerada, cai para R$425,00/mês — esse é o alívio do ciclo.</div>
-    <div class="chart-box"><canvas id="g_cAlivio2027"></canvas></div>
-    <div class="legend-note">Escola de Júlio completa em Nov/27 (11º aporte) — R$839,64/mês liberados a partir de Dez/27.</div>
+    <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Caixas operacionais (Boletos, PIX Vanessa, Manutenção, Eventos) sempre fazem aporte cheio — não geram alívio. Estas caixas incrementais zeram (ou trocam de valor) o aporte ao bater meta/prazo, liberando ou consumindo fôlego no orçamento — janela estendida até Dez/27 para caber a virada do ciclo 2027 da Escola de Júlio e do Seguro/Emplacamento:</div>
+    <div class="chart-box tall" style="height:340px"><canvas id="g_cAlivio"></canvas></div>
+    <div class="legend-note">Aniversário Júlio (R$200/mês) para em Set/26 (prazo 14/09) · Escola Júlio ciclo atual (R$500/mês) para em Nov/26 (coberto por 13º/férias) · Seguro/Emplacamento (R$425/mês) roda em ciclo contínuo de 12 meses desde Jan/26, sem interrupção — vira pro ciclo 2027 na mesma taxa, por isso nunca aparece como "alívio" neste gráfico · Escola de Júlio 2027 reinicia do zero em Jan/27, R$839,64/mês por 11 meses (Jan-Nov/27), batendo o teto de R$9.236,00 em novembro · Saúde Família (R$100/mês) projeta completar por volta de Nov/27 (~16 meses no ritmo atual, reembolsos médicos podem acelerar isso de forma imprevisível).</div>
   </div>
 
     <div class="section-num"><span class="n">09</span><h2>Energia Solar — antes vs. depois (apartamento)</h2></div>
