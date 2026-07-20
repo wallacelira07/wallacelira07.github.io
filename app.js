@@ -154,12 +154,12 @@ const REG = {
     reembolsoSobraPessoal: 2025.53,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana. Nao editar sem conferir reembolsoCicloTotal/reembolsoPagaMPCorporativo/totalOpDetalhe.provMP.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
-    totalOperacional: 11658.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero.
+    totalOperacional: 11590.14,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
     orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14858.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional.
+    necessidadeTotalBruta: 14790.14,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional. V111: -R$88,00.
     coberturaGarantida: 954.90,     // Sem alteracao.
-    necessidadeLiquida: 13903.34,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida.
-    saldoCiclo: 21280.13,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta.
+    necessidadeLiquida: 13835.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida. V111: -R$88,00.
+    saldoCiclo: 21348.23,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta. V111: +R$88,00.
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
@@ -172,10 +172,10 @@ const REG = {
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
-    totalComprometido: 10912.40,   // 20/07/2026: Infinite(9.092,21)+MB(1.820,19). -R$19,90 (TX000115 saiu do Visa Infinite, virou assinatura). Era R$10.932,30.
-    pessoal: 10428.97   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.448,87.
+    totalComprometido: 10824.40,   // 20/07/2026 (V111): Infinite(9.004,21)+MB(1.820,19). -R$88,00 (Vivo atualizada). Era R$10.912,40.
+    pessoal: 10340.97   // totalComprometido - LRC (R$483,43, corporativo). Era R$10.428,97.
   },
-  cartaoInfinite: { total: 9092.21 },   // 20/07/2026: -R$19,90 (TX000115 reclassificado para LRS). Era R$9.112,11.
+  cartaoInfinite: { total: 9004.21 },   // 20/07/2026 (V111): -R$88,00 (Vivo atualizada). Era R$9.092,21.
   cartaoMB: { total: 1820.19 },
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
@@ -186,9 +186,9 @@ const REG = {
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
   escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2129.46, recorrencias:1194.53, corp:483.43, assinaturas:409.32, vanessa:444.14 }, // 20/07/2026: wallace -R$19,90, assinaturas +R$19,90 (TX000115 reclassificado LRW->LRS, Meli+). Eram wallace R$2.149,36 / assinaturas R$389,42.
+  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2129.46, recorrencias:1106.53, corp:483.43, assinaturas:409.32, vanessa:444.14 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada, ainda no Visa Infinite = Vivo R$435,00 + Digna R$152,41 + Campo Santo R$77,79 + Faculdade 1a cobranca R$441,33). Era R$1.194,53.
   mbDetalhe: { parcelas:0, consorcios:0, wallace:1161.94, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // 19/07/2026: wallace +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.149,15.
-  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1808.98, aportesPat:1893.34, provMP:471.47, assinaturas:453.12 }, // 20/07/2026: assinaturas +R$19,90 (TXS000013, Meli+, reclassificado de TX000115/LRW). Era R$433,22.
+  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1720.98, aportesPat:1893.34, provMP:471.47, assinaturas:453.12 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada - configuracao completa Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00, era R$523,00 generico). Era R$1.808,98.
   metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
   caixasOperacionais: {
     boletos:            { saldo:821.51, meta:2600 },
@@ -233,7 +233,7 @@ const REG = {
     LRB:   { total:2598.58, qtd:9  },
     LRP:   { total:2500.46, qtd:16 }, // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine, TXP000016-024 removidas - so a 7/10 real, TXP000008, existe). Era R$4.309,37/25.
     LRS:   { total:453.12,  qtd:12 }, // 20/07/2026: +R$19,90 (TXS000013, Meli+ Mercado Livre, reclassificado de TX000115/LRW). Era R$433,22/11.
-    LRR:   { total:1808.98, qtd:7  }, // V69: Brisanet corrigido -R$1,86
+    LRR:   { total:1720.98, qtd:7  }, // V111: Vivo atualizada -R$88,00 (configuracao completa: Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00). Era R$1.808,98 (V69, Brisanet).
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
     LRMP:  { total:1791.93, qtd:9  }, // V59: +TXMP000010
