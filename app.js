@@ -142,8 +142,8 @@ function liquidoMes(i){
 
 const REG = {
   patrimonio: {
-    total: 115373.63,          // CORRIGIDO 17/07/2026 (V57): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 204.48 + Necton Conta Corrente 429.70. Escola Julio NAO entra (removida desde V47/16-07 no ERP - este card estava desatualizado, ainda somava Escola Julio e nao tinha Necton CC).
-    metaMilhaoPct: 11.54,       // Progresso Meta Milhao = total / R$1.000.000
+    total: 115723.06,          // V127 (22/07/2026): Reserva 100066.05 + BTG 14673.40 + Caixa Lance 553.91 + Necton Conta Corrente 429.70. Caixa Lance reconciliada (era R$204,48, print real R$553,91).
+    metaMilhaoPct: 11.57,       // Progresso Meta Milhao = total / R$1.000.000
     metaMilhao: 1000000,
     metaEscolaJulio: 9236.00
   },
@@ -151,7 +151,7 @@ const REG = {
     salario: 33708.78,
     reembolsosAReceber: 2429.59,
     reembolsoCicloTotal: 4914.98,        // Recebidos (2.485,39) + A Receber (2.429,59) - regra V50
-    reembolsoSobraPessoal: 2025.53,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana. Nao editar sem conferir reembolsoCicloTotal/reembolsoPagaMPCorporativo/totalOpDetalhe.provMP.
+    reembolsoSobraPessoal: 2025.13,      // V121: -R$0,40 (fatura corporativa corrigida R$483,43->R$483,83, extrato real). SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana.
     reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
     entradasTotais: 36138.37,
     totalOperacional: 11590.14,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
@@ -165,9 +165,9 @@ const REG = {
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
   caixaVariavel: {
-    saldoReal: 2575.77,     // V116 (20/07/2026): REVERTIDO - a V115 tinha lancado +R$66,96 (TX000122) por engano do Claude (transacao ficticia, nunca existiu). Volta ao valor real da V113/V114.
-    comprometido: 3735.54,  // 20/07/2026: -R$19,90 (TX000115 saiu de LRW, virou TXS000013/LRS). = LRW(3291,40)+LRV(444,14). Era R$3.755,44.
-    disponivel: -1159.77,   // V116: REVERTIDO junto com saldoReal.
+    saldoReal: 3893.37,     // V126 (22/07/2026): reembolso Wartsila (cofrinhos), pizza corrigida, P2P transferido, reconciliado com saldos reais.
+    comprometido: 3923.53,  // V121: +TX128-130 (cartao 2244, 21/07) + TX000123 (Drive Campina Grande).
+    disponivel: -30.16,     // V126: SALDO_REAL-COMPROMETIDO.
     tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
@@ -180,12 +180,12 @@ const REG = {
   mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
   faturaWartsila: 656.67,
   metaInvestimento: { investido: 11701.51, meta: 6741.76, excedente: 4959.75 }, // CORRIGIDO 20/07/2026 (usuario apontou): excedente = investido - meta = 11.701,51-6.741,76 = 4.959,75, nao 4.958,75 (erro de subtracao de R$1,00 - nao tinha relacao com o deposito de ativacao Necton, foi so um erro aritmetico mesmo). meta = 20% do salario Jun/26 (33.708,78).
-  lrei0001: 178.64,
+  lrei0001: 0, // V121: QUITADO (reembolso Wartsila, deposito direto na Caixa Manutencao). Era R$178,64.
   suporteCoIrmaEventos: 167.40, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
 
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
-  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:204.48, nectonContaCorrente:429.70 }, // CORRIGIDO 17/07/2026 (V57): estes 4 somam exatamente patrimonio.total. Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
-  escolaJulioSaldo: 505.64, // fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
+  patrimonioDetalhe: { reserva:100066.05, btg:14673.40, caixaLance:553.91, nectonContaCorrente:429.70 }, // V127: caixaLance reconciliada (era R$204,48, print real R$553,91). Escola Julio NAO entra aqui desde V47 (ver escolaJulioSaldo abaixo, campo separado)
+  escolaJulioSaldo: 506.74, // V127: reconciliado (era R$505,64). Fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
   visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2129.46, recorrencias:1106.53, corp:483.43, assinaturas:409.32, vanessa:444.14 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada, ainda no Visa Infinite = Vivo R$435,00 + Digna R$152,41 + Campo Santo R$77,79 + Faculdade 1a cobranca R$441,33). Era R$1.194,53.
   mbDetalhe: { parcelas:0, consorcios:0, wallace:1161.94, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // 19/07/2026: wallace +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.149,15.
   totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1720.98, aportesPat:1893.34, provMP:471.47, assinaturas:453.12 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada - configuracao completa Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00, era R$523,00 generico). Era R$1.808,98.
@@ -228,16 +228,16 @@ const REG = {
   },
   livrosRazaoTotais: {
     // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:3291.40, qtd:55 }, // 20/07/2026: -R$19,90 (TX000115 reclassificado para LRS - é a assinatura Meli+, não compra avulsa). Era R$3.311,30/56.
+    LRW:   { total:3479.39, qtd:59 }, // V126: +R$187,99 (TX000123 Drive R$131,50 + TX128-130 Panificadora/Vendedora/H57Store R$56,49). Era R$3.291,40/55.
     LRV:   { total:444.14,  qtd:17 }, // 19/07/2026: +R$6,50 (TX000118, H57Store, cartao 4845). Era R$437,64/16.
-    LRB:   { total:2598.58, qtd:9  },
+    LRB:   { total:2600.24, qtd:10 }, // V127 CORRIGIDO: TXB000010 (Anderson) era duplicata de TXB000006 (ja existente), removida. So +R$1,66 (rendimento CDI) e novo. Era R$2.598,58/9.
     LRP:   { total:2500.46, qtd:16 }, // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine, TXP000016-024 removidas - so a 7/10 real, TXP000008, existe). Era R$4.309,37/25.
     LRS:   { total:453.12,  qtd:12 }, // 20/07/2026: +R$19,90 (TXS000013, Meli+ Mercado Livre, reclassificado de TX000115/LRW). Era R$433,22/11.
     LRR:   { total:1720.98, qtd:7  }, // V111: Vivo atualizada -R$88,00 (configuracao completa: Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00). Era R$1.808,98 (V69, Brisanet).
     LRCON: { total:1950.77, qtd:2  },
     LRC:   { total:483.43,  qtd:6  },
     LRMP:  { total:1791.93, qtd:9  }, // V59: +TXMP000010
-    LRCV:  { total:1117.60,  qtd:23 }, // V116: REVERTIDO (TX000122 era ficticia). Volta ao valor real V113.
+    LRCV:  { total:1462.24,  qtd:27 }, // V126: +TX124(quitacao LREI0001 direto)+TX125/126(pizza, corrigida p/ R$73)+TX127(P2P). Era R$1.117,60/23.
     LRPV:  { total:-295.66, qtd:19 } // V117: -TX000122 (Hortifruti/frutas, R$67,00, retroativo 17/07). Era -R$228,66/18.
   },
 
@@ -249,7 +249,7 @@ const REG = {
   // que o numero mudar no ERP (mesmo padrao de todo o resto do REG).
   qualidade: {
     txSemData: 0,          // contador oficial do ERP (aba AUDITORIA_AUTOMATICA / historico SWP_INPUT). 0 = zerado em 17/07/2026 (V69).
-    lreiAtivos: 1,          // V114: LREI0002 reclassificado como Suporte Co-irma (nao e emprestimo) - so LREI0001 permanece ativo
+    lreiAtivos: 0,          // V121: LREI0001 QUITADO (reembolso Wartsila, deposito direto na Caixa Manutencao). Nenhum emprestimo interno ativo.
     tetoTemporarioAtivo: true // reflete caixaVariavel.tolerenciaTemp > 0
   },
   cenarioHistorico: {
@@ -278,10 +278,10 @@ const REG = {
     ativosTotal: 548868.05,
     patrimonioLiquido: 468542.31,
     reservas: {
-      boletos:0, escolaJulio:505.64, caixaLance:204.48, manutencao:0, eventos:0,
-      churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:0, total:710.12
-    }, // V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
-    operacional: { caixaVariavel:2575.77, pixVanessaSaldoReal:-0.04, caixaBoletos:821.51, total:3397.24 }, // V117: PGV saldo real recalculado com ciclo completo (frutas+fralda). Era pixVanessaSaldoReal:66.96/total:3464.24.
+      boletos:0, escolaJulio:506.74, caixaLance:553.91, manutencao:178.72, eventos:0,
+      churrasco:0, saudeFamilia:0, seguroEmplacamento:0, aniversarioJulio:200.10, total:1439.47
+    }, // V127: reconciliado com saldos reais (print 22/07/2026) - escolaJulio, caixaLance, manutencao (LREI0001 quitado direto aqui), aniversarioJulio. V85: Caixa Boletos MOVIDA para operacional (usuario: e um pote de trabalho mensal, nao meta patrimonial)
+    operacional: { caixaVariavel:3893.37, pixVanessaSaldoReal:-0.04, caixaBoletos:613.17, total:4506.50 }, // V126: caixaVariavel reconciliado+P2P; caixaBoletos reconciliado (V122, R$821,51->R$613,17, explicado pelo PIX Anderson/van Julio R$210+rendimento).
     obrigacoes: { visa:10932.30, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15041.91 }, // SOBRESCRITO por recalcularAgregadosDerivados() = mesma fonte do card Cartoes (REG.visa.totalComprometido), evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia).
     fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
@@ -719,7 +719,7 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
   // ficava parado entre sessoes). Faixas: 0-30 NORMAL, 31-60 ATENCAO, 61+ CRITICO (P4 - toda divida
   // interna deve ser ressarcida, quanto mais velha, maior o risco de ficar esquecida).
   const lreiAtivos = [
-    { id:'lrei0001Idade', abertura: new Date(2026,6,12) } // LREI0001: 12/07/2026
+    // V121: LREI0001 QUITADO (reembolso Wartsila, 21/07/2026) - nenhum emprestimo interno ativo
   ];
   const diasAging = d => Math.round((hoje - d) / 86400000);
   const faixaAging = dias => dias <= 30 ? '' : (dias <= 60 ? ' color:var(--accent)' : ' color:var(--red);font-weight:700');
