@@ -42,9 +42,11 @@
     <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem">🔮 Simulador Fim de Ciclo — quanto ainda dá pra gastar na Caixa Variável</div>
     <div class="grid-4" style="gap:1rem">
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dias restantes</div><div style="font-size:1.15rem;font-weight:700" id="simDiasRestantes">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Tem na caixa</div><div style="font-size:1.15rem;font-weight:700" id="simSaldoReal">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até 24/07</div><div style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até o teto</div><div style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
     </div>
     <div id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
   </div>
@@ -53,6 +55,8 @@
     <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.6rem">🔍 Verificações de Negócio</div>
     <div id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
   </div>
+
+  <button id="btnEsconderValores" onclick="toggleEsconderValores()" title="Esconder/mostrar valores (modo apresentação)" style="position:fixed;top:14px;right:14px;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:50%;width:42px;height:42px;font-size:1.2rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">👁️</button>
 
   <div class="master-tabs">
     <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel Completo</button>
@@ -387,10 +391,14 @@
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000111</td><td class="mono">19/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 7,38</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000116</td><td class="mono">19/07</td><td>iFood *Fornatto Pizza Exp <span style="font-size:0.62rem;color:var(--text-dim)">(cartão virtual temporário 2135)</span> <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 146,39</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000117</td><td class="mono">19/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--accent)">· Visita Família Vanessa</span></td><td class="r">R$ 12,79</td></tr>
+      <tr style="background:rgba(52,201,138,0.08)"><td class="mono">TX000123</td><td class="mono">20/07</td><td>Drive Campina Grande <span style="font-size:0.62rem;color:var(--text-dim)">(Samsung Pay)</span></td><td class="r">R$ 131,50</td></tr>
+      <tr style="background:rgba(52,201,138,0.08)"><td class="mono">TX000128</td><td class="mono">21/07</td><td>Panificadora <span style="font-size:0.62rem;color:var(--text-dim)">(cartão físico)</span></td><td class="r">R$ 53,00</td></tr>
+      <tr style="background:rgba(52,201,138,0.08)"><td class="mono">TX000129</td><td class="mono">21/07</td><td>Vendedora <span style="font-size:0.62rem;color:var(--text-dim)">(cartão físico)</span></td><td class="r">R$ 2,00</td></tr>
+      <tr style="background:rgba(52,201,138,0.08)"><td class="mono">TX000130</td><td class="mono">21/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">(cartão físico)</span></td><td class="r">R$ 1,49</td></tr>
       </tbody></table>
-      <div class="callout ok">Cartão final 2244 (Itaú Personnalité, bandeira Mastercard Black) confirmado como cartão único do Wallace a partir de 16/07/2026 — cartão final 4844 (Visa Infinite) aposentado. 🟡 fundo amarelo = confirmadas no Mastercard Black (16-19/07).</div>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026: auditoria completa site↔ERP encontrou 6 lançamentos confirmados no ERP desde V86/V93b que nunca tinham entrado nesta tabela (TX000110/111, TX000112-115) — adicionados. TX000096 estava sem marcação clara de cancelado — corrigido (riscado, igual ao padrão da aba Assinaturas). Depois: TX000116 (1º uso do cartão virtual temporário MB) e TX000117 (H57Store) lançados via Meta AI.</div>
-      <div class="tfoot"><span>55 lançamentos ativos (56 com 1 cancelado riscado)</span><span class="total" id="tfLRW">—</span></div>
+      <div class="callout ok">Cartão final 2244 (Itaú Personnalité, bandeira Mastercard Black) é o cartão físico principal do Wallace desde 16/07/2026. Cartão final 4844 (Visa Infinite) está <strong>aposentado</strong> — sem novas compras conscientes; as linhas que ainda aparecem na fatura são resíduo de compromissos já existentes antes da aposentadoria (parcelamentos, corporativo Wärtsilä, assinaturas/recorrências ainda não migradas), que vão se encerrando naturalmente. 🟡 fundo amarelo = confirmadas no Mastercard Black (16-19/07). 🟢 fundo verde = lançamentos de 20-21/07 (Meta AI).</div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026: auditoria completa site↔ERP encontrou 6 lançamentos confirmados no ERP desde V86/V93b que nunca tinham entrado nesta tabela (TX000110/111, TX000112-115) — adicionados. Depois: TX000116/117 (Meta AI). ATUALIZADO 22/07/2026: TX000123 (Drive Campina Grande, 20/07) e TX000128-130 (Panificadora/Vendedora/H57Store, 21/07) adicionados — estavam confirmados no ERP mas nunca tinham entrado nesta tabela. CORRIGIDO (V130): o Claude tinha escrito aqui que o 4844 "não está aposentado" — errado, revertido (o cartão está aposentado, as linhas na fatura são resíduo de compromissos antigos, não novo uso consciente).</div>
+      <div class="tfoot"><span>59 lançamentos ativos (60 com 1 cancelado riscado)</span><span class="total" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -654,11 +662,11 @@
   <div class="card">
     <div class="grid-4">
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital total</div><div style="font-weight:600">R$ 110,00</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600">9 / 10</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div style="font-weight:600">R$ 99,00</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div style="font-weight:600">R$ 0,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600">8 / 10</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div style="font-weight:600">R$ 88,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div style="font-weight:600;color:var(--green)">R$ 9,00</div></div>
     </div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Custo R$11,00/crédito · Venda R$20,00/crédito (quando ocorre) · Nenhuma venda deste lote ainda · 1 crédito doado à Vanessa (13/07)</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Custo R$11,00/crédito · Venda R$20,00/crédito (rentabilidade 81,8% sobre o custo) · 1 crédito doado à Vanessa (13/07) · <strong>1 crédito vendido em 22/07/2026</strong> por R$20,00 (TXP2P0002) — R$20,00 recebido na conta corrente, já transferido para a Caixa Variável.</div>
   </div>
 
   <!-- 19 -->
@@ -672,7 +680,7 @@
     <div class="row" style="margin-top:0.3rem"><span class="k">1. Fatura do cartão Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
     <div class="row"><span class="k">2. Corporativo Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
     <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
-    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. MP pessoal (o que você deve na fatura)</span><span class="v" style="font-weight:700" id="reembMPPessoal">—</span></div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. MP pessoal (o que você deve na fatura)</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
     <div class="row" style="margin-top:0.3rem"><span class="k" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
     <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali (verificado 19/07/2026 contra a fatura literal do ciclo atual: 6 parcelas Mercado Livre somam R$471,47 nesta fatura — não R$514,05, valor antigo que incluía indevidamente uma compra avulsa já paga em ciclo anterior). Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino.</div>
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
@@ -1072,7 +1080,7 @@
     <!-- 8 -->
     <div class="section-num"><span class="n">08</span><h2>📊 Fluxo Financeiro do Ciclo</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">R$ 36.138,37</span></div>
+      <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">R$ 38.623,76</span></div>
       <div class="row"><span class="k">Obrigações + Custos Variáveis + Aportes</span><span class="v" style="color:var(--red)" id="balFluxoSaidas">R$ 14.317,00</span></div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Resultado (Superávit)</span><span class="v" style="color:var(--green)" id="balFluxoResultado">R$ 21.821,37</span></div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.</div>

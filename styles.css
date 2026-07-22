@@ -201,3 +201,24 @@
   .master-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(255,255,255,0.05)}
   .master-pane{display:none}
   .master-pane.active{display:block}
+
+  /* NOVO 22/07/2026 (V133, antecipado do plano 25/07 - item mais simples): modo apresentacao,
+     esconde valores monetarios sem afetar labels/estrutura. Classes .v e .r ja sao usadas em
+     TODO o painel para valores em dinheiro (spans de KPI e celulas de tabela) - blur generico
+     cobre tudo sem precisar marcar campo por campo. */
+  body.esconder-valores .v,
+  body.esconder-valores .val,
+  body.esconder-valores td.r,
+  body.esconder-valores .r {
+    filter: blur(7px);
+    user-select: none;
+    transition: filter 0.15s;
+  }
+  body.esconder-valores .v:hover,
+  body.esconder-valores .val:hover,
+  body.esconder-valores td.r:hover,
+  body.esconder-valores .r:hover {
+    filter: blur(0);
+  }
+  #btnEsconderValores.ativo { background:var(--accent); }
+
