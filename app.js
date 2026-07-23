@@ -158,8 +158,8 @@ function liquidoMes(i){
 // lugar que usa aquele valor (cards, tabelas, graficos) fica correto.
 const VARS = {
   // Caixa Variavel (operacional, dia-a-dia)
-  caixaVariavelSaldoReal: 3893.37,      // RECONCILIADO 22/07/2026 (V126) - saldo real do cofrinho "Custos Variaveis"
-  caixaVariavelComprometido: 3923.53,   // soma LRW+LRV (cartoes do Wallace) do ciclo atual
+  caixaVariavelSaldoReal: 3933.37,      // V136 (22/07/2026): +R$40,00 (TX000133, venda de 2 creditos P2P p/ Elcio Da Silva Santos, destino Caixa Variavel). Era R$3.893,37.
+  caixaVariavelComprometido: 3998.50,   // V136: +R$74,97 (TX131 H57Store/Vanessa R$17,98 + TX132 Google SunSurveyorApp/Wallace R$56,99). Era R$3.923,53.
 
   // Cofrinhos/caixas patrimoniais e operacionais (Mercado Pago)
   caixaLance: 553.91,                   // RECONCILIADO 22/07/2026 (V122) - saldo real do cofrinho
@@ -174,8 +174,14 @@ const VARS = {
   escolaJulioSaldo: 506.74,             // RECONCILIADO 22/07/2026 (V127) - fora da Meta do Milhao (regra P5/V47)
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 9073.92,         // RECONCILIADO 22/07/2026 (V128) com fatura real Bradesco Visa Infinite Prime
-  cartaoMBTotal: 2008.18,               // CORRIGIDO 22/07/2026 (V128) - bug estrutural, nao puxava LIVRO_LRW_MB_TOTAL atualizado
+  cartaoInfiniteTotal: 9091.90,         // V136 (22/07/2026): +R$17,98 (TX131, H57Store, Vanessa, cartao 4845). Era R$9.073,92 (reconciliado fatura real V128).
+  cartaoMBTotal: 2065.17,               // V136: +R$56,99 (TX132, Google SunSurveyorApp, Wallace, cartao 2244). Era R$2.008,18.
+
+  // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
+  // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
+  // duplicado em totalOpDetalhe E visaDetalhe (2 copias que podiam dessincronizar) - agora moram so aqui.
+  livroLRP: 2500.46,      // = LIVRO_LRP_TOTAL do ERP (16 parcelamentos)
+  livroLRCON: 1950.77,    // = LIVRO_LRCON_TOTAL do ERP (2 consorcios)
 
   // Patrimonio financeiro (Meta do Milhao)
   reserva: 100066.05,
@@ -188,7 +194,139 @@ const VARS = {
   salarioMedia12M: 20084.86,
   salarioMediana12M: 18283.64,
   salarioMin12M: 7649.62,
-  salarioMediaPonderada12M: 17843.58
+  salarioMediaPonderada12M: 17843.58,
+
+  // ===== V137 (23/07/2026, auditoria SSOT - pedido explicito do usuario: "nada com numero digitado,
+  // tudo formula e referencia a lista de variaveis, so atualizar em 1 lugar") =====
+  // Fatura Wartsila / Mercado Pago (corrige divergencia REAL encontrada: REG.mercadoPago mostrava
+  // R$1.751,16 em 2 lugares da tela e REG.balanco.obrigacoes.mercadoPago mostrava R$1.791,93 em outro -
+  // mesma fatura, 2 numeros diferentes na tela. Fonte correta: LIVRO_LRMP_TOTAL do ERP, R$1.791,93,
+  // 17/07/2026, mais completo/recente que MERCADO_PAGO_FATURA de 16/07 R$1.749,35).
+  faturaWartsila: 656.67,
+  mercadoPagoFatura: 1791.93,
+
+  // Patrimonio Fisico (Balanco) - eram 5 literais soltos dentro de REG.balanco.fisico
+  patCasa: 110000.00,
+  patApartamento: 155000.00,
+  patJazigo: 11000.00,
+  patSolar: 14800.00,
+  patCarro: 140000.00,
+
+  // Nao liquido (fora do total financeiro e da Meta do Milhao, so informativo)
+  patPgbl: 132214.74,
+  patFgts: 77683.60,
+
+  // Passivos (Balanco)
+  passivoFinanciamentoCasa: 61326.91,
+  passivoConsorcioAuto: 18998.83,
+
+  // Metas que apareciam duplicadas em mais de um lugar do REG
+  metaEscolaJulio: 9236.00,   // era literal em REG.patrimonio.metaEscolaJulio E em caixasOperacionais.escolaJulio.meta (2 copias)
+  reservaPiso: 9223.66,       // era literal em REG.reserva.piso E em deficitZero.piso[0] (2 copias)
+
+  // Meta de investimento
+  metaInvestimentoValor: 6741.76,
+  aporteBTGPactual: 11700.51,       // V142: componente 1 do investimentoAtual (25/06/2026)
+  depositoAtivacaoNecton: 1.00,     // V142: componente 2 (10/07/2026, TX000045) - antes investimentoAtual
+                                     // era um literal composto (11701.51) sem os 2 fatos que o formam
+
+  // Livros razao que sao fonte primaria (nao compostos de nada mais dentro do app.js) - LRW/LRV/LRS/LRR/LRC
+  // saem de formula (visaDetalhe+mbDetalhe), LRP/LRCON ja existiam acima. Estes 3 nao tem como derivar
+  // de outro dado ja presente no site, entao moram aqui como a UNICA copia editavel.
+  livroLRB: 2600.24,   // LIVRO_LRB_TOTAL do ERP (distinto de VARS.caixaBoletos, que e o aporte, nao o total bruto do livro)
+  livroLRCV: 1502.24,  // LIVRO_LRCV_TOTAL do ERP
+  livroLRPV: -295.66,  // LIVRO_LRPV_TOTAL do ERP
+  livroLRC: 483.43,    // V138: LIVRO_LRC_TOTAL do ERP (livro/soma-de-transacoes) - distinto de REG.operacional.reembolsoPagaCartaoCorporativo
+                        // (483.83, extrato real reconciliado V128); os dois numeros sao proximos mas representam conceitos diferentes,
+                        // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
+
+  // V139 (23/07/2026): secoes 12 "Consorcio casa nova" e 13 "Projeto casa nova" eram 100% texto fixo no
+  // HTML, sem NENHUM id, nunca tocadas por hydrate() - o pior caso de numero digitado que existia no site.
+  // consorcioCasaPagoPct e consorcioCasaQuitacao sao VALORES DE ORIGEM EXTERNA (extrato real do app
+  // PortoBank, ver ERP CONSORCIO_CASA_PAGO_PCT) - divergem um pouco do calculado internamente
+  // (pago/total=0,524% vs 0,42% mostrado no extrato); por regra "extrato sempre vence" ficam como
+  // input direto, nao forcados a bater com uma formula interna (documentado, nao escondido).
+  consorcioCasaCartaCredito: 450000.00,
+  consorcioCasaParcela: 1449.45,
+  consorcioCasaPagoPct: 0.42,       // extrato real PortoBank 22/07/2026
+  consorcioCasaQuitacao: 550601.43, // extrato real PortoBank 22/07/2026
+  metaLanceProjetoCasa: 180000.00,
+  consorcioAutoPagoPct: 75.22,      // extrato real app BTG/PortoBank Auto (SALDO_QUITACAO_AUTO do ERP)
+  consorcioAutoCartaCredito: 76670.02,
+  consorcioAutoQuitacaoValor: 18998.83,
+  consorcioCasaParcelasPagas: 2,   // V140: 2 parcelas confirmadas (venc. 15/06 e 15/07/2026) - usado pra derivar o "valor pago" do consorcio
+
+  // V140 (23/07/2026, continuacao da varredura): valores primarios operacionais que ainda viviam como
+  // literal solto dentro do REG. Nenhum destes e derivavel de outro dado ja no sistema - sao fatos de
+  // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.
+  salario: 33708.78,                       // contracheque do ciclo (excecao, ver nota historica)
+  reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
+  reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008)
+  orcamentoOperacional: 3200.00,
+  coberturaGarantida: 954.90,
+  tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
+  tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
+  suporteCoIrmaEventos: 167.40,            // Eventos->Variavel, mesmo proposito (visita familia Vanessa), nao e LREI
+
+  // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
+  visaLRWHistorico: 2129.46,      // Compras Wallace (LRW-I, historico)
+  visaLRRConfirmado: 1106.53,     // Recorrencias confirmadas no Visa Infinite
+  visaLRSConfirmado: 409.32,      // Assinaturas confirmadas no Visa Infinite
+  visaLRVHistorico: 462.12,       // Compras Vanessa (LRV-I) - = LIVRO_LRV_I_TOTAL
+  visaNaoReconciliado: 49.81,     // residuo soma-livros x fatura-real, documentado (P1)
+  mbLRWConfirmado: 1406.92,       // = LIVRO_LRW_MB_TOTAL
+  mbLRRConfirmado: 614.45,        // Recorrencias confirmadas no Mastercard Black
+  mbLRSConfirmado: 43.80,         // Assinaturas confirmadas no Mastercard Black
+  totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
+  totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
+  totalOpProvMP: 471.47,          // Mercado Pago pessoal - fatura literal do ciclo (V91)
+
+  // V140: demais primarios soltos no REG (cenarios/estimador)
+  liquidoProjetadoProximoCiclo: 16048.51,  // Estimador de Salario - ciclo Ago/26
+  liquidoSemTrabalhar: 7667.73,            // REGRA_CENARIO_FICOU_EM_CASA
+  desvioPadraoSalario: 9273.21,
+  seguroEmplacamentoAporte: 425,
+  escolaJulio2027Aporte: 839.64,
+
+  // V141 (23/07/2026, fechamento da varredura): ultimos primarios soltos encontrados
+  reembolsoCicloTotal: 4914.98,       // Recebidos (ja inclui TED 21/07) + A Receber (0) - regra V50
+  fluxoSaidas: 14819.89,
+  fluxoResultado: 21318.48,
+  cenarioMesesBonsMedia: 29424.00,    // "Meses bons (media)" no grafico de cenarios de salario
+
+  // Calculadora Energia Solar (fatura Energisa Jun/2026, real)
+  faturaEnergisaValor: 322.99,
+  faturaEnergisaKwh: 304,
+  consumoMinimoComSolarKwh: 30,
+  taxaMinimaEnergisa: 38.00,
+
+  // Projecoes "held flat" (meses futuros alem do ultimo recalculado manualmente - repetem o ultimo
+  // valor conhecido, mesma logica conservadora ja documentada). Antes: mesmo numero literal 6x em cada
+  // array (piso/necessidade/totalOperacional/necessidadeLiquida). Agora: 1 valor, usado via Array.fill.
+  pisoHeld: 6979.37,
+  necessidadeHeld: 11581.08,
+  totalOperacionalHeld: 8381.08,
+  necessidadeLiquidaHeld: 10626.18,
+
+  // V142: faltavam estes 3 (a formula em REG.passivosPatrimoniais ja os referenciava, mas eles nunca
+  // tinham sido de fato declarados aqui - erro descoberto pela propria execucao real/harness).
+  prestacaoFinanciamentoCasa: 588.66,
+  mesesRestantesFinanciamentoCasa: 147,
+  parcelaConsorcioAuto: 501.50,
+  provisionadoWartsila: 680.51,  // V143: cofrinho Fatura Wartsila (Mercado Pago) - provisionado > fatura real (VARS.faturaWartsila),
+                                  // excedente = provisionadoWartsila - faturaWartsila (era texto fixo "excedente R$23,84")
+
+  // V144: aportes mensais das caixas incrementais que ainda eram texto fixo no card (secao 05)
+  aporteSaudeFamilia: 135,
+  aporteAniversarioJulio: 200,
+  // seguroEmplacamentoAporte (425) ja existia acima
+
+  // V144: footer da tabela "PIX diversos" (LRCV) - era texto fixo "Saidas R$527,61 Entradas R$64,00 Liquido -R$463,61"
+  pixDiversosSaidas: 527.61,
+  pixDiversosEntradas: 64.00,
+
+  // V144: footer LRC (Corporativo Visa Infinite) - "6 lancamentos" era texto fixo, valor ja em VARS.livroLRC
+  livroLRCQtdLancamentos: 6
 };
 
 const REG = {
@@ -197,23 +335,23 @@ const REG = {
     total: 0,          // preenchido no boot, nunca editar aqui
     metaMilhaoPct: 0,  // preenchido no boot = total/metaMilhao*100
     metaMilhao: 1000000,
-    metaEscolaJulio: 9236.00
+    metaEscolaJulio: VARS.metaEscolaJulio
   },
   operacional: {
-    salario: 33708.78,
+    salario: VARS.salario,
     reembolsosAReceber: 0,     // V128: CORRIGIDO (bug apontado pelo usuario) - TED confirmada 21/07/2026, ja recebido e usado. Era R$2.429,59.
-    reembolsoCicloTotal: 4914.98,        // Recebidos (4.914,98, ja inclui a TED de 21/07) + A Receber (0) - regra V50
-    reembolsoPagaWartsila: 656.67,       // NOMEADO V128 (era numero magico 656.67 direto na formula de reembolsoSobraPessoal)
-    reembolsoPagaCartaoCorporativo: 483.83, // NOMEADO V128, corrigido (era 483.43 - extrato real do cofrinho "Fatura Visa Infinit")
-    reembolsoSobraPessoal: 2025.13,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana.
-    reembolsoPagaMPCorporativo: 1277.88, // Transporte corporativo Recife (TXMP000007+008)
-    entradasTotais: 38623.76,     // SOBRESCRITO por recalcularAgregadosDerivados() = salario + reembolsoCicloTotal. V128 CORRIGIDO (bug real): formula antiga usava reembolsosAReceber, que ia a zero quando o reembolso chegava, fazendo entradasTotais CAIR errado. Era R$36.138,37.
-    totalOperacional: 11590.14,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
-    orcamentoOperacional: 3200.00,
-    necessidadeTotalBruta: 14790.14,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional. V111: -R$88,00.
-    coberturaGarantida: 954.90,     // Sem alteracao.
-    necessidadeLiquida: 13835.24,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida. V111: -R$88,00.
-    saldoCiclo: 21348.23,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta. V111: +R$88,00.
+    reembolsoCicloTotal: VARS.reembolsoCicloTotal,        // Recebidos (4.914,98, ja inclui a TED de 21/07) + A Receber (0) - regra V50
+    reembolsoPagaWartsila: VARS.faturaWartsila,       // V137: le do VARS (fatura paga integralmente pelo reembolso - mesmo numero, 4a copia eliminada)
+    reembolsoPagaCartaoCorporativo: VARS.reembolsoPagaCartaoCorporativo, // NOMEADO V128, corrigido (era 483.43 - extrato real do cofrinho "Fatura Visa Infinit")
+    reembolsoSobraPessoal: 0,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana.
+    reembolsoPagaMPCorporativo: VARS.reembolsoPagaMPCorporativo, // Transporte corporativo Recife (TXMP000007+008)
+    entradasTotais: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = salario + reembolsoCicloTotal. V128 CORRIGIDO (bug real): formula antiga usava reembolsosAReceber, que ia a zero quando o reembolso chegava, fazendo entradasTotais CAIR errado. Era R$36.138,37.
+    totalOperacional: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
+    orcamentoOperacional: VARS.orcamentoOperacional,
+    necessidadeTotalBruta: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional. V111: -R$88,00.
+    coberturaGarantida: VARS.coberturaGarantida,     // Sem alteracao.
+    necessidadeLiquida: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida. V111: -R$88,00.
+    saldoCiclo: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta. V111: +R$88,00.
     modoOperacional: 'Alto',
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
@@ -222,8 +360,8 @@ const REG = {
     saldoReal: VARS.caixaVariavelSaldoReal,
     comprometido: VARS.caixaVariavelComprometido,
     disponivel: 0,          // DERIVADO em recalcularAgregadosDerivados() = saldoReal-comprometido. Nunca editar aqui.
-    tetoOficial: 2000.00,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
-    tolerenciaTemp: 1500.00, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
+    tetoOficial: VARS.tetoOficial,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
+    tolerenciaTemp: VARS.tolerenciaTemp, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
   },
   visa: {
     totalComprometido: 0,   // DERIVADO = VARS.cartaoInfiniteTotal + VARS.cartaoMBTotal
@@ -231,19 +369,43 @@ const REG = {
   },
   cartaoInfinite: { total: VARS.cartaoInfiniteTotal },
   cartaoMB: { total: VARS.cartaoMBTotal },
-  mercadoPago: 1751.16,     // RECONCILIADO 16/07/2026 (V44)
-  faturaWartsila: 656.67,
-  metaInvestimento: { investido: 11701.51, meta: 6741.76, excedente: 4959.75 }, // CORRIGIDO 20/07/2026 (usuario apontou): excedente = investido - meta = 11.701,51-6.741,76 = 4.959,75, nao 4.958,75 (erro de subtracao de R$1,00 - nao tinha relacao com o deposito de ativacao Necton, foi so um erro aritmetico mesmo). meta = 20% do salario Jun/26 (33.708,78).
+  mercadoPago: VARS.mercadoPagoFatura,     // V137: le do VARS (era literal solto 1751.16, divergia do balanco.obrigacoes.mercadoPago)
+  faturaWartsila: VARS.faturaWartsila,     // V137: le do VARS (era 3a copia literal do mesmo numero)
+  // V137: excedente DERIVADO (investido-meta) em vez de literal verificado a mao - a correcao de 20/07
+  // (V107, erro de subtracao de R$1,00) so foi encontrada porque o usuario reconferiu a mao; formula
+  // elimina essa classe de erro para sempre. investido/meta leem do VARS.
+  metaInvestimento: { investido:0, meta: VARS.metaInvestimentoValor, excedente: 0 }, // investido DERIVADO = aporteBTGPactual+depositoAtivacaoNecton
   lrei0001: 0, // V121: QUITADO (reembolso Wartsila, deposito direto na Caixa Manutencao). Era R$178,64.
-  suporteCoIrmaEventos: 167.40, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
+  suporteCoIrmaEventos: VARS.suporteCoIrmaEventos, // 13/07/2026, Eventos->Variavel, mesmo proposito (visita familia Vanessa) - nao e LREI
 
   // ===== FASE 2 (16/07/2026) - graficos de composicao (g_cTotalOp, g_cVisa, g_cMetas, g_cCaixas) =====
   patrimonioDetalhe: { reserva:VARS.reserva, btg:VARS.btgNecton, caixaLance:VARS.caixaLance, nectonContaCorrente:VARS.nectonContaCorrente }, // V134: agora le do VARS (fonte unica) - antes eram numeros duplicados aqui e em patrimonio.total, ficavam dessincronizados.
   escolaJulioSaldo: VARS.escolaJulioSaldo, // V134: le do VARS. Fora do Patrimonio Total/Meta Milhao desde V47 (16/07/2026) - existe como reserva/caixa propria, nao patrimonio liquido de gestao ativa
-  visaDetalhe: { parcelas:2500.46, consorcios:1950.77, wallace:2129.46, recorrencias:1106.53, corp:483.43, assinaturas:409.32, vanessa:444.14 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada, ainda no Visa Infinite = Vivo R$435,00 + Digna R$152,41 + Campo Santo R$77,79 + Faculdade 1a cobranca R$441,33). Era R$1.194,53.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:1161.94, recorrencias:614.45, corp:0, assinaturas:43.80, vanessa:0 }, // 19/07/2026: wallace +R$12,79 (TX000117, H57Store, cartao fisico 2244). Era R$1.149,15.
-  totalOpDetalhe: { boletos:2600, parcelas:2500.46, consorcios:1950.77, recorrencias:1720.98, aportesPat:1893.34, provMP:471.47, assinaturas:453.12 }, // 20/07/2026 (V111): recorrencias -R$88,00 (Vivo atualizada - configuracao completa Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00, era R$523,00 generico). Era R$1.808,98.
-  metasPatrimoniais: { milhaoPct:11.54, casaNovaPct:0.42, autoPct:75.22, escolaPct:5.47 }, // CORRIGIDO 17/07/2026 (V57): casaNovaPct e autoPct estavam desatualizados desde V48 (16/07) - consorcios sao Porto Seguro, casa 0,42% pago (quitacao R$550.601,43/99,58%), auto 75,22% pago (carta R$76.670,02, saldo devedor R$18.998,83)
+  // V135 (22/07/2026, auditoria SSOT): visaDetalhe somava R$9.024,11 vs cartaoInfinite.total (fatura real,
+  // VARS) R$9.073,92 - gap de R$49,81. Investigado: NAO e erro de nenhum item, e o mesmo residuo entre
+  // "soma dos livros de transacao" x "fatura real do banco" ja documentado no ERP desde a reconciliacao
+  // V128 (fatura sempre vence, regra V61) - nunca foi re-itemizado transacao a transacao. Em vez de
+  // forcar/inventar em qual categoria o R$49,81 pertence (violaria P1), adicionado como linha propria
+  // "naoReconciliado", visivel e documentada - mesmo padrao ja usado para outras diferencas residuais
+  // do sistema (ex: CORRECAO_15072026_007, R$36,90 na epoca). Agora a soma bate exatamente com a fatura.
+  visaDetalhe: { parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, wallace:VARS.visaLRWHistorico, recorrencias:VARS.visaLRRConfirmado, corp:VARS.livroLRC, assinaturas:VARS.visaLRSConfirmado, vanessa:VARS.visaLRVHistorico, naoReconciliado:VARS.visaNaoReconciliado },
+  // V135: wallace CORRIGIDO 1161.94 -> 1349.93 (= LIVRO_LRW_MB_TOTAL do ERP, V121 - TX128/129/130 de
+  // 21/07 nunca tinham propagado pra ca). Era o unico motivo do mbDetalhe nao bater com cartaoMBTotal
+  // (gap de R$187,99): 1161,94+614,45+43,80=1.820,19 vs VARS.cartaoMBTotal=2.008,18. Agora soma exato.
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:0, assinaturas:VARS.mbLRSConfirmado, vanessa:0 },
+  // V136 (22/07/2026): visaDetalhe.vanessa +R$17,98 (TX131, H57Store, cartao 4845) e mbDetalhe.wallace
+  // +R$56,99 (TX132, Google SunSurveyorApp, cartao 2244) - ambos ja embutidos acima. Soma continua
+  // batendo exato com cartaoInfiniteTotal/cartaoMBTotal (checks #11/#12 da auditoria confirmam).
+  // V135: parcelas/consorcios agora leem do VARS (fonte unica, eliminada a 2a copia que existia aqui).
+  // recorrencias/assinaturas: 0 e placeholder - DERIVADOS em recalcularAgregadosDerivados() a partir de
+  // visaDetalhe+mbDetalhe (eram numeros literais que so por coincidencia batiam com a soma das partes;
+  // agora e formula, nunca mais pode dessincronizar).
+  totalOpDetalhe: { boletos:VARS.totalOpBoletos, parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, recorrencias:0, aportesPat:VARS.totalOpAportesPat, provMP:VARS.totalOpProvMP, assinaturas:0 },
+  // V137: milhaoPct e escolaPct viram DERIVADOS (alimentam o grafico "Progresso das metas patrimoniais").
+  // milhaoPct estava TRAVADO em 11,54% desde antes da correcao V135 (que levou patrimonio.metaMilhaoPct
+  // pra 11,57%) - o grafico mostraria o percentual errado. escolaPct tambem estava desatualizado (5,47%
+  // vs o real ~5,49%).
+  metasPatrimoniais: { milhaoPct:0, casaNovaPct:VARS.consorcioCasaPagoPct, autoPct:VARS.consorcioAutoPagoPct, escolaPct:0 },
   caixasOperacionais: {
     boletos:            { saldo:VARS.caixaBoletos,            meta:2600 },
     pixVanessa:          { saldo:VARS.caixaPixVanessa,         meta:1200 },
@@ -252,21 +414,51 @@ const REG = {
     saudeFamilia:        { saldo:VARS.caixaSaudeFamilia,       meta:1600 },
     aniversarioJulio:    { saldo:VARS.caixaAniversarioJulio,   meta:400  },
     seguroEmplacamento:  { saldo:VARS.caixaSeguroEmplacamento, meta:5100 },
-    escolaJulio:         { saldo:VARS.escolaJulioSaldo,        meta:9236 }
+    escolaJulio:         { saldo:VARS.escolaJulioSaldo,        meta:VARS.metaEscolaJulio }
   }, // V134: todos os saldos agora leem do VARS (fonte unica) - antes eram literais duplicados aqui, em balanco.reservas e em escolaJulioSaldo separadamente, 3 copias que ja dessincronizaram nesta sessao.
+  // V143: card "Fatura Wartsila" (secao 05) tinha "excedente R$23,84" como texto fixo - agora DERIVADO.
+  wartsilaCaixa: { provisionado: VARS.provisionadoWartsila, fatura: VARS.faturaWartsila, excedente: 0 },
+  pixDiversos: { saidas: VARS.pixDiversosSaidas, entradas: VARS.pixDiversosEntradas, liquido: 0 },
+  livroLRCDetalhe: { qtd: VARS.livroLRCQtdLancamentos, valor: VARS.livroLRC },
 
   // ===== FASE 3 (16/07/2026) - pagina Cenarios inteira + totais agregados dos livros razao =====
   reserva: {
     atual: VARS.reserva,
-    piso: 9223.66 // "so o piso" - gasto minimo essencial, nao inclui aportes patrimoniais (conceito distinto de necessidadeTotalBruta)
+    piso: VARS.reservaPiso // "so o piso" - gasto minimo essencial, nao inclui aportes patrimoniais (conceito distinto de necessidadeTotalBruta)
+  },
+  // V139: secoes 12/13 do painel (Consorcio Casa Nova / Projeto Casa Nova) - antes 100% hardcoded no HTML.
+  consorcioCasaNova: {
+    cartaCredito: VARS.consorcioCasaCartaCredito,
+    parcela: VARS.consorcioCasaParcela,
+    pagoPct: VARS.consorcioCasaPagoPct,       // extrato real, nao derivado (ver nota no VARS)
+    quitacaoValor: VARS.consorcioCasaQuitacao,
+    quitacaoPct: 0 // DERIVADO = 100 - pagoPct (unica relacao interna consistente com o extrato: 100-0,42=99,58, bate exato)
+  },
+  projetoCasaNova: {
+    capitalDisponivel: 0, // DERIVADO = VARS.btgNecton + VARS.caixaLance (era numero fixo capturado num instante passado, nunca recalculado)
+    metaLance: VARS.metaLanceProjetoCasa,
+    pct: 0,   // DERIVADO = capitalDisponivel / metaLance * 100
+    falta: 0  // DERIVADO = metaLance - capitalDisponivel
+  },
+  // V142 (23/07/2026): secao 11 "Passivos patrimoniais" - a ultima secao ainda 100% hardcoded no HTML.
+  // financiamentoCasa le do MESMO VARS.passivoFinanciamentoCasa ja usado no Balanco (balanco.passivos) -
+  // antes o HTML desta secao tinha um numero PROPRIO e DIVERGENTE (R$61.311,95 vs R$61.326,91 no Balanco,
+  // mesma divida, 2 fontes, 2 valores). Agora so existe 1 numero, usado nos 2 lugares.
+  passivosPatrimoniais: {
+    financiamentoCasa: VARS.passivoFinanciamentoCasa,
+    prestacaoFinanciamentoCasa: VARS.prestacaoFinanciamentoCasa,
+    mesesRestantesFinanciamentoCasa: VARS.mesesRestantesFinanciamentoCasa,
+    consorcioAuto: VARS.passivoConsorcioAuto,
+    consorcioAutoPct: VARS.consorcioAutoPagoPct,
+    parcelaConsorcioAuto: VARS.parcelaConsorcioAuto
   },
   estimador: {
-    liquidoProjetadoProximoCiclo: 16048.51,  // Estimador de Salario - ciclo que comeca 25/07 (Ago/26)
-    necessidadeLiquidaProximoCiclo: 11996.97 // 2o ponto da serie de projecao (Ago/26)
+    liquidoProjetadoProximoCiclo: VARS.liquidoProjetadoProximoCiclo,  // Estimador de Salario - ciclo que comeca 25/07 (Ago/26)
+    necessidadeLiquidaProximoCiclo: 0 // V138: DERIVADO em recalcularAgregadosDerivados() = evolucao.necessidadeLiquida[1] (2o ponto da serie, Ago/26). Era literal duplicado do mesmo numero ja presente no array.
   },
   deficitZero: {
-    liquidoSemTrabalhar: 7667.73, // REGRA_CENARIO_FICOU_EM_CASA
-    piso: [9223.66,7821.63,7369.83,7088.69,7320.83,7220.83,6979.37,6979.37,6979.37,6979.37,6979.37,6979.37]
+    liquidoSemTrabalhar: VARS.liquidoSemTrabalhar, // REGRA_CENARIO_FICOU_EM_CASA
+    piso: [VARS.reservaPiso,7821.63,7369.83,7088.69,7320.83,7220.83,...Array(6).fill(VARS.pisoHeld)]
   },
   superavitNormal: {
     // REGRA DEFINIDA PELO USUARIO 19/07/2026: liquidoMes(0) agora segue prioridade por DIA DO MES,
@@ -279,24 +471,28 @@ const REG = {
     // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
     // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
     liquidoReal: {}, // preencher {indice: valor} quando um ciclo fechar (dia 25) e o valor real chegar.
-    necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,11581.08,11581.08,11581.08,11581.08,11581.08,11581.08]
+    necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,...Array(6).fill(VARS.necessidadeHeld)]
   },
   livrosRazaoTotais: {
-    // CORRIGIDO 17/07/2026 (V68): bloco inteiro estava parado desde 16/07 - nenhuma das correcoes V56-V68 tinha chegado aqui. Realinhado com os registradores LIVRO_XXX_TOTAL oficiais do ERP.
-    LRW:   { total:3479.39, qtd:59 }, // V126: +R$187,99 (TX000123 Drive R$131,50 + TX128-130 Panificadora/Vendedora/H57Store R$56,49). Era R$3.291,40/55.
-    LRV:   { total:444.14,  qtd:17 }, // 19/07/2026: +R$6,50 (TX000118, H57Store, cartao 4845). Era R$437,64/16.
-    LRB:   { total:2600.24, qtd:10 }, // V127 CORRIGIDO: TXB000010 (Anderson) era duplicata de TXB000006 (ja existente), removida. So +R$1,66 (rendimento CDI) e novo. Era R$2.598,58/9.
-    LRP:   { total:2500.46, qtd:16 }, // CORRIGIDO 19/07/2026: -R$1.808,91 (reversao das 9 parcelas fabricadas do Tokio Marine, TXP000016-024 removidas - so a 7/10 real, TXP000008, existe). Era R$4.309,37/25.
-    LRS:   { total:453.12,  qtd:12 }, // 20/07/2026: +R$19,90 (TXS000013, Meli+ Mercado Livre, reclassificado de TX000115/LRW). Era R$433,22/11.
-    LRR:   { total:1720.98, qtd:7  }, // V111: Vivo atualizada -R$88,00 (configuracao completa: Plano Familia 120 2 + 5 Linhas Controle 8G = R$435,00). Era R$1.808,98 (V69, Brisanet).
-    LRCON: { total:1950.77, qtd:2  },
-    LRC:   { total:483.43,  qtd:6  },
-    LRMP:  { total:1791.93, qtd:9  }, // V59: +TXMP000010
-    LRCV:  { total:1462.24,  qtd:27 }, // V126: +TX124(quitacao LREI0001 direto)+TX125/126(pizza, corrigida p/ R$73)+TX127(P2P). Era R$1.117,60/23.
-    LRPV:  { total:-295.66, qtd:19 } // V117: -TX000122 (Hortifruti/frutas, R$67,00, retroativo 17/07). Era -R$228,66/18.
+    // V137: LRW/LRV/LRC/LRS/LRR eram literais que so por coincidencia batiam com visaDetalhe+mbDetalhe -
+    // viram placeholder 0, DERIVADOS em recalcularAgregadosDerivados() (verificado bater exato antes de
+    // converter). LRP/LRCON ja liam do VARS desde V135. LRB/LRCV/LRPV nao tem como derivar de outro dado
+    // ja presente no site (sao fonte primaria) - leem do VARS agora, unica copia editavel. LRMP le do
+    // VARS.mercadoPagoFatura (fecha a mesma divergencia corrigida no card Cartoes/Balanco).
+    LRW:   { total:0, qtd:60 },
+    LRV:   { total:0, qtd:18 },
+    LRB:   { total:VARS.livroLRB, qtd:10 },
+    LRP:   { total:VARS.livroLRP, qtd:16 },
+    LRS:   { total:0, qtd:12 },
+    LRR:   { total:0, qtd:7  },
+    LRCON: { total:VARS.livroLRCON, qtd:2 },
+    LRC:   { total:0, qtd:6 },
+    LRMP:  { total:VARS.mercadoPagoFatura, qtd:9 },
+    LRCV:  { total:VARS.livroLRCV, qtd:28 },
+    LRPV:  { total:VARS.livroLRPV, qtd:19 }
   },
 
-  reembolsos: { recebidosNoCiclo: 2485.39 },
+  reembolsos: { recebidosNoCiclo: 0 }, // V135: DERIVADO em recalcularAgregadosDerivados() = reembolsoCicloTotal - reembolsosAReceber. Estava hardcoded em R$2.485,39 (valor de antes da 2a TED da Wärtsilä, confirmada 21/07/2026) - nunca atualizou quando reembolsosAReceber zerou, entao "Recebidos" ficava mostrando so a metade do que ja tinha entrado de verdade.
 
   // ===== QUALIDADE/REGRAS DE NEGOCIO (18/07/2026, V79) - "linter" enxuto: nao guarda transacao
   // por transacao (REG so tem agregados, por design - inflar isso pesaria o app.js), mas expoe os
@@ -312,33 +508,43 @@ const REG = {
     mediana: VARS.salarioMediana12M,
     media: VARS.salarioMedia12M,
     mediaPonderada12M: VARS.salarioMediaPonderada12M,
-    desvioPadrao: 9273.21
+    desvioPadrao: VARS.desvioPadraoSalario
   },
   evolucao: {
     // PADRAO 12 MESES ROLANTE (V50, item 4): series estendidas de 8 para 12 pontos, repetindo o
     // ultimo valor conhecido (mesma logica conservadora ja usada aqui - nao ha dado real para meses
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
-    totalOperacional:   [11658.24,9751.87,9420.07,8938.93,8671.07,8571.07,8381.08,8381.08,8381.08,8381.08,8381.08,8381.08], // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine, ver REG.operacional.totalOperacional). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51 (podem ainda incluir as parcelas 8-10 do Tokio removidas hoje - revisao futura).
-    necessidadeLiquida: [13903.34,11996.97,11665.17,11184.03,10916.17,10816.17,10626.18,10626.18,10626.18,10626.18,10626.18,10626.18] // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
+    totalOperacional:   [11658.24,9751.87,9420.07,8938.93,8671.07,8571.07,...Array(6).fill(VARS.totalOperacionalHeld)], // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine, ver REG.operacional.totalOperacional). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51 (podem ainda incluir as parcelas 8-10 do Tokio removidas hoje - revisao futura).
+    necessidadeLiquida: [13903.34,11996.97,11665.17,11184.03,10916.17,10816.17,...Array(6).fill(VARS.necessidadeLiquidaHeld)] // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
   },
 
   // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
   balanco: {
-    fisico: { casa:110000.00, apartamento:155000.00, jazigo:11000.00, solar:14800.00, carro:140000.00, total:430800.00 },
-    financeiro: { reserva:VARS.reserva, btg:VARS.btgNecton, nectonContaCorrente:VARS.nectonContaCorrente, consorcioCasaPago:2898.90, total:118068.05 },
-    pgbl: 132214.74,   // nao liquido, fora do total financeiro e da Meta do Milhao
-    fgts: 77683.60,    // nao liquido, fora do total financeiro e da Meta do Milhao
-    passivos: { financiamentoCasa:61326.91, consorcioAutoContemplado:18998.83, total:80325.74 },
-    ativosTotal: 548868.05,
-    patrimonioLiquido: 468542.31,
+    // V135 (22/07/2026): fisico.total, financeiro.total, passivos.total, ativosTotal e patrimonioLiquido
+    // eram numeros hardcoded que HOJE batem com a soma das partes (conferido por execucao real), mas nao
+    // tinham formula nenhuma - qualquer edicao futura em 1 componente (ex: valor do carro, novo passivo)
+    // ficaria dessincronizada ate alguem recalcular a mao. Viram DERIVADOS em recalcularAgregadosDerivados(),
+    // nunca editar os totais aqui diretamente.
+    fisico: { casa:VARS.patCasa, apartamento:VARS.patApartamento, jazigo:VARS.patJazigo, solar:VARS.patSolar, carro:VARS.patCarro, total:0 },
+    financeiro: { reserva:VARS.reserva, btg:VARS.btgNecton, nectonContaCorrente:VARS.nectonContaCorrente, consorcioCasaPago:0, total:0 },
+    pgbl: VARS.patPgbl,   // nao liquido, fora do total financeiro e da Meta do Milhao
+    fgts: VARS.patFgts,   // nao liquido, fora do total financeiro e da Meta do Milhao
+    passivos: { financiamentoCasa:VARS.passivoFinanciamentoCasa, consorcioAutoContemplado:VARS.passivoConsorcioAuto, total:0 },
+    ativosTotal: 0,
+    patrimonioLiquido: 0,
     reservas: {
       boletos:0, escolaJulio:VARS.escolaJulioSaldo, caixaLance:VARS.caixaLance, manutencao:VARS.caixaManutencao, eventos:VARS.caixaEventos,
       churrasco:0, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio, total:0 // total DERIVADO em recalcularAgregadosDerivados()
     }, // V134: todos os saldos leem do VARS agora (fonte unica) - eliminada a 2a/3a copia que ja causou 2 rodadas de bug nesta sessao.
     operacional: { caixaVariavel:VARS.caixaVariavelSaldoReal, pixVanessaSaldoReal:VARS.pixGeralVanessaSaldo, caixaBoletos:VARS.caixaBoletos, total:0 }, // total DERIVADO. V134: le do VARS.
-    obrigacoes: { visa:10932.30, mastercardBlack:1661.01, mercadoPago:1791.93, wartsila:656.67, total:15041.91 }, // SOBRESCRITO por recalcularAgregadosDerivados() = mesma fonte do card Cartoes (REG.visa.totalComprometido), evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia).
-    fluxo: { entradas:36138.37, saidas:14819.89, resultado:21318.48 } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
+    // V137: Wartsila REMOVIDA da soma do total (pedido do usuario 23/07/2026: "nao deve misturar
+    // contas da empresa com minhas contas" - a fatura e 100% corporativa/reembolsavel, so aparece
+    // aqui como linha informativa, igual ao tratamento ja dado a PGBL/FGTS). mercadoPago agora le
+    // do VARS.mercadoPagoFatura (antes essa fatura aparecia em 2 lugares da tela com 2 valores
+    // diferentes: R$1.751,16 aqui/card Cartoes vs R$1.791,93 no Balanco - mesma fatura, bug real).
+    obrigacoes: { visa:0, mastercardBlack:0, mercadoPago:VARS.mercadoPagoFatura, wartsila:VARS.faturaWartsila, total:0 },
+    fluxo: { entradas:0, saidas:VARS.fluxoSaidas, resultado:VARS.fluxoResultado } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
   }
 };
 
@@ -360,14 +566,35 @@ const REG = {
   REG.patrimonio.metaMilhaoPct = r2(REG.patrimonio.total / REG.patrimonio.metaMilhao * 100);
   REG.visa.totalComprometido = r2(VARS.cartaoInfiniteTotal + VARS.cartaoMBTotal);
   REG.visa.pessoal = r2(REG.visa.totalComprometido - REG.operacional.reembolsoPagaCartaoCorporativo);
+  // V135: recorrencias/assinaturas de totalOpDetalhe DERIVADOS da soma Visa+MB (elimina duplicacao -
+  // precisa rodar ANTES do calculo de totalOperacional logo abaixo, que le D.recorrencias/D.assinaturas).
+  REG.totalOpDetalhe.recorrencias = r2(REG.visaDetalhe.recorrencias + REG.mbDetalhe.recorrencias);
+  REG.totalOpDetalhe.assinaturas = r2(REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas);
   REG.balanco.reservas.total = r2(REG.balanco.reservas.boletos + REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
     REG.balanco.reservas.manutencao + REG.balanco.reservas.eventos + REG.balanco.reservas.churrasco +
     REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio);
   REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos);
 
+  // V135: totais do Balanço Patrimonial DERIVADOS (antes eram numeros fixos que so por coincidencia
+  // batiam com a soma das partes hoje - agora impossivel dessincronizar).
+  const bf = REG.balanco.fisico;
+  bf.total = r2(bf.casa + bf.apartamento + bf.jazigo + bf.solar + bf.carro);
+  // V140: consorcioCasaPago DERIVADO = parcela x parcelas pagas (era literal solto, agora impossivel
+  // dessincronizar de VARS.consorcioCasaParcela/consorcioCasaParcelasPagas)
+  REG.balanco.financeiro.consorcioCasaPago = r2(VARS.consorcioCasaParcela * VARS.consorcioCasaParcelasPagas);
+  const bfin = REG.balanco.financeiro;
+  bfin.total = r2(bfin.reserva + bfin.btg + bfin.nectonContaCorrente + bfin.consorcioCasaPago);
+  const bp = REG.balanco.passivos;
+  bp.total = r2(bp.financiamentoCasa + bp.consorcioAutoContemplado);
+  REG.balanco.ativosTotal = r2(bf.total + bfin.total);
+  REG.balanco.patrimonioLiquido = r2(REG.balanco.ativosTotal - bp.total);
+
   // V128 (bug real apontado pelo usuario): entradasTotais agora DERIVADO de salario+reembolsoCicloTotal, nunca mais um numero fixo que "esquecia" de atualizar quando o reembolso mudava de status (a receber -> recebido).
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
+  // V135: Recebidos no ciclo = Total do ciclo - A receber (sempre a diferenca, nunca mais numero fixo
+  // que "esquece" de subir quando uma nova TED e confirmada e A_RECEBER zera).
+  REG.reembolsos.recebidosNoCiclo = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsosAReceber);
   // Total Operacional = soma literal dos 7 componentes (mesma formula documentada na Politica sec.13/TOTAL_OPERACIONAL)
   REG.operacional.totalOperacional = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.aportesPat + D.provMP + D.assinaturas);
   REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
@@ -378,11 +605,51 @@ const REG = {
   // Visa total comprometido (usado no card Balanco/Obrigacoes) = mesma fonte do card Cartoes, evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia)
   REG.balanco.obrigacoes.visa = r2(REG.visa.totalComprometido);
   REG.balanco.obrigacoes.mastercardBlack = r2(REG.cartaoMB.total);
-  REG.balanco.obrigacoes.total = r2(REG.balanco.obrigacoes.visa + REG.balanco.obrigacoes.mastercardBlack + REG.balanco.obrigacoes.mercadoPago + REG.balanco.obrigacoes.wartsila);
+  // V137 (pedido do usuario 23/07/2026): Wartsila NAO entra mais na soma - e 100% corporativo/reembolsavel,
+  // nao deve se misturar com obrigacoes pessoais reais. Fica visivel na tela como linha informativa (mesmo
+  // tratamento ja dado a PGBL/FGTS no Patrimonio), so nao soma no Total.
+  REG.balanco.obrigacoes.total = r2(REG.balanco.obrigacoes.visa + REG.balanco.obrigacoes.mastercardBlack + REG.balanco.obrigacoes.mercadoPago);
   // Evolucao (graficos): o ponto do ciclo atual (indice 0) tambem passa a vir do agregado real, nao de um numero copiado a mao
   REG.evolucao.totalOperacional[0] = REG.operacional.totalOperacional;
+
+  // V137: livrosRazaoTotais LRW/LRV/LRC = soma das mesmas partes ja usadas nos graficos (visaDetalhe+mbDetalhe).
+  // LRS/LRR = mesmos valores ja derivados em totalOpDetalhe.assinaturas/recorrencias (linha 393/394 acima).
+  // Todos verificados batendo exato antes de virar formula (harness Node, 0 divergencia).
+  REG.livrosRazaoTotais.LRW.total = r2(REG.visaDetalhe.wallace + REG.mbDetalhe.wallace);
+  REG.livrosRazaoTotais.LRV.total = r2(REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa);
+  REG.livrosRazaoTotais.LRC.total = r2(REG.visaDetalhe.corp + REG.mbDetalhe.corp);
+  REG.livrosRazaoTotais.LRS.total = REG.totalOpDetalhe.assinaturas;
+  REG.livrosRazaoTotais.LRR.total = REG.totalOpDetalhe.recorrencias;
+
+  // V137: metas percentuais derivadas - milhaoPct estava TRAVADO em 11,54% (nao acompanhava
+  // patrimonio.metaMilhaoPct, ja corrigido pra 11,57% na V135) e alimentava o grafico de metas.
+  REG.metasPatrimoniais.milhaoPct = REG.patrimonio.metaMilhaoPct;
+  REG.metasPatrimoniais.escolaPct = r2(VARS.escolaJulioSaldo / VARS.metaEscolaJulio * 100);
+
+  // V137: excedente do investimento derivado (elimina a classe de erro que gerou a correcao V107, um
+  // erro de subtracao manual de R$1,00).
+  REG.metaInvestimento.investido = r2(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton);
+  REG.metaInvestimento.excedente = r2(REG.metaInvestimento.investido - REG.metaInvestimento.meta);
   REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
+  // V138: elimina duplicacao - antes o mesmo numero vivia em REG.estimador.necessidadeLiquidaProximoCiclo
+  // (literal solto) E em REG.evolucao.necessidadeLiquida[1] (array). Agora so o array e fonte, o estimador le dele.
+  REG.estimador.necessidadeLiquidaProximoCiclo = REG.evolucao.necessidadeLiquida[1];
+  // V139: Consorcio Casa Nova / Projeto Casa Nova - formulas novas (secoes que eram 100% hardcoded)
+  REG.consorcioCasaNova.quitacaoPct = r2(100 - REG.consorcioCasaNova.pagoPct);
+  REG.projetoCasaNova.capitalDisponivel = r2(VARS.btgNecton + VARS.caixaLance);
+  REG.projetoCasaNova.pct = r2(REG.projetoCasaNova.capitalDisponivel / REG.projetoCasaNova.metaLance * 100);
+  REG.projetoCasaNova.falta = r2(REG.projetoCasaNova.metaLance - REG.projetoCasaNova.capitalDisponivel);
+  REG.wartsilaCaixa.excedente = r2(REG.wartsilaCaixa.provisionado - REG.wartsilaCaixa.fatura);
+  REG.pixDiversos.liquido = r2(REG.pixDiversos.entradas - REG.pixDiversos.saidas);
 })();
+
+// V135 (22/07/2026): labels/cores do detalhamento Visa Infinite, compartilhados pelos 3 graficos que
+// usam Object.values(REG.visaDetalhe) (cVisa, g_cVisa, g_cVisaBar) - antes cada um tinha sua propria
+// copia do array de labels (3x), agora todos leem daqui. Ordem tem que bater exatamente com a ordem
+// das chaves de REG.visaDetalhe (parcelas, consorcios, wallace, recorrencias, corp, assinaturas,
+// vanessa, naoReconciliado).
+const VISA_DETALHE_LABELS = ['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa','Não Reconciliado'];
+const VISA_DETALHE_CORES = ['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0','#4a4d52'];
 
 function hydrate(){
   const t = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -477,6 +744,17 @@ function hydrate(){
   t('patEscola', fmt(R.patrimonioDetalhe.nectonContaCorrente));
   t('patAcumulado', fmt(R.patrimonio.total));
   t('patFalta', fmt(R.patrimonio.metaMilhao - R.patrimonio.total));
+  t('patPctBadge', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  { const el=document.getElementById('patPctBar'); if(el) el.style.width = R.patrimonio.metaMilhaoPct+'%'; }
+
+  // V142: secao 11 Passivos Patrimoniais
+  const PP = R.passivosPatrimoniais;
+  t('ppFinanciamentoCasa', fmt(PP.financiamentoCasa));
+  t('ppFinanciamentoDetalhe', 'Prestação '+fmt(PP.prestacaoFinanciamentoCasa)+' · '+PP.mesesRestantesFinanciamentoCasa+' meses restantes');
+  t('ppConsorcioAuto', fmt(PP.consorcioAuto));
+  { const el=document.getElementById('ppConsorcioAutoBar'); if(el) el.style.width = PP.consorcioAutoPct+'%'; }
+  t('ppConsorcioAutoPct', PP.consorcioAutoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'% pago');
+  t('ppConsorcioAutoParcela', 'Parcela '+fmt(PP.parcelaConsorcioAuto));
 
   // caixas operacionais
   const C = R.caixasOperacionais;
@@ -510,6 +788,7 @@ function hydrate(){
   t('visaLRR', fmt(R.visaDetalhe.recorrencias));
   t('visaLRCON', fmt(R.visaDetalhe.consorcios));
   t('visaLRC', fmt(R.visaDetalhe.corp));
+  t('visaLRNaoReconciliado', fmt(R.visaDetalhe.naoReconciliado)); // V135: residuo soma-livros x fatura-real, documentado (P1)
   // mastercard black
   t('mbTotal', fmt(R.cartaoMB.total));
   t('mbPessoal', fmt(R.cartaoMB.total - R.mbDetalhe.corp));
@@ -524,6 +803,7 @@ function hydrate(){
   // mercado pago
   t('mpFatura', fmt(R.mercadoPago));
   t('mpProprias', fmt(R.totalOpDetalhe.provMP));
+  t('mpTransporteCorp', fmt(R.operacional.reembolsoPagaMPCorporativo));
 
   // titulos/totais ja centralizados (secoes 01/02/03)
   t('s01TotalOp', fmt(R.operacional.totalOperacional));
@@ -537,6 +817,7 @@ function hydrate(){
   const cartoesTotal = Math.round((R.cartaoInfinite.total + R.cartaoMB.total)*100)/100;
   const cartoesLiquidoCV = Math.round((cartoesTotal - R.caixaVariavel.comprometido)*100)/100;
   t('gCartoesTotalLine', fmt(cartoesTotal));
+  t('gCartoesPessoalLine', fmt(R.visa.pessoal)); // mesma logica ja usada em gVisaPessoalLine - so o Visa tem corporativo, MB nao
   t('gCVComprometidoLine', '− '+fmt(R.caixaVariavel.comprometido));
   t('gCartoesLiquidoLine', fmt(cartoesLiquidoCV));
   // ADICIONADO 20/07/2026 (pedido do usuario): Comprometido (provisionado) x Disponivel real em caixa,
@@ -563,6 +844,7 @@ function hydrate(){
   const alivioTotal = R.operacional.totalOperacional - totalOpMar27;
   t('aliv1', '− '+fmt(alivioTotal));
   t('aliv2', '− '+fmt(alivioTotal));
+  t('alivioBadgeMar27', 'Alívio '+fmt(alivioTotal)+' até Mar/27');
 
   // cenario historico (Cenarios secao 01/02) - formulas: saldo(salario) = salario + reembolsos - necessidadeTotalBruta
   const CH = R.cenarioHistorico;
@@ -596,10 +878,46 @@ function hydrate(){
   t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // CORRIGIDO 20/07/2026: agora e literalmente o item 4 da cascata (usado no calculo de reembolsoSobraPessoal), nao mais um campo paralelo "so informativo".
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
+  t('metaInvMensal', fmt(R.metaInvestimento.meta));
+  t('metaInvBadge', 'Total investido '+fmt(R.metaInvestimento.investido)+' · '+(R.metaInvestimento.excedente>=0?'Superada +':'Falta ')+fmt(Math.abs(R.metaInvestimento.excedente)));
+  t('metaInvBTG', fmt(VARS.aporteBTGPactual));
+  t('metaInvNecton', fmt(VARS.depositoAtivacaoNecton));
 
   t('cxWartsila', fmt(R.faturaWartsila));
+  t('cxWartsilaExcedente', '100% coberto · excedente '+fmt(R.wartsilaCaixa.excedente));
+  t('cxWartsilaProvisionado', 'Provisionado '+fmt(R.wartsilaCaixa.provisionado));
+  t('cxSaudeAporteTxt', '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês');
+  t('cxAnivAporteTxt', 'Nova · aporte '+fmt(VARS.aporteAniversarioJulio)+'/mês até 14/09');
+  t('cxSeguroAporteTxt', 'Nova · aporte '+fmt(VARS.seguroEmplacamentoAporte)+'/mês (permanente)');
+  t('tfLRCDetalhe', R.livroLRCDetalhe.qtd+' lançamentos · Reembolso pendente '+fmt(R.livroLRCDetalhe.valor));
+  t('tfPixDiversosDetalhe', 'Saídas '+fmt(R.pixDiversos.saidas)+' · Entradas '+fmt(R.pixDiversos.entradas));
+  t('tfPixDiversosLiquido', 'Líquido '+(R.pixDiversos.liquido<0?'− ':'+ ')+fmt(Math.abs(R.pixDiversos.liquido)));
   t('ejSaldo', fmt(R.escolaJulioSaldo));
   t('ejMeta', fmt(R.patrimonio.metaEscolaJulio));
+  // V136: faltava popular ejPct/ejBar apos a secao 14 ter sido reconstruida no padrao da secao 05
+  // (o card ficaria com barra em 0% e "—" no lugar do percentual pra sempre sem isso).
+  t('ejPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  { const el=document.getElementById('ejBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
+
+  // V139: secoes 12/13 (Consorcio Casa Nova / Projeto Casa Nova) - antes 100% texto fixo, sem id nenhum.
+  const CCN = R.consorcioCasaNova, PCN = R.projetoCasaNova;
+  t('ccnCartaCredito', fmt(CCN.cartaCredito));
+  t('ccnParcela', fmt(CCN.parcela));
+  t('ccnPagoPct', CCN.pagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  t('ccnQuitacao', fmt(CCN.quitacaoValor)+' ('+CCN.quitacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%)');
+  { const el=document.getElementById('ccnBar'); if(el) el.style.width = CCN.pagoPct+'%'; }
+  t('pcnCapital', fmt(PCN.capitalDisponivel));
+  t('pcnPctBadge', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  { const el=document.getElementById('pcnBar'); if(el) el.style.width = PCN.pct+'%'; }
+  t('pcnMeta', 'Meta lance '+fmt(PCN.metaLance));
+  t('pcnFalta', 'Falta '+fmt(PCN.falta));
+
+  // V139: badges do Resumo Executivo - antes texto fixo duplicando numeros ja calculados em outro lugar
+  t('r21ProjetoCasa', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  t('r21ConsorcioCasa', CCN.pagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  t('r21EscolaJulio', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  t('r21MetaInvest', fmt(R.metaInvestimento.investido)+' investido · '+(R.metaInvestimento.excedente>=0?'Superada +':'Falta ')+fmt(Math.abs(R.metaInvestimento.excedente)));
+
   t('snCicloAtual', '+ '+fmt(liquidoMes(0) - R.superavitNormal.necessidade[0]));
 
   t('csNecTotal', R.operacional.necessidadeTotalBruta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
@@ -608,7 +926,18 @@ function hydrate(){
   // ===== Balanço Patrimonial (Reestruturação V2.0, 16/07/2026) =====
   const B = R.balanco;
   t('balFisicoTotal', fmt(B.fisico.total));
+  t('bfCasa', fmt(B.fisico.casa));
+  t('bfApartamento', fmt(B.fisico.apartamento));
+  t('bfJazigo', fmt(B.fisico.jazigo));
+  t('bfSolar', fmt(B.fisico.solar));
+  t('bfCarro', fmt(B.fisico.carro));
   t('balFinanceiroTotal', fmt(B.financeiro.total));
+  t('bfinReserva', fmt(B.financeiro.reserva));
+  t('bfinBTG', fmt(B.financeiro.btg));
+  t('bfinConsorcioCasa', fmt(B.financeiro.consorcioCasaPago));
+  t('bfinNectonCC', fmt(B.financeiro.nectonContaCorrente));
+  t('bpFinanciamentoCasa', fmt(B.passivos.financiamentoCasa));
+  t('bpConsorcioAuto', fmt(B.passivos.consorcioAutoContemplado));
   t('balPgbl', fmt(B.pgbl));
   t('balFgts', fmt(B.fgts));
   t('balPassivosTotal', fmt(B.passivos.total));
@@ -618,7 +947,7 @@ function hydrate(){
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
-  t('balResManut', fmt(B.reservas.manutencao)+' (emprestada)');
+  t('balResManut', fmt(B.reservas.manutencao));
   t('balResEventos', fmt(B.reservas.eventos)+' (usada no ciclo)');
   t('balResChurrasco', fmt(B.reservas.churrasco));
   t('balResSaude', fmt(B.reservas.saudeFamilia));
@@ -675,7 +1004,11 @@ function auditoriaAutomatica(){
   }
 
   // 4) Reembolso: cascata bate com o total do ciclo
-  const cascataTotal = round2(656.67 + REG.operacional.reembolsoPagaMPCorporativo + 483.43 + REG.totalOpDetalhe.provMP + REG.operacional.reembolsoSobraPessoal);
+  // V135: CORRIGIDO numero magico 483.43 (valor antigo do LRC) -> REG.operacional.reembolsoPagaCartaoCorporativo
+  // (483.83, extrato real reconciliado V121). O numero fixo aqui causava FALSO-POSITIVO nesta propria
+  // auditoria (acusava divergencia de R$0,40 que na verdade nao existia - o proprio checador tinha
+  // uma 2a copia desatualizada do valor).
+  const cascataTotal = round2(REG.operacional.reembolsoPagaWartsila + REG.operacional.reembolsoPagaMPCorporativo + REG.operacional.reembolsoPagaCartaoCorporativo + REG.totalOpDetalhe.provMP + REG.operacional.reembolsoSobraPessoal);
   if(!bate(cascataTotal, REG.operacional.reembolsoCicloTotal)){
     problemas.push(`Cascata reembolso: soma das 5 pernas=${cascataTotal} ≠ reembolsoCicloTotal(${REG.operacional.reembolsoCicloTotal})`);
   }
@@ -721,6 +1054,24 @@ function auditoriaAutomatica(){
     problemas.push(`Total Operacional: soma dos 7 componentes=${totOpCalc} ≠ operacional.totalOperacional(${REG.operacional.totalOperacional})`);
   }
 
+  // 11) Visa Infinite: soma do detalhamento (visaDetalhe, usado nos graficos de composicao) = total do card
+  // (ADICIONADO 22/07/2026, V135 - esta checagem NAO existia; foi exatamente por isso que o gap de
+  // R$49,81 entre o grafico cVisa e o card "Total" ficou sem deteccao automatica por varios ciclos)
+  const vd = REG.visaDetalhe;
+  const visaDetalheCalc = round2(vd.parcelas+vd.consorcios+vd.wallace+vd.recorrencias+vd.corp+vd.assinaturas+vd.vanessa+vd.naoReconciliado);
+  if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
+    problemas.push(`Visa Infinite: soma visaDetalhe=${visaDetalheCalc} ≠ cartaoInfinite.total(${REG.cartaoInfinite.total})`);
+  }
+
+  // 12) Mastercard Black: soma do detalhamento (mbDetalhe) = total do card (ADICIONADO 22/07/2026, V135 -
+  // mesma classe de checagem que faltava; foi por isso que mbDetalhe.wallace ficou 3 rodadas desatualizado
+  // sem ninguem perceber - nada comparava a soma das partes com o total)
+  const md = REG.mbDetalhe;
+  const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa);
+  if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
+    problemas.push(`Mastercard Black: soma mbDetalhe=${mbDetalheCalc} ≠ cartaoMB.total(${REG.cartaoMB.total})`);
+  }
+
   const healthBadge = document.getElementById('healthBadge');
 
   if(problemas.length === 0){
@@ -728,7 +1079,7 @@ function auditoriaAutomatica(){
     if(healthBadge){
       healthBadge.textContent = '✅ Sistema íntegro';
       healthBadge.style.color = '#34c98a';
-      healthBadge.title = 'Auditoria automática: 0 divergências nas 10 relações matemáticas do REG.';
+      healthBadge.title = 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
     }
   } else {
     console.warn('⚠️ Auditoria automática encontrou divergências:');
@@ -983,9 +1334,9 @@ new Chart(document.getElementById('cPatrim'), {
 
 new Chart(document.getElementById('cVisa'), {
   type:'doughnut',
-  data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+  data:{labels:VISA_DETALHE_LABELS,
     datasets:[{data:Object.values(REG.visaDetalhe),
-    backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],
+    backgroundColor:VISA_DETALHE_CORES,
     borderColor:'#16181b',borderWidth:2}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}},
@@ -1068,7 +1419,7 @@ const cenarioLabelPlugin = {
     ctx.restore();
   }
 };
-const cenarioSalarioData = [REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,29424.00];
+const cenarioSalarioData = [REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,VARS.cenarioMesesBonsMedia];
 const cenarioSalarioRange = yRange(cenarioSalarioData, 0.18);
 new Chart(document.getElementById('cCenarioSalario'), {
   type:'bar',
@@ -1122,9 +1473,9 @@ new Chart(document.getElementById('g_cPatrim'), {
 
 new Chart(document.getElementById('g_cVisa'), {
   type:'doughnut',
-  data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+  data:{labels:VISA_DETALHE_LABELS,
     datasets:[{data:Object.values(REG.visaDetalhe),
-    backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],
+    backgroundColor:VISA_DETALHE_CORES,
     borderColor:'#16181b',borderWidth:2}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
@@ -1133,9 +1484,9 @@ new Chart(document.getElementById('g_cVisa'), {
 new Chart(document.getElementById('g_cVisaBar'), {
   type:'bar',
   plugins:[barValuePlugin],
-  data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+  data:{labels:VISA_DETALHE_LABELS,
     datasets:[{data:Object.values(REG.visaDetalhe),
-    backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],borderRadius:4}]},
+    backgroundColor:VISA_DETALHE_CORES,borderRadius:4}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:60}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
@@ -1212,13 +1563,19 @@ new Chart(document.getElementById('g_cVariavel'), {
 // Consorcio Auto.
 const metasNomes = ['Meta Milhão','Casa Nova','Consórcio Auto'];
 const metasPct = [REG.metasPatrimoniais.milhaoPct, REG.metasPatrimoniais.casaNovaPct, REG.metasPatrimoniais.autoPct];
-// Rotulo curto sobre a barra: so porcentagem + texto minimo
-const metasRaw = ['11,54% do milhão','0,42% pago','75,22% pago'];
-// Descricao completa, so no tooltip ao passar o mouse
+const pctBR = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// V139: rotulo curto e detalhe completo agora GERADOS a partir do REG/VARS, nao mais strings escritas a
+// mao (a versao anterior tinha "11,54% do milhao" congelado no texto, desatualizado desde a correcao
+// do PATRIMONIO_TOTAL na V135 - o numero do grafico ja tinha corrigido, so o texto do label nao).
+const metasRaw = [
+  pctBR(REG.metasPatrimoniais.milhaoPct)+'% do milhão',
+  pctBR(REG.consorcioCasaNova.pagoPct)+'% pago',
+  pctBR(REG.metasPatrimoniais.autoPct)+'% pago'
+];
 const metasDetalhe = [
-  '11,54% · R$115.373,63 de R$1.000.000',
-  'Consórcio Casa Nova (cota 12, grupo I0464) · quitação R$550.601,43 (99,58%)',
-  'Carta R$76.670,02, saldo devedor R$18.998,83'
+  pctBR(REG.metasPatrimoniais.milhaoPct)+'% · '+fmt(REG.patrimonio.total)+' de '+fmt(REG.patrimonio.metaMilhao),
+  'Consórcio Casa Nova (cota 12, grupo I0464) · quitação '+fmt(REG.consorcioCasaNova.quitacaoValor)+' ('+pctBR(REG.consorcioCasaNova.quitacaoPct)+'%)',
+  'Carta '+fmt(VARS.consorcioAutoCartaCredito)+', saldo devedor '+fmt(REG.balanco.passivos.consorcioAutoContemplado)
 ];
 
 new Chart(document.getElementById('g_cMetas'), {
@@ -1329,7 +1686,7 @@ new Chart(document.getElementById('g_cCaixas'), {
 // (R$425/mes) ao virar pro ciclo 2027 - por isso nunca gera evento de alivio/aumento, so continua.
 const alivioLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27','Jul/27','Ago/27','Set/27','Out/27','Nov/27','Dez/27'];
 const ANIVERSARIO_JULIO_APORTE = 200, ESCOLA_JULIO_ATUAL_APORTE = 500, SAUDE_FAMILIA_APORTE = 100,
-      SEGURO_EMPLACAMENTO_APORTE = 425, ESCOLA_JULIO_2027_APORTE = 839.64;
+      SEGURO_EMPLACAMENTO_APORTE = VARS.seguroEmplacamentoAporte, ESCOLA_JULIO_2027_APORTE = VARS.escolaJulio2027Aporte;
 const alivioData = alivioLabels.map((_,i)=>{
   let v = SEGURO_EMPLACAMENTO_APORTE; // ciclo continuo, sempre ativo nos 18 meses
   if(i < 2) v += ANIVERSARIO_JULIO_APORTE;       // completa Set/26 (14/09)
@@ -1538,9 +1895,9 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Jun/26: real, confirmado na fatura Energisa.
   const mesesPares = ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai*','Jun'];
   const kwhAnoAnterior = [321,262,279,297,405,265,211,273,330,343,323,304];
-  const tarifa = 322.99/304;
+  const tarifa = VARS.faturaEnergisaValor/VARS.faturaEnergisaKwh;
   const anoAnterior = kwhAnoAnterior.map(k=>Math.round(k*tarifa*100)/100);
-  const valorPosSolar = Math.round((30*tarifa + 38.00)*100)/100;
+  const valorPosSolar = Math.round((VARS.consumoMinimoComSolarKwh*tarifa + VARS.taxaMinimaEnergisa)*100)/100;
   const esteAno = mesesPares.map(()=>valorPosSolar);
 
   const energiaLabelPlugin = {

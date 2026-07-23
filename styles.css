@@ -209,7 +209,8 @@
   body.esconder-valores .v,
   body.esconder-valores .val,
   body.esconder-valores td.r,
-  body.esconder-valores .r {
+  body.esconder-valores .r,
+  body.esconder-valores .chart-box canvas {
     filter: blur(7px);
     user-select: none;
     transition: filter 0.15s;
@@ -217,7 +218,8 @@
   body.esconder-valores .v:hover,
   body.esconder-valores .val:hover,
   body.esconder-valores td.r:hover,
-  body.esconder-valores .r:hover {
+  body.esconder-valores .r:hover,
+  body.esconder-valores .chart-box canvas:hover {
     filter: blur(0);
   }
   #btnEsconderValores.ativo { background:var(--accent); }
