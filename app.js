@@ -267,6 +267,17 @@ const VARS = {
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
   caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
+  // CORRIGIDO 23/07/2026: secao 18 (Operacoes P2P) do site era 100% texto hardcoded, nunca tinha sido
+  // ligada ao REG - "Creditos restantes" mostrava "8/10" e "Lucro realizado" R$9,00, desatualizados desde
+  // a V136 (22/07/2026), quando TXP2P0003 (venda de 2 creditos ao Elcio) mudou os numeros reais para
+  // 6/10 restantes e R$27,00 de lucro. Agora vem do VARS, igual ao resto do sistema.
+  p2pCapitalTotal: 110,           // = P2P_CAPITAL_TOTAL do ERP
+  p2pCreditosTotal: 10,           // = P2P_CREDITOS_TOTAL
+  p2pCreditosRestantes: 6,        // = P2P_CREDITOS_RESTANTES (V136: 9-1-2=6, era 8 no site)
+  p2pCreditosVendidos: 3,         // = P2P_CREDITOS_VENDIDOS (TXP2P0002+TXP2P0003)
+  p2pPrecoCompra: 11,             // = P2P_PRECO_COMPRA (110/10)
+  p2pPrecoVenda: 20,              // = P2P_PRECO_VENDA
+  p2pLucroRealizado: 27,          // = P2P_LUCRO_REALIZADO (V136: R$9+R$18=R$27, era R$9 no site)
   suporteCoIrmaEventos: 167.40,            // Eventos->Variavel, mesmo proposito (visita familia Vanessa), nao e LREI
 
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
@@ -370,6 +381,17 @@ const REG = {
     pessoal: 0              // DERIVADO = totalComprometido - reembolsoPagaCartaoCorporativo
   },
   cartaoInfinite: { total: VARS.cartaoInfiniteTotal },
+  p2p: {
+    capitalTotal: VARS.p2pCapitalTotal,
+    creditosTotal: VARS.p2pCreditosTotal,
+    creditosRestantes: VARS.p2pCreditosRestantes,
+    creditosVendidos: VARS.p2pCreditosVendidos,
+    precoCompra: VARS.p2pPrecoCompra,
+    precoVenda: VARS.p2pPrecoVenda,
+    lucroRealizado: VARS.p2pLucroRealizado,
+    saldoInvestido: 0,   // DERIVADO em recalcularAgregadosDerivados() = creditosRestantes * precoCompra
+    rentabilidadePct: 0  // DERIVADO = (precoVenda-precoCompra)/precoCompra*100
+  },
   cartaoMB: { total: VARS.cartaoMBTotal },
   mercadoPago: VARS.mercadoPagoFatura,     // V137: le do VARS (era literal solto 1751.16, divergia do balanco.obrigacoes.mercadoPago)
   faturaWartsila: VARS.faturaWartsila,     // V137: le do VARS (era 3a copia literal do mesmo numero)
@@ -568,6 +590,11 @@ const REG = {
   REG.patrimonio.metaMilhaoPct = r2(REG.patrimonio.total / REG.patrimonio.metaMilhao * 100);
   REG.visa.totalComprometido = r2(VARS.cartaoInfiniteTotal + VARS.cartaoMBTotal);
   REG.visa.pessoal = r2(REG.visa.totalComprometido - REG.operacional.reembolsoPagaCartaoCorporativo);
+  // NOVO 23/07/2026: P2P (secao 18) nunca tinha formula - saldoInvestido e rentabilidadePct eram
+  // texto hardcoded, dessincronizando toda vez que um credito era vendido (V136 ja tinha corrigido o
+  // ERP mas o site nunca acompanhou). Agora sempre recalculado a partir de VARS.p2pCreditosRestantes.
+  REG.p2p.saldoInvestido = r2(VARS.p2pCreditosRestantes * VARS.p2pPrecoCompra);
+  REG.p2p.rentabilidadePct = r2((VARS.p2pPrecoVenda - VARS.p2pPrecoCompra) / VARS.p2pPrecoCompra * 100);
   // V135: recorrencias/assinaturas de totalOpDetalhe DERIVADOS da soma Visa+MB (elimina duplicacao -
   // precisa rodar ANTES do calculo de totalOperacional logo abaixo, que le D.recorrencias/D.assinaturas).
   REG.totalOpDetalhe.recorrencias = r2(REG.visaDetalhe.recorrencias + REG.mbDetalhe.recorrencias);
@@ -790,6 +817,13 @@ function hydrate(){
   t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));
   t('cvComprometido', fmt(R.caixaVariavel.comprometido));
   t('cvDisponivel', fmt(R.caixaVariavel.disponivel));
+
+  // NOVO 23/07/2026: Operacoes P2P (secao 18) - antes 100% hardcoded, agora vem do REG.p2p
+  t('p2pCapitalTotal', fmt(R.p2p.capitalTotal));
+  t('p2pCreditosRestantes', R.p2p.creditosRestantes + ' / ' + R.p2p.creditosTotal);
+  t('p2pSaldoInvestido', fmt(R.p2p.saldoInvestido));
+  t('p2pLucroRealizado', fmt(R.p2p.lucroRealizado));
+  t('p2pDetalhe', `Custo ${fmt(R.p2p.precoCompra)}/crédito · Venda ${fmt(R.p2p.precoVenda)}/crédito (rentabilidade ${R.p2p.rentabilidadePct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% sobre o custo) · ${R.p2p.creditosVendidos} créditos vendidos deste lote (1 crédito doado à Vanessa em 13/07, não contado como venda) — última venda: TXP2P0003, 2 créditos, R$40,00, 22/07/2026.`);
 
   // visa infinite
   t('visaTotal', fmt(R.cartaoInfinite.total));

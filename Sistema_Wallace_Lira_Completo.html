@@ -42,15 +42,15 @@
     <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem">🔮 Simulador Fim de Ciclo — quanto ainda dá pra gastar na Caixa Variável</div>
     <div class="grid-4" style="gap:1rem">
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dias restantes</div><div style="font-size:1.15rem;font-weight:700" id="simDiasRestantes">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Tem na caixa</div><div style="font-size:1.15rem;font-weight:700" id="simSaldoReal">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Tem na caixa</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simSaldoReal">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até o teto</div><div style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
     </div>
     <div id="simPendenteBox" style="display:none;margin-top:0.7rem;padding:0.6rem 0.8rem;background:rgba(57,135,229,0.08);border:1px solid rgba(57,135,229,0.25);border-radius:8px">
       <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem">📤 Pendente para o próximo ciclo</div>
-      <div style="font-size:1.05rem;font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
+      <div class="v" style="font-size:1.05rem;font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
       <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem">Compras no Mastercard Black feitas depois do fechamento da fatura (dia 22) mas ainda dentro deste ciclo — não entram no comprometido de agora, já vêm pré-debitadas do orçamento da Caixa Variável do próximo ciclo.</div>
     </div>
     <div id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
@@ -110,9 +110,9 @@
   <!-- 2 -->
   <div class="section-num"><span class="n">02</span><h2>Modo operacional</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Salário</div><div style="font-size:1.2rem;font-weight:600" id="s02Salario">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Reembolsos a receber</div><div style="font-size:1.2rem;font-weight:600" id="s02Reembolsos">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Entradas totais do ciclo</div><div style="font-size:1.2rem;font-weight:600;color:var(--accent)" id="s02Entradas">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Salário</div><div class="v" style="font-size:1.2rem;font-weight:600" id="s02Salario">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Reembolsos a receber</div><div class="v" style="font-size:1.2rem;font-weight:600" id="s02Reembolsos">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Entradas totais do ciclo</div><div class="v" style="font-size:1.2rem;font-weight:600;color:var(--accent)" id="s02Entradas">—</div></div>
   </div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
@@ -127,7 +127,7 @@
   <div class="grid-2">
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.3rem">Total</div>
-      <div style="font-size:1.7rem;font-weight:700;color:var(--green);margin-bottom:0.7rem" id="patTotal">—</div>
+      <div class="v" style="font-size:1.7rem;font-weight:700;color:var(--green);margin-bottom:0.7rem" id="patTotal">—</div>
       <div class="row"><span class="k">CC-301 · Reserva de emergência</span><span class="v" id="patReserva">—</span></div>
       <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v" id="patBtg">—</span></div>
       <div class="row"><span class="k">CC-303 · Caixa Lance</span><span class="v" id="patLance">—</span></div>
@@ -144,7 +144,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div>
-        <div style="font-size:1.4rem;font-weight:700" id="patPrevidencia">—</div>
+        <div class="v" style="font-size:1.4rem;font-weight:700" id="patPrevidencia">—</div>
       </div>
       <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
     </div>
@@ -155,7 +155,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div>
-        <div style="font-size:1.4rem;font-weight:700" id="patFgts">R$ 77.683,60</div>
+        <div class="v" style="font-size:1.4rem;font-weight:700" id="patFgts">R$ 77.683,60</div>
       </div>
       <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
     </div>
@@ -166,8 +166,8 @@
   <div class="section-num"><span class="n">04</span><h2>Meta do milhão</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Acumulado</div><div style="font-weight:600" id="patAcumulado">—</div></div>
-      <div style="text-align:right"><div style="font-size:0.72rem;color:var(--text-mid)">Falta</div><div style="font-weight:600" id="patFalta">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Acumulado</div><div class="v" style="font-weight:600" id="patAcumulado">—</div></div>
+      <div style="text-align:right"><div style="font-size:0.72rem;color:var(--text-mid)">Falta</div><div class="v" style="font-weight:600" id="patFalta">—</div></div>
       <span class="badge bb" id="patPctBadge">—</span>
     </div>
     <div class="progress"><div class="fill" id="patPctBar" style="width:0%;background:var(--accent)"></div></div>
@@ -176,24 +176,24 @@
   <!-- 5 -->
   <div class="section-num"><span class="n">05</span><h2>Caixas operacionais</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxBoletosPct">—</span><span id="cxBoletosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxPixPct">—</span><span id="cxPixMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)" id="cxWartsilaExcedente">—</span><span id="cxWartsilaProvisionado">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span id="cxManutMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span id="cxEventosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSaudeAporteTxt">—</span><span id="cxSaudeMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxAnivAporteTxt">—</span><span id="cxAnivMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSeguroAporteTxt">—</span><span id="cxSeguroMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxEscolaPct">—</span><span id="cxEscolaMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxBoletosPct">—</span><span id="cxBoletosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxPixPct">—</span><span id="cxPixMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)" id="cxWartsilaExcedente">—</span><span id="cxWartsilaProvisionado">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span id="cxManutMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span id="cxEventosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSaudeAporteTxt">—</span><span id="cxSaudeMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxAnivAporteTxt">—</span><span id="cxAnivMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSeguroAporteTxt">—</span><span id="cxSeguroMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxEscolaPct">—</span><span id="cxEscolaMeta">—</span></div></div>
   </div>
 
   <!-- 6 -->
   <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div class="cv-legend-row" style="margin-bottom:0.7rem">
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Saldo real</div><div style="font-weight:600" id="cvSaldoReal">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Comprometido</div><div style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Disponível</div><div style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Saldo real</div><div class="v" style="font-weight:600" id="cvSaldoReal">—</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Comprometido</div><div class="v" style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Disponível</div><div class="v" style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
     </div>
     <div class="chart-box" style="height:150px"><canvas id="cVariavel"></canvas></div>
     <div class="callout ok" style="border-left:3px solid var(--green)">✅ ECC resolvido (16/07/2026): TX000081 (Nobre Carnes, R$206,40) + TX000082 (Sup Ideal, R$313,12) tinham estourado a Caixa Variável para -R$208,24. Zerado via transferência de suporte da PIX Vanessa (R$208,24) — Disponível voltou a <strong>R$0,00</strong>. Regra nova (V39): PIX Vanessa e Caixa Variável são caixas "co-irmãs" — suporte mútuo entre elas não gera empréstimo formal (LREI), diferente do resto do sistema.</div>
@@ -204,8 +204,8 @@
   <div class="section-num"><span class="n">07</span><h2>ECC — estouro do ciclo</h2></div>
   <div class="grid-3">
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--red)" id="eccStatus">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Disponível (Caixa Variável)</div><div style="font-weight:600" id="eccValor">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fôlego até fim do ciclo (com tolerância)</div><div style="font-weight:600" id="eccFolego">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Disponível (Caixa Variável)</div><div class="v" style="font-weight:600" id="eccValor">—</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fôlego até fim do ciclo (com tolerância)</div><div class="v" style="font-weight:600" id="eccFolego">—</div></div>
   </div>
   <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Livro razão detalhado da Caixa Variável (LRCV) está na aba "Livros razão" mais abaixo — não duplicado aqui.</div>
 
@@ -214,8 +214,8 @@
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Corporativo (R$483,43) é 100% reembolsável pela Wärtsilä — não é dívida pessoal real, mesmo estando na mesma fatura. Wallace aposentou este cartão em 16/07/2026 (usa só o Mastercard Black agora) — o que aparece aqui é histórico (LRW-I) + o que ainda não migrou (parcelas/assinaturas/recorrências/consórcios/corporativo) + tudo que a Vanessa ainda compra nele (LRV-I).</div>
       <div class="row"><span class="k">Compras Wallace (LRW-I, histórico)</span><span class="v" id="visaLRW">—</span></div>
@@ -238,8 +238,8 @@
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div style="font-size:1.4rem;font-weight:700" id="mbTotal">—</div></div>
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="mbPessoal">—</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="mbTotal">—</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="mbPessoal">—</div></div>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Cartão único do Wallace a partir de 16/07/2026 (regra V39). Assinaturas/recorrências dele migram aos poucos (usuário avisa uma por uma). Vanessa: cartão físico Mastercard Black chegou 20/07/2026 — final real é <strong>6351</strong> (não 2250, que era placeholder), Personnalité adicional, ativo. Compras antigas dela seguem 100% no Visa Infinite (LRV-I); a partir de agora, novas compras no Mastercard Black vão para LRV-MB (ainda vazia).</div>
       <div class="row"><span class="k">Compras Wallace (LRW-MB)</span><span class="v" id="mbLRW">—</span></div>
@@ -260,7 +260,7 @@
   <div class="section-num"><span class="n">10</span><h2>Mercado Pago</h2></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Fatura atual (aberta)</div><div style="font-weight:600;font-size:1.1rem" id="mpFatura">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Fatura atual (aberta)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="mpFatura">—</div></div>
       <div style="font-size:0.72rem;color:var(--text-dim)">Fecha 29/07 · Vence 04/08</div>
     </div>
     <div class="row"><span class="k">Parcelas próprias (LRMP)</span><span class="v" id="mpProprias">—</span></div>
@@ -272,13 +272,13 @@
   <div class="grid-2">
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid)">Financiamento da casa</div>
-      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppFinanciamentoCasa">—</div>
+      <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppFinanciamentoCasa">—</div>
       <div style="font-size:0.72rem;color:var(--text-dim)" id="ppFinanciamentoDetalhe">—</div>
       <span class="badge bg" style="margin-top:0.5rem">Em dia</span>
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
-      <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppConsorcioAuto">—</div>
+      <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppConsorcioAuto">—</div>
       <div class="progress"><div class="fill" id="ppConsorcioAutoBar" style="width:0%;background:var(--green)"></div></div>
       <div class="progress-lbl"><span id="ppConsorcioAutoPct">—</span><span id="ppConsorcioAutoParcela">—</span></div>
       <span class="badge bg" style="margin-top:0.5rem">Contemplada com o bem</span>
@@ -289,7 +289,7 @@
   <div class="section-num"><span class="n">12</span><h2>Consórcio casa nova (I0464 · Cota 12)</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Carta de crédito</div><div style="font-weight:600;font-size:1.1rem" id="ccnCartaCredito">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Carta de crédito</div><div class="v" style="font-weight:600;font-size:1.1rem" id="ccnCartaCredito">—</div></div>
       <span class="badge ba">Não contemplada</span>
     </div>
     <div class="row"><span class="k">Parcela (cartão de crédito)</span><span class="v" id="ccnParcela">—</span></div>
@@ -303,7 +303,7 @@
   <div class="section-num"><span class="n">13</span><h2>Projeto casa nova</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital disponível (LFTS11 + Caixa Lance)</div><div style="font-weight:600;font-size:1.1rem" id="pcnCapital">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital disponível (LFTS11 + Caixa Lance)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="pcnCapital">—</div></div>
       <span class="badge ba" id="pcnPctBadge">—</span>
     </div>
     <div class="progress"><div class="fill" id="pcnBar" style="width:0%;background:var(--accent)"></div></div>
@@ -313,7 +313,7 @@
   <!-- 14 -->
   <div class="section-num"><span class="n">14</span><h2>Escola de Júlio</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Escola de Júlio</div><div style="font-weight:600" id="ejSaldo">—</div><div class="progress"><div class="fill" id="ejBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="ejPct">—</span><span id="ejMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Saldo atual</div><div class="v" style="font-weight:600" id="ejSaldo">—</div><div class="progress"><div class="fill" id="ejBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="ejPct">—</span><span class="v" id="ejMeta">—</span></div></div>
   </div>
 
   <!-- 15 -->
@@ -321,7 +321,7 @@
   <div class="card">
     <div class="tabs" id="lrTabs">
       <button class="tab active" onclick="showLR('lrw',this)">Wallace (61)</button>
-      <button class="tab" onclick="showLR('lrv',this)">Vanessa (18)</button>
+      <button class="tab" onclick="showLR('lrv',this)">Vanessa (16)</button>
       <button class="tab" onclick="showLR('lrb',this)">Boletos (9)</button>
       <button class="tab" onclick="showLR('lrp',this)">Parcelas (16)</button>
       <button class="tab" onclick="showLR('lrs',this)">Assinaturas (13)</button>
@@ -402,7 +402,7 @@
       </tbody></table>
       <div class="callout ok">Cartão final 2244 (Itaú Personnalité, bandeira Mastercard Black) é o cartão físico principal do Wallace desde 16/07/2026. Cartão final 4844 (Visa Infinite) está <strong>aposentado</strong> — sem novas compras conscientes; as linhas que ainda aparecem na fatura são resíduo de compromissos já existentes antes da aposentadoria (parcelamentos, corporativo Wärtsilä, assinaturas/recorrências ainda não migradas), que vão se encerrando naturalmente. 🟡 fundo amarelo = confirmadas no Mastercard Black (16-19/07). 🟢 fundo verde = lançamentos de 20-22/07 (Meta AI).</div>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026: auditoria completa site↔ERP encontrou 6 lançamentos confirmados no ERP desde V86/V93b que nunca tinham entrado nesta tabela (TX000110/111, TX000112-115) — adicionados. Depois: TX000116/117 (Meta AI). ATUALIZADO 22/07/2026: TX000123 (Drive Campina Grande, 20/07) e TX000128-130 (Panificadora/Vendedora/H57Store, 21/07) adicionados — estavam confirmados no ERP mas nunca tinham entrado nesta tabela. CORRIGIDO (V130): o Claude tinha escrito aqui que o 4844 "não está aposentado" — errado, revertido (o cartão está aposentado, as linhas na fatura são resíduo de compromissos antigos, não novo uso consciente). CORRIGIDO 23/07/2026: TX000132 (Google SunSurveyorApp, R$56,99, 22/07) adicionada — estava confirmada no ERP (V136) e já contava no agregado (cartaoMBTotal), mas faltava o rastro linha-a-linha aqui (pendência documentada na V136). TX000135 (Amazon Prime Aluguel, R$9,99, 10/07) adicionada — achada na auditoria completa contra a fatura Bradesco real, locação avulsa nunca lançada.</div>
-      <div class="tfoot"><span>61 lançamentos ativos (62 com 1 cancelado riscado)</span><span class="total" id="tfLRW">—</span></div>
+      <div class="tfoot"><span>61 lançamentos ativos (62 com 1 cancelado riscado)</span><span class="total v" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
@@ -423,11 +423,18 @@
       <tr><td class="mono">TXR000005</td><td class="mono">12/07</td><td>Drogaria Drogavista</td><td class="r">R$ 45,19</td></tr>
       <tr><td class="mono">TX000033</td><td class="mono">12/07</td><td>Sonia Marmitaria</td><td class="r">R$ 5,00</td></tr>
       <tr><td class="mono">TX000076</td><td class="mono">13/07</td><td>Uber (Família, aparece como "DL" na fatura)</td><td class="r">R$ 24,03</td></tr>
-      <tr><td class="mono">TX000118</td><td class="mono">19/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 4845</span></td><td class="r">R$ 6,50</td></tr>
-      <tr><td class="mono">TX000131</td><td class="mono">22/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 4845</span></td><td class="r">R$ 17,98</td></tr>
       </tbody></table>
-      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V96): datas preenchidas via fatura Bradesco literal — o ERP já tinha todas, só o site estava desatualizado. 2 divergências de 1 dia corrigidas (Carolina 22/06→21/06, H57 Store 28/06→29/06, regra fatura sempre vence). NOVO: TX000118 lançado via Meta AI. CORRIGIDO 23/07/2026: TX000131 (H57Store, R$17,98, 22/07) adicionada — estava confirmada no ERP (V136) e já contava no agregado (cartaoInfiniteTotal/LIVRO_LRV_I_TOTAL), mas faltava o rastro linha-a-linha aqui (pendência documentada na V136).</div>
-      <div class="tfoot"><span>18 lançamentos</span><span class="total" id="tfLRV">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V96): datas preenchidas via fatura Bradesco literal — o ERP já tinha todas, só o site estava desatualizado. 2 divergências de 1 dia corrigidas (Carolina 22/06→21/06, H57 Store 28/06→29/06, regra fatura sempre vence).</div>
+      <div class="tfoot"><span>16 lançamentos reconciliados</span><span class="total v" id="tfLRV">—</span></div>
+
+      <details style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.8rem" open>
+        <summary style="cursor:pointer;font-size:0.8rem;color:var(--text-mid);font-weight:600">🕓 Limbo de transição — aguardando a próxima fatura (2 lançamentos)</summary>
+        <table style="margin-top:0.6rem"><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
+        <tr><td class="mono">TX000118</td><td class="mono">19/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 4845</span></td><td class="r">R$ 6,50</td></tr>
+        <tr><td class="mono">TX000131</td><td class="mono">22/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 4845</span></td><td class="r">R$ 17,98</td></tr>
+        </tbody></table>
+        <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.5rem">CORRIGIDO 23/07/2026 (pedido do usuário): a fatura Visa Infinite deste ciclo fechou em <strong>16/07/2026</strong> (confirmado pelo extrato Bradesco enviado e já reconciliado linha-a-linha). TX000118 (19/07) e TX000131 (22/07) são posteriores a esse fechamento — pertencem à <strong>próxima</strong> fatura (fecha por volta de 18/08/2026), ainda não impressa. Continuam contando nos agregados (LIVRO_LRV_I_TOTAL, CARTAO_INFINITE_TOTAL_COMPROMETIDO), mas ficam separadas aqui para não parecer que já foram conferidas contra uma fatura fechada — só a próxima fatura vai confirmar/reconciliar esses 2 valores.</div>
+      </details>
     </div>
 
     <div id="lrb" class="pane">
@@ -443,7 +450,7 @@
       <tr><td class="mono">TXB000009</td><td>Energia (Energisa, real)</td><td class="r">R$ 322,99</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Água e Gás são cobrados pela Medintech (medição individualizada) e variam todo mês — TXB000004/005 mantêm o valor do mês anterior até a leitura ser atualizada. TX000069 (retirada de R$1.313,69 da Caixa Boletos) não entra como lançamento próprio — reconciliado 100% com o extrato PIX de 10/07 (ver nota no ERP). O PIX de R$210,00 ao Anderson em 21/07 (van escolar do Júlio) é o mesmo TXB000006 já listado acima, não uma cobrança nova. Cofrinho rendeu +R$1,66 de CDI no mesmo período (não listado como linha própria, incluído no total abaixo).</div>
-      <div class="tfoot"><span>9 lançamentos</span><span class="total" id="tfLRB">—</span></div>
+      <div class="tfoot"><span>9 lançamentos</span><span class="total v" id="tfLRB">—</span></div>
     </div>
 
     <div id="lrp" class="pane">
@@ -467,7 +474,7 @@
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Datas e valores confirmados via fatura Bradesco literal em 17/07/2026 (V68). REVERTIDO 19/07/2026: a reconstrução da apólice Tokio Marine em 10 parcelas (TXP000016-024, feita na V95) não fazia sentido — usuário confirmou que só a parcela 7/10 (TXP000008) é real, nenhuma outra cobrança existe. As 9 parcelas fabricadas foram removidas do ERP e desta tabela. NOVO 19/07/2026 (V96): TXP000025 (RBM Relógios, 3/3, R$80,97) nunca tinha sido lançada — achada na fatura literal de 19/07 (situação FECHADO).</div>
       <div class="callout warn">Alívio de R$1.548,60/mês a partir de agosto (não considera ainda o fim do seguro auto em outubro/2026)</div>
-      <div class="tfoot"><span>16 lançamentos · âmbar = última parcela</span><span class="total" id="tfLRP">—</span></div>
+      <div class="tfoot"><span>16 lançamentos · âmbar = última parcela</span><span class="total v" id="tfLRP">—</span></div>
     </div>
 
     <div id="lrs" class="pane">
@@ -488,7 +495,7 @@
       <tr><td class="mono">TX000134</td><td>Amazon Prime Canais <span style="font-size:0.62rem;color:var(--text-dim)">· pacote adicional, distinto da assinatura base</span></td><td class="r">R$ 19,99</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black (físico 2244 ou virtual 4628). O resto segue no Visa Infinite até a fatura MB confirmar (migração gradual, item por item — regra V87). NOVO 20/07/2026: TX000115 (MP*Melimais, R$19,90) reclassificado de LRW (compra variável) para cá — é a assinatura Meli+ do Mercado Livre, cobrança recorrente, não compra avulsa. CORRIGIDO 23/07/2026: TX000134 (Amazon Prime Canais, R$19,99) adicionada — achada na fatura Bradesco real (25/06), nunca tinha sido lançada. Como nunca foi lançada antes, entra direto nas Assinaturas (recorrência mensal), não como compra avulsa.</div>
-      <div class="tfoot"><span>13 assinaturas ativas (14 lançamentos, 1 duplicata riscada)</span><span class="total" id="tfLRS">—</span></div>
+      <div class="tfoot"><span>13 assinaturas ativas (14 lançamentos, 1 duplicata riscada)</span><span class="total v" id="tfLRS">—</span></div>
     </div>
 
     <div id="lrr" class="pane">
@@ -501,7 +508,7 @@
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXRR000006</td><td>New Car Rastreador (MB)</td><td class="r">R$ 59,99</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXR_FACULDADE_MB_JUL26</td><td>Faculdade Engenharia (MB, 2ª cobrança transitória)</td><td class="r">R$ 441,33</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>7 recorrências</span><span class="total" id="tfLRR">—</span></div>
+      <div class="tfoot"><span>7 recorrências</span><span class="total v" id="tfLRR">—</span></div>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black. Migração de cartão (V63) segue GRADUAL (V87) — só migra quando a fatura MB confirma de verdade. Vivo, Digna, Campo Santo e Faculdade (1ª cobrança) seguem no Visa Infinite. CORRIGIDO 23/07/2026: (1) Vivo revertida para R$523,00 — fatura Bradesco real confirma 2 cobranças (R$469,00+R$54,00); a redução para R$435,00 (V111) usava uma config teórica das linhas que não bateu com o valor efetivamente cobrado NESTE ciclo. (2) IDs renomeados de TXR000001-006 para TXRR000001-006 — eliminada uma colisão de ID: esses códigos eram reaproveitados (mesmo TXR000001-006) numa aba completamente diferente (LRV, compras avulsas da Vanessa), violando rastreabilidade (P6). Agora cada transação tem ID único no sistema inteiro. <strong style="color:var(--amber)">CONFIRMADO pelo usuário (print oficial "Plano Vivo — Configuração Final"): a partir do PRÓXIMO ciclo a Vivo passa a R$435,00/mês</strong> — Plano Família 120GB R$260,00 (Wallace+Vanessa) + 5x Linha Controle 8GB R$35,00 (Carro/Wellida/Mainha/Gabriela/Fred) = R$175,00. Não foi um erro de configuração antes — é uma mudança de plano real que só vale a partir do ciclo seguinte. Ainda não aplicado (o valor de R$523,00 acima é o confirmado pela fatura DESTE ciclo); na virada do ciclo, conferir contra a fatura literal antes de atualizar.</div>
     </div>
 
@@ -510,7 +517,7 @@
       <tr><td class="mono">TXCON000001</td><td>Porto Consórcio (Carro)</td><td class="r">R$ 501,32</td></tr>
       <tr><td class="mono">TXCON000002</td><td>Porto Consórcio (Casa Nova)</td><td class="r">R$ 1.449,45</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>2 lançamentos</span><span class="total" id="tfLRCON">—</span></div>
+      <div class="tfoot"><span>2 lançamentos</span><span class="total v" id="tfLRCON">—</span></div>
     </div>
 
     <div id="lrc" class="pane">
@@ -523,7 +530,7 @@
       <tr><td class="mono">TX22006</td><td class="mono">02/07</td><td>Cacau Show Sorvete</td><td class="r">R$ 21,49</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Datas confirmadas via fatura Bradesco literal (19/07/2026) — já estavam corretas no ERP desde o lançamento original, só nunca tinham chegado nesta tabela do site (bug só de exibição). 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).</div>
-      <div class="tfoot"><span id="tfLRCDetalhe">—</span><span class="total" id="tfLRC">—</span></div>
+      <div class="tfoot"><span id="tfLRCDetalhe">—</span><span class="total v" id="tfLRC">—</span></div>
     </div>
 
     <div id="lrmp" class="pane">
@@ -540,7 +547,7 @@
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">CORRIGIDO 19/07/2026 (V97): datas preenchidas via fatura Mercado Pago literal (vencimento 04/08/2026, total R$1.749,35 — bate exato com os 8 lançamentos originais). O ERP já tinha todas as datas certas desde a V91; só o site estava desatualizado (inclusive TXMP000008 mostrava 02/07, ERP e fatura confirmam 29/06). corp. = 100% reembolsável (prioridade 2 na fila de reembolso, junto ao corporativo). CORRIGIDO 23/07/2026: TXMP000010 (Mercado Livre, R$42,58, 19/05) adicionada — já contava no agregado (LIVRO_LRMP_TOTAL desde a V59) e já estava confirmada na fatura literal, mas faltava o rastro linha-a-linha aqui.</div>
       <div class="callout ok" style="margin-top:0.6rem"><strong>Fora da fatura (não soma acima):</strong> TXMP000009 — Transporte corporativo, R$266,23, pago via PIX na conta Mercado Pago (não cobrado no cartão) em 13/07/2026, 100% reembolsável pela Wärtsilä. Não entra na fatura do cartão porque não foi cobrado nele — mesma lógica da Fatura Wärtsilä no card de Obrigações (visível para rastreabilidade, não soma no operacional).</div>
-      <div class="tfoot"><span>9 lançamentos (fatura) · Fecha 29/07 · Vence 04/08</span><span class="total" id="tfLRMP">—</span></div>
+      <div class="tfoot"><span>9 lançamentos (fatura) · Fecha 29/07 · Vence 04/08</span><span class="total v" id="tfLRMP">—</span></div>
     </div>
 
     <div id="lrcv" class="pane">
@@ -635,7 +642,7 @@
       <tr><td class="mono">TX000121</td><td class="mono">20/07</td><td>Fralda do Júlio (Meu Pequeno)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 95,00</td></tr>
       </tbody></table>
       <div class="callout ok">Saldo real da Caixa Pix Geral: <strong>-R$ 0,04</strong> (praticamente zerada — resíduo imaterial documentado, não forçado). Ciclo fechado com comprovantes reais: 17/07 R$159,96 (pós reforço da PV) − R$67,00 (frutas) = R$92,96; 20/07 + R$2,00 (complemento da Caixa Variável) − R$95,00 (fralda do Júlio) = -R$0,04. O total abaixo é o fluxo líquido de todas as 19 transações rastreadas na aba (-R$295,66), não o saldo da caixa.</div>
-      <div class="tfoot"><span>18 lançamentos (fluxo do período)</span><span class="total" id="tfLRPV">—</span></div>
+      <div class="tfoot"><span>18 lançamentos (fluxo do período)</span><span class="total v" id="tfLRPV">—</span></div>
     </div>
   </div>
 
@@ -643,7 +650,7 @@
   <div class="section-num"><span class="n">16</span><h2>Meta de investimento</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Meta mensal (20% do salário)</div><div style="font-weight:600" id="metaInvMensal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
       <span class="badge bg" id="metaInvBadge">—</span>
     </div>
     <div class="row"><span class="k">Aporte BTG Pactual (25/06)</span><span class="v" style="color:var(--green)" id="metaInvBTG">—</span></div>
@@ -674,12 +681,12 @@
   <div class="section-num"><span class="n">18</span><h2>Operações P2P</h2></div>
   <div class="card">
     <div class="grid-4">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital total</div><div style="font-weight:600">R$ 110,00</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600">8 / 10</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div style="font-weight:600">R$ 88,00</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div style="font-weight:600;color:var(--green)">R$ 9,00</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600" id="p2pCreditosRestantes">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
     </div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Custo R$11,00/crédito · Venda R$20,00/crédito (rentabilidade 81,8% sobre o custo) · 1 crédito doado à Vanessa (13/07) · <strong>1 crédito vendido em 22/07/2026</strong> por R$20,00 (TXP2P0002) — R$20,00 recebido na conta corrente, já transferido para a Caixa Variável.</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
   </div>
 
   <!-- 19 -->
@@ -702,16 +709,16 @@
   <!-- 20 -->
   <div class="section-num"><span class="n">20</span><h2>Indicadores e evolução da necessidade</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total operacional</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20Orcamento">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Necessidade total (bruta)</div><div style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20Orcamento">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Necessidade total (bruta)</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
   </div>
   <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
       <div style="font-size:0.78rem;color:var(--text-mid)">Necessidade líquida do salário (dia 25)</div>
       <span class="badge bg">Já garantido: R$ <span id="s20Garantido">—</span></span>
     </div>
-    <div style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
+    <div class="v" style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
     <div style="font-size:0.72rem;color:var(--text-dim)">Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido, seguindo a ordem oficial de prioridade do reembolso Wärtsilä: 1) Fatura Wärtsilä (R$0 de impacto, sempre) → 2) Mercado Pago corporativo → 3) Mercado Pago pessoal → 4) Visa Infinite corporativo (regra nova, 15/07/2026) → 5) sobra vai para Caixa Lance. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026 já cobriu 100% do provisionamento não-reembolsável do Mercado Pago (R$471,47, corrigido 19/07/2026 — a fatura literal do ciclo atual confirma que a compra avulsa de R$42,58 somada em 17/07 não pertence a este ciclo). Com a regra nova, o corporativo do Visa Infinite (R$483,43) também entra como garantido, elevando o total de R$471,47 para R$954,90.</div>
   </div>
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
@@ -734,7 +741,7 @@
   <!-- 21 -->
   <div class="section-num"><span class="n">21</span><h2>Resumo executivo</h2></div>
   <div class="card">
-    <div class="row"><span class="k" style="font-weight:600">Patrimônio financeiro</span><span style="font-size:1.1rem;font-weight:700" id="r21Patrimonio">—</span></div>
+    <div class="row"><span class="k" style="font-weight:600">Patrimônio financeiro</span><span class="v" style="font-size:1.1rem;font-weight:700" id="r21Patrimonio">—</span></div>
     <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span id="r21MetaMilhaoPct">—</span>%</span></div>
     <div class="row"><span class="k">Modo operacional</span><span class="badge bg" id="r21ModoOp">—</span></div>
     <div class="row"><span class="k">Visa Infinite</span><span class="v" id="r21Visa">—</span></div>
@@ -747,7 +754,7 @@
     <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba" id="r21ProjetoCasa">—</span></div>
     <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba" id="r21ConsorcioCasa">—</span></div>
     <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba" id="r21EscolaJulio">—</span></div>
-    <div class="row"><span class="k">Meta investimento</span><span class="badge bg" id="r21MetaInvest">—</span></div>
+    <div class="row"><span class="k">Meta investimento</span><span class="badge bg v" id="r21MetaInvest">—</span></div>
     <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge bg">Nenhum (LREI0001 quitado 21/07)</span></div>
   </div>
 
@@ -764,7 +771,7 @@
 
 
     <!-- 1 -->
-  <div class="section-num"><span class="n">01</span><h2>Composição do Total Operacional — <span id="s01TotalOp">—</span></h2></div>
+  <div class="section-num"><span class="n">01</span><h2>Composição do Total Operacional — <span class="v" id="s01TotalOp">—</span></h2></div>
   <div class="grid-2">
     <div class="card">
       <div class="chart-box tall"><canvas id="g_cTotalOp"></canvas></div>
@@ -777,7 +784,7 @@
   </div>
 
   <!-- 2 -->
-  <div class="section-num"><span class="n">02</span><h2>Composição da fatura Mastercard Black e Visa Infinite — <span id="s02TituloVisa">—</span></h2></div>
+  <div class="section-num"><span class="n">02</span><h2>Composição da fatura Mastercard Black e Visa Infinite — <span class="v" id="s02TituloVisa">—</span></h2></div>
   <div class="grid-2">
     <div class="card">
       <div class="chart-box tall"><canvas id="g_cVisa"></canvas></div>
@@ -803,7 +810,7 @@
   </div>
 
   <!-- 3 -->
-  <div class="section-num"><span class="n">03</span><h2>Patrimônio financeiro — <span id="s03TituloPat">—</span></h2></div>
+  <div class="section-num"><span class="n">03</span><h2>Patrimônio financeiro — <span class="v" id="s03TituloPat">—</span></h2></div>
   <div class="grid-2">
     <div class="card">
       <div class="chart-box tall"><canvas id="g_cPatrim"></canvas></div>
@@ -875,17 +882,17 @@
     <div class="grid-3" style="margin-bottom:1rem">
       <div class="card" style="border-left:3px solid var(--red)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Pior mês já recebido</div>
-        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--red)" id="chPiorValor">—</div>
+        <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--red)" id="chPiorValor">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span id="chPiorSaldo">—</span>. Modo Crítico — já aconteceu de verdade.</div>
       </div>
       <div class="card" style="border-left:3px solid var(--amber)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Ponto de equilíbrio (saldo=0)</div>
-        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0" id="chEquilibrio">—</div>
+        <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0" id="chEquilibrio">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">4 dos 12 meses reais ficaram abaixo disso.</div>
       </div>
       <div class="card" style="border-left:3px solid var(--green)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Média real (12 meses)</div>
-        <div style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--green)" id="chMediaValor">—</div>
+        <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--green)" id="chMediaValor">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span id="chMediaSaldo">—</span>. Alto na média — mas com desvio grande.</div>
       </div>
     </div>
@@ -908,12 +915,12 @@
       <div class="grid-2" style="margin-bottom:0.8rem">
         <div class="card" style="border-left:3px solid var(--amber)">
           <div style="font-size:0.72rem;color:var(--text-mid)">Cenário normal (paga tudo)</div>
-          <div style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resNormalValor">—</div>
+          <div class="v" style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resNormalValor">—</div>
           <div style="font-weight:600;color:var(--amber)" id="resNormalCiclos">—</div>
         </div>
         <div class="card" style="border-left:3px solid var(--red)">
           <div style="font-size:0.72rem;color:var(--text-mid)">Desemprego extremo (só o piso)</div>
-          <div style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resExtremoValor">—</div>
+          <div class="v" style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resExtremoValor">—</div>
           <div style="font-weight:600;color:var(--red)" id="resExtremoCiclos">—</div>
         </div>
       </div>
@@ -1024,7 +1031,7 @@
 
     <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
         <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Igual ao INSS — só desconta do salário, não é gestão ativa do Wallace. Aparece aqui junto ao patrimônio para visibilidade, mas <strong>não entra no total do Patrimônio Financeiro nem na Meta do Milhão</strong> (que é patrimônio líquido de gestão ativa dele).</div>
@@ -1032,7 +1039,7 @@
 
     <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div><div style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
+        <div><div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
         <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Mesmo tratamento do PGBL — recurso compulsório, saque condicionado, não gerido ativamente. Não entra no total do Patrimônio Financeiro nem na Meta do Milhão.</div>
@@ -1106,9 +1113,9 @@
     <div class="section-num"><span class="n">09</span><h2>🛡️ As 4 perguntas dos cenários</h2></div>
     <div class="card">
       <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">Alto</strong></span></div>
-      <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span id="bal4qTotalOp">R$ 11.117,00</span> (Total Operacional)</span></div>
-      <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span id="bal4qPatrimonio">R$ 468.542,31</span> (Líquido, Balanço)</span></div>
-      <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span id="bal4qExcedente">R$ 21.821,37</span> (Excedente/Saldo do Ciclo)</span></div>
+      <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span class="v" id="bal4qTotalOp">R$ 11.117,00</span> (Total Operacional)</span></div>
+      <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qPatrimonio">R$ 468.542,31</span> (Líquido, Balanço)</span></div>
+      <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qExcedente">R$ 21.821,37</span> (Excedente/Saldo do Ciclo)</span></div>
     </div>
 
   </div>
