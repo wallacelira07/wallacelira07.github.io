@@ -174,7 +174,7 @@ const VARS = {
   escolaJulioSaldo: 506.74,             // RECONCILIADO 22/07/2026 (V127) - fora da Meta do Milhao (regra P5/V47)
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 9091.90,         // V136 (22/07/2026): +R$17,98 (TX131, H57Store, Vanessa, cartao 4845). Era R$9.073,92 (reconciliado fatura real V128).
+  cartaoInfiniteTotal: 9160.07,          // CORRIGIDO 23/07/2026: recalculado de baixo para cima apos auditoria linha-a-linha contra a fatura Bradesco real. Soma das 7 partes de visaDetalhe (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa, esta ja incluindo TX131) = R$9.160,07 exato, naoReconciliado agora R$0,00. Correcoes aplicadas: Vivo +R$88,00 (revertida a config errada da V111), Amazon Prime Canais +R$19,99 e Amazon Prime Aluguel +R$9,99 (achados na fatura, nunca lancados). Era R$9.091,90.
   cartaoMBTotal: 2065.17,               // V136: +R$56,99 (TX132, Google SunSurveyorApp, Wallace, cartao 2244). Era R$2.008,18.
 
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
@@ -266,14 +266,15 @@ const VARS = {
   coberturaGarantida: 954.90,
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
+  caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
   suporteCoIrmaEventos: 167.40,            // Eventos->Variavel, mesmo proposito (visita familia Vanessa), nao e LREI
 
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
-  visaLRWHistorico: 2129.46,      // Compras Wallace (LRW-I, historico)
-  visaLRRConfirmado: 1106.53,     // Recorrencias confirmadas no Visa Infinite
-  visaLRSConfirmado: 409.32,      // Assinaturas confirmadas no Visa Infinite
+  visaLRWHistorico: 2139.45,      // Compras Wallace (LRW-I, historico). CORRIGIDO 23/07/2026: +R$9,99 (Amazon Prime Aluguel, achado na fatura Bradesco real 10/07, compra avulsa nunca lancada). Era R$2.129,46.
+  visaLRRConfirmado: 1194.53,     // Recorrencias confirmadas no Visa Infinite. CORRIGIDO 23/07/2026: VIVO revertida de R$435 (V111, baseada em config teorica) para R$523 (fatura Bradesco real confirma 2 cobrancas: R$469,00+R$54,00=R$523,00 - fatura sempre vence, V61). Era R$1.106,53 (+R$88,00).
+  visaLRSConfirmado: 429.31,      // Assinaturas confirmadas no Visa Infinite. CORRIGIDO 23/07/2026: +R$19,99 (Amazon Prime Canais, achado na fatura Bradesco real 25/06, nunca lancado). Era R$409,32.
   visaLRVHistorico: 462.12,       // Compras Vanessa (LRV-I) - = LIVRO_LRV_I_TOTAL
-  visaNaoReconciliado: 49.81,     // residuo soma-livros x fatura-real, documentado (P1)
+  visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
   mbLRWConfirmado: 1406.92,       // = LIVRO_LRW_MB_TOTAL
   mbLRRConfirmado: 614.45,        // Recorrencias confirmadas no Mastercard Black
   mbLRSConfirmado: 43.80,         // Assinaturas confirmadas no Mastercard Black
@@ -362,6 +363,7 @@ const REG = {
     disponivel: 0,          // DERIVADO em recalcularAgregadosDerivados() = saldoReal-comprometido. Nunca editar aqui.
     tetoOficial: VARS.tetoOficial,   // meta oficial (usada no Aporte=Meta-Saldo). NAO muda com a tolerancia temporaria.
     tolerenciaTemp: VARS.tolerenciaTemp, // V78 (18/07/2026): tolerancia temporaria ate o fim do ciclo (viagem familia Vanessa) - cobre TODOS os gastos da caixa, nao so os tageados como viagem. Recomposicao prevista: reembolso Wartsilia ou salario 25/07. Zerar este campo (0) quando a tolerancia acabar.
+    pendenteProximoCiclo: VARS.caixaVariavelPendenteProximoCiclo, // NOVO 23/07/2026 (regra REGRA_LIMBO_FATURA_MB_CICLO): compras no Mastercard Black feitas depois do fechamento da fatura MB (dia 22) mas ainda dentro do ciclo financeiro atual (ate dia 25) - NAO contam no comprometido DESTE ciclo (a fatura so cobra no mes seguinte), ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25.
   },
   visa: {
     totalComprometido: 0,   // DERIVADO = VARS.cartaoInfiniteTotal + VARS.cartaoMBTotal
@@ -602,8 +604,13 @@ const REG = {
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
   // Sobra da cascata de reembolso Wartsila = Total - as 4 pernas de deducao (regra da Politica sec.5, 5 pernas). V128: campos nomeados, nao mais numeros magicos.
   REG.operacional.reembolsoSobraPessoal = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPagaWartsila - REG.operacional.reembolsoPagaMPCorporativo - REG.operacional.reembolsoPagaCartaoCorporativo - D.provMP);
-  // Visa total comprometido (usado no card Balanco/Obrigacoes) = mesma fonte do card Cartoes, evita 3a copia divergente (V85 ja tinha corrigido uma 2a copia)
-  REG.balanco.obrigacoes.visa = r2(REG.visa.totalComprometido);
+  // CORRIGIDO 23/07/2026 (bug real apontado pelo usuario): REG.visa.totalComprometido = Infinite+MB somados
+  // (linha ~567). Usar isso na linha "Visa Infinite" do card Obrigacoes duplicava o Mastercard Black -
+  // ele aparecia com valor certo na sua PROPRIA linha (mastercardBlack, logo abaixo) E de novo embutido
+  // dentro do "Visa Infinite" (11.157,07 = 9.091,90 Infinite + 2.065,17 MB), inflando o Total obrigacoes
+  // em R$2.065,17. Fonte correta para a linha "Visa Infinite" e SO o cartao Infinite: REG.cartaoInfinite.total
+  // (mesma fonte do card Cartoes/secao 08, evita 3a copia divergente - V85 ja tinha corrigido uma 2a copia).
+  REG.balanco.obrigacoes.visa = r2(REG.cartaoInfinite.total);
   REG.balanco.obrigacoes.mastercardBlack = r2(REG.cartaoMB.total);
   // V137 (pedido do usuario 23/07/2026): Wartsila NAO entra mais na soma - e 100% corporativo/reembolsavel,
   // nao deve se misturar com obrigacoes pessoais reais. Fica visivel na tela como linha informativa (mesmo
@@ -772,6 +779,12 @@ function hydrate(){
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
   t('cxSeguroSaldo', fmt(C.seguroEmplacamento.saldo)); t('cxSeguroMeta', fmtInt(C.seguroEmplacamento.meta));
+  // NOVO 23/07/2026: card Escola de Julio adicionado na secao 05 (Caixas Operacionais) a pedido do
+  // usuario - mesma fonte ja usada no card dedicado da secao 14 (R.escolaJulioSaldo/R.patrimonio.metaEscolaJulio).
+  t('cxEscolaSaldo', fmt(R.escolaJulioSaldo));
+  t('cxEscolaMeta', fmtInt(R.patrimonio.metaEscolaJulio));
+  t('cxEscolaPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  { const el=document.getElementById('cxEscolaBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
 
   // caixa variavel
   t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));
@@ -1189,6 +1202,19 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     if(q.tetoTemporarioAtivo){
       alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Tolerância temporária de ${fmt(cv.tolerenciaTemp)} ativa até o fim do ciclo (24/07) — recomposição prevista via reembolso Wärtsilä ou salário de 25/07`});
     }
+    // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO): como o site e estatico (Claude mantem manualmente,
+    // nao ha automacao real de virada de ciclo), este alerta funciona como lembrete ativo - se houver
+    // valor represado E o ciclo ja virou (dia >= 25), sinaliza que a rolagem manual (debitar do proximo
+    // aporte + zerar o registrador) ainda precisa ser feita na proxima sessao.
+    const pendenteLimbo = cv.pendenteProximoCiclo || 0;
+    if(pendenteLimbo > 0){
+      const diaHoje = new Date().getDate();
+      if(diaHoje >= 25){
+        alertas.push({icone:'🔴', cor:'#e2554f', txto:`Ciclo virou com ${fmt(pendenteLimbo)} represado do limbo MB — rolar manualmente para o aporte/saldo do novo ciclo e zerar CAIXA_VARIAVEL_PENDENTE_PROXIMO_CICLO`});
+      } else {
+        alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`${fmt(pendenteLimbo)} represado do limbo Mastercard Black (fecha dia 22) — será descontado do orçamento da Caixa Variável do próximo ciclo na virada do dia 25`});
+      }
+    }
     return alertas;
   }
 
@@ -1245,6 +1271,15 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
       folegoEl.textContent = fmt(folego);
       folegoEl.style.color = folego >= 0 ? '#34c98a' : '#e2554f';
     }
+    // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO): card so aparece se houver algo represado -
+    // enquanto pendenteProximoCiclo=0 (sem compras na janela 23-25 ainda), fica escondido para nao
+    // poluir o painel com um card vazio.
+    const pendenteBox = document.getElementById('simPendenteBox');
+    const pendenteValor = cv.pendenteProximoCiclo || 0;
+    if(pendenteBox){
+      pendenteBox.style.display = pendenteValor > 0 ? 'block' : 'none';
+    }
+    set('simPendenteValor', fmt(pendenteValor));
     const msgEl = document.getElementById('simMensagem');
     if(msgEl){
       if(faltaCobrir <= 0){

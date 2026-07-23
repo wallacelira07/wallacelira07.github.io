@@ -208,6 +208,7 @@
      cobre tudo sem precisar marcar campo por campo. */
   body.esconder-valores .v,
   body.esconder-valores .val,
+  body.esconder-valores .cm-val,
   body.esconder-valores td.r,
   body.esconder-valores .r,
   body.esconder-valores .chart-box canvas {
@@ -217,6 +218,7 @@
   }
   body.esconder-valores .v:hover,
   body.esconder-valores .val:hover,
+  body.esconder-valores .cm-val:hover,
   body.esconder-valores td.r:hover,
   body.esconder-valores .r:hover,
   body.esconder-valores .chart-box canvas:hover {
