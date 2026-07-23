@@ -1884,9 +1884,9 @@ new Chart(document.getElementById('g_cAlivio'), {
     snTbody.innerHTML = snLabels.map((m,i)=>{
       return '<tr style="border-bottom:1px solid var(--border)">'+
         '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:var(--green)">+'+fmt0b(snDiferenca[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:var(--green)">+'+fmt0b(snDiferenca[i])+'</td>'+
         '</tr>';
     }).join('');
   }
@@ -1950,9 +1950,9 @@ new Chart(document.getElementById('g_cAlivio'), {
       const sinal = d<0 ? '−' : '+';
       return '<tr style="border-bottom:1px solid var(--border)">'+
         '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzLiquido)+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzPiso[i])+'</td>'+
-        '<td style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzLiquido)+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzPiso[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
         '</tr>';
     }).join('');
   }

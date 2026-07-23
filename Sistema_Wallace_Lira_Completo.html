@@ -44,21 +44,21 @@
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dias restantes</div><div style="font-size:1.15rem;font-weight:700" id="simDiasRestantes">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Tem na caixa</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simSaldoReal">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até o teto</div><div style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até o teto</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
     </div>
     <div id="simPendenteBox" style="display:none;margin-top:0.7rem;padding:0.6rem 0.8rem;background:rgba(57,135,229,0.08);border:1px solid rgba(57,135,229,0.25);border-radius:8px">
       <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem">📤 Pendente para o próximo ciclo</div>
       <div class="v" style="font-size:1.05rem;font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
       <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem">Compras no Mastercard Black feitas depois do fechamento da fatura (dia 22) mas ainda dentro deste ciclo — não entram no comprometido de agora, já vêm pré-debitadas do orçamento da Caixa Variável do próximo ciclo.</div>
     </div>
-    <div id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
+    <div class="v" id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
   </div>
 
   <div class="card" style="margin-bottom:1.5rem">
     <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.6rem">🔍 Verificações de Negócio</div>
-    <div id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
+    <div class="v" id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
   </div>
 
   <button id="btnEsconderValores" onclick="toggleEsconderValores()" title="Esconder/mostrar valores (modo apresentação)" style="position:fixed;top:14px;right:14px;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:50%;width:42px;height:42px;font-size:1.2rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">👁️</button>
@@ -176,15 +176,15 @@
   <!-- 5 -->
   <div class="section-num"><span class="n">05</span><h2>Caixas operacionais</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxBoletosPct">—</span><span id="cxBoletosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxPixPct">—</span><span id="cxPixMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)" id="cxWartsilaExcedente">—</span><span id="cxWartsilaProvisionado">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span id="cxManutMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span id="cxEventosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSaudeAporteTxt">—</span><span id="cxSaudeMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxAnivAporteTxt">—</span><span id="cxAnivMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span id="cxSeguroAporteTxt">—</span><span id="cxSeguroMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxEscolaPct">—</span><span id="cxEscolaMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxBoletosPct">—</span><span class="v" id="cxBoletosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span class="v" id="cxManutMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span class="v" id="cxEventosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudeAporteTxt">—</span><span class="v" id="cxSaudeMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxAnivAporteTxt">—</span><span class="v" id="cxAnivMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroAporteTxt">—</span><span class="v" id="cxSeguroMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span id="cxEscolaPct">—</span><span class="v" id="cxEscolaMeta">—</span></div></div>
   </div>
 
   <!-- 6 -->
@@ -273,14 +273,14 @@
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid)">Financiamento da casa</div>
       <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppFinanciamentoCasa">—</div>
-      <div style="font-size:0.72rem;color:var(--text-dim)" id="ppFinanciamentoDetalhe">—</div>
+      <div class="v" style="font-size:0.72rem;color:var(--text-dim)" id="ppFinanciamentoDetalhe">—</div>
       <span class="badge bg" style="margin-top:0.5rem">Em dia</span>
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
       <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppConsorcioAuto">—</div>
       <div class="progress"><div class="fill" id="ppConsorcioAutoBar" style="width:0%;background:var(--green)"></div></div>
-      <div class="progress-lbl"><span id="ppConsorcioAutoPct">—</span><span id="ppConsorcioAutoParcela">—</span></div>
+      <div class="progress-lbl"><span id="ppConsorcioAutoPct">—</span><span class="v" id="ppConsorcioAutoParcela">—</span></div>
       <span class="badge bg" style="margin-top:0.5rem">Contemplada com o bem</span>
     </div>
   </div>
@@ -307,7 +307,7 @@
       <span class="badge ba" id="pcnPctBadge">—</span>
     </div>
     <div class="progress"><div class="fill" id="pcnBar" style="width:0%;background:var(--accent)"></div></div>
-    <div class="progress-lbl"><span id="pcnMeta">—</span><span id="pcnFalta">—</span></div>
+    <div class="progress-lbl"><span class="v" id="pcnMeta">—</span><span class="v" id="pcnFalta">—</span></div>
   </div>
 
   <!-- 14 -->
@@ -530,7 +530,7 @@
       <tr><td class="mono">TX22006</td><td class="mono">02/07</td><td>Cacau Show Sorvete</td><td class="r">R$ 21,49</td></tr>
       </tbody></table>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Datas confirmadas via fatura Bradesco literal (19/07/2026) — já estavam corretas no ERP desde o lançamento original, só nunca tinham chegado nesta tabela do site (bug só de exibição). 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).</div>
-      <div class="tfoot"><span id="tfLRCDetalhe">—</span><span class="total v" id="tfLRC">—</span></div>
+      <div class="tfoot"><span class="v" id="tfLRCDetalhe">—</span><span class="total v" id="tfLRC">—</span></div>
     </div>
 
     <div id="lrmp" class="pane">
@@ -565,7 +565,7 @@
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000109</td><td class="mono">18/07</td><td>PIX Edgley Dias de Araújo</td><td class="r" style="color:var(--red)">− R$ 60,00</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TX000120</td><td class="mono">20/07</td><td>Pamonha e canjica Santo Antônio (Geronçio)</td><td class="r" style="color:var(--red)">− R$ 70,00</td></tr>
       </tbody></table>
-      <div class="tfoot"><span id="tfPixDiversosDetalhe">—</span><span class="total" style="color:var(--red)" id="tfPixDiversosLiquido">—</span></div>
+      <div class="tfoot"><span class="v" id="tfPixDiversosDetalhe">—</span><span class="total v" style="color:var(--red)" id="tfPixDiversosLiquido">—</span></div>
       <div style="font-size:0.66rem;color:var(--text-dim);margin:0.3rem 0">🟡 fundo amarelo = últimos 2 dias (18-20/07)</div>
 
       <details style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.8rem">
@@ -651,7 +651,7 @@
   <div class="card" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
-      <span class="badge bg" id="metaInvBadge">—</span>
+      <span class="badge bg v" id="metaInvBadge">—</span>
     </div>
     <div class="row"><span class="k">Aporte BTG Pactual (25/06)</span><span class="v" style="color:var(--green)" id="metaInvBTG">—</span></div>
     <div class="row"><span class="k">Depósito ativação Necton (10/07)</span><span class="v" style="color:var(--green)" id="metaInvNecton">—</span></div>
@@ -686,7 +686,7 @@
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
     </div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
+    <div class="v" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
   </div>
 
   <!-- 19 -->
@@ -724,7 +724,7 @@
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div style="font-size:0.78rem;color:var(--text-mid)">Necessidade líquida do salário — próximos ciclos</div>
-      <span class="badge bg" id="quedaTotalNL">Queda total: —</span>
+      <span class="badge bg v" id="quedaTotalNL">Queda total: —</span>
     </div>
     <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
     <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$954,90 — MP pessoal R$471,47 + Visa Infinite corporativo R$483,43, corrigido 19/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.</div>
@@ -732,7 +732,7 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div style="font-size:0.78rem;color:var(--text-mid)">Evolução do Total Operacional conforme parcelas encerram</div>
-      <span class="badge bg" id="alivioBadgeMar27">—</span>
+      <span class="badge bg v" id="alivioBadgeMar27">—</span>
     </div>
     <div class="chart-box"><canvas id="cEvol"></canvas></div>
     <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">O que é: TOTAL_OPERACIONAL (boletos + parcelamentos Visa Infinite + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais) mês a mês. Reconstruído em 16/07/2026 (auditoria) a partir dos dados literais de parcela do livro LRP. Aniversário Júlio zera após o ciclo Set/26 (prazo 14/09/2026, confirmado). Premissa: boletos, assinaturas, recorrências e consórcios tratados como constantes. Combustível zera após Set/26 (atinge meta R$500) e Churrasco após Nov/26 (atinge meta R$500) — saldo real R$0 confirmado pelo usuário em 16/07/2026, simulação completa.</div>
@@ -804,7 +804,7 @@
     <div class="total-line" style="margin-top:0.35rem;padding-top:0"><span>Pessoal (s/ corporativo)</span><span class="v" style="color:var(--green)" id="gCartoesPessoalLine">—</span></div>
     <div class="row" style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px dashed var(--border)"><span class="k">Disponível real em Caixa (Saldo Real − Comprometido)</span><span class="v" id="gCVDisponivelLine">—</span></div>
     <div class="row" style="font-weight:700"><span class="k">Reposição necessária na Caixa Variável</span><span class="v" id="gCVReposicaoLine">—</span></div>
-    <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem" id="gCVReposicaoFonte">—</div>
+    <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem" id="gCVReposicaoFonte">—</div>
     <div class="total-line" style="margin-top:0.35rem;padding-top:0"><span>(−) Caixa Variável comprometido</span><span class="v" style="color:var(--red)" id="gCVComprometidoLine">—</span></div>
     <div class="total-line" style="margin-top:0.35rem;padding-top:0.35rem;border-top:1px solid var(--border)"><span style="font-weight:700">Líquido não coberto por Caixa Variável</span><span class="v" style="font-weight:700;color:var(--amber)" id="gCartoesLiquidoLine">—</span></div>
   </div>
@@ -883,7 +883,7 @@
       <div class="card" style="border-left:3px solid var(--red)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Pior mês já recebido</div>
         <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--red)" id="chPiorValor">—</div>
-        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span id="chPiorSaldo">—</span>. Modo Crítico — já aconteceu de verdade.</div>
+        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span class="v" id="chPiorSaldo">—</span>. Modo Crítico — já aconteceu de verdade.</div>
       </div>
       <div class="card" style="border-left:3px solid var(--amber)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Ponto de equilíbrio (saldo=0)</div>
@@ -893,7 +893,7 @@
       <div class="card" style="border-left:3px solid var(--green)">
         <div style="font-size:0.72rem;color:var(--text-mid)">Média real (12 meses)</div>
         <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--green)" id="chMediaValor">—</div>
-        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span id="chMediaSaldo">—</span>. Alto na média — mas com desvio grande.</div>
+        <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span class="v" id="chMediaSaldo">—</span>. Alto na média — mas com desvio grande.</div>
       </div>
     </div>
 
