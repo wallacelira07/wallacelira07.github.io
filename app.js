@@ -158,24 +158,34 @@ function liquidoMes(i){
 // lugar que usa aquele valor (cards, tabelas, graficos) fica correto.
 const VARS = {
   // Caixa Variavel (operacional, dia-a-dia)
-  caixaVariavelSaldoReal: 3933.37,      // V136 (22/07/2026): +R$40,00 (TX000133, venda de 2 creditos P2P p/ Elcio Da Silva Santos, destino Caixa Variavel). Era R$3.893,37.
-  caixaVariavelComprometido: 3998.50,   // V136: +R$74,97 (TX131 H57Store/Vanessa R$17,98 + TX132 Google SunSurveyorApp/Wallace R$56,99). Era R$3.923,53.
+  caixaVariavelSaldoReal: 1930.76,      // V139/V140 (24/07/2026, CORRIGIDO): salario Wartsila (TX000136, R$16.819,56) entrou na Conta Corrente (OP), nao na CV. CV recebeu apenas aporte de R$2.000 (TX000137) e transferiu R$4.002,61 para a nova Caixa Mastercard/Infinite (TX000139, unica transferencia real). R$3.933,37+R$2.000,00-R$4.002,61=R$1.930,76. Era R$3.933,37.
+  caixaVariavelComprometido: 3998.50,   // Sem alteracao nesta rodada (ver nota historica V136).
 
   // Cofrinhos/caixas patrimoniais e operacionais (Mercado Pago)
-  caixaLance: 553.91,                   // RECONCILIADO 22/07/2026 (V122) - saldo real do cofrinho
-  caixaManutencao: 178.72,              // RECONCILIADO 22/07/2026 - LREI0001 quitado, deposito direto do reembolso
-  caixaAniversarioJulio: 200.10,        // RECONCILIADO 22/07/2026 - reembolso Wartsila depositou R$200 direto (50% da meta R$400)
-  caixaBoletos: 613.17,                 // RECONCILIADO 22/07/2026 (V123) - fecha exato com PIX Anderson R$210 + rendimento R$1,66
-  caixaPixVanessa: 0,                   // PV (reserva do Wallace) - zerada desde V44
-  pixGeralVanessaSaldo: -0.04,          // PGV (conta autonoma da Vanessa) - residuo imaterial documentado
-  caixaEventos: 0,
-  caixaSaudeFamilia: 0,
-  caixaSeguroEmplacamento: 0,
-  escolaJulioSaldo: 506.74,             // RECONCILIADO 22/07/2026 (V127) - fora da Meta do Milhao (regra P5/V47)
+  caixaLance: 3482.51,                  // SAIDA 24/07/2026 (V141): -R$266,23 (adiantamento transporte corporativo, MP*WALLACELIRA/Nubank, TX000152, reembolsavel Wartsila). Era R$3.748,74.
+  caixaManutencao: 345.39,              // APORTE 24/07/2026 (V139): +R$166,67 (salario Wartsila, TX000143). Era R$178,72.
+  caixaAniversarioJulio: 200.10,        // Sem alteracao nesta rodada.
+  caixaBoletos: 2599.38,                // APORTE 24/07/2026 (V139): +R$1.986,21 (salario Wartsila, TX000140/TXB000010). Era R$613,17.
+  caixaPixVanessa: 900.00,              // APORTE 24/07/2026 (V139): +R$1.200,00 (salario, TX000141) -R$300,00 (PIX p/ PGV, TX000150) = R$900,00. Era R$0,00.
+  pixGeralVanessaSaldo: -0.04,          // Sem alteracao nesta rodada.
+  caixaEventos: 166.67,                 // APORTE 24/07/2026 (V139): +R$166,67 (salario Wartsila, TX000144). Era R$0,00.
+  caixaSaudeFamilia: 135.00,            // APORTE 24/07/2026 (V139): +R$135,00 (salario Wartsila, TX000147). Era R$0,00.
+  caixaSeguroEmplacamento: 425.00,      // APORTE 24/07/2026 (V139): +R$425,00 (salario Wartsila, TX000148). Era R$0,00.
+  caixaCombustivel: 200.00,             // APORTE 24/07/2026 (V139): +R$200,00 (salario Wartsila, TX000145). Era R$0,00.
+  caixaChurrasco: 100.00,               // APORTE 24/07/2026 (V139): +R$100,00 (salario Wartsila, TX000146). Era R$0,00.
+  escolaJulioSaldo: 1006.74,            // APORTE 24/07/2026 (V139): +R$500,00 (salario Wartsila, TX000142). Era R$506,74. Fora da Meta do Milhao (regra P5/V47).
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 9160.07,          // CORRIGIDO 23/07/2026: recalculado de baixo para cima apos auditoria linha-a-linha contra a fatura Bradesco real. Soma das 7 partes de visaDetalhe (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa, esta ja incluindo TX131) = R$9.160,07 exato, naoReconciliado agora R$0,00. Correcoes aplicadas: Vivo +R$88,00 (revertida a config errada da V111), Amazon Prime Canais +R$19,99 e Amazon Prime Aluguel +R$9,99 (achados na fatura, nunca lancados). Era R$9.091,90.
-  cartaoMBTotal: 2065.17,               // V136: +R$56,99 (TX132, Google SunSurveyorApp, Wallace, cartao 2244). Era R$2.008,18.
+  cartaoInfiniteTotal: 9160.07,          // Sem alteracao nesta rodada (ja auditado 23/07/2026).
+  cartaoMBTotal: 2065.17,               // Sem alteracao nesta rodada (ja congelado 23/07/2026, ver mastercardBlackCongelado).
+
+  // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
+  // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
+  // vencimento 28/07/2026. R$484,08 (saldo antigo, corporativo ja garantido) + R$4.002,61
+  // (transferencia unica da CV, TX000139) + R$6.745,18 (aporte direto do salario, TX000151) = R$11.231,87.
+  // Necessidade: MB R$1.937,18 (congelado) + Infinite total R$9.160,07 = R$11.097,25. Folga R$134,62.
+  caixaMastercardInfinite: 11231.87,
+  mastercardBlackCongelado: 1937.18,    // Congelado 22/07/2026, vencimento 28/07/2026 (fatura real do app, 25 lancamentos validos).
 
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
   // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
@@ -233,7 +243,7 @@ const VARS = {
   // Livros razao que sao fonte primaria (nao compostos de nada mais dentro do app.js) - LRW/LRV/LRS/LRR/LRC
   // saem de formula (visaDetalhe+mbDetalhe), LRP/LRCON ja existiam acima. Estes 3 nao tem como derivar
   // de outro dado ja presente no site, entao moram aqui como a UNICA copia editavel.
-  livroLRB: 2600.24,   // LIVRO_LRB_TOTAL do ERP (distinto de VARS.caixaBoletos, que e o aporte, nao o total bruto do livro)
+  livroLRB: 4586.45,   // ATUALIZADO 24/07/2026 (V139): +R$1.986,21 (TXB000010, aporte salario). Era R$2.600,24.
   livroLRCV: 1502.24,  // LIVRO_LRCV_TOTAL do ERP
   livroLRPV: -295.66,  // LIVRO_LRPV_TOTAL do ERP
   livroLRC: 483.43,    // V138: LIVRO_LRC_TOTAL do ERP (livro/soma-de-transacoes) - distinto de REG.operacional.reembolsoPagaCartaoCorporativo
@@ -259,7 +269,7 @@ const VARS = {
   // V140 (23/07/2026, continuacao da varredura): valores primarios operacionais que ainda viviam como
   // literal solto dentro do REG. Nenhum destes e derivavel de outro dado ja no sistema - sao fatos de
   // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.
-  salario: 33708.78,                       // contracheque do ciclo (excecao, ver nota historica)
+  salario: 16819.56,                       // ATUALIZADO 24/07/2026 (V139): salario Wartsila recebido hoje (TX000136). Era R$33.708,78 (excecao do ciclo anterior).
   reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
   reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008)
   orcamentoOperacional: 3200.00,
@@ -559,9 +569,9 @@ const REG = {
     patrimonioLiquido: 0,
     reservas: {
       boletos:0, escolaJulio:VARS.escolaJulioSaldo, caixaLance:VARS.caixaLance, manutencao:VARS.caixaManutencao, eventos:VARS.caixaEventos,
-      churrasco:0, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio, total:0 // total DERIVADO em recalcularAgregadosDerivados()
-    }, // V134: todos os saldos leem do VARS agora (fonte unica) - eliminada a 2a/3a copia que ja causou 2 rodadas de bug nesta sessao.
-    operacional: { caixaVariavel:VARS.caixaVariavelSaldoReal, pixVanessaSaldoReal:VARS.pixGeralVanessaSaldo, caixaBoletos:VARS.caixaBoletos, total:0 }, // total DERIVADO. V134: le do VARS.
+      churrasco:VARS.caixaChurrasco, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio, total:0 // total DERIVADO em recalcularAgregadosDerivados()
+    }, // V134: todos os saldos leem do VARS agora (fonte unica) - eliminada a 2a/3a copia que ja causou 2 rodadas de bug nesta sessao. CORRIGIDO 24/07/2026 (V139): churrasco agora le do VARS (tinha 0 hardcoded, VARS ja tinha o valor certo mas nao estava conectado).
+    operacional: { caixaVariavel:VARS.caixaVariavelSaldoReal, pixVanessaSaldoReal:VARS.pixGeralVanessaSaldo, caixaBoletos:VARS.caixaBoletos, mastercardInfinite:VARS.caixaMastercardInfinite, total:0 }, // total DERIVADO. V134: le do VARS. V139: adicionada Caixa Mastercard/Infinite (nova, guarda valor a pagar dos 2 cartoes ate 28/07).
     // V137: Wartsila REMOVIDA da soma do total (pedido do usuario 23/07/2026: "nao deve misturar
     // contas da empresa com minhas contas" - a fatura e 100% corporativa/reembolsavel, so aparece
     // aqui como linha informativa, igual ao tratamento ja dado a PGBL/FGTS). mercadoPago agora le
@@ -602,7 +612,7 @@ const REG = {
   REG.balanco.reservas.total = r2(REG.balanco.reservas.boletos + REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
     REG.balanco.reservas.manutencao + REG.balanco.reservas.eventos + REG.balanco.reservas.churrasco +
     REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio);
-  REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos);
+  REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite);
 
   // V135: totais do Balanço Patrimonial DERIVADOS (antes eram numeros fixos que so por coincidencia
   // batiam com a soma das partes hoje - agora impossivel dessincronizar).
@@ -992,6 +1002,7 @@ function hydrate(){
   t('balPassivosTotal2', fmt(B.passivos.total));
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
+  t('balOpMastercardInfinite', fmt(B.operacional.mastercardInfinite)); // V139: nova caixa (24/07/2026), guarda valor a pagar dos 2 cartoes ate 28/07
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
   t('balResManut', fmt(B.reservas.manutencao));
@@ -1067,9 +1078,9 @@ function auditoriaAutomatica(){
   }
 
   // 6) Gestão Operacional (Balanço) = Caixa Variável + PIX Vanessa saldo real + Caixa Boletos (movida da Reserva na V85)
-  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos);
+  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite);
   if(!bate(opCalc, REG.balanco.operacional.total)){
-    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa+CaixaBoletos=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
+    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa+CaixaBoletos+MastercardInfinite=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
   }
 
   // 7) Reservas (Balanço) = soma das 9 caixas de reserva
