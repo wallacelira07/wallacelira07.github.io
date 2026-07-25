@@ -226,3 +226,38 @@
   }
   #btnEsconderValores.ativo { background:var(--accent); }
 
+  /* V145 (25/07/2026): Seletor de Ciclo - sempre visivel, estetico, sem cruzamento de dados entre ciclos */
+  .ciclo-seletor-wrap {
+    display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;
+    padding:0.55rem 0.7rem; margin:0 0 1rem 0;
+    background:linear-gradient(135deg, rgba(57,135,229,0.08), rgba(144,133,233,0.05));
+    border:1px solid var(--border-strong); border-radius:12px;
+  }
+  .ciclo-seletor-label {
+    font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--text-dim); font-weight:600; margin-right:0.2rem;
+  }
+  .ciclo-seletor-btns { display:flex; gap:0.35rem; flex-wrap:wrap; }
+  .ciclo-btn {
+    appearance:none; border:1px solid var(--border-strong); background:var(--card,#15171a);
+    color:var(--text-mid); font-size:0.78rem; font-weight:500;
+    padding:0.38rem 0.85rem; border-radius:999px; cursor:pointer;
+    transition:all 0.15s ease; white-space:nowrap;
+  }
+  .ciclo-btn:hover { border-color:var(--accent); color:#fff; }
+  .ciclo-btn.ciclo-ativo {
+    background:var(--accent); border-color:var(--accent); color:#fff;
+    box-shadow:0 0 0 3px rgba(57,135,229,0.18);
+    font-weight:600;
+  }
+  .ciclo-btn.ciclo-ativo.ciclo-fechado-btn {
+    background:var(--text-dim); border-color:var(--text-dim);
+    box-shadow:0 0 0 3px rgba(111,109,102,0.18);
+  }
+  #cicloBannerFechado {
+    display:flex; align-items:center; gap:0.5rem;
+    font-size:0.74rem; color:var(--amber);
+    background:rgba(232,166,58,0.08); border:1px solid rgba(232,166,58,0.25);
+    border-radius:8px; padding:0.45rem 0.7rem; margin-bottom:1rem;
+  }
+

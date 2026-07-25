@@ -158,7 +158,7 @@ function liquidoMes(i){
 // lugar que usa aquele valor (cards, tabelas, graficos) fica correto.
 const VARS = {
   // Caixa Variavel (operacional, dia-a-dia)
-  caixaVariavelSaldoReal: 1930.76,      // V139/V140 (24/07/2026, CORRIGIDO): salario Wartsila (TX000136, R$16.819,56) entrou na Conta Corrente (OP), nao na CV. CV recebeu apenas aporte de R$2.000 (TX000137) e transferiu R$4.002,61 para a nova Caixa Mastercard/Infinite (TX000139, unica transferencia real). R$3.933,37+R$2.000,00-R$4.002,61=R$1.930,76. Era R$3.933,37.
+  caixaVariavelSaldoReal: 2000.00,      // CORRIGIDO 25/07/2026 (V144/V145, erro apontado pelo usuario): a transferencia unica CV->Mastercard/Infinite (TX000139, R$4.002,61) ja levou o saldo antigo INTEIRO (R$3.933,37) + a folga de R$69,24 - so deveria sobrar o aporte novo do salario (R$2.000,00, TX000137). Era R$1.930,76 (calculo errado: eu tinha subtraido a transferencia do saldo somado, quando ela ja continha o saldo antigo inteiro).
   caixaVariavelComprometido: 0,          // VIRADA DE CICLO 25/07/2026 (V143): novo ciclo (25/07-24/08) comeca com comprometido zerado. Ciclo anterior fechou em R$3.998,50 (ver ERP SNAPSHOT_CICLOS_FECHADOS - nada foi apagado, so este contador de ciclo resetou). Era R$3.998,50.
 
   // Cofrinhos/caixas patrimoniais e operacionais (Mercado Pago)
@@ -355,8 +355,91 @@ const VARS = {
   pixDiversosEntradas: 64.00,
 
   // V144: footer LRC (Corporativo Visa Infinite) - "6 lancamentos" era texto fixo, valor ja em VARS.livroLRC
-  livroLRCQtdLancamentos: 6
+  livroLRCQtdLancamentos: 6,
+
+  // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
+  // Pedido explicito do usuario: "quero ter duas visoes, a do ciclo anterior como ele fechou e a nova
+  // do ciclo com os dados novos, nao quero cruzamento de dados". Espelha 1:1 a aba SNAPSHOT_CICLOS_FECHADOS
+  // do ERP. Contem so os indicadores POR-CICLO (Caixa Variavel, Reembolso, Tolerancia, Cascata do
+  // Reembolso, Modo Operacional/Saldo Ciclo). Indicadores de FLUXO CONTINUO (Necessidade Total dos
+  // cartoes - segue a mesma curva mensal do grafico de projecao de 12 meses ja existente - Patrimonio,
+  // valor obrigatorio das faturas MB/MP ja fechadas) NAO entram aqui, ficam no VARS normal (topo deste
+  // arquivo) e sao os MESMOS em qualquer ciclo selecionado.
+  cicloAtual: '2026-07', // qual ciclo o site mostra por padrao ao carregar
+  CICLO_SNAPSHOTS: {
+    '2026-06': {
+      label: 'Jun/26 (26/06–24/07) — FECHADO',
+      periodo: '26/06/2026 a 24/07/2026',
+      fechado: true,
+      salario: 33708.78,
+      entradasTotais: 38623.76,
+      caixaVariavelComprometido: 3998.50,
+      caixaVariavelSaldoReal: 3933.37,
+      caixaVariavelDisponivel: -65.13,
+      reembolsoRecebido: 4914.98,
+      reembolsoAReceber: 0,
+      toleranciaTempValor: 1500,
+      toleranciaTempMotivo: 'Viagem família Vanessa, até 24/07/2026 (encerrada)',
+      tetoOficial: 2000,
+      tetoEfetivo: 3500,
+      cascata: { faturaWartsila: 656.67, mpCorporativo: 1277.88, cartaoCorporativo: 483.43, mpPessoal: 471.47, sobraTotal: 2025.13 },
+      necessidadeTotalBruta: 14898.13,
+      necessidadeTotalLiquida: 13943.23,
+      modoOperacional: 'Alto',
+      saldoCiclo: 6836.41,
+      visaInfiniteComprometido: 9160.07,
+      mastercardBlackComprometido: 2065.17,
+      diasRestantes: 0,
+      observacoes: 'Ciclo fechado na virada de 25/07/2026. O salário de R$16.819,56 recebido em 24/07 (adiantado por ser sábado) é do ciclo SEGUINTE, já distribuído no dia do recebimento.'
+    },
+    '2026-07': {
+      label: 'Jul/26 (25/07–24/08) — ATUAL',
+      periodo: '25/07/2026 a 24/08/2026',
+      fechado: false,
+      salario: 16819.56,
+      entradasTotais: 17085.79,
+      caixaVariavelComprometido: 0,
+      caixaVariavelSaldoReal: 2000.00,
+      caixaVariavelDisponivel: 2000.00,
+      reembolsoRecebido: 0,
+      reembolsoAReceber: 266.23,
+      toleranciaTempValor: 0,
+      toleranciaTempMotivo: null,
+      tetoOficial: 2000,
+      tetoEfetivo: 2000,
+      cascata: { faturaWartsila: 0, mpCorporativo: 0, cartaoCorporativo: 0, mpPessoal: 0, sobraTotal: 0 },
+      necessidadeTotalBruta: 14898.13, // fluxo continuo - mesmo valor do VARS principal, repetido aqui so por completude do snapshot
+      necessidadeTotalLiquida: 14898.13, // sem reembolso novo ainda para abater
+      modoOperacional: 'Normal',
+      saldoCiclo: 6836.41,
+      visaInfiniteComprometido: 9160.07, // fluxo continuo
+      mastercardBlackComprometido: 2065.17, // fluxo continuo
+      diasRestantes: 30,
+      observacoes: 'Ciclo iniciado 25/07/2026. Caixa Variável, Reembolso, Tolerância e Cascata do Reembolso começam do zero — dados exclusivos deste ciclo, sem cruzamento com o ciclo anterior.'
+    }
+  }
 };
+
+const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = ordem cronologica
+
+// V145 (25/07/2026): aplica o snapshot do ciclo selecionado aos campos POR-CICLO do VARS, ANTES do REG
+// ser construido - assim o REG ja nasce lendo o ciclo certo. Campos de FLUXO CONTINUO (necessidade
+// total, patrimonio, faturas obrigatorias MB/MP) NAO sao tocados - permanecem os mesmos em qualquer ciclo.
+function aplicarCicloAoVARS(cicloKey){
+  const snap = VARS.CICLO_SNAPSHOTS[cicloKey];
+  if(!snap){ console.error('Ciclo nao encontrado:', cicloKey); return; }
+  VARS.cicloAtual = cicloKey;
+  VARS.caixaVariavelSaldoReal = snap.caixaVariavelSaldoReal;
+  VARS.caixaVariavelComprometido = snap.caixaVariavelComprometido;
+  VARS.tolerenciaTemp = snap.toleranciaTempValor;
+  VARS.salario = snap.salario;
+  VARS.reembolsoCicloTotal = Math.round((snap.reembolsoRecebido + snap.reembolsoAReceber)*100)/100;
+  VARS.__reembolsosAReceber = snap.reembolsoAReceber;
+  VARS.faturaWartsila = snap.cascata.faturaWartsila;
+  VARS.reembolsoPagaCartaoCorporativo = snap.cascata.cartaoCorporativo;
+  VARS.reembolsoPagaMPCorporativo = snap.cascata.mpCorporativo;
+}
+aplicarCicloAoVARS(VARS.cicloAtual); // aplica o ciclo padrao (2026-07) ANTES do REG nascer
 
 const REG = {
   patrimonio: {
@@ -368,7 +451,7 @@ const REG = {
   },
   operacional: {
     salario: VARS.salario,
-    reembolsosAReceber: 0,     // V128: CORRIGIDO (bug apontado pelo usuario) - TED confirmada 21/07/2026, ja recebido e usado. Era R$2.429,59.
+    reembolsosAReceber: VARS.__reembolsosAReceber !== undefined ? VARS.__reembolsosAReceber : 0,     // V145: le do ciclo selecionado (era hardcoded 0)
     reembolsoCicloTotal: VARS.reembolsoCicloTotal,        // Recebidos (4.914,98, ja inclui a TED de 21/07) + A Receber (0) - regra V50
     reembolsoPagaWartsila: VARS.faturaWartsila,       // V137: le do VARS (fatura paga integralmente pelo reembolso - mesmo numero, 4a copia eliminada)
     reembolsoPagaCartaoCorporativo: VARS.reembolsoPagaCartaoCorporativo, // NOMEADO V128, corrigido (era 483.43 - extrato real do cofrinho "Fatura Visa Infinit")
@@ -596,9 +679,27 @@ const REG = {
 // de bug encontrada nesta sessao (ex: sobra da cascata ficou 2 dias errada porque ninguem lembrou de
 // atualizar o numero fixo quando um componente mudou). Os componentes (totalOpDetalhe, reembolsoCicloTotal
 // etc.) continuam sendo os valores digitados/confirmados - só os agregados que dependem deles viram formula.
-(function recalcularAgregadosDerivados(){
+function recalcularAgregadosDerivados(){
   const r2 = x => Math.round(x*100)/100;
   const D = REG.totalOpDetalhe;
+
+  // V145: RESINCRONIZACAO dos campos "espelho" do VARS - necessaria porque trocarCiclo() muda o VARS
+  // DEPOIS que o REG ja foi construido uma vez (na carga da pagina). Sem isto, REG.caixaVariavel.saldoReal
+  // (e os outros campos abaixo) ficariam "congelados" com o valor do ciclo inicial para sempre, mesmo
+  // apos trocar de ciclo no seletor. So copia campos simples (nao mexe em nada que ja e DERIVADO nesta
+  // mesma funcao, como .disponivel, que e recalculado logo abaixo de qualquer forma).
+  REG.caixaVariavel.saldoReal = VARS.caixaVariavelSaldoReal;
+  REG.caixaVariavel.comprometido = VARS.caixaVariavelComprometido;
+  REG.caixaVariavel.tolerenciaTemp = VARS.tolerenciaTemp;
+  if(REG.qualidade) REG.qualidade.tetoTemporarioAtivo = VARS.tolerenciaTemp > 0; // V145 CORRIGIDO: era hardcoded 'true', nunca recalculava
+  REG.operacional.salario = VARS.salario;
+  REG.operacional.reembolsoCicloTotal = VARS.reembolsoCicloTotal;
+  REG.operacional.reembolsosAReceber = VARS.__reembolsosAReceber !== undefined ? VARS.__reembolsosAReceber : 0;
+  REG.operacional.reembolsoPagaWartsila = VARS.faturaWartsila;
+  REG.operacional.reembolsoPagaCartaoCorporativo = VARS.reembolsoPagaCartaoCorporativo;
+  REG.operacional.reembolsoPagaMPCorporativo = VARS.reembolsoPagaMPCorporativo;
+  REG.faturaWartsila = VARS.faturaWartsila;
+  REG.wartsilaCaixa.fatura = VARS.faturaWartsila;
 
   // ===== V134 - DERIVACOES A PARTIR DO VARS (banco de variaveis unico) =====
   // Estas linhas sao a razao de ser do VARS: qualquer lugar do painel que usa estes valores
@@ -706,7 +807,66 @@ const REG = {
   REG.projetoCasaNova.falta = r2(REG.projetoCasaNova.metaLance - REG.projetoCasaNova.capitalDisponivel);
   REG.wartsilaCaixa.excedente = r2(REG.wartsilaCaixa.provisionado - REG.wartsilaCaixa.fatura);
   REG.pixDiversos.liquido = r2(REG.pixDiversos.entradas - REG.pixDiversos.saidas);
-})();
+}
+recalcularAgregadosDerivados(); // chamada inicial, na carga da pagina
+
+// V145: aplicarCicloAoVARS() ja definida acima (antes do REG). trocarCiclo() e usada pelo seletor no HTML.
+function trocarCiclo(cicloKey){
+  aplicarCicloAoVARS(cicloKey);
+  recalcularAgregadosDerivados();
+  hydrate();
+  atualizarBotoesSeletorCiclo();
+  atualizarGraficosPorCiclo();
+}
+
+// V145: graficos Chart.js nao se atualizam sozinhos quando REG muda - precisam de update() explicito.
+// Só os graficos que leem campos POR-CICLO (Caixa Variavel) precisam disso; os de fluxo continuo
+// (Necessidade, Patrimonio) nao mudam com o seletor, entao nao precisam ser tocados aqui.
+function atualizarGraficosPorCiclo(){
+  if(typeof Chart === 'undefined' || !Chart.getChart) return;
+  ['cVariavel','g_cVariavel'].forEach(id=>{
+    const canvas = document.getElementById(id);
+    if(!canvas) return;
+    const chart = Chart.getChart(canvas);
+    if(!chart) return;
+    chart.data.datasets[0].data = [REG.caixaVariavel.saldoReal, REG.caixaVariavel.comprometido, REG.caixaVariavel.disponivel];
+    chart.update();
+  });
+}
+
+function atualizarBotoesSeletorCiclo(){
+  CICLO_LISTA.forEach(key=>{
+    const btn = document.getElementById('cicloBtn_'+key);
+    if(!btn) return;
+    if(key===VARS.cicloAtual){ btn.classList.add('ciclo-ativo'); }
+    else { btn.classList.remove('ciclo-ativo'); }
+  });
+  const banner = document.getElementById('cicloBannerFechado');
+  if(banner){
+    const snap = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+    banner.style.display = snap.fechado ? 'flex' : 'none';
+  }
+}
+
+// V145: cria os botoes do seletor dinamicamente a partir de CICLO_LISTA - nunca precisa editar o HTML
+// na mao quando um novo ciclo fechar, basta adicionar a entrada em VARS.CICLO_SNAPSHOTS.
+function popularSeletorCiclo(){
+  const wrap = document.getElementById('cicloSeletorBtns');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  // ordem mais recente primeiro (ciclo atual a esquerda)
+  [...CICLO_LISTA].reverse().forEach(key=>{
+    const snap = VARS.CICLO_SNAPSHOTS[key];
+    const btn = document.createElement('button');
+    btn.className = 'ciclo-btn' + (snap.fechado ? ' ciclo-fechado-btn' : '');
+    btn.id = 'cicloBtn_'+key;
+    btn.textContent = snap.fechado ? ('🔒 '+snap.label.replace(' — FECHADO','')) : ('🟢 '+snap.label.replace(' — ATUAL',''));
+    btn.onclick = () => trocarCiclo(key);
+    wrap.appendChild(btn);
+  });
+  atualizarBotoesSeletorCiclo();
+}
+
 
 // V135 (22/07/2026): labels/cores do detalhamento Visa Infinite, compartilhados pelos 3 graficos que
 // usam Object.values(REG.visaDetalhe) (cVisa, g_cVisa, g_cVisaBar) - antes cada um tinha sua propria
@@ -990,12 +1150,9 @@ function hydrate(){
   t('tfLRCDetalhe', R.livroLRCDetalhe.qtd+' lançamentos · Reembolso pendente '+fmt(R.livroLRCDetalhe.valor));
   t('tfPixDiversosDetalhe', 'Saídas '+fmt(R.pixDiversos.saidas)+' · Entradas '+fmt(R.pixDiversos.entradas));
   t('tfPixDiversosLiquido', 'Líquido '+(R.pixDiversos.liquido<0?'− ':'+ ')+fmt(Math.abs(R.pixDiversos.liquido)));
-  t('ejSaldo', fmt(R.escolaJulioSaldo));
-  t('ejMeta', fmt(R.patrimonio.metaEscolaJulio));
-  // V136: faltava popular ejPct/ejBar apos a secao 14 ter sido reconstruida no padrao da secao 05
-  // (o card ficaria com barra em 0% e "—" no lugar do percentual pra sempre sem isso).
-  t('ejPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
-  { const el=document.getElementById('ejBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
+  // V145: secao 14 "Escola de Julio" removida do Painel Completo (pedido do usuario). ejSaldo/ejBar/ejPct/
+  // ejMeta nao existem mais no HTML - card cxEscolaSaldo (secao 05, Caixas Operacionais) e balResEscola
+  // (Balanco) continuam existindo e sendo hidratados normalmente, so a secao 14 dedicada foi removida.
 
   // V139: secoes 12/13 (Consorcio Casa Nova / Projeto Casa Nova) - antes 100% texto fixo, sem id nenhum.
   const CCN = R.consorcioCasaNova, PCN = R.projetoCasaNova;
@@ -1072,6 +1229,7 @@ function hydrate(){
   t('patFgts', fmt(B.fgts));
 }
 document.addEventListener('DOMContentLoaded', hydrate);
+document.addEventListener('DOMContentLoaded', popularSeletorCiclo); // V145: cria os botoes do seletor de ciclo
 
 // ===== Auditoria automatica (item 15 do Plano Mestre, criada 17/07/2026 V54) =====
 // Roda sozinha ao carregar a pagina. Como o REG e um snapshot agregado (nao guarda TX individuais
@@ -1285,8 +1443,11 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
          txto: folego>=0
            ? `Caixa Variável acima do teto oficial (${fmt(excedente)}), coberta pela tolerância temporária — restam ${fmt(folego)} até o teto de ${fmt(tetoEfetivo)}`
            : `Caixa Variável estourou inclusive a tolerância temporária em ${fmt(Math.abs(folego))}`});
-    if(q.tetoTemporarioAtivo){
-      alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Tolerância temporária de ${fmt(cv.tolerenciaTemp)} ativa até o fim do ciclo (24/07) — recomposição prevista via reembolso Wärtsilä ou salário de 25/07`});
+    if(q.tetoTemporarioAtivo && cv.tolerenciaTemp > 0){
+      // V145 CORRIGIDO: texto era hardcoded "ate 24/07 - salario de 25/07" (datas do ciclo antigo).
+      // So aparece quando ha tolerancia ativa DE VERDADE (usuario declarou uma nova) - por padrao,
+      // ciclo novo comeca SEM tolerancia (VARS.tolerenciaTemp=0), entao este alerta fica mudo.
+      alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Tolerância temporária de ${fmt(cv.tolerenciaTemp)} ativa neste ciclo — recomposição a combinar`});
     }
     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO): como o site e estatico (Claude mantem manualmente,
     // nao ha automacao real de virada de ciclo), este alerta funciona como lembrete ativo - se houver

@@ -70,6 +70,18 @@
     <button class="master-tab" onclick="showMaster('balancov2', this)">🏛️ Balanço</button>
   </div>
 
+  <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
+       (Caixa Variavel, Reembolso, Tolerancia, Cascata do Reembolso, Modo Operacional) sem tocar em
+       Necessidade Total/Patrimonio/Faturas obrigatorias (fluxo continuo, mesmos em qualquer ciclo). -->
+  <div class="ciclo-seletor-wrap">
+    <span class="ciclo-seletor-label">🗓️ Ver ciclo:</span>
+    <div class="ciclo-seletor-btns" id="cicloSeletorBtns"><!-- populado por popularSeletorCiclo() --></div>
+  </div>
+  <div id="cicloBannerFechado" style="display:none">
+    <span>🔒</span>
+    <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
+  </div>
+
   <div id="painel" class="master-pane active">
 
 
@@ -308,12 +320,6 @@
     </div>
     <div class="progress"><div class="fill" id="pcnBar" style="width:0%;background:var(--accent)"></div></div>
     <div class="progress-lbl"><span class="v" id="pcnMeta">—</span><span class="v" id="pcnFalta">—</span></div>
-  </div>
-
-  <!-- 14 -->
-  <div class="section-num"><span class="n">14</span><h2>Escola de Júlio</h2></div>
-  <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Saldo atual</div><div class="v" style="font-weight:600" id="ejSaldo">—</div><div class="progress"><div class="fill" id="ejBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="ejPct">—</span><span class="v" id="ejMeta">—</span></div></div>
   </div>
 
   <!-- 15 -->
