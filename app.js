@@ -159,7 +159,7 @@ function liquidoMes(i){
 const VARS = {
   // Caixa Variavel (operacional, dia-a-dia)
   caixaVariavelSaldoReal: 1930.76,      // V139/V140 (24/07/2026, CORRIGIDO): salario Wartsila (TX000136, R$16.819,56) entrou na Conta Corrente (OP), nao na CV. CV recebeu apenas aporte de R$2.000 (TX000137) e transferiu R$4.002,61 para a nova Caixa Mastercard/Infinite (TX000139, unica transferencia real). R$3.933,37+R$2.000,00-R$4.002,61=R$1.930,76. Era R$3.933,37.
-  caixaVariavelComprometido: 3998.50,   // Sem alteracao nesta rodada (ver nota historica V136).
+  caixaVariavelComprometido: 0,          // VIRADA DE CICLO 25/07/2026 (V143): novo ciclo (25/07-24/08) comeca com comprometido zerado. Ciclo anterior fechou em R$3.998,50 (ver ERP SNAPSHOT_CICLOS_FECHADOS - nada foi apagado, so este contador de ciclo resetou). Era R$3.998,50.
 
   // Cofrinhos/caixas patrimoniais e operacionais (Mercado Pago)
   caixaLance: 3482.51,                  // SAIDA 24/07/2026 (V141): -R$266,23 (adiantamento transporte corporativo, MP*WALLACELIRA/Nubank, TX000152, reembolsavel Wartsila). Era R$3.748,74.
@@ -213,7 +213,7 @@ const VARS = {
   // mesma fatura, 2 numeros diferentes na tela. Fonte correta: LIVRO_LRMP_TOTAL do ERP, R$1.791,93,
   // 17/07/2026, mais completo/recente que MERCADO_PAGO_FATURA de 16/07 R$1.749,35).
   faturaWartsila: 656.67,
-  mercadoPagoFatura: 1791.93,
+  mercadoPagoFatura: 2058.16, // ATUALIZADO 25/07/2026 (V143): R$1.791,93 + R$266,23 (adiantamento transporte corporativo, TX000152, ainda nao debitado). Vencimento 04/08/2026. Era R$1.791,93.
 
   // Patrimonio Fisico (Balanco) - eram 5 literais soltos dentro de REG.balanco.fisico
   patCasa: 110000.00,
@@ -273,6 +273,13 @@ const VARS = {
   reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
   reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008)
   orcamentoOperacional: 3200.00,
+
+  // FUNDO DE SUAVIZACAO SALARIAL - ATIVADO 25/07/2026 (V143, secao 16 Politicas)
+  proLaboreFixo: 11000.00,          // Revisado pelo usuario na ativacao (era R$15.000 na decisao V90).
+  contaSuavizacao: 0,               // Comeca zerada (decisao 3/3 confirmada). Salario deste ciclo (R$16.819,56) ja
+                                     // foi recebido e 100% distribuido em 24/07, ANTES da ativacao formal - o excedente
+                                     // sobre o pro-labore ja foi para Caixa Lance/outras caixas, nao para ca. A partir
+                                     // do PROXIMO salario, o excedente passa a entrar aqui de fato.
   coberturaGarantida: 954.90,
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
@@ -370,11 +377,12 @@ const REG = {
     entradasTotais: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = salario + reembolsoCicloTotal. V128 CORRIGIDO (bug real): formula antiga usava reembolsosAReceber, que ia a zero quando o reembolso chegava, fazendo entradasTotais CAIR errado. Era R$36.138,37.
     totalOperacional: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
     orcamentoOperacional: VARS.orcamentoOperacional,
+    proLaboreFixo: VARS.proLaboreFixo, // ATIVADO 25/07/2026 (V143): usado para calcular saldoCicloBase/modoOperacional dinamicamente
     necessidadeTotalBruta: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = totalOperacional + orcamentoOperacional. V111: -R$88,00.
     coberturaGarantida: VARS.coberturaGarantida,     // Sem alteracao.
     necessidadeLiquida: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = necessidadeTotalBruta - coberturaGarantida. V111: -R$88,00.
     saldoCiclo: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = balanco.fluxo.entradas - necessidadeTotalBruta. V111: +R$88,00.
-    modoOperacional: 'Alto',
+    modoOperacional: 'Normal', // CORRIGIDO 25/07/2026 (V144): placeholder inicial - SEMPRE sobrescrito por recalcularAgregadosDerivados() com base no saldoCiclo real (secao 10 Politicas). Antes ficava fixo em 'Alto' manualmente, nunca recalculava - bug corrigido, confirmado pelo usuario que o calculo dinamico deve valer mesmo quando mostrar Normal/Baixo/Critico.
     // totalOperacionalMar27 removido (16/07/2026): era um 3o registrador duplicado do mesmo valor
     // ja presente em evolucao.totalOperacional[ultimo ponto] - agora calculado dinamicamente no hydrate().
   },
@@ -639,6 +647,19 @@ const REG = {
   REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
   REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
+  // CORRIGIDO 25/07/2026 (V143→V144, erro do Claude apontado pelo usuario): o pro-labore NAO substitui o
+  // salario real nos calculos - ele so decide o ROTEAMENTO do excedente/complemento (Fundo de Suavizacao,
+  // secao 16 Politicas). Modo Operacional continua reagindo ao saldoCiclo real (dinheiro de verdade
+  // disponivel), exatamente como sempre funcionou (secao 10 Politicas). O pro-labore e so o "pulmão":
+  // mes bom (salario real > R$11.000) manda o excedente pra Conta Suavizacao; mes fraco (salario real <
+  // R$11.000) a Conta Suavizacao complementa a diferenca ANTES do resto do sistema calcular qualquer coisa
+  // - entao na pratica o sistema sempre "ve" pelo menos R$11.000 disponivel, nunca menos. O calculo abaixo
+  // e so informativo (quanto seria o excedente/complemento deste ciclo), NAO mexe no Modo Operacional.
+  REG.operacional.excedenteOuComplementoProLabore = r2(REG.operacional.salario - REG.operacional.proLaboreFixo);
+  if(REG.operacional.saldoCiclo < 0) REG.operacional.modoOperacional = 'Crítico';
+  else if(REG.operacional.saldoCiclo < 3000) REG.operacional.modoOperacional = 'Baixo';
+  else if(REG.operacional.saldoCiclo < 8000) REG.operacional.modoOperacional = 'Normal';
+  else REG.operacional.modoOperacional = 'Alto';
   // Sobra da cascata de reembolso Wartsila = Total - as 4 pernas de deducao (regra da Politica sec.5, 5 pernas). V128: campos nomeados, nao mais numeros magicos.
   REG.operacional.reembolsoSobraPessoal = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPagaWartsila - REG.operacional.reembolsoPagaMPCorporativo - REG.operacional.reembolsoPagaCartaoCorporativo - D.provMP);
   // CORRIGIDO 23/07/2026 (bug real apontado pelo usuario): REG.visa.totalComprometido = Infinite+MB somados
@@ -711,6 +732,26 @@ function hydrate(){
   t('s02Reembolsos', fmt(R.operacional.reembolsosAReceber));
   t('s02Entradas', fmt(R.operacional.entradasTotais));
   t('s02SaldoCiclo', R.operacional.saldoCiclo.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  // CORRIGIDO 25/07/2026 (V143→V144): este card era 100% texto fixo ("Salário Alto", badge "Alto",
+  // texto de "cumprir aportes") - nunca mudava mesmo quando o Modo Operacional real era outro. Agora
+  // reage de verdade as 4 faixas da secao 10 das Politicas.
+  (function(){
+    const modo = R.operacional.modoOperacional;
+    const cfg = {
+      'Crítico': {cor:'#e2554f', badge:'Crítico', titulo:'Salário Crítico', faixa:'(< R$ 0)', texto:'Suspender aportes patrimoniais.'},
+      'Baixo':   {cor:'#e2a13f', badge:'Baixo',   titulo:'Salário Baixo',   faixa:'(R$ 0 – R$ 2.999)', texto:'Reduzir gastos na ordem: Churrasco → Combustível → Eventos → Manutenção.'},
+      'Normal':  {cor:'#e8d34f', badge:'Normal',  titulo:'Salário Normal',  faixa:'(R$ 3.000 – R$ 7.999)', texto:'Cumprir aportes normalmente.'},
+      'Alto':    {cor:'var(--green)', badge:'Alto', titulo:'Salário Alto',  faixa:'(≥ R$ 8.000)', texto:'Cumprir todos os aportes e direcionar todo excedente para Caixa Lance e BTG/Necton.'},
+    }[modo] || {cor:'var(--green)', badge:'—', titulo:'Modo Operacional', faixa:'', texto:''};
+    t('s02ModoTitulo', cfg.titulo);
+    t('s02ModoBadge', cfg.badge);
+    t('s02ModoFaixa', cfg.faixa);
+    t('s02ModoTexto', cfg.texto);
+    const tituloEl = document.getElementById('s02ModoTitulo');
+    const cardEl = document.getElementById('s02ModoCard');
+    if(tituloEl) tituloEl.style.color = cfg.cor;
+    if(cardEl) cardEl.style.borderLeftColor = cfg.cor;
+  })();
 
   t('s20TotalOp', fmt(R.operacional.totalOperacional));
   t('s20Orcamento', fmt(R.operacional.orcamentoOperacional));

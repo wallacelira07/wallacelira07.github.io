@@ -114,12 +114,12 @@
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Reembolsos a receber</div><div class="v" style="font-size:1.2rem;font-weight:600" id="s02Reembolsos">—</div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Entradas totais do ciclo</div><div class="v" style="font-size:1.2rem;font-weight:600;color:var(--accent)" id="s02Entradas">—</div></div>
   </div>
-  <div class="card" style="border-left:3px solid var(--green)">
+  <div class="card" id="s02ModoCard" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-      <div><div style="font-size:1.05rem;font-weight:600;color:var(--green)">Salário Alto</div><div style="font-size:0.75rem;color:var(--text-dim)">Saldo do ciclo R$ <span class="v" id="s02SaldoCiclo">—</span> (≥ R$ 8.000)</div></div>
-      <span class="badge bg">Alto</span>
+      <div><div style="font-size:1.05rem;font-weight:600;color:#e8d34f" id="s02ModoTitulo">Salário Normal</div><div style="font-size:0.75rem;color:var(--text-dim)">Saldo do ciclo R$ <span class="v" id="s02SaldoCiclo">—</span> <span id="s02ModoFaixa">(R$ 3.000 – R$ 7.999)</span></div></div>
+      <span class="badge bg" id="s02ModoBadge">Normal</span>
     </div>
-    <div style="font-size:0.82rem;color:#8bdcb8">Cumprir todos os aportes e direcionar todo excedente para Caixa Lance e BTG/Necton.</div>
+    <div style="font-size:0.82rem;color:#8bdcb8" id="s02ModoTexto">Cumprir aportes normalmente.</div>
   </div>
 
   <!-- 3 -->
@@ -1113,7 +1113,7 @@
     <!-- 9 -->
     <div class="section-num"><span class="n">09</span><h2>🛡️ As 4 perguntas dos cenários</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">Alto</strong></span></div>
+      <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">Normal</strong></span></div>
       <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span class="v" id="bal4qTotalOp">R$ 11.117,00</span> (Total Operacional)</span></div>
       <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qPatrimonio">R$ 468.542,31</span> (Líquido, Balanço)</span></div>
       <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qExcedente">R$ 21.821,37</span> (Excedente/Saldo do Ciclo)</span></div>
