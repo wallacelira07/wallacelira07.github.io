@@ -176,8 +176,8 @@ const VARS = {
   escolaJulioSaldo: 1006.74,            // APORTE 24/07/2026 (V139): +R$500,00 (salario Wartsila, TX000142). Era R$506,74. Fora da Meta do Milhao (regra P5/V47).
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 9160.07,          // Sem alteracao nesta rodada (ja auditado 23/07/2026).
-  cartaoMBTotal: 2065.17,               // Sem alteracao nesta rodada (ja congelado 23/07/2026, ver mastercardBlackCongelado).
+  cartaoInfiniteTotal: 4786.94,          // Sem alteracao (V149): a nova despesa corporativa TX000158 e do Mastercard Black (2244), nao do Visa Infinite - livroLRC aumentou mas o corp usado no visaDetalhe deve continuar refletindo so o que e do Visa. Ver nota em livroLRC.
+  cartaoMBTotal: 2245.98,               // RECONCILIADO 25/07/2026 (V155) contra a fatura literal do app (6 prints, 16/07-25/07/2026, enviados pelo usuario). MASTERCARD_BLACK_CONGELADO_22072026 (R$1.937,18, fatura fechada 22/07, vence 28/07) + novo ciclo ja lancado (R$308,80: TX000132 R$56,99 + TX000154 R$30,97 + TX000156 R$2,49 + TX000157 R$2,49 + TX000158 R$215,86) = R$2.245,98. Amazon Prime Canais (R$19,99) e Digna (R$152,41), vistas na fatura em 25/07, sao recorrencias MENSAIS ja lancadas no ERP (TX000134/TXRR000003) - cobranca normal se repetindo, nao lancamento novo. Era R$2.373,97 (continha um registrador diferente/nao reconciliado, CARTAO_MASTERCARD_BLACK_TOTAL_COMPROMETIDO=R$2.065,17, que divergia do congelado oficial sem explicacao documentada).
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
@@ -190,7 +190,7 @@ const VARS = {
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
   // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
   // duplicado em totalOpDetalhe E visaDetalhe (2 copias que podiam dessincronizar) - agora moram so aqui.
-  livroLRP: 2500.46,      // = LIVRO_LRP_TOTAL do ERP (16 parcelamentos)
+  livroLRP: 0,      // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_VISA (soma dos ATIVO). Nunca editar este numero diretamente - editar os itens do array.
   livroLRCON: 1950.77,    // = LIVRO_LRCON_TOTAL do ERP (2 consorcios)
 
   // Patrimonio financeiro (Meta do Milhao)
@@ -235,9 +235,9 @@ const VARS = {
   reservaPiso: 9223.66,       // era literal em REG.reserva.piso E em deficitZero.piso[0] (2 copias)
 
   // Meta de investimento
-  metaInvestimentoValor: 6741.76,
-  aporteBTGPactual: 11700.51,       // V142: componente 1 do investimentoAtual (25/06/2026)
-  depositoAtivacaoNecton: 1.00,     // V142: componente 2 (10/07/2026, TX000045) - antes investimentoAtual
+  metaInvestimentoValor: 0, // CORRIGIDO 25/07/2026 (V151): SOBRESCRITO em recalcularAgregadosDerivados() = 20% do salario do ciclo atual. Era R$6.741,76 (numero fixo, nao batia com "20% do salario" que o proprio card promete no titulo - com o salario real de R$16.819,56, 20% e R$3.363,91, nao R$6.741,76).
+  aporteBTGPactual: 0,       // ZERADO 25/07/2026 (V151): era R$11.700,51 de 25/06/2026 (ciclo FECHADO) - o card "Total investido no mês" e mensal, nao acumulado historico. Nenhum aporte BTG feito ainda neste ciclo (25/07-24/08).
+  depositoAtivacaoNecton: 0,     // ZERADO 25/07/2026 (V151): era R$1,00 de 10/07/2026 (ciclo FECHADO, TX000045). Mesmo motivo - nenhum deposito Necton feito ainda neste ciclo.
                                      // era um literal composto (11701.51) sem os 2 fatos que o formam
 
   // Livros razao que sao fonte primaria (nao compostos de nada mais dentro do app.js) - LRW/LRV/LRS/LRR/LRC
@@ -246,7 +246,8 @@ const VARS = {
   livroLRB: 4586.45,   // ATUALIZADO 24/07/2026 (V139): +R$1.986,21 (TXB000010, aporte salario). Era R$2.600,24.
   livroLRCV: 1502.24,  // LIVRO_LRCV_TOTAL do ERP
   livroLRPV: -295.66,  // LIVRO_LRPV_TOTAL do ERP
-  livroLRC: 483.43,    // V138: LIVRO_LRC_TOTAL do ERP (livro/soma-de-transacoes) - distinto de REG.operacional.reembolsoPagaCartaoCorporativo
+  livroLRCVisaOnly: 483.43,    // = parte do livro LRC que e do Visa Infinite (usado em visaDetalhe.corp). NAO inclui a despesa corporativa do Mastercard Black (TX000158, Outback).
+  livroLRC: 215.86,    // CORRIGIDO 25/07/2026 (V156): usuario esclareceu que os R$483,43 (6 despesas corporativas antigas no Visa) sao do ciclo FECHADO, ja cobertos pelo valor separado para pagamento em 28/07 (MASTERCARD_BLACK_CONGELADO). O painel de Livros Razao (LRC) mostra so o corporativo do ciclo ATUAL, ainda pendente de reembolso: TX000158 (Outback Vitoria, R$215,86). Era R$699,29 (misturava os dois ciclos).
                         // (483.83, extrato real reconciliado V128); os dois numeros sao proximos mas representam conceitos diferentes,
                         // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
 
@@ -280,7 +281,7 @@ const VARS = {
                                      // foi recebido e 100% distribuido em 24/07, ANTES da ativacao formal - o excedente
                                      // sobre o pro-labore ja foi para Caixa Lance/outras caixas, nao para ca. A partir
                                      // do PROXIMO salario, o excedente passa a entrar aqui de fato.
-  coberturaGarantida: 954.90,
+  coberturaGarantida: 954.90, // CORRIGIDO 25/07/2026 (V146): valor sera SOBRESCRITO em recalcularAgregadosDerivados() = totalOpProvMP + reembolsoPagaCartaoCorporativo. Este numero fica obsoleto assim que a pagina carrega - nunca editar aqui diretamente, editar totalOpProvMP.
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
   caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
@@ -298,17 +299,19 @@ const VARS = {
   suporteCoIrmaEventos: 167.40,            // Eventos->Variavel, mesmo proposito (visita familia Vanessa), nao e LREI
 
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
-  visaLRWHistorico: 2139.45,      // Compras Wallace (LRW-I, historico). CORRIGIDO 23/07/2026: +R$9,99 (Amazon Prime Aluguel, achado na fatura Bradesco real 10/07, compra avulsa nunca lancada). Era R$2.129,46.
-  visaLRRConfirmado: 1194.53,     // Recorrencias confirmadas no Visa Infinite. CORRIGIDO 23/07/2026: VIVO revertida de R$435 (V111, baseada em config teorica) para R$523 (fatura Bradesco real confirma 2 cobrancas: R$469,00+R$54,00=R$523,00 - fatura sempre vence, V61). Era R$1.106,53 (+R$88,00).
+  visaLRWHistorico: 0,      // ZERADO 25/07/2026 (V147): confirmado pelo usuario - eram compras VARIAVEIS UNICAS no Visa Infinite ("compras unicas e pagou acabou"), nao recorrencia/assinatura. Ja foram pagas na fatura de julho (ciclo fechado), nao repetem no ciclo novo. Migracao de compras variaveis para o Mastercard Black e definitiva desde 23/07/2026 (fechamento da fatura MB). Era R$2.139,45.
+  visaLRRConfirmado: 1106.53,     // ATUALIZADO 25/07/2026 (V147): ciclo virou, aplicando mudanca de plano Vivo confirmada por print oficial (23/07/2026) - R$523,00->R$435,00 (-R$88,00). Era R$1.194,53.
   visaLRSConfirmado: 429.31,      // Assinaturas confirmadas no Visa Infinite. CORRIGIDO 23/07/2026: +R$19,99 (Amazon Prime Canais, achado na fatura Bradesco real 25/06, nunca lancado). Era R$409,32.
-  visaLRVHistorico: 462.12,       // Compras Vanessa (LRV-I) - = LIVRO_LRV_I_TOTAL
+  visaLRVHistorico: 0,       // ZERADO 25/07/2026 (V147): mesma logica - compras variaveis unicas ja pagas na fatura de julho, nao repetem no ciclo novo. Era R$462,12.
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 1406.92,       // = LIVRO_LRW_MB_TOTAL
+  mbLRWConfirmado: 1335.92,       // AJUSTADO 25/07/2026 (V155): reconciliado para fechar exato com o valor congelado oficial (MASTERCARD_BLACK_CONGELADO_22072026=R$1.937,18, confirmado pelo usuario como o valor real separado para pagamento em 28/07 - "separei 1900 e pouco pra pagar agora"). Havia uma divergencia de R$127,99 entre este componente e o congelado oficial, sem composicao detalhada disponivel para reconciliar linha a linha (usuario nao tem o detalhamento por categoria do fechamento de 22/07) - ajustado por dedução matemática (total real - demais componentes conhecidos), não fatura literal item a item. Era R$1.463,91.
   mbLRRConfirmado: 614.45,        // Recorrencias confirmadas no Mastercard Black
   mbLRSConfirmado: 43.80,         // Assinaturas confirmadas no Mastercard Black
+  mbLRVConfirmado: 35.95,         // REVERTIDO 25/07/2026 (V152->V153): valor real completo (TX000154 R$30,97 do ciclo fechado + TX000156/157 R$2,49x2 deste ciclo = R$35,95), necessario para fechar cartaoMBTotal. O filtro por ciclo do painel Livros Razao (secao 15) e so exibicao, nao deve zerar o dado real.
+  mbLRCConfirmado: 215.86,        // NOVO 25/07/2026 (V149/V152): TX000158 (Outback Vitoria, corporativo, movida de LRW-MB para LRC). Era R$0,00.
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
-  totalOpProvMP: 471.47,          // Mercado Pago pessoal - fatura literal do ciclo (V91)
+  totalOpProvMP: 0,          // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO). Nunca editar diretamente.
 
   // V140: demais primarios soltos no REG (cenarios/estimador)
   liquidoProjetadoProximoCiclo: 16048.51,  // Estimador de Salario - ciclo Ago/26
@@ -351,11 +354,47 @@ const VARS = {
   // seguroEmplacamentoAporte (425) ja existia acima
 
   // V144: footer da tabela "PIX diversos" (LRCV) - era texto fixo "Saidas R$527,61 Entradas R$64,00 Liquido -R$463,61"
-  pixDiversosSaidas: 527.61,
-  pixDiversosEntradas: 64.00,
+  pixDiversosSaidas: 0, // ZERADO 25/07/2026 (V152): filtro por ciclo - eram R$527,61 do ciclo FECHADO (26/06-24/07). Nenhuma movimentacao de PIX diversos na Caixa Variavel ainda neste ciclo (25/07-24/08).
+  pixDiversosEntradas: 0, // ZERADO 25/07/2026 (V152): mesma logica, era R$64,00 do ciclo fechado.
 
   // V144: footer LRC (Corporativo Visa Infinite) - "6 lancamentos" era texto fixo, valor ja em VARS.livroLRC
-  livroLRCQtdLancamentos: 6,
+  livroLRCQtdLancamentos: 1, // CORRIGIDO 25/07/2026 (V156): so o corporativo do ciclo ATUAL (TX000158, Outback). Os 6 lancamentos antigos do Visa sao do ciclo fechado, ja cobertos no valor separado pra 28/07. Era 7.
+
+  // ===== V154 (25/07/2026): PARCELAMENTOS ESTRUTURADOS - fonte unica de verdade, espelha 1:1 a aba
+  // PARCELAMENTOS_ATIVOS do ERP. Pedido do usuario: "O LR de compras parceladas tem que ser atualizado
+  // automaticamente, ir retirando as parcelas pagas igualmente o LR do mercado pago". Antes disso, a
+  // tabela HTML (secao 15, paineis LRP/LRMP) era 100% texto fixo, sem nenhuma relacao com os totais
+  // usados no calculo (livroLRP/totalOpProvMP) - dois lugares que podiam dessincronizar silenciosamente.
+  // Agora a tabela e GERADA por JS a partir destes arrays (ver renderParcelamentos() antes do hydrate),
+  // e o total tambem deriva daqui - uma unica fonte, dois usos.
+  // Quando um novo ciclo virar: incrementar parcelaAtual de cada item ATIVO; se parcelaAtual>totalParcelas,
+  // mudar status para 'QUITADO' (nao remover a linha - mantem rastreabilidade, so sai da soma/exibicao ativa).
+  PARCELAMENTOS_VISA: [
+    { tx:'TXP000001', data:'23/03', nome:'Teacher Matias', valor:134.14, parcelaAtual:5, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXP000002', data:'21/03', nome:'DeckFriend', valor:13.03, parcelaAtual:5, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXP000003', data:'05/12/25', nome:'Korpos Estética', valor:189.99, parcelaAtual:8, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXP000004', data:'23/05', nome:'RL Artesão', valor:66.83, parcelaAtual:3, totalParcelas:5, status:'ATIVO' },
+    { tx:'TXP000005', data:'28/05', nome:'Mercado Livre', valor:38.25, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },
+    { tx:'TXP000006', data:'20/05', nome:'Mercado Livre', valor:68.01, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },
+    { tx:'TXP000007', data:'18/02', nome:'Mercado Livre MP', valor:48.33, parcelaAtual:6, totalParcelas:6, status:'ATIVO' },
+    { tx:'TXP000008', data:'03/07', nome:'Seguro Tokio Marine - Auto', valor:200.99, parcelaAtual:1, totalParcelas:1, status:'QUITADO' }, // a vista, ja concluido
+    { tx:'TXP000009', data:'31/05', nome:'Aram Beach Hotel', valor:486.64, parcelaAtual:3, totalParcelas:2, status:'QUITADO' }, // era 2/2 (ultima) no ciclo fechado
+    { tx:'TXP000010', data:'21/07', nome:'PicPay Wallace Patri', valor:183.47, parcelaAtual:12, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXP000011', data:'20/05', nome:'Hub Smart Home', valor:72.96, parcelaAtual:3, totalParcelas:2, status:'QUITADO' },
+    { tx:'TXP000012', data:'19/05', nome:'Edilson Lourenço', valor:425.00, parcelaAtual:3, totalParcelas:2, status:'QUITADO' },
+    { tx:'TXP000013', data:'19/05', nome:'Silmara Macedo', valor:375.00, parcelaAtual:3, totalParcelas:2, status:'QUITADO' },
+    { tx:'TXP000014', data:'08/07', nome:'Hotmart Fernando', valor:42.00, parcelaAtual:13, totalParcelas:12, status:'QUITADO' },
+    { tx:'TXP000015', data:'13/05', nome:'Kinesioceteos', valor:74.85, parcelaAtual:4, totalParcelas:5, status:'ATIVO' },
+    { tx:'TXP000025', data:'06/05', nome:'RBM Relógios', valor:80.97, parcelaAtual:4, totalParcelas:3, status:'QUITADO' },
+  ],
+  PARCELAMENTOS_MP: [
+    { tx:'TXMP000001', nome:'Mercado Livre', valor:56.39, parcelaAtual:4, totalParcelas:6, status:'ATIVO' },
+    { tx:'TXMP000002', nome:'Mercado Livre', valor:106.04, parcelaAtual:7, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXMP000003', nome:'Mercado Livre', valor:50.40, parcelaAtual:7, totalParcelas:8, status:'ATIVO' },
+    { tx:'TXMP000004', nome:'Mercado Livre', valor:68.36, parcelaAtual:7, totalParcelas:6, status:'QUITADO' },
+    { tx:'TXMP000005', nome:'Mercado Livre', valor:166.62, parcelaAtual:11, totalParcelas:24, status:'ATIVO' },
+    { tx:'TXMP000006', nome:'Mercado Livre', valor:23.66, parcelaAtual:4, totalParcelas:6, status:'ATIVO' },
+  ],
 
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
   // Pedido explicito do usuario: "quero ter duas visoes, a do ciclo anterior como ele fechou e a nova
@@ -397,19 +436,19 @@ const VARS = {
       periodo: '25/07/2026 a 24/08/2026',
       fechado: false,
       salario: 16819.56,
-      entradasTotais: 17085.79,
-      caixaVariavelComprometido: 0,
+      entradasTotais: 17425.79, // ATUALIZADO V146: +R$340 no reembolso
+      caixaVariavelComprometido: 555.99, // ATUALIZADO 25/07/2026 (V157): +R$551,01 (TX000159, Mercado Livre, cartao virtual 4628). Era R$4,98.
       caixaVariavelSaldoReal: 2000.00,
-      caixaVariavelDisponivel: 2000.00,
+      caixaVariavelDisponivel: 1444.01, // ATUALIZADO V157: 2000.00 - 555.99
       reembolsoRecebido: 0,
-      reembolsoAReceber: 266.23,
+      reembolsoAReceber: 606.23, // ATUALIZADO 25/07/2026 (V146): R$266,23 (TX000152, transporte corporativo) + R$340,00 (nova solicitacao, ainda sem vinculo de origem especifico - usuario vai detalhar quando enviar a solicitacao formal a Wartsila).
       toleranciaTempValor: 0,
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
       tetoEfetivo: 2000,
       cascata: { faturaWartsila: 0, mpCorporativo: 0, cartaoCorporativo: 0, mpPessoal: 0, sobraTotal: 0 },
-      necessidadeTotalBruta: 14898.13, // fluxo continuo - mesmo valor do VARS principal, repetido aqui so por completude do snapshot
-      necessidadeTotalLiquida: 14898.13, // sem reembolso novo ainda para abater
+      necessidadeTotalBruta: 13146.21, // ATUALIZADO V146/V147: parcelas Visa+MP recalculadas via PARCELAMENTOS_ATIVOS
+      necessidadeTotalLiquida: 12743.10, // ATUALIZADO V147: NECESSIDADE_TOTAL - COBERTURA_JA_GARANTIDA_25 (403.11, cascata zerada corretamente)
       modoOperacional: 'Normal',
       saldoCiclo: 6836.41,
       visaInfiniteComprometido: 9160.07, // fluxo continuo
@@ -421,6 +460,13 @@ const VARS = {
 };
 
 const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = ordem cronologica
+
+// V154: livroLRP e totalOpProvMP agora SOBRESCRITOS aqui, derivados dos arrays PARCELAMENTOS_VISA/MP
+// (definidos acima dentro do VARS) - nunca mais numero fixo. Somar só os itens com status='ATIVO'.
+// Isso e o "motor de avanco automatico": na proxima virada de ciclo, so preciso incrementar
+// parcelaAtual de cada item (e marcar QUITADO quando passar do total) - os totais recalculam sozinhos.
+VARS.livroLRP = Math.round(VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO').reduce((s,p)=>s+p.valor,0)*100)/100;
+VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO').reduce((s,p)=>s+p.valor,0)*100)/100;
 
 // V145 (25/07/2026): aplica o snapshot do ciclo selecionado aos campos POR-CICLO do VARS, ANTES do REG
 // ser construido - assim o REG ja nasce lendo o ciclo certo. Campos de FLUXO CONTINUO (necessidade
@@ -513,11 +559,11 @@ const REG = {
   // forcar/inventar em qual categoria o R$49,81 pertence (violaria P1), adicionado como linha propria
   // "naoReconciliado", visivel e documentada - mesmo padrao ja usado para outras diferencas residuais
   // do sistema (ex: CORRECAO_15072026_007, R$36,90 na epoca). Agora a soma bate exatamente com a fatura.
-  visaDetalhe: { parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, wallace:VARS.visaLRWHistorico, recorrencias:VARS.visaLRRConfirmado, corp:VARS.livroLRC, assinaturas:VARS.visaLRSConfirmado, vanessa:VARS.visaLRVHistorico, naoReconciliado:VARS.visaNaoReconciliado },
+  visaDetalhe: { parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, wallace:VARS.visaLRWHistorico, recorrencias:VARS.visaLRRConfirmado, corp:VARS.livroLRCVisaOnly, assinaturas:VARS.visaLRSConfirmado, vanessa:VARS.visaLRVHistorico, naoReconciliado:VARS.visaNaoReconciliado },
   // V135: wallace CORRIGIDO 1161.94 -> 1349.93 (= LIVRO_LRW_MB_TOTAL do ERP, V121 - TX128/129/130 de
   // 21/07 nunca tinham propagado pra ca). Era o unico motivo do mbDetalhe nao bater com cartaoMBTotal
   // (gap de R$187,99): 1161,94+614,45+43,80=1.820,19 vs VARS.cartaoMBTotal=2.008,18. Agora soma exato.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:0, assinaturas:VARS.mbLRSConfirmado, vanessa:0 },
+  mbDetalhe: { parcelas:0, consorcios:0, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:VARS.mbLRCConfirmado, assinaturas:VARS.mbLRSConfirmado, vanessa:VARS.mbLRVConfirmado },
   // V136 (22/07/2026): visaDetalhe.vanessa +R$17,98 (TX131, H57Store, cartao 4845) e mbDetalhe.wallace
   // +R$56,99 (TX132, Google SunSurveyorApp, cartao 2244) - ambos ja embutidos acima. Soma continua
   // batendo exato com cartaoInfiniteTotal/cartaoMBTotal (checks #11/#12 da auditoria confirmam).
@@ -595,8 +641,8 @@ const REG = {
     // R$16.048,51). Antes do dia 12 (sem estimativa concreta ainda), cai na media ponderada de 12 meses
     // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
     // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
-    liquidoReal: {}, // preencher {indice: valor} quando um ciclo fechar (dia 25) e o valor real chegar.
-    necessidade: [14317.00,12951.87,12620.07,12138.93,11871.07,11771.07,...Array(6).fill(VARS.necessidadeHeld)]
+    liquidoReal: {0: 16819.56}, // ATUALIZADO 25/07/2026 (V150): salario real do ciclo atual ja recebido (24/07/2026, TX000136) - preenchido conforme a propria regra manda ("preencher quando um ciclo fechar e o valor real chegar"). Era {} (vazio).
+    necessidade: [13146.21,12951.87,12620.07,12138.93,11871.07,11771.07,...Array(6).fill(VARS.necessidadeHeld)] // ATUALIZADO V150: indice 0 (ciclo atual) = NECESSIDADE_TOTAL corrigida (13146.21, ver V146/V147). Era 14317.00 (desatualizado, herdado de antes da correcao das parcelas).
   },
   livrosRazaoTotais: {
     // V137: LRW/LRV/LRC/LRS/LRR eram literais que so por coincidencia batiam com visaDetalhe+mbDetalhe -
@@ -604,14 +650,14 @@ const REG = {
     // converter). LRP/LRCON ja liam do VARS desde V135. LRB/LRCV/LRPV nao tem como derivar de outro dado
     // ja presente no site (sao fonte primaria) - leem do VARS agora, unica copia editavel. LRMP le do
     // VARS.mercadoPagoFatura (fecha a mesma divergencia corrigida no card Cartoes/Balanco).
-    LRW:   { total:0, qtd:60 },
-    LRV:   { total:0, qtd:18 },
+    LRW:   { total:56.99, qtd:1 }, // FILTRO POR CICLO (V152/V155): painel de Livros Razao (secao 15) mostra o limbo (TX000132, Google SunSurveyorApp, R$56,99, 22/07 pos-fechamento) + ciclo atual - nenhuma compra pessoal do Wallace no MB neste ciclo ainda (Outback foi reclassificado como corporativo). Valor HARDCODED aqui (nao deriva de mbLRWConfirmado/visaLRWHistorico, que sao o TOTAL REAL usado em auditoria/cartaoMBTotal).
+    LRV:   { total:35.95, qtd:3 }, // FILTRO POR CICLO (V152/V155): painel mostra limbo (TX000154, R$30,97, 24/07) + ciclo atual (TX000156/157, R$2,49x2) = R$35,95, 3 lancamentos. Valor HARDCODED (mesma logica do LRW acima).
     LRB:   { total:VARS.livroLRB, qtd:10 },
     LRP:   { total:VARS.livroLRP, qtd:16 },
     LRS:   { total:0, qtd:12 },
     LRR:   { total:0, qtd:7  },
     LRCON: { total:VARS.livroLRCON, qtd:2 },
-    LRC:   { total:0, qtd:6 },
+    LRC:   { total:0, qtd:7 }, // CORRIGIDO 25/07/2026 (V154): +1 (Outback, TX000158). Era 6.
     LRMP:  { total:VARS.mercadoPagoFatura, qtd:9 },
     LRCV:  { total:VARS.livroLRCV, qtd:28 },
     LRPV:  { total:VARS.livroLRPV, qtd:19 }
@@ -641,7 +687,7 @@ const REG = {
     // tao distantes, nunca chutado um numero novo, so mantido o ultimo). Antes pulava Fev/27; agora
     // e sequencial, os rotulos vem de gerarMeses(12) - dinamico, sempre a partir do mes atual.
     totalOperacional:   [11658.24,9751.87,9420.07,8938.93,8671.07,8571.07,...Array(6).fill(VARS.totalOperacionalHeld)], // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine, ver REG.operacional.totalOperacional). Pontos futuros (Ago/26 em diante) NAO recalculados - baseline anterior, ja documentado como limitacao pendente desde V50/V51 (podem ainda incluir as parcelas 8-10 do Tokio removidas hoje - revisao futura).
-    necessidadeLiquida: [13903.34,11996.97,11665.17,11184.03,10916.17,10816.17,...Array(6).fill(VARS.necessidadeLiquidaHeld)] // CORRIGIDO 19/07/2026: 1o ponto (ciclo atual) -R$1.808,91 (reversao Tokio Marine). Era R$15.712,25.
+    necessidadeLiquida: [12743.10,11996.97,11665.17,11184.03,10916.17,10816.17,...Array(6).fill(VARS.necessidadeLiquidaHeld)] // ATUALIZADO 25/07/2026 (V150): indice 0 (ciclo atual, 25/07-24/08) = R$12.743,10 (Necessidade Total corrigida R$13.146,21 - Cobertura Garantida R$403,11, ver V146/V147). Era R$13.903,34 (desatualizado, herdado de antes da correcao das parcelas).
   },
 
   // ===== BALANÇO PATRIMONIAL (Reestruturação V2.0, 16/07/2026 - V40/V41/V42) =====
@@ -669,7 +715,7 @@ const REG = {
     // do VARS.mercadoPagoFatura (antes essa fatura aparecia em 2 lugares da tela com 2 valores
     // diferentes: R$1.751,16 aqui/card Cartoes vs R$1.791,93 no Balanco - mesma fatura, bug real).
     obrigacoes: { visa:0, mastercardBlack:0, mercadoPago:VARS.mercadoPagoFatura, wartsila:VARS.faturaWartsila, total:0 },
-    fluxo: { entradas:0, saidas:VARS.fluxoSaidas, resultado:VARS.fluxoResultado } // V70 (18/07/2026): saidas 14.795,99->14.819,89, resultado 21.342,38->21.318,48
+    fluxo: { entradas:0, saidas:0, resultado:0 } // CORRIGIDO 25/07/2026 (V150): saidas e resultado agora SOBRESCRITOS em recalcularAgregadosDerivados(), nunca mais numero fixo. Antes ficavam presos no valor do ciclo de transicao (25/06-24/07) mesmo depois de entradas ja ter mudado - "matematica doida" apontada pelo usuario (Resultado R$21.318,48 nao batia com nada real).
   }
 };
 
@@ -745,9 +791,12 @@ function recalcularAgregadosDerivados(){
   REG.reembolsos.recebidosNoCiclo = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsosAReceber);
   // Total Operacional = soma literal dos 7 componentes (mesma formula documentada na Politica sec.13/TOTAL_OPERACIONAL)
   REG.operacional.totalOperacional = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.aportesPat + D.provMP + D.assinaturas);
+  REG.operacional.coberturaGarantida = r2(VARS.totalOpProvMP + REG.operacional.reembolsoPagaCartaoCorporativo); // CORRIGIDO V146: era numero fixo (954.90), agora deriva de MP pessoal + Visa corporativo (mesma composicao documentada desde V15).
   REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
   REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
+  REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta; // CORRIGIDO V150: era numero fixo, agora e a mesma Necessidade Total Bruta (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+OrcamentoOperacional). Movido para APOS necessidadeTotalBruta ser calculado (ordem de execucao).
+  REG.balanco.fluxo.resultado = r2(REG.balanco.fluxo.entradas - REG.balanco.fluxo.saidas); // CORRIGIDO V150: era numero fixo, agora e Entradas-Saidas de verdade
   // CORRIGIDO 25/07/2026 (V143→V144, erro do Claude apontado pelo usuario): o pro-labore NAO substitui o
   // salario real nos calculos - ele so decide o ROTEAMENTO do excedente/complemento (Fundo de Suavizacao,
   // secao 16 Politicas). Modo Operacional continua reagindo ao saldoCiclo real (dinheiro de verdade
@@ -781,8 +830,10 @@ function recalcularAgregadosDerivados(){
   // V137: livrosRazaoTotais LRW/LRV/LRC = soma das mesmas partes ja usadas nos graficos (visaDetalhe+mbDetalhe).
   // LRS/LRR = mesmos valores ja derivados em totalOpDetalhe.assinaturas/recorrencias (linha 393/394 acima).
   // Todos verificados batendo exato antes de virar formula (harness Node, 0 divergencia).
-  REG.livrosRazaoTotais.LRW.total = r2(REG.visaDetalhe.wallace + REG.mbDetalhe.wallace);
-  REG.livrosRazaoTotais.LRV.total = r2(REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa);
+  // V152/V153: livrosRazaoTotais.LRW/LRV NAO sao mais sobrescritos aqui - viraram filtro manual por ciclo
+  // (painel Livros Razao, secao 15), editados direto no VARS.livrosRazaoTotais. O total REAL comprometido
+  // (usado em auditoria/cartaoMBTotal) continua vindo de visaDetalhe.wallace/vanessa + mbDetalhe.wallace/vanessa,
+  // sem relacao com o que aparece filtrado no painel.
   REG.livrosRazaoTotais.LRC.total = r2(REG.visaDetalhe.corp + REG.mbDetalhe.corp);
   REG.livrosRazaoTotais.LRS.total = REG.totalOpDetalhe.assinaturas;
   REG.livrosRazaoTotais.LRR.total = REG.totalOpDetalhe.recorrencias;
@@ -794,6 +845,7 @@ function recalcularAgregadosDerivados(){
 
   // V137: excedente do investimento derivado (elimina a classe de erro que gerou a correcao V107, um
   // erro de subtracao manual de R$1,00).
+  REG.metaInvestimento.meta = r2(REG.operacional.salario * 0.20); // CORRIGIDO V151: 20% do salario do ciclo atual (era numero fixo R$6.741,76, nao correspondia ao titulo do card "Meta mensal (20% do salario)")
   REG.metaInvestimento.investido = r2(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton);
   REG.metaInvestimento.excedente = r2(REG.metaInvestimento.investido - REG.metaInvestimento.meta);
   REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
@@ -850,6 +902,55 @@ function atualizarBotoesSeletorCiclo(){
 
 // V145: cria os botoes do seletor dinamicamente a partir de CICLO_LISTA - nunca precisa editar o HTML
 // na mao quando um novo ciclo fechar, basta adicionar a entrada em VARS.CICLO_SNAPSHOTS.
+// V155: implementacao real de renderParcelamentos() - antes so mencionada em comentario (V154),
+// nunca escrita. Gera as tabelas HTML de LRP (Visa) e LRMP-parcelas (Mercado Pago) a partir dos
+// arrays estruturados VARS.PARCELAMENTOS_VISA/MP - unica fonte, nunca mais editar a tabela na mao.
+// Itens QUITADO nao aparecem (somem sozinhos quando parcelaAtual ultrapassa totalParcelas).
+function renderParcelamentos(){
+  function montarLinhas(lista, comIcone){
+    return lista
+      .filter(p => p.status === 'ATIVO')
+      .map(p => {
+        const ultima = p.parcelaAtual === p.totalParcelas;
+        const emoji = ultima ? ' 🔚' : '';
+        const classe = ultima ? ' class="last-parcel"' : '';
+        const nomeCol = comIcone ? (p.data ? `<td class="mono">${p.data}</td><td>${p.nome}${emoji}</td>` : `<td>${p.nome}${emoji}</td>`) : `<td>${p.nome}${emoji}</td>`;
+        return `<tr${classe}><td class="mono">${p.tx}</td>${nomeCol}<td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+      }).join('\n');
+  }
+
+  const lrpTbody = document.getElementById('lrpTbody');
+  if(lrpTbody){
+    lrpTbody.innerHTML = VARS.PARCELAMENTOS_VISA
+      .filter(p => p.status === 'ATIVO')
+      .map(p => {
+        const ultima = p.parcelaAtual === p.totalParcelas;
+        const emoji = ultima ? ' 🔚' : '';
+        const classe = ultima ? ' class="last-parcel"' : '';
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${p.nome}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+      }).join('');
+  }
+
+  const lrmpTbody = document.getElementById('lrmpTbody');
+  if(lrmpTbody){
+    lrmpTbody.innerHTML = VARS.PARCELAMENTOS_MP
+      .filter(p => p.status === 'ATIVO')
+      .map(p => {
+        const ultima = p.parcelaAtual === p.totalParcelas;
+        const emoji = ultima ? ' 🔚' : '';
+        const classe = ultima ? ' class="last-parcel"' : '';
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${p.nome}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+      }).join('');
+  }
+
+  const qtdVisaAtivo = VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO').length;
+  const qtdMPAtivo = VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO').length;
+  const lrpQtdEl = document.getElementById('tfLRPQtd');
+  if(lrpQtdEl) lrpQtdEl.textContent = qtdVisaAtivo+' lançamentos ativos · âmbar = última parcela';
+  const lrmpQtdEl = document.getElementById('tfLRMPQtd');
+  if(lrmpQtdEl) lrmpQtdEl.textContent = (qtdMPAtivo+3)+' lançamentos ('+qtdMPAtivo+' parcelas + 3 fixos: 2 corp. + 1 avulsa)';
+}
+
 function popularSeletorCiclo(){
   const wrap = document.getElementById('cicloSeletorBtns');
   if(!wrap) return;
@@ -947,7 +1048,7 @@ function hydrate(){
     const temReal = (REG.superavitNormal.liquidoReal||{})[0] != null;
     const fonteLabel = temReal ? 'Real recebido'
       : (diaHoje>=12 ? 'Projetado (Estimador de Salário)' : 'Média ponderada 12M (sem estimativa ainda)');
-    t('estStatusFonte', 'Folha Jun/2026 → ciclo 25/07 (Ago/26) · '+fonteLabel);
+    t('estStatusFonte', 'Ciclo 25/07 (Ago/26) · '+fonteLabel);
   }
   t('estNecLiquida', fmt(R.estimador.necessidadeLiquidaProximoCiclo));
   const excedenteEst = liquidoMes(0) - R.estimador.necessidadeLiquidaProximoCiclo;
@@ -1230,6 +1331,8 @@ function hydrate(){
 }
 document.addEventListener('DOMContentLoaded', hydrate);
 document.addEventListener('DOMContentLoaded', popularSeletorCiclo); // V145: cria os botoes do seletor de ciclo
+document.addEventListener('DOMContentLoaded', renderParcelamentos); // V155: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
+document.addEventListener('DOMContentLoaded', aplicarFiltroLivrosRazao); // V152: filtra Livros Razao (limbo + ciclo atual) por padrao
 
 // ===== Auditoria automatica (item 15 do Plano Mestre, criada 17/07/2026 V54) =====
 // Roda sozinha ao carregar a pagina. Como o REG e um snapshot agregado (nao guarda TX individuais
@@ -1571,6 +1674,69 @@ function showLR(id, btn){
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
 }
+
+// ===== V152 (25/07/2026): FILTRO DE LIVROS RAZAO POR CICLO =====
+// Pedido do usuario: "Os livros razão onde tem as compras Variáveis, tem que mostrar apenas as
+// compras do limbo do master e as que são no novo ciclo". Em vez de reescrever as ~260 linhas de
+// tabela (risco alto de erro/perda de dado numa refatoracao sem visualizacao real disponivel),
+// o filtro esconde/mostra linhas via CSS usando a propria coluna "Data" (formato DD/MM) ja existente
+// em cada <tr> - nenhum dado foi reescrito, so uma camada de exibicao por cima do que ja existia.
+// Corte do limbo+ciclo atual: 23/07/2026 em diante (dia do mes >=23 E mes=07, cobrindo o limbo do
+// fechamento da fatura Mastercard Black que comeca no dia 23) OU mes >= 08 (futuro). Datas antes disso
+// (ate 22/07) sao 100% do ciclo fechado (26/06-24/07), sem ambiguidade de limbo.
+const CICLO_NOVO_DIA_CORTE = 23; // dia em que o LIMBO do Mastercard Black comeca (fechamento fatura ~22/07)
+const CICLO_NOVO_MES_CORTE = 7;  // julho
+
+function dataPertenceCicloAtual(dataStr){
+  // dataStr no formato "DD/MM" (ex: "27/06", "25/07"). Retorna true se e do ciclo atual (25/07 em diante).
+  const m = dataStr.match(/^(\d{2})\/(\d{2})$/);
+  if(!m) return true; // formato inesperado (ex: "—" ou vazio) -> nao esconde, mostra por seguranca
+  const dia = parseInt(m[1], 10), mes = parseInt(m[2], 10);
+  if(mes > CICLO_NOVO_MES_CORTE) return true;  // mes futuro (agosto em diante) = ciclo atual ou seguinte
+  if(mes === CICLO_NOVO_MES_CORTE) return dia >= CICLO_NOVO_DIA_CORTE;
+  return false; // mes anterior a julho = ciclo fechado
+}
+
+// Livros que fazem sentido filtrar por ciclo (compras variaveis e afins). Livros patrimoniais/parcelados
+// (LRP, LRCON, LREI, doacoes) nao sao filtrados aqui - continuam mostrando tudo, pois representam saldo
+// corrente/parcelamento continuo, nao "gasto do mes".
+const LIVROS_FILTRAVEIS_POR_CICLO = ['lrw','lrv','lrb','lrs','lrr','lrc','lrmp','lrcv','lrpv'];
+
+let filtroLivroRazaoAtivo = true; // true = mostra so limbo+ciclo atual. false = mostra tudo (historico completo).
+
+function aplicarFiltroLivrosRazao(){
+  LIVROS_FILTRAVEIS_POR_CICLO.forEach(id=>{
+    const pane = document.getElementById(id);
+    if(!pane) return;
+    const rows = pane.querySelectorAll('tbody tr');
+    rows.forEach(tr=>{
+      const dataCell = tr.children[1]; // 2a coluna = Data em todas as tabelas (TX, Data, Estabelecimento, Valor)
+      if(!dataCell) return;
+      const dataStr = dataCell.textContent.trim();
+      const ehCicloAtual = dataPertenceCicloAtual(dataStr);
+      if(filtroLivroRazaoAtivo){
+        tr.style.display = ehCicloAtual ? '' : 'none';
+      } else {
+        tr.style.display = '';
+      }
+    });
+  });
+  atualizarBotaoFiltroLivrosRazao();
+}
+
+function alternarFiltroLivrosRazao(){
+  filtroLivroRazaoAtivo = !filtroLivroRazaoAtivo;
+  aplicarFiltroLivrosRazao();
+}
+
+function atualizarBotaoFiltroLivrosRazao(){
+  const btn = document.getElementById('btnFiltroLivrosRazao');
+  if(!btn) return;
+  btn.textContent = filtroLivroRazaoAtivo
+    ? '🔍 Mostrando: ciclo atual + limbo — ver histórico completo'
+    : '🔍 Mostrando: histórico completo — ver só ciclo atual';
+}
+
 
 const valueLeaderPlugin = {
   id: 'valueLeader',
