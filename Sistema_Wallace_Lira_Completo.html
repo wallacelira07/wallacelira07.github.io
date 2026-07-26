@@ -192,7 +192,7 @@
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span class="v" id="cxManutMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600;color:var(--red)" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--red)"></div></div><div class="progress-lbl"><span style="color:var(--red)">Usado no teto extraordinário</span><span class="v" id="cxEventosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxEventosPct">—</span><span class="v" id="cxEventosMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudeAporteTxt">—</span><span class="v" id="cxSaudeMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxAnivAporteTxt">—</span><span class="v" id="cxAnivMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroAporteTxt">—</span><span class="v" id="cxSeguroMeta">—</span></div></div>
@@ -439,12 +439,10 @@
       <table><thead><tr><th>TX</th><th>Descrição</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody id="lrmpTbody">
       <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.PARCELAMENTOS_MP -->
       </tbody>
-      <tbody>
-      <tr><td class="mono">TXMP000008</td><td>Transporte Recife (ida)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
-      <tr><td class="mono">TXMP000007</td><td>Transporte Recife (volta)</td><td class="mono">corp.</td><td class="r">R$ 638,94</td></tr>
-      <tr><td class="mono">TXMP000010</td><td>Mercado Livre (avulsa, à vista)</td><td class="mono">único</td><td class="r">R$ 42,58</td></tr>
+      <tbody id="lrmpCorpTbody">
+      <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.TRANSACOES_CORPORATIVAS_MP, filtrado pela data real do ciclo selecionado -->
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Parcelas (topo da tabela) geradas automaticamente a partir de VARS.PARCELAMENTOS_MP (aba PARCELAMENTOS_ATIVOS do ERP) — avançam +1 a cada ciclo, somem sozinhas ao quitar. Linhas de "corp." e "único" (transporte corporativo, compra avulsa) são fixas — não são parcelamentos recorrentes, não fazem parte da automação. corp. = 100% reembolsável (prioridade 2 na fila de reembolso).</div>
+      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Parcelas geradas automaticamente a partir de VARS.PARCELAMENTOS_MP — avançam +1 a cada ciclo, somem sozinhas ao quitar. Itens "corp."/"único" filtrados automaticamente pela DATA real de cada um contra o período do ciclo selecionado (nunca mais editado à mão) — corp. = 100% reembolsável (prioridade 2 na fila de reembolso).</div>
       <div class="callout ok" style="margin-top:0.6rem"><strong>Fora da fatura (não soma acima):</strong> TXMP000009 — Transporte corporativo, R$266,23, pago via PIX na conta Mercado Pago (não cobrado no cartão) em 13/07/2026, 100% reembolsável pela Wärtsilä. Não entra na fatura do cartão porque não foi cobrado nele — mesma lógica da Fatura Wärtsilä no card de Obrigações (visível para rastreabilidade, não soma no operacional).</div>
       <div class="tfoot"><span id="tfLRMPQtd">—</span><span class="total v" id="tfLRMP">—</span></div>
     </div>
@@ -506,8 +504,7 @@
       <div><div style="font-size:0.72rem;color:var(--text-mid)" class="v">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
       <span class="badge bg v" id="metaInvBadge">—</span>
     </div>
-    <div class="row"><span class="k">Aporte BTG Pactual (neste ciclo)</span><span class="v" style="color:var(--green)" id="metaInvBTG">—</span></div>
-    <div class="row"><span class="k">Depósito Necton (neste ciclo)</span><span class="v" style="color:var(--green)" id="metaInvNecton">—</span></div>
+    <div class="row"><span class="k">Aporte BTG/Necton (neste ciclo)</span><span class="v" style="color:var(--green)" id="metaInvBTG">—</span></div>
     <div class="row" style="font-weight:600"><span class="k">Total investido no mês (BTG+Necton)</span><span class="v" style="color:var(--green)" id="metaInvTotal">—</span></div>
     <div class="row"><span class="k">Excedente acima da meta</span><span class="v" style="color:var(--green)" id="metaInvExcedente">—</span></div>
   </div>

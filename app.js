@@ -176,8 +176,8 @@ const VARS = {
   escolaJulioSaldo: 1006.74,            // APORTE 24/07/2026 (V139): +R$500,00 (salario Wartsila, TX000142). Era R$506,74. Fora da Meta do Milhao (regra P5/V47).
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 4786.94,          // Sem alteracao (V149): a nova despesa corporativa TX000158 e do Mastercard Black (2244), nao do Visa Infinite - livroLRC aumentou mas o corp usado no visaDetalhe deve continuar refletindo so o que e do Visa. Ver nota em livroLRC.
-  cartaoMBTotal: 2245.98,               // RECONCILIADO 25/07/2026 (V155) contra a fatura literal do app (6 prints, 16/07-25/07/2026, enviados pelo usuario). MASTERCARD_BLACK_CONGELADO_22072026 (R$1.937,18, fatura fechada 22/07, vence 28/07) + novo ciclo ja lancado (R$308,80: TX000132 R$56,99 + TX000154 R$30,97 + TX000156 R$2,49 + TX000157 R$2,49 + TX000158 R$215,86) = R$2.245,98. Amazon Prime Canais (R$19,99) e Digna (R$152,41), vistas na fatura em 25/07, sao recorrencias MENSAIS ja lancadas no ERP (TX000134/TXRR000003) - cobranca normal se repetindo, nao lancamento novo. Era R$2.373,97 (continha um registrador diferente/nao reconciliado, CARTAO_MASTERCARD_BLACK_TOTAL_COMPROMETIDO=R$2.065,17, que divergia do congelado oficial sem explicacao documentada).
+  cartaoInfiniteTotal: 816.90,          // RECONSTRUIDO 25/07/2026 (V159): usuario confirmou migracao FINAL e COMPLETA de assinaturas/recorrencias/consorcios/corporativo para o Mastercard Black. Visa Infinite agora tem SOMENTE parcelas (que continuam ate terminar, nao migram). = livroLRP (R$816,90). Era R$4.786,94.
+  cartaoMBTotal: 4563.34,               // CORRIGIDO 25/07/2026 (V161, regra definitiva confirmada pelo usuario): o congelamento (MASTERCARD_BLACK_CONGELADO_22072026, R$1.937,18) existe porque o usuario mudou a data de vencimento da fatura, empurrando o fechamento de 22/07 para o mes seguinte (para nao pesar no orcamento deste ciclo) - esse valor NAO entra no ciclo atual, fica totalmente separado. LRW, LRV e LRC contam SO a partir de 23/07 (pos-congelamento): Wallace R$608,00 + Vanessa R$35,95 + Corporativo R$215,86 = R$859,81. Recorrencias/Assinaturas/Consorcios sao debito automatico mensal, ja ocorreram neste ciclo - contam cheias: R$1.279,65+R$473,11+R$1.950,77=R$3.703,53. Total: R$859,81+R$3.703,53=R$4.563,34.
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
@@ -191,7 +191,8 @@ const VARS = {
   // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
   // duplicado em totalOpDetalhe E visaDetalhe (2 copias que podiam dessincronizar) - agora moram so aqui.
   livroLRP: 0,      // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_VISA (soma dos ATIVO). Nunca editar este numero diretamente - editar os itens do array.
-  livroLRCON: 1950.77,    // = LIVRO_LRCON_TOTAL do ERP (2 consorcios)
+  livroLRCON: 1950.77,    // = LIVRO_LRCON_TOTAL do ERP (2 consorcios: Porto Carro + Porto Casa Nova). USADO NO MASTERCARD BLACK (mbDetalhe.consorcios) - ambos ja migrados para MB desde 17/07/2026, valor correto aqui.
+  livroLRCONVisaOnly: 0,    // NOVO 25/07/2026 (V159): parte do LRCON que e do Visa Infinite (usado em visaDetalhe.consorcios) - ZERADO porque os 2 consorcios ja migraram 100% para o Mastercard Black desde 17/07/2026. Nao ha nenhum consorcio no Visa.
 
   // Patrimonio financeiro (Meta do Milhao)
   reserva: 100066.05,
@@ -246,7 +247,7 @@ const VARS = {
   livroLRB: 4586.45,   // ATUALIZADO 24/07/2026 (V139): +R$1.986,21 (TXB000010, aporte salario). Era R$2.600,24.
   livroLRCV: 1502.24,  // LIVRO_LRCV_TOTAL do ERP
   livroLRPV: -295.66,  // LIVRO_LRPV_TOTAL do ERP
-  livroLRCVisaOnly: 483.43,    // = parte do livro LRC que e do Visa Infinite (usado em visaDetalhe.corp). NAO inclui a despesa corporativa do Mastercard Black (TX000158, Outback).
+  livroLRCVisaOnly: 0,    // ZERADO 25/07/2026 (V159, confirmado repetidamente pelo usuario): os R$483,43 sao do CICLO ANTERIOR, dinheiro ja recebido/reembolsado, sera pago dia 28 junto com a fatura MB - NAO deve aparecer como pendencia do ciclo atual. Era R$483,43.
   livroLRC: 215.86,    // CORRIGIDO 25/07/2026 (V156): usuario esclareceu que os R$483,43 (6 despesas corporativas antigas no Visa) sao do ciclo FECHADO, ja cobertos pelo valor separado para pagamento em 28/07 (MASTERCARD_BLACK_CONGELADO). O painel de Livros Razao (LRC) mostra so o corporativo do ciclo ATUAL, ainda pendente de reembolso: TX000158 (Outback Vitoria, R$215,86). Era R$699,29 (misturava os dois ciclos).
                         // (483.83, extrato real reconciliado V128); os dois numeros sao proximos mas representam conceitos diferentes,
                         // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
@@ -300,15 +301,15 @@ const VARS = {
 
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
   visaLRWHistorico: 0,      // ZERADO 25/07/2026 (V147): confirmado pelo usuario - eram compras VARIAVEIS UNICAS no Visa Infinite ("compras unicas e pagou acabou"), nao recorrencia/assinatura. Ja foram pagas na fatura de julho (ciclo fechado), nao repetem no ciclo novo. Migracao de compras variaveis para o Mastercard Black e definitiva desde 23/07/2026 (fechamento da fatura MB). Era R$2.139,45.
-  visaLRRConfirmado: 1106.53,     // ATUALIZADO 25/07/2026 (V147): ciclo virou, aplicando mudanca de plano Vivo confirmada por print oficial (23/07/2026) - R$523,00->R$435,00 (-R$88,00). Era R$1.194,53.
-  visaLRSConfirmado: 429.31,      // Assinaturas confirmadas no Visa Infinite. CORRIGIDO 23/07/2026: +R$19,99 (Amazon Prime Canais, achado na fatura Bradesco real 25/06, nunca lancado). Era R$409,32.
+  visaLRRConfirmado: 0,     // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as recorrencias para o Mastercard Black. Nenhuma recorrencia resta no Visa Infinite. Era R$1.106,53.
+  visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
   visaLRVHistorico: 0,       // ZERADO 25/07/2026 (V147): mesma logica - compras variaveis unicas ja pagas na fatura de julho, nao repetem no ciclo novo. Era R$462,12.
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 1335.92,       // AJUSTADO 25/07/2026 (V155): reconciliado para fechar exato com o valor congelado oficial (MASTERCARD_BLACK_CONGELADO_22072026=R$1.937,18, confirmado pelo usuario como o valor real separado para pagamento em 28/07 - "separei 1900 e pouco pra pagar agora"). Havia uma divergencia de R$127,99 entre este componente e o congelado oficial, sem composicao detalhada disponivel para reconciliar linha a linha (usuario nao tem o detalhamento por categoria do fechamento de 22/07) - ajustado por dedução matemática (total real - demais componentes conhecidos), não fatura literal item a item. Era R$1.463,91.
-  mbLRRConfirmado: 614.45,        // Recorrencias confirmadas no Mastercard Black
-  mbLRSConfirmado: 43.80,         // Assinaturas confirmadas no Mastercard Black
-  mbLRVConfirmado: 35.95,         // REVERTIDO 25/07/2026 (V152->V153): valor real completo (TX000154 R$30,97 do ciclo fechado + TX000156/157 R$2,49x2 deste ciclo = R$35,95), necessario para fechar cartaoMBTotal. O filtro por ciclo do painel Livros Razao (secao 15) e so exibicao, nao deve zerar o dado real.
-  mbLRCConfirmado: 215.86,        // NOVO 25/07/2026 (V149/V152): TX000158 (Outback Vitoria, corporativo, movida de LRW-MB para LRC). Era R$0,00.
+  mbLRWConfirmado: 608.00,       // CORRIGIDO 25/07/2026 (V161): usuario esclareceu que este campo e SO o limbo/compras variaveis feitas APOS o congelamento de 22/07 - nao o historico completo do LRW-MB. TX000132 (Google SunSurveyorApp, R$56,99, 22/07 19:59 - fora da janela do congelamento oficial, que foi baseado em prints ate 21/07) + TX000159 (Mercado Livre, R$551,01, 25/07) = R$608,00. Era R$1.957,93 (LRW-MB completo, incluia indevidamente o valor ja congelado).
+  mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
+  mbLRSConfirmado: 473.11,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas agora). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
+  mbLRVConfirmado: 35.95,         // CONFIRMADO 25/07/2026 (V161): regra definitiva - so compras APOS 22/07 (congelamento) contam no ciclo atual. TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2) = R$35,95. Nenhuma compra da Vanessa antes do congelamento entra aqui.
+  mbLRCConfirmado: 215.86,        // TX000158 (Outback Vitoria, corporativo ciclo ATUAL). O corporativo antigo do Visa (R$483,43) e do ciclo FECHADO, ja resolvido - nao soma aqui.
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
   totalOpProvMP: 0,          // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO). Nunca editar diretamente.
@@ -394,6 +395,15 @@ const VARS = {
     { tx:'TXMP000004', nome:'Mercado Livre', valor:68.36, parcelaAtual:7, totalParcelas:6, status:'QUITADO' },
     { tx:'TXMP000005', nome:'Mercado Livre', valor:166.62, parcelaAtual:11, totalParcelas:24, status:'ATIVO' },
     { tx:'TXMP000006', nome:'Mercado Livre', valor:23.66, parcelaAtual:4, totalParcelas:6, status:'ATIVO' },
+  ],
+
+  // V159 (25/07/2026): itens corporativos/avulsos do Mercado Pago, com DATA real - permite filtro automatico
+  // por ciclo (nunca mais texto fixo tipo "não deve aparecer no ciclo novo" editado a mao). Pedido do usuario:
+  // "isso foi do ciclo passado, não deve aparecer no ciclo novo... tem que ser removido automaticamente".
+  TRANSACOES_CORPORATIVAS_MP: [
+    { tx:'TXMP000007', nome:'Transporte Recife (volta)', valor:638.94, data:'2026-07-02', tipo:'corp' },
+    { tx:'TXMP000008', nome:'Transporte Recife (ida)', valor:638.94, data:'2026-06-29', tipo:'corp' },
+    { tx:'TXMP000010', nome:'Mercado Livre (avulsa, à vista)', valor:42.58, data:'2026-05-19', tipo:'unico' },
   ],
 
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
@@ -559,11 +569,11 @@ const REG = {
   // forcar/inventar em qual categoria o R$49,81 pertence (violaria P1), adicionado como linha propria
   // "naoReconciliado", visivel e documentada - mesmo padrao ja usado para outras diferencas residuais
   // do sistema (ex: CORRECAO_15072026_007, R$36,90 na epoca). Agora a soma bate exatamente com a fatura.
-  visaDetalhe: { parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, wallace:VARS.visaLRWHistorico, recorrencias:VARS.visaLRRConfirmado, corp:VARS.livroLRCVisaOnly, assinaturas:VARS.visaLRSConfirmado, vanessa:VARS.visaLRVHistorico, naoReconciliado:VARS.visaNaoReconciliado },
+  visaDetalhe: { parcelas:VARS.livroLRP, consorcios:VARS.livroLRCONVisaOnly, wallace:VARS.visaLRWHistorico, recorrencias:VARS.visaLRRConfirmado, corp:VARS.livroLRCVisaOnly, assinaturas:VARS.visaLRSConfirmado, vanessa:VARS.visaLRVHistorico, naoReconciliado:VARS.visaNaoReconciliado },
   // V135: wallace CORRIGIDO 1161.94 -> 1349.93 (= LIVRO_LRW_MB_TOTAL do ERP, V121 - TX128/129/130 de
   // 21/07 nunca tinham propagado pra ca). Era o unico motivo do mbDetalhe nao bater com cartaoMBTotal
   // (gap de R$187,99): 1161,94+614,45+43,80=1.820,19 vs VARS.cartaoMBTotal=2.008,18. Agora soma exato.
-  mbDetalhe: { parcelas:0, consorcios:0, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:VARS.mbLRCConfirmado, assinaturas:VARS.mbLRSConfirmado, vanessa:VARS.mbLRVConfirmado },
+  mbDetalhe: { parcelas:0, consorcios:VARS.livroLRCON, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:VARS.mbLRCConfirmado, assinaturas:VARS.mbLRSConfirmado, vanessa:VARS.mbLRVConfirmado },
   // V136 (22/07/2026): visaDetalhe.vanessa +R$17,98 (TX131, H57Store, cartao 4845) e mbDetalhe.wallace
   // +R$56,99 (TX132, Google SunSurveyorApp, cartao 2244) - ambos ja embutidos acima. Soma continua
   // batendo exato com cartaoInfiniteTotal/cartaoMBTotal (checks #11/#12 da auditoria confirmam).
@@ -571,7 +581,7 @@ const REG = {
   // recorrencias/assinaturas: 0 e placeholder - DERIVADOS em recalcularAgregadosDerivados() a partir de
   // visaDetalhe+mbDetalhe (eram numeros literais que so por coincidencia batiam com a soma das partes;
   // agora e formula, nunca mais pode dessincronizar).
-  totalOpDetalhe: { boletos:VARS.totalOpBoletos, parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, recorrencias:0, aportesPat:VARS.totalOpAportesPat, provMP:VARS.totalOpProvMP, assinaturas:0 },
+  totalOpDetalhe: { boletos:VARS.totalOpBoletos, parcelas:VARS.livroLRP, consorcios:VARS.livroLRCON, recorrencias:VARS.mbLRRConfirmado, aportesPat:VARS.totalOpAportesPat, provMP:VARS.totalOpProvMP, assinaturas:VARS.mbLRSConfirmado },
   // V137: milhaoPct e escolaPct viram DERIVADOS (alimentam o grafico "Progresso das metas patrimoniais").
   // milhaoPct estava TRAVADO em 11,54% desde antes da correcao V135 (que levou patrimonio.metaMilhaoPct
   // pra 11,57%) - o grafico mostraria o percentual errado. escolaPct tambem estava desatualizado (5,47%
@@ -907,18 +917,6 @@ function atualizarBotoesSeletorCiclo(){
 // arrays estruturados VARS.PARCELAMENTOS_VISA/MP - unica fonte, nunca mais editar a tabela na mao.
 // Itens QUITADO nao aparecem (somem sozinhos quando parcelaAtual ultrapassa totalParcelas).
 function renderParcelamentos(){
-  function montarLinhas(lista, comIcone){
-    return lista
-      .filter(p => p.status === 'ATIVO')
-      .map(p => {
-        const ultima = p.parcelaAtual === p.totalParcelas;
-        const emoji = ultima ? ' 🔚' : '';
-        const classe = ultima ? ' class="last-parcel"' : '';
-        const nomeCol = comIcone ? (p.data ? `<td class="mono">${p.data}</td><td>${p.nome}${emoji}</td>` : `<td>${p.nome}${emoji}</td>`) : `<td>${p.nome}${emoji}</td>`;
-        return `<tr${classe}><td class="mono">${p.tx}</td>${nomeCol}<td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
-      }).join('\n');
-  }
-
   const lrpTbody = document.getElementById('lrpTbody');
   if(lrpTbody){
     lrpTbody.innerHTML = VARS.PARCELAMENTOS_VISA
@@ -943,12 +941,40 @@ function renderParcelamentos(){
       }).join('');
   }
 
+  // V159: filtro dinamico por DATA - itens corporativos/avulsos so aparecem se a data deles for
+  // dentro do ciclo selecionado (usando o periodo real do CICLO_SNAPSHOTS, nao mais editado a mao).
+  const lrmpCorpTbody = document.getElementById('lrmpCorpTbody');
+  if(lrmpCorpTbody){
+    const snap = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+    const [iniStr, fimStr] = snap.periodo.split(' a ').map(s=>{
+      const [d,m,a] = s.trim().split('/');
+      return new Date(a, m-1, d);
+    });
+    const itensDoCiclo = VARS.TRANSACOES_CORPORATIVAS_MP.filter(t=>{
+      const dt = new Date(t.data);
+      return dt >= iniStr && dt <= fimStr;
+    });
+    lrmpCorpTbody.innerHTML = itensDoCiclo.map(t=>{
+      const tipoLabel = t.tipo === 'corp' ? 'corp.' : 'único';
+      return `<tr><td class="mono">${t.tx}</td><td>${t.nome}</td><td class="mono">${tipoLabel}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1rem 0">Nenhum item corporativo/avulso neste ciclo.</td></tr>';
+  }
+
   const qtdVisaAtivo = VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO').length;
   const qtdMPAtivo = VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO').length;
+  const snapAtual = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+  const [iniAtual, fimAtual] = snapAtual.periodo.split(' a ').map(s=>{
+    const [d,m,a] = s.trim().split('/');
+    return new Date(a, m-1, d);
+  });
+  const qtdCorpAtivo = VARS.TRANSACOES_CORPORATIVAS_MP.filter(t=>{
+    const dt = new Date(t.data);
+    return dt >= iniAtual && dt <= fimAtual;
+  }).length;
   const lrpQtdEl = document.getElementById('tfLRPQtd');
   if(lrpQtdEl) lrpQtdEl.textContent = qtdVisaAtivo+' lançamentos ativos · âmbar = última parcela';
   const lrmpQtdEl = document.getElementById('tfLRMPQtd');
-  if(lrmpQtdEl) lrmpQtdEl.textContent = (qtdMPAtivo+3)+' lançamentos ('+qtdMPAtivo+' parcelas + 3 fixos: 2 corp. + 1 avulsa)';
+  if(lrmpQtdEl) lrmpQtdEl.textContent = (qtdMPAtivo+qtdCorpAtivo)+' lançamentos ('+qtdMPAtivo+' parcelas + '+qtdCorpAtivo+' corp./avulso, filtrado por ciclo)';
 }
 
 function popularSeletorCiclo(){
@@ -1115,6 +1141,8 @@ function hydrate(){
   { const el=document.getElementById('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
   t('cxManutSaldo', fmt(C.manutencao.saldo));       t('cxManutMeta', fmtInt(C.manutencao.meta));
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
+  t('cxEventosPct', pctOf(C.eventos.saldo, C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  { const el=document.querySelector('#cxEventosSaldo').closest('.card').querySelector('.fill'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
   t('cxSeguroSaldo', fmt(C.seguroEmplacamento.saldo)); t('cxSeguroMeta', fmtInt(C.seguroEmplacamento.meta));
@@ -1239,8 +1267,7 @@ function hydrate(){
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
   t('metaInvMensal', fmt(R.metaInvestimento.meta));
   t('metaInvBadge', 'Total investido '+fmt(R.metaInvestimento.investido)+' · '+(R.metaInvestimento.excedente>=0?'Superada +':'Falta ')+fmt(Math.abs(R.metaInvestimento.excedente)));
-  t('metaInvBTG', fmt(VARS.aporteBTGPactual));
-  t('metaInvNecton', fmt(VARS.depositoAtivacaoNecton));
+  t('metaInvBTG', fmt(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton)); // CORRIGIDO 25/07/2026 (V159): usuario esclareceu que sao a mesma coisa - consolidados em 1 campo so (era duplicado, 2 linhas separadas para o mesmo conceito).
 
   t('cxWartsila', fmt(R.faturaWartsila));
   t('cxWartsilaExcedente', '100% coberto · excedente '+fmt(R.wartsilaCaixa.excedente));
@@ -1305,7 +1332,7 @@ function hydrate(){
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
   t('balResManut', fmt(B.reservas.manutencao));
-  t('balResEventos', fmt(B.reservas.eventos)+' (usada no ciclo)');
+  t('balResEventos', fmt(B.reservas.eventos));
   t('balResChurrasco', fmt(B.reservas.churrasco));
   t('balResSaude', fmt(B.reservas.saudeFamilia));
   t('balResSeguro', fmt(B.reservas.seguroEmplacamento));
