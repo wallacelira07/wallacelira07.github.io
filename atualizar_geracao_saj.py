@@ -59,7 +59,7 @@ from cryptography.hazmat.primitives import padding as crypto_padding
 
 SAJ_BASE = "https://iop.saj-electric.com/dev-api/api/v2"
 SAJ_LOGIN_URL = f"{SAJ_BASE}/sys/user/login"
-SAJ_ENERGY_URL = f"{SAJ_BASE}/monitor/plant/getPlantEnergyStatistics"
+SAJ_ENERGY_URL = f"{SAJ_BASE}/monitor/plantHome/getPlantEnergyStatistics"
 
 # CORRIGIDO (chave real confirmada via breakpoint no navegador, 01/08/2026 - testada byte a byte
 # contra um login de teste real, bateu exato): a chave NAO e derivada do clientSecret OAuth (isso foi
