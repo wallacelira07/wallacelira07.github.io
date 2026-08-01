@@ -624,7 +624,7 @@ const VARS = {
   mbLRWConfirmado: 893.20,       // ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
   mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
-  mbLRVConfirmado: 230.97,         // ATUALIZADO 31/07/2026: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
+  mbLRVConfirmado: 280.97,         // ATUALIZADO 01/08/2026: +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Júlio, cartão não especificado - assumido 6351 Mastercard Black da Vanessa). Era R$230,97: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
   mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
@@ -689,7 +689,7 @@ const VARS = {
     // for null, os campos derivados dela (consumoDireto, consumoTotalCasa, autoconsumoPct,
     // dependenciaPct, exportacaoPct) NAO sao calculados - a tela mostra "Dados insuficientes para
     // calculo" em vez de estimar. Nunca mais usar solarGeracaoDiariaEstimada para isso.
-    { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, geracaoAcumulada:264.20, fonte:'real' }, // geracaoAcumulada capturada em 01/08 (API SAJ real, energy1Total) - 1 dia depois da leitura 03/103 (31/07). Pequeno descompasso de data documentado, nao afeta o calculo de forma relevante (1 dia de geracao ~18kWh sobre um total acumulado).
+    { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, geracaoAcumulada:268.74, geracaoAcumuladaData:'2026-08-01', fonte:'real' }, // NOVO 01/08/2026 (V259): geracaoAcumuladaData rastreia quando ESSE numero foi lido de verdade (o robo da SAJ atualiza isso sozinho todo dia - ver script atualizar_geracao_saj.py), separado da data da leitura 03/103 (manual, so muda quando o usuario manda foto do medidor). Sem isso, consumo direto ficaria cada vez mais errado conforme os dois descasam (geracao andando sozinha, 03/103 parado).
   ],
 
   // Projecoes "held flat" (meses futuros alem do ultimo recalculado manualmente - repetem o ultimo
@@ -803,6 +803,7 @@ const VARS = {
     { tx:'TX000177', data:'29/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber de Vanessa (confirmado pelo usuário)', valor:19.65 },
     { tx:'TX000179', data:'31/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber de Vanessa (confirmado pelo usuário, extração via DeepSeek/GPT)', valor:5.06 },
     { tx:'TX000180', data:'31/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber padrão Vanessa (sem nome visível/aviso em contrário, extração via DeepSeek/GPT)', valor:6.43 },
+    { tx:'TX000191', data:'01/08', nome:'MP *TIORAFAKIDS', obs:'Corte de cabelo do Júlio (confirmado pelo usuário). Cartão não especificado no comprovante, só titular VANESSA G GALDINO - assumido Mastercard Black 6351 (cartão ativo dela) até confirmação.', valor:50.00 },
   ],
   LRC_LIMBO_TRANSACOES: [
     { tx:'TX000158', data:'25/07', nome:'Outback Vitória', obs:'cartão MB 2244, corporativo (reembolsável)', valor:215.86 },
@@ -3661,6 +3662,21 @@ new Chart(document.getElementById('g_cAlivio'), {
     const saldoLiquidoAcum = ultimaSolar.creditoLiquido;
     const geracaoAcum = ultimaSolar.geracaoAcumulada; // null ate o usuario informar a leitura real do inversor
     const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
+    // NOVO 01/08/2026 (V259, achado do usuário): geracaoAcumulada agora e atualizada sozinha todo dia
+    // pelo robo da SAJ, mas leitura03/leitura103 (medidor Energisa) so mudam quando o usuario manda
+    // foto nova. Sem checagem, o descompasso entre as duas datas cresce sozinho e o calculo de
+    // consumo direto fica cada vez mais errado (geracao "andando" sem o 103 acompanhar). Avisa
+    // quando a diferenca passar de 3 dias - a partir dai o erro comeca a pesar de verdade.
+    if(temGeracao && ultimaSolar.geracaoAcumuladaData){
+      const diasDescompasso = Math.round((new Date(ultimaSolar.geracaoAcumuladaData) - new Date(ultimaSolar.data)) / 86400000);
+      if(diasDescompasso >= 3){
+        VARS.SOLAR_AVISOS_CONSISTENCIA.push(`A geração (atualizada automaticamente em ${ultimaSolar.geracaoAcumuladaData}) está ${diasDescompasso} dias à frente da última leitura 03/103 do medidor (${ultimaSolar.data}) — o cálculo de consumo direto/autoconsumo está ficando impreciso. Manda uma leitura nova do medidor pra recalibrar.`);
+        if(avisosConsistenciaEl){
+          avisosConsistenciaEl.style.display = 'block';
+          avisosConsistenciaEl.innerHTML = '⚠️ <strong>Possível erro de leitura detectado:</strong><br>' + VARS.SOLAR_AVISOS_CONSISTENCIA.join('<br>');
+        }
+      }
+    }
 
     const setUG = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
     const INSUFICIENTE = 'Dados insuficientes para cálculo.';
