@@ -752,6 +752,7 @@ const VARS = {
     { tx:'TXMP000008', nome:'Transporte Recife (ida)', valor:638.94, data:'2026-06-29', tipo:'corp' },
     { tx:'TXMP000009', nome:'Transporte Aeroporto João Pessoa', valor:266.23, data:'2026-07-23', tipo:'corp' }, // NOVO 26/07/2026 (V167): MP*WALLACELIRA, achado no extrato do app - mesmo TX000152 ja lancado no ERP (adiantamento Caixa Lance).
     { tx:'TXMP000010', nome:'Mercado Livre (avulsa, à vista)', valor:42.58, data:'2026-05-19', tipo:'unico' },
+    { tx:'TXMP000011', nome:'PIX Isabel Cristina Barbosa do Nascimento - Transporte corporativo (PicPay, cartão ...8739)', valor:266.23, data:'2026-08-01', tipo:'corp' },
   ],
 
   // ===== V168 (26/07/2026): FONTE UNICA ESTRUTURADA para os paineis de compras variaveis (LRW, LRV,
@@ -830,6 +831,7 @@ const VARS = {
     { tx:'TX000141', data:'24/07', nome:'Aporte mensal (direto do salário Wärtsilä)', tipo:'Entrada', valor:1200.00 },
     { tx:'TX000150', data:'24/07', nome:'Reforço à PGV (contrapartida: entrada na PGV)', tipo:'Saída', valor:300.00 },
     { tx:'TX000178', data:'29/07', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante MP 171162180982)', tipo:'Saída', valor:300.00 },
+    { tx:'TX000187', data:'01/08', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante E10573521202608011203zUhCTMzglu9)', tipo:'Saída', valor:300.00 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:2.12 },
   ],
 
@@ -851,6 +853,7 @@ const VARS = {
     { tx:'TX000178', data:'29/07', nome:'Reforço da PV (contrapartida de TX000178 na PV, comprovante MP 171162180982)', tipo:'Entrada', valor:300.00 },
     { tx:'TX000181', data:'31/07', nome:'PIX Rayssa Dos Santos Pereira - depilação de Vanessa (comprovante B333NYP1B09MBE9JZ)', tipo:'Saída', valor:70.00 },
     { tx:'TX000182', data:'31/07', nome:'PIX Romario Nogueira Cunha - Hortifrut (comprovante E10573521202607311626TIYWLRElyer)', tipo:'Saída', valor:65.00 },
+    { tx:'TX000187', data:'01/08', nome:'Reforço da PV (contrapartida de TX000187 na PV, comprovante E10573521202608011203zUhCTMzglu9)', tipo:'Entrada', valor:300.00 },
   ],
 
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
@@ -939,7 +942,7 @@ const VARS = {
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
       tetoEfetivo: 2000,
-      cascata: { faturaWartsila: 5768.06, mpCorporativo: 0, cartaoCorporativo: 0, mpPessoal: 0, sobraTotal: 0 }, // ATUALIZADO 31/07/2026: faturaWartsila 0->5768.06, nova fatura do cartao corporativo Wartsila confirmada pelo usuario (item 1 da cascata, Politica sec.5). Impacto real = R$0 (paga pela propria Wartsila) - so registra o valor para rastreabilidade (P6), nao afeta necessidadeLiquida.
+      cascata: { faturaWartsila: 5768.06, mpCorporativo: 266.23, cartaoCorporativo: 297.31, mpPessoal: 0, sobraTotal: 0 }, // ATUALIZADO 01/08/2026: mpCorporativo 0->266.23 (TXMP000011, PIX Isabel Cristina Barbosa - Transporte corporativo via PicPay). cartaoCorporativo 0->297.31 ja estava valendo via override (V223); consolidado aqui tambem. faturaWartsila 5768.06 confirmado 31/07/2026 (item 1 da cascata, Politica sec.5). Impacto real dessas pernas = R$0 no bolso do Wallace (custos da empresa) - so registra para rastreabilidade (P6), nao afeta necessidadeLiquida.
       necessidadeTotalBruta: 13146.21, // ATUALIZADO V146/V147: parcelas Visa+MP recalculadas via PARCELAMENTOS_ATIVOS
       necessidadeTotalLiquida: 12743.10, // ATUALIZADO V147: NECESSIDADE_TOTAL - COBERTURA_JA_GARANTIDA_25 (403.11, cascata zerada corretamente)
       modoOperacional: 'Normal',
@@ -3482,16 +3485,39 @@ new Chart(document.getElementById('g_cAlivio'), {
     const [y,m,d] = l.data.split('-');
     return d+'/'+m+(l.fonte==='estimado' ? '*' : '');
   });
+  // NOVO 01/08/2026 (V230, pedido do usuario): valores em cima de cada barra, sempre visiveis sem
+  // precisar tocar. Diferente da secao 09 (12 categorias, risco real de colisao ja visto e corrigido em
+  // V227) - aqui sao poucas leituras por enquanto (cresce devagar, uma leitura de cada vez), entao o
+  // rotulo direto na barra nao tem o mesmo risco de sobreposicao.
+  const solarBarLabelPlugin = {
+    id:'solarBarLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta = chart.getDatasetMeta(di);
+        ctx.fillStyle = ds.backgroundColor;
+        meta.data.forEach((bar,i)=>{
+          const v = ds.data[i];
+          ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    }
+  };
   new Chart(document.getElementById('cSolarRateio'), {
     type:'bar',
+    plugins:[solarBarLabelPlugin],
     data:{labels:solarLabels,
       datasets:[
-        {label:'Crédito Wallace', data:solarL.map(l=>l.creditoWallace), backgroundColor:'#34c98a', borderRadius:3},
-        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), backgroundColor:'#1c7a54', borderRadius:3},
-        {label:'Crédito Irmã', data:solarL.map(l=>l.creditoIrma), backgroundColor:'#e8a63a', borderRadius:3},
-        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), backgroundColor:'#9c6a1f', borderRadius:3}
+        {label:'Crédito Wallace (gerado)', data:solarL.map(l=>l.creditoWallace), backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), backgroundColor:'#f0c94a', borderRadius:3},
+        {label:'Crédito Irmã (gerado)', data:solarL.map(l=>l.creditoIrma), backgroundColor:'#1c7a54', borderRadius:3},
+        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), backgroundColor:'#a9861f', borderRadius:3}
       ]},
-    options:{responsive:true,maintainAspectRatio:false,
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
