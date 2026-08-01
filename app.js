@@ -240,7 +240,7 @@ const VARS = {
     legLRCLimboCorporativo: `Mostrando só o corporativo do ciclo atual, ainda pendente de reembolso. O corporativo do ciclo fechado já está coberto dentro do valor separado para pagamento (ver seletor de ciclo no topo do painel). 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).`,
     legParcelamentosMPAuto: `Parcelas geradas automaticamente a partir de VARS.PARCELAMENTOS_MP — avançam +1 a cada ciclo, somem sozinhas ao quitar. Itens "corp."/"único" filtrados automaticamente pela DATA real de cada um contra o período do ciclo selecionado (nunca mais editado à mão) — corp. = 100% reembolsável (prioridade 2 na fila de reembolso).`,
     legP2PCustoWallace: `Custo do Wallace (1/10 do capital P2P de R$110,00). Não gera receita, não entra no total de compras da Vanessa (LRV).`,
-    legPGVSaldoResidual: `Saldo real da Caixa Pix Geral: <strong>-R$ 0,04</strong> (praticamente zerada — resíduo imaterial documentado, não forçado). Ciclo fechado com comprovantes reais: 17/07 R$159,96 (pós reforço da PV) − R$67,00 (frutas) = R$92,96; 20/07 + R$2,00 (complemento da Caixa Variável) − R$95,00 (fralda do Júlio) = -R$0,04. O total abaixo é o fluxo líquido de todas as 19 transações rastreadas na aba (-R$295,66), não o saldo da caixa.`,
+    legPGVSaldoResidual: `Saldo real da Caixa Pix Geral: <strong>-R$ 0,04</strong> (praticamente zerada — resíduo imaterial documentado, não forçado). Ciclo fechado com comprovantes reais: 17/07 R$159,96 (pós reforço da PV) − R$67,00 (frutas) = R$92,96; 20/07 + R$2,00 (complemento da Caixa Variável) − R$95,00 (fralda do Júlio) = -R$0,04. O total abaixo é o fluxo líquido de todas as transações listadas na aba, não o saldo da caixa.`,
     legOpcoesReconstruido: `CORRIGIDO 31/07/2026 (V222): 3 posições confirmadas via print direto da corretora (não 2 como antes) — faltava PETRS368W5, e PETRT379 tinha valor errado. PETRT379: R$154,84 (não R$180,00, que era dedução errada de outro print). PETRS368W5: R$39,97 (venc. HOJE, 31/07). ITUBT424: R$177,04. <strong>Total de prêmios: R$371,85</strong>, já garantido mesmo com posições ativas. Estratégia: deixar vencer.`,
     legLinha4vs5MP: `Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali (verificado 19/07/2026 contra a fatura literal do ciclo atual: 6 parcelas Mercado Livre somam R$471,47 nesta fatura — não R$514,05, valor antigo que incluía indevidamente uma compra avulsa já paga em ciclo anterior). Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino.`,
     legOrcamentoOperacionalComposicao: `Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.`,
@@ -1677,6 +1677,18 @@ function atualizarContadoresAbasLR(){
     lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
     lrcv:'LRCV - Caixa Variável', lrei:'LREI - Empréstimos Internos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PIX Geral Vanessa', lrpvsaldo:'LRPV - PIX Vanessa'
   };
+  // NOVO 01/08/2026 (V243, pedido do usuario - "torne isso automatico em todas"): rodapes de tabela
+  // (ex: "9 lançamentos", "13 assinaturas ativas") eram texto FIXO no HTML, nunca contado de verdade -
+  // por isso o LRPGV podia mostrar "18" no rodape e "9" no botao da aba ao mesmo tempo. Mesma contagem
+  // real (linhas de tbody, excluindo riscadas/vazias) agora alimenta OS DOIS lugares, sempre igual.
+  const rodapes = {
+    lrb: {id:'qtdLRB', singular:'boleto', plural:'boletos'},
+    lrs: {id:'qtdLRS', singular:'assinatura ativa', plural:'assinaturas ativas'},
+    lrr: {id:'qtdLRR', singular:'recorrência', plural:'recorrências'},
+    lrcon: {id:'qtdLRCON', singular:'lançamento', plural:'lançamentos'},
+    lrdoacao: {id:'qtdLRDOA', singular:'lançamento', plural:'lançamentos'},
+    lrpv: {id:'qtdLRPGV', singular:'lançamento (fluxo do período)', plural:'lançamentos (fluxo do período)'},
+  };
   paineis.forEach(id => {
     const painel = document.getElementById(id);
     const btn = document.getElementById('lrTabBtn_'+id);
@@ -1690,6 +1702,11 @@ function atualizarContadoresAbasLR(){
       if(!riscada && !vazia) count++;
     });
     btn.textContent = labels[id]+' ('+count+')';
+    const rf = rodapes[id];
+    if(rf){
+      const rfEl = document.getElementById(rf.id);
+      if(rfEl) rfEl.textContent = count+' '+(count===1?rf.singular:rf.plural);
+    }
   });
 }
 
@@ -1974,7 +1991,15 @@ function hydrate(){
     const temReal = (REG.superavitNormal.liquidoReal||{})[0] != null;
     const fonteLabel = temReal ? 'Real recebido'
       : (diaHoje>=12 ? 'Projetado (Estimador de Salário)' : 'Média ponderada 12M (sem estimativa ainda)');
-    t('estStatusFonte', 'Ciclo 25/07 (Ago/26) · '+fonteLabel);
+    // CORRIGIDO 01/08/2026 (V244): "Ciclo 25/07 (Ago/26)" era texto fixo, formato estranho apontado pelo
+    // usuario - agora deriva do periodo real do ciclo atual (snap.periodo), formato "25/07 a Ago/26".
+    const snapCicloTxt = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const [iniTxt, fimTxt] = snapCicloTxt.periodo.split(' a ');
+    const [diaIni, mesIni] = iniTxt.split('/');
+    const [, mesFim, anoFim] = fimTxt.split('/');
+    const cicloTxt = diaIni+'/'+mesIni+' a '+MESES_ABREV[Number(mesFim)-1]+'/'+anoFim.slice(-2);
+    t('estStatusFonte', 'Ciclo '+cicloTxt+' · '+fonteLabel);
   }
   t('estNecLiquida', fmt(R.estimador.necessidadeLiquidaProximoCiclo));
   const excedenteEst = liquidoMes(0) - R.estimador.necessidadeLiquidaProximoCiclo;
@@ -2306,6 +2331,17 @@ function hydrate(){
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
   t('balOpMastercardInfinite', fmt(B.operacional.mastercardInfinite)); // V139: nova caixa (24/07/2026), guarda valor a pagar dos 2 cartoes ate 28/07
+  { // NOVO 01/08/2026 (V245, usuario apontou "nao tem nada" nessa caixa - nao havia detalhamento
+    // visivel de onde o numero vinha, mesmo a formula ja sendo automatica). Gera o extrato curto a
+    // partir do proprio array MASTERCARD_INFINITE_TRANSACOES, nunca escrito a mao.
+    const detEl = document.getElementById('balOpMastercardInfiniteDetalhe');
+    if(detEl){
+      const partes = [fmt(VARS.MASTERCARD_INFINITE_SALDO_INICIAL)+' inicial'].concat(
+        VARS.MASTERCARD_INFINITE_TRANSACOES.map(t=>(t.tipo==='Entrada'?'+':'−')+fmt(t.valor)+' ('+t.nome+')')
+      );
+      detEl.textContent = partes.join(' ') + ' = ' + fmt(VARS.caixaMastercardInfinite);
+    }
+  }
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
   t('balResManut', fmt(B.reservas.manutencao));
@@ -3462,8 +3498,34 @@ new Chart(document.getElementById('g_cAlivio'), {
   });
   const esteAno = esteAnoFonte.map(e=>e.valor);
 
+  // NOVO 01/08/2026 (V244, pedido do usuario): valores de volta em cima das barras - a versao V227
+  // tinha removido TUDO (inclusive o numero simples da barra) pra resolver a colisao do texto de
+  // "economia" sobreposto (ver historico). Agora so o valor da barra (sem o "-XXX" de economia por
+  // cima, que era a causa real da colisao) - risco de colisao muito menor, mesmo padrao ja usado nos
+  // graficos 10/11.
+  const energiaBarLabelPlugin = {
+    id:'energiaBarLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta = chart.getDatasetMeta(di);
+        ctx.fillStyle = di===0 ? '#e8a63a' : (esteAnoFonte[0] && di===1 ? '#34c98a' : '#34c98a');
+        meta.data.forEach((bar,i)=>{
+          const v = ds.data[i];
+          if(v===null || v===undefined) return;
+          ctx.fillText('R$'+Math.round(v), bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    }
+  };
+
   new Chart(document.getElementById('cEnergiaSolar'), {
     type:'bar',
+    plugins:[energiaBarLabelPlugin],
     data:{labels:mesesPares,
       datasets:[
         {label:'Ano anterior (real, sem solar)', data:anoAnterior, backgroundColor:'#e8a63a', borderRadius:3},
@@ -3610,7 +3672,7 @@ new Chart(document.getElementById('g_cAlivio'), {
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.7,barPercentage:0.8},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.55,barPercentage:0.75},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     });
   }
@@ -3621,7 +3683,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       const {ctx} = chart;
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = "600 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.font = "600 7px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         ctx.fillStyle = ds.backgroundColor;
@@ -3652,7 +3714,7 @@ new Chart(document.getElementById('g_cAlivio'), {
           return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
         }
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.7,barPercentage:0.8},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.55,barPercentage:0.75},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
   const legSolarEl = document.getElementById('legSolarRateio');

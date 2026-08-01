@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Sistema Wallace Lira — Painel Completo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script>window.__cacheBust = Date.now();document.write('<link rel="stylesheet" href="styles.css?v='+window.__cacheBust+'">');</script>
+<link rel="stylesheet" href="styles.css?v=244">
 </head>
 <body>
 <script>
@@ -384,7 +384,7 @@
       <tr><td class="mono">TXB000009</td><td>Energia (Energisa) <span style="font-size:0.62rem;color:var(--text-dim)">· última conta sem efeito do solar (gerador ativo desde 21/07, desconto só a partir da fatura de 21/08)</span></td><td class="r">R$ 367,36</td></tr>
       </tbody></table>
       <div class="v" id="legAguaGasMedintech" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
-      <div class="tfoot"><span>9 lançamentos</span><span class="total v" id="tfLRB">—</span></div>
+      <div class="tfoot"><span id="qtdLRB">—</span><span class="total v" id="tfLRB">—</span></div>
     </div>
 
     <div id="lrp" class="pane">
@@ -413,7 +413,7 @@
       <tr><td class="mono">TX000134</td><td class="mono">25/07</td><td>Amazon Prime Canais</td><td class="r">R$ 19,99</td></tr>
       </tbody></table>
       <div class="v" id="legMigracaoAssinaturasMB" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">—</div>
-      <div class="tfoot"><span>13 assinaturas ativas</span><span class="total v" id="tfLRS">—</span></div>
+      <div class="tfoot"><span id="qtdLRS">—</span><span class="total v" id="tfLRS">—</span></div>
     </div>
 
     <div id="lrr" class="pane">
@@ -426,7 +426,7 @@
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXRR000006</td><td>New Car Rastreador (MB)</td><td class="r">R$ 59,99</td></tr>
       <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXR_FACULDADE_MB_JUL26</td><td>Faculdade Engenharia (MB, 2ª cobrança transitória)</td><td class="r">R$ 441,33</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>7 recorrências</span><span class="total v" id="tfLRR">—</span></div>
+      <div class="tfoot"><span id="qtdLRR">—</span><span class="total v" id="tfLRR">—</span></div>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black. Migração de cartão (V63) segue GRADUAL (V87) — só migra quando a fatura MB confirma de verdade. Vivo, Digna, Campo Santo e Faculdade (1ª cobrança) seguem no Visa Infinite. CORRIGIDO 23/07/2026: (1) Vivo revertida para R$523,00 — fatura Bradesco real confirma 2 cobranças (R$469,00+R$54,00); a redução para R$435,00 (V111) usava uma config teórica das linhas que não bateu com o valor efetivamente cobrado NESTE ciclo. (2) IDs renomeados de TXR000001-006 para TXRR000001-006 — eliminada uma colisão de ID: esses códigos eram reaproveitados (mesmo TXR000001-006) numa aba completamente diferente (LRV, compras avulsas da Vanessa), violando rastreabilidade (P6). Agora cada transação tem ID único no sistema inteiro. <strong class="v" style="color:var(--amber)">CONFIRMADO pelo usuário (print oficial "Plano Vivo — Configuração Final"): a partir do PRÓXIMO ciclo a Vivo passa a R$435,00/mês</strong> — Plano Família 120GB R$260,00 (Wallace+Vanessa) + 5x Linha Controle 8GB R$35,00 (Carro/Wellida/Mainha/Gabriela/Fred) = R$175,00. Não foi um erro de configuração antes — é uma mudança de plano real que só vale a partir do ciclo seguinte. Ainda não aplicado (o valor de R$523,00 acima é o confirmado pela fatura DESTE ciclo); na virada do ciclo, conferir contra a fatura literal antes de atualizar.</div>
     </div>
 
@@ -435,7 +435,7 @@
       <tr><td class="mono">TXCON000001</td><td>Porto Consórcio (Carro)</td><td class="r">R$ 501,32</td></tr>
       <tr><td class="mono">TXCON000002</td><td>Porto Consórcio (Casa Nova)</td><td class="r">R$ 1.449,45</td></tr>
       </tbody></table>
-      <div class="tfoot"><span>2 lançamentos</span><span class="total v" id="tfLRCON">—</span></div>
+      <div class="tfoot"><span id="qtdLRCON">—</span><span class="total v" id="tfLRCON">—</span></div>
     </div>
 
     <div id="lrc" class="pane">
@@ -477,7 +477,7 @@
       <tr><td class="mono">TXRP2P001</td><td>Crédito P2P doado à Vanessa</td><td>Wallace</td><td class="r">R$ 11,00</td></tr>
       </tbody></table>
       <div class="callout ok v" id="legP2PCustoWallace">—</div>
-      <div class="tfoot"><span>1 lançamento</span><span class="total" id="tfLRDOACAO">—</span></div>
+      <div class="tfoot"><span id="qtdLRDOA">—</span><span class="total" id="tfLRDOACAO">—</span></div>
     </div>
 
     <div id="lrpvsaldo" class="pane">
@@ -493,7 +493,7 @@
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRPV_TRANSACOES -->
       </tbody></table>
       <div class="v callout ok" id="legPGVSaldoResidual">—</div>
-      <div class="tfoot"><span>18 lançamentos (fluxo do período)</span><span class="total v" id="tfLRPV">—</span></div>
+      <div class="tfoot"><span id="qtdLRPGV">—</span><span class="total v" id="tfLRPV">—</span></div>
     </div>
   </div>
 
@@ -890,7 +890,7 @@
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Você manda a folha de ponto em algum dia do mês, eu aplico as taxas abaixo (calibradas com 12 contracheques reais Jul/25–Jun/26) e gero o líquido estimado antes do pagamento oficial.</div>
 
       <div style="background:var(--surface-2);border-radius:8px;padding:0.8rem 0.9rem;margin-bottom:0.9rem">
-        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Status</span><span class="v" style="color:var(--green)" id="estStatusFonte">Ciclo 25/07 (Ago/26) · Real recebido</span></div>
+        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Status</span><span class="v" style="color:var(--green)" id="estStatusFonte">Ciclo 25/07 a Ago/26 · Real recebido</span></div>
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Líquido projetado</span><span class="v" style="font-weight:700;font-size:1.05rem" id="estLiquido">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Necessidade Líquida do ciclo 25/07</span><span class="v" id="estNecLiquida">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0 0"><span class="k" style="font-weight:600">Excedente estimado</span><span class="v" style="color:var(--green);font-weight:700" id="estExcedente">—</span></div>
@@ -1022,10 +1022,10 @@
       <div class="row"><span class="k">Escola de Júlio</span><span class="v" id="balResEscola">R$ 1.006,74</span></div>
       <div class="row"><span class="k">Caixa Lance</span><span class="v" id="balResLance">R$ 3.482,51</span></div>
       <div class="row"><span class="k">Caixa Manutenção</span><span class="v" id="balResManut">R$ 345,39</span></div>
-      <div class="row"><span class="k">Caixa Eventos e Viagens</span><span class="v" style="color:var(--text-dim)" id="balResEventos">R$ 0,00 (usada no ciclo)</span></div>
-      <div class="row"><span class="k">Caixa Churrasco</span><span class="v" style="color:var(--text-dim)" id="balResChurrasco">R$ 0,00</span></div>
-      <div class="row"><span class="k">Saúde da Família</span><span class="v" style="color:var(--text-dim)" id="balResSaude">R$ 0,00</span></div>
-      <div class="row"><span class="k">Seguro e Emplacamento</span><span class="v" style="color:var(--text-dim)" id="balResSeguro">R$ 0,00</span></div>
+      <div class="row"><span class="k">Caixa Eventos e Viagens</span><span class="v" id="balResEventos">R$ 0,00 (usada no ciclo)</span></div>
+      <div class="row"><span class="k">Caixa Churrasco</span><span class="v" id="balResChurrasco">R$ 0,00</span></div>
+      <div class="row"><span class="k">Saúde da Família</span><span class="v" id="balResSaude">R$ 0,00</span></div>
+      <div class="row"><span class="k">Seguro e Emplacamento</span><span class="v" id="balResSeguro">R$ 0,00</span></div>
       <div class="row"><span class="k">Aniversário de Júlio</span><span class="v" id="balResAniv">R$ 200,10</span></div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balReservasTotal">R$ 1.439,47</span></div>
     </div>
@@ -1036,6 +1036,7 @@
       <div class="row"><span class="k">Caixa Variável <span style="color:var(--text-dim);font-weight:400">(uso diário do ciclo)</span></span><span class="v" id="balOpCaixaVariavel">—</span></div>
       <div class="row"><span class="k">Caixa Boletos <span style="color:var(--text-dim);font-weight:400">(pote de trabalho mensal)</span></span><span class="v" id="balResBoletos">—</span></div>
       <div class="row"><span class="k">Caixa Mastercard/Infinite <span style="color:var(--text-dim);font-weight:400">(guarda o valor para pagar os 2 cartões)</span></span><span class="v" id="balOpMastercardInfinite">—</span></div>
+      <div class="v" id="balOpMastercardInfiniteDetalhe" style="font-size:0.66rem;color:var(--text-dim);margin:-0.3rem 0 0.3rem">—</div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balOperacionalTotal">—</span></div>
       <div class="row" style="opacity:0.6;border-top:1px dashed var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Caixa PIX Geral Vanessa <span style="color:var(--text-dim);font-weight:400">(conta autônoma dela, PGV — não soma no total acima; diferente da PIX Vanessa/PV do painel principal, que é reserva do Wallace)</span></span><span class="v" id="balOpPixVanessa">—</span></div>
       <div class="v" id="legReservasPagamentoDefinicao" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">—</div>
