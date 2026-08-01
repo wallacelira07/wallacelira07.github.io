@@ -3672,7 +3672,7 @@ new Chart(document.getElementById('g_cAlivio'), {
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.85,barPercentage:0.55},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     });
   }
@@ -3714,7 +3714,7 @@ new Chart(document.getElementById('g_cAlivio'), {
           return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
         }
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.85,barPercentage:0.55},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
   const legSolarEl = document.getElementById('legSolarRateio');
