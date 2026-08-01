@@ -1,0 +1,26 @@
+name: Atualizar Cotações de Ações (PETR4/ITUB4)
+
+# Roda todo dia útil às 18h UTC (15h horário de Brasília, depois do fechamento
+# da B3) - API pública, sem senha nem token necessários pra PETR4/ITUB4.
+on:
+  schedule:
+    - cron: '0 18 * * 1-5'   # segunda a sexta, 18:00 UTC (15:00 Brasília)
+  workflow_dispatch: {}
+
+jobs:
+  atualizar-cotacoes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Rodar script de atualização
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 atualizar_cotacoes_acoes.py
