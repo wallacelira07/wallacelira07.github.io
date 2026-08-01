@@ -129,13 +129,20 @@
   .total-line{display:flex;justify-content:space-between;align-items:baseline;padding-top:0.65rem;margin-top:0.65rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-mid)}
   .total-line .v{font-size:1.02rem;font-weight:700;color:var(--text)}
 
-  .tabs{display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.9rem}
+  .tabs{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem}
   .tab{
     background:var(--surface-2);border:1px solid var(--border);
-    color:var(--text-mid);font-size:0.75rem;font-weight:500;
-    padding:0.4rem 0.75rem;border-radius:7px;cursor:pointer;
+    color:var(--text-mid);font-size:0.76rem;font-weight:600;
+    padding:0.48rem 0.95rem;border-radius:999px;cursor:pointer;
+    transition:all 0.18s ease;letter-spacing:0.01em;
   }
-  .tab.active{background:rgba(57,135,229,0.14);color:var(--accent);border-color:rgba(57,135,229,0.4)}
+  .tab:hover{border-color:rgba(57,135,229,0.5);color:var(--text);transform:translateY(-1px)}
+  .tab.active{
+    background:linear-gradient(135deg, rgba(57,135,229,0.22), rgba(57,135,229,0.10));
+    color:var(--accent);border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(57,135,229,0.15), 0 2px 8px rgba(57,135,229,0.2);
+    font-weight:700;
+  }
   .pane{display:none}
   .pane.active{display:block}
 
@@ -178,12 +185,18 @@
   @media(max-width:820px){
     .kpi-strip{grid-template-columns:repeat(2,1fr)}
     .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+    /* CORRIGIDO 30/07/2026 (V207): .master-tabs tinha padding assimetrico (0.6rem 3.2rem 0 0.6rem,
+       reservado pro icone do olho no canto) que so fazia sentido em telas largas. Em telefone na
+       vertical, esse excesso de 3.2rem a direita empurrava visualmente as abas pra esquerda,
+       parecendo desalinhado com os .card abaixo (que tem padding simetrico). Reduzido pra caber
+       o icone sem sobrar espaco morto. */
+    .master-tabs{padding:0.6rem 2.4rem 0 0.6rem}
   }
 
   /* --- Tabs de nivel superior (Painel / Graficos) --- */
   .master-tabs{
-    display:flex;gap:0.5rem;margin:2rem 0 2.2rem 0;
-    padding:0.6rem 0.6rem 0 0.6rem;
+    display:flex;flex-wrap:wrap;gap:0.5rem;margin:2rem 0 2.2rem 0;
+    padding:0.6rem 3.2rem 0 0.6rem;
     background:rgba(255,255,255,0.02);
     border:1px solid var(--border-strong);border-bottom:none;
     border-radius:10px 10px 0 0;

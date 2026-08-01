@@ -1,6 +1,37 @@
 // ===== Utilitario global unico (auditoria 15/07/2026: havia 4 definicoes duplicadas de fmt(),
 // uma por IIFE - consolidado aqui, todas as IIFEs abaixo usam esta via closure) =====
+// V170 (26/07/2026): CORRIGIDO bug critico - o app.js agora e carregado via injecao dinamica
+// (document.createElement('script'), depois de um fetch() assincrono ao Supabase, ver
+// Sistema_Wallace_Lira_Completo.html). Isso significa que quando este arquivo executa, o evento
+// DOMContentLoaded JA DISPAROU (MDN: "a script that is dynamically injected... by the time it
+// executes, DOMContentLoaded has already fired"). Todo document.addEventListener('DOMContentLoaded', fn)
+// deste arquivo NUNCA rodava - por isso hydrate(), popularSeletorCiclo(), renderParcelamentos() etc
+// ficavam vazios (so os graficos, que rodam direto sem esperar evento, apareciam). onDomPronto(fn)
+// substitui addEventListener: se o DOM ja estiver pronto (readyState != 'loading'), roda a funcao
+// IMEDIATAMENTE; so registra o listener se realmente ainda estiver carregando.
+function onDomPronto(fn){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+// V192 (27/07/2026): calcularSaldoCaixa() - nucleo da arquitetura "editavel/auditavel" pedida pelo
+// usuario apos bug real (Caixa Saude Familia travada em R$135,00 por 3h depois de um gasto de R$135,06
+// nunca descontado do registrador solto). Regra: saldoInicial (aportado 1x por ciclo) + soma das
+// transacoes do array (Entrada soma, Saida/Gasto/Emprestimo subtrai) = saldo sempre correto, nunca mais
+// editado a mao. Cada caixa migrada usa isto em vez de VARS.caixaXxx fixo.
+function calcularSaldoCaixa(saldoInicial, transacoes){
+  const delta = transacoes.reduce((soma, t) => {
+    const tipo = (t.tipo || 'Saída').toLowerCase();
+    const ehEntrada = tipo.includes('entrada');
+    return soma + (ehEntrada ? t.valor : -t.valor);
+  }, 0);
+  return Math.round((saldoInicial + delta) * 100) / 100;
+}
 // CORRIGIDO 19/07/2026: varios graficos tinham min/max fixos no eixo Y, calculados a mao numa sessao
 // anterior para o range de dados de entao. Como os dados crescem (ex: comprometido subindo), o teto
 // fixo passou a cortar/estourar a barra ou linha. yRange() calcula um min/max automatico com folga,
@@ -32,6 +63,40 @@ function gerarMeses(n){
   return labels;
 }
 
+// V163 (pedido do usuario: "acho melhor remover automaticamente o mes pelo ciclo e nao na virada do
+// mes ou de um jeito de nao causar essas mudancas" - referindo-se ao grafico Necessidade Liquida caindo
+// de valor quando o mes calendario virava mas o ciclo financeiro (25→24) nao tinha virado ainda, ou
+// vice-versa - descompasso causava valores "pulando" sem sentido). gerarMesesCiclo(n) gera rotulos com
+// base no CICLO financeiro atual (dia 25 vira o mes), nao no mes calendario (dia 1). Rotulo do ciclo
+// que comeca dia 25/07 e fecha 24/08 e "Ago/26" (mes que a fatura/pagamento realmente vence), consistente
+// com o resto do sistema (Politicas secao 9: "ciclo mensal, dia 25 a 24 do mes seguinte").
+function ciclosDesdeAncoraCiclo(){
+  const hoje = new Date();
+  const diaCicloAtual = hoje.getDate() >= 25
+    ? new Date(hoje.getFullYear(), hoje.getMonth()+1, 1) // dia 25+ ja esta no ciclo do mes seguinte
+    : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const [ay, am] = ANCHOR_MONTH_CICLO.split('-').map(Number);
+  return (diaCicloAtual.getFullYear()-ay)*12 + (diaCicloAtual.getMonth()+1-am);
+}
+function gerarMesesCiclo(n){
+  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const hoje = new Date();
+  const baseMonth = hoje.getDate() >= 25 ? hoje.getMonth()+1 : hoje.getMonth();
+  const labels = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(hoje.getFullYear(), baseMonth + i, 1);
+    labels.push(nomes[d.getMonth()] + '/' + String(d.getFullYear()).slice(-2));
+  }
+  return labels;
+}
+function alignSeriesCiclo(series){
+  const offset = ciclosDesdeAncoraCiclo();
+  if (offset <= 0) return series.slice();
+  const shifted = series.slice(offset);
+  while (shifted.length < series.length) shifted.push(series[series.length-1]);
+  return shifted;
+}
+
 // ===== CORRECAO 18/07/2026 (V72, bug real apontado em auditoria externa): as series de projecao
 // (evolucao.totalOperacional/necessidadeLiquida, superavitNormal, deficitZero, alivioData) sao arrays
 // fixos indexados 0-11 que assumem "indice 0 = mes em que este arquivo foi gerado". gerarMeses(12)
@@ -43,6 +108,7 @@ function gerarMeses(n){
 // mesmo que ninguem atualize os arrays por 1-2 meses, o grafico nunca mostra o numero errado no mes
 // errado (so fica "atrasado" - repete o ultimo valor conhecido, nunca inventa um novo).
 const ANCHOR_MONTH = '2026-07'; // atualizar para o mes corrente sempre que os arrays abaixo forem recalculados manualmente
+const ANCHOR_MONTH_CICLO = '2026-07'; // V163: mes do CICLO (nao calendario) em que os arrays foram recalculados - hoje (25/07/2026) ja esta no ciclo 2026-07 (25/07-24/08), que rotula como "Ago/26" no grafico
 function mesesDesdeAncora(){
   const [ay, am] = ANCHOR_MONTH.split('-').map(Number);
   const agora = new Date();
@@ -157,34 +223,207 @@ function liquidoMes(i){
 // o numero. Atualizar um saldo = mudar uma linha aqui, e automaticamente todo
 // lugar que usa aquele valor (cards, tabelas, graficos) fica correto.
 const VARS = {
+  // NOVO 31/07/2026 (V218, pedido explicito do usuario: "legendas devem estar em uma lista de
+  // variaveis para nunca precisar subir o site so para mudar legendas"): objeto LEGENDAS centraliza
+  // todo texto explicativo do site (28 legendas migradas). O HTML agora tem so o id de cada uma,
+  // vazio ("—" placeholder) - o conteudo real vem daqui, aplicado no hydrate() via innerHTML.
+  // Para editar uma legenda no futuro: mudar SO o texto aqui, nunca precisa tocar no HTML.
+  LEGENDAS: {
+    legEscolaJulioForaPatrimonio: `Escola de Júlio NÃO entra no Patrimônio Financeiro/Meta do Milhão desde 16/07/2026 (V47) — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Necton Conta Corrente contam como patrimônio. Escola de Júlio segue existindo como caixa/reserva própria, acompanhada separadamente. Atualizado 22/07/2026: total R$115.723,06 (Caixa Lance reconciliada com saldo real, R$204,48→R$553,91).`,
+    legVisaAposentado: `Wallace aposentou o cartão físico (4844) em 16/07/2026 — usa só o Mastercard Black agora. Assinaturas, recorrências, consórcios e o corporativo antigo já migraram 100% para o Mastercard Black (V159/V161) — o que resta aqui é só as <strong>parcelas em andamento</strong>, que continuam no Visa até quitar (nunca migram, é regra fixa). Nenhuma compra variável nova acontece mais neste cartão — Visa Infinite é só do Wallace.`,
+    legVisaCorrecaoV207: `CORRIGIDO 30/07/2026 (V207): a versão anterior deste texto (V206) dizia que o cartão 6351 da Vanessa era "Visa Infinite ativo" - isso estava ERRADO. A tabela oficial de cartões confirma: 6351 = Mastercard Black da Vanessa, não Visa. A compra da Drogasil (R$132,26) foi lançada por engano neste cartão em V201 e revertida agora - o Visa Infinite nunca teve fatia da Vanessa de verdade, era um erro de lançamento que o gráfico só refletia fielmente.`,
+    legAguaGasMedintech: `Água e Gás são cobrados pela Medintech (medição individualizada) e variam todo mês — TXB000004/005 mantêm o valor do mês anterior até a leitura ser atualizada. TX000069 (retirada de R$1.313,69 da Caixa Boletos) não entra como lançamento próprio — reconciliado 100% com o extrato PIX de 10/07 (ver nota no ERP). O PIX de R$210,00 ao Anderson em 21/07 (van escolar do Júlio) é o mesmo TXB000006 já listado acima, não uma cobrança nova. Cofrinho rendeu +R$1,66 de CDI no mesmo período (não listado como linha própria, incluído no total abaixo).`,
+    legParcelamentosVisaAuto: `Tabela gerada automaticamente a partir de VARS.PARCELAMENTOS_VISA (aba PARCELAMENTOS_ATIVOS do ERP) — a cada virada de ciclo, cada parcela avança +1; ao ultrapassar o total, o item some da lista sozinho (status QUITADO). Nunca mais editar esta tabela na mão.`,
+    // legAlivioAgosto REMOVIDA daqui em V219 - virou calculo dinamico real (ver aplicarAlivioAgosto()
+    // logo apos o VARS fechar), nao mais texto fixo. Pedido do usuario: "implemente ja".
+    legMigracaoAssinaturasMB: `Migração para o Mastercard Black concluída (25/07/2026) — todas as 13 assinaturas já estão no MB (físico 2244 ou virtual 4628), nenhuma resta no Visa Infinite. TXS000003 (Google Youtube, duplicata de TXS000008) removida desta lista — nunca deveria ter sido lançada em separado.`,
+    legLRCLimboCorporativo: `Mostrando só o corporativo do ciclo atual, ainda pendente de reembolso. O corporativo do ciclo fechado já está coberto dentro do valor separado para pagamento (ver seletor de ciclo no topo do painel). 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).`,
+    legParcelamentosMPAuto: `Parcelas geradas automaticamente a partir de VARS.PARCELAMENTOS_MP — avançam +1 a cada ciclo, somem sozinhas ao quitar. Itens "corp."/"único" filtrados automaticamente pela DATA real de cada um contra o período do ciclo selecionado (nunca mais editado à mão) — corp. = 100% reembolsável (prioridade 2 na fila de reembolso).`,
+    legP2PCustoWallace: `Custo do Wallace (1/10 do capital P2P de R$110,00). Não gera receita, não entra no total de compras da Vanessa (LRV).`,
+    legPGVSaldoResidual: `Saldo real da Caixa Pix Geral: <strong>-R$ 0,04</strong> (praticamente zerada — resíduo imaterial documentado, não forçado). Ciclo fechado com comprovantes reais: 17/07 R$159,96 (pós reforço da PV) − R$67,00 (frutas) = R$92,96; 20/07 + R$2,00 (complemento da Caixa Variável) − R$95,00 (fralda do Júlio) = -R$0,04. O total abaixo é o fluxo líquido de todas as 19 transações rastreadas na aba (-R$295,66), não o saldo da caixa.`,
+    legOpcoesReconstruido: `CORRIGIDO 31/07/2026 (V222): 3 posições confirmadas via print direto da corretora (não 2 como antes) — faltava PETRS368W5, e PETRT379 tinha valor errado. PETRT379: R$154,84 (não R$180,00, que era dedução errada de outro print). PETRS368W5: R$39,97 (venc. HOJE, 31/07). ITUBT424: R$177,04. <strong>Total de prêmios: R$371,85</strong>, já garantido mesmo com posições ativas. Estratégia: deixar vencer.`,
+    legLinha4vs5MP: `Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali (verificado 19/07/2026 contra a fatura literal do ciclo atual: 6 parcelas Mercado Livre somam R$471,47 nesta fatura — não R$514,05, valor antigo que incluía indevidamente uma compra avulsa já paga em ciclo anterior). Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino.`,
+    legOrcamentoOperacionalComposicao: `Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.`,
+    legNecessidadeBrutaLiquida: `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido, seguindo a ordem oficial de prioridade do reembolso Wärtsilä: 1) Fatura Wärtsilä (R$0 de impacto, sempre) → 2) Mercado Pago corporativo → 3) Mercado Pago pessoal → 4) Visa Infinite corporativo (regra nova, 15/07/2026) → 5) sobra vai para Caixa Lance. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026 já cobriu 100% do provisionamento não-reembolsável do Mercado Pago (R$471,47, corrigido 19/07/2026 — a fatura literal do ciclo atual confirma que a compra avulsa de R$42,58 somada em 17/07 não pertence a este ciclo). Com a regra nova, o corporativo do Visa Infinite (R$483,43) também entra como garantido, elevando o total de R$471,47 para R$954,90.`,
+    legSimulacaoMesAMes: `Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$954,90 — MP pessoal R$471,47 + Visa Infinite corporativo R$483,43, corrigido 19/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.`,
+    legTotalOperacionalDefinicao: `O que é: TOTAL_OPERACIONAL (boletos + parcelamentos Visa Infinite + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais) mês a mês. Reconstruído em 16/07/2026 (auditoria) a partir dos dados literais de parcela do livro LRP. Aniversário Júlio zera após o ciclo Set/26 (prazo 14/09/2026, confirmado). Premissa: boletos, assinaturas, recorrências e consórcios tratados como constantes. Combustível zera após Set/26 (atinge meta R$500) e Churrasco após Nov/26 (atinge meta R$500) — saldo real R$0 confirmado pelo usuário em 16/07/2026, simulação completa.`,
+    legMBVisaLiquidoCV: `Mastercard Black + Visa Infinite — líquido de Caixa Variável (a Caixa Variável já provisiona 100% das compras LRW+LRV de ambos os cartões; este gráfico mostra quanto da obrigação dos cartões NÃO está coberto por ela — parcelas, assinaturas, recorrências, consórcios e corporativo — e compara o Comprometido provisionado com o Disponível real em caixa)`,
+    legLegendaCaixasIncrementais: `Aniversário Júlio (R$200/mês) para em Set/26 (prazo 14/09) · Escola Júlio ciclo atual (R$500/mês) para em Nov/26 (coberto por 13º/férias) · Seguro/Emplacamento (R$425/mês) roda em ciclo contínuo de 12 meses desde Jan/26, sem interrupção — vira pro ciclo 2027 na mesma taxa, por isso nunca aparece como "alívio" neste gráfico · Escola de Júlio 2027 reinicia do zero em Jan/27, R$839,64/mês por 11 meses (Jan-Nov/27), batendo o teto de R$9.236,00 em novembro · Saúde Família (R$100/mês) projeta completar por volta de Nov/27 (~16 meses no ritmo atual, reembolsos médicos podem acelerar isso de forma imprevisível).`,
+    legMPCorporativoImpacto: `Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, R$9.223,66 têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.`,
+    legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
+    legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Usuário não tem a fórmula CLT/convenção para implementar como derivado (achado 31/07/2026, V216) — atualizar manualmente se o salário-base mudar.`,
+    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$7.667,73/mês</strong>.`,
+    legDeficitSemEmbarque: `Se você ficasse 12 meses seguidos sem embarque (líquido fixo de R$7.667,73/mês), o déficit contra o piso absoluto diminui sozinho conforme parcelas do Visa Infinite e do Mercado Pago vão terminando — sem cortar nada. Boletos, Consórcios, Recorrências e Assinaturas ficam constantes (não têm previsão de encerrar).`,
+    legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
+    legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
+    legMPCorporativoRetorno: `O corporativo do Mercado Pago só volta a contar após a fatura anterior (venc. dia 4) ser paga e uma nova despesa corporativa surgir neste ciclo — enquanto isso, fica zerado (ver Cascata do Reembolso).`,
+    legDestinoExcedente: `Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.`,
+  },
   // Caixa Variavel (operacional, dia-a-dia)
-  caixaVariavelSaldoReal: 2000.00,      // CORRIGIDO 25/07/2026 (V144/V145, erro apontado pelo usuario): a transferencia unica CV->Mastercard/Infinite (TX000139, R$4.002,61) ja levou o saldo antigo INTEIRO (R$3.933,37) + a folga de R$69,24 - so deveria sobrar o aporte novo do salario (R$2.000,00, TX000137). Era R$1.930,76 (calculo errado: eu tinha subtraido a transferencia do saldo somado, quando ela ja continha o saldo antigo inteiro).
+  // MIGRADO 27/07/2026 (V193): caixaVariavelSaldoReal migrada para saldo derivado - ULTIMA caixa da
+  // arquitetura "editavel/auditavel". Mais complexa que as demais por causa da logica de ciclos
+  // (aplicarCicloAoVARS troca o valor conforme o ciclo selecionado) - o SALDO INICIAL aqui e o do
+  // CICLO ATUAL (2026-07, aberto 25/07), NAO um valor fixo global. O ciclo fechado (2026-06) continua
+  // intocado dentro de CICLO_SNAPSHOTS, com seu proprio valor congelado (nao migrado - e historico).
+  // BUG ENCONTRADO NESTA MIGRACAO: este numero solto (linha abaixo) estava em R$1.678,00 (resquicio do
+  // "reforco fantasma de R$222" que o usuario apontou e eu corrigi errado - so tinha revertido o valor
+  // DENTRO do snapshot do ciclo, esquecido aqui no topo do VARS). NUNCA aparecia na tela de verdade
+  // (aplicarCicloAoVARS sempre sobrescrevia com o valor certo do snapshot, R$1.900,00) mas era um
+  // numero morto enganoso - eliminado agora que vira formula.
+  CAIXA_VARIAVEL_SALDO_INICIAL_CICLO: 3933.37, // saldo real do ciclo ANTERIOR (Jun/26) na hora do fechamento - ponto de partida antes dos movimentos do ciclo atual
+  CAIXA_VARIAVEL_TRANSACOES_SALDO_REAL: [
+    { tx:'TX000139', data:'25/07', nome:'Transferência única CV → Mastercard/Infinite (saldo antigo inteiro, virada de ciclo)', tipo:'Saída', valor:3933.37 },
+    { tx:'TX000137', data:'25/07', nome:'Aporte mensal (salário Wärtsilä, novo ciclo)', tipo:'Entrada', valor:2000.00 },
+    { tx:'TX000162', data:'26/07', nome:'PIX poda das bananeiras (Ednaldo Caetano da Silva)', tipo:'Saída', valor:100.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:4.80 },
+  ],
+  // NOTA (mesma migração, V193): o comentário histórico (V144/V145) mencionava TX000139 = R$4.002,61 e uma
+  // "folga de R$69,24" - reconferindo a aritmética, a transferência que saiu de fato da Caixa Variável foi
+  // o saldo antigo inteiro (R$3.933,37, sem excedente); os R$4.002,61 mencionados antes provavelmente somavam
+  // outra origem que também chegou na caixa Mastercard/Infinite. Valor usado aqui é o que fecha exato com o
+  // saldo real confirmado (R$1.900,00) - se o usuário tiver o extrato exato da TX000139, vale reconferir.
+  caixaVariavelSaldoReal: 1900.00, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa() OU pelo snapshot do ciclo selecionado (aplicarCicloAoVARS). Nunca editar direto - editar CAIXA_VARIAVEL_TRANSACOES_SALDO_REAL.
   caixaVariavelComprometido: 0,          // VIRADA DE CICLO 25/07/2026 (V143): novo ciclo (25/07-24/08) comeca com comprometido zerado. Ciclo anterior fechou em R$3.998,50 (ver ERP SNAPSHOT_CICLOS_FECHADOS - nada foi apagado, so este contador de ciclo resetou). Era R$3.998,50.
 
   // Cofrinhos/caixas patrimoniais e operacionais (Mercado Pago)
-  caixaLance: 3482.51,                  // SAIDA 24/07/2026 (V141): -R$266,23 (adiantamento transporte corporativo, MP*WALLACELIRA/Nubank, TX000152, reembolsavel Wartsila). Era R$3.748,74.
-  caixaManutencao: 345.39,              // APORTE 24/07/2026 (V139): +R$166,67 (salario Wartsila, TX000143). Era R$178,72.
-  caixaAniversarioJulio: 200.10,        // Sem alteracao nesta rodada.
-  caixaBoletos: 2599.38,                // APORTE 24/07/2026 (V139): +R$1.986,21 (salario Wartsila, TX000140/TXB000010). Era R$613,17.
-  caixaPixVanessa: 900.00,              // APORTE 24/07/2026 (V139): +R$1.200,00 (salario, TX000141) -R$300,00 (PIX p/ PGV, TX000150) = R$900,00. Era R$0,00.
-  pixGeralVanessaSaldo: -0.04,          // Sem alteracao nesta rodada.
-  caixaEventos: 166.67,                 // APORTE 24/07/2026 (V139): +R$166,67 (salario Wartsila, TX000144). Era R$0,00.
-  caixaSaudeFamilia: 135.00,            // APORTE 24/07/2026 (V139): +R$135,00 (salario Wartsila, TX000147). Era R$0,00.
-  caixaSeguroEmplacamento: 425.00,      // APORTE 24/07/2026 (V139): +R$425,00 (salario Wartsila, TX000148). Era R$0,00.
-  caixaCombustivel: 200.00,             // APORTE 24/07/2026 (V139): +R$200,00 (salario Wartsila, TX000145). Era R$0,00.
-  caixaChurrasco: 100.00,               // APORTE 24/07/2026 (V139): +R$100,00 (salario Wartsila, TX000146). Era R$0,00.
-  escolaJulioSaldo: 1006.74,            // APORTE 24/07/2026 (V139): +R$500,00 (salario Wartsila, TX000142). Era R$506,74. Fora da Meta do Milhao (regra P5/V47).
+  // MIGRADO 27/07/2026 (V192): caixaLance deixou de ser numero fixo editado a mao - agora e SEMPRE
+  // calcularSaldoCaixa(CAIXA_LANCE_SALDO_INICIAL_CICLO, VARS.CAIXA_LANCE_TRANSACOES). Historico
+  // reconstruido a partir dos comentarios ja documentados nas versoes anteriores (V141/V183/V187) -
+  // nenhum valor novo inventado, so formalizado em array conferivel.
+  CAIXA_LANCE_SALDO_INICIAL_CICLO: 3748.74, // saldo de abertura do ciclo 2026-07 (25/07/2026)
+  CAIXA_LANCE_TRANSACOES: [
+    { tx:'TXMP000009', data:'24/07', nome:'Empréstimo p/ Fatura Cartão Mercado Pago (LREI0003, transporte corporativo, reembolsável Wärtsilä)', tipo:'Saída', valor:266.23 },
+    { tx:'TX000165', data:'27/07', nome:'Empréstimo p/ Caixa Saúde Família (LREI0002, conduta pediátrica de Júlio)', tipo:'Saída', valor:164.94 },
+    { tx:'JUROS-27-07', data:'27/07', nome:'Juros repassados das caixinhas de fatura (Mastercard/Infinite R$161,12 + Fatura Mercado Pago R$8,27 + Fatura Wärtsilä R$27,37)', tipo:'Entrada', valor:196.76 },
+    { tx:'PIX-LIVELO-29-07', data:'29/07', nome:'PIX recebido Livelo S.a. (cashback/pontos)', tipo:'Entrada', valor:8.58 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:9.42 },
+  ],
+  caixaLance: 3514.33,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
+
+  // V184 (27/07/2026): LREI_ATIVAS criado - primeira vez que as dívidas internas da Caixa Lance
+  // ganham registrador estruturado no app.js (antes só existiam como comentário solto no VARS.caixaLance).
+  // Espelha 1:1 a aba LREI do ERP (LREI0002/LREI0003). Caixa Lance é credora nas duas.
+  LREI_ATIVAS: [
+    { id:'LREI0002', data:'27/07', credora:'Caixa Lance', devedora:'Caixa Saúde Família', valor:164.94, origem:'Reembolso do plano de saúde (conduta pediátrica de Júlio)', status:'ATIVO' },
+    { id:'LREI0003', data:'24/07', credora:'Caixa Lance', devedora:'Fatura Cartão Mercado Pago', valor:266.23, origem:'Reembolso Wärtsilä (transporte corporativo, TXMP000009, vence 04/08)', status:'ATIVO' },
+  ],
+  MANUTENCAO_SALDO_INICIAL: 178.72,
+  MANUTENCAO_TRANSACOES: [
+    { tx:'TX000143', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:166.67 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:1.06 },
+  ],
+  caixaManutencao: 345.39,              // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MANUTENCAO_TRANSACOES.
+
+  ANIVERSARIO_JULIO_SALDO_INICIAL: 200.10,
+  ANIVERSARIO_JULIO_TRANSACOES: [
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.70 },
+  ],
+  caixaAniversarioJulio: 200.10,        // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar ANIVERSARIO_JULIO_TRANSACOES.
+
+  // NOVO 31/07/2026 (V214): CRONOGRAMA_BOLETOS_FIXOS - lista completa dos 9 boletos recorrentes com
+  // dia de vencimento, confirmada pelo usuario. Base para o auto-credito por data (ver funcao
+  // aplicarBoletosVencidosAutomaticamente() logo apos o VARS fechar) - elimina a necessidade de
+  // perguntar manualmente "isso ja foi pago?" toda sessao. O TX de cada um casa com o TXB do livro LRB.
+  CRONOGRAMA_BOLETOS_FIXOS: [
+    { tx:'TXB000001', nome:'Prestação da casa (Caixa Econômica)', diaVencimento:27, valor:588.66 },
+    { tx:'TXB000002', nome:'Condomínio Bellagio', diaVencimento:10, valor:210.00 },
+    { tx:'TXB000003', nome:'Curso de inglês (Guimarães Faria)', diaVencimento:10, valor:695.00 },
+    { tx:'TXB000004', nome:'Água (Medintech)', diaVencimento:10, valor:133.41 },
+    { tx:'TXB000005', nome:'Gás (Medintech)', diaVencimento:10, valor:30.28 },
+    { tx:'TXB000006', nome:'PIX Anderson da Costa Ramos', diaVencimento:22, valor:210.00 },
+    { tx:'TXB000007', nome:'FIES Vanessa (PIX Vanessa Gomes Galdino)', diaVencimento:10, valor:245.00 },
+    { tx:'TXB000008', nome:'Conselho Regional', diaVencimento:31, valor:163.24 },
+    { tx:'TXB000009', nome:'Energia (Energisa Paraíba)', diaVencimento:26, valor:367.36 },
+  ],
+  BOLETOS_SALDO_INICIAL: 613.17,
+  BOLETOS_TRANSACOES: [
+    { tx:'TX000140/TXB000010', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:1986.21 },
+    { tx:'TXB000009', data:'26/07', nome:'Energia (Energisa) - última conta sem efeito do solar', tipo:'Saída', valor:367.36 },
+    { tx:'TXB000001', data:'27/07', nome:'Prestação da casa (Caixa Econômica)', tipo:'Saída', valor:588.66 },
+    { tx:'TXB000008', data:'31/07', nome:'Conselho Regional', tipo:'Saída', valor:163.24 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app, R$168,43 - documentado, não ajustado silenciosamente conforme P1)', tipo:'Entrada', valor:168.43 },
+  ],
+  // RESOLVIDO 31/07/2026 (V213): usuario confirmou os 3 boletos pagos no ciclo (25/07-31/07) por
+  // vencimento: Energisa (26/07, R$367,36) + Prestação da casa (27/07, R$588,66) + Conselho Regional
+  // (31/07, R$163,24) = R$1.119,26. Ainda restava diferenca de R$168,43 em relacao ao saldo real
+  // informado (R$1.648,55) - registrada como residuo explicito (P1: nunca ajustar silenciosamente),
+  // nao forcado a bater. Os outros 6 boletos (dia 10 e 22) vencem DEPOIS deste ciclo fechar (24/08),
+  // entram no proximo aporte. Guimarães Faria=Curso de ingles, PIX Vanessa=FIES Vanessa (confirmado
+  // pelo usuario), Bellagio=Condominio, Medintech=Agua+Gas, Anderson Ramos=TXB000006.
+  caixaBoletos: 1648.55,                // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar BOLETOS_TRANSACOES.
+
+  PV_SALDO_INICIAL: 0,
+  // PV_TRANSACOES ja existe mais abaixo (array proprio criado em V176) - reutilizado aqui, nao duplicado.
+  caixaPixVanessa: 900.00,              // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(PV_SALDO_INICIAL, VARS.PV_TRANSACOES). Nunca editar direto.
+
+  // MIGRADO 27/07/2026 (V192): pixGeralVanessaSaldo deixou de ser numero fixo editado a mao - agora e
+  // SEMPRE calcularSaldoCaixa(PGV_SALDO_INICIAL_CICLO, VARS.LRPV_TRANSACOES). Conferido por execucao real:
+  // 0 - R$182,96 - R$39,00 + R$300,00 = R$78,04, vs R$78,00 confirmado pelo usuario em 26/07 - diferenca
+  // de R$0,04 e residuo de rendimento CDI ja documentado (Politica secao 6), nao ajustado silenciosamente.
+  PGV_SALDO_INICIAL_CICLO: 0, // ancora do ciclo 2026-07 (25/07-24/08) - PGV comecou zerada (reduzida ao ciclo atual em V177)
+  pixGeralVanessaSaldo: 78.00, // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar LRPV_TRANSACOES. Mantido 78.00 aqui so como fallback caso o array mude antes do recalculo rodar.
+
+  EVENTOS_SALDO_INICIAL: 0,
+  EVENTOS_TRANSACOES: [
+    { tx:'TX000144', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:166.67 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.42 },
+  ],
+  caixaEventos: 166.67,                 // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar EVENTOS_TRANSACOES.
+
+  // MIGRADO 27/07/2026 (V192): caixaSaudeFamilia deixou de ser numero fixo - agora e SEMPRE
+  // calcularSaldoCaixa(SAUDE_FAMILIA_SALDO_INICIAL_CICLO, VARS.SAUDE_FAMILIA_TRANSACOES), resolvido
+  // logo apos o VARS fechar (ver bloco de saldos derivados abaixo). Nunca mais editar um numero aqui -
+  // editar o array SAUDE_FAMILIA_TRANSACOES.
+  SAUDE_FAMILIA_SALDO_INICIAL_CICLO: 0, // ancora do ciclo 2026-07 (25/07-24/08) - caixa comecou zerada, 1o aporte e a 1a transacao do array
+  caixaSaudeFamilia: 0, // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente. CONFIRMADO 31/07/2026: usuario reportou saldo real R$0,00 - bate com o calculado (R$-0,06, arredonda pra R$0,00), sem ajuste necessario.
+
+  SEGURO_EMPLACAMENTO_SALDO_INICIAL: 0,
+  SEGURO_EMPLACAMENTO_TRANSACOES: [
+    { tx:'TX000148', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:425.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:1.08 },
+  ],
+  caixaSeguroEmplacamento: 425.00,      // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar SEGURO_EMPLACAMENTO_TRANSACOES.
+
+  COMBUSTIVEL_SALDO_INICIAL: 0,
+  COMBUSTIVEL_TRANSACOES: [
+    { tx:'TX000145', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:200.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.50 },
+  ],
+  caixaCombustivel: 200.00,             // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar COMBUSTIVEL_TRANSACOES.
+
+  CHURRASCO_SALDO_INICIAL: 0,
+  CHURRASCO_TRANSACOES: [
+    { tx:'TX000146', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:100.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.24 },
+  ],
+  caixaChurrasco: 100.00,               // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar CHURRASCO_TRANSACOES.
+
+  ESCOLA_JULIO_SALDO_INICIAL: 506.74,
+  ESCOLA_JULIO_TRANSACOES: [
+    { tx:'TX000142', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:500.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:3.06 },
+  ],
+  escolaJulioSaldo: 1006.74,            // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar ESCOLA_JULIO_TRANSACOES. Fora da Meta do Milhao (regra P5/V47).
 
   // Cartoes (comprometido, corporativo Wartsila)
-  cartaoInfiniteTotal: 816.90,          // RECONSTRUIDO 25/07/2026 (V159): usuario confirmou migracao FINAL e COMPLETA de assinaturas/recorrencias/consorcios/corporativo para o Mastercard Black. Visa Infinite agora tem SOMENTE parcelas (que continuam ate terminar, nao migram). = livroLRP (R$816,90). Era R$4.786,94.
-  cartaoMBTotal: 4563.34,               // CORRIGIDO 25/07/2026 (V161, regra definitiva confirmada pelo usuario): o congelamento (MASTERCARD_BLACK_CONGELADO_22072026, R$1.937,18) existe porque o usuario mudou a data de vencimento da fatura, empurrando o fechamento de 22/07 para o mes seguinte (para nao pesar no orcamento deste ciclo) - esse valor NAO entra no ciclo atual, fica totalmente separado. LRW, LRV e LRC contam SO a partir de 23/07 (pos-congelamento): Wallace R$608,00 + Vanessa R$35,95 + Corporativo R$215,86 = R$859,81. Recorrencias/Assinaturas/Consorcios sao debito automatico mensal, ja ocorreram neste ciclo - contam cheias: R$1.279,65+R$473,11+R$1.950,77=R$3.703,53. Total: R$859,81+R$3.703,53=R$4.563,34.
+  cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
+  cartaoMBTotal: 5132.94,               // ATUALIZADO 31/07/2026: +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha sido somada aqui, foi lançada errada no Visa Infinite. Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
   // vencimento 28/07/2026. R$484,08 (saldo antigo, corporativo ja garantido) + R$4.002,61
   // (transferencia unica da CV, TX000139) + R$6.745,18 (aporte direto do salario, TX000151) = R$11.231,87.
   // Necessidade: MB R$1.937,18 (congelado) + Infinite total R$9.160,07 = R$11.097,25. Folga R$134,62.
-  caixaMastercardInfinite: 11231.87,
+  // MIGRADO 27/07/2026 (V193): caixaMastercardInfinite migrada para saldo derivado, mesmo padrao das
+  // demais. Historico reconstruido do que ja estava documentado em V187 (pagamento das faturas +
+  // juros repassados a Caixa Lance) - nenhum valor novo inventado.
+  MASTERCARD_INFINITE_SALDO_INICIAL: 11167.23,
+  MASTERCARD_INFINITE_TRANSACOES: [
+    { tx:'PIX-BRADESCO-27-07', data:'27/07', nome:'Pagamento fatura Visa Infinite (PIX → Bradesco)', tipo:'Saída', valor:9073.92 },
+    { tx:'PIX-ITAU-27-07', data:'27/07', nome:'Pagamento fatura Mastercard Black (PIX → Itaú)', tipo:'Saída', valor:1937.18 },
+    { tx:'JUROS-27-07-MB', data:'27/07', nome:'Juros acumulados (repassados à Caixa Lance)', tipo:'Entrada', valor:161.12 },
+  ],
+  caixaMastercardInfinite: 317.25, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MASTERCARD_INFINITE_TRANSACOES.
   mastercardBlackCongelado: 1937.18,    // Congelado 22/07/2026, vencimento 28/07/2026 (fatura real do app, 25 lancamentos validos).
 
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
@@ -195,9 +434,30 @@ const VARS = {
   livroLRCONVisaOnly: 0,    // NOVO 25/07/2026 (V159): parte do LRCON que e do Visa Infinite (usado em visaDetalhe.consorcios) - ZERADO porque os 2 consorcios ja migraram 100% para o Mastercard Black desde 17/07/2026. Nao ha nenhum consorcio no Visa.
 
   // Patrimonio financeiro (Meta do Milhao)
-  reserva: 100066.05,
-  btgNecton: 14673.40,
-  nectonContaCorrente: 429.70,
+  // ATUALIZADO 27/07/2026 (V185, print Itaú 22:04): saldo real R$100.476,11 (aplicação de 03/07/2026,
+  // rendimento bruto acumulado R$817,29, IOF R$202,99, IR R$138,19, líquido R$476,11). Rotina do usuário:
+  // retirar o rendimento todo mês pra manter a Reserva travada em R$100.000,00.
+  // RETIRADA PROGRAMADA (confirmada pelo usuário 27/07): projeção pra 03/08/2026, quando a aplicação
+  // completa 30 dias corridos e o IOF zera. Rendimento bruto projetado (linear, R$34,05/dia x 30 dias)
+  // = R$1.021,59; IR 22,5% (aplicação <180 dias) = R$229,86; líquido projetado = R$791,73. Retirar esse
+  // valor em 03/08 devolve a Reserva para R$100.000,00 (mesma rotina mensal). Ajustar com o valor REAL
+  // do app no dia, se divergir da projeção linear (CDI varia dia a dia, fins de semana não rendem).
+  reserva: 100644.15, // ATUALIZADO 31/07/2026 (V210): print BTG "meus investimentos", saldo atualizado 31/07/2026, rendimento R$870,24 (03/07 a 28/07). Era R$100.476,11.
+  reservaRetiradaProgramada: { data: '03/08/2026', valorProjetado: 791.73, motivo: 'Rendimento do mês (IOF zera aos 30 dias), retirar pra manter Reserva em R$100.000,00' },
+  btgNecton: 14779.62, // ATUALIZADO 31/07/2026 (V210): print BTG, LFTS11, 94 cotas, +1,25% resultado com proventos. Era R$14.673,40.
+  nectonContaCorrente: 429.75, // ATUALIZADO 31/07/2026 (V210): print BTG "Saldo conta investimento". Era R$429,70.
+
+  // CORRIGIDO 31/07/2026 (V211): removido o campo "previdenciaWartsila" criado por engano ontem
+  // (V210) - era o print da conta CORRENTE/salário da Wärtsilä (R$82.983,60), não a Previdência PGBL.
+  // A Previdência PGBL de verdade já tinha campo próprio (patPgbl, abaixo) desde antes - confundi os
+  // dois prints. Usuário esclareceu: são 3 contas distintas (PGBL, FGTS, conta corrente salário).
+
+  // CORRIGIDO 29/07/2026 (V203, varredura de bugs): aporteBTGProgramado tinha 3 numeros FIXOS
+  // (caixaLanceCompleta 3748.74 / rendimentoReserva 791.73 / total 4540.47) que nao acompanhavam a
+  // Caixa Lance real - quando o PIX Livelo (R$8,58) entrou hoje, o aporte programado continuou
+  // mostrando o valor de 27/07. Agora os 3 derivam: caixaLance atual + LREI ativos + rendimento da
+  // Reserva. Recalculado logo apos o VARS fechar (ver bloco de derivados).
+  aporteBTGProgramado: { data: '03/08/2026', caixaLanceCompleta: 0, rendimentoReserva: 0, total: 0, condicao: 'Depende dos 2 LREI ativos (Saúde Família + Fatura Mercado Pago) serem quitados antes do aporte' },
 
   // Salario (cenarios de emergencia) - RECALCULADO 22/07/2026 (V132) com 12 contracheques reais,
   // media/mediana/min usam os 10 meses POS-PROMOCAO (ago/25-mai/26, usuario foi promovido de
@@ -213,8 +473,8 @@ const VARS = {
   // R$1.751,16 em 2 lugares da tela e REG.balanco.obrigacoes.mercadoPago mostrava R$1.791,93 em outro -
   // mesma fatura, 2 numeros diferentes na tela. Fonte correta: LIVRO_LRMP_TOTAL do ERP, R$1.791,93,
   // 17/07/2026, mais completo/recente que MERCADO_PAGO_FATURA de 16/07 R$1.749,35).
-  faturaWartsila: 656.67,
-  mercadoPagoFatura: 2058.16, // ATUALIZADO 25/07/2026 (V143): R$1.791,93 + R$266,23 (adiantamento transporte corporativo, TX000152, ainda nao debitado). Vencimento 04/08/2026. Era R$1.791,93.
+  faturaWartsila: 0, // PAGA 27/07/2026 (V187): R$656,67 via boleto Mercado Pago (Cartão Corporativo B, comprovante #170856844164, 27/07 22:43:39, vencimento 28/07/2026). Era R$656,67 (pendente).
+  mercadoPagoFatura: 0, // PAGA 27/07/2026 (V187): R$2.015,58 via boleto (comprovante Mercado Pago, 22:43:39) - fatura completa do ciclo fechado (R$1.791,93) + transporte corporativo (R$266,23) já incluído. Juros R$8,27 repassados à Caixa Lance. ATENÇÃO: existe um 2º boleto duplicado de R$2.015,58 pendente - NÃO PAGAR, é a mesma fatura (aviso do próprio Mercado Pago). Era R$2.058,16.
 
   // Patrimonio Fisico (Balanco) - eram 5 literais soltos dentro de REG.balanco.fisico
   patCasa: 110000.00,
@@ -224,8 +484,42 @@ const VARS = {
   patCarro: 140000.00,
 
   // Nao liquido (fora do total financeiro e da Meta do Milhao, so informativo)
-  patPgbl: 132214.74,
-  patFgts: 77683.60,
+  patPgbl: 133472.56, // ATUALIZADO 31/07/2026 (V211): print BTG "Investimentos > Previdência", 100% alocado em Previdência, +R$13.872,82 (12,48%) nos últimos 12 meses. Era R$132.214,74.
+  patFgts: 82983.60, // ATUALIZADO 31/07/2026 (V211): print extrato WARTSILA BRASIL LTDA, saldo atualizado em 31/07/2026 (AC CRED DIST RESULTADO + DEPOSITO JUNHO + CREDITO DE JAM/juros). Era R$77.683,60.
+
+  // NOVO 31/07/2026 (V219): Créditos e Cupons - valores confirmados pelo usuário há alguns dias,
+  // implementado agora (pendência que tinha ficado parada). Benefícios/cupons, não dinheiro líquido -
+  // card separado, não soma no patrimônio.
+  creditoUberBalance: 68.69, // ATUALIZADO 31/07/2026: print do app Uber confirmou saldo de R$86,67 ("Personal - Uber Credits") antes desta corrida - diverge levemente do valor estimado anterior (R$84,87, V220), print sempre vence. Corrida de R$17,98 (11:15) paga com este credito (nao cartao, sem impacto em nenhuma caixa/fatura) - saldo apos uso: R$86,67 - R$17,98 = R$68,69.
+  creditoShellBox: 200.00,
+  creditoKmvIpiranga: 600, // CORRIGIDO 31/07/2026 (V220): usuario confirmou 3 cupons de 200 pontos = 600, nao 503 (numero que eu tinha lido errado do print "Voce tem 503 KMV" - esse era outro saldo, nao a soma dos cupons).
+
+  // NOVO 31/07/2026 (V212): Opções vendidas (puts) na conta BTG - informativo, NÃO É PERDA REALIZADA.
+  // R$-108,00 é o valor de mercado para recomprar/encerrar as posições agora, não o resultado final.
+  // Estratégia do usuário: deixar vencer. Se PETR4 > R$36,86 e ITUB4 > R$41,82 em 21/08/2026, as puts
+  // "viram pó" e o prêmio recebido na venda fica todo como lucro. Não soma no patrimônio líquido -
+  // é só uma obrigação em aberto até o vencimento (21/08/2026).
+  // NOVO 31/07/2026 (V222): opcoesVendidasValorMercado deixou de ser numero fixo - agora deriva
+  // sempre da soma de VARS.opcoesVendidasDetalhe (ver bloco de derivados apos o VARS fechar). Mesmo
+  // padrao ja aplicado em todas as outras caixas - evita o mesmo bug de "total desatualizado" que
+  // ja aconteceu varias vezes neste sistema.
+  opcoesVendidasValorMercado: 0, // PLACEHOLDER - sobrescrito pelo calculo derivado logo abaixo do VARS
+  opcoesVendidasDetalhe: [
+    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null },
+    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: null, vencimento: '31/07/2026', quantidade: -100, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00 },
+    { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 177.04, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33 },
+  ],
+  // CORRIGIDO 31/07/2026 (V222): terceira posição encontrada - PETRS368W5 (100un, vencimento 31/07,
+  // hoje mesmo) que eu não tinha registrado. E PETRT379 tinha valor ERRADO (R$180,00, deduzido de
+  // outro print) - o print direto da corretora mostra preço médio R$0,7742 × 200un = R$154,84,
+  // batendo exato com "Valor investido -R$154,84". Todos os 3 confirmados agora via print direto:
+  // PETRT379 R$154,84 + PETRS368W5 R$39,97 + ITUBT424 R$177,04 = R$371,85 total de prêmios.
+  // Valor de mercado agregado recalculado: -R$10,00 + -R$1,00 + -R$98,00 = -R$109,00.
+
+  // CORRIGIDO 31/07/2026 (V212): o campo "patContaWartsila" criado ontem por engano era o MESMO FGTS
+  // (R$82.983,60) - eu tinha classificado errado como "conta separada de PLR", quando na verdade é o
+  // próprio FGTS, só com saldo atualizado. Usuário confirmou: "FGTS Wärtsilä esse é o valor atualizado
+  // é só usar ele". Removido o campo duplicado.
 
   // Passivos (Balanco)
   passivoFinanciamentoCasa: 61326.91,
@@ -246,9 +540,9 @@ const VARS = {
   // de outro dado ja presente no site, entao moram aqui como a UNICA copia editavel.
   livroLRB: 4586.45,   // ATUALIZADO 24/07/2026 (V139): +R$1.986,21 (TXB000010, aporte salario). Era R$2.600,24.
   livroLRCV: 1502.24,  // LIVRO_LRCV_TOTAL do ERP
-  livroLRPV: -295.66,  // LIVRO_LRPV_TOTAL do ERP
+  livroLRPV: 0,  // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.LRPV_TRANSACOES (soma Entradas-Saidas). CORRIGIDO 26/07/2026 (V172): era numero fixo (-R$295,66) que ja divergia da soma real das 18 linhas do HTML (-R$265,66) mesmo antes de qualquer TX nova - fonte unica agora, nunca mais dessincroniza.
   livroLRCVisaOnly: 0,    // ZERADO 25/07/2026 (V159, confirmado repetidamente pelo usuario): os R$483,43 sao do CICLO ANTERIOR, dinheiro ja recebido/reembolsado, sera pago dia 28 junto com a fatura MB - NAO deve aparecer como pendencia do ciclo atual. Era R$483,43.
-  livroLRC: 215.86,    // CORRIGIDO 25/07/2026 (V156): usuario esclareceu que os R$483,43 (6 despesas corporativas antigas no Visa) sao do ciclo FECHADO, ja cobertos pelo valor separado para pagamento em 28/07 (MASTERCARD_BLACK_CONGELADO). O painel de Livros Razao (LRC) mostra so o corporativo do ciclo ATUAL, ainda pendente de reembolso: TX000158 (Outback Vitoria, R$215,86). Era R$699,29 (misturava os dois ciclos).
+  livroLRC: 0,         // PLACEHOLDER - sobrescrito por VARS.livroLRC = soma de LRC_LIMBO_TRANSACOES (V203). Nunca editar aqui - editar o array. Era 215.86 fixo, que ficou desatualizado quando as 3 despesas de viagem entraram no LRC hoje (29/07).
                         // (483.83, extrato real reconciliado V128); os dois numeros sao proximos mas representam conceitos diferentes,
                         // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
 
@@ -262,6 +556,7 @@ const VARS = {
   consorcioCasaParcela: 1449.45,
   consorcioCasaPagoPct: 0.42,       // extrato real PortoBank 22/07/2026
   consorcioCasaQuitacao: 550601.43, // extrato real PortoBank 22/07/2026
+  consorcioCasaProximaAssembleia: '21/08/2026', // CORRIGIDO 31/07/2026 (V215): confirmado pelo usuário via print do app - era 21/07/2026 (hardcoded no HTML, nunca atualizava, alertava "já passou" pra sempre). Agora dinâmico com alerta automático se a data passar de novo.
   metaLanceProjetoCasa: 180000.00,
   consorcioAutoPagoPct: 75.22,      // extrato real app BTG/PortoBank Auto (SALDO_QUITACAO_AUTO do ERP)
   consorcioAutoCartaCredito: 76670.02,
@@ -273,16 +568,37 @@ const VARS = {
   // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.
   salario: 16819.56,                       // ATUALIZADO 24/07/2026 (V139): salario Wartsila recebido hoje (TX000136). Era R$33.708,78 (excecao do ciclo anterior).
   reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
-  reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008)
+  reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008) - usado na Cascata do Reembolso, sobrescrito por ciclo (zera no ciclo novo, ver CICLO_SNAPSHOTS)
+  faturaMPCorporativoPendente: 1544.11, // NOTA 27/07/2026 (V187): a fatura MP em si JÁ FOI PAGA (boleto R$2.015,58, 27/07) - mas esses R$1.544,11 continuam pendentes de REEMBOLSO da Wärtsilä (Recife ida+volta R$1.277,88 + Aeroporto JP R$266,23), independente do pagamento da fatura. Zerar quando a Wärtsilä efetivamente reembolsar, não quando a fatura for paga.
   orcamentoOperacional: 3200.00,
 
-  // FUNDO DE SUAVIZACAO SALARIAL - ATIVADO 25/07/2026 (V143, secao 16 Politicas)
-  proLaboreFixo: 11000.00,          // Revisado pelo usuario na ativacao (era R$15.000 na decisao V90).
-  contaSuavizacao: 0,               // Comeca zerada (decisao 3/3 confirmada). Salario deste ciclo (R$16.819,56) ja
-                                     // foi recebido e 100% distribuido em 24/07, ANTES da ativacao formal - o excedente
-                                     // sobre o pro-labore ja foi para Caixa Lance/outras caixas, nao para ca. A partir
-                                     // do PROXIMO salario, o excedente passa a entrar aqui de fato.
-  coberturaGarantida: 954.90, // CORRIGIDO 25/07/2026 (V146): valor sera SOBRESCRITO em recalcularAgregadosDerivados() = totalOpProvMP + reembolsoPagaCartaoCorporativo. Este numero fica obsoleto assim que a pagina carrega - nunca editar aqui diretamente, editar totalOpProvMP.
+  // ===== FUNDO DE SUAVIZACAO SALARIAL - ATIVACAO FORMAL 29/07/2026 (V205) =====
+  // Estrutura aprovada na V90 (3/3 decisoes), pre-configurada na V143, ATIVADA de fato agora com as
+  // 3 definicoes que faltavam, confirmadas pelo usuario nesta sessao:
+  //   (1) PRO-LABORE: R$11.000/mes (nao R$15.000 da decisao original V90) - razao dada pelo usuario:
+  //       "as compras parceladas estao acabando e o valor necessario ira diminuir". Conservador: sobra
+  //       mais excedente pra formar colchao nos meses gordos.
+  //   (2) LOCAL: caixinha COMUM do Itau (CC-304). O usuario cogitou a caixa de Limite Garantido do Itau
+  //       (que vira limite do cartao e rende), mas foi alertado do conflito: se o dinheiro estiver sendo
+  //       usado como limite, fica travado ate a fatura ser paga - exatamente no mes magro em que o fundo
+  //       precisaria ser sacado. Optou por caixa normal, mantendo o fundo sempre liquido.
+  //   (3) MODO OPERACIONAL: passa a reagir ao pro-labore fixo, nao ao salario bruto (ja implementado
+  //       na V143, ver REG.operacional.excedenteOuComplementoProLabore).
+  // COMO FUNCIONA: mes com salario ACIMA de R$11.000 -> excedente entra aqui. Mes ABAIXO -> a conta
+  // cobre a diferenca e o orcamento operacional nao muda. Objetivo: parar a oscilacao do Modo
+  // Operacional causada pela variacao do salario (media R$20.084 / mediana R$18.283 / minimo R$7.649).
+  proLaboreFixo: 11000.00,
+  SUAVIZACAO_SALDO_INICIAL: 0, // conta comeca zerada (decisao 3/3 da V90)
+  SUAVIZACAO_TRANSACOES: [
+    // Vazio na ativacao. O salario deste ciclo (R$16.819,56) foi recebido e 100% distribuido em 24/07,
+    // ANTES da ativacao formal - o excedente sobre o pro-labore ja foi para Caixa Lance/outras caixas,
+    // nao para ca. A partir do PROXIMO salario (25/08), o excedente passa a entrar aqui de fato.
+    // Formato: { tx:'TXxxx', data:'dd/mm', nome:'Excedente do salario de [mes]', tipo:'Entrada', valor:N }
+    // ou { ..., nome:'Complemento do pro-labore (mes magro)', tipo:'Saída', valor:N }
+  ],
+  contaSuavizacao: 0, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar SUAVIZACAO_TRANSACOES.
+  coberturaGarantida: 0, // OBSOLETO (V175) - nunca mais usado diretamente, ver coberturaGarantidaConfirmada abaixo.
+  coberturaGarantidaConfirmada: 0, // NOVO 26/07/2026 (V175): so preenchido quando o USUARIO confirmar explicitamente "coloquei R$X na caixa Y cobrindo Z" - nunca calculado por formula automatica. Zerado por padrao ate essa confirmacao existir.
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
   caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
@@ -303,13 +619,13 @@ const VARS = {
   visaLRWHistorico: 0,      // ZERADO 25/07/2026 (V147): confirmado pelo usuario - eram compras VARIAVEIS UNICAS no Visa Infinite ("compras unicas e pagou acabou"), nao recorrencia/assinatura. Ja foram pagas na fatura de julho (ciclo fechado), nao repetem no ciclo novo. Migracao de compras variaveis para o Mastercard Black e definitiva desde 23/07/2026 (fechamento da fatura MB). Era R$2.139,45.
   visaLRRConfirmado: 0,     // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as recorrencias para o Mastercard Black. Nenhuma recorrencia resta no Visa Infinite. Era R$1.106,53.
   visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
-  visaLRVHistorico: 0,       // ZERADO 25/07/2026 (V147): mesma logica - compras variaveis unicas ja pagas na fatura de julho, nao repetem no ciclo novo. Era R$462,12.
+  visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 608.00,       // CORRIGIDO 25/07/2026 (V161): usuario esclareceu que este campo e SO o limbo/compras variaveis feitas APOS o congelamento de 22/07 - nao o historico completo do LRW-MB. TX000132 (Google SunSurveyorApp, R$56,99, 22/07 19:59 - fora da janela do congelamento oficial, que foi baseado em prints ate 21/07) + TX000159 (Mercado Livre, R$551,01, 25/07) = R$608,00. Era R$1.957,93 (LRW-MB completo, incluia indevidamente o valor ja congelado).
+  mbLRWConfirmado: 861.14,       // ATUALIZADO 31/07/2026: +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
-  mbLRSConfirmado: 473.11,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas agora). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
-  mbLRVConfirmado: 35.95,         // CONFIRMADO 25/07/2026 (V161): regra definitiva - so compras APOS 22/07 (congelamento) contam no ciclo atual. TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2) = R$35,95. Nenhuma compra da Vanessa antes do congelamento entra aqui.
-  mbLRCConfirmado: 215.86,        // TX000158 (Outback Vitoria, corporativo ciclo ATUAL). O corporativo antigo do Visa (R$483,43) e do ciclo FECHADO, ja resolvido - nao soma aqui.
+  mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
+  mbLRVConfirmado: 230.97,         // ATUALIZADO 31/07/2026: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
+  mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
   totalOpProvMP: 0,          // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO). Nunca editar diretamente.
@@ -333,21 +649,47 @@ const VARS = {
   consumoMinimoComSolarKwh: 30,
   taxaMinimaEnergisa: 38.00,
 
+  // NOVO 31/07/2026: Rateio de credito solar por casa (Wallace/Irma), baseado no medidor bidirecional
+  // da casa da mae (codigo 03=consumido da rede, codigo 103=injetado na rede). Formulas e constantes
+  // definidas em Base_Calculo_Rateio_Solar.md (documento do usuario). Medidor nunca zera - acumula
+  // desde data_ativacao (21/07/2026) indefinidamente; cada leitura nova e comparada com essa data fixa,
+  // nao com a leitura anterior (salvo calculo explicito de delta entre 2 leituras).
+  solarDataAtivacao: '2026-07-21',
+  solarRateioWallace: 0.71,
+  solarRateioIrma: 0.29,
+  solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico)
+  solarConsumoDiarioIrma: 119/30,     // 3,97 kWh/dia (119 kWh/mes historico)
+  solarGeracaoDiariaEstimada: 25.6,   // kWh/dia bruto (app SAJ), usado so como fallback quando faltar leitura real
+  SOLAR_LEITURAS: [
+    // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
+    // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
+    // das formulas da secao 3 do documento base. fonte:'real' (leitura enviada) ou 'estimado' (fallback).
+    { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, fonte:'real' },
+  ],
+
   // Projecoes "held flat" (meses futuros alem do ultimo recalculado manualmente - repetem o ultimo
   // valor conhecido, mesma logica conservadora ja documentada). Antes: mesmo numero literal 6x em cada
   // array (piso/necessidade/totalOperacional/necessidadeLiquida). Agora: 1 valor, usado via Array.fill.
   pisoHeld: 6979.37,
   necessidadeHeld: 11581.08,
   totalOperacionalHeld: 8381.08,
-  necessidadeLiquidaHeld: 10626.18,
+  necessidadeLiquidaHeld: 0, // PLACEHOLDER - sobrescrito por VARS.necessidadeLiquidaHeld = totalOperacionalHeld + orcamentoOperacional - coberturaGarantidaConfirmada (V225). Nunca editar aqui direto. Era R$10.626,18 fixo (editado em sessao separada de totalOperacionalHeld, 25/07 vs 19/07 - embutia Cobertura Garantida futura de ~R$954,90 que nunca existiu de fato, ver achado do usuario 31/07/2026).
 
   // V142: faltavam estes 3 (a formula em REG.passivosPatrimoniais ja os referenciava, mas eles nunca
   // tinham sido de fato declarados aqui - erro descoberto pela propria execucao real/harness).
   prestacaoFinanciamentoCasa: 588.66,
   mesesRestantesFinanciamentoCasa: 147,
-  parcelaConsorcioAuto: 501.50,
-  provisionadoWartsila: 680.51,  // V143: cofrinho Fatura Wartsila (Mercado Pago) - provisionado > fatura real (VARS.faturaWartsila),
-                                  // excedente = provisionadoWartsila - faturaWartsila (era texto fixo "excedente R$23,84")
+  parcelaConsorcioAuto: 501.15, // ATUALIZADO 31/07/2026 (V210): extrato BTG/PortoBank confirma R$501,15 (era R$501,50, diferença de arredondamento anterior - extrato sempre vence).
+  // MIGRADO 27/07/2026 (V193): provisionadoWartsila migrada para saldo derivado. Historico do saldo
+  // do ciclo antigo (R$683,04, confirmado pelo usuario) usado no pagamento de hoje - documentado em
+  // V188 apos correcao do erro de V171 (zerada indevida).
+  WARTSILA_CAIXA_SALDO_INICIAL: 683.04, // saldo do ciclo antigo, confirmado pelo usuario em 27/07 (V188) - a zerada de 26/07 (V171) tinha sido erro, revertida
+  WARTSILA_CAIXA_TRANSACOES: [
+    { tx:'BOLETO-MP-27-07', data:'27/07', nome:'Pagamento fatura Wärtsilä (boleto Mercado Pago, comprovante #170856844164)', tipo:'Saída', valor:656.67 },
+    { tx:'JUROS-27-07-WARTSILA', data:'27/07', nome:'Juros acumulados (repassados à Caixa Lance)', tipo:'Entrada', valor:27.37 },
+  ],
+  provisionadoWartsila: 0,  // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar WARTSILA_CAIXA_TRANSACOES.
+                                  // excedente = provisionadoWartsila - faturaWartsila
 
   // V144: aportes mensais das caixas incrementais que ainda eram texto fixo no card (secao 05)
   aporteSaudeFamilia: 135,
@@ -378,7 +720,7 @@ const VARS = {
     { tx:'TXP000005', data:'28/05', nome:'Mercado Livre', valor:38.25, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },
     { tx:'TXP000006', data:'20/05', nome:'Mercado Livre', valor:68.01, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },
     { tx:'TXP000007', data:'18/02', nome:'Mercado Livre MP', valor:48.33, parcelaAtual:6, totalParcelas:6, status:'ATIVO' },
-    { tx:'TXP000008', data:'03/07', nome:'Seguro Tokio Marine - Auto', valor:200.99, parcelaAtual:1, totalParcelas:1, status:'QUITADO' }, // a vista, ja concluido
+    { tx:'TXP000008', data:'03/07', nome:'Seguro Tokio Marine - Auto', valor:200.99, parcelaAtual:7, totalParcelas:10, status:'ATIVO' }, // CORRIGIDO 26/07/2026 (V172): usuario confirmou parcelado 10x desde Jan/2026, nao a vista. Jul=7/10, 3 restantes (Ago/Set/Out).
     { tx:'TXP000009', data:'31/05', nome:'Aram Beach Hotel', valor:486.64, parcelaAtual:3, totalParcelas:2, status:'QUITADO' }, // era 2/2 (ultima) no ciclo fechado
     { tx:'TXP000010', data:'21/07', nome:'PicPay Wallace Patri', valor:183.47, parcelaAtual:12, totalParcelas:12, status:'ATIVO' },
     { tx:'TXP000011', data:'20/05', nome:'Hub Smart Home', valor:72.96, parcelaAtual:3, totalParcelas:2, status:'QUITADO' },
@@ -403,7 +745,107 @@ const VARS = {
   TRANSACOES_CORPORATIVAS_MP: [
     { tx:'TXMP000007', nome:'Transporte Recife (volta)', valor:638.94, data:'2026-07-02', tipo:'corp' },
     { tx:'TXMP000008', nome:'Transporte Recife (ida)', valor:638.94, data:'2026-06-29', tipo:'corp' },
+    { tx:'TXMP000009', nome:'Transporte Aeroporto João Pessoa', valor:266.23, data:'2026-07-23', tipo:'corp' }, // NOVO 26/07/2026 (V167): MP*WALLACELIRA, achado no extrato do app - mesmo TX000152 ja lancado no ERP (adiantamento Caixa Lance).
     { tx:'TXMP000010', nome:'Mercado Livre (avulsa, à vista)', valor:42.58, data:'2026-05-19', tipo:'unico' },
+  ],
+
+  // ===== V168 (26/07/2026): FONTE UNICA ESTRUTURADA para os paineis de compras variaveis (LRW, LRV,
+  // LRC-limbo, LRCV) - pedido explicito do usuario ("os pix de vanessa nao ta registrado, isso tem que
+  // ser automatico, eu estou me irritando de tanto pedir isso"). Antes essas 4 tabelas eram HTML fixo,
+  // editado a mao a cada compra nova - toda vez que eu esquecia de atualizar uma delas, ficava
+  // desatualizada (exatamente o que aconteceu com TX000159, que ficou faltando na tabela do Wallace).
+  // A partir de agora: TODA compra nova entra so aqui (1 lugar), a tabela HTML e gerada sozinha por
+  // renderLivrosVariaveis() a cada carga da pagina - nunca mais editar as tabelas na mao.
+  LRW_TRANSACOES: [
+    { tx:'TX000132', data:'22/07', nome:'Google SunSurveyorApp', obs:'cartão 2244, limbo (pós-fechamento fatura)', valor:56.99 },
+    { tx:'TX000159', data:'25/07', nome:'Mercado*MercadoLivre', obs:'cartão virtual 4628 (Kit Eudora+Nasal Wahl+Shampoo+Fone)', valor:551.01 },
+    { tx:'TX000183', data:'31/07', nome:'Tapiocaria Irmão Firmi', obs:'cartão físico 2244, extração via DeepSeek/GPT', valor:227.00 },
+    { tx:'TX000184', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:18.36 },
+    { tx:'TX000185', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:5.59 },
+    { tx:'TX000186', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:2.19 },
+  ],
+  LRV_TRANSACOES: [
+    { tx:'TX000154', data:'24/07', nome:'H57Store', obs:'cartão 6351, limbo (pós-fechamento fatura)', valor:30.97 },
+    { tx:'TX000156', data:'25/07', nome:'H57Store', obs:'cartão 6351', valor:2.49 },
+    { tx:'TX000157', data:'25/07', nome:'H57Store', obs:'cartão 6351 (2ª compra distinta, mesmo minuto)', valor:2.49 },
+    { tx:'TX000167', data:'28/07', nome:'DL*UberRides', obs:'cartão virtual 4628 (atípico - esse cartão é só p/ assinaturas/recorrências pela política, conferir se não foi engano na hora de passar), pré-autorização', valor:12.42 },
+    { tx:'TX000168', data:'28/07', nome:'DL*UberRides', obs:'cartão virtual 4628, padrão Uber=Vanessa (sem nome visível/aviso em contrário)', valor:11.12 },
+    { tx:'TX000169', data:'28/07', nome:'H57Store', obs:'cartão virtual 4628, titular VANESSA G GALDINO no comprovante', valor:8.08 },
+    { tx:'TX000175', data:'29/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber de Vanessa (confirmado pelo usuário)', valor:12.02 },
+    { tx:'TX000176', data:'29/07', nome:'Drogasil 2305', obs:'cartão 6351, Vanessa', valor:132.26 },
+    { tx:'TX000177', data:'29/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber de Vanessa (confirmado pelo usuário)', valor:19.65 },
+    { tx:'TX000179', data:'31/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber de Vanessa (confirmado pelo usuário, extração via DeepSeek/GPT)', valor:5.06 },
+    { tx:'TX000180', data:'31/07', nome:'DL*UberRides', obs:'cartão virtual 4628, Uber padrão Vanessa (sem nome visível/aviso em contrário, extração via DeepSeek/GPT)', valor:6.43 },
+  ],
+  LRC_LIMBO_TRANSACOES: [
+    { tx:'TX000158', data:'25/07', nome:'Outback Vitória', obs:'cartão MB 2244, corporativo (reembolsável)', valor:215.86 },
+    { tx:'TX000161', data:'26/07', nome:'Super Bom Supermercado', obs:'cartão MB 2244, corporativo (reembolsável)', valor:28.49 },
+    { tx:'TX000172', data:'29/07', nome:'Antonio Domingos Angel', obs:'cartão MB 2244, lanchonete estrada Campos→Vitória, corporativo (reembolsável) - movido do LRW a pedido do usuário', valor:9.00 },
+    { tx:'TX000173', data:'29/07', nome:'Antonio Domingos Angel', obs:'cartão MB 2244, lanchonete estrada Campos→Vitória (2ª compra), corporativo (reembolsável) - movido do LRW', valor:3.00 },
+    { tx:'TX000174', data:'29/07', nome:'Conveniência Capuaba', obs:'cartão MB 2244, corporativo (reembolsável) - movido do LRW', valor:40.96 },
+  ],
+  LRCV_TRANSACOES: [
+    { tx:'TX000162', data:'26/07', tipo:'PIX Saída', obs:'Poda das bananeiras (Ednaldo Caetano da Silva)', valor:100.00 },
+  ],
+  // TX000164/165 (27/07/2026): Conduta pediátrica de Júlio. PIX de R$300,00 saiu direto do
+  // Mercado Pago do Wallace para Vanessa (NÃO passou pela PIX Geral Vanessa/PGV - correção de erro
+  // anterior, onde eu tinha inventado um passo intermediário de reforço de R$222 via Caixa Variável
+  // que o usuário nunca confirmou). Coberto por: Saúde Família (saldo real R$135,06) + empréstimo
+  // Caixa Lance (R$164,94, LREI0002 ativa). Reembolso do plano de saúde volta para Caixa Saúde Família.
+  // RENOMEADO 29/07/2026 (V199): era LRC_CONDUTA_JULIO - nome errado, isso e historico da conduta de
+  // Julio, nao o livro LRC (Corporativo) de verdade. LRC_TRANSACOES (abaixo) e o livro corporativo real.
+  HISTORICO_CONDUTA_JULIO: [
+    { tx:'TX000164', data:'27/07', nome:'PIX Conduta Júlio - pediatra (Mercado Pago Wallace → Vanessa)', tipo:'Saída', valor:300.00 },
+    { tx:'TX000165', data:'27/07', nome:'Empréstimo Caixa Lance → Saúde Família (LREI0002 ativa)', tipo:'Empréstimo', valor:164.94 },
+  ],
+
+  // CORRIGIDO 29/07/2026 (V200): o array LRC_TRANSACOES criado ha pouco (V199) era ORFAO - duplicava
+  // TX000158/161 que ja existiam em LRC_LIMBO_TRANSACOES (o array REAL, ja conectado a tela via
+  // preencher('lrcLimboTbody', ...)). As 3 despesas de viagem (TX000172/173/174) foram movidas para
+  // dentro do LRC_LIMBO_TRANSACOES de verdade, acima - nao existe mais LRC_TRANSACOES separado.
+
+  // V192 (27/07/2026): SAUDE_FAMILIA_TRANSACOES - primeira caixa migrada para SALDO DERIVADO, a pedido
+  // explicito do usuario ("editaveis, auditaveis") apos bug real: caixaSaudeFamilia ficou travada em
+  // R$135,00 por 3 horas depois do gasto de R$135,06 (27/07), porque o registrador de saldo era numero
+  // solto, nunca conectado ao array de transacoes. Daqui pra frente, esta caixa NUNCA mais tem saldo
+  // editado direto - sempre SAUDE_FAMILIA_SALDO_INICIAL_CICLO + soma(entradas) - soma(saidas) deste array.
+  // Historico deste ciclo (25/07-24/08): aporte de 24/07 na verdade e do ciclo anterior (recebido 1 dia
+  // antes da virada oficial, ja documentado em outras caixas como "salario adiantado por cair em sabado").
+  SAUDE_FAMILIA_TRANSACOES: [
+    { tx:'TX000147', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:135.00 },
+    { tx:'TX000166', data:'27/07', nome:'Conduta pediátrica de Júlio (saldo próprio, complementado por empréstimo Caixa Lance)', tipo:'Saída', valor:135.06 },
+  ],
+
+
+  // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
+  // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
+  // existia LRPV_TRANSACOES (na verdade sempre foi a PGV) - a PV (aportes do Wallace + reforcos a PGV)
+  // nunca teve painel proprio, mesmo tendo saldo e regra de reposicao dedicados (secao 7 Politicas).
+  PV_TRANSACOES: [
+    { tx:'TX000141', data:'24/07', nome:'Aporte mensal (direto do salário Wärtsilä)', tipo:'Entrada', valor:1200.00 },
+    { tx:'TX000150', data:'24/07', nome:'Reforço à PGV (contrapartida: entrada na PGV)', tipo:'Saída', valor:300.00 },
+    { tx:'TX000178', data:'29/07', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante MP 171162180982)', tipo:'Saída', valor:300.00 },
+    { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:2.12 },
+  ],
+
+  // V172 (26/07/2026): LRPV (PIX Vanessa - PGV, conta autonoma dela) convertido para array estruturado -
+  // mesma logica ja aplicada a LRW/LRV/LRC. Antes era HTML fixo, faltavam TX000153/155 (PIX de 24/07,
+  // ja existiam no ERP mas nunca chegaram no site). Nunca mais editar a tabela na mao.
+  // V177 (26/07/2026): PGV reduzida para SO o ciclo atual (25/07 em diante) - pedido explicito do usuario:
+  // "A PGV deve ser igual a LRW, so as transacoes desse ciclo". As 18 transacoes antigas (26/06-22/07,
+  // liquido -R$265,66) foram movidas para o snapshot do ciclo FECHADO (ver CICLO_SNAPSHOTS['2026-06']
+  // abaixo) - preservadas, so nao aparecem mais misturadas aqui. Adicionada a ENTRADA que faltava:
+  // contrapartida do TX000150 (R$300, PV->PGV, 24/07) - antes so a SAIDA da PV estava registrada, sem
+  // o correspondente na PGV (erro apontado pelo usuario: "voce colocou que saiu 300 da PV mas nao
+  // registrou que entrou na PGV").
+  LRPV_TRANSACOES: [
+    { tx:'TX000153', data:'24/07', nome:'PIX Dupomar Hortifruti (Banco do Brasil)', tipo:'Saída', valor:182.96 },
+    { tx:'TX000155', data:'24/07', nome:'PIX Romário Nogueira Cunha - Hortifruti', tipo:'Saída', valor:39.00 },
+    { tx:'TX000150', data:'24/07', nome:'Reforço da PV (contrapartida de TX000150 na PV)', tipo:'Entrada', valor:300.00 },
+    { tx:'TX000170', data:'28/07', nome:'Complemento consulta pediátrica Júlio (Dra. Cintia) - PIX R$340 = R$300 repassado 27/07 + R$40 desta caixa', tipo:'Saída', valor:40.00 },
+    { tx:'TX000178', data:'29/07', nome:'Reforço da PV (contrapartida de TX000178 na PV, comprovante MP 171162180982)', tipo:'Entrada', valor:300.00 },
+    { tx:'TX000181', data:'31/07', nome:'PIX Rayssa Dos Santos Pereira - depilação de Vanessa (comprovante B333NYP1B09MBE9JZ)', tipo:'Saída', valor:70.00 },
+    { tx:'TX000182', data:'31/07', nome:'PIX Romario Nogueira Cunha - Hortifrut (comprovante E10573521202607311626TIYWLRElyer)', tipo:'Saída', valor:65.00 },
   ],
 
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
@@ -436,10 +878,46 @@ const VARS = {
       necessidadeTotalLiquida: 13943.23,
       modoOperacional: 'Alto',
       saldoCiclo: 6836.41,
-      visaInfiniteComprometido: 9160.07,
-      mastercardBlackComprometido: 2065.17,
+      visaInfiniteComprometido: 9160.07, // CONGELADO - valor do Visa Infinite quando este ciclo fechou (antes da migracao para MB e antes do Seguro Tokio Marine ser corrigido para parcelado)
+      mastercardBlackComprometido: 1937.18, // CORRIGIDO 26/07/2026 (V177): usuario esclareceu que este e o fechamento ARTIFICIAL que ele criou (congelamento de 22/07, vencimento 28/07) - nao um numero calculado a parte. Era R$2.065,17 (formula antiga, antes da reconciliacao completa da V161).
+      mastercardBlackPessoalCongelado: 1849.31, // NOVO 26/07/2026 (V177, pedido do usuario): "esse valor deve ser o congelado, que e o fechamento artificial que eu criei" - Pessoal (s/corporativo) do MB no momento do congelamento de 22/07 (R$1.937,18 total congelado - corporativo daquele momento).
+      mercadoPagoFaturaCongelada: 1791.93, // CONGELADO - fatura MP de quando este ciclo fechou (sem o adiantamento de transporte corporativo, que so entrou no ciclo seguinte)
       diasRestantes: 0,
-      observacoes: 'Ciclo fechado na virada de 25/07/2026. O salário de R$16.819,56 recebido em 24/07 (adiantado por ser sábado) é do ciclo SEGUINTE, já distribuído no dia do recebimento.'
+      observacoes: 'Ciclo fechado na virada de 25/07/2026. O salário de R$16.819,56 recebido em 24/07 (adiantado por ser sábado) é do ciclo SEGUINTE, já distribuído no dia do recebimento.',
+      // V174 (26/07/2026): FOTOGRAFIA CONGELADA das transacoes de compras variaveis deste ciclo (26/06-24/07) -
+      // pedido explicito do usuario ("cada mes deve mostrar o seu igual excel, depois vai preservando no ERP,
+      // o site so deveria mostrar o que e do seu ciclo"). Nao e a lista completa (61 compras do Wallace no
+      // periodo, ver ERP para o historico linha-a-linha) - e um resumo representativo do que fechou aqui,
+      // suficiente para o site mostrar o ciclo antigo sem repetir os mesmos numeros do ciclo atual.
+      LRW_TRANSACOES: [
+        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'61 compras variáveis do Wallace no ciclo fechado', obs:'ver ERP_WALLACE_LIRA para o detalhamento linha a linha', valor:1406.92 },
+      ],
+      LRV_TRANSACOES: [
+        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'compras variáveis da Vanessa no ciclo fechado', obs:'ver ERP_WALLACE_LIRA para o detalhamento', valor:462.12 },
+      ],
+      LRC_LIMBO_TRANSACOES: [
+        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'6 despesas corporativas do ciclo fechado', obs:'LM Service, Porto Gallo, Café da Villa, La Ursa, Cacau Show Café, Cacau Show Sorvete', valor:483.43 },
+      ],
+      LRPV_TRANSACOES: [
+        { tx:'TX000042', data:'04/07', nome:'Transferência Pix Geral (autonomia)', tipo:'Entrada', valor:300.00 },
+        { tx:'TX000043', data:'05/07', nome:'PIX diversos Vanessa', tipo:'Entrada', valor:30.00 },
+        { tx:'TX000055', data:'13/07', nome:'Recebido de Wallace (pediatra Júlio)', tipo:'Entrada', valor:50.00 },
+        { tx:'TX000046', data:'27/06', nome:'PIX Romário Nogueira', tipo:'Saída', valor:62.00 },
+        { tx:'TX000047', data:'27/06', nome:'PIX Vitoria Drieli', tipo:'Saída', valor:111.00 },
+        { tx:'TX000048', data:'03/07', nome:'PIX Romário Nogueira', tipo:'Saída', valor:44.00 },
+        { tx:'TX000049', data:'03/07', nome:'PIX para Wallace', tipo:'Saída', valor:30.00 },
+        { tx:'TX000050', data:'04/07', nome:'PIX Vitoria Drieli', tipo:'Saída', valor:26.00 },
+        { tx:'TX000051', data:'04/07', nome:'PIX Rebeca de Souza Oliveira', tipo:'Saída', valor:31.50 },
+        { tx:'TX000052', data:'10/07', nome:'PIX Romário Nogueira', tipo:'Saída', valor:68.00 },
+        { tx:'TX000053', data:'10/07', nome:'PIX Vanessa - uso próprio', tipo:'Saída', valor:9.36 },
+        { tx:'TX000054', data:'12/07', nome:'H57 Store Minimercados', tipo:'Saída', valor:14.99 },
+        { tx:'TX000056', data:'13/07', nome:'Sinal pediatra Júlio (repasse)', tipo:'Saída', valor:50.00 },
+        { tx:'TX000080', data:'16/07', nome:'Dupomar Hortifrutti', tipo:'Saída', valor:133.81 },
+        { tx:'TX000084', data:'16/07', nome:'Reforço da caixa PIX Vanessa (PV) → PIX Geral (PGV)', tipo:'Entrada', valor:95.00 },
+        { tx:'TX-SUP-01', data:'20/07', nome:'Suporte da Caixa Variável (co-irmã, via PV)', tipo:'Entrada', valor:2.00 },
+        { tx:'TX000122', data:'17/07', nome:'Hortifruti (frutas)', tipo:'Saída', valor:67.00 },
+        { tx:'TX000121', data:'20/07', nome:'Fralda do Júlio (Meu Pequeno)', tipo:'Saída', valor:95.00 },
+      ],
     },
     '2026-07': {
       label: 'Jul/26 (25/07–24/08) — ATUAL',
@@ -447,27 +925,77 @@ const VARS = {
       fechado: false,
       salario: 16819.56,
       entradasTotais: 17425.79, // ATUALIZADO V146: +R$340 no reembolso
-      caixaVariavelComprometido: 555.99, // ATUALIZADO 25/07/2026 (V157): +R$551,01 (TX000159, Mercado Livre, cartao virtual 4628). Era R$4,98.
-      caixaVariavelSaldoReal: 2000.00,
-      caixaVariavelDisponivel: 1444.01, // ATUALIZADO V157: 2000.00 - 555.99
+      caixaVariavelComprometido: 584.48, // ATUALIZADO 26/07/2026 (V178): +R$28,49 (TX000161, Super Bom Supermercado, cartao MB 2244). Era R$555,99.
+      caixaVariavelSaldoReal: 1900.00, // ATUALIZADO 26/07/2026 (V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
+      caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
       reembolsoRecebido: 0,
-      reembolsoAReceber: 606.23, // ATUALIZADO 25/07/2026 (V146): R$266,23 (TX000152, transporte corporativo) + R$340,00 (nova solicitacao, ainda sem vinculo de origem especifico - usuario vai detalhar quando enviar a solicitacao formal a Wartsila).
+      reembolsoAReceber: 7795.56, // ATUALIZADO 31/07/2026: +R$340,00 (usuario pediu para somar ao valor de reembolso a receber). Era R$7.455,56 - valor oficial do portal de reembolso Wärtsilä (relatório 07/31/2026) - "Due Employee". NOTA: R$3.280,47 do mesmo relatorio ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
       toleranciaTempValor: 0,
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
       tetoEfetivo: 2000,
-      cascata: { faturaWartsila: 0, mpCorporativo: 0, cartaoCorporativo: 0, mpPessoal: 0, sobraTotal: 0 },
+      cascata: { faturaWartsila: 5768.06, mpCorporativo: 0, cartaoCorporativo: 0, mpPessoal: 0, sobraTotal: 0 }, // ATUALIZADO 31/07/2026: faturaWartsila 0->5768.06, nova fatura do cartao corporativo Wartsila confirmada pelo usuario (item 1 da cascata, Politica sec.5). Impacto real = R$0 (paga pela propria Wartsila) - so registra o valor para rastreabilidade (P6), nao afeta necessidadeLiquida.
       necessidadeTotalBruta: 13146.21, // ATUALIZADO V146/V147: parcelas Visa+MP recalculadas via PARCELAMENTOS_ATIVOS
       necessidadeTotalLiquida: 12743.10, // ATUALIZADO V147: NECESSIDADE_TOTAL - COBERTURA_JA_GARANTIDA_25 (403.11, cascata zerada corretamente)
       modoOperacional: 'Normal',
       saldoCiclo: 6836.41,
-      visaInfiniteComprometido: 9160.07, // fluxo continuo
-      mastercardBlackComprometido: 2065.17, // fluxo continuo
+      // REMOVIDOS 29/07/2026 (V203, varredura de bugs): visaInfiniteComprometido (R$1.017,89),
+      // mastercardBlackComprometido (R$4.563,34) e mercadoPagoFaturaAtual (R$2.058,16) eram NUMEROS
+      // MORTOS - o codigo em aplicarCicloAoVARS() só le esses campos do snapshot quando snap.fechado
+      // é true; para o ciclo ATUAL usa os valores vivos do topo do VARS (CARTAO_*_CICLO_ATUAL).
+      // Ficavam congelados em 26/07 e nunca atualizavam, gerando falso alarme de "total dessincronizado"
+      // em qualquer auditoria que os comparasse. Os valores vivos corretos: cartaoInfiniteTotal,
+      // cartaoMBTotal, mercadoPagoFatura (no topo do VARS). Nenhum impacto na tela - eram inertes.
       diasRestantes: 30,
-      observacoes: 'Ciclo iniciado 25/07/2026. Caixa Variável, Reembolso, Tolerância e Cascata do Reembolso começam do zero — dados exclusivos deste ciclo, sem cruzamento com o ciclo anterior.'
+      observacoes: 'Ciclo iniciado 25/07/2026. Caixa Variável, Reembolso, Tolerância e Cascata do Reembolso começam do zero — dados exclusivos deste ciclo, sem cruzamento com o ciclo anterior.',
+      // V174: os arrays de transacao do ciclo ATUAL sao referenciados diretamente dos arrays "vivos"
+      // do VARS (LRW_TRANSACOES etc, que ja existem e sao atualizados a cada compra nova via Supabase).
+      // NAO duplicar aqui - a referencia e resolvida em aplicarCicloAoVARS() no momento de uso.
     }
   }
 };
+
+// V169: aplica os dados buscados do Supabase (window.WALLACE_DADOS_REMOTOS, populado pelo script no
+// HTML antes deste arquivo carregar) por cima do VARS estatico - assim as compras/saldos mais recentes
+// que o Claude atualizar no banco aparecem aqui, sem precisar de novo deploy do site inteiro.
+// Se nao houver dados remotos (offline, banco fora do ar), o VARS estatico permanece como esta acima -
+// o site nunca quebra, so mostra os dados de quando foi publicado por ultimo.
+if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
+  const dr = window.WALLACE_DADOS_REMOTOS;
+  Object.assign(VARS, dr); // campos de 1o nivel (LRW_TRANSACOES, cartaoMBTotal, etc)
+  // caixaVariavelComprometido/SaldoReal vivem dentro de CICLO_SNAPSHOTS[cicloAtual], nao no topo do
+  // VARS - precisam ser aplicados no snapshot do ciclo atual especificamente.
+  // BUG CORRIGIDO 26/07/2026 (V181): so caixaVariavelComprometido tinha esse tratamento - o Saldo Real
+  // (ex: TX000162, PIX de R$100 saindo de verdade da Caixa Variavel) ficava so em VARS.caixaVariavelSaldoReal
+  // (nivel superior), nunca chegava no snapshot - aplicarCicloAoVARS() sempre lia o valor estatico antigo
+  // do proprio snapshot, ignorando a atualizacao. Usuario reportou "a Caixa Variavel esta errada" (voltou
+  // a mostrar R$2.000,00 em vez de R$1.900,00).
+  if(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
+    const snapVivo = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+    if(dr.caixaVariavelSaldoReal !== undefined) snapVivo.caixaVariavelSaldoReal = dr.caixaVariavelSaldoReal;
+    if(dr.caixaVariavelComprometido !== undefined) snapVivo.caixaVariavelComprometido = dr.caixaVariavelComprometido;
+    snapVivo.caixaVariavelDisponivel = Math.round((snapVivo.caixaVariavelSaldoReal - snapVivo.caixaVariavelComprometido)*100)/100;
+    // NOVO 31/07/2026 (V221, pedido explicito do usuario - "nao pode ter valor manual que precise subir
+    // arquivo", credito Netlify curto): GENERALIZADO. Antes so caixaVariavelComprometido/SaldoReal vinham
+    // do Supabase sem redeploy - qualquer outro campo dentro do snapshot do ciclo atual (reembolsoAReceber,
+    // reembolsoRecebido, cascata, tetoOficial/Efetivo, toleranciaTempValor/Motivo, modoOperacional, etc)
+    // exigia editar o app.js e subir zip novo (ex: caso real de hoje, reembolsoAReceber 659,19->7.455,56 e
+    // cascata.faturaWartsila 0->5.768,06 so apareceram apos redeploy manual). A partir de agora, escrever em
+    // dr.cicloAtualOverrides (objeto livre, qualquer chave do snapshot) resolve isso pra sempre - nenhuma
+    // chave nova precisa ser prevista aqui, e cascata e mesclada campo a campo (nao sobrescrita inteira) pra
+    // nao perder pernas nao informadas nesta atualizacao.
+    if(dr.cicloAtualOverrides){
+      const ov = dr.cicloAtualOverrides;
+      Object.keys(ov).forEach(k=>{
+        if(k === 'cascata' && ov.cascata && typeof ov.cascata === 'object'){
+          snapVivo.cascata = Object.assign({}, snapVivo.cascata, ov.cascata);
+        } else {
+          snapVivo[k] = ov[k];
+        }
+      });
+    }
+  }
+}
 
 const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = ordem cronologica
 
@@ -477,10 +1005,136 @@ const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = or
 // parcelaAtual de cada item (e marcar QUITADO quando passar do total) - os totais recalculam sozinhos.
 VARS.livroLRP = Math.round(VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO').reduce((s,p)=>s+p.valor,0)*100)/100;
 VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO').reduce((s,p)=>s+p.valor,0)*100)/100;
+// NOVO 31/07/2026 (V219, pedido explicito do usuario "implemente ja"): alivio de agosto agora e
+// CALCULO REAL, nao mais texto fixo. Soma o valor de toda parcela ATIVA (Visa LRP + Mercado Pago LRMP)
+// cuja parcelaAtual ja bateu o totalParcelas - ou seja, quita nesta virada de ciclo e o valor some do
+// comprometido a partir do proximo mes. Continua funcionando sozinho em toda virada futura, sem editar
+// nada a mao.
+VARS.alivioProximoMes = Math.round((
+  VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO' && p.parcelaAtual>=p.totalParcelas).reduce((s,p)=>s+p.valor,0) +
+  VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO' && p.parcelaAtual>=p.totalParcelas).reduce((s,p)=>s+p.valor,0)
+) * 100) / 100;
+VARS.livroLRPV = Math.round(VARS.LRPV_TRANSACOES.reduce((s,t)=>s+(t.tipo==='Entrada'?t.valor:-t.valor),0)*100)/100; // V172: derivado do array, nunca mais numero fixo dessincronizado
+VARS.caixaSaudeFamilia = calcularSaldoCaixa(VARS.SAUDE_FAMILIA_SALDO_INICIAL_CICLO, VARS.SAUDE_FAMILIA_TRANSACOES); // V192: 1a caixa migrada para saldo derivado - nunca mais numero fixo dessincronizado do array de transacoes
+VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO = 0.04; // V192: diferenca documentada entre soma das transacoes (R$78,04) e saldo real confirmado pelo usuario 26/07 (R$78,00) - rendimento CDI do cofrinho, nao um erro (Politica secao 6). Nao ajustado silenciosamente (P1) - somado explicitamente abaixo.
+VARS.pixGeralVanessaSaldo = calcularSaldoCaixa(VARS.PGV_SALDO_INICIAL_CICLO, VARS.LRPV_TRANSACOES) - VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO; // V192: derivado do array LRPV_TRANSACOES, nunca mais numero fixo dessincronizado
+VARS.caixaLance = calcularSaldoCaixa(VARS.CAIXA_LANCE_SALDO_INICIAL_CICLO, VARS.CAIXA_LANCE_TRANSACOES); // V192: derivado do array CAIXA_LANCE_TRANSACOES, nunca mais numero fixo dessincronizado
+VARS.caixaManutencao = calcularSaldoCaixa(VARS.MANUTENCAO_SALDO_INICIAL, VARS.MANUTENCAO_TRANSACOES);
+VARS.caixaAniversarioJulio = calcularSaldoCaixa(VARS.ANIVERSARIO_JULIO_SALDO_INICIAL, VARS.ANIVERSARIO_JULIO_TRANSACOES);
+VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES);
+// NOVO 31/07/2026 (V214, pedido explicito do usuario: "quero que o pagamento desses boletos sejam
+// automaticos"): aplicarBoletosVencidosAutomaticamente() roda no carregamento do site, compara a
+// data de HOJE (real, do navegador) contra CRONOGRAMA_BOLETOS_FIXOS, e credita sozinho qualquer
+// boleto cujo dia de vencimento ja passou dentro da janela do ciclo atual (25/dia_abertura ate hoje) -
+// sem duplicar os que ja foram lancados manualmente (checa por TX antes de inserir). O que isso NAO
+// faz: nao paga o boleto de verdade no banco - so registra no sistema que ele ja deveria ter sido
+// pago, poupando o usuario de ter que confirmar manualmente todo ciclo (a acao real de pagar/agendar
+// continua sendo do usuario, fora do sistema).
+function aplicarBoletosVencidosAutomaticamente(){
+  const hoje = new Date();
+  const diaHoje = hoje.getDate();
+  const DIA_ABERTURA_CICLO = 25;
+  // Constrói o Set de TX ja presentes no array, pra nunca duplicar um lancamento manual ja feito
+  const txJaLancados = new Set(VARS.BOLETOS_TRANSACOES.map(t=>t.tx));
+  VARS.CRONOGRAMA_BOLETOS_FIXOS.forEach(boleto => {
+    if(txJaLancados.has(boleto.tx)) return; // ja foi lancado manualmente ou em rodada anterior - nao duplica
+    // O boleto "ja venceu dentro do ciclo atual" se o dia de hoje for >= dia de vencimento E o
+    // vencimento cair depois da abertura do ciclo (25). Ciclos que atravessam virada de mes (ex:
+    // vencimento dia 10, ciclo aberto dia 25) sao tratados como NAO vencidos ainda neste ciclo -
+    // vencem no PROXIMO ciclo (apos a proxima virada do dia 25).
+    const vencidoNesteCiclo = boleto.diaVencimento >= DIA_ABERTURA_CICLO
+      ? diaHoje >= boleto.diaVencimento
+      : false; // dia < 25 so vence no ciclo seguinte, nunca no atual (que abriu dia 25)
+    if(vencidoNesteCiclo){
+      VARS.BOLETOS_TRANSACOES.push({
+        tx: boleto.tx, data: diaHoje+'/'+String(hoje.getMonth()+1).padStart(2,'0'),
+        nome: boleto.nome + ' (auto-creditado por vencimento, dia '+boleto.diaVencimento+')',
+        tipo: 'Saída', valor: boleto.valor
+      });
+    }
+  });
+}
+aplicarBoletosVencidosAutomaticamente();
+VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES); // recalcula apos o auto-credito acima
+VARS.caixaPixVanessa = calcularSaldoCaixa(VARS.PV_SALDO_INICIAL, VARS.PV_TRANSACOES);
+VARS.caixaEventos = calcularSaldoCaixa(VARS.EVENTOS_SALDO_INICIAL, VARS.EVENTOS_TRANSACOES);
+VARS.caixaSeguroEmplacamento = calcularSaldoCaixa(VARS.SEGURO_EMPLACAMENTO_SALDO_INICIAL, VARS.SEGURO_EMPLACAMENTO_TRANSACOES);
+VARS.caixaCombustivel = calcularSaldoCaixa(VARS.COMBUSTIVEL_SALDO_INICIAL, VARS.COMBUSTIVEL_TRANSACOES);
+VARS.caixaChurrasco = calcularSaldoCaixa(VARS.CHURRASCO_SALDO_INICIAL, VARS.CHURRASCO_TRANSACOES);
+VARS.escolaJulioSaldo = calcularSaldoCaixa(VARS.ESCOLA_JULIO_SALDO_INICIAL, VARS.ESCOLA_JULIO_TRANSACOES);
+VARS.caixaMastercardInfinite = calcularSaldoCaixa(VARS.MASTERCARD_INFINITE_SALDO_INICIAL, VARS.MASTERCARD_INFINITE_TRANSACOES);
+VARS.provisionadoWartsila = calcularSaldoCaixa(VARS.WARTSILA_CAIXA_SALDO_INICIAL, VARS.WARTSILA_CAIXA_TRANSACOES);
+VARS.contaSuavizacao = calcularSaldoCaixa(VARS.SUAVIZACAO_SALDO_INICIAL, VARS.SUAVIZACAO_TRANSACOES); // V205: Fundo de Suavizacao ativado - 16a caixa com saldo derivado
+// V193: caixaVariavelSaldoReal - so recalcula o snapshot do ciclo ATUAL (2026-07). O ciclo fechado
+// (2026-06) permanece intocado, com seu valor congelado original - e historico, nao deve mudar.
+// CORRIGIDO 29/07/2026 (V203, varredura de bugs): livroLRC e livroLRCQtdLancamentos eram numeros
+// FIXOS (R$215,86 / 1 lancamento) - nao acompanhavam o array LRC_LIMBO_TRANSACOES. Quando as 3
+// despesas de viagem (TX000172/173/174) foram movidas do LRW para o LRC hoje, o painel de Livros
+// Razao continuou mostrando so o Outback. Agora derivam do array real, sempre.
+// V222: opcoesVendidasValorMercado agora deriva da soma de VARS.opcoesVendidasDetalhe, nunca mais
+// numero fixo dessincronizado (era o mesmo bug ja corrigido em ~17 outras caixas neste sistema).
+VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+o.valorMercado,0)*100)/100;
+// CORRIGIDO 31/07/2026 (V225, achado do usuario): necessidadeLiquidaHeld (patamar final da projecao de 12
+// meses, usado no badge "Queda total" da Necessidade Liquida) era um numero solto editado numa sessao
+// diferente de totalOperacionalHeld (mesmo patamar final, mas do Total Operacional) - por isso o badge
+// "Queda total" e o badge "Alivio ate Mar/27" (que usam esses 2 numeros como base) davam resultados
+// diferentes (R$1.370,79 vs R$1.276,78) sem motivo real: o necessidadeLiquidaHeld antigo embutia uma
+// Cobertura Garantida futura de ~R$954,90 que nunca existiu (a real e R$0,00, so conta quando confirmada -
+// V175). Agora SEMPRE derivado do mesmo totalOperacionalHeld + Orcamento Operacional - Cobertura Garantida
+// real, igual a formula que ja vale pro ciclo atual (necessidadeLiquida = necessidadeTotalBruta -
+// coberturaGarantida) - nunca mais 2 numeros independentes podendo divergir.
+VARS.necessidadeLiquidaHeld = Math.round((VARS.totalOperacionalHeld + VARS.orcamentoOperacional - VARS.coberturaGarantidaConfirmada) * 100) / 100;
+// NOVO 31/07/2026: deriva credito/consumo/saldo por casa para cada leitura solar registrada.
+// Formulas de Base_Calculo_Rateio_Solar.md secao 3, executadas aqui (nunca hardcoded a mao).
+VARS.SOLAR_LEITURAS_CALC = VARS.SOLAR_LEITURAS.map(l=>{
+  const creditoLiquido = Math.round((l.leitura103 - l.leitura03)*100)/100;
+  const creditoWallace = Math.round(creditoLiquido * VARS.solarRateioWallace * 100)/100;
+  const creditoIrma = Math.round(creditoLiquido * VARS.solarRateioIrma * 100)/100;
+  const consumoEspWallace = Math.round(VARS.solarConsumoDiarioWallace * l.dias * 100)/100;
+  const consumoEspIrma = Math.round(VARS.solarConsumoDiarioIrma * l.dias * 100)/100;
+  return Object.assign({}, l, {
+    creditoLiquido, creditoWallace, creditoIrma, consumoEspWallace, consumoEspIrma,
+    saldoWallace: Math.round((creditoWallace - consumoEspWallace)*100)/100,
+    saldoIrma: Math.round((creditoIrma - consumoEspIrma)*100)/100,
+  });
+});
+VARS.livroLRC = Math.round(VARS.LRC_LIMBO_TRANSACOES.reduce((s,t)=>s+t.valor,0)*100)/100;
+VARS.livroLRCQtdLancamentos = VARS.LRC_LIMBO_TRANSACOES.length;
+// CORRIGIDO 31/07/2026 (V223, pedido do usuario - "perna 3 e o LRC devem refletir a mesma coisa"):
+// mbLRCConfirmado era um numero MANUAL duplicado de VARS.livroLRC (coincidentemente igual ate agora,
+// mas sem garantia - mesmo padrao de bug ja corrigido em ~17 outras caixas). Agora sempre = livroLRC,
+// nunca mais editado a mao separadamente.
+VARS.mbLRCConfirmado = VARS.livroLRC;
+// V203: aporteBTGProgramado agora DERIVA - Caixa Lance atual + LREI ativos (que voltam quando quitados)
+// + rendimento programado da Reserva. Antes eram 3 numeros fixos que nao acompanhavam a Caixa Lance real.
+VARS.aporteBTGProgramado.caixaLanceCompleta = Math.round((VARS.caixaLance + VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO').reduce((s,l)=>s+l.valor,0))*100)/100;
+VARS.aporteBTGProgramado.rendimentoReserva = VARS.reservaRetiradaProgramada.valorProjetado;
+VARS.aporteBTGProgramado.total = Math.round((VARS.aporteBTGProgramado.caixaLanceCompleta + VARS.aporteBTGProgramado.rendimentoReserva)*100)/100;
+VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelSaldoReal = calcularSaldoCaixa(VARS.CAIXA_VARIAVEL_SALDO_INICIAL_CICLO, VARS.CAIXA_VARIAVEL_TRANSACOES_SALDO_REAL);
+// CORRIGIDO 29/07/2026 (V202): caixaVariavelComprometido estava CONGELADO em R$584,48 desde 26/07 -
+// mesmo bug ja corrigido em 15 outras caixas (numero fixo nunca atualizado quando novas compras
+// entravam). Politica secao 13: "CAIXA_VARIAVEL_COMPROMETIDO = soma de TODAS as transacoes LRW+LRV
+// do ciclo atual". Agora deriva de verdade dos 4 registradores que ja capturam isso.
+VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelComprometido = Math.round((VARS.visaLRWHistorico + VARS.visaLRVHistorico + VARS.mbLRWConfirmado + VARS.mbLRVConfirmado) * 100) / 100;
+VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelDisponivel = Math.round((VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelSaldoReal - VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelComprometido) * 100) / 100;
+// 14 caixas patrimoniais + Caixa Variavel migradas - todas seguem o mesmo padrao calcularSaldoCaixa(),
+// nenhuma mais e numero fixo editado a mao. Testar cada uma via harness antes de prosseguir (ver sessao de testes).
 
 // V145 (25/07/2026): aplica o snapshot do ciclo selecionado aos campos POR-CICLO do VARS, ANTES do REG
 // ser construido - assim o REG ja nasce lendo o ciclo certo. Campos de FLUXO CONTINUO (necessidade
 // total, patrimonio, faturas obrigatorias MB/MP) NAO sao tocados - permanecem os mesmos em qualquer ciclo.
+// V174 (26/07/2026): guarda uma copia dos arrays "vivos" do ciclo ATUAL (antes de qualquer troca de
+// ciclo poder sobrescreve-los) - pedido do usuario: "cada mes deve mostrar o seu igual excel... o site
+// so deveria mostrar o que e do seu ciclo". Sem isso, trocar para o ciclo fechado e depois voltar pro
+// atual perderia as transacoes reais (compras de hoje) para sempre dentro da sessao.
+const LRW_TRANSACOES_CICLO_ATUAL = VARS.LRW_TRANSACOES;
+const LRV_TRANSACOES_CICLO_ATUAL = VARS.LRV_TRANSACOES;
+const LRC_LIMBO_TRANSACOES_CICLO_ATUAL = VARS.LRC_LIMBO_TRANSACOES;
+const LRPV_TRANSACOES_CICLO_ATUAL = VARS.LRPV_TRANSACOES;
+const CARTAO_INFINITE_CICLO_ATUAL = VARS.cartaoInfiniteTotal;
+const CARTAO_MB_CICLO_ATUAL = VARS.cartaoMBTotal;
+const MERCADO_PAGO_CICLO_ATUAL = VARS.mercadoPagoFatura;
+
 function aplicarCicloAoVARS(cicloKey){
   const snap = VARS.CICLO_SNAPSHOTS[cicloKey];
   if(!snap){ console.error('Ciclo nao encontrado:', cicloKey); return; }
@@ -492,8 +1146,35 @@ function aplicarCicloAoVARS(cicloKey){
   VARS.reembolsoCicloTotal = Math.round((snap.reembolsoRecebido + snap.reembolsoAReceber)*100)/100;
   VARS.__reembolsosAReceber = snap.reembolsoAReceber;
   VARS.faturaWartsila = snap.cascata.faturaWartsila;
-  VARS.reembolsoPagaCartaoCorporativo = snap.cascata.cartaoCorporativo;
+  // CORRIGIDO 31/07/2026 (V223, pedido do usuario): reembolsoPagaCartaoCorporativo (perna 3, "Corporativo
+  // cartao Infinite/MB") lia de snap.cascata.cartaoCorporativo, um numero manual desconectado dos livros
+  // reais - por isso ficava 0 mesmo com R$297,31 ja lancados no LRC (MB) este ciclo. Agora deriva de
+  // verdade dos 2 livros corporativos (Visa + MB), nunca mais dessincroniza. cartaoCorporativo dentro do
+  // snapshot fica so como registro historico/override manual quando necessario via cicloAtualOverrides,
+  // mas nao e mais a fonte primaria deste calculo.
+  VARS.reembolsoPagaCartaoCorporativo = Math.round((VARS.livroLRCVisaOnly + VARS.livroLRC) * 100) / 100;
   VARS.reembolsoPagaMPCorporativo = snap.cascata.mpCorporativo;
+
+  // V174: Visa/MB/MP e as 4 tabelas de Livros Razao agora respeitam o ciclo selecionado - nunca mais
+  // mostram o mesmo numero em ciclos diferentes. Ciclo ATUAL usa os arrays/valores "vivos" (que mudam
+  // a cada compra, via Supabase); ciclo FECHADO usa a fotografia congelada salva no proprio snapshot.
+  if(snap.fechado){
+    VARS.cartaoInfiniteTotal = snap.visaInfiniteComprometido;
+    VARS.cartaoMBTotal = snap.mastercardBlackComprometido;
+    VARS.mercadoPagoFatura = snap.mercadoPagoFaturaCongelada;
+    VARS.LRW_TRANSACOES = snap.LRW_TRANSACOES;
+    VARS.LRV_TRANSACOES = snap.LRV_TRANSACOES;
+    VARS.LRC_LIMBO_TRANSACOES = snap.LRC_LIMBO_TRANSACOES;
+    VARS.LRPV_TRANSACOES = snap.LRPV_TRANSACOES;
+  } else {
+    VARS.cartaoInfiniteTotal = CARTAO_INFINITE_CICLO_ATUAL;
+    VARS.cartaoMBTotal = CARTAO_MB_CICLO_ATUAL;
+    VARS.mercadoPagoFatura = MERCADO_PAGO_CICLO_ATUAL;
+    VARS.LRW_TRANSACOES = LRW_TRANSACOES_CICLO_ATUAL;
+    VARS.LRV_TRANSACOES = LRV_TRANSACOES_CICLO_ATUAL;
+    VARS.LRC_LIMBO_TRANSACOES = LRC_LIMBO_TRANSACOES_CICLO_ATUAL;
+    VARS.LRPV_TRANSACOES = LRPV_TRANSACOES_CICLO_ATUAL;
+  }
 }
 aplicarCicloAoVARS(VARS.cicloAtual); // aplica o ciclo padrao (2026-07) ANTES do REG nascer
 
@@ -681,7 +1362,7 @@ const REG = {
   // que o numero mudar no ERP (mesmo padrao de todo o resto do REG).
   qualidade: {
     txSemData: 0,          // contador oficial do ERP (aba AUDITORIA_AUTOMATICA / historico SWP_INPUT). 0 = zerado em 17/07/2026 (V69).
-    lreiAtivos: 0,          // V121: LREI0001 QUITADO (reembolso Wartsila, deposito direto na Caixa Manutencao). Nenhum emprestimo interno ativo.
+    lreiAtivos: 2,          // CORRIGIDO 27/07/2026 (V189): LREI0002 (Saúde Família, R$164,94) + LREI0003 (Fatura Mercado Pago, R$266,23) ativas. Era 0 (desatualizado desde a quitação de LREI0001 em 21/07/2026) - o alerta "Nenhum empréstimo em aberto" estava mentindo pro usuário.
     tetoTemporarioAtivo: true // reflete caixaVariavel.tolerenciaTemp > 0
   },
   cenarioHistorico: {
@@ -724,7 +1405,7 @@ const REG = {
     // aqui como linha informativa, igual ao tratamento ja dado a PGBL/FGTS). mercadoPago agora le
     // do VARS.mercadoPagoFatura (antes essa fatura aparecia em 2 lugares da tela com 2 valores
     // diferentes: R$1.751,16 aqui/card Cartoes vs R$1.791,93 no Balanco - mesma fatura, bug real).
-    obrigacoes: { visa:0, mastercardBlack:0, mercadoPago:VARS.mercadoPagoFatura, wartsila:VARS.faturaWartsila, total:0 },
+    obrigacoes: { visa:0, mastercardBlack:0, mercadoPago:0, wartsila:VARS.faturaWartsila, total:0 }, // CORRIGIDO 26/07/2026 (V166): mercadoPago agora e liquido (fatura - corporativo do ciclo), calculado em recalcularAgregadosDerivados(). Era VARS.mercadoPagoFatura direto (bruto, sem descontar corporativo).
     fluxo: { entradas:0, saidas:0, resultado:0 } // CORRIGIDO 25/07/2026 (V150): saidas e resultado agora SOBRESCRITOS em recalcularAgregadosDerivados(), nunca mais numero fixo. Antes ficavam presos no valor do ciclo de transicao (25/06-24/07) mesmo depois de entradas ja ter mudado - "matematica doida" apontada pelo usuario (Resultado R$21.318,48 nao batia com nada real).
   }
 };
@@ -748,6 +1429,7 @@ function recalcularAgregadosDerivados(){
   REG.caixaVariavel.comprometido = VARS.caixaVariavelComprometido;
   REG.caixaVariavel.tolerenciaTemp = VARS.tolerenciaTemp;
   if(REG.qualidade) REG.qualidade.tetoTemporarioAtivo = VARS.tolerenciaTemp > 0; // V145 CORRIGIDO: era hardcoded 'true', nunca recalculava
+  if(REG.qualidade) REG.qualidade.lreiAtivos = VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO').length; // CORRIGIDO 27/07/2026 (V189): agora DERIVADO de VARS.LREI_ATIVAS, nunca mais numero hardcoded que pode desincronizar (foi exatamente isso que causou o alerta falso "0 LREI" desta rodada).
   REG.operacional.salario = VARS.salario;
   REG.operacional.reembolsoCicloTotal = VARS.reembolsoCicloTotal;
   REG.operacional.reembolsosAReceber = VARS.__reembolsosAReceber !== undefined ? VARS.__reembolsosAReceber : 0;
@@ -756,6 +1438,12 @@ function recalcularAgregadosDerivados(){
   REG.operacional.reembolsoPagaMPCorporativo = VARS.reembolsoPagaMPCorporativo;
   REG.faturaWartsila = VARS.faturaWartsila;
   REG.wartsilaCaixa.fatura = VARS.faturaWartsila;
+  // V174: Visa/MB/MP e os detalhamentos por categoria tambem precisam resincronizar ao trocar de ciclo -
+  // sem isso, o card do topo (kpi) ficava congelado no valor do carregamento inicial, mesmo depois de
+  // trocar para o ciclo fechado (bug encontrado no teste real: visaTotal nao mudava ao trocar de ciclo).
+  REG.cartaoInfinite.total = VARS.cartaoInfiniteTotal;
+  REG.cartaoMB.total = VARS.cartaoMBTotal;
+  REG.mercadoPago = VARS.mercadoPagoFatura;
 
   // ===== V134 - DERIVACOES A PARTIR DO VARS (banco de variaveis unico) =====
   // Estas linhas sao a razao de ser do VARS: qualquer lugar do painel que usa estes valores
@@ -777,7 +1465,7 @@ function recalcularAgregadosDerivados(){
   REG.balanco.reservas.total = r2(REG.balanco.reservas.boletos + REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
     REG.balanco.reservas.manutencao + REG.balanco.reservas.eventos + REG.balanco.reservas.churrasco +
     REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio);
-  REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite);
+  REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite); // CORRIGIDO 26/07/2026 (V166): PIX Vanessa (conta autonoma dela) removida do total - nunca deveria ter somado como "reserva do Wallace".
 
   // V135: totais do Balanço Patrimonial DERIVADOS (antes eram numeros fixos que so por coincidencia
   // batiam com a soma das partes hoje - agora impossivel dessincronizar).
@@ -794,16 +1482,36 @@ function recalcularAgregadosDerivados(){
   REG.balanco.patrimonioLiquido = r2(REG.balanco.ativosTotal - bp.total);
 
   // V128 (bug real apontado pelo usuario): entradasTotais agora DERIVADO de salario+reembolsoCicloTotal, nunca mais um numero fixo que "esquecia" de atualizar quando o reembolso mudava de status (a receber -> recebido).
-  REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal);
+  // CORRIGIDO 31/07/2026 (V222, bug real apontado pelo usuario): reembolsoCicloTotal e BRUTO - inclui as
+  // pernas 1-3 da Cascata (fatura do cartao da propria Wartsila + MP corporativo + cartao corporativo
+  // pessoal reembolsavel), que sao custos da EMPRESA passando pela conta do Wallace, nunca dinheiro dele.
+  // Essas pernas nunca eram descontadas em lugar nenhum (nao entram em totalOperacional/necessidadeTotalBruta,
+  // so aparecem isoladas nos cards da cascata) - Entradas/Saldo do Ciclo inflavam exatamente pela soma delas,
+  // dando impressao de sobra maior do que a real (chegou a mudar o Modo Operacional de Normal pra Alto
+  // indevidamente). Descontado aqui, na fonte, pra nunca mais vazar pro resto do painel.
+  REG.operacional.reembolsoPassThroughCorporativo = r2(REG.operacional.reembolsoPagaWartsila + REG.operacional.reembolsoPagaMPCorporativo + REG.operacional.reembolsoPagaCartaoCorporativo);
+  REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
   // V135: Recebidos no ciclo = Total do ciclo - A receber (sempre a diferenca, nunca mais numero fixo
   // que "esquece" de subir quando uma nova TED e confirmada e A_RECEBER zera).
   REG.reembolsos.recebidosNoCiclo = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsosAReceber);
   // Total Operacional = soma literal dos 7 componentes (mesma formula documentada na Politica sec.13/TOTAL_OPERACIONAL)
-  REG.operacional.totalOperacional = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.aportesPat + D.provMP + D.assinaturas);
-  REG.operacional.coberturaGarantida = r2(VARS.totalOpProvMP + REG.operacional.reembolsoPagaCartaoCorporativo); // CORRIGIDO V146: era numero fixo (954.90), agora deriva de MP pessoal + Visa corporativo (mesma composicao documentada desde V15).
-  REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
-  REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
+  REG.operacional.coberturaGarantida = VARS.coberturaGarantidaConfirmada || 0; // CORRIGIDO 26/07/2026 (V175): usuario esclareceu a regra - "o valor so deve constar como garantido quando eu por na caixa e informar o que vai cobrir". Antes era FORMULA automatica (totalOpProvMP + reembolsoPagaCartaoCorporativo) somando dividas que ja vao ser pagas de qualquer jeito (nao dinheiro reservado cobrindo algo) - conceitualmente errado. Agora fica em R$0,00 ate o usuario confirmar um valor especifico e o que ele cobre.
+  const snapAtual = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+  if(snapAtual && snapAtual.fechado){
+    // V177 (26/07/2026, pedido do usuario): "esses dados nao sao os corretos para o ciclo anterior" -
+    // Total Operacional/Necessidade sao formulas derivadas de valores VIVOS (parcelas, consorcios, etc)
+    // que nao tem versao congelada por componente. Em vez de reconstruir cada um separadamente (LIVRO_LRP,
+    // LIVRO_LRCON antigos etc - trabalho grande), aplicamos os 2 valores FINAIS ja congelados no proprio
+    // snapshot (necessidadeTotalBruta/necessidadeTotalLiquida ja existiam la, mas nunca eram de fato usados).
+    REG.operacional.necessidadeTotalBruta = snapAtual.necessidadeTotalBruta;
+    REG.operacional.necessidadeLiquida = snapAtual.necessidadeTotalLiquida;
+    REG.operacional.totalOperacional = r2(snapAtual.necessidadeTotalBruta - REG.operacional.orcamentoOperacional);
+  } else {
+    REG.operacional.totalOperacional = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.aportesPat + D.provMP + D.assinaturas);
+    REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
+    REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
+  }
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
   REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta; // CORRIGIDO V150: era numero fixo, agora e a mesma Necessidade Total Bruta (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+OrcamentoOperacional). Movido para APOS necessidadeTotalBruta ser calculado (ordem de execucao).
   REG.balanco.fluxo.resultado = r2(REG.balanco.fluxo.entradas - REG.balanco.fluxo.saidas); // CORRIGIDO V150: era numero fixo, agora e Entradas-Saidas de verdade
@@ -833,6 +1541,15 @@ function recalcularAgregadosDerivados(){
   // V137 (pedido do usuario 23/07/2026): Wartsila NAO entra mais na soma - e 100% corporativo/reembolsavel,
   // nao deve se misturar com obrigacoes pessoais reais. Fica visivel na tela como linha informativa (mesmo
   // tratamento ja dado a PGBL/FGTS no Patrimonio), so nao soma no Total.
+  // CORRIGIDO 29/07/2026 (V203, varredura de bugs): a formula anterior (mercadoPagoFatura -
+  // faturaMPCorporativoPendente) produzia obrigacao NEGATIVA (-R$1.544,11) desde que a fatura MP foi
+  // paga em 27/07 (mercadoPagoFatura zerou, mas faturaMPCorporativoPendente continuou R$1.544,11 -
+  // corretamente, porque o reembolso da Wartsila ainda nao chegou). Obrigacao negativa nao existe:
+  // com a fatura paga, nao ha mais o que descontar dela - o corporativo pendente virou um ATIVO a
+  // receber (reembolso), nao um abatimento de divida. Impacto real: o Total de obrigacoes do Balanco
+  // estava R$1.544,11 MENOR do que deveria (R$4.342,09 em vez de R$5.886,20), subestimando os passivos.
+  // Agora: desconta o corporativo apenas ate o limite da propria fatura, nunca abaixo de zero.
+  REG.balanco.obrigacoes.mercadoPago = r2(Math.max(0, VARS.mercadoPagoFatura - VARS.faturaMPCorporativoPendente));
   REG.balanco.obrigacoes.total = r2(REG.balanco.obrigacoes.visa + REG.balanco.obrigacoes.mastercardBlack + REG.balanco.obrigacoes.mercadoPago);
   // Evolucao (graficos): o ponto do ciclo atual (indice 0) tambem passa a vir do agregado real, nao de um numero copiado a mao
   REG.evolucao.totalOperacional[0] = REG.operacional.totalOperacional;
@@ -859,6 +1576,10 @@ function recalcularAgregadosDerivados(){
   REG.metaInvestimento.investido = r2(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton);
   REG.metaInvestimento.excedente = r2(REG.metaInvestimento.investido - REG.metaInvestimento.meta);
   REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
+  // V203 (varredura de bugs): mesma correcao ja aplicada a totalOperacional[0] e necessidadeLiquida[0] -
+  // o indice 0 (ciclo atual) da serie de cenarios era um literal duplicado do snapshot (13146.21),
+  // que dessincronizaria se a necessidade do ciclo mudasse. Agora deriva do agregado real.
+  if(REG.superavitNormal && Array.isArray(REG.superavitNormal.necessidade)) REG.superavitNormal.necessidade[0] = REG.operacional.necessidadeTotalBruta;
   // V138: elimina duplicacao - antes o mesmo numero vivia em REG.estimador.necessidadeLiquidaProximoCiclo
   // (literal solto) E em REG.evolucao.necessidadeLiquida[1] (array). Agora so o array e fonte, o estimador le dele.
   REG.estimador.necessidadeLiquidaProximoCiclo = REG.evolucao.necessidadeLiquida[1];
@@ -877,8 +1598,10 @@ function trocarCiclo(cicloKey){
   aplicarCicloAoVARS(cicloKey);
   recalcularAgregadosDerivados();
   hydrate();
+  renderLivrosVariaveis(); // V174: regenera as tabelas LRW/LRV/LRC-limbo/LRPV com os dados do ciclo selecionado - antes so rodava no carregamento inicial, nunca ao trocar de ciclo
   atualizarBotoesSeletorCiclo();
   atualizarGraficosPorCiclo();
+  atualizarContadoresAbasLR();
 }
 
 // V145: graficos Chart.js nao se atualizam sozinhos quando REG muda - precisam de update() explicito.
@@ -916,6 +1639,128 @@ function atualizarBotoesSeletorCiclo(){
 // nunca escrita. Gera as tabelas HTML de LRP (Visa) e LRMP-parcelas (Mercado Pago) a partir dos
 // arrays estruturados VARS.PARCELAMENTOS_VISA/MP - unica fonte, nunca mais editar a tabela na mao.
 // Itens QUITADO nao aparecem (somem sozinhos quando parcelaAtual ultrapassa totalParcelas).
+// V162 (pedido do usuario: "os numeros nas abas dos LRs nunca batem com a quantidade real de compras"):
+// conta as linhas <tr> REAIS de cada painel (tbody) e atualiza o texto do botao correspondente.
+// Nunca mais numero fixo digitado - sempre reflete exatamente o que esta sendo exibido, linha por linha.
+// Linhas riscadas (duplicatas/estornos, style="text-decoration:line-through") sao EXCLUIDAS da contagem -
+// elas aparecem na tabela por rastreabilidade (P1/P6) mas nao sao lancamentos validos ativos.
+function atualizarContadoresAbasLR(){
+  const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo'];
+  const labels = {
+    lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
+    lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Merc. Pago',
+    lrcv:'LRCV - Caixa Var.', lrei:'LREI - Empréstimos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PGV', lrpvsaldo:'LRPV - PV'
+  };
+  paineis.forEach(id => {
+    const painel = document.getElementById(id);
+    const btn = document.getElementById('lrTabBtn_'+id);
+    if(!painel || !btn) return;
+    const linhas = painel.querySelectorAll('tbody tr');
+    let count = 0;
+    linhas.forEach(tr => {
+      // exclui linhas riscadas (duplicata/estorno) e linhas de "nenhum lancamento" (colspan)
+      const riscada = tr.style && tr.style.textDecoration && tr.style.textDecoration.includes('line-through');
+      const vazia = tr.querySelector('td[colspan]');
+      if(!riscada && !vazia) count++;
+    });
+    btn.textContent = labels[id]+' ('+count+')';
+  });
+}
+
+// V168: gera as tabelas de LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados acima -
+// nunca mais editar essas 4 tabelas na mao. Cada nova compra so precisa entrar no array certo.
+function renderLivrosVariaveis(){
+  function linha(t, temTipo){
+    const obsHtml = t.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${t.obs}</span>` : '';
+    if(temTipo) return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.tipo||'PIX'}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+    return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+  }
+  function preencher(id, arr, temTipo){
+    const tbody = document.getElementById(id);
+    if(!tbody) return;
+    if(!arr.length){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação neste ciclo ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = arr.map(t=>linha(t, temTipo)).join('');
+  }
+  preencher('lrwTbody', VARS.LRW_TRANSACOES, false);
+  preencher('lrvTbody', VARS.LRV_TRANSACOES, false);
+  preencher('lrcLimboTbody', VARS.LRC_LIMBO_TRANSACOES, false);
+  preencher('lrcvTbody', VARS.LRCV_TRANSACOES, true);
+
+  // LRPV tem formato proprio (Entrada/Saida colorida) - renderizacao especifica, nao usa preencher() generico
+  const lrpvTbody = document.getElementById('lrpvTbody');
+  if(lrpvTbody){
+    if(!VARS.LRPV_TRANSACOES.length){
+      lrpvTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+    } else {
+      lrpvTbody.innerHTML = VARS.LRPV_TRANSACOES.map(t=>{
+        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+      }).join('');
+    }
+    const tfLRPVEl = document.getElementById('tfLRPV');
+    if(tfLRPVEl){
+      const liquido = VARS.LRPV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
+      tfLRPVEl.textContent = fmt(Math.round(liquido*100)/100);
+    }
+  }
+
+  // V176: painel PV (reserva do Wallace) - mesma logica do PGV, array proprio (VARS.PV_TRANSACOES)
+  const lrpvsaldoTbody = document.getElementById('lrpvsaldoTbody');
+  if(lrpvsaldoTbody){
+    if(!VARS.PV_TRANSACOES.length){
+      lrpvsaldoTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+    } else {
+      lrpvsaldoTbody.innerHTML = VARS.PV_TRANSACOES.map(t=>{
+        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+      }).join('');
+    }
+    const tfPVEl = document.getElementById('tfPV');
+    if(tfPVEl){
+      const liquido = VARS.PV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
+      tfPVEl.textContent = fmt(Math.round(liquido*100)/100);
+    }
+    const qtdPVEl = document.getElementById('qtdPV');
+    if(qtdPVEl) qtdPVEl.textContent = VARS.PV_TRANSACOES.length+' lançamento(s)';
+  }
+
+  const somaLRW = VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0);
+  const somaLRV = VARS.LRV_TRANSACOES.reduce((s,t)=>s+t.valor,0);
+  const tfLRWEl = document.getElementById('tfLRW');
+  if(tfLRWEl) tfLRWEl.textContent = fmt(somaLRW);
+  const tfLRVEl = document.getElementById('tfLRV');
+  if(tfLRVEl) tfLRVEl.textContent = fmt(somaLRV);
+  const qtdLRWEl = document.getElementById('qtdLRW');
+  if(qtdLRWEl) qtdLRWEl.textContent = VARS.LRW_TRANSACOES.length+' lançamento(s)';
+  const qtdLRVEl = document.getElementById('qtdLRV');
+  if(qtdLRVEl) qtdLRVEl.textContent = VARS.LRV_TRANSACOES.length+' lançamento(s)';
+
+  // V189 (27/07/2026): LREI (Empréstimos Internos) tornado dinâmico - antes era HTML fixo com texto
+  // "Nenhum empréstimo interno ativo no momento" hardcoded, mesmo com LREI_ATIVAS já tendo 2 dívidas
+  // reais (LREI0002 Saúde Família R$164,94 + LREI0003 Fatura Mercado Pago R$266,23) - o array existia
+  // no VARS mas nada lia ele pra tela. Bug apontado pelo usuário via print do painel real.
+  const lreiTbody = document.getElementById('lreiTbody');
+  if(lreiTbody){
+    if(!VARS.LREI_ATIVAS.length){
+      lreiTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhum empréstimo interno ativo no momento.</td></tr>';
+    } else {
+      const hoje = new Date();
+      lreiTbody.innerHTML = VARS.LREI_ATIVAS.map(l=>{
+        const [d,m] = l.data.split('/').map(Number);
+        const dataAbertura = new Date(hoje.getFullYear(), m-1, d);
+        const idadeDias = Math.max(0, Math.round((hoje - dataAbertura)/(1000*60*60*24)));
+        const corStatus = l.status === 'ATIVO' ? 'var(--text-danger)' : 'var(--green)';
+        return `<tr><td class="mono">${l.id}</td><td class="mono">${l.data}</td><td>${l.credora}</td><td>${l.devedora}</td><td class="r">${fmt(l.valor)}</td><td>${idadeDias}d</td><td style="color:${corStatus}">${l.status}</td></tr>`;
+      }).join('');
+    }
+  }
+  const lreiTabBtn = document.getElementById('lrTabBtn_lrei');
+  if(lreiTabBtn) lreiTabBtn.textContent = `LREI - Empréstimos (${VARS.LREI_ATIVAS.length})`;
+}
+
 function renderParcelamentos(){
   const lrpTbody = document.getElementById('lrpTbody');
   if(lrpTbody){
@@ -975,6 +1820,35 @@ function renderParcelamentos(){
   if(lrpQtdEl) lrpQtdEl.textContent = qtdVisaAtivo+' lançamentos ativos · âmbar = última parcela';
   const lrmpQtdEl = document.getElementById('tfLRMPQtd');
   if(lrmpQtdEl) lrmpQtdEl.textContent = (qtdMPAtivo+qtdCorpAtivo)+' lançamentos ('+qtdMPAtivo+' parcelas + '+qtdCorpAtivo+' corp./avulso, filtrado por ciclo)';
+}
+
+// V162 (25/07/2026): contagem dinamica das abas de Livros Razao (secao 15) - antes eram numeros
+// FIXOS no HTML ("Wallace (0)", "Boletos (9)" etc), nunca calculados, sempre dessincronizados da
+// tabela real embaixo. Agora cada botao conta as <tr> de verdade dentro do seu painel correspondente,
+// sempre exato. Roda por ultimo (depois de renderParcelamentos ja ter gerado as tabelas dinamicas).
+function atualizarContagemAbas(){
+  const mapa = {
+    lrw: 'LRW - Wallace', lrv: 'LRV - Vanessa', lrb: 'LRB - Boletos', lrp: 'LRP - Parcelas',
+    lrs: 'LRS - Assinaturas', lrr: 'LRR - Recorrências', lrcon: 'LRCON - Consórcios', lrc: 'LRC - Corporativo',
+    lrmp: 'LRMP - Merc. Pago', lrcv: 'LRCV - Caixa Var.', lrei: 'LREI - Empréstimos', lrdoacao: 'LRDOA - Doações', lrpv: 'LRPGV - PGV', lrpvsaldo: 'LRPV - PV'
+  };
+  Object.keys(mapa).forEach(paneId => {
+    const pane = document.getElementById(paneId);
+    const btn = document.querySelector(`[onclick*="showLR('${paneId}'"]`);
+    if(!pane || !btn) return;
+    // CORRIGIDO 25/07/2026 (V162): antes contava TODAS as <tr> (.length), incluindo linhas escondidas
+    // pelo filtro de ciclo (display:none) e a linha de mensagem "nenhuma compra ainda" (colspan) -
+    // por isso o numero nunca batia com o que aparecia na tela (ex: "Wallace (61)" quando so 0-1
+    // estavam visiveis). Agora conta so linhas de dado real e visiveis de fato.
+    const todasLinhas = pane.querySelectorAll('tbody tr');
+    let count = 0;
+    todasLinhas.forEach(tr=>{
+      const estaEscondida = tr.style.display === 'none';
+      const ehMensagemVazia = tr.querySelector('td[colspan]') !== null;
+      if(!estaEscondida && !ehMensagemVazia) count++;
+    });
+    btn.textContent = `${mapa[paneId]} (${count})`;
+  });
 }
 
 function popularSeletorCiclo(){
@@ -1136,13 +2010,30 @@ function hydrate(){
   t('cxBoletosPct', pctOf(C.boletos.saldo,C.boletos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.getElementById('cxBoletosBar'); if(el) el.style.width = pctOf(C.boletos.saldo,C.boletos.meta)+'%'; }
   t('cxPixSaldo', fmt(C.pixVanessa.saldo));
+  t('cxPgvSaldo', fmt(VARS.pixGeralVanessaSaldo)); // V175: card separado - PGV e conta autonoma da Vanessa, distinta da PV (reserva do Wallace)
   t('cxPixMeta', fmtInt(C.pixVanessa.meta));
   t('cxPixPct', pctOf(C.pixVanessa.saldo,C.pixVanessa.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.getElementById('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
   t('cxManutSaldo', fmt(C.manutencao.saldo));       t('cxManutMeta', fmtInt(C.manutencao.meta));
+  { const el=document.getElementById('cxManutBar'); if(el) el.style.width = pctOf(C.manutencao.saldo, C.manutencao.meta)+'%'; }
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
   t('cxEventosPct', pctOf(C.eventos.saldo, C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.querySelector('#cxEventosSaldo').closest('.card').querySelector('.fill'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
+  // NOVO 30/07/2026 (V206): card do Fundo de Suavização - existia no calculo (VARS.contaSuavizacao)
+  // e no alerta desde a ativacao (V205), mas nunca tinha card visual proprio na tela. Usuario perguntou
+  // "onde esta a caixa de amortecedor no site" - nao estava em lugar nenhum, so no texto do alerta.
+  const suaviz = VARS.contaSuavizacao;
+  const suavizExcedente = REG.operacional.excedenteOuComplementoProLabore;
+  t('cxSuavizSaldo', fmt(suaviz));
+  t('cxSuavizProLabore', 'Pró-labore ' + fmt(VARS.proLaboreFixo));
+  const suavizTxtEl = document.getElementById('cxSuavizTxt');
+  if(suavizTxtEl){
+    if(suaviz === 0 && suavizExcedente > 0) suavizTxtEl.textContent = 'Zerada · excedente do ciclo: ' + fmt(suavizExcedente);
+    else if(suaviz === 0) suavizTxtEl.textContent = 'Zerada';
+    else suavizTxtEl.textContent = (suaviz/VARS.proLaboreFixo).toFixed(1) + ' mês(es) de colchão';
+  }
+  const suavizBar = document.getElementById('cxSuavizBar');
+  if(suavizBar) suavizBar.style.width = pctOf(suaviz, VARS.proLaboreFixo) + '%';
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
   t('cxSeguroSaldo', fmt(C.seguroEmplacamento.saldo)); t('cxSeguroMeta', fmtInt(C.seguroEmplacamento.meta));
@@ -1178,7 +2069,7 @@ function hydrate(){
   t('visaLRNaoReconciliado', fmt(R.visaDetalhe.naoReconciliado)); // V135: residuo soma-livros x fatura-real, documentado (P1)
   // mastercard black
   t('mbTotal', fmt(R.cartaoMB.total));
-  t('mbPessoal', fmt(R.cartaoMB.total - R.mbDetalhe.corp));
+  t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - R.mbDetalhe.corp))); // CORRIGIDO 26/07/2026 (V177): usuario esclareceu que o ciclo fechado deve mostrar o valor CONGELADO do fechamento artificial (R$1.849,31), nao a formula viva recalculada com dados atuais.
   t('mbLRW', fmt(R.mbDetalhe.wallace));
   t('mbLRV', fmt(R.mbDetalhe.vanessa));
   t('mbLRP', fmt(R.mbDetalhe.parcelas));
@@ -1260,7 +2151,7 @@ function hydrate(){
   t('reembCicloTotal', fmt(R.operacional.reembolsoCicloTotal));
   t('reembPagaWartsila', fmt(R.faturaWartsila));
   t('reembPagaMP', fmt(R.operacional.reembolsoPagaMPCorporativo));
-  t('reembPagaCartao', fmt(R.visaDetalhe.corp));
+  t('reembPagaCartao', fmt(R.visaDetalhe.corp + R.mbDetalhe.corp)); // CORRIGIDO 31/07/2026 (V223): so mostrava visaDetalhe.corp (Visa), sumindo com o corporativo do MB (R$297,31 este ciclo) mesmo o card se chamando "Infinite/MB".
   t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
   t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // CORRIGIDO 20/07/2026: agora e literalmente o item 4 da cascata (usado no calculo de reembolsoSobraPessoal), nao mais um campo paralelo "so informativo".
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
@@ -1270,11 +2161,26 @@ function hydrate(){
   t('metaInvBTG', fmt(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton)); // CORRIGIDO 25/07/2026 (V159): usuario esclareceu que sao a mesma coisa - consolidados em 1 campo so (era duplicado, 2 linhas separadas para o mesmo conceito).
 
   t('cxWartsila', fmt(R.faturaWartsila));
-  t('cxWartsilaExcedente', '100% coberto · excedente '+fmt(R.wartsilaCaixa.excedente));
+  // CORRIGIDO 31/07/2026 (V224, bug real apontado pelo usuario): texto era LITERAL "100% coberto · excedente
+  // "+valor, mesmo quando o excedente era NEGATIVO (ex: hoje, R$53,74 provisionado - R$5.768,06 de fatura =
+  // -R$5.714,32, mas a tela dizia "100% coberto" do mesmo jeito - mentira). Corrigido para 2 problemas:
+  // (1) so mostra "coberto" de verdade quando o reembolso do ciclo ja foi CONFIRMADO recebido
+  // (REG.reembolsos.recebidosNoCiclo > 0) - antes disso e so fatura/provisionamento esperado, nao cobertura
+  // real; (2) quando ha cobertura, o texto reflete o sinal certo (coberto com sobra vs faltando cobrir).
+  if(R.reembolsos.recebidosNoCiclo <= 0){
+    t('cxWartsilaExcedente', 'Aguardando confirmação do reembolso (ainda R$0 recebido este ciclo)');
+  } else if(R.wartsilaCaixa.excedente >= 0){
+    t('cxWartsilaExcedente', '100% coberto · excedente '+fmt(R.wartsilaCaixa.excedente));
+  } else {
+    t('cxWartsilaExcedente', 'Parcialmente coberto · faltam '+fmt(Math.abs(R.wartsilaCaixa.excedente)));
+  }
   t('cxWartsilaProvisionado', 'Provisionado '+fmt(R.wartsilaCaixa.provisionado));
   t('cxSaudeAporteTxt', '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês');
+  { const el=document.getElementById('cxSaudeSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.saudeFamilia.saldo, C.saudeFamilia.meta)+'%'; } // V177 CORRIGIDO: barra estava fixa em 0%
   t('cxAnivAporteTxt', 'Nova · aporte '+fmt(VARS.aporteAniversarioJulio)+'/mês até 14/09');
+  { const el=document.getElementById('cxAnivSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.aniversarioJulio.saldo, C.aniversarioJulio.meta)+'%'; } // V176 CORRIGIDO: barra estava fixa em 0%, nunca era preenchida pelo JS
   t('cxSeguroAporteTxt', 'Nova · aporte '+fmt(VARS.seguroEmplacamentoAporte)+'/mês (permanente)');
+  { const el=document.getElementById('cxSeguroSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.seguroEmplacamento.saldo, C.seguroEmplacamento.meta)+'%'; } // V176 CORRIGIDO: mesma falha
   t('tfLRCDetalhe', R.livroLRCDetalhe.qtd+' lançamentos · Reembolso pendente '+fmt(R.livroLRCDetalhe.valor));
   t('tfPixDiversosDetalhe', 'Saídas '+fmt(R.pixDiversos.saidas)+' · Entradas '+fmt(R.pixDiversos.entradas));
   t('tfPixDiversosLiquido', 'Líquido '+(R.pixDiversos.liquido<0?'− ':'+ ')+fmt(Math.abs(R.pixDiversos.liquido)));
@@ -1289,6 +2195,51 @@ function hydrate(){
   t('ccnPagoPct', CCN.pagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   t('ccnQuitacao', fmt(CCN.quitacaoValor)+' ('+CCN.quitacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%)');
   { const el=document.getElementById('ccnBar'); if(el) el.style.width = CCN.pagoPct+'%'; }
+  // NOVO 31/07/2026 (V215): data da assembleia agora dinamica, com alerta automatico se ja passou -
+  // antes era texto FIXO no HTML ("21/07/2026 ja passou"), corrigido uma vez pelo usuario mas
+  // continuaria travado pra sempre se nao virasse formula. Compara com a data real de hoje.
+  const consorcioAssembleiaEl = document.getElementById('consorcioAssembleia');
+  if(consorcioAssembleiaEl){
+    const [d,m,a] = VARS.consorcioCasaProximaAssembleia.split('/').map(Number);
+    const dataAssembleia = new Date(a, m-1, d);
+    const hoje2 = new Date();
+    if(dataAssembleia < hoje2){
+      consorcioAssembleiaEl.innerHTML = VARS.consorcioCasaProximaAssembleia + ' <span style="color:var(--red)">⚠️ já passou — data desatualizada, confirmar com a administradora</span>';
+    } else {
+      consorcioAssembleiaEl.textContent = VARS.consorcioCasaProximaAssembleia;
+    }
+  }
+  // NOVO 31/07/2026 (V216): card de Opções reconstruído - derivado de VARS.opcoesVendidasDetalhe,
+  // nunca mais tabela fixa no HTML.
+  t('opcoesValorMercado', fmt(VARS.opcoesVendidasValorMercado));
+  t('opcoesPremioTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0)) + (VARS.opcoesVendidasDetalhe.some(o=>o.premioRecebido===null) ? ' (parcial, falta confirmar)' : ''));
+  // NOVO 31/07/2026 (V218): aplica as 28 legendas de VARS.LEGENDAS nos elementos correspondentes -
+  // um loop so, nunca precisa lembrar de chamar t() individualmente pra cada uma. Usa innerHTML
+  // porque varias legendas tem <strong>/<span> internos que precisam ser preservados.
+  Object.keys(VARS.LEGENDAS).forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = VARS.LEGENDAS[id];
+  });
+  // NOVO 31/07/2026 (V219): alivio de agosto - calculo real, ver VARS.alivioProximoMes acima.
+  const legAlivioEl = document.getElementById('legAlivioAgosto');
+  if(legAlivioEl) legAlivioEl.innerHTML = `Alívio de ${fmt(VARS.alivioProximoMes)}/mês a partir do próximo ciclo (parcelas do Visa Infinite + Mercado Pago que terminam agora) — não considera ainda o fim do seguro auto em outubro/2026`;
+  t('credUberTotal', fmt(VARS.creditoUberBalance));
+  t('credShellBox', fmt(VARS.creditoShellBox));
+  t('credKmv', fmt(VARS.creditoKmvIpiranga)); // CORRIGIDO 31/07/2026 (V224): usuario esclareceu que os 600 sao R$600,00 (reais), nao pontos - era concatenado como "600 pontos", corrigido pra formatar como moeda igual aos outros creditos.
+  // NOVO 31/07/2026 (V217): "migrados 100% pro MB" no Visa Infinite era R$0,00 hardcoded - correto
+  // HOJE, mas um numero mudo que mentiria se algo fosse lancado de volta no Visa por engano (exatamente
+  // o que aconteceu com a Drogasil em V201). Agora soma os 4 componentes reais - continua R$0,00
+  // porque de fato estao zerados, mas agora e verificavel, nao um texto solto.
+  t('visaMigradoTotal', fmt(VARS.livroLRCONVisaOnly + VARS.visaLRRConfirmado + VARS.livroLRCVisaOnly + VARS.visaLRSConfirmado));
+  // CORRIGIDO 31/07/2026 (V217): PGBL+FGTS somados estava fixo em R$209.898,34 (desatualizado desde
+  // a atualizacao de ambos em 30-31/07) - agora deriva sempre dos 2 valores reais.
+  t('balPgblFgtsSoma', fmt(VARS.patPgbl + VARS.patFgts));
+  const opcoesTbodyEl = document.getElementById('opcoesTbody');
+  if(opcoesTbodyEl){
+    opcoesTbodyEl.innerHTML = VARS.opcoesVendidasDetalhe.map(o =>
+      `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r">${fmt(o.valorMercado)}</td></tr>`
+    ).join('');
+  }
   t('pcnCapital', fmt(PCN.capitalDisponivel));
   t('pcnPctBadge', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   { const el=document.getElementById('pcnBar'); if(el) el.style.width = PCN.pct+'%'; }
@@ -1344,7 +2295,20 @@ function hydrate(){
   t('balObrVisa', fmt(B.obrigacoes.visa));
   t('balObrMB', fmt(B.obrigacoes.mastercardBlack));
   t('balObrMP', fmt(B.obrigacoes.mercadoPago));
-  t('balObrWartsila', fmt(B.obrigacoes.wartsila));
+  t('balObrWartsila', fmt(VARS.faturaMPCorporativoPendente)); // CORRIGIDO V167: mostra os 3 corporativos AINDA na fatura pendente (venc. 04/08), ja descontados do total acima
+  // CORRIGIDO 30/07/2026 (V208): balLreiAtivos era texto FIXO "Nenhum (LREI0001 quitado 21/07)" -
+  // mesmo depois de LREI0002+LREI0003 ficarem ativas (27/07), esse card resumo do Balanço nunca foi
+  // conectado ao array real (a aba LREI dedicada ja tinha sido corrigida em V189, mas ESTE card,
+  // separado, ficou esquecido - mesma classe de bug, lugar diferente). Usuario apontou via print.
+  const lreiAtivosNow = VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO');
+  const balLreiEl = document.getElementById('balLreiAtivos');
+  if(balLreiEl){
+    if(lreiAtivosNow.length === 0){
+      balLreiEl.textContent = 'Nenhum';
+    } else {
+      balLreiEl.textContent = lreiAtivosNow.length + ' ativo(s): ' + lreiAtivosNow.map(l=>l.id+' ('+fmt(l.valor)+')').join(', ');
+    }
+  }
   t('balObrTotal', fmt(B.obrigacoes.total));
   t('balFluxoEntradas', fmt(B.fluxo.entradas));
   t('balFluxoSaidas', fmt(B.fluxo.saidas));
@@ -1356,10 +2320,12 @@ function hydrate(){
   t('patPrevidencia', fmt(B.pgbl));
   t('patFgts', fmt(B.fgts));
 }
-document.addEventListener('DOMContentLoaded', hydrate);
-document.addEventListener('DOMContentLoaded', popularSeletorCiclo); // V145: cria os botoes do seletor de ciclo
-document.addEventListener('DOMContentLoaded', renderParcelamentos); // V155: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
-document.addEventListener('DOMContentLoaded', aplicarFiltroLivrosRazao); // V152: filtra Livros Razao (limbo + ciclo atual) por padrao
+onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
+onDomPronto(popularSeletorCiclo); // V145/V170: cria os botoes do seletor de ciclo
+onDomPronto(renderParcelamentos); // V155/V170: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
+onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados
+onDomPronto(atualizarContadoresAbasLR); // V162/V170: conta linhas reais das abas de Livros Razao
+// onDomPronto(aplicarFiltroLivrosRazao) movido para depois de LIVROS_FILTRAVEIS_POR_CICLO ser declarada (ver abaixo, V170)
 
 // ===== Auditoria automatica (item 15 do Plano Mestre, criada 17/07/2026 V54) =====
 // Roda sozinha ao carregar a pagina. Como o REG e um snapshot agregado (nao guarda TX individuais
@@ -1406,10 +2372,11 @@ function auditoriaAutomatica(){
     problemas.push(`Caixa Variável: SaldoReal-Comprometido=${dispCalc} ≠ disponivel(${REG.caixaVariavel.disponivel})`);
   }
 
-  // 6) Gestão Operacional (Balanço) = Caixa Variável + PIX Vanessa saldo real + Caixa Boletos (movida da Reserva na V85)
-  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.pixVanessaSaldoReal + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite);
+  // 6) Reservas de Pagamento (Balanço) = Caixa Variável + Caixa Boletos + Mastercard/Infinite
+  // CORRIGIDO 26/07/2026 (V166): PIX Vanessa (conta autonoma dela) removida - nunca deveria contar.
+  const opCalc = round2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite);
   if(!bate(opCalc, REG.balanco.operacional.total)){
-    problemas.push(`Gestão Operacional: CaixaVariavel+PixVanessa+CaixaBoletos+MastercardInfinite=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
+    problemas.push(`Reservas de Pagamento: CaixaVariavel+CaixaBoletos+MastercardInfinite=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
   }
 
   // 7) Reservas (Balanço) = soma das 9 caixas de reserva
@@ -1435,28 +2402,37 @@ function auditoriaAutomatica(){
   // 10) Total Operacional = soma dos 7 componentes do totalOpDetalhe (ADICIONADO 20/07/2026, pedido do usuário -
   // hoje isso NUNCA diverge de verdade porque recalcularAgregadosDerivados() já deriva um do outro, mas o check
   // fica como rede de segurança caso algum dos dois seja editado manualmente sem tocar no outro no futuro)
-  const D2 = REG.totalOpDetalhe;
-  const totOpCalc = round2(D2.boletos+D2.parcelas+D2.consorcios+D2.recorrencias+D2.aportesPat+D2.provMP+D2.assinaturas);
-  if(!bate(totOpCalc, REG.operacional.totalOperacional)){
-    problemas.push(`Total Operacional: soma dos 7 componentes=${totOpCalc} ≠ operacional.totalOperacional(${REG.operacional.totalOperacional})`);
+  // V177: SO roda para o ciclo ATUAL - no ciclo fechado, totalOperacional vem de um valor CONGELADO no
+  // snapshot (nao da soma dos componentes vivos), entao a divergencia e esperada por design, nao erro.
+  if(!VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado){
+    const D2 = REG.totalOpDetalhe;
+    const totOpCalc = round2(D2.boletos+D2.parcelas+D2.consorcios+D2.recorrencias+D2.aportesPat+D2.provMP+D2.assinaturas);
+    if(!bate(totOpCalc, REG.operacional.totalOperacional)){
+      problemas.push(`Total Operacional: soma dos 7 componentes=${totOpCalc} ≠ operacional.totalOperacional(${REG.operacional.totalOperacional})`);
+    }
   }
 
   // 11) Visa Infinite: soma do detalhamento (visaDetalhe, usado nos graficos de composicao) = total do card
   // (ADICIONADO 22/07/2026, V135 - esta checagem NAO existia; foi exatamente por isso que o gap de
   // R$49,81 entre o grafico cVisa e o card "Total" ficou sem deteccao automatica por varios ciclos)
-  const vd = REG.visaDetalhe;
-  const visaDetalheCalc = round2(vd.parcelas+vd.consorcios+vd.wallace+vd.recorrencias+vd.corp+vd.assinaturas+vd.vanessa+vd.naoReconciliado);
-  if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
-    problemas.push(`Visa Infinite: soma visaDetalhe=${visaDetalheCalc} ≠ cartaoInfinite.total(${REG.cartaoInfinite.total})`);
-  }
+  // V174: SO roda para o ciclo ATUAL - o ciclo fechado guarda so um RESUMO agregado (nao o detalhamento
+  // fino por categoria), entao a soma das partes nunca vai bater com o total do ciclo fechado por design,
+  // nao por erro. Comparar isso seria um falso-positivo constante.
+  if(!VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado){
+    const vd = REG.visaDetalhe;
+    const visaDetalheCalc = round2(vd.parcelas+vd.consorcios+vd.wallace+vd.recorrencias+vd.corp+vd.assinaturas+vd.vanessa+vd.naoReconciliado);
+    if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
+      problemas.push(`Visa Infinite: soma visaDetalhe=${visaDetalheCalc} ≠ cartaoInfinite.total(${REG.cartaoInfinite.total})`);
+    }
 
-  // 12) Mastercard Black: soma do detalhamento (mbDetalhe) = total do card (ADICIONADO 22/07/2026, V135 -
-  // mesma classe de checagem que faltava; foi por isso que mbDetalhe.wallace ficou 3 rodadas desatualizado
-  // sem ninguem perceber - nada comparava a soma das partes com o total)
-  const md = REG.mbDetalhe;
-  const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa);
-  if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
-    problemas.push(`Mastercard Black: soma mbDetalhe=${mbDetalheCalc} ≠ cartaoMB.total(${REG.cartaoMB.total})`);
+    // 12) Mastercard Black: soma do detalhamento (mbDetalhe) = total do card (ADICIONADO 22/07/2026, V135 -
+    // mesma classe de checagem que faltava; foi por isso que mbDetalhe.wallace ficou 3 rodadas desatualizado
+    // sem ninguem perceber - nada comparava a soma das partes com o total)
+    const md = REG.mbDetalhe;
+    const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa);
+    if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
+      problemas.push(`Mastercard Black: soma mbDetalhe=${mbDetalheCalc} ≠ cartaoMB.total(${REG.cartaoMB.total})`);
+    }
   }
 
   const healthBadge = document.getElementById('healthBadge');
@@ -1487,7 +2463,7 @@ function auditoriaAutomatica(){
   }
   return problemas;
 }
-document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
+onDomPronto(auditoriaAutomatica); // V170: corrigido
 
 // ===== Ciclo financeiro 100% dinâmico (recalcula sempre que o arquivo é aberto, qualquer mês/ano) =====
 // Regra do sistema: ciclo vai do dia 25 de um mês ao dia 24 do mês seguinte.
@@ -1527,9 +2503,13 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
   // a cada carregamento - nunca mais hardcoded (o ERP ja tinha IDADE_DIAS/STATUS_ENVELHECIMENTO mas
   // ficava parado entre sessoes). Faixas: 0-30 NORMAL, 31-60 ATENCAO, 61+ CRITICO (P4 - toda divida
   // interna deve ser ressarcida, quanto mais velha, maior o risco de ficar esquecida).
-  const lreiAtivos = [
-    // V121: LREI0001 QUITADO (reembolso Wartsila, 21/07/2026) - nenhum emprestimo interno ativo
-  ];
+  // CORRIGIDO 27/07/2026 (V189): antes era array hardcoded vazio, mesmo com VARS.LREI_ATIVAS já
+  // tendo 2 dívidas reais (LREI0002+LREI0003) - o alerta de negócio nunca via essas dívidas porque
+  // lia desta lista separada, nunca conectada ao VARS. Bug apontado pelo usuário via print do painel.
+  const lreiAtivos = VARS.LREI_ATIVAS.map(l=>{
+    const [d,m] = l.data.split('/').map(Number);
+    return { abertura: new Date(hoje.getFullYear(), m-1, d) };
+  });
   const diasAging = d => Math.round((hoje - d) / 86400000);
   const faixaAging = dias => dias <= 30 ? '' : (dias <= 60 ? ' color:var(--accent)' : ' color:var(--red);font-weight:700');
 
@@ -1592,10 +2572,47 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
         alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`${fmt(pendenteLimbo)} represado do limbo Mastercard Black (fecha dia 22) — será descontado do orçamento da Caixa Variável do próximo ciclo na virada do dia 25`});
       }
     }
+    // NOVO 29/07/2026 (V204, pedido explicito do usuario): alerta de aporte da PGV. Regra da Politica
+    // secao 7: quando o saldo da PIX Geral Vanessa (PGV, conta autonoma dela) cai abaixo de R$50,00,
+    // transferir R$300,00 da PIX Vanessa (PV, reserva do Wallace - a caixa DE ONDE o dinheiro sai).
+    // Alerta em 3 niveis para o usuario ver ANTES de zerar, nao so depois.
+    const saldoPGV = VARS.pixGeralVanessaSaldo;
+    const saldoPV = VARS.caixaPixVanessa;
+    const GATILHO_APORTE_PGV = 50.00;
+    const VALOR_APORTE_PGV = 300.00;
+    if(saldoPGV < GATILHO_APORTE_PGV){
+      const temNaPV = saldoPV >= VALOR_APORTE_PGV;
+      alertas.push({icone:'🔴', cor:'#e2554f',
+        txto:`PIX Geral Vanessa em ${fmt(saldoPGV)} — abaixo do gatilho de ${fmt(GATILHO_APORTE_PGV)}. Transferir ${fmt(VALOR_APORTE_PGV)} da PIX Vanessa (tem ${fmt(saldoPV)})${temNaPV ? '' : ' ⚠️ SALDO INSUFICIENTE NA PV'}`});
+    } else if(saldoPGV < GATILHO_APORTE_PGV * 2){
+      alertas.push({icone:'⚠️', cor:'#e8a63a',
+        txto:`PIX Geral Vanessa em ${fmt(saldoPGV)} — aproximando do gatilho de aporte (${fmt(GATILHO_APORTE_PGV)}). Preparar ${fmt(VALOR_APORTE_PGV)} da PIX Vanessa (tem ${fmt(saldoPV)})`});
+    } else {
+      alertas.push({icone:'✅', cor:'#34c98a',
+        txto:`PIX Geral Vanessa em ${fmt(saldoPGV)} — acima do gatilho de aporte (${fmt(GATILHO_APORTE_PGV)})`});
+    }
+    // NOVO 29/07/2026 (V205): alerta do Fundo de Suavizacao Salarial (ativado nesta sessao, Politica
+    // secao 16). Avisa 3 situacoes: (a) salario do ciclo veio acima do pro-labore e o excedente ainda
+    // nao foi transferido pro fundo; (b) salario veio abaixo e o fundo precisa cobrir a diferenca;
+    // (c) fundo vazio num mes magro (situacao de risco - nao ha colchao pra suavizar).
+    const excedenteProLabore = REG.operacional.excedenteOuComplementoProLabore;
+    const fundoSuavizacao = VARS.contaSuavizacao;
+    if(excedenteProLabore > 0 && fundoSuavizacao === 0){
+      alertas.push({icone:'ℹ️', cor:'#3987e5',
+        txto:`Fundo de Suavização ativo e zerado — salário deste ciclo veio ${fmt(excedenteProLabore)} acima do pró-labore (${fmt(VARS.proLaboreFixo)}). A partir do próximo salário, transferir o excedente para a caixa do Itaú`});
+    } else if(excedenteProLabore < 0){
+      const precisa = Math.abs(excedenteProLabore);
+      alertas.push(fundoSuavizacao >= precisa
+        ? {icone:'⚠️', cor:'#e8a63a', txto:`Mês magro: salário ${fmt(precisa)} abaixo do pró-labore — sacar do Fundo de Suavização (tem ${fmt(fundoSuavizacao)}) para manter o orçamento`}
+        : {icone:'🔴', cor:'#e2554f', txto:`Mês magro: falta ${fmt(precisa)} para o pró-labore, mas o Fundo de Suavização só tem ${fmt(fundoSuavizacao)} — sem colchão suficiente, revisar Modo Operacional`});
+    } else if(fundoSuavizacao > 0){
+      alertas.push({icone:'✅', cor:'#34c98a',
+        txto:`Fundo de Suavização com ${fmt(fundoSuavizacao)} — colchão de ${(fundoSuavizacao/VARS.proLaboreFixo).toFixed(1)} mês(es) de pró-labore`});
+    }
     return alertas;
   }
 
-  document.addEventListener('DOMContentLoaded', ()=>{
+  onDomPronto(()=>{ // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava (script injetado dinamicamente)
     set('diasDecorridos', decorridos);
     set('diasRestantes', restantes);
     set('hojeData', fmtData(hoje));
@@ -1625,7 +2642,7 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
 
     // Badge "Queda total" (Necessidade líquida) - calculado ao vivo a partir da MESMA serie usada
     // no grafico (18/07/2026, V85: estava hardcoded, descolado do dado real ha varias rodadas).
-    const nlSerie = alignSeries(REG.evolucao.necessidadeLiquida);
+    const nlSerie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V165: baseado no ciclo financeiro
     const quedaTotal = Math.round((nlSerie[0] - nlSerie[nlSerie.length-1])*100)/100;
     set('quedaTotalNL', 'Queda total: '+fmt(quedaTotal));
     const r21EccEl = document.getElementById('r21ECC');
@@ -1645,8 +2662,16 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     }
     const folegoEl = document.getElementById('simFolego');
     if(folegoEl){
-      folegoEl.textContent = fmt(folego);
-      folegoEl.style.color = folego >= 0 ? '#34c98a' : '#e2554f';
+      folegoEl.textContent = fmt(cv.disponivel); // CORRIGIDO 26/07/2026 (V182, usuario apontou "Folego ate teto errado"): antes mostrava tetoEfetivo-comprometido (fôlego contra o TETO OFICIAL de R$2.000, sempre igual mesmo com saldo real menor) - renomeado para "Disponível real hoje" e agora mostra cv.disponivel (saldoReal-comprometido), a mesma metrica do card Caixa Variavel acima, sem ambiguidade.
+      folegoEl.style.color = cv.disponivel >= 0 ? '#34c98a' : '#e2554f';
+    }
+    // NOVO 26/07/2026 (V182): "cadê o valor que possa gastar por dia?" - a descricao do card ja
+    // prometia "ritmo sugerido por dia" (Politicas sec.15) mas nunca foi implementado. Disponivel real
+    // dividido pelos dias restantes do ciclo, nunca negativo (minimo R$0,00 se ja estourou).
+    const porDiaEl = document.getElementById('simPorDia');
+    if(porDiaEl){
+      const porDia = restantes > 0 ? Math.max(0, cv.disponivel) / restantes : 0;
+      porDiaEl.textContent = fmt(Math.round(porDia*100)/100);
     }
     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO): card so aparece se houver algo represado -
     // enquanto pendenteProximoCiclo=0 (sem compras na janela 23-25 ainda), fica escondido para nao
@@ -1659,8 +2684,9 @@ document.addEventListener('DOMContentLoaded', auditoriaAutomatica);
     set('simPendenteValor', fmt(pendenteValor));
     const msgEl = document.getElementById('simMensagem');
     if(msgEl){
+      const porDiaMsg = restantes > 0 ? Math.max(0, cv.disponivel) / restantes : 0;
       if(faltaCobrir <= 0){
-        msgEl.innerHTML = `Tem <strong>${fmt(cv.saldoReal)}</strong> na caixa e o comprometido é <strong>${fmt(cv.comprometido)}</strong> — está coberto, sobra <strong>${fmt(Math.abs(faltaCobrir))}</strong>.`
+        msgEl.innerHTML = `Tem <strong>${fmt(cv.saldoReal)}</strong> na caixa e o comprometido é <strong>${fmt(cv.comprometido)}</strong> — está coberto, sobra <strong>${fmt(Math.abs(faltaCobrir))}</strong>. Isso dá <strong>${fmt(Math.round(porDiaMsg*100)/100)}/dia</strong> pelos ${restantes} dias restantes do ciclo.`
           + (folego < 0 ? ` (Ainda assim, acima do teto oficial em ${fmt(Math.abs(folego))} — coberto pela tolerância temporária.)` : '');
       } else {
         msgEl.innerHTML = `<strong style="color:#e2554f">Falta ${fmt(faltaCobrir)}</strong> para cobrir o comprometido — tem ${fmt(cv.saldoReal)} na caixa contra ${fmt(cv.comprometido)} comprometido. Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
@@ -1730,6 +2756,7 @@ function dataPertenceCicloAtual(dataStr){
 const LIVROS_FILTRAVEIS_POR_CICLO = ['lrw','lrv','lrb','lrs','lrr','lrc','lrmp','lrcv','lrpv'];
 
 let filtroLivroRazaoAtivo = true; // true = mostra so limbo+ciclo atual. false = mostra tudo (historico completo).
+// onDomPronto(aplicarFiltroLivrosRazao) DESATIVADO (V174) - substituido pelo seletor de ciclo, que agora controla tudo via trocarCiclo()
 
 function aplicarFiltroLivrosRazao(){
   LIVROS_FILTRAVEIS_POR_CICLO.forEach(id=>{
@@ -1749,6 +2776,7 @@ function aplicarFiltroLivrosRazao(){
     });
   });
   atualizarBotaoFiltroLivrosRazao();
+  atualizarContagemAbas(); // V162: recontagem dinamica sempre que o filtro muda, roda DEPOIS de esconder/mostrar linhas
 }
 
 function alternarFiltroLivrosRazao(){
@@ -1841,12 +2869,12 @@ new Chart(document.getElementById('cVariavel'), {
       y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
 });
 
-const totalOpSeries = alignSeries(REG.evolucao.totalOperacional);
+const totalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro (25-24)
 const totalOpRange = yRange(totalOpSeries);
 new Chart(document.getElementById('cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:gerarMeses(12),
+  data:{labels:gerarMesesCiclo(12),
     datasets:[{data:totalOpSeries,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
@@ -1857,12 +2885,12 @@ new Chart(document.getElementById('cEvol'), {
       y:{grid:{color:grid},min:totalOpRange.min,max:totalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
-const necLiqSeries = alignSeries(REG.evolucao.necessidadeLiquida);
+const necLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no ciclo financeiro
 const necLiqRange = yRange(necLiqSeries);
 new Chart(document.getElementById('cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:gerarMeses(12),
+  data:{labels:gerarMesesCiclo(12),
     datasets:[{data:necLiqSeries,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
@@ -1956,11 +2984,24 @@ new Chart(document.getElementById('g_cVisa'), {
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
+// CORRIGIDO 26/07/2026 (V166, pedido do usuario): "Composição da fatura Mastercard Black e Visa
+// Infinite" so mostrava dados do Visa (visaDetalhe) - titulo prometia os 2 cartoes, grafico so
+// entregava 1. Novo dataset COMBINADO: cada categoria soma o componente do Visa + o do Mastercard.
+const FATURA_COMBINADA_LABELS = ['Parcelas','Consórcios','Wallace/MB','Recorrências','Corp.','Assinaturas','Vanessa/MB'];
+const FATURA_COMBINADA_VALORES = [
+  REG.visaDetalhe.parcelas, // parcelas so existem no Visa (MB nunca recebe parcela, regra fixa)
+  REG.visaDetalhe.consorcios + REG.mbDetalhe.consorcios,
+  REG.visaDetalhe.wallace + REG.mbDetalhe.wallace,
+  REG.visaDetalhe.recorrencias + REG.mbDetalhe.recorrencias,
+  REG.visaDetalhe.corp + REG.mbDetalhe.corp,
+  REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas,
+  REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa,
+];
 new Chart(document.getElementById('g_cVisaBar'), {
   type:'bar',
   plugins:[barValuePlugin],
-  data:{labels:VISA_DETALHE_LABELS,
-    datasets:[{data:Object.values(REG.visaDetalhe),
+  data:{labels:FATURA_COMBINADA_LABELS,
+    datasets:[{data:FATURA_COMBINADA_VALORES,
     backgroundColor:VISA_DETALHE_CORES,borderRadius:4}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:60}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
@@ -2065,12 +3106,12 @@ new Chart(document.getElementById('g_cMetas'), {
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
 
-const gTotalOpSeries = alignSeries(REG.evolucao.totalOperacional);
+const gTotalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro
 const gTotalOpRange = yRange(gTotalOpSeries);
 new Chart(document.getElementById('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:gerarMeses(12),
+  data:{labels:gerarMesesCiclo(12),
     datasets:[{data:gTotalOpSeries,
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
@@ -2081,12 +3122,12 @@ new Chart(document.getElementById('g_cEvol'), {
       y:{grid:{color:grid},min:gTotalOpRange.min,max:gTotalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
-const gNecLiqSeries = alignSeries(REG.evolucao.necessidadeLiquida);
+const gNecLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no CICLO financeiro (25-24), nao no mes calendario - evita o valor "pular" quando mes vira mas ciclo nao, ou vice-versa
 const gNecLiqRange = yRange(gNecLiqSeries);
 new Chart(document.getElementById('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
-  data:{labels:gerarMeses(12),
+  data:{labels:gerarMesesCiclo(12),
     datasets:[{data:gNecLiqSeries,
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
@@ -2244,9 +3285,9 @@ new Chart(document.getElementById('g_cAlivio'), {
   // helper global liquidoMes(i), em vez de ler um array hardcoded. "Vivo" no sentido pedido pelo
   // usuario: qualquer edicao em REG.superavitNormal.liquidoProjetado/liquidoReal se reflete aqui
   // sem precisar recalcular a mao os 12 valores - so o(s) mes(es) com dado novo precisa(m) de entrada.
-  const snLabels = gerarMeses(12);
-  const snLiquido = alignSeries(snLabels.map((_,i)=>liquidoMes(i)));
-  const snNecessidade = alignSeries(REG.superavitNormal.necessidade);
+  const snLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
+  const snLiquido = alignSeriesCiclo(snLabels.map((_,i)=>liquidoMes(i)));
+  const snNecessidade = alignSeriesCiclo(REG.superavitNormal.necessidade);
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
 
   // Rotulo compacto em "k" (em vez de milhar completo) - o valor de Julho (salario real) e bem maior que
@@ -2308,9 +3349,9 @@ new Chart(document.getElementById('g_cAlivio'), {
   // 3/6 do MP termina ~Set/26; a de 10/24 avança devagar). Consorcio NAO tem previsao de acabar
   // (confirmado pelo usuario) - fica fixo, assim como Boletos/Recorrencias/Assinaturas.
   // Liquido sem trabalhar fixo R$7.667,73 (12 contracheques reais).
-  const dzLabels = gerarMeses(12);
+  const dzLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
   const dzLiquido = REG.deficitZero.liquidoSemTrabalhar;
-  const dzPiso = alignSeries(REG.deficitZero.piso);
+  const dzPiso = alignSeriesCiclo(REG.deficitZero.piso);
   const dzDeficit = dzPiso.map(p=>Math.round((dzLiquido-p)*100)/100);
 
   const dzDataLabelPlugin = {
@@ -2373,7 +3414,16 @@ new Chart(document.getElementById('g_cAlivio'), {
   const tarifa = VARS.faturaEnergisaValor/VARS.faturaEnergisaKwh;
   const anoAnterior = kwhAnoAnterior.map(k=>Math.round(k*tarifa*100)/100);
   const valorPosSolar = Math.round((VARS.consumoMinimoComSolarKwh*tarifa + VARS.taxaMinimaEnergisa)*100)/100;
-  const esteAno = mesesPares.map(()=>valorPosSolar);
+  // NOVO 31/07/2026: mesesPares[0]='Jul' e o mes atual (Jul/2026, quando o solar entrou em operacao) -
+  // agora usa a geracao REAL (VARS.SOLAR_LEITURAS_CALC, ultima leitura) em vez do valor fixo projetado.
+  // Regra: a fatura minima (R$69,87 = tarifa minima 30kWh + R$38 Iluminacao Publica) so vale se o
+  // credito solar cobrir 100% do consumo do apartamento; se a ultima leitura mostrar saldo NEGATIVO
+  // (credito ainda nao cobre o consumo esperado), soma o deficit x tarifa por cima do minimo - reflete
+  // o que a fatura real provavelmente vai cobrar. Meses 1-11 continuam projetados (sem leitura ainda).
+  const solarCalcAtual = VARS.SOLAR_LEITURAS_CALC[VARS.SOLAR_LEITURAS_CALC.length-1];
+  const deficitWallaceAtual = solarCalcAtual ? Math.max(0, -solarCalcAtual.saldoWallace) : 0;
+  const valorMesAtual = Math.round((valorPosSolar + deficitWallaceAtual*tarifa)*100)/100;
+  const esteAno = mesesPares.map((_,i)=> i===0 ? valorMesAtual : valorPosSolar);
 
   const energiaLabelPlugin = {
     id:'energiaLabelPlugin',
@@ -2414,6 +3464,36 @@ new Chart(document.getElementById('g_cAlivio'), {
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
+
+  // NOVO 31/07/2026: Rateio Solar por casa - credito acumulado (Wallace/Irma) vs consumo esperado
+  // acumulado no mesmo periodo. Quando a linha de credito cruza acima da de consumo, a casa esta
+  // "coberta" (formulas de Base_Calculo_Rateio_Solar.md, executadas em VARS.SOLAR_LEITURAS_CALC).
+  const solarL = VARS.SOLAR_LEITURAS_CALC;
+  const solarLabels = solarL.map(l=>{
+    const [y,m,d] = l.data.split('-');
+    return d+'/'+m+(l.fonte==='estimado' ? '*' : '');
+  });
+  new Chart(document.getElementById('cSolarRateio'), {
+    type:'line',
+    data:{labels:solarLabels,
+      datasets:[
+        {label:'Crédito Wallace (kWh)', data:solarL.map(l=>l.creditoWallace), borderColor:'#34c98a', backgroundColor:'#34c98a', tension:0.2},
+        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), borderColor:'#34c98a', borderDash:[4,3], backgroundColor:'transparent', tension:0.2},
+        {label:'Crédito Irmã (kWh)', data:solarL.map(l=>l.creditoIrma), borderColor:'#e8a63a', backgroundColor:'#e8a63a', tension:0.2},
+        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), borderColor:'#e8a63a', borderDash:[4,3], backgroundColor:'transparent', tension:0.2}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:legendStd2,tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
+        y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+  });
+  const ultimaSolar = solarL[solarL.length-1];
+  const legSolarEl = document.getElementById('legSolarRateio');
+  if(legSolarEl && ultimaSolar){
+    const sinalW = ultimaSolar.saldoWallace>=0 ? '+' : '';
+    const sinalI = ultimaSolar.saldoIrma>=0 ? '+' : '';
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido total <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> · Wallace saldo <strong style="color:'+(ultimaSolar.saldoWallace>=0?'#34c98a':'#e2554f')+'">'+sinalW+ultimaSolar.saldoWallace+' kWh</strong> · Irmã saldo <strong style="color:'+(ultimaSolar.saldoIrma>=0?'#34c98a':'#e2554f')+'">'+sinalI+ultimaSolar.saldoIrma+' kWh</strong>. * = ponto estimado (sem leitura real do dia).';
+  }
 })();
 
 // ===== NOVO 22/07/2026 (V133) - modo apresentacao (esconder valores) =====
@@ -2431,7 +3511,7 @@ function toggleEsconderValores(){
   }
   try { localStorage.setItem('wallace_esconder_valores', ativo ? '1' : '0'); } catch(e) {}
 }
-document.addEventListener('DOMContentLoaded', () => {
+onDomPronto(() => { // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava
   try {
     if(localStorage.getItem('wallace_esconder_valores') === '1'){
       document.body.classList.add('esconder-valores');

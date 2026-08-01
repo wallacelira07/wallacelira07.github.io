@@ -46,7 +46,8 @@
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
       <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Fôlego até o teto</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Disponível real hoje</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
+      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dá pra gastar por dia</div><div class="v" style="font-size:1.15rem;font-weight:700;color:var(--accent)" id="simPorDia">—</div></div>
     </div>
     <div id="simPendenteBox" style="display:none;margin-top:0.7rem;padding:0.6rem 0.8rem;background:rgba(57,135,229,0.08);border:1px solid rgba(57,135,229,0.25);border-radius:8px">
       <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem">📤 Pendente para o próximo ciclo</div>
@@ -61,13 +62,12 @@
     <div class="v" id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
   </div>
 
-  <button id="btnEsconderValores" onclick="toggleEsconderValores()" title="Esconder/mostrar valores (modo apresentação)" style="position:fixed;top:14px;right:14px;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:50%;width:42px;height:42px;font-size:1.2rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">👁️</button>
-
   <div class="master-tabs">
-    <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel Completo</button>
+    <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel</button>
     <button class="master-tab" onclick="showMaster('graficos', this)">📈 Gráficos</button>
     <button class="master-tab" onclick="showMaster('cenarios', this)">🛡️ Cenários</button>
     <button class="master-tab" onclick="showMaster('balancov2', this)">🏛️ Balanço</button>
+    <button id="btnEsconderValores" onclick="toggleEsconderValores()" title="Esconder/mostrar valores (modo apresentação)" style="position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;font-size:1.05rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">👁️</button>
   </div>
 
   <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
@@ -144,7 +144,7 @@
       <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v" id="patBtg">—</span></div>
       <div class="row"><span class="k">CC-303 · Caixa Lance</span><span class="v" id="patLance">—</span></div>
       <div class="row"><span class="k">Necton · Conta corrente</span><span class="v" id="patEscola">—</span></div>
-      <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Escola de Júlio NÃO entra no Patrimônio Financeiro/Meta do Milhão desde 16/07/2026 (V47) — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Necton Conta Corrente contam como patrimônio. Escola de Júlio segue existindo como caixa/reserva própria, acompanhada separadamente. Atualizado 22/07/2026: total R$115.723,06 (Caixa Lance reconciliada com saldo real, R$204,48→R$553,91).</div>
+      <div class="v" id="legEscolaJulioForaPatrimonio" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
     </div>
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
@@ -174,6 +174,19 @@
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Conta 198100004332\152579-RJ, admissão 13/02/2012. Saque apenas em hipóteses legais específicas (demissão sem justa causa, aposentadoria, etc) — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, mesmo tratamento do PGBL acima. Saldo total (16/07/2026); sem detalhamento mês a mês ainda.</div>
   </div>
 
+  <div class="card" style="border-left:3px solid var(--amber);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div style="font-size:0.72rem;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em">Créditos e Cupons</div>
+      <span class="badge bg" style="background:rgba(232,166,58,0.15);color:var(--amber);border:1px solid rgba(232,166,58,0.3)">Benefícios, não patrimônio</span>
+    </div>
+    <div class="grid-2" style="row-gap:0.6rem">
+      <div><div style="font-size:0.68rem;color:var(--text-dim)">Uber (balance+one+gift)</div><div class="v" style="font-weight:600" id="credUberTotal">—</div></div>
+      <div><div style="font-size:0.68rem;color:var(--text-dim)">Shell Box</div><div class="v" style="font-weight:600" id="credShellBox">—</div></div>
+      <div><div style="font-size:0.68rem;color:var(--text-dim)">KMV Ipiranga</div><div class="v" style="font-weight:600" id="credKmv">—</div></div>
+    </div>
+    <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem">Créditos e cupons de apps (Uber, Shell Box, KMV) — não são dinheiro líquido, não somam no patrimônio nem na Meta do Milhão. Acompanhados aqui só por transparência.</div>
+  </div>
+
   <!-- 4 -->
   <div class="section-num"><span class="n">04</span><h2>Meta do milhão</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
@@ -190,9 +203,11 @@
   <div class="grid-3">
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxBoletosPct">—</span><span class="v" id="cxBoletosMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-103 · PIX Geral Vanessa (conta autônoma dela, PGV)</div><div class="v" style="font-weight:600" id="cxPgvSaldo">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--text-dim)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--text-dim)">Autonomia total</span><span class="v" style="color:var(--text-dim)">sem meta</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span class="v" id="cxManutMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" id="cxManutBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span class="v" id="cxManutMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxEventosPct">—</span><span class="v" id="cxEventosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-304 · Fundo de Suavização Salarial (Itaú)</div><div class="v" style="font-weight:600" id="cxSuavizSaldo">—</div><div class="progress"><div class="fill" id="cxSuavizBar" style="width:0%;background:var(--blue)"></div></div><div class="progress-lbl"><span class="v" id="cxSuavizTxt">—</span><span class="v" id="cxSuavizProLabore">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudeAporteTxt">—</span><span class="v" id="cxSaudeMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxAnivAporteTxt">—</span><span class="v" id="cxAnivMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroAporteTxt">—</span><span class="v" id="cxSeguroMeta">—</span></div></div>
@@ -221,21 +236,17 @@
   <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Livro razão detalhado da Caixa Variável (LRCV) está na aba "Livros razão" mais abaixo — não duplicado aqui.</div>
 
   <!-- 08 -->
-  <div class="section-num"><span class="n">08</span><h2>Visa Infinite (4844 · Wallace, aposentado / 4845 · Vanessa, ativo)</h2></div>
+  <div class="section-num"><span class="n">08</span><h2>Visa Infinite (4844 · Wallace, aposentado / 4845 · Vanessa, aposentado)</h2></div>
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
         <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
         <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
       </div>
-      <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Corporativo (R$483,43) é 100% reembolsável pela Wärtsilä — não é dívida pessoal real, mesmo estando na mesma fatura. Wallace aposentou este cartão em 16/07/2026 (usa só o Mastercard Black agora) — o que aparece aqui é histórico (LRW-I) + o que ainda não migrou (parcelas/assinaturas/recorrências/consórcios/corporativo) + tudo que a Vanessa ainda compra nele (LRV-I).</div>
-      <div class="row"><span class="k">Compras Wallace (LRW-I, histórico)</span><span class="v" id="visaLRW">—</span></div>
-      <div class="row"><span class="k">Compras Vanessa (LRV-I)</span><span class="v" id="visaLRV">—</span></div>
-      <div class="row"><span class="k">Parcelas (LRP)</span><span class="v" id="visaLRP">—</span></div>
-      <div class="row"><span class="k">Assinaturas (LRS)</span><span class="v" id="visaLRS">—</span></div>
-      <div class="row"><span class="k">Recorrências (LRR)</span><span class="v" id="visaLRR">—</span></div>
-      <div class="row"><span class="k">Consórcios (LRCON)</span><span class="v" id="visaLRCON">—</span></div>
-      <div class="row"><span class="k">Corporativo (LRC)</span><span class="v" id="visaLRC">—</span></div>
+      <div class="v" id="legVisaAposentado" style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">—</div>
+      <div class="v" id="legVisaCorrecaoV207" style="font-size:0.65rem;color:var(--text-dim);margin-bottom:0.6rem;font-style:italic">—</div>
+      <div class="row"><span class="k">Parcelas (LRP) <span style="color:var(--text-dim);font-weight:400">— único componente ativo</span></span><span class="v" id="visaLRP">—</span></div>
+      <div class="row" style="opacity:0.5"><span class="k">Assinaturas/Recorrências/Consórcios/Corporativo <span style="color:var(--text-dim);font-weight:400">(migrados 100% para o Mastercard Black)</span></span><span class="v" id="visaMigradoTotal">—</span></div>
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="visaLRNaoReconciliado">—</span></div>
     </div>
     <div class="card">
@@ -306,7 +317,7 @@
     <div class="row"><span class="k">Parcela (cartão de crédito)</span><span class="v" id="ccnParcela">—</span></div>
     <div class="row"><span class="k">Pago até o momento</span><span class="v" id="ccnPagoPct">—</span></div>
     <div class="row"><span class="k">Valor para quitação</span><span class="v" id="ccnQuitacao">—</span></div>
-    <div class="row"><span class="k">Próxima assembleia</span><span class="v">21/07/2026</span></div>
+    <div class="row"><span class="k">Próxima assembleia</span><span class="v" id="consorcioAssembleia">—</span></div>
     <div class="progress"><div class="fill" id="ccnBar" style="width:0%;background:var(--accent)"></div></div>
   </div>
 
@@ -324,39 +335,37 @@
   <!-- 15 -->
   <div class="section-num"><span class="n">15</span><h2>Livros razão</h2></div>
   <div class="card">
-    <button id="btnFiltroLivrosRazao" onclick="alternarFiltroLivrosRazao()" style="appearance:none;border:1px solid var(--border-strong);background:var(--surface-2,#15171a);color:var(--text-mid);font-size:0.72rem;font-weight:500;padding:0.4rem 0.75rem;border-radius:8px;cursor:pointer;margin-bottom:0.7rem">🔍 Mostrando: ciclo atual + limbo — ver histórico completo</button>
+    <!-- V174: botao de filtro "historico completo/ciclo atual" removido - o seletor de ciclo no topo do painel (Jul/26 🟢 | Jun/26 🔒) agora e a UNICA forma de navegar entre periodos, controlando tambem os Livros Razao. -->
     <div class="tabs" id="lrTabs">
-      <button class="tab active" onclick="showLR('lrw',this)">Wallace (0)</button>
-      <button class="tab" onclick="showLR('lrv',this)">Vanessa (2)</button>
-      <button class="tab" onclick="showLR('lrb',this)">Boletos (9)</button>
-      <button class="tab" onclick="showLR('lrp',this)">Parcelas (16)</button>
-      <button class="tab" onclick="showLR('lrs',this)">Assinaturas (13)</button>
-      <button class="tab" onclick="showLR('lrr',this)">Recorrências (7)</button>
-      <button class="tab" onclick="showLR('lrcon',this)">Consórcios (2)</button>
-      <button class="tab" onclick="showLR('lrc',this)">Corporativo (6)</button>
-      <button class="tab" onclick="showLR('lrmp',this)">Merc. Pago (9)</button>
-      <button class="tab" onclick="showLR('lrcv',this)">Caixa Var. (0)</button>
-      <button class="tab" onclick="showLR('lrei',this)">Empréstimos (1)</button>
-      <button class="tab" onclick="showLR('lrdoacao',this)">Doações (1)</button>
-      <button class="tab" onclick="showLR('lrpv',this)">Pix Vanessa (18)</button>
+      <button class="tab active" id="lrTabBtn_lrw" onclick="showLR('lrw',this)">LRW - Wallace (0)</button>
+      <button class="tab" id="lrTabBtn_lrv" onclick="showLR('lrv',this)">LRV - Vanessa (2)</button>
+      <button class="tab" id="lrTabBtn_lrb" onclick="showLR('lrb',this)">LRB - Boletos (9)</button>
+      <button class="tab" id="lrTabBtn_lrp" onclick="showLR('lrp',this)">LRP - Parcelas (16)</button>
+      <button class="tab" id="lrTabBtn_lrs" onclick="showLR('lrs',this)">LRS - Assinaturas (13)</button>
+      <button class="tab" id="lrTabBtn_lrr" onclick="showLR('lrr',this)">LRR - Recorrências (7)</button>
+      <button class="tab" id="lrTabBtn_lrcon" onclick="showLR('lrcon',this)">LRCON - Consórcios (2)</button>
+      <button class="tab" id="lrTabBtn_lrc" onclick="showLR('lrc',this)">LRC - Corporativo (6)</button>
+      <button class="tab" id="lrTabBtn_lrmp" onclick="showLR('lrmp',this)">LRMP - Merc. Pago (9)</button>
+      <button class="tab" id="lrTabBtn_lrcv" onclick="showLR('lrcv',this)">LRCV - Caixa Var. (0)</button>
+      <button class="tab" id="lrTabBtn_lrei" onclick="showLR('lrei',this)">LREI - Empréstimos (1)</button>
+      <button class="tab" id="lrTabBtn_lrdoacao" onclick="showLR('lrdoacao',this)">LRDOA - Doações (1)</button>
+      <button class="tab" id="lrTabBtn_lrpv" onclick="showLR('lrpv',this)">LRPGV - PGV</button>
+      <button class="tab" id="lrTabBtn_lrpvsaldo" onclick="showLR('lrpvsaldo',this)">LRPV - PV</button>
     </div>
 
     <div id="lrw" class="pane active">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX000132</td><td class="mono">22/07</td><td>Google SunSurveyorApp <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 2244, limbo (pós-fechamento fatura)</span></td><td class="r">R$ 56,99</td></tr>
+      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrwTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRW_TRANSACOES -->
       </tbody></table>
-      <div class="callout ok">Cartão final 2244 (Itaú Personnalité, bandeira Mastercard Black) é o cartão físico principal do Wallace. Mostrando o "limbo" (compras entre o fechamento da fatura em 21/07 e o fechamento do ciclo financeiro) + compras do ciclo atual (25/07–24/08) — nenhuma ainda neste ciclo. As 61 compras do ciclo fechado (26/06–24/07, já pagas) saíram desta lista — filtro por ciclo (V152/V154). Consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
-      <div class="tfoot"><span>1 lançamento (limbo)</span><span class="total v" id="tfLRW">—</span></div>
+      <div class="tfoot"><span id="qtdLRW">—</span><span class="total v" id="tfLRW">—</span></div>
     </div>
 
     <div id="lrv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX000154</td><td class="mono">24/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 6351, limbo (pós-fechamento fatura)</span></td><td class="r">R$ 30,97</td></tr>
-      <tr><td class="mono">TX000156</td><td class="mono">25/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 6351</span></td><td class="r">R$ 2,49</td></tr>
-      <tr><td class="mono">TX000157</td><td class="mono">25/07</td><td>H57Store <span style="font-size:0.62rem;color:var(--text-dim)">· cartão 6351 (2ª compra distinta, mesmo minuto)</span></td><td class="r">R$ 2,49</td></tr>
+      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrvTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRV_TRANSACOES -->
       </tbody></table>
-      <div class="callout ok">Filtro por ciclo (V152/V154, 25/07/2026): mostrando o "limbo" (TX000154, pós-fechamento da fatura em 21/07) + as compras do ciclo atual (25/07–24/08), no Mastercard Black (final 6351). As 16 compras do ciclo fechado (26/06–24/07, Visa Infinite) saíram desta lista — consulte o ciclo fechado no seletor de ciclo no topo do painel.</div>
-      <div class="tfoot"><span>3 lançamentos (1 limbo + 2 ciclo atual)</span><span class="total v" id="tfLRV">—</span></div>
+      <div class="callout ok">Filtro por ciclo: mostrando o "limbo" (pós-fechamento da fatura) + as compras do ciclo atual, no Mastercard Black (final 6351). Consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
+      <div class="tfoot"><span id="qtdLRV">—</span><span class="total v" id="tfLRV">—</span></div>
     </div>
 
     <div id="lrb" class="pane">
@@ -371,7 +380,7 @@
       <tr><td class="mono">TXB000008</td><td>Conselho Regional</td><td class="r">R$ 163,24</td></tr>
       <tr><td class="mono">TXB000009</td><td>Energia (Energisa) <span style="font-size:0.62rem;color:var(--text-dim)">· última conta sem efeito do solar (gerador ativo desde 21/07, desconto só a partir da fatura de 21/08)</span></td><td class="r">R$ 367,36</td></tr>
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Água e Gás são cobrados pela Medintech (medição individualizada) e variam todo mês — TXB000004/005 mantêm o valor do mês anterior até a leitura ser atualizada. TX000069 (retirada de R$1.313,69 da Caixa Boletos) não entra como lançamento próprio — reconciliado 100% com o extrato PIX de 10/07 (ver nota no ERP). O PIX de R$210,00 ao Anderson em 21/07 (van escolar do Júlio) é o mesmo TXB000006 já listado acima, não uma cobrança nova. Cofrinho rendeu +R$1,66 de CDI no mesmo período (não listado como linha própria, incluído no total abaixo).</div>
+      <div class="v" id="legAguaGasMedintech" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
       <div class="tfoot"><span>9 lançamentos</span><span class="total v" id="tfLRB">—</span></div>
     </div>
 
@@ -379,30 +388,29 @@
       <table><thead><tr><th>TX</th><th>Compra</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody id="lrpTbody">
       <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.PARCELAMENTOS_VISA -->
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">Tabela gerada automaticamente a partir de VARS.PARCELAMENTOS_VISA (aba PARCELAMENTOS_ATIVOS do ERP) — a cada virada de ciclo, cada parcela avança +1; ao ultrapassar o total, o item some da lista sozinho (status QUITADO). Nunca mais editar esta tabela na mão.</div>
-      <div class="callout warn v">Alívio de R$1.548,60/mês a partir de agosto (não considera ainda o fim do seguro auto em outubro/2026)</div>
+      <div class="v" id="legParcelamentosVisaAuto" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">—</div>
+      <div class="callout warn v" id="legAlivioAgosto">—</div>
       <div class="tfoot"><span id="tfLRPQtd">—</span><span class="total v" id="tfLRP">—</span></div>
     </div>
 
     <div id="lrs" class="pane">
-      <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXS000001</td><td>iFood (Vanessa) <span style="font-size:0.62rem;color:var(--text-dim)">· cobrada 07/07</span></td><td class="r">R$ 5,95</td></tr>
-      <tr><td class="mono">TXS000002</td><td>Claude (Mastercard Black)</td><td class="r">R$ 110,00</td></tr>
-      <tr style="text-decoration:line-through;opacity:0.5"><td class="mono">TXS000003</td><td>Google Youtube <span style="font-size:0.62rem">· duplicata de TXS000008</span></td><td class="r">R$ 7,99</td></tr>
-      <tr><td class="mono">TXS000004</td><td>Uber One</td><td class="r">R$ 21,90</td></tr>
-      <tr><td class="mono">TXS000005</td><td>ChatGPT</td><td class="r">R$ 39,99</td></tr>
-      <tr><td class="mono">TXS000006</td><td>Netflix</td><td class="r">R$ 72,80</td></tr>
-      <tr><td class="mono">TXS000007</td><td>YouTube Premium</td><td class="r">R$ 53,90</td></tr>
-      <tr><td class="mono">TXS000008</td><td>Fábio Sabino</td><td class="r">R$ 7,99</td></tr>
-      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXS000009</td><td>Amazon Prime <span style="font-size:0.62rem;color:var(--accent)">· MB</span></td><td class="r">R$ 19,90</td></tr>
-      <tr><td class="mono">TXS000010</td><td>Google MEGA</td><td class="r">R$ 30,99</td></tr>
-      <tr><td class="mono">TXS000011</td><td>Intelbras Cloud</td><td class="r">R$ 45,90</td></tr>
-      <tr style="background:rgba(233,196,106,0.08)"><td class="mono">TXS000012</td><td>Spotify Premium <span style="font-size:0.62rem;color:var(--accent)">· cartão virtual MB ...4628</span></td><td class="r">R$ 23,90</td></tr>
-      <tr><td class="mono">TXS000013</td><td>Meli+ (Mercado Livre) <span style="font-size:0.62rem;color:var(--text-dim)">· reclassificado de compra avulsa</span></td><td class="r">R$ 19,90</td></tr>
-      <tr><td class="mono">TX000134</td><td>Amazon Prime Canais <span style="font-size:0.62rem;color:var(--text-dim)">· pacote adicional, distinto da assinatura base</span></td><td class="r">R$ 19,99</td></tr>
+      <table><thead><tr><th>TX</th><th>Data</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody>
+      <tr><td class="mono">TXS000001</td><td class="mono">25/07</td><td>iFood (Vanessa)</td><td class="r">R$ 5,95</td></tr>
+      <tr><td class="mono">TXS000002</td><td class="mono">12/07</td><td>Claude</td><td class="r">R$ 110,00</td></tr>
+      <tr><td class="mono">TXS000004</td><td class="mono">11/07</td><td>Uber One</td><td class="r">R$ 21,90</td></tr>
+      <tr><td class="mono">TXS000005</td><td class="mono">28/06</td><td>ChatGPT</td><td class="r">R$ 39,99</td></tr>
+      <tr><td class="mono">TXS000006</td><td class="mono">29/06</td><td>Netflix</td><td class="r">R$ 72,80</td></tr>
+      <tr><td class="mono">TXS000007</td><td class="mono">30/06</td><td>YouTube Premium</td><td class="r">R$ 53,90</td></tr>
+      <tr><td class="mono">TXS000008</td><td class="mono">11/07</td><td>Fábio Sabino</td><td class="r">R$ 7,99</td></tr>
+      <tr><td class="mono">TXS000009</td><td class="mono">19/07</td><td>Amazon Prime</td><td class="r">R$ 19,90</td></tr>
+      <tr><td class="mono">TXS000010</td><td class="mono">22/07</td><td>MEGA (Pro Lite)</td><td class="r">R$ 30,99</td></tr>
+      <tr><td class="mono">TXS000011</td><td class="mono">26/06</td><td>Intelbras Cloud</td><td class="r">R$ 45,90</td></tr>
+      <tr><td class="mono">TXS000012</td><td class="mono">17/07</td><td>Spotify Premium</td><td class="r">R$ 23,90</td></tr>
+      <tr><td class="mono">TXS000013</td><td class="mono">25/07</td><td>Meli+ (Mercado Livre)</td><td class="r">R$ 19,90</td></tr>
+      <tr><td class="mono">TX000134</td><td class="mono">25/07</td><td>Amazon Prime Canais</td><td class="r">R$ 19,99</td></tr>
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black (físico 2244 ou virtual 4628). O resto segue no Visa Infinite até a fatura MB confirmar (migração gradual, item por item — regra V87). NOVO 20/07/2026: TX000115 (MP*Melimais, R$19,90) reclassificado de LRW (compra variável) para cá — é a assinatura Meli+ do Mercado Livre, cobrança recorrente, não compra avulsa. CORRIGIDO 23/07/2026: TX000134 (Amazon Prime Canais, R$19,99) adicionada — achada na fatura Bradesco real (25/06), nunca tinha sido lançada. Como nunca foi lançada antes, entra direto nas Assinaturas (recorrência mensal), não como compra avulsa.</div>
-      <div class="tfoot"><span>13 assinaturas ativas (14 lançamentos, 1 duplicata riscada)</span><span class="total v" id="tfLRS">—</span></div>
+      <div class="v" id="legMigracaoAssinaturasMB" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.4rem">—</div>
+      <div class="tfoot"><span>13 assinaturas ativas</span><span class="total v" id="tfLRS">—</span></div>
     </div>
 
     <div id="lrr" class="pane">
@@ -428,10 +436,10 @@
     </div>
 
     <div id="lrc" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX000158</td><td class="mono">25/07</td><td>Outback Vitória <span style="font-size:0.62rem;color:var(--text-dim)">· cartão MB 2244</span></td><td class="r">R$ 215,86</td></tr>
+      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrcLimboTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRC_LIMBO_TRANSACOES -->
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Mostrando só o corporativo do ciclo atual (25/07–24/08), ainda pendente de reembolso. Os 6 lançamentos do ciclo fechado (26/06–24/07, R$483,43 — LM Service, Porto Gallo, Café da Villa, La Ursa, Cacau Show Café, Cacau Show Sorvete) já estão cobertos dentro do valor separado para pagamento em 28/07 (R$1.937,18) — consulte o ciclo fechado no seletor de ciclo no topo do painel. 100% reembolsável pela Wärtsilä (prioridade 2 na fila de reembolso).</div>
+      <div class="v" id="legLRCLimboCorporativo" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
       <div class="tfoot"><span class="v" id="tfLRCDetalhe">—</span><span class="total v" id="tfLRC">—</span></div>
     </div>
 
@@ -442,57 +450,46 @@
       <tbody id="lrmpCorpTbody">
       <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.TRANSACOES_CORPORATIVAS_MP, filtrado pela data real do ciclo selecionado -->
       </tbody></table>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Parcelas geradas automaticamente a partir de VARS.PARCELAMENTOS_MP — avançam +1 a cada ciclo, somem sozinhas ao quitar. Itens "corp."/"único" filtrados automaticamente pela DATA real de cada um contra o período do ciclo selecionado (nunca mais editado à mão) — corp. = 100% reembolsável (prioridade 2 na fila de reembolso).</div>
+      <div class="v" id="legParcelamentosMPAuto" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
       <div class="callout ok" style="margin-top:0.6rem"><strong>Fora da fatura (não soma acima):</strong> TXMP000009 — Transporte corporativo, R$266,23, pago via PIX na conta Mercado Pago (não cobrado no cartão) em 13/07/2026, 100% reembolsável pela Wärtsilä. Não entra na fatura do cartão porque não foi cobrado nele — mesma lógica da Fatura Wärtsilä no card de Obrigações (visível para rastreabilidade, não soma no operacional).</div>
       <div class="tfoot"><span id="tfLRMPQtd">—</span><span class="total v" id="tfLRMP">—</span></div>
     </div>
 
     <div id="lrcv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação de PIX/repasses na Caixa Variável neste ciclo (25/07–24/08) ainda.</td></tr>
+      <table><thead><tr><th>TX</th><th>Data</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrcvTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRCV_TRANSACOES -->
       </tbody></table>
-      <div class="callout ok">Filtro por ciclo (V152, 25/07/2026): as 13 movimentações PIX diversos + 25 movimentações internas do ciclo fechado (26/06–24/07) saíram desta lista — consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
+      <div class="callout ok">Filtro por ciclo: mostrando só as movimentações de PIX/repasses da Caixa Variável no ciclo atual — consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
       <div class="tfoot"><span class="v" id="tfPixDiversosDetalhe">—</span><span class="total v" style="color:var(--red)" id="tfPixDiversosLiquido">—</span></div>
     </div>
 
     <div id="lrei" class="pane">
-      <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Idade</th><th>Status</th></tr></thead><tbody>
-      <tr><td class="mono">LREI0001</td><td class="mono">12/07</td><td>CC-202 · Manutenção</td><td>CC-101 · Caixa Variável</td><td class="r">R$ 178,64</td><td>—</td><td><span class="badge bg">Quitado 21/07</span></td></tr>
+      <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Idade</th><th>Status</th></tr></thead><tbody id="lreiTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LREI_ATIVAS -->
       </tbody></table>
-      <div class="callout warn v">Recompor via reembolso Wärtsilä ou salário de 25/07/2026. Caixa Variável segue com folga (saldo real R$2.575,77 vs meta R$2.000,00), suficiente para liquidar quando confirmado.</div>
-      <div class="callout ok v" style="margin-top:0.5rem">20/07/2026 (V114): TX000119 (R$2,00, Caixa Variável → PIX Geral Vanessa) foi reclassificado de "empréstimo" para "Suporte Co-irma" — PGV é abastecida normalmente pela PV, já co-irmã da Caixa Variável desde a V39, então o suporte direto não gera obrigação de ressarcimento. Ver aba LRCV/LRPG.</div>
     </div>
 
     <div id="lrdoacao" class="pane">
       <table><thead><tr><th>TX</th><th>Descrição</th><th>Responsável</th><th class="r">Valor</th></tr></thead><tbody>
       <tr><td class="mono">TXRP2P001</td><td>Crédito P2P doado à Vanessa</td><td>Wallace</td><td class="r">R$ 11,00</td></tr>
       </tbody></table>
-      <div class="callout ok v">Custo do Wallace (1/10 do capital P2P de R$110,00). Não gera receita, não entra no total de compras da Vanessa (LRV).</div>
+      <div class="callout ok v" id="legP2PCustoWallace">—</div>
       <div class="tfoot"><span>1 lançamento</span><span class="total" id="tfLRDOACAO">—</span></div>
     </div>
 
-    <div id="lrpv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TX000042</td><td class="mono">04/07</td><td>Transferência Pix Geral (autonomia)</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 300,00</td></tr>
-      <tr><td class="mono">TX000043</td><td class="mono">05/07</td><td>PIX diversos Vanessa</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 30,00</td></tr>
-      <tr><td class="mono">TX000055</td><td class="mono">13/07</td><td>Recebido de Wallace (pediatra Júlio)</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 50,00</td></tr>
-      <tr><td class="mono">TX000046</td><td class="mono">27/06</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 62,00</td></tr>
-      <tr><td class="mono">TX000047</td><td class="mono">27/06</td><td>PIX Vitoria Drieli</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 111,00</td></tr>
-      <tr><td class="mono">TX000048</td><td class="mono">03/07</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 44,00</td></tr>
-      <tr><td class="mono">TX000049</td><td class="mono">03/07</td><td>PIX para Wallace</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 30,00</td></tr>
-      <tr><td class="mono">TX000050</td><td class="mono">04/07</td><td>PIX Vitoria Drieli</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 26,00</td></tr>
-      <tr><td class="mono">TX000051</td><td class="mono">04/07</td><td>PIX Rebeca de Souza Oliveira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 31,50</td></tr>
-      <tr><td class="mono">TX000052</td><td class="mono">10/07</td><td>PIX Romário Nogueira</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 68,00</td></tr>
-      <tr><td class="mono">TX000053</td><td class="mono">10/07</td><td>PIX Vanessa - uso próprio</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 9,36</td></tr>
-      <tr><td class="mono">TX000054</td><td class="mono">12/07</td><td>H57 Store Minimercados</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 14,99</td></tr>
-      <tr><td class="mono">TX000056</td><td class="mono">13/07</td><td>Sinal pediatra Júlio (repasse)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 50,00</td></tr>
-      <tr><td class="mono">TX000080</td><td class="mono">16/07</td><td>Dupomar Hortifrutti</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 133,81</td></tr>
-      <tr><td class="mono">TX000084</td><td class="mono">16/07</td><td>Reforço da caixa PIX Vanessa (PV) → PIX Geral (PGV)</td><td style="color:var(--green)">Entrada</td><td class="r">R$ 95,00</td></tr>
-      <tr><td class="mono">SUPORTE_COIRMA_PGV_20072026</td><td class="mono">20/07</td><td>Suporte da Caixa Variável (co-irmã, via PV)</td><td style="color:var(--text-success)">Entrada</td><td class="r">R$ 2,00</td></tr>
-      <tr><td class="mono">TX000122</td><td class="mono">17/07</td><td>Hortifruti (frutas)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 67,00</td></tr>
-      <tr><td class="mono">TX000121</td><td class="mono">20/07</td><td>Fralda do Júlio (Meu Pequeno)</td><td style="color:var(--text-danger)">Saída</td><td class="r">R$ 95,00</td></tr>
+    <div id="lrpvsaldo" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrpvsaldoTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.PV_TRANSACOES -->
       </tbody></table>
-      <div class="v callout ok">Saldo real da Caixa Pix Geral: <strong>-R$ 0,04</strong> (praticamente zerada — resíduo imaterial documentado, não forçado). Ciclo fechado com comprovantes reais: 17/07 R$159,96 (pós reforço da PV) − R$67,00 (frutas) = R$92,96; 20/07 + R$2,00 (complemento da Caixa Variável) − R$95,00 (fralda do Júlio) = -R$0,04. O total abaixo é o fluxo líquido de todas as 19 transações rastreadas na aba (-R$295,66), não o saldo da caixa.</div>
+      <div class="callout ok">Reserva do Wallace para apoiar a Vanessa — aportes mensais + reforços diretos à PGV quando o saldo dela fica baixo (regra: repor quando PGV cai abaixo de R$50,00, seção 7 Políticas).</div>
+      <div class="tfoot"><span id="qtdPV">—</span><span class="total v" id="tfPV">—</span></div>
+    </div>
+
+    <div id="lrpv" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrpvTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRPV_TRANSACOES -->
+      </tbody></table>
+      <div class="v callout ok" id="legPGVSaldoResidual">—</div>
       <div class="tfoot"><span>18 lançamentos (fluxo do período)</span><span class="total v" id="tfLRPV">—</span></div>
     </div>
   </div>
@@ -512,19 +509,38 @@
   <!-- 17 -->
   <div class="section-num"><span class="n">17</span><h2>Carteira de opções</h2></div>
   <div class="card">
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
+    <div class="grid-2" style="margin-bottom:0.7rem">
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Valor de mercado (posições ativas)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesValorMercado">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em prêmios recebidos</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Vencimento</div><div class="v" style="font-weight:600;font-size:1.1rem">21/08/2026</div></div>
+    </div>
+    <div style="overflow-x:auto">
+    <table><thead><tr><th>Ativo</th><th>Ticker</th><th>Strike</th><th class="r">Prêmio recebido</th><th class="r">Valor de mercado</th></tr></thead><tbody id="opcoesTbody">
+    </tbody></table>
+    </div>
+    <div class="v" id="legOpcoesReconstruido" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
+  </div>
+
+  <!-- REMOVIDO 31/07/2026 (V216): grid-4 antigo (Capital travado R$19.422,00 / Lucro R$94,81 / Total prêmios
+  R$371,85 / Rentabilidade 1,91%) e a tabela de 3 linhas com dados de 26/07 - hardcoded, nunca atualizava,
+  ficou desatualizado desde então. Substituído pela versão acima, conectada a VARS.opcoesVendidasDetalhe. -->
+  <div style="display:none">
+  <div class="card">
     <div class="grid-4" style="margin-bottom:0.7rem">
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital travado</div><div class="v" style="font-weight:600;font-size:1.1rem">R$ 19.422,00</div></div>
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro em aberto</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)">R$ 94,81</div></div>
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em prêmios</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--accent)">R$ 371,85</div></div>
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Rentabilidade total</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--accent)">1,91%</div></div>
     </div>
+    <div style="overflow-x:auto">
     <table><thead><tr><th>Ativo</th><th>Strike</th><th>Venc.</th><th>Contratos</th><th class="r">Prêmio</th><th class="r">Lucro</th><th class="r">Rentab.</th></tr></thead><tbody>
-    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>JUL/26</td><td style="text-align:center">1</td><td class="r">R$ 39,97</td><td class="r" style="color:var(--green)">R$ 19,97</td><td class="r" style="color:var(--accent)">1,08%</td></tr>
-    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>AGO/26</td><td style="text-align:center">2</td><td class="r">R$ 154,84</td><td class="r" style="color:var(--green)">R$ 74,84</td><td class="r" style="color:var(--accent)">2,10%</td></tr>
-    <tr><td>ITUB4 PUT</td><td class="r">41,82</td><td>21/08/26</td><td style="text-align:center">2</td><td class="r">R$ 177,04</td><td class="r" style="color:var(--text-dim)">R$ 0,00</td><td class="r" style="color:var(--accent)">2,12%</td></tr>
+    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>JUL/26</td><td style="text-align:center">1</td><td class="r">R$ 39,97</td><td class="r" style="color:var(--green)">R$ 19,04</td><td class="r" style="color:var(--accent)">1,08%</td></tr>
+    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>AGO/26</td><td style="text-align:center">2</td><td class="r">R$ 154,84</td><td class="r" style="color:var(--green)">R$ 37,97</td><td class="r" style="color:var(--accent)">2,10%</td></tr>
+    <tr><td>ITUB4 PUT</td><td class="r">41,82</td><td>21/08/26</td><td style="text-align:center">2</td><td class="r">R$ 177,04</td><td class="r" style="color:var(--green)">R$ 136,84</td><td class="r" style="color:var(--accent)">2,12%</td></tr>
     </tbody></table>
-    <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Rentabilidade = Prêmio recebido ÷ Capital travado na posição (regra atualizada 15/07/2026 — antes era Lucro÷Capital). O prêmio é recebido integralmente na venda da opção, por isso conta na rentabilidade mesmo com a posição ainda ATIVA e sem lucro contábil realizado (caso do ITUB4, vencimento 21/08/26). Total: R$371,85 em prêmios ÷ R$19.422,00 de capital = 1,91%.</div>
+    </div>
+  </div>
   </div>
 
   <!-- 18 -->
@@ -552,7 +568,7 @@
     <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
     <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. MP pessoal (o que você deve na fatura)</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
     <div class="row" style="margin-top:0.3rem"><span class="k" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
-    <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali (verificado 19/07/2026 contra a fatura literal do ciclo atual: 6 parcelas Mercado Livre somam R$471,47 nesta fatura — não R$514,05, valor antigo que incluía indevidamente uma compra avulsa já paga em ciclo anterior). Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino.</div>
+    <div class="v" id="legLinha4vs5MP" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">—</div>
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
   </div>
 
@@ -560,7 +576,7 @@
   <div class="section-num"><span class="n">20</span><h2>Indicadores e evolução da necessidade</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" style="font-size:0.66rem;color:var(--text-dim)">Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.</div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:0.66rem;color:var(--text-dim)">—</div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Necessidade total (bruta)</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
   </div>
   <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
@@ -569,7 +585,7 @@
       <span class="badge bg">Já garantido: R$ <span class="v" id="s20Garantido">—</span></span>
     </div>
     <div class="v" style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
-    <div class="v" style="font-size:0.72rem;color:var(--text-dim)">Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta o que já está garantido, seguindo a ordem oficial de prioridade do reembolso Wärtsilä: 1) Fatura Wärtsilä (R$0 de impacto, sempre) → 2) Mercado Pago corporativo → 3) Mercado Pago pessoal → 4) Visa Infinite corporativo (regra nova, 15/07/2026) → 5) sobra vai para Caixa Lance. PIX de R$1.749,35 para Caixa Mercado Pago confirmado em 14/07/2026 já cobriu 100% do provisionamento não-reembolsável do Mercado Pago (R$471,47, corrigido 19/07/2026 — a fatura literal do ciclo atual confirma que a compra avulsa de R$42,58 somada em 17/07 não pertence a este ciclo). Com a regra nova, o corporativo do Visa Infinite (R$483,43) também entra como garantido, elevando o total de R$471,47 para R$954,90.</div>
+    <div class="v" id="legNecessidadeBrutaLiquida" style="font-size:0.72rem;color:var(--text-dim)">—</div>
   </div>
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -577,7 +593,7 @@
       <span class="badge bg v" id="quedaTotalNL">Queda total: —</span>
     </div>
     <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
-    <div class="v" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Simulação mês a mês: cada parcelamento do Visa Infinite avança até encerrar (ex: 4/12 → mais 8 meses), e cada caixa patrimonial recebe Aporte=Meta−Saldo até bater a meta (Aniversário Júlio para em Set/26; Combustível e Churrasco reduzem entre Set-Dez/26). Assume cobertura garantida constante (R$954,90 — MP pessoal R$471,47 + Visa Infinite corporativo R$483,43, corrigido 19/07/2026) e boletos/assinaturas/recorrências/consórcios estáveis. Premissa marcada: o valor corporativo do Visa Infinite recorrente pressupõe viagens/despesas corporativas similares nos próximos meses — recalcular se o padrão mudar.</div>
+    <div class="v" id="legSimulacaoMesAMes" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -585,7 +601,7 @@
       <span class="badge bg v" id="alivioBadgeMar27">—</span>
     </div>
     <div class="chart-box"><canvas id="cEvol"></canvas></div>
-    <div class="v" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">O que é: TOTAL_OPERACIONAL (boletos + parcelamentos Visa Infinite + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais) mês a mês. Reconstruído em 16/07/2026 (auditoria) a partir dos dados literais de parcela do livro LRP. Aniversário Júlio zera após o ciclo Set/26 (prazo 14/09/2026, confirmado). Premissa: boletos, assinaturas, recorrências e consórcios tratados como constantes. Combustível zera após Set/26 (atinge meta R$500) e Churrasco após Nov/26 (atinge meta R$500) — saldo real R$0 confirmado pelo usuário em 16/07/2026, simulação completa.</div>
+    <div class="v" id="legTotalOperacionalDefinicao" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
   <!-- 21 -->
@@ -605,7 +621,7 @@
     <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba v" id="r21ConsorcioCasa">—</span></div>
     <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba v" id="r21EscolaJulio">—</span></div>
     <div class="row"><span class="k">Meta investimento</span><span class="badge bg v" id="r21MetaInvest">—</span></div>
-    <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge bg">Nenhum (LREI0001 quitado 21/07)</span></div>
+    <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge bg" id="balLreiAtivos">—</span></div>
   </div>
 
   <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
@@ -646,7 +662,7 @@
   </div>
 
   <div class="card" style="margin-top:1rem">
-    <div class="v" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Mastercard Black + Visa Infinite — líquido de Caixa Variável (a Caixa Variável já provisiona 100% das compras LRW+LRV de ambos os cartões; este gráfico mostra quanto da obrigação dos cartões NÃO está coberto por ela — parcelas, assinaturas, recorrências, consórcios e corporativo — e compara o Comprometido provisionado com o Disponível real em caixa)</div>
+    <div class="v" id="legMBVisaLiquidoCV" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">—</div>
     <div class="chart-box wide"><canvas id="g_cCartoesLiquidoCV"></canvas></div>
     <div class="total-line"><span>Mastercard Black + Visa Infinite (total)</span><span class="v" id="gCartoesTotalLine">—</span></div>
     <div class="total-line" style="margin-top:0.35rem;padding-top:0"><span>Pessoal (s/ corporativo)</span><span class="v" style="color:var(--green)" id="gCartoesPessoalLine">—</span></div>
@@ -674,7 +690,6 @@
   <div class="section-num"><span class="n">04</span><h2>Caixa variável</h2></div>
   <div class="card">
     <div class="chart-box"><canvas id="g_cVariavel"></canvas></div>
-    <div class="legend-note v">LREI0001: Caixa Manutenção emprestou R$178,64 para resolver o ECC do ciclo</div>
   </div>
 
   <!-- 5 -->
@@ -702,14 +717,21 @@
   <div class="card">
     <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Caixas operacionais (Boletos, PIX Vanessa, Manutenção, Eventos) sempre fazem aporte cheio — não geram alívio. Estas caixas incrementais zeram (ou trocam de valor) o aporte ao bater meta/prazo, liberando ou consumindo fôlego no orçamento — janela estendida até Dez/27 para caber a virada do ciclo 2027 da Escola de Júlio e do Seguro/Emplacamento:</div>
     <div class="chart-box tall" style="height:340px"><canvas id="g_cAlivio"></canvas></div>
-    <div class="legend-note v">Aniversário Júlio (R$200/mês) para em Set/26 (prazo 14/09) · Escola Júlio ciclo atual (R$500/mês) para em Nov/26 (coberto por 13º/férias) · Seguro/Emplacamento (R$425/mês) roda em ciclo contínuo de 12 meses desde Jan/26, sem interrupção — vira pro ciclo 2027 na mesma taxa, por isso nunca aparece como "alívio" neste gráfico · Escola de Júlio 2027 reinicia do zero em Jan/27, R$839,64/mês por 11 meses (Jan-Nov/27), batendo o teto de R$9.236,00 em novembro · Saúde Família (R$100/mês) projeta completar por volta de Nov/27 (~16 meses no ritmo atual, reembolsos médicos podem acelerar isso de forma imprevisível).</div>
+    <div class="legend-note v" id="legLegendaCaixasIncrementais">—</div>
   </div>
 
     <div class="section-num"><span class="n">09</span><h2>Energia Solar — antes vs. depois (apartamento)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Aguardando troca do medidor para bidirecional pela Energisa — prazo até 22/07/2026. Comparação mês a mês: ano anterior real (laranja) vs. este ano projetado com solar ativo (verde), lado a lado.</div>
       <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
-      <div class="legend-note">Ano anterior: consumo real do seu apartamento, tarifa Jun/2026 (R$1,0625/kWh, já com ICMS/PIS/COFINS embutidos). Mai/26 (*) interpolado — sem leitura direta nesse mês. Projeção pós-solar (R$69,87/mês fixo): tarifa mínima de disponibilidade (30 kWh) + Contribuição de Iluminação Pública (R$38,00, imposto municipal fixo que a energia solar NÃO isenta). Número azul acima do par = economia mensal estimada. <strong>Assim que as faturas reais pós-solar chegarem, substituo os valores projetados pelos reais, mês a mês.</strong></div>
+      <div class="legend-note">Ano anterior: consumo real do seu apartamento, tarifa Jun/2026 (R$1,0625/kWh, já com ICMS/PIS/COFINS embutidos). Mai/26 (*) interpolado — sem leitura direta nesse mês. Projeção pós-solar (R$69,87/mês fixo): tarifa mínima de disponibilidade (30 kWh) + Contribuição de Iluminação Pública (R$38,00, imposto municipal fixo que a energia solar NÃO isenta). <strong>Jul/26 (mês atual) já usa a geração REAL</strong> (leituras do medidor bidirecional, seção 10 abaixo): fica em R$69,87 enquanto o crédito solar cobrir 100% do consumo esperado; se uma leitura mostrar déficit, some automaticamente o excedente não coberto × tarifa. Número azul acima do par = economia mensal estimada. Assim que a fatura real pós-solar chegar (a partir de 21/08), substituo pelo valor definitivo daquele mês.</div>
+    </div>
+
+    <div class="section-num"><span class="n">10</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito líquido = injetado (código 103) − consumido (código 03) no medidor bidirecional da casa da mãe, acumulado desde 21/07/2026 (o medidor nunca zera). Dividido em paralelo entre as 2 casas na proporção do rateio, comparado ao consumo esperado de cada uma no mesmo período.</div>
+      <div class="chart-box"><canvas id="cSolarRateio"></canvas></div>
+      <div class="legend-note v" id="legSolarRateio">—</div>
     </div>
 
   
@@ -754,7 +776,7 @@
       <div class="row"><span class="k">Mercado Pago (pessoal, s/ corporativo)</span><span class="v" id="pisoMP">—</span></div>
       <div class="row"><span class="k">Assinaturas</span><span class="v" id="pisoAssinaturas">—</span></div>
       <div class="total-line"><span>Soma do piso absoluto</span><span class="v" style="color:var(--red)" id="pisoTotal">—</span></div>
-      <div class="legend-note v">Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, R$9.223,66 têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.</div>
+      <div class="legend-note v" id="legMPCorporativoImpacto">—</div>
     </div>
 
     <div class="section-num"><span class="n">04</span><h2>Reserva de Emergência — quanto tempo aguenta</h2></div>
@@ -795,9 +817,9 @@
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">IRRF</div><div class="v" style="font-weight:600;font-size:0.82rem">27,5% − R$908,73</div></div>
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Saúde/Dental fixo</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 382,67</div></div>
       </div>
-      <div class="v" style="font-size:0.68rem;color:var(--amber);margin-bottom:0.9rem">⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.</div>
+      <div class="v" id="legCoparticipacaoSaude" style="font-size:0.68rem;color:var(--amber);margin-bottom:0.9rem">—</div>
 
-      <div class="v" style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Taxas por hora (confiança média, ±15%)</div>
+      <div class="v" id="legTaxasPorHoraAviso" style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">—</div>
       <div class="grid-3" style="row-gap:0.7rem">
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 50%</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 121,50/h</div></div>
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 100%</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 160,62/h</div></div>
@@ -806,7 +828,7 @@
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Sobreaviso</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 72,76/h</div></div>
         <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">DSR (sempre aplica)</div><div style="font-weight:600;font-size:0.82rem">×1,20</div></div>
       </div>
-      <div class="v legend-note">Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$7.667,73/mês</strong>.</div>
+      <div class="v legend-note" id="legCenarioFicaEmCasa">—</div>
     </div>
 
     <div class="section-num"><span class="n">05</span><h2>Operação Superávit Normal — 12 meses de renda média</h2></div>
@@ -829,7 +851,7 @@
 
     <div class="section-num"><span class="n">06</span><h2>Operação Déficit Zero — 12 meses sem embarcar</h2></div>
     <div class="card" style="margin-bottom:1rem">
-      <div class="v" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Se você ficasse 12 meses seguidos sem embarque (líquido fixo de R$7.667,73/mês), o déficit contra o piso absoluto diminui sozinho conforme parcelas do Visa Infinite e do Mercado Pago vão terminando — sem cortar nada. Boletos, Consórcios, Recorrências e Assinaturas ficam constantes (não têm previsão de encerrar).</div>
+      <div class="v" id="legDeficitSemEmbarque" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
       <div class="chart-box tall"><canvas id="cDeficitZero"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
@@ -848,11 +870,6 @@
   </div>
 
   <div id="balancov2" class="master-pane">
-
-    <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
-      <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.3rem">Reestruturação Patrimonial — 16/07/2026</div>
-      <div style="font-size:0.72rem;color:var(--text-dim)">Estrutura aditiva: reorganiza a leitura do sistema em 6 grupos + Balanço Patrimonial, sem alterar nenhum indicador da V1 (Painel/Gráficos/Cenários permanecem como fonte oficial do dia a dia). Existem pendências e ressalvas metodológicas sinalizadas abaixo — este painel é uma primeira versão, não uma leitura definitiva.</div>
-    </div>
 
     <!-- 1 -->
     <div class="section-num"><span class="n">01</span><h2>🏛️ Patrimônio Físico</h2></div>
@@ -908,7 +925,7 @@
       <div class="row"><span class="k">Ativos (Físico + Financeiro)</span><span class="v" id="balAtivosTotal">R$ 548.868,05</span></div>
       <div class="row"><span class="k">Passivos</span><span class="v" style="color:var(--red)" id="balPassivosTotal2">R$ 80.325,74</span></div>
       <div class="row" style="font-weight:700;font-size:1.1rem;border-top:1px solid var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Patrimônio Líquido</span><span class="v" style="color:var(--green)" id="balPatrimonioLiquido">R$ 468.542,31</span></div>
-      <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">PGBL e FGTS (R$209.898,34 juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.</div>
+      <div class="v" id="legPGBLFGTSForaBalanco" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
     </div>
 
     <!-- 5 -->
@@ -926,26 +943,26 @@
     </div>
 
     <!-- 6 -->
-    <div class="section-num"><span class="n">06</span><h2>🛒 Gestão Operacional</h2></div>
+    <div class="section-num"><span class="n">06</span><h2>🛒 Reservas de Pagamento</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Caixa Variável</span><span class="v" id="balOpCaixaVariavel">R$ 1.930,76</span></div>
-      <div class="row"><span class="k">Caixa PIX Geral Vanessa <span style="color:var(--text-dim);font-weight:400">(conta autônoma dela, PGV — diferente da PIX Vanessa/PV do painel principal, que é reserva do Wallace)</span></span><span class="v" id="balOpPixVanessa">-R$ 0,04</span></div>
-      <div class="row"><span class="k">Caixa Boletos</span><span class="v" id="balResBoletos">R$ 2.599,38</span></div>
-      <div class="row"><span class="k">Caixa Mastercard/Infinite <span style="color:var(--text-dim);font-weight:400">(guarda o valor para pagar os 2 cartões até 28/07)</span></span><span class="v" id="balOpMastercardInfinite">R$ 11.231,87</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total operacional</span><span class="v" style="color:var(--green)" id="balOperacionalTotal">R$ 2.909,73</span></div>
-      <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Não inclui o registrador PIX_VANESSA (reserva do Wallace) — reconciliado em 16/07/2026, confirmado em R$0,00 (zerado após as transferências do dia). Caixa Boletos movida de Reservas para cá (18/07/2026, V85) — é pote de trabalho mensal (recebe e paga boletos todo ciclo), não meta patrimonial de longo prazo.</div>
+      <div class="row"><span class="k">Caixa Variável <span style="color:var(--text-dim);font-weight:400">(uso diário do ciclo)</span></span><span class="v" id="balOpCaixaVariavel">—</span></div>
+      <div class="row"><span class="k">Caixa Boletos <span style="color:var(--text-dim);font-weight:400">(pote de trabalho mensal)</span></span><span class="v" id="balResBoletos">—</span></div>
+      <div class="row"><span class="k">Caixa Mastercard/Infinite <span style="color:var(--text-dim);font-weight:400">(guarda o valor para pagar os 2 cartões)</span></span><span class="v" id="balOpMastercardInfinite">—</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balOperacionalTotal">—</span></div>
+      <div class="row" style="opacity:0.6;border-top:1px dashed var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Caixa PIX Geral Vanessa <span style="color:var(--text-dim);font-weight:400">(conta autônoma dela, PGV — não soma no total acima; diferente da PIX Vanessa/PV do painel principal, que é reserva do Wallace)</span></span><span class="v" id="balOpPixVanessa">—</span></div>
+      <div class="v" id="legReservasPagamentoDefinicao" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">—</div>
     </div>
 
     <!-- 7 -->
     <div class="section-num"><span class="n">07</span><h2>🔄 Obrigações Operacionais</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado/Vanessa)</span><span class="v" id="balObrVisa">R$ 10.833,59</span></div>
-      <div class="row"><span class="k">Mastercard Black (2244/4628, cartão principal)</span><span class="v" id="balObrMB">R$ 1.661,01</span></div>
-      <div class="row"><span class="k">Mercado Pago</span><span class="v" id="balObrMP">R$ 1.791,93</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">R$ 15.014,17</span></div>
-      <div class="row" style="margin-top:0.6rem;opacity:0.75"><span class="k">Fatura Wärtsilä <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3);margin-left:0.4rem;font-size:0.62rem">Corporativo, não soma</span></span><span class="v" id="balObrWartsila">R$ 656,67</span></div>
-      <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">CORRIGIDO 23/07/2026: Wärtsilä saiu do Total obrigações a pedido do usuário — é 100% corporativa/reembolsável, não deve se misturar com obrigações pessoais reais (mesmo tratamento já dado ao PGBL/FGTS no Patrimônio). Continua visível aqui só por transparência.</div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Ciclo de transição: migração pro Mastercard Black é gradual, item por item, só sai do Visa Infinite quando a fatura MB confirma a cobrança de verdade (não em bloco por promessa de migração). Confirmados até agora: Brisanet, New Car, Faculdade (2ª cobrança), Spotify, Amazon Prime. O resto (consórcios, Vivo, Claude, Netflix etc.) migra conforme for aparecendo na fatura MB nos próximos ciclos.</div>
+      <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado)</span><span class="v" id="balObrVisa">—</span></div>
+      <div class="row"><span class="k">Mastercard Black (2244/4628, cartão principal)</span><span class="v" id="balObrMB">—</span></div>
+      <div class="row"><span class="k">Mercado Pago <span style="color:var(--text-dim);font-weight:400">(líquido, já sem corporativo)</span></span><span class="v" id="balObrMP">—</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">—</span></div>
+      <div class="row" style="margin-top:0.6rem;opacity:0.75"><span class="k">Corporativo Mercado Pago (ciclo atual) <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3);margin-left:0.4rem;font-size:0.62rem">Já descontado acima</span></span><span class="v" id="balObrWartsila">—</span></div>
+      <div class="v" id="legMPCorporativoRetorno" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">—</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Migração para o Mastercard Black concluída (25/07/2026) — assinaturas, recorrências e consórcios já estão 100% no MB. Visa Infinite mantém só as parcelas em andamento, até quitar.</div>
     </div>
 
     <!-- 8 -->
@@ -954,7 +971,7 @@
       <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">R$ 38.623,76</span></div>
       <div class="row"><span class="k">Obrigações + Custos Variáveis + Aportes</span><span class="v" style="color:var(--red)" id="balFluxoSaidas">R$ 14.317,00</span></div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Resultado (Superávit)</span><span class="v" style="color:var(--green)" id="balFluxoResultado">R$ 21.821,37</span></div>
-      <div class="v" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.</div>
+      <div class="v" id="legDestinoExcedente" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">—</div>
       <!-- V150: nota de "ciclo de transicao" removida - Fluxo agora e 100% calculado dinamicamente (entradas/saidas/resultado), nao ha mais distorcao fixa a explicar. -->
     </div>
 
@@ -976,6 +993,35 @@
 
 </div>
 
-<script src="app.js"></script>
+<script>
+// V169 (26/07/2026): busca os dados MAIS RECENTES (compras, saldos) do Supabase antes de carregar
+// o app.js - assim toda vez que o Claude atualizar uma compra no banco, o site ja reflete na proxima
+// abertura, sem precisar de novo deploy. window.WALLACE_DADOS_REMOTOS fica disponivel para o app.js
+// aplicar por cima do VARS estatico. Se a busca falhar (offline, banco fora do ar), o site continua
+// funcionando normalmente com os dados publicados no ultimo deploy - nunca quebra.
+window.WALLACE_DADOS_REMOTOS = null;
+(async function buscarDadosRemotos(){
+  try {
+    const resp = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/wallace_dados?select=dados&id=eq.1', {
+      headers: {
+        'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+      },
+      cache: 'no-store'
+    });
+    if(resp.ok){
+      const rows = await resp.json();
+      if(rows && rows[0] && rows[0].dados){
+        window.WALLACE_DADOS_REMOTOS = rows[0].dados;
+      }
+    }
+  } catch(e) {
+    console.warn('Nao consegui buscar dados remotos do Supabase, usando versao publicada localmente:', e);
+  }
+  const script = document.createElement('script');
+  script.src = 'app.js?v=' + Date.now(); // V170: cache-busting - forca o navegador a sempre buscar a versao mais recente do app.js, nunca servir uma copia antiga do cache local
+  document.body.appendChild(script);
+})();
+</script>
 </body>
 </html>
