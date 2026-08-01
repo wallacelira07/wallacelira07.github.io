@@ -1,0 +1,29 @@
+name: Atualizar Geração Solar (SAJ → Supabase)
+
+# Roda 1x por dia, sozinho, sem precisar de servidor nenhum — gratuito no GitHub Actions.
+# Também pode ser disparado manualmente na aba "Actions" do repositório, botão "Run workflow".
+on:
+  schedule:
+    - cron: '0 12 * * *'   # todo dia às 12:00 UTC (09:00 horário de Brasília)
+  workflow_dispatch: {}     # permite rodar manualmente quando quiser
+
+jobs:
+  atualizar-geracao:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Rodar script de atualização
+        env:
+          SAJ_USERNAME: ${{ secrets.SAJ_USERNAME }}
+          SAJ_PASSWORD: ${{ secrets.SAJ_PASSWORD }}
+          SAJ_PLANT_UID: ${{ secrets.SAJ_PLANT_UID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 atualizar_geracao_saj.py
