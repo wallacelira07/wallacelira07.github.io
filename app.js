@@ -3508,6 +3508,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   //   dentro de um mes especifico, subtrai a leitura acumulada do mes anterior. Meses sem leitura
   //   ainda ficam null (barra vazia) ate uma leitura real cobrir aquele periodo.
   const solarL = VARS.SOLAR_LEITURAS_CALC;
+  const ultimaSolar = solarL[solarL.length-1];
   const mesAtivacao = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = julho
   const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele mes}
   solarL.forEach(l=>{
@@ -3515,24 +3516,104 @@ new Chart(document.getElementById('g_cAlivio'), {
     const idx = (mesLeitura - mesAtivacao + 12) % 12;
     if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
   });
-  let creditoAcumAnterior = 0;
+  let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0;
   const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
+  // NOVO 01/08/2026: mesma logica de delta mes-a-mes, estendida pra Unidade Geradora (secao 10) -
+  // importado (03) e exportado (103) mensais, geracao estimada do periodo e consumo direto derivado.
+  const importadoMensal = [], exportadoMensal = [], geracaoEstMensal = [], consumoDiretoMensal = [], saldoLiquidoMensal = [];
   for(let i=0;i<12;i++){
     const l = leituraMaisRecentePorMes[i];
     if(l){
       const creditoDoMes = Math.round((l.creditoLiquido - creditoAcumAnterior)*100)/100;
       creditoMensalWallace.push(Math.round(creditoDoMes*VARS.solarRateioWallace*100)/100);
       creditoMensalIrma.push(Math.round(creditoDoMes*VARS.solarRateioIrma*100)/100);
+      const importadoDoMes = Math.round((l.leitura03 - leitura03Anterior)*100)/100;
+      const exportadoDoMes = Math.round((l.leitura103 - leitura103Anterior)*100)/100;
+      const diasDoMes = Math.max(1, l.dias - diasAcumAnterior);
+      const geracaoDoMes = Math.round(VARS.solarGeracaoDiariaEstimada*diasDoMes*100)/100;
+      const consumoDiretoDoMes = Math.round((geracaoDoMes - exportadoDoMes)*100)/100;
+      importadoMensal.push(importadoDoMes);
+      exportadoMensal.push(exportadoDoMes);
+      geracaoEstMensal.push(geracaoDoMes);
+      consumoDiretoMensal.push(consumoDiretoDoMes);
+      saldoLiquidoMensal.push(creditoDoMes);
       creditoAcumAnterior = l.creditoLiquido;
+      leitura03Anterior = l.leitura03;
+      leitura103Anterior = l.leitura103;
+      diasAcumAnterior = l.dias;
       temLeituraNoMes.push(true);
     } else {
       creditoMensalWallace.push(null);
       creditoMensalIrma.push(null);
+      importadoMensal.push(null);
+      exportadoMensal.push(null);
+      geracaoEstMensal.push(null);
+      consumoDiretoMensal.push(null);
+      saldoLiquidoMensal.push(null);
       temLeituraNoMes.push(false);
     }
   }
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
+
+  // ===== NOVO 01/08/2026: Unidade Geradora (Casa da Mãe) - especificação do usuário (documento anexado) =====
+  // Consumo direto das placas nao e medido diretamente pelo medidor bidirecional (que so ve 03/103) -
+  // derivado da GERACAO ESTIMADA (unico dado de geracao total disponivel, app SAJ) menos o exportado
+  // real (103). Por isso "consumo direto" e sempre marcado como estimado, nunca "real" puro - fica
+  // documentado explicitamente na tela, sem fingir precisao que a leitura nao da.
+  if(ultimaSolar){
+    const importadoAcum = ultimaSolar.leitura03;
+    const exportadoAcum = ultimaSolar.leitura103;
+    const saldoLiquidoAcum = ultimaSolar.creditoLiquido;
+    const geracaoEstAcum = Math.round(VARS.solarGeracaoDiariaEstimada*ultimaSolar.dias*100)/100;
+    const consumoDiretoAcum = Math.round((geracaoEstAcum - exportadoAcum)*100)/100;
+    const consumoTotalCasa = Math.round((importadoAcum + consumoDiretoAcum)*100)/100;
+    const autoconsumoPct = geracaoEstAcum>0 ? Math.round(consumoDiretoAcum/geracaoEstAcum*100) : 0;
+    const exportacaoPct = geracaoEstAcum>0 ? Math.round(exportadoAcum/geracaoEstAcum*100) : 0;
+    const dependenciaPct = consumoTotalCasa>0 ? Math.round(importadoAcum/consumoTotalCasa*100) : 0;
+    let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
+    if(saldoLiquidoAcum > 0) statusUG = exportacaoPct >= 60 ? {emoji:'🟢', texto:'Excelente', cor:'#34c98a'} : {emoji:'🟡', texto:'Boa', cor:'#e8a63a'};
+
+    const setUG = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    setUG('ugImportado', importadoAcum+' kWh');
+    setUG('ugExportado', exportadoAcum+' kWh');
+    setUG('ugConsumoDireto', consumoDiretoAcum+' kWh');
+    setUG('ugConsumoDiretoPct', autoconsumoPct+'%');
+    setUG('ugSaldoLiquido', (saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
+    const ugSaldoEl = document.getElementById('ugSaldoLiquido');
+    if(ugSaldoEl) ugSaldoEl.style.color = saldoLiquidoAcum>=0 ? '#34c98a' : '#e2554f';
+    setUG('ugAutoconsumoPct', autoconsumoPct+'%');
+    setUG('ugExportacaoPct', exportacaoPct+'%');
+    setUG('ugDependenciaPct', dependenciaPct+'%');
+    const ugStatusEl = document.getElementById('ugStatus');
+    if(ugStatusEl){ ugStatusEl.textContent = statusUG.emoji+' '+statusUG.texto; ugStatusEl.style.color = statusUG.cor; }
+
+    const ugResumoEl = document.getElementById('ugResumo');
+    if(ugResumoEl){
+      ugResumoEl.innerHTML = 'A casa consumiu aproximadamente <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas (estimado a partir da geração). <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. Mesmo assim a usina gerou excedente suficiente para exportar <strong>'+exportadoAcum+' kWh</strong>. Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
+    }
+
+    // Historico mes a mes (03, 103, consumo direto, saldo liquido)
+    new Chart(document.getElementById('cUnidadeGeradora'), {
+      type:'bar',
+      data:{labels:mesesPares,
+        datasets:[
+          {label:'Importado (código 03)', data:importadoMensal, backgroundColor:'#e2554f', borderRadius:3},
+          {label:'Consumo direto (estimado)', data:consumoDiretoMensal, backgroundColor:'#e8a63a', borderRadius:3},
+          {label:'Exportado (código 103)', data:exportadoMensal, backgroundColor:'#3987e5', borderRadius:3},
+          {label:'Saldo líquido', data:saldoLiquidoMensal, backgroundColor:'#34c98a', borderRadius:3}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
+        plugins:{legend:legendStd2,tooltip:{callbacks:{
+          label:c=>{
+            if(c.raw===null) return c.dataset.label+': sem leitura ainda';
+            return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
+          }
+        }}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.7,barPercentage:0.8},
+          y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+    });
+  }
 
   const solarBarLabelPlugin = {
     id:'solarBarLabelPlugin',
@@ -3574,7 +3655,6 @@ new Chart(document.getElementById('g_cAlivio'), {
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.7,barPercentage:0.8},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
-  const ultimaSolar = solarL[solarL.length-1];
   const legSolarEl = document.getElementById('legSolarRateio');
   if(legSolarEl && ultimaSolar){
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
@@ -3587,8 +3667,12 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Constantes faceis de ajustar se a janela/dia de leitura mudar (pedido explicito do usuario).
   const DIA_LEITURA_WALLACE = 20; // leitura Energisa do apartamento, janela 19-21
   const DIA_LEITURA_WELLIDA = 8;  // leitura da casa da mae/Wellida, janela 06-09
-  const META_WALLACE = 321;       // kWh, meta mensal de credito do Wallace
-  const META_WELLIDA = 119;       // kWh, meta mensal de credito da Wellida (Irma)
+  // CORRIGIDO 01/08/2026 (V241, pedido do usuario - "use a meta do mes especifico igual e feito pra
+  // mim"): meta deixa de ser numero fixo solto (321/119) e passa a derivar do mesmo indice (mes atual,
+  // posicao 0) do historico real de 12 meses de cada casa - mesmo criterio ja usado pro Wallace desde o
+  // inicio (321 sempre foi kwhAnoAnterior[0], so nao estava escrito assim). Nunca mais dessincroniza.
+  const META_WALLACE = kwhAnoAnterior[0];       // kWh, consumo real do mesmo mes no ano anterior (Wallace)
+  const META_WELLIDA = consumoMensalIrma[0];    // kWh, consumo real do mesmo mes no ano anterior (Wellida)
 
   function calcularDiasRestantes(diaLeituraAlvo, hojeRef){
     const hj = hojeRef || new Date();

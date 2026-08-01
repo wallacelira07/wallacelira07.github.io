@@ -731,14 +731,59 @@
       <div class="legend-note" style="font-size:0.68rem;margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, R$69,87 = mínimo + Iluminação Pública).</div>
     </div>
 
-    <div class="section-num"><span class="n">10</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
+    <div class="section-num"><span class="n">10</span><h2>☀️ Unidade Geradora (Casa da Mãe)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
+
+      <div class="grid-2">
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugImportado">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugExportado">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Consumo direto das placas (estimado)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">— <span class="v" id="ugConsumoDiretoPct" style="font-size:0.75rem;color:var(--text-mid)"></span></div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📊 Saldo líquido da unidade</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugSaldoLiquido">—</div></div>
+      </div>
+
+      <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:8px;font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
+
+      <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
+      <div class="grid-3">
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Autoconsumo</div><div class="v" style="font-weight:600" id="ugAutoconsumoPct">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dependência da rede</div><div class="v" style="font-weight:600" id="ugDependenciaPct">—</div></div>
+      </div>
+      <div style="margin-top:0.6rem;font-weight:600" id="ugStatus">—</div>
+
+      <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.6rem">Fluxo de energia</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.78rem;text-align:center">
+        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">☀️ Placas solares — geração total</div>
+        <div style="color:var(--text-dim)">↓</div>
+        <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
+          <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">🏠 Consumo imediato da casa</div>
+          <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">📤 Exportação (código 103)</div>
+        </div>
+        <div style="color:var(--text-dim)">↓ (só a exportação vira crédito)</div>
+        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">💳 Créditos Energisa</div>
+        <div style="color:var(--text-dim)">↓</div>
+        <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
+          <div style="padding:0.5rem 0.8rem;background:rgba(52,201,138,0.12);border-radius:8px;border:1px solid #34c98a;flex:1;min-width:130px">Wallace (71%)</div>
+          <div style="padding:0.5rem 0.8rem;background:rgba(232,166,58,0.12);border-radius:8px;border:1px solid #e8a63a;flex:1;min-width:130px">Wellida (29%)</div>
+        </div>
+        <div style="color:var(--text-dim);margin-top:0.4rem">À noite ↓</div>
+        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">🔌 Rede Energisa → Código 03 (Importação)</div>
+      </div>
+
+      <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>
+      <div class="chart-box tall"><canvas id="cUnidadeGeradora"></canvas></div>
+      <div class="legend-note" style="font-size:0.68rem;margin-top:0.4rem">Consumo direto é sempre uma estimativa (geração total do app SAJ − exportado real) — o medidor bidirecional só mede o que entra/sai da rede, não o que a casa consome direto das placas durante o dia.</div>
+    </div>
+
+    <div class="section-num"><span class="n">11</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>
       <div class="chart-box tall"><canvas id="cSolarRateio"></canvas></div>
       <div class="legend-note v" id="legSolarRateio">—</div>
     </div>
 
-    <div class="section-num"><span class="n">11</span><h2>📈 Previsão até a Próxima Leitura</h2></div>
+    <div class="section-num"><span class="n">12</span><h2>📈 Previsão até a Próxima Leitura</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Compara o ritmo de geração de crédito com o necessário pra cobrir a meta mensal até a próxima leitura da Energisa de cada unidade — atualiza sozinho conforme novas leituras (seção 10) chegam.</div>
 
