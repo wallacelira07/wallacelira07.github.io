@@ -1115,6 +1115,25 @@ VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.reduce((
 // real, igual a formula que ja vale pro ciclo atual (necessidadeLiquida = necessidadeTotalBruta -
 // coberturaGarantida) - nunca mais 2 numeros independentes podendo divergir.
 VARS.necessidadeLiquidaHeld = Math.round((VARS.totalOperacionalHeld + VARS.orcamentoOperacional - VARS.coberturaGarantidaConfirmada) * 100) / 100;
+// NOVO 01/08/2026 (V255, pedido do usuário): trava de consistência pras leituras solares. O medidor
+// bidirecional NUNCA zera e os codigos 03/103 SO PODEM subir de uma leitura pra outra (nunca descer) -
+// se um valor novo vier menor que o anterior, e quase certamente erro de leitura/digitacao (nao um
+// dado real). Gera um aviso visivel em vez de aceitar cego. Nao bloqueia o calculo (mantem o numero
+// como veio, documentado) - so avisa, pra decisao ficar com o usuario/Claude na proxima sessao.
+VARS.SOLAR_AVISOS_CONSISTENCIA = [];
+for(let i=1;i<VARS.SOLAR_LEITURAS.length;i++){
+  const anterior = VARS.SOLAR_LEITURAS[i-1];
+  const atual = VARS.SOLAR_LEITURAS[i];
+  if(atual.leitura03 < anterior.leitura03){
+    VARS.SOLAR_AVISOS_CONSISTENCIA.push(`Código 03 caiu de ${anterior.leitura03} (${anterior.data}) para ${atual.leitura03} (${atual.data}) — o medidor nunca deveria retroceder. Confira a leitura.`);
+  }
+  if(atual.leitura103 < anterior.leitura103){
+    VARS.SOLAR_AVISOS_CONSISTENCIA.push(`Código 103 caiu de ${anterior.leitura103} (${anterior.data}) para ${atual.leitura103} (${atual.data}) — o medidor nunca deveria retroceder. Confira a leitura.`);
+  }
+  if(atual.geracaoAcumulada!=null && anterior.geracaoAcumulada!=null && atual.geracaoAcumulada < anterior.geracaoAcumulada){
+    VARS.SOLAR_AVISOS_CONSISTENCIA.push(`Geração acumulada do inversor caiu de ${anterior.geracaoAcumulada} (${anterior.data}) para ${atual.geracaoAcumulada} (${atual.data}) — confira a leitura da SAJ.`);
+  }
+}
 // NOVO 31/07/2026: deriva credito/consumo/saldo por casa para cada leitura solar registrada.
 // Formulas de Base_Calculo_Rateio_Solar.md secao 3, executadas aqui (nunca hardcoded a mao).
 VARS.SOLAR_LEITURAS_CALC = VARS.SOLAR_LEITURAS.map(l=>{
@@ -3631,6 +3650,11 @@ new Chart(document.getElementById('g_cAlivio'), {
   // eliminar qualquer estimativa - agora so calcula quando existir leitura REAL de geracaoAcumulada
   // (inversor SAJ). Sem esse dado, os campos dependentes mostram "Dados insuficientes para calculo"
   // em vez de estimar - nunca mais inventar um numero.
+  const avisosConsistenciaEl = document.getElementById('ugAvisosConsistencia');
+  if(avisosConsistenciaEl && VARS.SOLAR_AVISOS_CONSISTENCIA.length){
+    avisosConsistenciaEl.style.display = 'block';
+    avisosConsistenciaEl.innerHTML = '⚠️ <strong>Possível erro de leitura detectado:</strong><br>' + VARS.SOLAR_AVISOS_CONSISTENCIA.join('<br>');
+  }
   if(ultimaSolar){
     const importadoAcum = ultimaSolar.leitura03;
     const exportadoAcum = ultimaSolar.leitura103;
