@@ -28,7 +28,7 @@
 
   <div class="cover">
     <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span></div>
-    <h1>Painel Financeiro V1.8</h1>
+    <h1>Painel Financeiro</h1>
     <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
     <div class="cover-metrics">
       <div><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div>
@@ -730,7 +730,7 @@
 
     <div class="section-num"><span class="n">10</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito líquido = injetado (código 103) − consumido (código 03) no medidor bidirecional da casa da mãe, acumulado desde 21/07/2026 (o medidor nunca zera). Dividido em paralelo entre as 2 casas na proporção do rateio, comparado ao consumo esperado de cada uma no mesmo período.</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo usa o histórico real dos últimos 12 meses como estimativa — substituo pelo real assim que você atualizar. Meses sem leitura ainda ficam sem barra de crédito.</div>
       <div class="chart-box"><canvas id="cSolarRateio"></canvas></div>
       <div class="legend-note v" id="legSolarRateio">—</div>
     </div>
@@ -988,8 +988,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V10 · Layout V1.9 (V227, gráfico Energia Solar redesenhado)</span>
-    <span>Próxima TX: TX000136</span>
+    <span>Sistema Wallace Lira · ERP V10 · v01/08/2026 (V231)</span>
   </footer>
 
 </div>

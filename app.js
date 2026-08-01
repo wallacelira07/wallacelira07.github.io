@@ -665,6 +665,16 @@ const VARS = {
   // valer sobre o calculo/projecao daquele mes no grafico da secao 09. Comeca vazio - nenhuma fatura
   // pos-solar chegou ainda.
   ENERGIA_FATURAS_REAIS: {},
+  // NOVO 01/08/2026: consumo mensal historico da Irma (mesmo padrao do kwhAnoAnterior do Wallace, secao
+  // 09) - nao existe historico mes-a-mes dela ainda, entao comeca com a media fixa (119) repetida nos 12
+  // meses. Quando o usuario informar consumo real de um mes especifico dela, entra aqui (chave = nome do
+  // mes) e passa a valer sobre a media.
+  SOLAR_CONSUMO_IRMA_MES_REAL: {},
+  // NOVO 01/08/2026: quando um mes de leitura solar FECHA (o usuario confirma o total gerado naquele mes
+  // inteiro, nao so uma leitura parcial), o valor entra aqui (chave = nome do mes, valor = {wallace, irma}
+  // em kWh) e passa a valer sobre a estimativa. O mes atual (em andamento) usa a ultima leitura parcial
+  // diretamente, nao precisa estar aqui.
+  SOLAR_CREDITO_MENSAL_REAL: {},
   SOLAR_LEITURAS: [
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
@@ -3477,31 +3487,59 @@ new Chart(document.getElementById('g_cAlivio'), {
     legEnergiaEl.innerHTML = 'Mês atual (Jul/26): ano anterior <strong style="color:#e8a63a">'+fmt(anoAnterior[0])+'</strong> vs. este ano <strong style="color:#34c98a">'+fmt(esteAno[0])+'</strong> ('+(esteAnoFonte[0].fonte==='real'?'fatura real':'baseado na geração real do medidor')+') → economia de <strong style="color:#3987e5">'+fmt(economiaAtual)+'</strong> no mês. Projeção de economia nos 12 meses: <strong style="color:#3987e5">'+fmt(economiaAnualEstimada)+'</strong>. Toque numa barra pro valor exato e a fonte (real/calculado/projeção).';
   }
 
-  // NOVO 31/07/2026: Rateio Solar por casa - credito acumulado (Wallace/Irma) vs consumo esperado
-  // acumulado no mesmo periodo. Quando a linha de credito cruza acima da de consumo, a casa esta
-  // "coberta" (formulas de Base_Calculo_Rateio_Solar.md, executadas em VARS.SOLAR_LEITURAS_CALC).
+  // REESTRUTURADO 01/08/2026 (V231, pedido do usuario): "montar o grafico 10 por mes, usando o
+  // consumo dos ultimos 12 meses como consumo ate eu atualizar o real". Antes cada barra era uma
+  // LEITURA (cumulativa desde ativacao); agora cada barra e um MES do calendario (mesmo eixo Jul..Jun
+  // da secao 09), e cada mes recebe:
+  // - Consumo Wallace: reaproveita kwhAnoAnterior (consumo REAL do apartamento nos ultimos 12 meses,
+  //   ja usado na secao 09) como estimativa de referencia - Wallace pediu explicitamente pra usar isso
+  //   como base "ate eu atualizar o real" (quando ele tiver consumo pos-solar de fato medido).
+  // - Consumo Irma: consumoDiarioIrma x 30 (nao ha historico mensal dela ainda, so a media fixa).
+  // - Credito Wallace/Irma: derivado das leituras reais (SOLAR_LEITURAS), agrupadas por mes de
+  //   calendario. Cada leitura e cumulativa desde a ativacao (21/07) - pra achar o credito GERADO
+  //   dentro de um mes especifico, subtrai a leitura acumulada do mes anterior. Meses sem leitura
+  //   ainda ficam null (barra vazia) ate uma leitura real cobrir aquele periodo.
   const solarL = VARS.SOLAR_LEITURAS_CALC;
-  const solarLabels = solarL.map(l=>{
-    const [y,m,d] = l.data.split('-');
-    return d+'/'+m+(l.fonte==='estimado' ? '*' : '');
+  const mesAtivacao = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = julho
+  const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele mes}
+  solarL.forEach(l=>{
+    const mesLeitura = Number(l.data.split('-')[1]);
+    const idx = (mesLeitura - mesAtivacao + 12) % 12;
+    if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
   });
-  // NOVO 01/08/2026 (V230, pedido do usuario): valores em cima de cada barra, sempre visiveis sem
-  // precisar tocar. Diferente da secao 09 (12 categorias, risco real de colisao ja visto e corrigido em
-  // V227) - aqui sao poucas leituras por enquanto (cresce devagar, uma leitura de cada vez), entao o
-  // rotulo direto na barra nao tem o mesmo risco de sobreposicao.
+  let creditoAcumAnterior = 0;
+  const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
+  for(let i=0;i<12;i++){
+    const l = leituraMaisRecentePorMes[i];
+    if(l){
+      const creditoDoMes = Math.round((l.creditoLiquido - creditoAcumAnterior)*100)/100;
+      creditoMensalWallace.push(Math.round(creditoDoMes*VARS.solarRateioWallace*100)/100);
+      creditoMensalIrma.push(Math.round(creditoDoMes*VARS.solarRateioIrma*100)/100);
+      creditoAcumAnterior = l.creditoLiquido;
+      temLeituraNoMes.push(true);
+    } else {
+      creditoMensalWallace.push(null);
+      creditoMensalIrma.push(null);
+      temLeituraNoMes.push(false);
+    }
+  }
+  const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
+  const consumoMensalIrma = mesesPares.map(()=>Math.round(VARS.solarConsumoDiarioIrma*30*100)/100);
+
   const solarBarLabelPlugin = {
     id:'solarBarLabelPlugin',
     afterDatasetsDraw(chart){
       const {ctx} = chart;
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.font = "600 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         ctx.fillStyle = ds.backgroundColor;
         meta.data.forEach((bar,i)=>{
           const v = ds.data[i];
-          ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
+          if(v===null || v===undefined) return;
+          ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
         });
       });
       ctx.restore();
@@ -3510,15 +3548,21 @@ new Chart(document.getElementById('g_cAlivio'), {
   new Chart(document.getElementById('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
-    data:{labels:solarLabels,
+    data:{labels:mesesPares,
       datasets:[
-        {label:'Crédito Wallace (gerado)', data:solarL.map(l=>l.creditoWallace), backgroundColor:'#34c98a', borderRadius:3},
-        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), backgroundColor:'#f0c94a', borderRadius:3},
-        {label:'Crédito Irmã (gerado)', data:solarL.map(l=>l.creditoIrma), backgroundColor:'#1c7a54', borderRadius:3},
-        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), backgroundColor:'#a9861f', borderRadius:3}
+        {label:'Crédito Wallace (gerado)', data:creditoMensalWallace, backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Consumo esperado Wallace', data:consumoMensalWallace, backgroundColor:'#f0c94a', borderRadius:3},
+        {label:'Crédito Irmã (gerado)', data:creditoMensalIrma, backgroundColor:'#1c7a54', borderRadius:3},
+        {label:'Consumo esperado Irmã', data:consumoMensalIrma, backgroundColor:'#a9861f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
-      plugins:{legend:legendStd2,tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'}}},
+      plugins:{legend:legendStd2,tooltip:{callbacks:{
+        label:c=>{
+          if(c.raw===null) return c.dataset.label+': sem leitura ainda';
+          const nota = (c.datasetIndex===0 && !temLeituraNoMes[c.dataIndex]) ? '' : '';
+          return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
+        }
+      }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
@@ -3527,7 +3571,8 @@ new Chart(document.getElementById('g_cAlivio'), {
   if(legSolarEl && ultimaSolar){
     const sinalW = ultimaSolar.saldoWallace>=0 ? '+' : '';
     const sinalI = ultimaSolar.saldoIrma>=0 ? '+' : '';
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido total <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> · Wallace saldo <strong style="color:'+(ultimaSolar.saldoWallace>=0?'#34c98a':'#e2554f')+'">'+sinalW+ultimaSolar.saldoWallace+' kWh</strong> · Irmã saldo <strong style="color:'+(ultimaSolar.saldoIrma>=0?'#34c98a':'#e2554f')+'">'+sinalI+ultimaSolar.saldoIrma+' kWh</strong>. * = ponto estimado (sem leitura real do dia).';
+    const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> · Wallace saldo <strong style="color:'+(ultimaSolar.saldoWallace>=0?'#34c98a':'#e2554f')+'">'+sinalW+ultimaSolar.saldoWallace+' kWh</strong> · Irmã saldo <strong style="color:'+(ultimaSolar.saldoIrma>=0?'#34c98a':'#e2554f')+'">'+sinalI+ultimaSolar.saldoIrma+' kWh</strong>. Consumo mostrado é o histórico dos últimos 12 meses (Wallace: consumo real do apartamento antes do solar · Irmã: média fixa) — substituo mês a mês pelo consumo real assim que você me passar. '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.';
   }
 })();
 
