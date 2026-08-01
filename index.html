@@ -332,11 +332,12 @@
             const content = document.getElementById('dashboardContent');
             content.innerHTML = '<p style="padding: 20px; text-align: center;">⏳ Carregando painel...</p>';
 
-            fetch('Sistema_Wallace_Lira_Completo.html', { method: 'HEAD' })
+            const cacheBust = Date.now();
+            fetch('Sistema_Wallace_Lira_Completo.html?v=' + cacheBust, { method: 'HEAD', cache: 'no-store' })
                 .then(r => {
                     if (!r.ok) throw new Error('Arquivo não encontrado (status ' + r.status + ')');
                     const iframe = document.createElement('iframe');
-                    iframe.src = 'Sistema_Wallace_Lira_Completo.html';
+                    iframe.src = 'Sistema_Wallace_Lira_Completo.html?v=' + cacheBust;
                     iframe.title = 'Sistema Wallace Lira - Painel';
                     content.innerHTML = '';
                     content.appendChild(iframe);

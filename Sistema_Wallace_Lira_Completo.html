@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Sistema Wallace Lira — Painel Completo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="stylesheet" href="styles.css">
+<script>window.__cacheBust = Date.now();document.write('<link rel="stylesheet" href="styles.css?v='+window.__cacheBust+'">');</script>
 </head>
 <body>
 <script>
@@ -259,7 +259,7 @@
   </div>
 
   <!-- 09b -->
-  <div class="section-num"><span class="n">09</span><h2>Mastercard Black (2244 · Wallace, ativo / 6351 · Vanessa, ativo)</h2></div>
+  <div class="section-num"><span class="n">09</span><h2>Mastercard Black (1371 · Wallace, ativo / 6351 · Vanessa, ativo)</h2></div>
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
@@ -340,20 +340,20 @@
   <div class="card">
     <!-- V174: botao de filtro "historico completo/ciclo atual" removido - o seletor de ciclo no topo do painel (Jul/26 🟢 | Jun/26 🔒) agora e a UNICA forma de navegar entre periodos, controlando tambem os Livros Razao. -->
     <div class="tabs" id="lrTabs">
-      <button class="tab active" id="lrTabBtn_lrw" onclick="showLR('lrw',this)">LRW - Wallace (0)</button>
-      <button class="tab" id="lrTabBtn_lrv" onclick="showLR('lrv',this)">LRV - Vanessa (2)</button>
-      <button class="tab" id="lrTabBtn_lrb" onclick="showLR('lrb',this)">LRB - Boletos (9)</button>
-      <button class="tab" id="lrTabBtn_lrp" onclick="showLR('lrp',this)">LRP - Parcelas (16)</button>
-      <button class="tab" id="lrTabBtn_lrs" onclick="showLR('lrs',this)">LRS - Assinaturas (13)</button>
-      <button class="tab" id="lrTabBtn_lrr" onclick="showLR('lrr',this)">LRR - Recorrências (7)</button>
-      <button class="tab" id="lrTabBtn_lrcon" onclick="showLR('lrcon',this)">LRCON - Consórcios (2)</button>
-      <button class="tab" id="lrTabBtn_lrc" onclick="showLR('lrc',this)">LRC - Corporativo (6)</button>
-      <button class="tab" id="lrTabBtn_lrmp" onclick="showLR('lrmp',this)">LRMP - Merc. Pago (9)</button>
-      <button class="tab" id="lrTabBtn_lrcv" onclick="showLR('lrcv',this)">LRCV - Caixa Var. (0)</button>
-      <button class="tab" id="lrTabBtn_lrei" onclick="showLR('lrei',this)">LREI - Empréstimos (1)</button>
-      <button class="tab" id="lrTabBtn_lrdoacao" onclick="showLR('lrdoacao',this)">LRDOA - Doações (1)</button>
-      <button class="tab" id="lrTabBtn_lrpv" onclick="showLR('lrpv',this)">LRPGV - PGV</button>
-      <button class="tab" id="lrTabBtn_lrpvsaldo" onclick="showLR('lrpvsaldo',this)">LRPV - PV</button>
+      <button class="tab active" id="lrTabBtn_lrw" onclick="showLR('lrw',this)">LRW - Wallace</button>
+      <button class="tab" id="lrTabBtn_lrv" onclick="showLR('lrv',this)">LRV - Vanessa</button>
+      <button class="tab" id="lrTabBtn_lrb" onclick="showLR('lrb',this)">LRB - Boletos</button>
+      <button class="tab" id="lrTabBtn_lrp" onclick="showLR('lrp',this)">LRP - Parcelas</button>
+      <button class="tab" id="lrTabBtn_lrs" onclick="showLR('lrs',this)">LRS - Assinaturas</button>
+      <button class="tab" id="lrTabBtn_lrr" onclick="showLR('lrr',this)">LRR - Recorrências</button>
+      <button class="tab" id="lrTabBtn_lrcon" onclick="showLR('lrcon',this)">LRCON - Consórcios</button>
+      <button class="tab" id="lrTabBtn_lrc" onclick="showLR('lrc',this)">LRC - Corporativo</button>
+      <button class="tab" id="lrTabBtn_lrmp" onclick="showLR('lrmp',this)">LRMP - Mercado Pago</button>
+      <button class="tab" id="lrTabBtn_lrcv" onclick="showLR('lrcv',this)">LRCV - Caixa Variável</button>
+      <button class="tab" id="lrTabBtn_lrei" onclick="showLR('lrei',this)">LREI - Empréstimos Internos</button>
+      <button class="tab" id="lrTabBtn_lrdoacao" onclick="showLR('lrdoacao',this)">LRDOA - Doações</button>
+      <button class="tab" id="lrTabBtn_lrpv" onclick="showLR('lrpv',this)">LRPGV - PIX Geral Vanessa</button>
+      <button class="tab" id="lrTabBtn_lrpvsaldo" onclick="showLR('lrpvsaldo',this)">LRPV - PIX Vanessa</button>
     </div>
 
     <div id="lrw" class="pane active">
@@ -733,7 +733,7 @@
 
     <div class="section-num"><span class="n">10</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo usa o histórico real dos últimos 12 meses como estimativa — substituo pelo real assim que você atualizar. Meses sem leitura ainda ficam sem barra de crédito.</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>
       <div class="chart-box tall"><canvas id="cSolarRateio"></canvas></div>
       <div class="legend-note v" id="legSolarRateio">—</div>
     </div>
@@ -1000,7 +1000,7 @@
     <div class="section-num"><span class="n">07</span><h2>🔄 Obrigações Operacionais</h2></div>
     <div class="card">
       <div class="row"><span class="k">Visa Infinite (4844/4845, aposentado)</span><span class="v" id="balObrVisa">—</span></div>
-      <div class="row"><span class="k">Mastercard Black (2244/4628, cartão principal)</span><span class="v" id="balObrMB">—</span></div>
+      <div class="row"><span class="k">Mastercard Black (1371/4628, cartão principal)</span><span class="v" id="balObrMB">—</span></div>
       <div class="row"><span class="k">Mercado Pago <span style="color:var(--text-dim);font-weight:400">(líquido, já sem corporativo)</span></span><span class="v" id="balObrMP">—</span></div>
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">—</span></div>
       <div class="row" style="margin-top:0.6rem;opacity:0.75"><span class="k">Corporativo Mercado Pago (ciclo atual) <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3);margin-left:0.4rem;font-size:0.62rem">Já descontado acima</span></span><span class="v" id="balObrWartsila">—</span></div>

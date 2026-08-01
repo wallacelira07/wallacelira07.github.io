@@ -20,6 +20,7 @@
     color: var(--text);
     font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
     padding: 2.5rem 1.5rem 5rem;
+    overflow-x:hidden;
   }
   .wrap{max-width:1180px;margin:0 auto}
 
@@ -98,7 +99,7 @@
 
   .card{
     background:var(--surface);border:1px solid var(--border);border-radius:10px;
-    padding:1.1rem 1.3rem;
+    padding:1.1rem 1.3rem;overflow-x:hidden;
   }
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
@@ -146,14 +147,14 @@
   .pane{display:none}
   .pane.active{display:block}
 
-  table{width:100%;border-collapse:collapse;font-size:0.82rem}
+  table{width:100%;border-collapse:collapse;font-size:0.82rem;table-layout:fixed}
   th{
     text-align:left;font-size:0.68rem;font-weight:600;color:var(--text-dim);
     text-transform:uppercase;letter-spacing:0.04em;
     padding:0.4rem 0.5rem;border-bottom:1px solid var(--border-strong);
   }
   th.r{text-align:right}
-  td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text)}
+  td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text);overflow-wrap:anywhere;word-break:break-word}
   td.r{text-align:right;font-variant-numeric:tabular-nums}
   td.mono{color:var(--text-dim);font-family:var(--mono);font-size:0.75rem}
   tr.last-parcel td{color:var(--amber)}

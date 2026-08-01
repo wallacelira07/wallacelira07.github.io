@@ -675,6 +675,11 @@ const VARS = {
   // em kWh) e passa a valer sobre a estimativa. O mes atual (em andamento) usa a ultima leitura parcial
   // diretamente, nao precisa estar aqui.
   SOLAR_CREDITO_MENSAL_REAL: {},
+  // NOVO 01/08/2026: consumo mensal REAL dos ultimos 12 meses da Wellida (irma), extraido da fatura
+  // Energisa (UC 2.064.202.053-60, Rua Jose Palmeira Filho 580, Jd America), grafico "Consumo Faturado"
+  // da propria fatura Jul/2026. Conferido visualmente (rasterizado + ampliado, nao so texto extraido,
+  // ordem: Jul/25 a Jun/26). Substitui a media fixa (119) usada como placeholder ate agora.
+  solarConsumoIrmaAnoAnterior: [74,70,82,103,127,122,138,142,172,140,100,112], // Jul/25..Jun/26 kWh
   SOLAR_LEITURAS: [
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
@@ -803,6 +808,7 @@ const VARS = {
   ],
   LRCV_TRANSACOES: [
     { tx:'TX000162', data:'26/07', tipo:'PIX Saída', obs:'Poda das bananeiras (Ednaldo Caetano da Silva)', valor:100.00 },
+    { tx:'TX000190', data:'01/08', tipo:'PIX Saída', obs:'Água mineral (Cleston da Silva, comprovante E10573521202608011254YTMcGt1oqXh)', valor:22.00 },
   ],
   // TX000164/165 (27/07/2026): Conduta pediátrica de Júlio. PIX de R$300,00 saiu direto do
   // Mercado Pago do Wallace para Vanessa (NÃO passou pela PIX Geral Vanessa/PGV - correção de erro
@@ -844,7 +850,6 @@ const VARS = {
     { tx:'TX000178', data:'29/07', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante MP 171162180982)', tipo:'Saída', valor:300.00 },
     { tx:'TX000187', data:'01/08', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante E10573521202608011203zUhCTMzglu9)', tipo:'Saída', valor:300.00 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:2.12 },
-    { tx:'TX000190', data:'01/08', nome:'PIX Cleston da Silva - Água mineral (comprovante E10573521202608011254YTMcGt1oqXh)', tipo:'Saída', valor:22.00 },
   ],
 
   // V172 (26/07/2026): LRPV (PIX Vanessa - PGV, conta autonoma dela) convertido para array estruturado -
@@ -947,7 +952,7 @@ const VARS = {
       salario: 16819.56,
       entradasTotais: 17425.79, // ATUALIZADO V146: +R$340 no reembolso
       caixaVariavelComprometido: 584.48, // ATUALIZADO 26/07/2026 (V178): +R$28,49 (TX000161, Super Bom Supermercado, cartao MB 2244). Era R$555,99.
-      caixaVariavelSaldoReal: 1900.00, // ATUALIZADO 26/07/2026 (V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
+      caixaVariavelSaldoReal: 1878.00, // ATUALIZADO 01/08/2026: -R$22,00 (TX000190, PIX água mineral, reclassificado de PV para Caixa Variável - correção do usuário). Era R$1.900,00 (26/07, V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
       caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
       reembolsoRecebido: 0,
       reembolsoAReceber: 7795.56, // ATUALIZADO 31/07/2026: +R$340,00 (usuario pediu para somar ao valor de reembolso a receber). Era R$7.455,56 - valor oficial do portal de reembolso Wärtsilä (relatório 07/31/2026) - "Due Employee". NOTA: R$3.280,47 do mesmo relatorio ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
@@ -1669,8 +1674,8 @@ function atualizarContadoresAbasLR(){
   const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo'];
   const labels = {
     lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
-    lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Merc. Pago',
-    lrcv:'LRCV - Caixa Var.', lrei:'LREI - Empréstimos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PGV', lrpvsaldo:'LRPV - PV'
+    lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
+    lrcv:'LRCV - Caixa Variável', lrei:'LREI - Empréstimos Internos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PIX Geral Vanessa', lrpvsaldo:'LRPV - PIX Vanessa'
   };
   paineis.forEach(id => {
     const painel = document.getElementById(id);
@@ -3527,7 +3532,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     }
   }
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
-  const consumoMensalIrma = mesesPares.map(()=>Math.round(VARS.solarConsumoDiarioIrma*30*100)/100);
+  const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
   const solarBarLabelPlugin = {
     id:'solarBarLabelPlugin',
@@ -3566,16 +3571,14 @@ new Chart(document.getElementById('g_cAlivio'), {
           return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
         }
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.7,barPercentage:0.8},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
   const ultimaSolar = solarL[solarL.length-1];
   const legSolarEl = document.getElementById('legSolarRateio');
   if(legSolarEl && ultimaSolar){
-    const sinalW = ultimaSolar.saldoWallace>=0 ? '+' : '';
-    const sinalI = ultimaSolar.saldoIrma>=0 ? '+' : '';
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> · Wallace saldo <strong style="color:'+(ultimaSolar.saldoWallace>=0?'#34c98a':'#e2554f')+'">'+sinalW+ultimaSolar.saldoWallace+' kWh</strong> · Irmã saldo <strong style="color:'+(ultimaSolar.saldoIrma>=0?'#34c98a':'#e2554f')+'">'+sinalI+ultimaSolar.saldoIrma+' kWh</strong>. Consumo mostrado é o histórico dos últimos 12 meses (Wallace: consumo real do apartamento antes do solar · Irmã: média fixa) — substituo mês a mês pelo consumo real assim que você me passar. '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.';
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 11 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.';
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
