@@ -61,12 +61,11 @@ SAJ_BASE = "https://iop.saj-electric.com/dev-api/api/v2"
 SAJ_LOGIN_URL = f"{SAJ_BASE}/sys/user/login"
 SAJ_ENERGY_URL = f"{SAJ_BASE}/monitor/plant/getPlantEnergyStatistics"
 
-# CORRIGIDO (descoberto via engenharia reversa do JS do site, 01/08/2026): a senha NAO e MD5 puro -
-# e criptografada com AES-128-ECB-PKCS7. A chave e o "clientSecret" do cliente OAuth "organization"
-# (endpoint getLoginConfig), com os tracos removidos (36 chars com traco -> 32 hex chars = 16 bytes).
-# Funcao original no JS do site chama essa etapa de "wE(senha)". Se a SAJ trocar essa chave um dia,
-# o login vai voltar a falhar - buscar de novo via getLoginConfig (fluxo documentado no README abaixo).
-SAJ_CLIENT_SECRET_HEX = "b389a70431f1463d8db7435b18d1311d"  # "b389a704-31f1-463d-8db7-435b18d1311d" sem tracos
+# CORRIGIDO (chave real confirmada via breakpoint no navegador, 01/08/2026 - testada byte a byte
+# contra um login de teste real, bateu exato): a chave NAO e derivada do clientSecret OAuth (isso foi
+# uma hipotese errada testada e descartada). E uma constante fixa embutida no bundle JS do site,
+# achada pausando a execucao dentro da funcao wE() e inspecionando o valor de S_ ao vivo.
+SAJ_CLIENT_SECRET_HEX = "ec1840a7c53cf0709eb784be480379b6"
 
 
 def _criptografar_senha_aes(senha: str) -> str:
