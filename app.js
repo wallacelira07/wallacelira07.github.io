@@ -3483,13 +3483,13 @@ new Chart(document.getElementById('g_cAlivio'), {
     return d+'/'+m+(l.fonte==='estimado' ? '*' : '');
   });
   new Chart(document.getElementById('cSolarRateio'), {
-    type:'line',
+    type:'bar',
     data:{labels:solarLabels,
       datasets:[
-        {label:'Crédito Wallace (kWh)', data:solarL.map(l=>l.creditoWallace), borderColor:'#34c98a', backgroundColor:'#34c98a', tension:0.2},
-        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), borderColor:'#34c98a', borderDash:[4,3], backgroundColor:'transparent', tension:0.2},
-        {label:'Crédito Irmã (kWh)', data:solarL.map(l=>l.creditoIrma), borderColor:'#e8a63a', backgroundColor:'#e8a63a', tension:0.2},
-        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), borderColor:'#e8a63a', borderDash:[4,3], backgroundColor:'transparent', tension:0.2}
+        {label:'Crédito Wallace', data:solarL.map(l=>l.creditoWallace), backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Consumo esperado Wallace', data:solarL.map(l=>l.consumoEspWallace), backgroundColor:'#1c7a54', borderRadius:3},
+        {label:'Crédito Irmã', data:solarL.map(l=>l.creditoIrma), backgroundColor:'#e8a63a', borderRadius:3},
+        {label:'Consumo esperado Irmã', data:solarL.map(l=>l.consumoEspIrma), backgroundColor:'#9c6a1f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:legendStd2,tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'}}},
