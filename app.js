@@ -3509,7 +3509,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       const {ctx} = chart;
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = "600 8.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         ctx.fillStyle = di===0 ? '#e8a63a' : (esteAnoFonte[0] && di===1 ? '#34c98a' : '#34c98a');
@@ -3547,7 +3547,7 @@ new Chart(document.getElementById('g_cAlivio'), {
           return 'Economia: '+fmt(economia);
         }
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.6,barPercentage:0.75},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
   const economiaAtual = anoAnterior[0] - esteAno[0];
@@ -3683,7 +3683,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       const {ctx} = chart;
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = "600 7px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         ctx.fillStyle = ds.backgroundColor;
@@ -3714,7 +3714,7 @@ new Chart(document.getElementById('g_cAlivio'), {
           return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
         }
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.55,barPercentage:0.75},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.4,barPercentage:0.65},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
   });
   const legSolarEl = document.getElementById('legSolarRateio');
