@@ -722,9 +722,10 @@
 
     <div class="section-num"><span class="n">09</span><h2>Energia Solar — antes vs. depois (apartamento)</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Aguardando troca do medidor para bidirecional pela Energisa — prazo até 22/07/2026. Comparação mês a mês: ano anterior real (laranja) vs. este ano projetado com solar ativo (verde), lado a lado.</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Comparação mês a mês: ano anterior real (laranja) vs. este ano com solar ativo (verde). Toque numa barra pra ver o valor e a fonte.</div>
       <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
-      <div class="legend-note">Ano anterior: consumo real do seu apartamento, tarifa Jun/2026 (R$1,0625/kWh, já com ICMS/PIS/COFINS embutidos). Mai/26 (*) interpolado — sem leitura direta nesse mês. Projeção pós-solar (R$69,87/mês fixo): tarifa mínima de disponibilidade (30 kWh) + Contribuição de Iluminação Pública (R$38,00, imposto municipal fixo que a energia solar NÃO isenta). <strong>Jul/26 (mês atual) já usa a geração REAL</strong> (leituras do medidor bidirecional, seção 10 abaixo): fica em R$69,87 enquanto o crédito solar cobrir 100% do consumo esperado; se uma leitura mostrar déficit, some automaticamente o excedente não coberto × tarifa. Número azul acima do par = economia mensal estimada. Assim que a fatura real pós-solar chegar (a partir de 21/08), substituo pelo valor definitivo daquele mês.</div>
+      <div class="legend-note v" id="legEnergiaSolar">—</div>
+      <div class="legend-note" style="font-size:0.68rem;margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, R$69,87 = mínimo + Iluminação Pública).</div>
     </div>
 
     <div class="section-num"><span class="n">10</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>

@@ -660,6 +660,11 @@ const VARS = {
   solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico)
   solarConsumoDiarioIrma: 119/30,     // 3,97 kWh/dia (119 kWh/mes historico)
   solarGeracaoDiariaEstimada: 25.6,   // kWh/dia bruto (app SAJ), usado so como fallback quando faltar leitura real
+  // NOVO 31/07/2026: quando o usuario informar o valor REAL da fatura pos-solar de um mes (a partir da
+  // fatura de 21/08), a chave (mesmo nome usado em mesesPares: 'Jul','Ago',...) entra aqui e passa a
+  // valer sobre o calculo/projecao daquele mes no grafico da secao 09. Comeca vazio - nenhuma fatura
+  // pos-solar chegou ainda.
+  ENERGIA_FATURAS_REAIS: {},
   SOLAR_LEITURAS: [
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
@@ -3419,51 +3424,55 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Regra: a fatura minima (R$69,87 = tarifa minima 30kWh + R$38 Iluminacao Publica) so vale se o
   // credito solar cobrir 100% do consumo do apartamento; se a ultima leitura mostrar saldo NEGATIVO
   // (credito ainda nao cobre o consumo esperado), soma o deficit x tarifa por cima do minimo - reflete
-  // o que a fatura real provavelmente vai cobrar. Meses 1-11 continuam projetados (sem leitura ainda).
+  // o que a fatura real provavelmente vai cobrar.
   const solarCalcAtual = VARS.SOLAR_LEITURAS_CALC[VARS.SOLAR_LEITURAS_CALC.length-1];
   const deficitWallaceAtual = solarCalcAtual ? Math.max(0, -solarCalcAtual.saldoWallace) : 0;
-  const valorMesAtual = Math.round((valorPosSolar + deficitWallaceAtual*tarifa)*100)/100;
-  const esteAno = mesesPares.map((_,i)=> i===0 ? valorMesAtual : valorPosSolar);
+  const valorMesAtualCalculado = Math.round((valorPosSolar + deficitWallaceAtual*tarifa)*100)/100;
+  // CORRIGIDO 01/08/2026 (V227, pedido do usuario - "confuso, valor tem que ser o real quando eu der,
+  // senao o calculado"): cada mes agora prioriza VARS.ENERGIA_FATURAS_REAIS[mes] (fatura de verdade,
+  // informada pelo usuario) e so cai pro calculo/projecao quando essa chave nao existir. Mes atual (Jul)
+  // usa o calculo baseado em geracao real (valorMesAtualCalculado); os demais usam a projecao fixa
+  // ate terem fatura real ou calculo proprio.
+  const esteAnoFonte = mesesPares.map((mes,i)=>{
+    const nomeMes = mes.replace('*','');
+    if(VARS.ENERGIA_FATURAS_REAIS[nomeMes] !== undefined) return {valor:VARS.ENERGIA_FATURAS_REAIS[nomeMes], fonte:'real'};
+    if(i===0) return {valor:valorMesAtualCalculado, fonte:'calculado'};
+    return {valor:valorPosSolar, fonte:'projetado'};
+  });
+  const esteAno = esteAnoFonte.map(e=>e.valor);
 
-  const energiaLabelPlugin = {
-    id:'energiaLabelPlugin',
-    afterDatasetsDraw(chart){
-      const {ctx} = chart;
-      const m0 = chart.getDatasetMeta(0), m1 = chart.getDatasetMeta(1);
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.font = "600 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
-      m0.data.forEach((bar,i)=>{
-        ctx.fillStyle = '#e8a63a';
-        ctx.fillText(fmt0(anoAnterior[i]), bar.x, bar.y - 5);
-      });
-      m1.data.forEach((bar,i)=>{
-        ctx.fillStyle = '#34c98a';
-        ctx.fillText(fmt0(esteAno[i]), bar.x, bar.y - 5);
-        const diff = anoAnterior[i] - esteAno[i];
-        const xCenter = (chart.getDatasetMeta(0).data[i].x + bar.x)/2;
-        const yTop = Math.min(chart.getDatasetMeta(0).data[i].y, bar.y) - 18;
-        ctx.font = "700 9px -apple-system, 'Segoe UI', Roboto, sans-serif";
-        ctx.fillStyle = '#3987e5';
-        ctx.fillText('−'+fmt0(diff), xCenter, yTop);
-        ctx.font = "600 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
-      });
-      ctx.restore();
-    }
-  };
   new Chart(document.getElementById('cEnergiaSolar'), {
     type:'bar',
-    plugins:[energiaLabelPlugin],
     data:{labels:mesesPares,
       datasets:[
         {label:'Ano anterior (real, sem solar)', data:anoAnterior, backgroundColor:'#e8a63a', borderRadius:3},
-        {label:'Este ano (projeção, com solar)', data:esteAno, backgroundColor:'#34c98a', borderRadius:3}
+        {label:'Este ano (com solar)', data:esteAno, backgroundColor:esteAnoFonte.map(e=>e.fonte==='real' ? '#1f9d66' : '#34c98a'), borderRadius:3}
       ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:34}},
-      plugins:{legend:legendStd2,tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:legendStd2,tooltip:{callbacks:{
+        label:c=>{
+          if(c.datasetIndex===1){
+            const f = esteAnoFonte[c.dataIndex].fonte;
+            const rotulo = f==='real' ? ' (fatura real)' : f==='calculado' ? ' (geração real)' : ' (projeção)';
+            return c.dataset.label+rotulo+': '+fmt(c.raw);
+          }
+          return c.dataset.label+': '+fmt(c.raw);
+        },
+        afterLabel:c=>{
+          if(c.datasetIndex!==1) return '';
+          const economia = anoAnterior[c.dataIndex] - esteAno[c.dataIndex];
+          return 'Economia: '+fmt(economia);
+        }
+      }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
+  const economiaAtual = anoAnterior[0] - esteAno[0];
+  const economiaAnualEstimada = anoAnterior.reduce((s,v)=>s+v,0) - esteAno.reduce((s,v)=>s+v,0);
+  const legEnergiaEl = document.getElementById('legEnergiaSolar');
+  if(legEnergiaEl){
+    legEnergiaEl.innerHTML = 'Mês atual (Jul/26): ano anterior <strong style="color:#e8a63a">'+fmt(anoAnterior[0])+'</strong> vs. este ano <strong style="color:#34c98a">'+fmt(esteAno[0])+'</strong> ('+(esteAnoFonte[0].fonte==='real'?'fatura real':'baseado na geração real do medidor')+') → economia de <strong style="color:#3987e5">'+fmt(economiaAtual)+'</strong> no mês. Projeção de economia nos 12 meses: <strong style="color:#3987e5">'+fmt(economiaAnualEstimada)+'</strong>. Toque numa barra pro valor exato e a fonte (real/calculado/projeção).';
+  }
 
   // NOVO 31/07/2026: Rateio Solar por casa - credito acumulado (Wallace/Irma) vs consumo esperado
   // acumulado no mesmo periodo. Quando a linha de credito cruza acima da de consumo, a casa esta
