@@ -5,8 +5,8 @@ Automação SAJ (Elekeeper) -> Supabase (Sistema Wallace Lira)
 
 O que faz:
   1. Loga na API da SAJ (iop.saj-electric.com) com usuário/senha (senha é
-     hasheada em MD5 antes do envio, igual o próprio site faz — nunca manda
-     a senha em texto puro pela rede).
+     criptografada com AES-128-ECB antes do envio, igual o próprio site faz —
+     nunca manda a senha em texto puro pela rede).
   2. Busca a geração acumulada real da usina (endpoint getPlantEnergyStatistics,
      campo energyDataList -> dataType "PV_ENERGY" -> energy1Total).
   3. Atualiza esse valor na última leitura registrada em SOLAR_LEITURAS no
@@ -54,9 +54,30 @@ from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding as crypto_padding
+
 SAJ_BASE = "https://iop.saj-electric.com/dev-api/api/v2"
 SAJ_LOGIN_URL = f"{SAJ_BASE}/sys/user/login"
 SAJ_ENERGY_URL = f"{SAJ_BASE}/monitor/plant/getPlantEnergyStatistics"
+
+# CORRIGIDO (descoberto via engenharia reversa do JS do site, 01/08/2026): a senha NAO e MD5 puro -
+# e criptografada com AES-128-ECB-PKCS7. A chave e o "clientSecret" do cliente OAuth "organization"
+# (endpoint getLoginConfig), com os tracos removidos (36 chars com traco -> 32 hex chars = 16 bytes).
+# Funcao original no JS do site chama essa etapa de "wE(senha)". Se a SAJ trocar essa chave um dia,
+# o login vai voltar a falhar - buscar de novo via getLoginConfig (fluxo documentado no README abaixo).
+SAJ_CLIENT_SECRET_HEX = "b389a70431f1463d8db7435b18d1311d"  # "b389a704-31f1-463d-8db7-435b18d1311d" sem tracos
+
+
+def _criptografar_senha_aes(senha: str) -> str:
+    """Replica exatamente a funcao wE() do JS do site: AES-128-ECB com padding PKCS7, saida em hex."""
+    chave = bytes.fromhex(SAJ_CLIENT_SECRET_HEX)
+    padder = crypto_padding.PKCS7(128).padder()
+    dados_com_padding = padder.update(senha.encode("utf-8")) + padder.finalize()
+    cipher = Cipher(algorithms.AES(chave), modes.ECB())
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(dados_com_padding) + encryptor.finalize()
+    return ciphertext.hex()
 
 
 def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
@@ -78,11 +99,11 @@ def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
 
 def saj_login(username: str, password: str) -> str:
     """Loga na SAJ e retorna o header de Authorization completo (ex: 'Bearer eyJ...')."""
-    senha_hash = hashlib.md5(password.encode("utf-8")).hexdigest()
+    senha_criptografada = _criptografar_senha_aes(password)
     agora = datetime.now(timezone.utc)
     payload = {
         "lang": "pt",
-        "password": senha_hash,
+        "password": senha_criptografada,
         "appProjectName": "elekeeper",
         "clientCode": "organization",
         "clientDate": agora.strftime("%Y-%m-%d"),
