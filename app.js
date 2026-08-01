@@ -407,7 +407,7 @@ const VARS = {
 
   // Cartoes (comprometido, corporativo Wartsila)
   cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
-  cartaoMBTotal: 5132.94,               // ATUALIZADO 31/07/2026: +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha sido somada aqui, foi lançada errada no Visa Infinite. Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
+  cartaoMBTotal: 5165.00,               // ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão MB 4628). Era R$5.132,94 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351). Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
@@ -568,7 +568,7 @@ const VARS = {
   // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.
   salario: 16819.56,                       // ATUALIZADO 24/07/2026 (V139): salario Wartsila recebido hoje (TX000136). Era R$33.708,78 (excecao do ciclo anterior).
   reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
-  reembolsoPagaMPCorporativo: 1277.88,     // Transporte corporativo Recife (TXMP000007+008) - usado na Cascata do Reembolso, sobrescrito por ciclo (zera no ciclo novo, ver CICLO_SNAPSHOTS)
+  reembolsoPagaMPCorporativo: 1277.88,     // PLACEHOLDER, sobrescrito por snap.cascata.mpCorporativo (variavel por ciclo) - usado na Cascata do Reembolso, sobrescrito por ciclo (zera no ciclo novo, ver CICLO_SNAPSHOTS)
   faturaMPCorporativoPendente: 1544.11, // NOTA 27/07/2026 (V187): a fatura MP em si JÁ FOI PAGA (boleto R$2.015,58, 27/07) - mas esses R$1.544,11 continuam pendentes de REEMBOLSO da Wärtsilä (Recife ida+volta R$1.277,88 + Aeroporto JP R$266,23), independente do pagamento da fatura. Zerar quando a Wärtsilä efetivamente reembolsar, não quando a fatura for paga.
   orcamentoOperacional: 3200.00,
 
@@ -621,7 +621,7 @@ const VARS = {
   visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
   visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 861.14,       // ATUALIZADO 31/07/2026: +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
+  mbLRWConfirmado: 893.20,       // ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
   mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
   mbLRVConfirmado: 230.97,         // ATUALIZADO 31/07/2026: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
@@ -779,6 +779,7 @@ const VARS = {
     { tx:'TX000184', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:18.36 },
     { tx:'TX000185', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:5.59 },
     { tx:'TX000186', data:'31/07', nome:'H57Store', obs:'cartão físico 1371 (NOVO, substitui 2244), extração via DeepSeek/GPT', valor:2.19 },
+    { tx:'TX000188', data:'01/08', nome:'Amazon - Repelente para Bebê SBP Baby', obs:'cartão virtual 4628, extração via DeepSeek/GPT', valor:32.06 },
   ],
   LRV_TRANSACOES: [
     { tx:'TX000154', data:'24/07', nome:'H57Store', obs:'cartão 6351, limbo (pós-fechamento fatura)', valor:30.97 },
@@ -843,6 +844,7 @@ const VARS = {
     { tx:'TX000178', data:'29/07', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante MP 171162180982)', tipo:'Saída', valor:300.00 },
     { tx:'TX000187', data:'01/08', nome:'Reforço à PGV (contrapartida: entrada na PGV, comprovante E10573521202608011203zUhCTMzglu9)', tipo:'Saída', valor:300.00 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:2.12 },
+    { tx:'TX000190', data:'01/08', nome:'PIX Cleston da Silva - Água mineral (comprovante E10573521202608011254YTMcGt1oqXh)', tipo:'Saída', valor:22.00 },
   ],
 
   // V172 (26/07/2026): LRPV (PIX Vanessa - PGV, conta autonoma dela) convertido para array estruturado -
@@ -864,6 +866,7 @@ const VARS = {
     { tx:'TX000181', data:'31/07', nome:'PIX Rayssa Dos Santos Pereira - depilação de Vanessa (comprovante B333NYP1B09MBE9JZ)', tipo:'Saída', valor:70.00 },
     { tx:'TX000182', data:'31/07', nome:'PIX Romario Nogueira Cunha - Hortifrut (comprovante E10573521202607311626TIYWLRElyer)', tipo:'Saída', valor:65.00 },
     { tx:'TX000187', data:'01/08', nome:'Reforço da PV (contrapartida de TX000187 na PV, comprovante E10573521202608011203zUhCTMzglu9)', tipo:'Entrada', valor:300.00 },
+    { tx:'TX000189', data:'01/08', nome:'PIX Meu Pequeno (Itaú Unibanco) - comprovante E10573521202608011224CMw0yl9fysg', tipo:'Saída', valor:276.00 },
   ],
 
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
@@ -1211,7 +1214,7 @@ const REG = {
     reembolsoPagaWartsila: VARS.faturaWartsila,       // V137: le do VARS (fatura paga integralmente pelo reembolso - mesmo numero, 4a copia eliminada)
     reembolsoPagaCartaoCorporativo: VARS.reembolsoPagaCartaoCorporativo, // NOMEADO V128, corrigido (era 483.43 - extrato real do cofrinho "Fatura Visa Infinit")
     reembolsoSobraPessoal: 0,      // SOBRESCRITO por recalcularAgregadosDerivados() logo apos o REG - este valor aqui e so o ultimo snapshot conhecido, para leitura humana.
-    reembolsoPagaMPCorporativo: VARS.reembolsoPagaMPCorporativo, // Transporte corporativo Recife (TXMP000007+008)
+    reembolsoPagaMPCorporativo: VARS.reembolsoPagaMPCorporativo, // Transporte corporativo (perna 2 da cascata, varia por ciclo)
     entradasTotais: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = salario + reembolsoCicloTotal. V128 CORRIGIDO (bug real): formula antiga usava reembolsosAReceber, que ia a zero quando o reembolso chegava, fazendo entradasTotais CAIR errado. Era R$36.138,37.
     totalOperacional: 0,     // SOBRESCRITO por recalcularAgregadosDerivados() = soma de totalOpDetalhe. Editar os componentes, nao este numero. V111: -R$88,00 (Vivo atualizada).
     orcamentoOperacional: VARS.orcamentoOperacional,
@@ -3555,7 +3558,7 @@ new Chart(document.getElementById('g_cAlivio'), {
         {label:'Crédito Irmã (gerado)', data:creditoMensalIrma, backgroundColor:'#1c7a54', borderRadius:3},
         {label:'Consumo esperado Irmã', data:consumoMensalIrma, backgroundColor:'#a9861f', borderRadius:3}
       ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{
         label:c=>{
           if(c.raw===null) return c.dataset.label+': sem leitura ainda';
@@ -3573,6 +3576,74 @@ new Chart(document.getElementById('g_cAlivio'), {
     const sinalI = ultimaSolar.saldoIrma>=0 ? '+' : '';
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
     legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> · Wallace saldo <strong style="color:'+(ultimaSolar.saldoWallace>=0?'#34c98a':'#e2554f')+'">'+sinalW+ultimaSolar.saldoWallace+' kWh</strong> · Irmã saldo <strong style="color:'+(ultimaSolar.saldoIrma>=0?'#34c98a':'#e2554f')+'">'+sinalI+ultimaSolar.saldoIrma+' kWh</strong>. Consumo mostrado é o histórico dos últimos 12 meses (Wallace: consumo real do apartamento antes do solar · Irmã: média fixa) — substituo mês a mês pelo consumo real assim que você me passar. '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.';
+  }
+
+  // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
+  // Especificação fornecida pelo usuário (documento anexado, 01/08/2026). Reaproveita 100% os dados já
+  // existentes (VARS.SOLAR_LEITURAS_CALC) - nao duplica nenhuma variavel, so consome e apresenta previsao.
+  // Constantes faceis de ajustar se a janela/dia de leitura mudar (pedido explicito do usuario).
+  const DIA_LEITURA_WALLACE = 20; // leitura Energisa do apartamento, janela 19-21
+  const DIA_LEITURA_WELLIDA = 8;  // leitura da casa da mae/Wellida, janela 06-09
+  const META_WALLACE = 321;       // kWh, meta mensal de credito do Wallace
+  const META_WELLIDA = 119;       // kWh, meta mensal de credito da Wellida (Irma)
+
+  function calcularDiasRestantes(diaLeituraAlvo, hojeRef){
+    const hj = hojeRef || new Date();
+    const hojeSoData = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate());
+    let proxima = new Date(hj.getFullYear(), hj.getMonth(), diaLeituraAlvo);
+    if(proxima <= hojeSoData) proxima = new Date(hj.getFullYear(), hj.getMonth()+1, diaLeituraAlvo);
+    return Math.max(1, Math.round((proxima-hojeSoData)/86400000));
+  }
+  function calcularCreditoRestante(meta, creditoAtual){
+    return Math.round((meta-creditoAtual)*100)/100;
+  }
+  function calcularMediaNecessaria(creditoRestante, diasRestantes){
+    return Math.round((creditoRestante/diasRestantes)*10)/10;
+  }
+  function calcularMediaRealizada(creditoAtual, diasDecorridos){
+    if(!diasDecorridos) return 0;
+    return Math.round((creditoAtual/diasDecorridos)*10)/10;
+  }
+  function calcularPrevisao(creditoAtual, mediaRealizada, diasRestantesAlvo){
+    return Math.round((creditoAtual + mediaRealizada*diasRestantesAlvo)*10)/10;
+  }
+  function calcularStatus(mediaRealizada, mediaNecessaria){
+    if(mediaNecessaria<=0 || mediaRealizada>=mediaNecessaria) return {emoji:'🟢', texto:'No ritmo', cor:'#34c98a'};
+    const deficitPct = (mediaNecessaria-mediaRealizada)/mediaNecessaria;
+    if(deficitPct < 0.10) return {emoji:'🟡', texto:'Atenção', cor:'#e8a63a'};
+    return {emoji:'🔴', texto:'Atrasado', cor:'#e2554f'};
+  }
+
+  function renderPrevisao(prefixo, meta, diaLeitura, creditoAtual, diasDecorridos, corBarra){
+    const diasRestantes = calcularDiasRestantes(diaLeitura);
+    const creditoRestante = calcularCreditoRestante(meta, creditoAtual);
+    const mediaNecessaria = calcularMediaNecessaria(Math.max(0,creditoRestante), diasRestantes);
+    const mediaRealizada = calcularMediaRealizada(creditoAtual, diasDecorridos);
+    const previsao = calcularPrevisao(creditoAtual, mediaRealizada, diasRestantes);
+    const saldoEsperado = Math.round((previsao-meta)*10)/10;
+    const status = calcularStatus(mediaRealizada, mediaNecessaria);
+    const pct = Math.min(100, Math.max(0, Math.round(creditoAtual/meta*100)));
+    const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    const barEl = document.getElementById(prefixo+'Bar');
+    if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = status.cor; }
+    set(prefixo+'Fracao', creditoAtual+' / '+meta+' kWh');
+    set(prefixo+'Pct', pct+'%');
+    set(prefixo+'Faltam', Math.max(0,creditoRestante)+' kWh');
+    set(prefixo+'Dias', diasRestantes+' dias');
+    set(prefixo+'Necessario', mediaNecessaria+' kWh/dia');
+    set(prefixo+'Media', mediaRealizada+' kWh/dia');
+    set(prefixo+'Previsao', previsao+' kWh');
+    const saldoTxt = (saldoEsperado>=0?'+':'')+saldoEsperado+' kWh';
+    set(prefixo+'Saldo', saldoTxt);
+    const saldoEl = document.getElementById(prefixo+'Saldo');
+    if(saldoEl) saldoEl.style.color = saldoEsperado>=0 ? '#34c98a' : '#e2554f';
+    const statusEl = document.getElementById(prefixo+'Status');
+    if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto; statusEl.style.color = status.cor; }
+  }
+
+  if(ultimaSolar){
+    renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, ultimaSolar.creditoWallace, ultimaSolar.dias, '#34c98a');
+    renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, ultimaSolar.creditoIrma, ultimaSolar.dias, '#e8a63a');
   }
 })();
 
