@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Sistema Wallace Lira — Painel Completo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="stylesheet" href="styles.css?v=249">
+<link rel="stylesheet" href="styles.css?v=252">
 </head>
 <body>
 <script>
@@ -70,7 +70,6 @@
     <button class="master-tab" onclick="showMaster('graficos', this)">📈 Gráficos</button>
     <button class="master-tab" onclick="showMaster('cenarios', this)">🛡️ Cenários</button>
     <button class="master-tab" onclick="showMaster('balancov2', this)">🏛️ Balanço</button>
-    <button id="btnEsconderValores" onclick="toggleEsconderValores()" title="Esconder/mostrar valores (modo apresentação)" style="position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;font-size:1.05rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">👁️</button>
   </div>
 
   <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
@@ -736,10 +735,12 @@
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
 
       <div class="grid-2">
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Geração acumulada (inversor SAJ)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugGeracaoAcumulada">—</div></div>
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugImportado">—</div></div>
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugExportado">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Consumo direto das placas (estimado)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">— <span class="v" id="ugConsumoDiretoPct" style="font-size:0.75rem;color:var(--text-mid)"></span></div></div>
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📊 Saldo líquido da unidade</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugSaldoLiquido">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏠 Consumo direto das placas</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏡 Consumo total da casa</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoTotalCasa">—</div></div>
       </div>
 
       <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:8px;font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
@@ -747,7 +748,7 @@
       <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
       <div class="grid-3">
         <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Autoconsumo</div><div class="v" style="font-weight:600" id="ugAutoconsumoPct">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
         <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dependência da rede</div><div class="v" style="font-weight:600" id="ugDependenciaPct">—</div></div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600" id="ugStatus">—</div>
@@ -773,7 +774,7 @@
 
       <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>
       <div class="chart-box tall"><canvas id="cUnidadeGeradora"></canvas></div>
-      <div class="legend-note" style="font-size:0.68rem;margin-top:0.4rem">Consumo direto é sempre uma estimativa (geração total do app SAJ − exportado real) — o medidor bidirecional só mede o que entra/sai da rede, não o que a casa consome direto das placas durante o dia.</div>
+      <div class="legend-note" style="font-size:0.68rem;margin-top:0.4rem">Consumo direto = geração real do inversor SAJ − exportado real (código 103) — nunca estimado. Sem a leitura real de geração do inversor, os campos dependentes mostram "Dados insuficientes para cálculo" em vez de estimar.</div>
     </div>
 
     <div class="section-num"><span class="n">11</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
@@ -1076,7 +1077,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V10 · v01/08/2026 (V249)</span>
+    <span>Sistema Wallace Lira · ERP V10 · v01/08/2026 (V252)</span>
   </footer>
 
 </div>

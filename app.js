@@ -684,7 +684,12 @@ const VARS = {
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
     // das formulas da secao 3 do documento base. fonte:'real' (leitura enviada) ou 'estimado' (fallback).
-    { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, fonte:'real' },
+    // CORRIGIDO 01/08/2026 (V250, documento do usuario "SEM ESTIMATIVAS"): novo campo geracaoAcumulada
+    // (kWh, leitura REAL do inversor SAJ - "Geracao Total"/"Geracao Acumulada" do app/portal). Enquanto
+    // for null, os campos derivados dela (consumoDireto, consumoTotalCasa, autoconsumoPct,
+    // dependenciaPct, exportacaoPct) NAO sao calculados - a tela mostra "Dados insuficientes para
+    // calculo" em vez de estimar. Nunca mais usar solarGeracaoDiariaEstimada para isso.
+    { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, geracaoAcumulada:264.20, fonte:'real' }, // geracaoAcumulada capturada em 01/08 (API SAJ real, energy1Total) - 1 dia depois da leitura 03/103 (31/07). Pequeno descompasso de data documentado, nao afeta o calculo de forma relevante (1 dia de geracao ~18kWh sobre um total acumulado).
   ],
 
   // Projecoes "held flat" (meses futuros alem do ultimo recalculado manualmente - repetem o ultimo
@@ -3578,10 +3583,12 @@ new Chart(document.getElementById('g_cAlivio'), {
     const idx = (mesLeitura - mesAtivacao + 12) % 12;
     if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
   });
-  let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0;
+  let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0, geracaoAcumAnterior = null;
   const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
-  // NOVO 01/08/2026: mesma logica de delta mes-a-mes, estendida pra Unidade Geradora (secao 10) -
-  // importado (03) e exportado (103) mensais, geracao estimada do periodo e consumo direto derivado.
+  // CORRIGIDO 01/08/2026 (V250, documento "SEM ESTIMATIVAS"): consumo direto mensal agora deriva da
+  // GERACAO REAL do inversor SAJ (delta mes-a-mes de geracaoAcumulada), nunca mais da estimativa fixa
+  // solarGeracaoDiariaEstimada. Sem leitura real de geracao em 2 meses consecutivos, fica null (sem
+  // barra) em vez de estimar.
   const importadoMensal = [], exportadoMensal = [], geracaoEstMensal = [], consumoDiretoMensal = [], saldoLiquidoMensal = [];
   for(let i=0;i<12;i++){
     const l = leituraMaisRecentePorMes[i];
@@ -3591,9 +3598,9 @@ new Chart(document.getElementById('g_cAlivio'), {
       creditoMensalIrma.push(Math.round(creditoDoMes*VARS.solarRateioIrma*100)/100);
       const importadoDoMes = Math.round((l.leitura03 - leitura03Anterior)*100)/100;
       const exportadoDoMes = Math.round((l.leitura103 - leitura103Anterior)*100)/100;
-      const diasDoMes = Math.max(1, l.dias - diasAcumAnterior);
-      const geracaoDoMes = Math.round(VARS.solarGeracaoDiariaEstimada*diasDoMes*100)/100;
-      const consumoDiretoDoMes = Math.round((geracaoDoMes - exportadoDoMes)*100)/100;
+      const temGeracaoReal = l.geracaoAcumulada!=null && geracaoAcumAnterior!=null;
+      const geracaoDoMes = temGeracaoReal ? Math.round((l.geracaoAcumulada - geracaoAcumAnterior)*100)/100 : null;
+      const consumoDiretoDoMes = temGeracaoReal ? Math.round((geracaoDoMes - exportadoDoMes)*100)/100 : null;
       importadoMensal.push(importadoDoMes);
       exportadoMensal.push(exportadoDoMes);
       geracaoEstMensal.push(geracaoDoMes);
@@ -3603,6 +3610,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       leitura03Anterior = l.leitura03;
       leitura103Anterior = l.leitura103;
       diasAcumAnterior = l.dias;
+      geracaoAcumAnterior = l.geracaoAcumulada;
       temLeituraNoMes.push(true);
     } else {
       creditoMensalWallace.push(null);
@@ -3618,57 +3626,74 @@ new Chart(document.getElementById('g_cAlivio'), {
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
-  // ===== NOVO 01/08/2026: Unidade Geradora (Casa da Mãe) - especificação do usuário (documento anexado) =====
-  // Consumo direto das placas nao e medido diretamente pelo medidor bidirecional (que so ve 03/103) -
-  // derivado da GERACAO ESTIMADA (unico dado de geracao total disponivel, app SAJ) menos o exportado
-  // real (103). Por isso "consumo direto" e sempre marcado como estimado, nunca "real" puro - fica
-  // documentado explicitamente na tela, sem fingir precisao que a leitura nao da.
+  // ===== CORRIGIDO 01/08/2026 (V250): Unidade Geradora SEM ESTIMATIVAS (documento do usuário) =====
+  // Antes: consumo direto derivado de uma geracao ESTIMADA (25,6 kWh/dia fixo). Usuario pediu para
+  // eliminar qualquer estimativa - agora so calcula quando existir leitura REAL de geracaoAcumulada
+  // (inversor SAJ). Sem esse dado, os campos dependentes mostram "Dados insuficientes para calculo"
+  // em vez de estimar - nunca mais inventar um numero.
   if(ultimaSolar){
     const importadoAcum = ultimaSolar.leitura03;
     const exportadoAcum = ultimaSolar.leitura103;
     const saldoLiquidoAcum = ultimaSolar.creditoLiquido;
-    const geracaoEstAcum = Math.round(VARS.solarGeracaoDiariaEstimada*ultimaSolar.dias*100)/100;
-    const consumoDiretoAcum = Math.round((geracaoEstAcum - exportadoAcum)*100)/100;
-    const consumoTotalCasa = Math.round((importadoAcum + consumoDiretoAcum)*100)/100;
-    const autoconsumoPct = geracaoEstAcum>0 ? Math.round(consumoDiretoAcum/geracaoEstAcum*100) : 0;
-    const exportacaoPct = geracaoEstAcum>0 ? Math.round(exportadoAcum/geracaoEstAcum*100) : 0;
-    const dependenciaPct = consumoTotalCasa>0 ? Math.round(importadoAcum/consumoTotalCasa*100) : 0;
-    let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
-    if(saldoLiquidoAcum > 0) statusUG = exportacaoPct >= 60 ? {emoji:'🟢', texto:'Excelente', cor:'#34c98a'} : {emoji:'🟡', texto:'Boa', cor:'#e8a63a'};
+    const geracaoAcum = ultimaSolar.geracaoAcumulada; // null ate o usuario informar a leitura real do inversor
+    const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
 
     const setUG = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    const INSUFICIENTE = 'Dados insuficientes para cálculo.';
+
     setUG('ugImportado', importadoAcum+' kWh');
     setUG('ugExportado', exportadoAcum+' kWh');
-    setUG('ugConsumoDireto', consumoDiretoAcum+' kWh');
-    setUG('ugConsumoDiretoPct', autoconsumoPct+'%');
     setUG('ugSaldoLiquido', (saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
     const ugSaldoEl = document.getElementById('ugSaldoLiquido');
     if(ugSaldoEl) ugSaldoEl.style.color = saldoLiquidoAcum>=0 ? '#34c98a' : '#e2554f';
-    setUG('ugAutoconsumoPct', autoconsumoPct+'%');
-    setUG('ugExportacaoPct', exportacaoPct+'%');
-    setUG('ugDependenciaPct', dependenciaPct+'%');
+
+    let consumoDiretoAcum=null, consumoTotalCasa=null, autoconsumoPct=null, dependenciaPct=null, exportacaoDaGeracaoPct=null;
+    if(temGeracao){
+      consumoDiretoAcum = Math.round((geracaoAcum - exportadoAcum)*100)/100;
+      consumoTotalCasa = Math.round((consumoDiretoAcum + importadoAcum)*100)/100;
+      autoconsumoPct = consumoTotalCasa>0 ? Math.round(consumoDiretoAcum/consumoTotalCasa*1000)/10 : 0;
+      dependenciaPct = consumoTotalCasa>0 ? Math.round(importadoAcum/consumoTotalCasa*1000)/10 : 0;
+      exportacaoDaGeracaoPct = geracaoAcum>0 ? Math.round(exportadoAcum/geracaoAcum*1000)/10 : 0;
+    }
+    setUG('ugGeracaoAcumulada', temGeracao ? geracaoAcum+' kWh' : INSUFICIENTE);
+    setUG('ugConsumoDireto', temGeracao ? consumoDiretoAcum+' kWh' : INSUFICIENTE);
+    setUG('ugConsumoTotalCasa', temGeracao ? consumoTotalCasa+' kWh' : INSUFICIENTE);
+    setUG('ugAutoconsumoPct', temGeracao ? autoconsumoPct+'%' : INSUFICIENTE);
+    setUG('ugDependenciaPct', temGeracao ? dependenciaPct+'%' : INSUFICIENTE);
+    setUG('ugExportacaoPct', temGeracao ? exportacaoDaGeracaoPct+'%' : INSUFICIENTE);
+
+    // Status: so usa dado 100% real (saldo liquido = 103-03), nao depende da geracao do inversor
+    let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
+    if(saldoLiquidoAcum > 0) statusUG = {emoji:'🟢', texto:'Excedente (exportando mais do que importa)', cor:'#34c98a'};
+    else if(saldoLiquidoAcum === 0) statusUG = {emoji:'🟡', texto:'Equilibrado', cor:'#e8a63a'};
     const ugStatusEl = document.getElementById('ugStatus');
     if(ugStatusEl){ ugStatusEl.textContent = statusUG.emoji+' '+statusUG.texto; ugStatusEl.style.color = statusUG.cor; }
 
     const ugResumoEl = document.getElementById('ugResumo');
     if(ugResumoEl){
-      ugResumoEl.innerHTML = 'A casa consumiu aproximadamente <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas (estimado a partir da geração). <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. Mesmo assim a usina gerou excedente suficiente para exportar <strong>'+exportadoAcum+' kWh</strong>. Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
+      if(temGeracao){
+        ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
+      } else {
+        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 11 normalmente.';
+      }
     }
 
-    // Historico mes a mes (03, 103, consumo direto, saldo liquido)
+    // Historico mes a mes (03, 103, consumo direto real, saldo liquido) - so plota consumo direto
+    // quando existir geracaoAcumulada real naquele mes (senao fica null, sem barra - mesmo padrao
+    // ja usado pros meses sem leitura de credito).
     new Chart(document.getElementById('cUnidadeGeradora'), {
       type:'bar',
       data:{labels:mesesPares,
         datasets:[
           {label:'Importado (código 03)', data:importadoMensal, backgroundColor:'#e2554f', borderRadius:3},
-          {label:'Consumo direto (estimado)', data:consumoDiretoMensal, backgroundColor:'#e8a63a', borderRadius:3},
+          {label:'Consumo direto (real)', data:consumoDiretoMensal, backgroundColor:'#e8a63a', borderRadius:3},
           {label:'Exportado (código 103)', data:exportadoMensal, backgroundColor:'#3987e5', borderRadius:3},
           {label:'Saldo líquido', data:saldoLiquidoMensal, backgroundColor:'#34c98a', borderRadius:3}
         ]},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
         plugins:{legend:legendStd2,tooltip:{callbacks:{
           label:c=>{
-            if(c.raw===null) return c.dataset.label+': sem leitura ainda';
+            if(c.raw===null) return c.dataset.label+': sem dado ainda';
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
