@@ -76,6 +76,58 @@
             box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.15);
         }
 
+        /* NOVO 01/08/2026: botao de esconder valores - antes era emoji fixo que nunca trocava
+           (bug estrutural: a funcao que trocava o icone rodava dentro do iframe, nao alcancava
+           este botao que mora aqui fora). Agora 2 icones SVG (olho aberto/fechado, mesmo traco
+           do botao Sair ao lado) com transicao suave de opacidade+escala+rotacao. */
+        .eye-toggle-btn {
+            position: relative;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            color: #a9a79f;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+        }
+        .eye-toggle-btn:hover {
+            border-color: rgba(255,255,255,0.5);
+            color: #e8e6df;
+            transform: scale(1.06);
+        }
+        .eye-toggle-btn:active {
+            transform: scale(0.9);
+        }
+        .eye-toggle-btn.ativo {
+            background: rgba(57, 135, 229, 0.15);
+            border-color: #3987e5;
+            color: #3987e5;
+        }
+        .eye-icon {
+            position: absolute;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .eye-open {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        .eye-closed {
+            opacity: 0;
+            transform: scale(0.4) rotate(-25deg);
+        }
+        .eye-toggle-btn.ativo .eye-open {
+            opacity: 0;
+            transform: scale(0.4) rotate(25deg);
+        }
+        .eye-toggle-btn.ativo .eye-closed {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+
         button {
             width: 100%;
             padding: 12px;
@@ -221,7 +273,17 @@
             <h1>📊 Sistema Wallace Lira</h1>
             <div class="user-info">
                 <span id="userEmail" class="user-email"></span>
-                <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" style="background:transparent;border:1px solid rgba(255,255,255,0.25);border-radius:50%;width:32px;height:32px;font-size:0.95rem;cursor:pointer;color:inherit;display:inline-flex;align-items:center;justify-content:center">👁️</button>
+                <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
+                    <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-closed" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.42 20.42 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.16 3.19"></path>
+                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                </button>
                 <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -240,12 +302,33 @@
         // de estar dentro do painel (so aparecia depois de carregar o conteudo sensivel).
         function toggleEsconderValoresHeader() {
             const iframe = document.getElementById('mainIframe');
+            const btn = document.getElementById('btnEsconderValoresHeader');
             if (!iframe || !iframe.contentWindow) return;
             try {
-                iframe.contentWindow.toggleEsconderValores();
+                // CORRIGIDO 01/08/2026: toggleEsconderValores() agora RETORNA o estado (ativo/inativo)
+                // - antes o icone deste botao nunca mudava porque a logica de troca de icone rodava
+                // dentro do iframe, que nao tem acesso a este elemento (documentos diferentes).
+                const ativo = iframe.contentWindow.toggleEsconderValores();
+                if (btn) btn.classList.toggle('ativo', !!ativo);
             } catch (e) {
                 console.error('Nao foi possivel alternar valores no painel:', e);
             }
+        }
+
+        // NOVO 01/08/2026: sincroniza o icone do botao com a preferencia ja salva - localStorage e
+        // compartilhado entre este documento e o iframe (mesma origem/dominio), entao nao precisa
+        // esperar o iframe carregar pra saber o estado.
+        onDomPronto2(function(){
+            try {
+                const btn = document.getElementById('btnEsconderValoresHeader');
+                if (btn && localStorage.getItem('wallace_esconder_valores') === '1') {
+                    btn.classList.add('ativo');
+                }
+            } catch (e) {}
+        });
+        function onDomPronto2(fn){
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+            else fn();
         }
     </script>
 

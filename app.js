@@ -2292,13 +2292,21 @@ function hydrate(){
   // NOVO 31/07/2026 (V218): aplica as 28 legendas de VARS.LEGENDAS nos elementos correspondentes -
   // um loop so, nunca precisa lembrar de chamar t() individualmente pra cada uma. Usa innerHTML
   // porque varias legendas tem <strong>/<span> internos que precisam ser preservados.
+  // CORRIGIDO 01/08/2026 (achado do usuario via modo apresentacao): valores R$ embutidos no MEIO
+  // do texto das legendas (ex: "teto da propria Caixa Variavel (R$2.000...)") nunca ficavam dentro
+  // de um <span class="v"> - o modo esconder-valores so nublava campos dinamicos com id proprio,
+  // essas legendas vazavam numero de qualquer forma. Regex envolve automaticamente qualquer
+  // "R$1.234,56" (com ou sem espaco depois do R$, com ou sem sinal negativo) numa <span class="v">
+  // antes de injetar - nao precisa editar as ~28 legendas uma por uma, nem lembrar de fazer isso
+  // em legendas novas no futuro.
+  const RE_VALOR_MONETARIO = /R\$\s?-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
   Object.keys(VARS.LEGENDAS).forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.innerHTML = VARS.LEGENDAS[id];
+    if(el) el.innerHTML = VARS.LEGENDAS[id].replace(RE_VALOR_MONETARIO, m => `<span class="v">${m}</span>`);
   });
   // NOVO 31/07/2026 (V219): alivio de agosto - calculo real, ver VARS.alivioProximoMes acima.
   const legAlivioEl = document.getElementById('legAlivioAgosto');
-  if(legAlivioEl) legAlivioEl.innerHTML = `Alívio de ${fmt(VARS.alivioProximoMes)}/mês a partir do próximo ciclo (parcelas do Visa Infinite + Mercado Pago que terminam agora) — não considera ainda o fim do seguro auto em outubro/2026`;
+  if(legAlivioEl) legAlivioEl.innerHTML = `Alívio de <span class="v">${fmt(VARS.alivioProximoMes)}</span>/mês a partir do próximo ciclo (parcelas do Visa Infinite + Mercado Pago que terminam agora) — não considera ainda o fim do seguro auto em outubro/2026`;
   t('credUberTotal', fmt(VARS.creditoUberBalance));
   t('credShellBox', fmt(VARS.creditoShellBox));
   t('credKmv', fmt(VARS.creditoKmvIpiranga)); // CORRIGIDO 31/07/2026 (V224): usuario esclareceu que os 600 sao R$600,00 (reais), nao pontos - era concatenado como "600 pontos", corrigido pra formatar como moeda igual aos outros creditos.
@@ -2312,9 +2320,15 @@ function hydrate(){
   t('balPgblFgtsSoma', fmt(VARS.patPgbl + VARS.patFgts));
   const opcoesTbodyEl = document.getElementById('opcoesTbody');
   if(opcoesTbodyEl){
-    opcoesTbodyEl.innerHTML = VARS.opcoesVendidasDetalhe.map(o =>
-      `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r">${fmt(o.valorMercado)}</td></tr>`
-    ).join('');
+    opcoesTbodyEl.innerHTML = VARS.opcoesVendidasDetalhe.map(o => {
+      // CORRIGIDO 01/08/2026: antes a cor vermelha do valorMercado vinha "de graca" de um bug
+      // (classe .r colidindo entre "alinhar a direita" e "cor vermelha", ver styles.css) - o Strike
+      // (coluna sem relacao nenhuma com lucro/prejuizo) tambem ficava vermelho por acidente. Agora
+      // cor e explicita e correta: Strike sempre neutro; Valor de Mercado vermelho se negativo,
+      // verde se positivo, neutro se exatamente zero.
+      const corMercado = o.valorMercado < 0 ? 'var(--red)' : (o.valorMercado > 0 ? 'var(--green)' : 'inherit');
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+    }).join('');
   }
   t('pcnCapital', fmt(PCN.capitalDisponivel));
   t('pcnPctBadge', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
@@ -3868,20 +3882,19 @@ new Chart(document.getElementById('g_cAlivio'), {
 // util pra mostrar o painel pra terceiros sem expor numeros. Preferencia salva no localStorage
 // (arquivo estatico rodando no navegador do proprio usuario, nao e artifact do Claude.ai - ok usar).
 function toggleEsconderValores(){
+  // CORRIGIDO 01/08/2026: o botao de verdade mora no index.html (FORA deste documento, que roda
+  // dentro do iframe) - document.getElementById('btnEsconderValores') aqui dentro NUNCA vai achar
+  // esse botao, entao o icone nunca trocava. Agora esta funcao so alterna o blur (sua responsabilidade
+  // real) e RETORNA o estado, pra quem chamou (index.html, via iframe.contentWindow) atualizar o
+  // proprio botao visivel.
   const ativo = document.body.classList.toggle('esconder-valores');
-  const btn = document.getElementById('btnEsconderValores');
-  if(btn){
-    btn.textContent = ativo ? '🙈' : '👁️';
-    btn.classList.toggle('ativo', ativo);
-  }
   try { localStorage.setItem('wallace_esconder_valores', ativo ? '1' : '0'); } catch(e) {}
+  return ativo;
 }
 onDomPronto(() => { // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava
   try {
     if(localStorage.getItem('wallace_esconder_valores') === '1'){
       document.body.classList.add('esconder-valores');
-      const btn = document.getElementById('btnEsconderValores');
-      if(btn){ btn.textContent = '🙈'; btn.classList.add('ativo'); }
     }
   } catch(e) {}
 });

@@ -155,9 +155,16 @@
     text-transform:uppercase;letter-spacing:0.04em;
     padding:0.4rem 0.5rem;border-bottom:1px solid var(--border-strong);
   }
-  th.r{text-align:right}
+  /* CORRIGIDO 01/08/2026: .r tem dois significados no site (alinhar a direita EM TABELAS, e cor
+     vermelha EM SPANS/TEXTO SOLTO, linha 87) - colidiam porque toda <td class="r"> tambem virava
+     vermelha sem querer (ex: Strike da carteira de opcoes, que nao e um valor negativo/de alerta).
+     td.r e th.r agora reafirmam explicitamente color:inherit (especificidade tag+classe vence sobre
+     .r sozinho) - alinhamento a direita continua igual, cor volta a ser neutra por padrao. Onde a
+     cor semantica (verde/vermelho) faz sentido de verdade numa celula, ela e aplicada via style
+     inline no proprio <td>, nao pela classe .r.  */
+  th.r{text-align:right;color:inherit}
   td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text);overflow-wrap:anywhere;word-break:break-word}
-  td.r{text-align:right;font-variant-numeric:tabular-nums}
+  td.r{text-align:right;font-variant-numeric:tabular-nums;color:inherit}
   td.mono{color:var(--text-dim);font-family:var(--mono);font-size:0.75rem}
   tr.last-parcel td{color:var(--amber)}
   tr:last-child td{border-bottom:none}
