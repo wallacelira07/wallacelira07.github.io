@@ -708,6 +708,14 @@ const VARS = {
   // da propria fatura Jul/2026. Conferido visualmente (rasterizado + ampliado, nao so texto extraido,
   // ordem: Jul/25 a Jun/26). Substitui a media fixa (119) usada como placeholder ate agora.
   solarConsumoIrmaAnoAnterior: [74,70,82,103,127,122,138,142,172,140,100,112], // Jul/25..Jun/26 kWh
+  // NOVO 02/08/2026 (pedido do usuario, 2 faturas Energisa da Casa da Mae): consumo historico da
+  // unidade geradora (Casa da Mae), mesma janela de 12 meses das outras 2 unidades. Confirmado pelo
+  // usuario: Mai/25..Abr/26. Media: 195 kWh/mes.
+  solarConsumoMaeAnoAnterior: [171,172,174,175,177,168,201,270,242,210,215,266], // Mai/25..Abr/26 kWh
+  // Dados mais recentes (fora da janela de 12 meses acima, guardados a parte): Jun/26 foi o mes de
+  // transferencia de titularidade pro nome do usuario (por isso o ciclo de 40 dias, fora do padrao) -
+  // nao usado no calculo do consumo medio, so como referencia/contexto.
+  solarConsumoMaeRecente: { jun26: {kwh:284, dias:40}, jul26: {kwh:194, dias:30} },
   SOLAR_LEITURAS: [
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
@@ -3664,6 +3672,18 @@ new Chart(document.getElementById('g_cAlivio'), {
           ctx.fillText('R$'+Math.round(v), bar.x, bar.y - 4);
         });
       });
+      // NOVO 02/08/2026 (pedido do usuario - achado num snapshot antigo do Netlify que tinha isso e
+      // sumiu nessa versao): numero azul da ECONOMIA do mes (esteAno - anoAnterior, sempre negativo =
+      // economizou), desenhado acima da barra laranja (a mais alta na maioria dos meses) - mesma
+      // logica ja usada no tooltip (afterLabel), so que agora tambem fixo na tela, sem precisar tocar.
+      const metaAnoAnterior = chart.getDatasetMeta(0);
+      ctx.fillStyle = '#3987e5';
+      ctx.font = "700 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      metaAnoAnterior.data.forEach((bar,i)=>{
+        const economia = esteAno[i] - anoAnterior[i]; // sempre <=0 (negativo = economizou)
+        if(economia===null || economia===undefined || isNaN(economia)) return;
+        ctx.fillText((economia>=0?'+':'')+Math.round(economia), bar.x, bar.y - 14);
+      });
       ctx.restore();
     }
   };
@@ -3849,6 +3869,35 @@ new Chart(document.getElementById('g_cAlivio'), {
     setUG('ugSaldoLiquido', (saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
     const ugSaldoEl = document.getElementById('ugSaldoLiquido');
     if(ugSaldoEl) ugSaldoEl.style.color = saldoLiquidoAcum>=0 ? '#34c98a' : '#e2554f';
+
+    // NOVO 02/08/2026 (pedido EXPLICITO do usuario, reversao PONTUAL da regra "SEM ESTIMATIVAS" de
+    // V250 - só pra este campo, com autorizacao clara, documentada, mesma logica ja aceita pra
+    // projecao de salario/bonus): saldo liquido ESTIMADO pro dia de hoje, pra o numero nao ficar
+    // "parado" entre leituras manuais do medidor. Formula: parte do ultimo saldo REAL (leitura103-
+    // leitura03) e soma (geracao media diaria - consumo medio diario da Casa da Mae) x dias desde
+    // a ultima leitura. SEMPRE e so uma estimativa - a leitura real, quando chegar, sobrescreve tudo
+    // (mesma regra "fatura sempre vence" usada em todo o resto do sistema). Nunca usado como fonte
+    // pro rateio da secao 11 (isso continua 100% real) - so exibido aqui, claramente rotulado.
+    const hoje = new Date();
+    const dataUltimaLeitura = new Date(ultimaSolar.data);
+    const diasDesdeLeitura = Math.max(0, Math.round((hoje - dataUltimaLeitura) / 86400000));
+    const diasDesdeAtivacao = ultimaSolar.dias; // dias desde 21/07/2026 ate a ultima leitura
+    const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? geracaoAcum / diasDesdeAtivacao : 0;
+    const consumoMedioMensalMae = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
+    const consumoMedioDiarioMae = consumoMedioMensalMae / 30;
+    const saldoLiquidoEstimado = temGeracao
+      ? Math.round((saldoLiquidoAcum + diasDesdeLeitura * (geracaoMediaDiaria - consumoMedioDiarioMae)) * 100) / 100
+      : null;
+
+    const ugEstimativaEl = document.getElementById('ugSaldoLiquidoEstimado');
+    if(ugEstimativaEl){
+      if(saldoLiquidoEstimado !== null && diasDesdeLeitura > 0){
+        ugEstimativaEl.style.display = 'block';
+        ugEstimativaEl.innerHTML = `📊 Estimativa pra hoje: <strong style="color:${saldoLiquidoEstimado>=0?'#34c98a':'#e2554f'}">${saldoLiquidoEstimado>=0?'+':''}${saldoLiquidoEstimado} kWh</strong> (+${diasDesdeLeitura} dia(s) desde a última leitura real, ${geracaoMediaDiaria.toFixed(1)} kWh/dia gerados − ${consumoMedioDiarioMae.toFixed(1)} kWh/dia consumo médio da casa) — <strong>não é dado real</strong>, é preenchido só pra não ficar "parado"; a próxima leitura do medidor sempre corrige pro valor verdadeiro.`;
+      } else {
+        ugEstimativaEl.style.display = 'none';
+      }
+    }
 
     let consumoDiretoAcum=null, consumoTotalCasa=null, autoconsumoPct=null, dependenciaPct=null, exportacaoDaGeracaoPct=null;
     if(temGeracao){
