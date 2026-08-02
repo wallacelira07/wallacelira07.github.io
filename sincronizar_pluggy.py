@@ -68,6 +68,16 @@ def autenticar(client_id: str, client_secret: str) -> str:
     return api_key
 
 
+def testar_conectividade(api_key: str) -> None:
+    """GET /connectors -> teste de diagnostico recomendado pela propria doc da Pluggy
+    pra confirmar se a API Key funciona, SEM depender de nenhum item ja existir.
+    Se isso tambem der 401, o problema e na chave/credenciais em si (nao em permissao
+    de item especifico). Se isso funcionar mas /items falhar, o problema e outro."""
+    resp = _request(f"{PLUGGY_BASE}/connectors", headers={"X-API-KEY": api_key})
+    total = resp.get("total", len(resp.get("results", [])))
+    print(f"[debug] GET /connectors OK - {total} conectores disponíveis (confirma que a API Key funciona em geral)")
+
+
 def listar_items(api_key: str) -> list[dict]:
     """GET /items -> todas as conexoes (bancos) ja existentes na conta Pluggy."""
     resp = _request(f"{PLUGGY_BASE}/items", headers={"X-API-KEY": api_key})
@@ -102,6 +112,7 @@ def listar_faturas(api_key: str, account_id: str) -> list[dict]:
 
 def sincronizar(client_id: str, client_secret: str) -> dict:
     api_key = autenticar(client_id, client_secret)
+    testar_conectividade(api_key)
     items = listar_items(api_key)
 
     resultado = {"conexoes": [], "erros": []}
