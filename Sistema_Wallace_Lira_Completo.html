@@ -514,38 +514,23 @@
     <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
     <div class="grid-2" style="margin-bottom:0.7rem">
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Valor de mercado (posições ativas)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesValorMercado">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em prêmios recebidos (bruto)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Vencimento</div><div class="v" style="font-weight:600;font-size:1.1rem">21/08/2026</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total líquido (após custos)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioLiquidoTotal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total bruto (antes dos custos)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesPremioBrutoTotal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em custos (corretagem/taxas)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--red)" id="opcoesCustosTotal">—</div></div>
+      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total líquido recebido</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
     </div>
+    <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Vencimento das posições em aberto: <strong>21/08/2026</strong></div>
     <div style="overflow-x:auto">
-    <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Ação agora</th><th class="r">Prêmio recebido</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Valor de mercado</th></tr></thead><tbody id="opcoesTbody">
+    <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Ação agora</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Valor de mercado</th></tr></thead><tbody id="opcoesTbody">
     </tbody></table>
     </div>
     <div class="v" id="legOpcoesCotacoes" style="font-size:0.65rem;color:var(--text-dim);margin-top:0.3rem">—</div>
     <div class="v" id="legOpcoesReconstruido" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
-  <!-- REMOVIDO 31/07/2026 (V216): grid-4 antigo (Capital travado R$19.422,00 / Lucro R$94,81 / Total prêmios
-  R$371,85 / Rentabilidade 1,91%) e a tabela de 3 linhas com dados de 26/07 - hardcoded, nunca atualizava,
-  ficou desatualizado desde então. Substituído pela versão acima, conectada a VARS.opcoesVendidasDetalhe. -->
-  <div style="display:none">
-  <div class="card">
-    <div class="grid-4" style="margin-bottom:0.7rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital travado</div><div class="v" style="font-weight:600;font-size:1.1rem">R$ 19.422,00</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro em aberto</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)">R$ 94,81</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em prêmios</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--accent)">R$ 371,85</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Rentabilidade total</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--accent)">1,91%</div></div>
-    </div>
-    <div style="overflow-x:auto">
-    <table><thead><tr><th>Ativo</th><th>Strike</th><th>Venc.</th><th>Contratos</th><th class="r">Prêmio</th><th class="r">Lucro</th><th class="r">Rentab.</th></tr></thead><tbody>
-    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>JUL/26</td><td style="text-align:center">1</td><td class="r">R$ 39,97</td><td class="r" style="color:var(--green)">R$ 19,04</td><td class="r" style="color:var(--accent)">1,08%</td></tr>
-    <tr><td>PETR4 PUT</td><td class="r">36,86</td><td>AGO/26</td><td style="text-align:center">2</td><td class="r">R$ 154,84</td><td class="r" style="color:var(--green)">R$ 37,97</td><td class="r" style="color:var(--accent)">2,10%</td></tr>
-    <tr><td>ITUB4 PUT</td><td class="r">41,82</td><td>21/08/26</td><td style="text-align:center">2</td><td class="r">R$ 177,04</td><td class="r" style="color:var(--green)">R$ 136,84</td><td class="r" style="color:var(--accent)">2,12%</td></tr>
-    </tbody></table>
-    </div>
-  </div>
-  </div>
+  <!-- LIMPO 01/08/2026 (varredura de alinhamento): bloco morto ja estava escondido (display:none)
+  desde a V216 (31/07/2026), so ocupando espaco no arquivo sem nunca aparecer na tela. Removido
+  de vez em vez de deixar comentado - a versao ativa (grid-2 + tabela acima) ja cobre tudo isso,
+  conectada a VARS.opcoesVendidasDetalhe. -->
 
   <!-- 18 -->
   <div class="section-num"><span class="n">18</span><h2>Operações P2P</h2></div>
