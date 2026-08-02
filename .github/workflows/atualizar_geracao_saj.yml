@@ -1,11 +1,11 @@
 name: Atualizar Geração Solar (SAJ → Supabase)
-
-# Roda 1x por dia, sozinho, sem precisar de servidor nenhum — gratuito no GitHub Actions.
+# Roda 2x por dia, sozinho, sem precisar de servidor nenhum — gratuito no GitHub Actions.
 # Também pode ser disparado manualmente na aba "Actions" do repositório, botão "Run workflow".
 on:
   schedule:
-    - cron: '0 12 * * *'   # todo dia às 12:00 UTC (09:00 horário de Brasília)
-  workflow_dispatch: {}     # permite rodar manualmente quando quiser
+    - cron: '0 12 * * *'  # todo dia às 12:00 UTC (09:00 horário de Brasília)
+    - cron: '0 20 * * *'  # todo dia às 20:00 UTC (17:00 horário de Brasília)
+  workflow_dispatch: {}   # permite rodar manualmente quando quiser
 
 jobs:
   atualizar-geracao:
