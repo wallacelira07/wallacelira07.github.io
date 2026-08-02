@@ -78,10 +78,14 @@ def testar_conectividade(api_key: str) -> None:
     print(f"[debug] GET /connectors OK - {total} conectores disponíveis (confirma que a API Key funciona em geral)")
 
 
-def listar_items(api_key: str) -> list[dict]:
-    """GET /items -> todas as conexoes (bancos) ja existentes na conta Pluggy."""
-    resp = _request(f"{PLUGGY_BASE}/items", headers={"X-API-KEY": api_key})
-    return resp.get("results", [])
+def buscar_item(api_key: str, item_id: str) -> dict:
+    """GET /items/{id} -> detalhes de UM item especifico.
+    IMPORTANTE (descoberto 02/08/2026): a Pluggy NAO disponibiliza um endpoint pra
+    listar todos os items de uma vez ('Listing existing connections its not provided
+    due to security reasons' - docs.pluggy.ai/docs/item). Por isso os itemIds precisam
+    ser configurados manualmente (variavel PLUGGY_ITEM_IDS), um por banco conectado.
+    """
+    return _request(f"{PLUGGY_BASE}/items/{item_id}", headers={"X-API-KEY": api_key})
 
 
 def listar_contas(api_key: str, item_id: str) -> list[dict]:
@@ -110,15 +114,19 @@ def listar_faturas(api_key: str, account_id: str) -> list[dict]:
     return resp.get("results", [])
 
 
-def sincronizar(client_id: str, client_secret: str) -> dict:
+def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict:
     api_key = autenticar(client_id, client_secret)
     testar_conectividade(api_key)
-    items = listar_items(api_key)
 
     resultado = {"conexoes": [], "erros": []}
 
-    for item in items:
-        item_id = item["id"]
+    for item_id in item_ids:
+        try:
+            item = buscar_item(api_key, item_id)
+        except RuntimeError as e:
+            resultado["erros"].append(f"item {item_id}: falha ao buscar detalhes - {e}")
+            continue
+
         nome_banco = item.get("connector", {}).get("name", "desconhecido")
         status = item.get("status")  # UPDATED, LOGIN_ERROR, OUTDATED, etc.
 
@@ -181,7 +189,7 @@ def sincronizar(client_id: str, client_secret: str) -> dict:
 
         resultado["conexoes"].append(entrada)
 
-    resultado["total_conexoes"] = len(items)
+    resultado["total_conexoes"] = len(item_ids)
     resultado["saldo_total_contas"] = round(sum(
         c["saldo"] for conexao in resultado["conexoes"] for c in conexao["contas"]
         if c.get("saldo") is not None and c.get("tipo") == "BANK"
@@ -217,6 +225,7 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, resultado: dict) ->
 def main() -> int:
     client_id = os.environ.get("PLUGGY_CLIENT_ID")
     client_secret = os.environ.get("PLUGGY_CLIENT_SECRET")
+    item_ids_raw = os.environ.get("PLUGGY_ITEM_IDS", "")
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
 
@@ -224,9 +233,14 @@ def main() -> int:
         print("ERRO: PLUGGY_CLIENT_ID e/ou PLUGGY_CLIENT_SECRET não definidos.", file=sys.stderr)
         return 1
 
+    item_ids = [i.strip() for i in item_ids_raw.split(",") if i.strip()]
+    if not item_ids:
+        print("ERRO: PLUGGY_ITEM_IDS não definido (lista de IDs separados por vírgula, um por banco conectado).", file=sys.stderr)
+        return 1
+
     try:
         print("Autenticando na Pluggy...")
-        resultado = sincronizar(client_id, client_secret)
+        resultado = sincronizar(client_id, client_secret, item_ids)
         print(f"Conexões encontradas: {resultado['total_conexoes']}")
         for c in resultado["conexoes"]:
             print(f"  {c['banco']} ({c['status']}): {len(c['contas'])} conta(s), {len(c['investimentos'])} investimento(s)")
