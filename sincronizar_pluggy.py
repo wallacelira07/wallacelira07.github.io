@@ -246,6 +246,87 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
     return resultado
 
 
+def buscar_valores_conhecidos(supabase_url: str, supabase_key: str) -> set[float]:
+    """Le todos os livros de transacao ja lancados no ERP (Supabase) e devolve um
+    conjunto (set) dos valores absolutos ja conhecidos - usado pra comparar contra
+    o extrato novo da Pluggy e achar o que pode estar faltando lancar.
+    Comparacao e so por VALOR (nao por data/descricao) - simples de proposito, pra
+    nao gerar falso-negativo por causa de diferenca de 1-2 dias entre data de compra
+    e data de posting no banco. Pode gerar falso-positivo (2 compras coincidentes
+    do mesmo valor), mas isso e mais seguro que deixar passar uma compra de verdade.
+    """
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    url = f"{supabase_url}/rest/v1/wallace_dados?select=dados&id=eq.1"
+    req = Request(url, headers=headers, method="GET")
+    with urlopen(req, timeout=20) as resp:
+        linhas = json.loads(resp.read().decode("utf-8"))
+    dados = linhas[0]["dados"] if linhas else {}
+
+    # Livros de transacao conhecidos no ERP - cada um e uma lista de objetos com
+    # campo "valor" (as vezes "premioRecebido" pra opcoes, ignorado aqui de proposito).
+    livros = [
+        "LRW_TRANSACOES", "LRV_TRANSACOES", "LRC_LIMBO_TRANSACOES", "LRCV_TRANSACOES",
+        "PV_TRANSACOES", "LRPV_TRANSACOES", "BOLETOS_TRANSACOES",
+    ]
+    valores = set()
+    for livro in livros:
+        for item in (dados.get(livro) or []):
+            v = item.get("valor")
+            if isinstance(v, (int, float)):
+                valores.add(round(abs(v), 2))
+    return valores
+
+
+def detectar_transacoes_suspeitas(resultado: dict, valores_conhecidos: set[float], valor_minimo: float = 5.0) -> list[dict]:
+    """Percorre as transacoes recentes trazidas da Pluggy e separa as que NAO batem
+    com nenhum valor ja lancado no ERP - candidatas a "esqueci de mandar pro Claude".
+    Filtra valores pequenos (< valor_minimo) pra nao poluir com taxas/juros/estorno.
+    """
+    suspeitas = []
+    for conexao in resultado["conexoes"]:
+        for conta in conexao["contas"]:
+            for t in conta.get("transacoes_recentes", []):
+                valor = t.get("valor")
+                status = t.get("status")
+                if valor is None or status != "POSTED":
+                    continue
+                valor_abs = round(abs(valor), 2)
+                if valor_abs < valor_minimo:
+                    continue
+                if valor_abs not in valores_conhecidos:
+                    suspeitas.append({
+                        "banco": conexao["banco"],
+                        "conta": conta["nome"],
+                        "data": t.get("data"),
+                        "descricao": t.get("descricao"),
+                        "valor": valor,
+                    })
+    return suspeitas
+
+
+def enviar_email_suspeitas(suspeitas: list[dict], smtp_host: str, smtp_port: int, email_from: str, email_password: str, email_to: str) -> None:
+    """Manda um e-mail simples (texto puro) avisando sobre transacoes que apareceram
+    no extrato da Pluggy mas nao parecem estar lancadas no ERP ainda."""
+    import smtplib
+    from email.mime.text import MIMEText
+
+    linhas = [f"Encontrei {len(suspeitas)} transação(ões) no extrato de hoje que não parecem estar lançadas no Sistema Wallace Lira:\n"]
+    for s in suspeitas:
+        linhas.append(f"- {s['data']} | {s['banco']} ({s['conta']}) | {s['descricao']} | R$ {s['valor']:.2f}")
+    linhas.append("\nSe já lançou manualmente, pode ignorar - a comparação é só por valor, pode dar falso positivo (ex: duas compras com o mesmo valor).")
+    corpo = "\n".join(linhas)
+
+    msg = MIMEText(corpo, "plain", "utf-8")
+    msg["Subject"] = f"Sistema Wallace Lira: {len(suspeitas)} transação(ões) pra conferir"
+    msg["From"] = email_from
+    msg["To"] = email_to
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(email_from, email_password)
+        server.sendmail(email_from, [email_to], msg.as_string())
+
+
 def atualizar_supabase(supabase_url: str, supabase_key: str, resultado: dict) -> None:
     headers = {
         "apikey": supabase_key,
@@ -276,6 +357,11 @@ def main() -> int:
     item_ids_raw = os.environ.get("PLUGGY_ITEM_IDS", "")
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
+    email_smtp_host = os.environ.get("EMAIL_SMTP_HOST", "smtp.gmail.com")
+    email_smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
+    email_from = os.environ.get("EMAIL_FROM")
+    email_password = os.environ.get("EMAIL_PASSWORD")
+    email_to = os.environ.get("EMAIL_TO")
 
     if not client_id or not client_secret:
         print("ERRO: PLUGGY_CLIENT_ID e/ou PLUGGY_CLIENT_SECRET não definidos.", file=sys.stderr)
@@ -303,6 +389,22 @@ def main() -> int:
         if supabase_url and supabase_key:
             print("\nAtualizando Supabase...")
             atualizar_supabase(supabase_url, supabase_key, resultado)
+
+            # NOVO 02/08/2026 (pedido do usuario): compara o extrato novo contra o
+            # que ja esta lancado no ERP - se achar algo que nao bate, manda e-mail.
+            print("\nConferindo transações contra o ERP...")
+            valores_conhecidos = buscar_valores_conhecidos(supabase_url, supabase_key)
+            suspeitas = detectar_transacoes_suspeitas(resultado, valores_conhecidos)
+            print(f"Transações suspeitas (possivelmente não lançadas): {len(suspeitas)}")
+            for s in suspeitas:
+                print(f"  - {s['data']} | {s['banco']} | {s['descricao']} | R$ {s['valor']:.2f}")
+
+            if suspeitas and email_from and email_password and email_to:
+                print("\nEnviando e-mail de aviso...")
+                enviar_email_suspeitas(suspeitas, email_smtp_host, email_smtp_port, email_from, email_password, email_to)
+                print("E-mail enviado.")
+            elif suspeitas:
+                print("AVISO: encontrei transações suspeitas mas EMAIL_FROM/EMAIL_PASSWORD/EMAIL_TO não configurados - não enviei nada.", file=sys.stderr)
         else:
             print("\nAVISO: SUPABASE_URL/SUPABASE_KEY não definidos - só imprimindo, não salvando.", file=sys.stderr)
 
