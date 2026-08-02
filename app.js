@@ -3601,13 +3601,32 @@ new Chart(document.getElementById('g_cAlivio'), {
   const kwhAnoAnterior = [321,262,279,297,405,265,211,273,330,343,323,304];
   const tarifa = VARS.faturaEnergisaValor/VARS.faturaEnergisaKwh;
   const anoAnterior = kwhAnoAnterior.map(k=>Math.round(k*tarifa*100)/100);
-  const valorPosSolar = Math.round((VARS.consumoMinimoComSolarKwh*tarifa + VARS.taxaMinimaEnergisa)*100)/100;
+  // CORRIGIDO 01/08/2026 (pedido do usuario - "os R$70 são muito conservadores"): valorPosSolar
+  // ERA so consumoMinimoComSolarKwh*tarifa + taxaMinimaEnergisa (R$69,87 = so Disponibilidade+Iluminacao,
+  // faltava Fio B e Encargos). Agora usa a MESMA formula completa e automatica do card "Quanto voce
+  // ainda vai pagar" (secao logo abaixo neste arquivo) - Disponibilidade + Fio B + Iluminacao + Encargos,
+  // calculados a partir de VARS.ENERGISA_TARIFA_COMPOSICAO.apartamento_wallace (fatura real Jul/2026).
+  const compApto = VARS.ENERGISA_TARIFA_COMPOSICAO && VARS.ENERGISA_TARIFA_COMPOSICAO.apartamento_wallace;
+  let valorPosSolar;
+  if(compApto && compApto.historico && compApto.consumo_kwh){
+    const fB = compApto.historico.jul26, cK = compApto.consumo_kwh, pct = compApto.composicao_pct;
+    const tarifaReal = fB / cK;
+    const fioBFracao = (VARS.FIO_B_COBRANCA_2026_PCT/100) * (VARS.FIO_B_PCT_DA_DISTRIBUICAO/100);
+    const custoDisp = VARS.consumoMinimoComSolarKwh * tarifaReal;
+    const fioBValor = fB * (pct.distribuicao/100) * fioBFracao;
+    const iluminacaoValor = fB * (pct.iluminacao/100);
+    const encargosValor = fB * (pct.encargos/100);
+    valorPosSolar = Math.round((custoDisp + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+  } else {
+    // fallback pro calculo antigo, so se a composicao tarifaria nao estiver disponivel por algum motivo
+    valorPosSolar = Math.round((VARS.consumoMinimoComSolarKwh*tarifa + VARS.taxaMinimaEnergisa)*100)/100;
+  }
   // NOVO 31/07/2026: mesesPares[0]='Jul' e o mes atual (Jul/2026, quando o solar entrou em operacao) -
   // agora usa a geracao REAL (VARS.SOLAR_LEITURAS_CALC, ultima leitura) em vez do valor fixo projetado.
-  // Regra: a fatura minima (R$69,87 = tarifa minima 30kWh + R$38 Iluminacao Publica) so vale se o
-  // credito solar cobrir 100% do consumo do apartamento; se a ultima leitura mostrar saldo NEGATIVO
-  // (credito ainda nao cobre o consumo esperado), soma o deficit x tarifa por cima do minimo - reflete
-  // o que a fatura real provavelmente vai cobrar.
+  // Regra: a fatura minima (valorPosSolar, calculado acima - Disponibilidade+FioB+Iluminacao+Encargos)
+  // so vale se o credito solar cobrir 100% do consumo do apartamento; se a ultima leitura mostrar saldo
+  // NEGATIVO (credito ainda nao cobre o consumo esperado), soma o deficit x tarifa por cima do minimo -
+  // reflete o que a fatura real provavelmente vai cobrar.
   const solarCalcAtual = VARS.SOLAR_LEITURAS_CALC[VARS.SOLAR_LEITURAS_CALC.length-1];
   const deficitWallaceAtual = solarCalcAtual ? Math.max(0, -solarCalcAtual.saldoWallace) : 0;
   const valorMesAtualCalculado = Math.round((valorPosSolar + deficitWallaceAtual*tarifa)*100)/100;
@@ -3699,9 +3718,9 @@ new Chart(document.getElementById('g_cAlivio'), {
     const comp = VARS.ENERGISA_TARIFA_COMPOSICAO || {};
     const fioBFracaoDaDistribuicao = (VARS.FIO_B_COBRANCA_2026_PCT/100) * (VARS.FIO_B_PCT_DA_DISTRIBUICAO/100); // 0,168
     const unidades = [
-      { chave:'apartamento_wallace', nome:'Apartamento (Wallace)', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao (30=mono, 50=bi/trifasica) - assumido monofasico por padrao
-      { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao
-      { chave:'casa_mae', nome:'Casa da Mãe (geradora)', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao
+      { chave:'apartamento_wallace', nome:'Apartamento (Wallace)', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
+      { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
+      { chave:'casa_mae', nome:'Casa da Mãe (geradora)', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
     ];
     const linhas = unidades.map(u => {
       const d = comp[u.chave];
