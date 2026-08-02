@@ -3376,8 +3376,8 @@ new Chart(document.getElementById('g_cCaixas'), {
   plugins:[caixasValuePlugin],
   data:{labels:caixasLabels,
     datasets:[
-      {label:'Saldo atual', data:caixasSaldo, backgroundColor:'#3987e5', borderRadius:3},
-      {label:'Meta', data:caixasMeta, backgroundColor:'#e8a63a', borderRadius:3}
+      {label:'Meta', data:caixasMeta, backgroundColor:'#e8a63a', borderRadius:3},
+      {label:'Saldo atual', data:caixasSaldo, backgroundColor:'#3987e5', borderRadius:3}
     ]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:70}},
     barPercentage:0.7,categoryPercentage:0.65,
@@ -3829,6 +3829,39 @@ new Chart(document.getElementById('g_cAlivio'), {
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
+  // NOVO 02/08/2026 (pedido EXPLICITO do usuario - o texto sozinho na Unidade Geradora nao bastava,
+  // "só a nota não é o impacto do gráfico"): a barra do MES CALENDARIO ATUAL no grafico 11 (Rateio
+  // Solar) tambem precisa refletir o valor calculado (geracao real do inversor - consumo medio da
+  // casa), nao so ficar parada na ultima leitura real parcial daquele mes. Mesma formula/regra da
+  // estimativa da Unidade Geradora: some pra dentro deste grafico especifico, nao muda o dado bruto
+  // (SOLAR_LEITURAS continua 100% real) - so a exibicao desta barra.
+  if(ultimaSolar && ultimaSolar.geracaoAcumulada != null && diasAcumAnterior >= 0){
+    const hojeChart = new Date();
+    const hojeSoDataChart = new Date(Date.UTC(hojeChart.getFullYear(), hojeChart.getMonth(), hojeChart.getDate()));
+    const dataUltimaLeituraChart = new Date(ultimaSolar.data);
+    const diasDesdeLeituraChart = Math.max(0, Math.round((hojeSoDataChart - dataUltimaLeituraChart) / 86400000));
+    if(diasDesdeLeituraChart > 0){
+      const diasDesdeAtivacaoChart = ultimaSolar.dias;
+      const geracaoMediaDiariaChart = diasDesdeAtivacaoChart > 0 ? ultimaSolar.geracaoAcumulada / diasDesdeAtivacaoChart : 0;
+      const consumoMedioMensalMaeChart = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
+      const consumoMedioDiarioMaeChart = consumoMedioMensalMaeChart / 30;
+      const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + diasDesdeLeituraChart * (geracaoMediaDiariaChart - consumoMedioDiarioMaeChart);
+
+      const mesAtualCalendario = hojeChart.getMonth() + 1; // 1-12
+      const idxMesAtual = (mesAtualCalendario - mesAtivacao + 12) % 12;
+      // credito acumulado ATE O FIM DO MES ANTERIOR (ultima leitura de um mes calendario diferente do atual)
+      let creditoAcumAntesDoMesAtual = 0;
+      solarL.forEach(l => {
+        const mesDaLeitura = Number(l.data.split('-')[1]);
+        if(mesDaLeitura !== mesAtualCalendario) creditoAcumAntesDoMesAtual = l.creditoLiquido;
+      });
+      const creditoDoMesAtualEstimado = Math.round((saldoTotalEstimadoChart - creditoAcumAntesDoMesAtual) * 100) / 100;
+      creditoMensalWallace[idxMesAtual] = Math.round(creditoDoMesAtualEstimado * VARS.solarRateioWallace * 100) / 100;
+      creditoMensalIrma[idxMesAtual] = Math.round(creditoDoMesAtualEstimado * VARS.solarRateioIrma * 100) / 100;
+      temLeituraNoMes[idxMesAtual] = true;
+    }
+  }
+
   // ===== CORRIGIDO 01/08/2026 (V250): Unidade Geradora SEM ESTIMATIVAS (documento do usuário) =====
   // Antes: consumo direto derivado de uma geracao ESTIMADA (25,6 kWh/dia fixo). Usuario pediu para
   // eliminar qualquer estimativa - agora so calcula quando existir leitura REAL de geracaoAcumulada
@@ -3879,8 +3912,14 @@ new Chart(document.getElementById('g_cAlivio'), {
     // (mesma regra "fatura sempre vence" usada em todo o resto do sistema). Nunca usado como fonte
     // pro rateio da secao 11 (isso continua 100% real) - so exibido aqui, claramente rotulado.
     const hoje = new Date();
+    // CORRIGIDO 02/08/2026 (achado do usuário): comparar Date completo (com hora) contra uma data
+    // pura tipo '2026-08-01' inflava a contagem de dias - '2026-08-01' vira meia-noite UTC, e "hoje"
+    // (com hora local, ex: 19h) já passa de 1,5 dia de diferença de tarde pra frente, arredondando
+    // pra 2 mesmo sendo só "ontem pra hoje" (1 dia de calendário). Corrigido comparando só a DATA
+    // (sem hora) dos dois lados.
+    const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
     const dataUltimaLeitura = new Date(ultimaSolar.data);
-    const diasDesdeLeitura = Math.max(0, Math.round((hoje - dataUltimaLeitura) / 86400000));
+    const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
     const diasDesdeAtivacao = ultimaSolar.dias; // dias desde 21/07/2026 ate a ultima leitura
     const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? geracaoAcum / diasDesdeAtivacao : 0;
     const consumoMedioMensalMae = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
@@ -3893,7 +3932,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     if(ugEstimativaEl){
       if(saldoLiquidoEstimado !== null && diasDesdeLeitura > 0){
         ugEstimativaEl.style.display = 'block';
-        ugEstimativaEl.innerHTML = `📊 Estimativa pra hoje: <strong style="color:${saldoLiquidoEstimado>=0?'#34c98a':'#e2554f'}">${saldoLiquidoEstimado>=0?'+':''}${saldoLiquidoEstimado} kWh</strong> (+${diasDesdeLeitura} dia(s) desde a última leitura real, ${geracaoMediaDiaria.toFixed(1)} kWh/dia gerados − ${consumoMedioDiarioMae.toFixed(1)} kWh/dia consumo médio da casa) — <strong>não é dado real</strong>, é preenchido só pra não ficar "parado"; a próxima leitura do medidor sempre corrige pro valor verdadeiro.`;
+        ugEstimativaEl.innerHTML = `📊 Estimativa pra hoje: <strong style="color:${saldoLiquidoEstimado>=0?'#34c98a':'#e2554f'}">${saldoLiquidoEstimado>=0?'+':''}${saldoLiquidoEstimado} kWh</strong> (${diasDesdeLeitura} dia(s) desde a última leitura do medidor, calculado automaticamente com base na geração real do inversor − consumo médio da casa) — <strong>é estimativa, não leitura real</strong>; sempre que você mandar uma foto nova do medidor, o valor real substitui essa estimativa. Não precisa mandar leitura todo dia — isso aqui só preenche o intervalo sozinho.`;
       } else {
         ugEstimativaEl.style.display = 'none';
       }
@@ -3997,7 +4036,8 @@ new Chart(document.getElementById('g_cAlivio'), {
   const legSolarEl = document.getElementById('legSolarRateio');
   if(legSolarEl && ultimaSolar){
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 11 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.';
+    const avisoEstimativa = ' A barra do mês atual pode incluir uma <strong style="color:#3987e5">estimativa</strong> (geração real do inversor − consumo médio histórico) pros dias sem leitura ainda — sempre corrigida quando a leitura real do medidor chegar.';
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 11 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
