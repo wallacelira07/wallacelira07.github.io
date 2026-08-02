@@ -1,0 +1,29 @@
+name: Sincronizar Pluggy (Bancos → Supabase)
+
+# Roda 1x por dia, de graça, via GitHub Actions (mesma automação já usada pra
+# geração solar e cotações de ações). Pode rodar manual pelo botão "Run workflow".
+on:
+  schedule:
+    - cron: '0 11 * * *'  # todo dia às 11:00 UTC (08:00 horário de Brasília)
+  workflow_dispatch: {}
+
+jobs:
+  sincronizar-pluggy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Rodar script de sincronização
+        env:
+          PLUGGY_CLIENT_ID: ${{ secrets.PLUGGY_CLIENT_ID }}
+          PLUGGY_CLIENT_SECRET: ${{ secrets.PLUGGY_CLIENT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 sincronizar_pluggy.py
+
