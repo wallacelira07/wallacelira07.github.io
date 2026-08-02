@@ -505,9 +505,13 @@ const VARS = {
   // ja aconteceu varias vezes neste sistema.
   opcoesVendidasValorMercado: 0, // PLACEHOLDER - sobrescrito pelo calculo derivado logo abaixo do VARS
   opcoesVendidasDetalhe: [
-    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null },
-    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: null, vencimento: '31/07/2026', quantidade: -100, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00 },
-    { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 177.04, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33 },
+    // NOVO 01/08/2026 (pedido do usuario): custoOperacional = corretagem + emolumentos B3 + taxa de
+    // liquidacao/registro, por operacao - PLACEHOLDER em R$0,00 ate o usuario confirmar os valores
+    // reais do extrato da corretora. Usado pra calcular "Premio liquido" (premioRecebido - custoOperacional)
+    // na tabela de opcoes - nunca chutar um numero aqui, so preencher com valor confirmado.
+    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 154.84, custoOperacional: 0, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null },
+    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: null, vencimento: '31/07/2026', quantidade: -100, premioRecebido: 39.97, custoOperacional: 0, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00 },
+    { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioRecebido: 177.04, custoOperacional: 0, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33 },
   ],
   // CORRIGIDO 31/07/2026 (V222): terceira posição encontrada - PETRS368W5 (100un, vencimento 31/07,
   // hoje mesmo) que eu não tinha registrado. E PETRT379 tinha valor ERRADO (R$180,00, deduzido de
@@ -2289,6 +2293,10 @@ function hydrate(){
   // nunca mais tabela fixa no HTML.
   t('opcoesValorMercado', fmt(VARS.opcoesVendidasValorMercado));
   t('opcoesPremioTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0)) + (VARS.opcoesVendidasDetalhe.some(o=>o.premioRecebido===null) ? ' (parcial, falta confirmar)' : ''));
+  // NOVO 01/08/2026 (pedido do usuario): total liquido = soma de (premioRecebido - custoOperacional)
+  // de cada posicao. custoOperacional comeca em R$0,00 (placeholder) ate o usuario confirmar os
+  // valores reais de corretagem/emolumentos do extrato - ver comentario em VARS.opcoesVendidasDetalhe.
+  t('opcoesPremioLiquidoTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+((o.premioRecebido||0)-(o.custoOperacional||0)),0)));
   // NOVO 31/07/2026 (V218): aplica as 28 legendas de VARS.LEGENDAS nos elementos correspondentes -
   // um loop so, nunca precisa lembrar de chamar t() individualmente pra cada uma. Usa innerHTML
   // porque varias legendas tem <strong>/<span> internos que precisam ser preservados.
@@ -2354,7 +2362,12 @@ function hydrate(){
       // CORRIGIDO 01/08/2026 (achado do usuario): coluna "Acao agora" nao estava nublando no modo
       // apresentacao - faltava a class="v" na propria celula (o conteudo e gerado por HTML, nao por
       // t(), entao nao herdava a classe automaticamente como os outros campos).
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+      // NOVO 01/08/2026 (pedido do usuario): "Custos" (corretagem+emolumentos, ver custoOperacional
+      // no VARS) e "Premio liquido" (premioRecebido - custoOperacional) - mostra o resultado real
+      // apos descontos, nao so o premio bruto recebido na venda.
+      const custoTxt = o.custoOperacional > 0 ? fmt(o.custoOperacional) : '<span style="color:var(--text-dim)">—</span>';
+      const premioLiquido = (o.premioRecebido||0) - (o.custoOperacional||0);
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '—' : fmt(premioLiquido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
     }).join('');
     // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
     const legCotacoesEl = document.getElementById('legOpcoesCotacoes');
