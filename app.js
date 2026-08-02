@@ -2326,7 +2326,13 @@ function hydrate(){
     // dinheiro - o normal, o Wallace quer que a put vire po) ou ITM (dentro do dinheiro - alerta, quem
     // vendeu a put pode ser exercido). Formula: PUT vendida fica OTM quando preco da acao > strike.
     const cotacoes = VARS.ACOES_COTACOES || {};
-    opcoesTbodyEl.innerHTML = VARS.opcoesVendidasDetalhe.map(o => {
+    // NOVO 01/08/2026 (pedido do usuario): ordena por data de vencimento, mais proxima primeiro,
+    // mais distante por ultimo - ajuda a priorizar visualmente qual posicao precisa de atencao antes.
+    // Datas no formato DD/MM/AAAA - convertidas pra Date so pra comparar, sem alterar o array original
+    // (nao mexe em VARS.opcoesVendidasDetalhe, so na copia usada pra desenhar a tabela).
+    const parseVencimento = str => { const [d,m,a] = str.split('/').map(Number); return new Date(a,m-1,d); };
+    const opcoesOrdenadas = [...VARS.opcoesVendidasDetalhe].sort((a,b) => parseVencimento(a.vencimento) - parseVencimento(b.vencimento));
+    opcoesTbodyEl.innerHTML = opcoesOrdenadas.map(o => {
       // CORRIGIDO 01/08/2026: antes a cor vermelha do valorMercado vinha "de graca" de um bug
       // (classe .r colidindo entre "alinhar a direita" e "cor vermelha", ver styles.css) - o Strike
       // (coluna sem relacao nenhuma com lucro/prejuizo) tambem ficava vermelho por acidente. Agora
@@ -2345,7 +2351,10 @@ function hydrate(){
       } else if(cot && o.precoExercicio === null){
         acaoAgoraHtml = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})} <span style="color:var(--text-dim);font-size:0.68rem">(vencida)</span>`;
       }
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${acaoAgoraHtml}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+      // CORRIGIDO 01/08/2026 (achado do usuario): coluna "Acao agora" nao estava nublando no modo
+      // apresentacao - faltava a class="v" na propria celula (o conteudo e gerado por HTML, nao por
+      // t(), entao nao herdava a classe automaticamente como os outros campos).
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
     }).join('');
     // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
     const legCotacoesEl = document.getElementById('legOpcoesCotacoes');
