@@ -2320,6 +2320,12 @@ function hydrate(){
   t('balPgblFgtsSoma', fmt(VARS.patPgbl + VARS.patFgts));
   const opcoesTbodyEl = document.getElementById('opcoesTbody');
   if(opcoesTbodyEl){
+    // NOVO 01/08/2026 (pedido do usuario): integra as cotacoes reais da brapi.dev (VARS.ACOES_COTACOES,
+    // atualizadas automaticamente via GitHub Actions -> Supabase, ver PASSAGEM_DE_TURNO) na tabela de
+    // opcoes. Pra cada PUT vendida, mostra o preco atual da acao-objeto e se ela esta OTM (fora do
+    // dinheiro - o normal, o Wallace quer que a put vire po) ou ITM (dentro do dinheiro - alerta, quem
+    // vendeu a put pode ser exercido). Formula: PUT vendida fica OTM quando preco da acao > strike.
+    const cotacoes = VARS.ACOES_COTACOES || {};
     opcoesTbodyEl.innerHTML = VARS.opcoesVendidasDetalhe.map(o => {
       // CORRIGIDO 01/08/2026: antes a cor vermelha do valorMercado vinha "de graca" de um bug
       // (classe .r colidindo entre "alinhar a direita" e "cor vermelha", ver styles.css) - o Strike
@@ -2327,8 +2333,30 @@ function hydrate(){
       // cor e explicita e correta: Strike sempre neutro; Valor de Mercado vermelho se negativo,
       // verde se positivo, neutro se exatamente zero.
       const corMercado = o.valorMercado < 0 ? 'var(--red)' : (o.valorMercado > 0 ? 'var(--green)' : 'inherit');
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+      const cot = cotacoes[o.ativo];
+      let acaoAgoraHtml = '<span style="color:var(--text-dim)">— sem cotação</span>';
+      if(cot && o.precoExercicio !== null){
+        const distanciaPct = ((cot.preco - o.precoExercicio) / o.precoExercicio) * 100;
+        const otm = cot.preco > o.precoExercicio; // PUT vendida: OTM (bom, vira po) quando preco > strike
+        const corStatus = otm ? 'var(--green)' : 'var(--red)';
+        const statusTxt = otm ? 'OTM' : 'ITM';
+        const sinalPct = distanciaPct >= 0 ? '+' : '';
+        acaoAgoraHtml = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})} <span style="color:${corStatus};font-weight:600">${statusTxt}</span> <span style="color:var(--text-dim);font-size:0.68rem">(${sinalPct}${distanciaPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%)</span>`;
+      } else if(cot && o.precoExercicio === null){
+        acaoAgoraHtml = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})} <span style="color:var(--text-dim);font-size:0.68rem">(vencida)</span>`;
+      }
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${acaoAgoraHtml}</td><td class="r" style="color:var(--green)">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
     }).join('');
+    // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
+    const legCotacoesEl = document.getElementById('legOpcoesCotacoes');
+    if(legCotacoesEl){
+      if(VARS.ACOES_COTACOES_ATUALIZADO_EM){
+        const dt = new Date(VARS.ACOES_COTACOES_ATUALIZADO_EM);
+        legCotacoesEl.textContent = `Cotações via brapi.dev, atualizadas automaticamente às 15h em dias úteis · última atualização: ${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} · OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)`;
+      } else {
+        legCotacoesEl.textContent = 'OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)';
+      }
+    }
   }
   t('pcnCapital', fmt(PCN.capitalDisponivel));
   t('pcnPctBadge', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
