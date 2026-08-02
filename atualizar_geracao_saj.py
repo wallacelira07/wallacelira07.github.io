@@ -4,37 +4,39 @@ Automação SAJ (Elekeeper) -> Supabase (Sistema Wallace Lira)
 ==============================================================
 
 O que faz:
-  1. Loga na API da SAJ (iop.saj-electric.com) com usuário/senha (senha é
-     criptografada com AES-128-ECB antes do envio, igual o próprio site faz —
-     nunca manda a senha em texto puro pela rede).
-  2. Busca a geração acumulada real da usina (endpoint getPlantEnergyStatistics,
-     campo energyDataList -> dataType "PV_ENERGY" -> energy1Total).
-  3. Atualiza esse valor na última leitura registrada em SOLAR_LEITURAS no
-     Supabase (o site já lê esse campo automaticamente, sem precisar de
-     deploy novo — confirmado no Sistema Wallace Lira, V221+).
+1. Loga na API da SAJ (iop.saj-electric.com) com usuário/senha (senha é
+   criptografada com AES-128-ECB antes do envio, igual o próprio site faz —
+   nunca manda a senha em texto puro pela rede).
+2. Busca a geração acumulada real da usina (endpoint getPlantEnergyStatistics,
+   campo energyDataList -> dataType "PV_ENERGY" -> energy1Total).
+3. Atualiza esse valor na última leitura registrada em SOLAR_LEITURAS no
+   Supabase (o site já lê esse campo automaticamente, sem precisar de
+   deploy novo — confirmado no Sistema Wallace Lira, V221+).
 
 O que NÃO faz (ainda):
-  - Não sabe os códigos 03/103 do medidor bidirecional da Energisa — isso
-    continua sendo informado manualmente (foto/fatura) até existir alguma
-    forma de automatizar a leitura da Energisa também.
-  - Não cria uma leitura nova por dia automaticamente — atualiza a geração
-    da leitura mais recente já existente. Quando o usuário mandar um 03/103
-    novo (nova leitura), o Claude cria a entrada nova; esse script só
-    mantém a geração em dia na entrada que já existe.
+- Não sabe os códigos 03/103 do medidor bidirecional da Energisa — isso
+  continua sendo informado manualmente (foto/fatura) até existir alguma
+  forma de automatizar a leitura da Energisa também.
+- Não cria uma leitura nova por dia automaticamente — atualiza a geração
+  da leitura mais recente já existente. Quando o usuário mandar um 03/103
+  novo (nova leitura), o Claude cria a entrada nova; esse script só
+  mantém a geração em dia na entrada que já existe.
 
 Como rodar:
-  - Localmente: definir as variáveis de ambiente abaixo e rodar
-    `python3 atualizar_geracao_saj.py`
-  - Automático: ver o arquivo .github/workflows/atualizar_geracao_saj.yml
-    (roda 1x por dia via GitHub Actions, de graça, sem servidor nenhum).
+- Localmente: definir as variáveis de ambiente abaixo e rodar
+  `python3 atualizar_geracao_saj.py`
+- Automático: ver o arquivo .github/workflows/atualizar_geracao_saj.yml
+  (roda 2x por dia via GitHub Actions - 09h e 17h horário de Brasília,
+  atualizado 02/08/2026 a pedido do usuário; era 1x/dia antes - de graça,
+  sem servidor nenhum).
 
 Variáveis de ambiente necessárias (nunca colocar direto no código):
-  SAJ_USERNAME          - email de login do Elekeeper/SAJ
-  SAJ_PASSWORD          - senha do Elekeeper/SAJ (texto puro; o script hasheia)
-  SAJ_PLANT_UID         - 2268F1C3E8AF45AFB334B068063E2E97 (já descoberto)
-  SUPABASE_URL          - https://bakdgacmwlopvrrppwdm.supabase.co
-  SUPABASE_KEY          - chave do Supabase com permissão de UPDATE na tabela
-                          wallace_dados (ver nota de segurança abaixo)
+  SAJ_USERNAME    - email de login do Elekeeper/SAJ
+  SAJ_PASSWORD    - senha do Elekeeper/SAJ (texto puro; o script hasheia)
+  SAJ_PLANT_UID   - 2268F1C3E8AF45AFB334B068063E2E97 (já descoberto)
+  SUPABASE_URL    - https://bakdgacmwlopvrrppwdm.supabase.co
+  SUPABASE_KEY    - chave do Supabase com permissão de UPDATE na tabela
+                    wallace_dados (ver nota de segurança abaixo)
 
 NOTA DE SEGURANÇA sobre a SUPABASE_KEY:
   A chave "publishable"/anon usada pelo site (só leitura seguindo as regras
@@ -44,7 +46,6 @@ NOTA DE SEGURANÇA sobre a SUPABASE_KEY:
   Project Settings > API). Essa chave NUNCA deve aparecer no site (só aqui,
   como GitHub Secret, que fica encriptado e nunca é exibido em logs).
 """
-
 import hashlib
 import json
 import os
@@ -174,6 +175,11 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
     # PostgREST não faz merge profundo de JSON via PATCH simples do jeito que
     # o Supabase SQL faz com `||` — por isso usamos a função RPC abaixo em vez
     # de um PATCH cru. Ver função SQL sugerida no README do script.
+    # CORRIGIDO 02/08/2026: existia uma versao antiga e duplicada desta funcao
+    # RPC no banco (mesmo nome, assinatura diferente) causando erro HTTP 300
+    # "Multiple Choices" (Postgres nao sabia qual versao chamar) - removida a
+    # duplicata, so a versao completa (com geracao_hoje/receita_hoje/receita_total
+    # opcionais) ficou.
     rpc_url = f"{supabase_url}/rest/v1/rpc/atualizar_geracao_solar"
     rpc_body = json.dumps({"nova_geracao": round(geracao_total, 2)}).encode("utf-8")
     req2 = Request(rpc_url, data=rpc_body, headers=headers, method="POST")
