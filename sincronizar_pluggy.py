@@ -63,6 +63,8 @@ def autenticar(client_id: str, client_secret: str) -> str:
     api_key = resp.get("apiKey")
     if not api_key:
         raise RuntimeError(f"Resposta de /auth sem apiKey: {resp}")
+    # DEBUG (nao expoe a chave completa, so confirma que ela existe e tem formato plausivel)
+    print(f"[debug] apiKey recebida: {len(api_key)} caracteres, começa com '{api_key[:6]}...'")
     return api_key
 
 
@@ -81,6 +83,20 @@ def listar_contas(api_key: str, item_id: str) -> list[dict]:
 def listar_investimentos(api_key: str, item_id: str) -> list[dict]:
     """GET /investments?itemId=X -> investimentos de uma conexao, se houver."""
     resp = _request(f"{PLUGGY_BASE}/investments?itemId={item_id}", headers={"X-API-KEY": api_key})
+    return resp.get("results", [])
+
+
+def listar_faturas(api_key: str, account_id: str) -> list[dict]:
+    """GET /bills?accountId=X -> faturas (Bill) de uma conta de cartao de credito.
+    IMPORTANTE: em conexoes Open Finance Regulado (caso do MeuPluggy), o campo
+    'balance' da conta CREDIT retorna o LIMITE TOTAL USADO, nao a fatura do mes
+    (confirmado na documentacao oficial: docs.pluggy.ai/docs/accounts#balance -
+    'For Open Finance connectors, Credit Card balance is the used limit'). A fatura
+    de verdade (o que fecha e vence todo mes) vem dessa entidade Bill separada.
+    Endpoint inferido pelo padrao dos demais (/transactions?accountId=X) - se der
+    404/erro, o log vai mostrar a mensagem exata da API pra corrigir na proxima rodada.
+    """
+    resp = _request(f"{PLUGGY_BASE}/bills?accountId={account_id}", headers={"X-API-KEY": api_key})
     return resp.get("results", [])
 
 
@@ -107,14 +123,35 @@ def sincronizar(client_id: str, client_secret: str) -> dict:
         try:
             contas = listar_contas(api_key, item_id)
             for c in contas:
-                entrada["contas"].append({
+                conta_info = {
                     "tipo": c.get("type"),           # BANK / CREDIT
                     "subtipo": c.get("subtype"),      # CHECKING_ACCOUNT / SAVINGS_ACCOUNT / CREDIT_CARD
                     "nome": c.get("name"),
                     "numero": c.get("number"),
                     "saldo": c.get("balance"),
                     "moeda": c.get("currencyCode"),
-                })
+                }
+                if c.get("type") == "CREDIT":
+                    # 'saldo' aqui e o LIMITE TOTAL USADO (Open Finance), nao a fatura do mes.
+                    conta_info["saldo_significado"] = "limite total usado (não é a fatura do mês)"
+                    cd = c.get("creditData") or {}
+                    conta_info["limite_total"] = cd.get("creditLimit")
+                    conta_info["limite_disponivel"] = cd.get("availableCreditLimit")
+                    conta_info["fatura_vencimento_atual"] = cd.get("balanceDueDate")
+                    try:
+                        faturas = listar_faturas(api_key, c["id"])
+                        if faturas:
+                            # a mais recente costuma vir primeiro - ordena por dueDate pra garantir
+                            faturas_ordenadas = sorted(faturas, key=lambda f: f.get("dueDate") or "", reverse=True)
+                            fatura_atual = faturas_ordenadas[0]
+                            conta_info["fatura_mes_atual"] = {
+                                "valor_total": fatura_atual.get("totalAmount"),
+                                "vencimento": fatura_atual.get("dueDate"),
+                                "pagamento_minimo": fatura_atual.get("minimumPaymentAmount"),
+                            }
+                    except RuntimeError as e:
+                        conta_info["fatura_mes_atual_erro"] = str(e)
+                entrada["contas"].append(conta_info)
         except RuntimeError as e:
             resultado["erros"].append(f"{nome_banco} (contas): {e}")
 
@@ -204,4 +241,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
