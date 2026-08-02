@@ -31,6 +31,7 @@ Variaveis de ambiente necessarias:
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -114,6 +115,30 @@ def listar_faturas(api_key: str, account_id: str) -> list[dict]:
     return resp.get("results", [])
 
 
+def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas: int = 5) -> list[dict]:
+    """GET /transactions?accountId=X&from=DATA -> extrato da conta, paginado.
+    Traz so os ultimos N dias (padrao 40, cobre o ciclo financeiro atual + folga
+    pra virada) - nao a historia toda, pra manter o payload diario pequeno.
+    NOTA (02/08/2026): esse endpoint classico esta marcado como deprecated pela
+    Pluggy, disponivel so ate 2026-12-31 (migrar pra GET /v2/transactions, cursor-
+    based, depois disso). Usado por ora porque e mais simples e ainda valido por
+    varios meses - registrar como pendencia de migracao antes do prazo.
+    """
+    data_de = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%d")
+    transacoes = []
+    pagina = 1
+    while pagina <= max_paginas:
+        url = f"{PLUGGY_BASE}/transactions?accountId={account_id}&from={data_de}&page={pagina}&pageSize=500"
+        resp = _request(url, headers={"X-API-KEY": api_key})
+        resultados = resp.get("results", [])
+        transacoes.extend(resultados)
+        total_paginas = resp.get("totalPages", 1)
+        if pagina >= total_paginas or not resultados:
+            break
+        pagina += 1
+    return transacoes
+
+
 def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict:
     api_key = autenticar(client_id, client_secret)
     testar_conectividade(api_key)
@@ -170,6 +195,29 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                             }
                     except RuntimeError as e:
                         conta_info["fatura_mes_atual_erro"] = str(e)
+
+                # NOVO 02/08/2026 (pedido do usuario): traz o extrato dos ultimos 40 dias
+                # de cada conta - alimenta a classificacao de compras sem precisar de
+                # print/DeepSeek pros 5 bancos ja cobertos pelo Pluggy. Formato enxuto
+                # (so os campos uteis pro Claude classificar depois), nao o objeto bruto
+                # inteiro da API, pra manter o payload diario do Supabase pequeno.
+                try:
+                    transacoes = listar_transacoes(api_key, c["id"])
+                    conta_info["transacoes_recentes"] = [
+                        {
+                            "id": t.get("id"),
+                            "data": t.get("date"),
+                            "descricao": t.get("description"),
+                            "valor": t.get("amount"),
+                            "categoria": t.get("category"),
+                            "status": t.get("status"),  # POSTED / PENDING
+                        }
+                        for t in transacoes
+                    ]
+                    conta_info["qtd_transacoes"] = len(transacoes)
+                except RuntimeError as e:
+                    conta_info["transacoes_erro"] = str(e)
+
                 entrada["contas"].append(conta_info)
         except RuntimeError as e:
             resultado["erros"].append(f"{nome_banco} (contas): {e}")
