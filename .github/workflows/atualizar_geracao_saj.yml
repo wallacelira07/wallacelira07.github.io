@@ -1,27 +1,25 @@
 name: Atualizar Geração Solar (SAJ → Supabase)
 # Roda 2x por dia, sozinho, sem precisar de servidor nenhum — gratuito no GitHub Actions.
+# Horarios deslocados da hora cheia (:07 em vez de :00) - o GitHub avisa que agendamentos
+# exatamente na hora cheia tem mais chance de atrasar/nao disparar por alta demanda.
 # Também pode ser disparado manualmente na aba "Actions" do repositório, botão "Run workflow".
 on:
   schedule:
-    - cron: '0 12 * * *'  # todo dia às 12:00 UTC (09:00 horário de Brasília)
-    - cron: '0 20 * * *'  # todo dia às 20:00 UTC (17:00 horário de Brasília)
+    - cron: '7 12 * * *'  # todo dia às 12:07 UTC (09:07 horário de Brasília)
+    - cron: '7 20 * * *'  # todo dia às 20:07 UTC (17:07 horário de Brasília)
   workflow_dispatch: {}   # permite rodar manualmente quando quiser
-
 jobs:
   atualizar-geracao:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código do repositório
         uses: actions/checkout@v4
-
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Instalar dependências
         run: pip install cryptography
-
       - name: Rodar script de atualização
         env:
           SAJ_USERNAME: ${{ secrets.SAJ_USERNAME }}
