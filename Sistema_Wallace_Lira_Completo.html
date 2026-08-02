@@ -717,7 +717,18 @@
       <div class="legend-note" style="font-size:0.68rem;margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, R$69,87 = mínimo + Iluminação Pública).</div>
     </div>
 
+    <!-- NOVO 01/08/2026 (pedido do usuario): estimativa de fatura residual pos-solar, mesmo com creditos
+    cobrindo 100% do consumo. Regra real (Lei 14.300/2022): Iluminacao Publica e Encargos NUNCA sao
+    compensados pelos creditos solares, independente de quanto voce gerar - sempre sobra uma fatura minima. -->
+    <div class="card" style="border-left:3px solid var(--amber);margin-top:1rem">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💡 Quanto você ainda vai pagar mesmo com 100% dos créditos</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a 60% em 2026) é só uma <strong>fatia</strong> dela (~28%) — 60%×28% = 16,8% cobrado, <strong>83,2% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
+      <div id="residualPosSolarTbody" style="overflow-x:auto">—</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real é sempre o <strong>maior valor entre o Fio B calculado acima e a Taxa Mínima/Custo de Disponibilidade</strong> (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Iluminação Pública. Em casas com consumo já baixo (ex: Wellida), a Taxa Mínima pode ficar acima do valor calculado pela fórmula — nesse caso, o piso da concessionária prevalece, não a fórmula.</div>
+    </div>
+
     <div class="section-num"><span class="n">10</span><h2>☀️ Unidade Geradora (Casa da Mãe)</h2></div>
+
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
 

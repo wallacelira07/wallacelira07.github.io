@@ -663,6 +663,28 @@ const VARS = {
   solarDataAtivacao: '2026-07-21',
   solarRateioWallace: 0.71,
   solarRateioIrma: 0.29,
+  // NOVO 01/08/2026 (pedido do usuario): premissa de quanto cada categoria da fatura Energisa e
+  // efetivamente compensada pelos creditos de energia solar (Lei 14.300/2022, Marco Legal da GD).
+  // Energia/Transmissao: 100% compensados (creditos abatem 1:1). Iluminacao Publica (COSIP) e
+  // Encargos setoriais: NUNCA compensados por lei, sempre sobram na fatura mesmo com credito de sobra.
+  // CORRIGIDO 01/08/2026 (2a correcao, usuario apontou erro conceitual meu): o Fio B NAO e a categoria
+  // "Distribuicao" inteira - e so UMA FATIA dela (Fio A + Fio B + Encargos + Perdas compoem a TUSD;
+  // "Distribuicao" no app da Energisa e so a parte de infraestrutura fisica). O Fio B representa
+  // ~28% a 30% do valor da tarifa TE+TUSD (usando 28%, extremo mais conservador/otimista pro usuario).
+  // Cobranca 2026 confirmada: 60% do Fio B. Logo, cobranca real sobre a categoria Distribuicao =
+  // 60% x 28% = 16,8% (nao 60% direto como eu tinha calculado antes, errado) - ou seja, 83,2% da
+  // Distribuicao continua sendo de fato compensada pelos creditos solares.
+  FIO_B_PCT_DA_DISTRIBUICAO: 28, // fatia do Fio B dentro da categoria "Distribuicao" da fatura (varia 28-30% na Energisa PB, usado o extremo mais conservador)
+  FIO_B_COBRANCA_2026_PCT: 60, // confirmado - cronograma da Lei 14.300 pra sistemas conectados apos 07/01/2023 (15%/23, 30%/24, 45%/25, 60%/26, 75%/27, 90%/28-29)
+  // NOVO 01/08/2026: fallback estatico da composicao tarifaria por unidade (prints do app Energisa,
+  // 01/08/2026) - o Supabase tem a copia "viva" (ENERGISA_TARIFA_COMPOSICAO) que sobrescreve isto via
+  // Object.assign(VARS, dr) no carregamento; mantido aqui so pra o card nao ficar vazio se o banco
+  // estiver fora do ar. Editar via Supabase normalmente, nao aqui.
+  ENERGISA_TARIFA_COMPOSICAO: {
+    apartamento_wallace: { uc:'1.994.775.053-05', historico:{ mai26:270.10, jun26:322.99, jul26:367.36 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+    casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+    casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+  },
   solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico)
   solarConsumoDiarioIrma: 119/30,     // 3,97 kWh/dia (119 kWh/mes historico)
   solarGeracaoDiariaEstimada: 25.6,   // kWh/dia bruto (app SAJ), usado so como fallback quando faltar leitura real
@@ -2352,17 +2374,28 @@ function hydrate(){
       // verde se positivo, neutro se exatamente zero.
       const corMercado = o.valorMercado < 0 ? 'var(--red)' : (o.valorMercado > 0 ? 'var(--green)' : 'inherit');
       const cot = cotacoes[o.ativo];
-      let acaoAgoraHtml = '<span style="color:var(--text-dim)">— sem cotação</span>';
+      // CORRIGIDO 01/08/2026 (achado do usuario - texto sobrepondo a coluna vizinha): o site usa
+      // table-layout:fixed (V238, evita estouro de texto longo) - isso significa que colunas tem
+      // largura FIXA e nao se ajustam ao conteudo. white-space:nowrap numa celula com fixed layout
+      // nao quebra linha, so TRANSBORDA por cima da celula vizinha (nao gera scroll nem redimensiona).
+      // Solucao: em vez de forcar tudo numa linha, o preco fica numa linha e o status/percentual
+      // SEMPRE numa segunda linha (bloco, nao inline) - toda linha da tabela fica com a mesma altura
+      // (2 linhas), nunca vaza pra fora da propria celula, nunca quebra de forma inconsistente entre linhas.
+      let linha1 = '<span style="color:var(--text-dim)">— sem cotação</span>';
+      let linha2 = '';
       if(cot && o.precoExercicio !== null){
         const distanciaPct = ((cot.preco - o.precoExercicio) / o.precoExercicio) * 100;
         const otm = cot.preco > o.precoExercicio; // PUT vendida: OTM (bom, vira po) quando preco > strike
         const corStatus = otm ? 'var(--green)' : 'var(--red)';
         const statusTxt = otm ? 'OTM' : 'ITM';
         const sinalPct = distanciaPct >= 0 ? '+' : '';
-        acaoAgoraHtml = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})} <span style="color:${corStatus};font-weight:600">${statusTxt}</span> <span style="color:var(--text-dim);font-size:0.68rem">(${sinalPct}${distanciaPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%)</span>`;
+        linha1 = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+        linha2 = `<span style="color:${corStatus};font-weight:600">${statusTxt}</span> <span style="color:var(--text-dim);font-size:0.68rem">(${sinalPct}${distanciaPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%)</span>`;
       } else if(cot && o.precoExercicio === null){
-        acaoAgoraHtml = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})} <span style="color:var(--text-dim);font-size:0.68rem">(vencida)</span>`;
+        linha1 = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+        linha2 = `<span style="color:var(--text-dim);font-size:0.68rem">(vencida)</span>`;
       }
+      const acaoAgoraHtml = `<div>${linha1}</div><div style="min-height:1em">${linha2}</div>`;
       // CORRIGIDO 01/08/2026 (achado do usuario): coluna "Acao agora" nao estava nublando no modo
       // apresentacao - faltava a class="v" na propria celula (o conteudo e gerado por HTML, nao por
       // t(), entao nao herdava a classe automaticamente como os outros campos).
@@ -2371,7 +2404,7 @@ function hydrate(){
       // premioRecebido direto (SEM subtrair de novo, isso seria descontar os custos 2x). "Premio bruto"
       // e a nova coluna = premioBruto (valor da operacao antes dos descontos).
       const custoTxt = o.custoOperacional > 0 ? fmt(o.custoOperacional) : '<span style="color:var(--text-dim)">—</span>';
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v" style="white-space:nowrap">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
     }).join('');
     // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
     const legCotacoesEl = document.getElementById('legOpcoesCotacoes');
@@ -3649,6 +3682,49 @@ new Chart(document.getElementById('g_cAlivio'), {
   if(legEnergiaEl){
     legEnergiaEl.innerHTML = 'Mês atual (Jul/26): ano anterior <strong style="color:#e8a63a">'+fmt(anoAnterior[0])+'</strong> vs. este ano <strong style="color:#34c98a">'+fmt(esteAno[0])+'</strong> ('+(esteAnoFonte[0].fonte==='real'?'fatura real':'baseado na geração real do medidor')+') → economia de <strong style="color:#3987e5">'+fmt(economiaAtual)+'</strong> no mês. Projeção de economia nos 12 meses: <strong style="color:#3987e5">'+fmt(economiaAnualEstimada)+'</strong>. Toque numa barra pro valor exato e a fonte (real/calculado/projeção).';
   }
+
+  // NOVO 01/08/2026 (pedido do usuario): estimativa de fatura residual pos-solar por unidade,
+  // 100% AUTOMATICA - nunca mais numero digitado. Formula completa (residual = o que voce paga MESMO
+  // com creditos cobrindo 100% do consumo):
+  //   1) Custo de Disponibilidade (piso que nunca zera, nem com credito de sobra) = kWh minimo da
+  //      ligacao (30 monofasica / 50 bi-trifasica) x tarifa real da unidade (fatura_base/consumo_kwh)
+  //   2) Fio B (cobrado sobre a fatia da Distribuicao que a lei NAO deixa compensar) = fatura_base x
+  //      pct_distribuicao x (FIO_B_COBRANCA_2026_PCT/100) x (FIO_B_PCT_DA_DISTRIBUICAO/100)
+  //   3) Iluminacao Publica (COSIP) = fatura_base x pct_iluminacao - nunca compensada, por lei
+  //   4) Encargos setoriais = fatura_base x pct_encargos - nao compensados pelos creditos de GD
+  // Mesma logica ja usada isoladamente pro apartamento (VARS.taxaMinimaEnergisa/consumoMinimoComSolarKwh,
+  // ver secao 09) - generalizada aqui pras 3 unidades com a tarifa real de cada uma.
+  const residualTbodyEl = document.getElementById('residualPosSolarTbody');
+  if(residualTbodyEl){
+    const comp = VARS.ENERGISA_TARIFA_COMPOSICAO || {};
+    const fioBFracaoDaDistribuicao = (VARS.FIO_B_COBRANCA_2026_PCT/100) * (VARS.FIO_B_PCT_DA_DISTRIBUICAO/100); // 0,168
+    const unidades = [
+      { chave:'apartamento_wallace', nome:'Apartamento (Wallace)', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao (30=mono, 50=bi/trifasica) - assumido monofasico por padrao
+      { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao
+      { chave:'casa_mae', nome:'Casa da Mãe (geradora)', kwhMinimo: 30 }, // TODO: confirmar tipo de ligacao
+    ];
+    const linhas = unidades.map(u => {
+      const d = comp[u.chave];
+      if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
+      const faturaBase = d.historico ? d.historico.jul26 : d.fatura_jul26_valor;
+      const consumoKwh = d.consumo_kwh || d.fatura_jul26_consumo_kwh;
+      const pct = d.composicao_pct || {};
+      if(faturaBase === undefined || !consumoKwh) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
+      const tarifaReal = faturaBase / consumoKwh;
+      const custoDisponibilidade = Math.round(u.kwhMinimo * tarifaReal * 100) / 100;
+      const fioBValor = Math.round(faturaBase * (pct.distribuicao||0)/100 * fioBFracaoDaDistribuicao * 100) / 100;
+      const iluminacaoValor = Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
+      const encargosValor = Math.round(faturaBase * (pct.encargos||0)/100 * 100) / 100;
+      const residual = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+      const economia = Math.round((faturaBase - residual) * 100) / 100;
+      const economiaPct = Math.round((economia/faturaBase)*1000)/10;
+      const detalhe = `Disponibilidade ${fmt(custoDisponibilidade)} + Fio B ${fmt(fioBValor)} + Iluminação ${fmt(iluminacaoValor)} + Encargos ${fmt(encargosValor)}`;
+      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)}</td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
+    }).join('');
+    residualTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Fatura base (pré-solar)</th><th class="r">Residual estimado/mês</th><th class="r">Economia estimada</th></tr></thead><tbody>${linhas}</tbody></table>`;
+  }
+
+
 
   // REESTRUTURADO 01/08/2026 (V231, pedido do usuario): "montar o grafico 10 por mes, usando o
   // consumo dos ultimos 12 meses como consumo ate eu atualizar o real". Antes cada barra era uma
