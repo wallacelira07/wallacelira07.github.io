@@ -389,7 +389,7 @@
                 .then(response => {
                     console.log('✅ Login bem-sucedido');
                     window.authObj = response;
-                    localStorage.setItem('auth', JSON.stringify(response));
+                    sessionStorage.setItem('auth', JSON.stringify(response));
                     showDashboard(email);
                 })
                 .catch(error => {
@@ -451,7 +451,7 @@
 
         // LOGOUT
         function logout() {
-            localStorage.removeItem('auth');
+            sessionStorage.removeItem('auth');
             window.authObj = null;
             document.getElementById('dashboardContent').innerHTML = '';
             showLoginScreen();
@@ -478,7 +478,7 @@
 
         // VERIFICAR SE JÁ ESTÁ LOGADO
         window.addEventListener('load', () => {
-            const auth = localStorage.getItem('auth');
+            const auth = sessionStorage.getItem('auth');
             if (auth) {
                 try {
                     window.authObj = JSON.parse(auth);
