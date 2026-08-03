@@ -3693,13 +3693,30 @@ new Chart(document.getElementById('g_cAlivio'), {
   // "economia" sobreposto (ver historico). Agora so o valor da barra (sem o "-XXX" de economia por
   // cima, que era a causa real da colisao) - risco de colisao muito menor, mesmo padrao ja usado nos
   // graficos 10/11.
-  // NOVO 03/08/2026: versoes ALINHADAS (deslocadas por OFFSET_ENERGIA) de tudo que este grafico usa -
-  // mesmo cuidado do bug corrigido nos graficos 10/11 (rotulo e dado tem que vir da MESMA ancora,
-  // senao desalinha). anoAnterior/esteAno/esteAnoFonte continuam existindo em sua forma original
-  // (usados só internamente acima, ex. economiaAtual antigo) - a partir daqui só as versões alinhadas.
-  const anoAnteriorAlinhado = alignEnergia(anoAnterior);
-  const esteAnoAlinhado = alignEnergia(esteAno);
-  const esteAnoFonteAlinhado = alignEnergia(esteAnoFonte);
+  // CORRIGIDO 03/08/2026 (achado do usuário, print real - "faltou o julho no final"): a v1 usava
+  // slice+pad-com-null (mesmo padrão dos gráficos 10/11) - mas ali faz sentido (não estimar crédito
+  // futuro sem dado real), aqui NÃO faz sentido: "ano anterior" é histórico REAL de 12 meses que se
+  // repete todo ano, e "este ano" sempre tem uma projeção padrão (valorPosSolar) pra qualquer mês sem
+  // fatura real. Trocado para busca por NOME DO MÊS (não por posição) - o último mês da janela de 12
+  // (Jul/27, 13 meses após a ativação) agora encontra o Jul original (kwhAnoAnterior[0]) de novo, sem
+  // buraco. Nunca mais fica vazio, não importa quantos meses passem.
+  const kwhPorMesAnterior = {};
+  mesesPares.forEach((m,i)=>{ kwhPorMesAnterior[m.replace('*','')] = kwhAnoAnterior[i]; });
+  const anoAnteriorAlinhado = mesesParesEnergia.map(label=>{
+    const kwh = kwhPorMesAnterior[label];
+    return kwh!=null ? Math.round(kwh*tarifa*100)/100 : null;
+  });
+  // esteAnoFonteAlinhado: mesmo raciocínio - reconstruído do zero em cima dos rótulos JÁ alinhados
+  // (mesesParesEnergia), não mais fatiando o array original. índice 0 é SEMPRE "agora" por construção
+  // de OFFSET_ENERGIA (ver gerarRotulosEnergia) - fatura real tem prioridade, senão calculado (mês
+  // atual) ou projetado (todo o resto, inclusive o Jul de wrap-around).
+  const esteAnoFonteAlinhado = mesesParesEnergia.map((label,i)=>{
+    if(VARS.ENERGIA_FATURAS_REAIS[label] !== undefined) return {valor:VARS.ENERGIA_FATURAS_REAIS[label], fonte:'real'};
+    if(i===0) return {valor:valorMesAtualCalculado, fonte:'calculado'};
+    return {valor:valorPosSolar, fonte:'projetado'};
+  });
+  const esteAnoAlinhado = esteAnoFonteAlinhado.map(e=>e.valor);
+
 
   const energiaBarLabelPlugin = {
     id:'energiaBarLabelPlugin',
