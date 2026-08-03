@@ -3717,6 +3717,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   });
   const esteAnoAlinhado = esteAnoFonteAlinhado.map(e=>e.valor);
 
+
   const energiaBarLabelPlugin = {
     id:'energiaBarLabelPlugin',
     afterDatasetsDraw(chart){
