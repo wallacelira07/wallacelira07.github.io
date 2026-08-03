@@ -3938,20 +3938,38 @@ new Chart(document.getElementById('g_cAlivio'), {
       }
     }
 
+    // CORRIGIDO 02/08/2026 (achado do usuário, achado direto no resumo em texto): consumoDireto =
+    // geracaoAcum - exportadoAcum assume SILENCIOSAMENTE que 100% da geracao nova (desde a ultima
+    // leitura) vira consumo direto, ZERO vira exportacao nova - suposicao que fica cada vez mais
+    // errada quanto mais dias passam sem leitura nova (na vida real, parte da geracao nova
+    // certamente esta sendo exportada tambem, so que isso nao aparece ate o usuario atualizar
+    // leitura103). Antes disso nunca ficava explicito - o numero so ia "crescendo errado" sem avisar.
+    // Agora: alem do aviso ja existente (>=3 dias), TRAVA o calculo em INSUFICIENTE quando o
+    // descompasso passar de um limite seguro (10 dias) - depois disso a distorcao pesa demais pra
+    // continuar mostrando como se fosse dado confiavel. Os campos "reais" (importado/exportado/saldo
+    // liquido, mais a estimativa explicita acima) continuam normalmente, so esses 5 derivados travam.
+    const LIMITE_DIAS_DESCOMPASSO_SEGURO = 10;
+    const diasDescompassoAtual = (temGeracao && ultimaSolar.geracaoAcumuladaData)
+      ? Math.round((new Date(ultimaSolar.geracaoAcumuladaData) - new Date(ultimaSolar.data)) / 86400000)
+      : 0;
+    const consumoDiretoConfiavel = temGeracao && diasDescompassoAtual < LIMITE_DIAS_DESCOMPASSO_SEGURO;
+
     let consumoDiretoAcum=null, consumoTotalCasa=null, autoconsumoPct=null, dependenciaPct=null, exportacaoDaGeracaoPct=null;
-    if(temGeracao){
+    if(consumoDiretoConfiavel){
       consumoDiretoAcum = Math.round((geracaoAcum - exportadoAcum)*100)/100;
       consumoTotalCasa = Math.round((consumoDiretoAcum + importadoAcum)*100)/100;
       autoconsumoPct = consumoTotalCasa>0 ? Math.round(consumoDiretoAcum/consumoTotalCasa*1000)/10 : 0;
       dependenciaPct = consumoTotalCasa>0 ? Math.round(importadoAcum/consumoTotalCasa*1000)/10 : 0;
       exportacaoDaGeracaoPct = geracaoAcum>0 ? Math.round(exportadoAcum/geracaoAcum*1000)/10 : 0;
     }
+    const DESATUALIZADO = `Leitura do medidor desatualizada há ${diasDescompassoAtual} dias — manda uma foto nova pra recalcular.`;
+    const consumoMsg = temGeracao ? (consumoDiretoConfiavel ? null : DESATUALIZADO) : INSUFICIENTE;
     setUG('ugGeracaoAcumulada', temGeracao ? geracaoAcum+' kWh' : INSUFICIENTE);
-    setUG('ugConsumoDireto', temGeracao ? consumoDiretoAcum+' kWh' : INSUFICIENTE);
-    setUG('ugConsumoTotalCasa', temGeracao ? consumoTotalCasa+' kWh' : INSUFICIENTE);
-    setUG('ugAutoconsumoPct', temGeracao ? autoconsumoPct+'%' : INSUFICIENTE);
-    setUG('ugDependenciaPct', temGeracao ? dependenciaPct+'%' : INSUFICIENTE);
-    setUG('ugExportacaoPct', temGeracao ? exportacaoDaGeracaoPct+'%' : INSUFICIENTE);
+    setUG('ugConsumoDireto', consumoDiretoConfiavel ? consumoDiretoAcum+' kWh' : consumoMsg);
+    setUG('ugConsumoTotalCasa', consumoDiretoConfiavel ? consumoTotalCasa+' kWh' : consumoMsg);
+    setUG('ugAutoconsumoPct', consumoDiretoConfiavel ? autoconsumoPct+'%' : consumoMsg);
+    setUG('ugDependenciaPct', consumoDiretoConfiavel ? dependenciaPct+'%' : consumoMsg);
+    setUG('ugExportacaoPct', consumoDiretoConfiavel ? exportacaoDaGeracaoPct+'%' : consumoMsg);
 
     // Status: so usa dado 100% real (saldo liquido = 103-03), nao depende da geracao do inversor
     let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
@@ -3962,8 +3980,15 @@ new Chart(document.getElementById('g_cAlivio'), {
 
     const ugResumoEl = document.getElementById('ugResumo');
     if(ugResumoEl){
-      if(temGeracao){
+      if(consumoDiretoConfiavel){
         ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
+      } else if(temGeracao){
+        // CORRIGIDO 02/08/2026 (achado do usuário): antes disso, se temGeracao=true o resumo sempre
+        // calculava consumoDireto/autoconsumo misturando geracao viva com exportado congelado, sem
+        // limite - agora que existe o travamento por dias de descompasso, esse ramo intermediario
+        // cobre "tem geracao mas o descompasso ja passou do limite seguro" - mostra so o que e 100%
+        // real (importado/exportado/saldo liquido), sem fingir precisao no consumo direto.
+        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Consumo direto/autoconsumo pausado</strong> — a leitura do medidor está desatualizada há <strong>'+diasDescompassoAtual+' dias</strong> (mais que o limite seguro de '+LIMITE_DIAS_DESCOMPASSO_SEGURO+'), então parei de calcular esses campos pra não mostrar número cada vez mais errado. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 11 normalmente. Manda uma leitura nova do 03/103 pra recalibrar tudo.';
       } else {
         ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 11 normalmente.';
       }
@@ -4136,3 +4161,66 @@ onDomPronto(() => { // V170: corrigido - era addEventListener DOMContentLoaded, 
     }
   } catch(e) {}
 });
+
+// ===== NOVO 03/08/2026 - botao de download JPEG por secao =====
+// Pedido do usuario: um botao em cada campo/secao do painel pra baixar aquele
+// bloco especifico como JPEG, sob demanda, sem precisar pedir pro Claude toda vez.
+// Usa html2canvas (CDN, ver <head>) - roda 100% no navegador do usuario, sem
+// depender de rede/servidor nenhum na hora do clique (so a lib precisa ter
+// carregado uma vez ao abrir a pagina).
+function inicializarBotoesPrintSecao(){
+  document.querySelectorAll('.section-num').forEach(function(header){
+    if (header.querySelector('.btn-print-secao')) return; // evita duplicar se rodar 2x
+    var card = header.nextElementSibling;
+    // no HTML do painel o conteudo real e sempre o IRMAO seguinte do
+    // .section-num (nunca um ancestral) - mesma estrutura ja documentada
+    // na passagem de turno pra ferramenta de print via Claude. Pode ser um
+    // .card unico OU um container .grid-2/.grid-3 de mini-cards lado a lado
+    // (achado 03/08/2026: 12 das 48 secoes usam esse segundo padrao e
+    // ficavam sem botao na v1)
+    if (!card) return;
+    var classesCard = card.className || '';
+    var elegivel = /\bcard\b/.test(classesCard) || /\bgrid-\d/.test(classesCard);
+    if (!elegivel) return;
+
+    var num = header.querySelector('.n') ? header.querySelector('.n').textContent.trim() : '';
+    var titulo = header.querySelector('h2') ? header.querySelector('h2').textContent.trim() : ('secao-' + num);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-print-secao';
+    btn.title = 'Baixar esta seção como JPEG';
+    btn.setAttribute('aria-label', 'Baixar seção ' + num + ' como JPEG');
+    btn.textContent = '⬇';
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      baixarSecaoComoJPEG(card, num, titulo, btn);
+    });
+    header.appendChild(btn);
+  });
+}
+
+function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
+  if (typeof html2canvas === 'undefined'){
+    alert('A biblioteca de captura ainda está carregando. Tenta de novo em alguns segundos.');
+    return;
+  }
+  if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
+  var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1115';
+  html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
+    var slug = titulo.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    var hoje = new Date().toISOString().slice(0, 10);
+    var link = document.createElement('a');
+    link.download = 'secao-' + num + '-' + slug + '-' + hoje + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  }).catch(function(err){
+    console.error('Erro ao gerar JPEG da secao', num, err);
+    alert('Não consegui gerar o JPEG dessa seção. Tenta de novo.');
+  }).finally(function(){
+    if (btnOrigem){ btnOrigem.disabled = false; btnOrigem.textContent = '⬇'; }
+  });
+}
+onDomPronto(inicializarBotoesPrintSecao);
