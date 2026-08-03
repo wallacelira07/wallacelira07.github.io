@@ -3842,30 +3842,28 @@ new Chart(document.getElementById('g_cAlivio'), {
   }
   const solarL = VARS.SOLAR_LEITURAS_CALC;
   const ultimaSolar = solarL[solarL.length-1];
-  const mesAtivacao = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = julho (ancora do eixo Jul..Jun, NAO muda - so o agrupamento das leituras dentro dele muda)
+  // CORRIGIDO 03/08/2026 (2ª rodada - achado do usuário com print real, "continua errado"): a v1 desta
+  // correção só tinha alinhado ROTULO=DADO usando mesAtivacao (Jul, mês de CALENDÁRIO da ativação) como
+  // âncora comum - isso deixava "Jul" sempre como 1ª coluna, vazia, e "Ago" só aparecia na 2ª posição.
+  // Tecnicamente alinhado (dado batia com rótulo), mas visualmente ainda "errado" pro que foi pedido:
+  // já que nada pertence ao ciclo de julho (pago antes da usina existir), ele nem deveria aparecer -
+  // Ago tem que ser a PRIMEIRA coluna. Corrigido de vez: a âncora agora é o CICLO DE LEITURA (mês em
+  // que o 1º ciclo FECHA = Ago), usada tanto pro agrupamento dos dados quanto pros rótulos - a mesma
+  // variável em 1 lugar só, nunca mais duas âncoras diferentes pra a mesma coisa.
+  const ANCHOR_SOLAR_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
+  const ANCHOR_SOLAR_MES_CICLO = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026 - unica ancora, usada em TUDO abaixo (dados E rotulos)
   const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele CICLO}
   solarL.forEach(l=>{
-    const mesLeitura = mesFechamentoCiclo(l.data); // ANTES: Number(l.data.split('-')[1]) - mes calendario puro
-    const idx = (mesLeitura - mesAtivacao + 12) % 12;
+    const mesLeitura = mesFechamentoCiclo(l.data);
+    const idx = (mesLeitura - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // idx0 = Ago (1º ciclo), nao mais Jul
     if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
   });
 
   // NOVO 03/08/2026 (pedido do usuario: "esses graficos devem andar pra frente automatico como o
   // grafico de necessidade"): mesmo padrao ja usado la (alignSeriesCiclo/ciclosDesdeAncoraCiclo,
   // topo do arquivo) - so que aqui a ancora e o CICLO DE LEITURA (dia 8), nao o ciclo financeiro
-  // (dia 25), porque e a base que este modulo inteiro passou a usar nesta sessao. So afeta a CAMADA
-  // DE APRESENTACAO (labels/dados dos 2 graficos abaixo) - nao mexe nos arrays originais
-  // (creditoMensalWallace etc), que continuam servindo o texto/legenda/outras contas como antes.
-  //
-  // BUG CORRIGIDO 03/08/2026 (achado do usuario, print real - dado aparecendo 1 mes deslocado, "Set"
-  // em vez de "Ago"): a v1 usava ANCHOR_SOLAR_MES (mes de FECHAMENTO do 1o ciclo = Ago) como base dos
-  // ROTULOS, mas os dados (creditoMensalWallace/importadoMensal/etc, calculados mais acima) sao
-  // indexados a partir de mesAtivacao (mes de CALENDARIO da ativacao = Jul, idx0 sempre vazio por
-  // design). Rotulo e dado usando ancoras DIFERENTES = tudo sai 1 posicao trocado. Corrigido: rotulos
-  // agora usam a MESMA ancora dos dados (mesAtivacao), garantindo idx0='Jul' (vazio) e idx1='Ago' (com
-  // o credito real) em ambos, sempre em sincronia.
-  const ANCHOR_SOLAR_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
-  const ANCHOR_SOLAR_MES_CICLO = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026 - usado SO pra saber quantos ciclos ja passaram (offset), nao pra rotular
+  // (dia 25). So afeta a CAMADA DE APRESENTACAO (labels/dados dos 2 graficos abaixo) - nao mexe nos
+  // arrays originais (creditoMensalWallace etc), que continuam servindo o texto/legenda como antes.
   function offsetCiclosSolar(){
     const hoje = new Date();
     const inicioCicloAtual = hoje.getDate() > CICLO_DIA_LEITURA_GERACAO
@@ -3878,7 +3876,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   function gerarRotulosSolar(){
     const labels = [];
     for(let i=0;i<12;i++){
-      const idxMes = ((mesAtivacao - 1 + OFFSET_SOLAR + i) % 12 + 12) % 12; // mesAtivacao (Jul), MESMA ancora dos dados
+      const idxMes = ((ANCHOR_SOLAR_MES_CICLO - 1 + OFFSET_SOLAR + i) % 12 + 12) % 12; // MESMA ancora dos dados (Ago)
       labels.push(MESES_ABREV_SOLAR[idxMes]);
     }
     return labels;
@@ -3974,7 +3972,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + diasDesdeLeituraChart * (geracaoMediaDiariaChart - consumoMedioDiarioMaeChart);
 
       const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10)); // CORRIGIDO 03/08/2026: era mes calendario puro (hojeChart.getMonth()+1) - agora usa o ciclo de leitura (dia 8), consistente com o resto deste grafico
-      const idxMesAtual = (mesAtualCalendario - mesAtivacao + 12) % 12;
+      const idxMesAtual = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // CORRIGIDO 03/08/2026: mesma ancora unica (Ago)
       // credito acumulado ATE O FIM DO CICLO ANTERIOR (ultima leitura de um ciclo diferente do atual)
       let creditoAcumAntesDoMesAtual = 0;
       solarL.forEach(l => {
