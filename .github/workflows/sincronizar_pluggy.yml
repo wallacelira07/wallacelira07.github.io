@@ -1,9 +1,10 @@
 name: Sincronizar Pluggy (Bancos → Supabase)
 # Roda 1x por dia, de graça, via GitHub Actions (mesma automação já usada pra
 # geração solar e cotações de ações). Pode rodar manual pelo botão "Run workflow".
+# Horário deslocado da hora cheia (:12 em vez de :00) - mesma razão do script solar.
 on:
   schedule:
-    - cron: '0 11 * * *'  # todo dia às 11:00 UTC (08:00 horário de Brasília)
+    - cron: '12 11 * * *'  # todo dia às 11:12 UTC (08:12 horário de Brasília)
   workflow_dispatch: {}
 
 jobs:
