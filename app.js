@@ -593,7 +593,13 @@ const VARS = {
   // COMO FUNCIONA: mes com salario ACIMA de R$11.000 -> excedente entra aqui. Mes ABAIXO -> a conta
   // cobre a diferenca e o orcamento operacional nao muda. Objetivo: parar a oscilacao do Modo
   // Operacional causada pela variacao do salario (media R$20.084 / mediana R$18.283 / minimo R$7.649).
-  proLaboreFixo: 11000.00,
+  proLaboreFixo: 11600.00, // ATUALIZADO 03/08/2026: era 11000.00
+  // NOVO 03/08/2026: meta oficial do Fundo de Suavizacao Salarial (CC-304). Funcao do fundo: absorver
+  // a OSCILACAO do pro-labore (nao imprevisto - isso e papel da Reserva de Emergencia, R$100k, intocada).
+  // Calculo (usuario): pior deficit mensal = proLaboreFixo - menor salario possivel (R$7.667,73, cenario
+  // "fica em casa" sem periculosidade) = R$3.932,27/mes. Cobertura de 3 meses ruins seguidos = R$11.796,81.
+  // Arredondado para a meta MINIMA das 3 opcoes apresentadas (12k/15k/20k) - usuario confirmou 12k.
+  metaSuavizacao: 12000,
   SUAVIZACAO_SALDO_INICIAL: 0, // conta comeca zerada (decisao 3/3 da V90)
   SUAVIZACAO_TRANSACOES: [
     // Vazio na ativacao. O salario deste ciclo (R$16.819,56) foi recebido e 100% distribuido em 24/07,
@@ -2137,15 +2143,18 @@ function hydrate(){
   const suaviz = VARS.contaSuavizacao;
   const suavizExcedente = REG.operacional.excedenteOuComplementoProLabore;
   t('cxSuavizSaldo', fmt(suaviz));
-  t('cxSuavizProLabore', 'Pró-labore ' + fmt(VARS.proLaboreFixo));
+  // ATUALIZADO 03/08/2026: era fmt(pró-labore) - agora mostra a META OFICIAL do fundo (R$12.000,
+  // decisão do usuário: pior déficit mensal x 3 meses de colchão, arredondado pra meta mínima das
+  // 3 opções apresentadas). Nome do card mantido ("Fundo de Suavização Salarial") - só a meta mudou.
+  t('cxSuavizProLabore', 'Meta ' + fmt(VARS.metaSuavizacao));
   const suavizTxtEl = document.getElementById('cxSuavizTxt');
   if(suavizTxtEl){
     if(suaviz === 0 && suavizExcedente > 0) suavizTxtEl.textContent = 'Zerada · excedente do ciclo: ' + fmt(suavizExcedente);
     else if(suaviz === 0) suavizTxtEl.textContent = 'Zerada';
-    else suavizTxtEl.textContent = (suaviz/VARS.proLaboreFixo).toFixed(1) + ' mês(es) de colchão';
+    else suavizTxtEl.textContent = pctOf(suaviz, VARS.metaSuavizacao).toFixed(1) + '% da meta · ' + (suaviz/VARS.proLaboreFixo).toFixed(1) + ' mês(es) de colchão';
   }
   const suavizBar = document.getElementById('cxSuavizBar');
-  if(suavizBar) suavizBar.style.width = pctOf(suaviz, VARS.proLaboreFixo) + '%';
+  if(suavizBar) suavizBar.style.width = pctOf(suaviz, VARS.metaSuavizacao) + '%';
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
   t('cxSeguroSaldo', fmt(C.seguroEmplacamento.saldo)); t('cxSeguroMeta', fmtInt(C.seguroEmplacamento.meta));
@@ -3773,19 +3782,67 @@ new Chart(document.getElementById('g_cAlivio'), {
   //   ja usado na secao 09) como estimativa de referencia - Wallace pediu explicitamente pra usar isso
   //   como base "ate eu atualizar o real" (quando ele tiver consumo pos-solar de fato medido).
   // - Consumo Irma: consumoDiarioIrma x 30 (nao ha historico mensal dela ainda, so a media fixa).
-  // - Credito Wallace/Irma: derivado das leituras reais (SOLAR_LEITURAS), agrupadas por mes de
-  //   calendario. Cada leitura e cumulativa desde a ativacao (21/07) - pra achar o credito GERADO
-  //   dentro de um mes especifico, subtrai a leitura acumulada do mes anterior. Meses sem leitura
-  //   ainda ficam null (barra vazia) ate uma leitura real cobrir aquele periodo.
+  // - Credito Wallace/Irma: derivado das leituras reais (SOLAR_LEITURAS), agrupadas por CICLO DE
+  //   LEITURA da Energisa (nao mais mes de calendario - CORRIGIDO 03/08/2026, pedido do usuario:
+  //   "a conta de julho ja foi paga, o credito deve ir todo pra agosto"). A Casa da Mae (onde fica a
+  //   usina) fecha o ciclo no MESMO dia que a Wellida - dia 8 (confirmado pelo usuario 03/08/2026,
+  //   ver DIA_LEITURA_WELLIDA mais abaixo, secao Previsao). Uma leitura feita dia D pertence ao ciclo
+  //   que fecha no dia 8 seguinte (se D<=8, fecha no dia 8 do MESMO mes; se D>8, fecha no dia 8 do
+  //   mes SEGUINTE) - e esse mes de fechamento e o "rotulo" usado no grafico, pois e o mes em que a
+  //   fatura de fato reflete aquele credito. Ativacao (21/07) cai no ciclo que fecha em 08/08 -> todo
+  //   credito gerado desde a ativacao entra no rotulo "Ago", nada fica em "Jul" (ciclo de julho ja
+  //   tinha fechado e a fatura ja foi paga antes da usina existir).
+  const CICLO_DIA_LEITURA_GERACAO = 8; // dia oficial de leitura Energisa da Casa da Mae - mesmo ciclo da Wellida
+  function mesFechamentoCiclo(dataStr){
+    const [ano, mes, dia] = dataStr.split('-').map(Number);
+    let m = dia <= CICLO_DIA_LEITURA_GERACAO ? mes : mes + 1;
+    if(m > 12) m = 1;
+    return m; // 1-12, mes em que o ciclo de leitura FECHA (mes que a fatura reflete)
+  }
   const solarL = VARS.SOLAR_LEITURAS_CALC;
   const ultimaSolar = solarL[solarL.length-1];
-  const mesAtivacao = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = julho
-  const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele mes}
+  const mesAtivacao = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = julho (ancora do eixo Jul..Jun, NAO muda - so o agrupamento das leituras dentro dele muda)
+  const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele CICLO}
   solarL.forEach(l=>{
-    const mesLeitura = Number(l.data.split('-')[1]);
+    const mesLeitura = mesFechamentoCiclo(l.data); // ANTES: Number(l.data.split('-')[1]) - mes calendario puro
     const idx = (mesLeitura - mesAtivacao + 12) % 12;
     if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
   });
+
+  // NOVO 03/08/2026 (pedido do usuario: "esses graficos devem andar pra frente automatico como o
+  // grafico de necessidade"): mesmo padrao ja usado la (alignSeriesCiclo/ciclosDesdeAncoraCiclo,
+  // topo do arquivo) - so que aqui a ancora e o CICLO DE LEITURA (dia 8), nao o ciclo financeiro
+  // (dia 25), porque e a base que este modulo inteiro passou a usar nesta sessao. Ancora = mes em que
+  // o PRIMEIRO ciclo fechou (Ago/2026). So afeta a CAMADA DE APRESENTACAO (labels/dados dos 2 graficos
+  // abaixo) - nao mexe nos arrays originais (creditoMensalWallace etc), que continuam servindo o
+  // texto/legenda/outras contas exatamente como antes.
+  const ANCHOR_SOLAR_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
+  const ANCHOR_SOLAR_MES = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026
+  function offsetCiclosSolar(){
+    const hoje = new Date();
+    const inicioCicloAtual = hoje.getDate() > CICLO_DIA_LEITURA_GERACAO
+      ? new Date(hoje.getFullYear(), hoje.getMonth()+1, 1)
+      : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    return (inicioCicloAtual.getFullYear()-ANCHOR_SOLAR_ANO)*12 + (inicioCicloAtual.getMonth()+1-ANCHOR_SOLAR_MES);
+  }
+  const OFFSET_SOLAR = Math.max(0, offsetCiclosSolar());
+  const MESES_ABREV_SOLAR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function gerarRotulosSolar(){
+    const labels = [];
+    for(let i=0;i<12;i++){
+      const idxMes = ((ANCHOR_SOLAR_MES - 1 + OFFSET_SOLAR + i) % 12 + 12) % 12;
+      labels.push(MESES_ABREV_SOLAR[idxMes]);
+    }
+    return labels;
+  }
+  function alignSolar(series){
+    if(OFFSET_SOLAR<=0) return series.slice();
+    const shifted = series.slice(OFFSET_SOLAR);
+    while(shifted.length < series.length) shifted.push(null); // futuro sem dado real - nunca estimar (regra V250)
+    return shifted;
+  }
+  const mesesParesSolar = gerarRotulosSolar(); // rotulos que os 2 graficos abaixo (Rede Energisa/Rateio) usam - "andam" sozinhos conforme os ciclos passam
+
   let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0, geracaoAcumAnterior = null;
   const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
   // CORRIGIDO 01/08/2026 (V250, documento "SEM ESTIMATIVAS"): consumo direto mensal agora deriva da
@@ -3803,7 +3860,12 @@ new Chart(document.getElementById('g_cAlivio'), {
       const exportadoDoMes = Math.round((l.leitura103 - leitura103Anterior)*100)/100;
       const temGeracaoReal = l.geracaoAcumulada!=null && geracaoAcumAnterior!=null;
       const geracaoDoMes = temGeracaoReal ? Math.round((l.geracaoAcumulada - geracaoAcumAnterior)*100)/100 : null;
-      const consumoDiretoDoMes = temGeracaoReal ? Math.round((geracaoDoMes - exportadoDoMes)*100)/100 : null;
+      const consumoDiretoBruto = temGeracaoReal ? Math.round((geracaoDoMes - exportadoDoMes)*100)/100 : null;
+      // CORRIGIDO 03/08/2026 (achado do usuário, gráfico "Rede Energisa"): consumo direto negativo é
+      // fisicamente impossível - só acontece quando a automação SAJ (geração) e a leitura manual do
+      // 103 (exportado) estão dessincronizadas no tempo. Mesma classe de proteção já usada na Unidade
+      // Geradora (consumoDiretoConfiavel) - aqui, mais simples: negativo vira null (barra vazia).
+      const consumoDiretoDoMes = (consumoDiretoBruto!=null && consumoDiretoBruto < 0) ? null : consumoDiretoBruto;
       importadoMensal.push(importadoDoMes);
       exportadoMensal.push(exportadoDoMes);
       geracaoEstMensal.push(geracaoDoMes);
@@ -3847,12 +3909,12 @@ new Chart(document.getElementById('g_cAlivio'), {
       const consumoMedioDiarioMaeChart = consumoMedioMensalMaeChart / 30;
       const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + diasDesdeLeituraChart * (geracaoMediaDiariaChart - consumoMedioDiarioMaeChart);
 
-      const mesAtualCalendario = hojeChart.getMonth() + 1; // 1-12
+      const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10)); // CORRIGIDO 03/08/2026: era mes calendario puro (hojeChart.getMonth()+1) - agora usa o ciclo de leitura (dia 8), consistente com o resto deste grafico
       const idxMesAtual = (mesAtualCalendario - mesAtivacao + 12) % 12;
-      // credito acumulado ATE O FIM DO MES ANTERIOR (ultima leitura de um mes calendario diferente do atual)
+      // credito acumulado ATE O FIM DO CICLO ANTERIOR (ultima leitura de um ciclo diferente do atual)
       let creditoAcumAntesDoMesAtual = 0;
       solarL.forEach(l => {
-        const mesDaLeitura = Number(l.data.split('-')[1]);
+        const mesDaLeitura = mesFechamentoCiclo(l.data); // CORRIGIDO 03/08/2026: era mes calendario puro
         if(mesDaLeitura !== mesAtualCalendario) creditoAcumAntesDoMesAtual = l.creditoLiquido;
       });
       const creditoDoMesAtualEstimado = Math.round((saldoTotalEstimadoChart - creditoAcumAntesDoMesAtual) * 100) / 100;
@@ -3999,12 +4061,12 @@ new Chart(document.getElementById('g_cAlivio'), {
     // ja usado pros meses sem leitura de credito).
     new Chart(document.getElementById('cUnidadeGeradora'), {
       type:'bar',
-      data:{labels:mesesPares,
+      data:{labels:mesesParesSolar,
         datasets:[
-          {label:'Importado (código 03)', data:importadoMensal, backgroundColor:'#e2554f', borderRadius:3},
-          {label:'Consumo direto (real)', data:consumoDiretoMensal, backgroundColor:'#e8a63a', borderRadius:3},
-          {label:'Exportado (código 103)', data:exportadoMensal, backgroundColor:'#3987e5', borderRadius:3},
-          {label:'Saldo líquido', data:saldoLiquidoMensal, backgroundColor:'#34c98a', borderRadius:3}
+          {label:'Importado (código 03)', data:alignSolar(importadoMensal), backgroundColor:'#e2554f', borderRadius:3},
+          {label:'Consumo direto (real)', data:alignSolar(consumoDiretoMensal), backgroundColor:'#e8a63a', borderRadius:3},
+          {label:'Exportado (código 103)', data:alignSolar(exportadoMensal), backgroundColor:'#3987e5', borderRadius:3},
+          {label:'Saldo líquido', data:alignSolar(saldoLiquidoMensal), backgroundColor:'#34c98a', borderRadius:3}
         ]},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
         plugins:{legend:legendStd2,tooltip:{callbacks:{
@@ -4040,12 +4102,12 @@ new Chart(document.getElementById('g_cAlivio'), {
   new Chart(document.getElementById('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
-    data:{labels:mesesPares,
+    data:{labels:mesesParesSolar,
       datasets:[
-        {label:'Crédito Wallace (gerado)', data:creditoMensalWallace, backgroundColor:'#34c98a', borderRadius:3},
-        {label:'Consumo esperado Wallace', data:consumoMensalWallace, backgroundColor:'#f0c94a', borderRadius:3},
-        {label:'Crédito Irmã (gerado)', data:creditoMensalIrma, backgroundColor:'#1c7a54', borderRadius:3},
-        {label:'Consumo esperado Irmã', data:consumoMensalIrma, backgroundColor:'#a9861f', borderRadius:3}
+        {label:'Crédito Wallace (gerado)', data:alignSolar(creditoMensalWallace), backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Consumo esperado Wallace', data:alignSolar(consumoMensalWallace), backgroundColor:'#f0c94a', borderRadius:3},
+        {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:'#1c7a54', borderRadius:3},
+        {label:'Consumo esperado Irmã', data:alignSolar(consumoMensalIrma), backgroundColor:'#a9861f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{
@@ -4069,8 +4131,8 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Especificação fornecida pelo usuário (documento anexado, 01/08/2026). Reaproveita 100% os dados já
   // existentes (VARS.SOLAR_LEITURAS_CALC) - nao duplica nenhuma variavel, so consome e apresenta previsao.
   // Constantes faceis de ajustar se a janela/dia de leitura mudar (pedido explicito do usuario).
-  const DIA_LEITURA_WALLACE = 20; // leitura Energisa do apartamento, janela 19-21
-  const DIA_LEITURA_WELLIDA = 8;  // leitura da casa da mae/Wellida, janela 06-09
+  const DIA_LEITURA_WALLACE = 21; // CORRIGIDO 03/08/2026 (confirmado pelo usuário): era 20. Leitura Energisa do apartamento, janela 19-21
+  const DIA_LEITURA_WELLIDA = 8;  // CONFIRMADO 03/08/2026: mesmo ciclo da Casa da Mãe (onde fica a usina) - dia 8
   // CORRIGIDO 01/08/2026 (V241, pedido do usuario - "use a meta do mes especifico igual e feito pra
   // mim"): meta deixa de ser numero fixo solto (321/119) e passa a derivar do mesmo indice (mes atual,
   // posicao 0) do historico real de 12 meses de cada casa - mesmo criterio ja usado pro Wallace desde o
