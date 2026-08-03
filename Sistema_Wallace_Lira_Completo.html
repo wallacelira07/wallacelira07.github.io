@@ -617,6 +617,7 @@
 
   <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
 
+
   
 
 
@@ -826,8 +827,59 @@
       <div class="legend-note" style="font-size:0.68rem;margin-top:0.7rem">Leitura Wallace (apartamento): dia 20 do mês (janela 19-21). Leitura Wellida (casa da mãe): dia 8 do mês (janela 06-09). 🟢 no ritmo (média ≥ necessário) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%).</div>
     </div>
 
-  
+    <div class="section-num"><span class="n">13</span><h2>🧮 Simulador Regulatório (Lei 14.300)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">
+        <strong>Isto é uma SIMULAÇÃO, não dado real</strong> — não usa as leituras reais das seções acima. Serve pra planejar cenários (payback, economia projetada) com premissas de reajuste tarifário, degradação dos módulos e mudanças na Lei 14.300 ao longo dos anos. O rateio entre as casas continua sendo o real, paralelo (71%/29%) — este simulador não mexe nisso, é só uma calculadora de "e se".
+      </div>
+      <div class="grid-2">
+        <div>
+          <label style="font-size:0.7rem;color:var(--text-mid)">Consumo mensal (kWh)</label>
+          <input type="number" id="simConsumo" value="300" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+        </div>
+        <div>
+          <label style="font-size:0.7rem;color:var(--text-mid)">Tipo de ligação</label>
+          <select id="simLigacao" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+            <option value="MONO">Monofásico (30 kWh)</option>
+            <option value="BI">Bifásico (50 kWh)</option>
+            <option value="TRI" selected>Trifásico (100 kWh)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.7rem;color:var(--text-mid)">Geração mensal estimada (kWh)</label>
+          <input type="number" id="simGeracao" value="850" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+        </div>
+        <div>
+          <label style="font-size:0.7rem;color:var(--text-mid)">Investimento total (R$)</label>
+          <input type="number" id="simInvestimento" value="25000" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+        </div>
+        <div>
+          <label style="font-size:0.7rem;color:var(--text-mid)">Período de forecast</label>
+          <select id="simMeses" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+            <option value="12">12 meses</option>
+            <option value="24">24 meses</option>
+            <option value="60" selected>60 meses</option>
+            <option value="120">120 meses</option>
+          </select>
+        </div>
+      </div>
+      <button id="btnCalcularSimulacao" type="button" style="margin-top:0.8rem;padding:0.5rem 1rem;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600">Calcular simulação</button>
 
+      <div class="grid-2" style="margin-top:1rem">
+        <div class="card"><div style="font-size:0.7rem;color:var(--text-mid)">Economia acumulada no período</div><div class="v" style="font-weight:600;color:var(--green)" id="simEconomiaAcumulada">—</div></div>
+        <div class="card"><div style="font-size:0.7rem;color:var(--text-mid)">Período simulado</div><div class="v" style="font-weight:600" id="simPeriodo">—</div></div>
+      </div>
+
+      <table style="width:100%;margin-top:1rem;font-size:0.75rem;border-collapse:collapse">
+        <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th style="padding:0.3rem 0">Ano</th><th>Economia acumulada</th><th>Payback estimado</th></tr></thead>
+        <tbody id="simTabelaAnual"></tbody>
+      </table>
+      <div class="legend-note" style="font-size:0.65rem;margin-top:0.7rem">
+        Premissas ajustáveis no código (SolarConfig): reajuste tarifário 6%a.a., inflação 4,5%a.a., degradação do módulo 0,5%a.a., aumento de consumo 0%a.a. (padrão conservador). Tarifas base: Resolução Homologatória ANEEL 3518/2025, Grupo B1 Residencial. Fio B segue a curva de transição da Lei 14.300 (60% em 2026, sobe para 100% até 2029) — incide só sobre energia compensada, nunca sobre energia instantânea.
+      </div>
+    </div>
+
+  
 
   </div>
 
@@ -1080,7 +1132,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V10 · v03/08/2026 (V262)</span>
+    <span>Sistema Wallace Lira · ERP V10 · v03/08/2026 (V264)</span>
   </footer>
 
 </div>

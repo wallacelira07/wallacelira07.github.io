@@ -636,7 +636,7 @@ const VARS = {
   mbLRWConfirmado: 893.20,       // ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
   mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
-  mbLRVConfirmado: 293.20,         // ATUALIZADO 03/08/2026: +R$12,23 (TX000193, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$280,97 (01/08): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Júlio, cartão não especificado - assumido 6351 Mastercard Black da Vanessa). Era R$230,97: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
+  mbLRVConfirmado: 304.70,         // ATUALIZADO 03/08/2026: +R$11,50 (TX000194, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$293,20 (03/08): +R$12,23 (TX000193, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$280,97 (01/08): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Júlio, cartão não especificado - assumido 6351 Mastercard Black da Vanessa). Era R$230,97: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
   mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
@@ -4294,7 +4294,256 @@ new Chart(document.getElementById('g_cAlivio'), {
   }
 })();
 
-// ===== NOVO 22/07/2026 (V133) - modo apresentacao (esconder valores) =====
+// ===================================================================================
+// NOVO 03/08/2026 - SIMULADOR REGULATORIO SOLAR (Lei 14.300 / ANEEL) - secao 13
+// ===================================================================================
+// Baseado em especificacao tecnica trazida pelo usuario. 3 decisoes de escopo
+// confirmadas por ele antes de implementar:
+// 1) O RATEIO real do sistema continua PARALELO (71% Wallace / 29% Wellida,
+//    simultaneo) - a "ordem de prioridade" (Apartamento->Casa Mae->Casa Irma)
+//    descrita no documento original NAO é usada aqui, é só um modelo generico
+//    de referencia que o documento trazia.
+// 2) Sem mudanca de arquitetura - continua tudo dentro deste app.js unico,
+//    sem virar modulos/classes TypeScript separados (o documento sugeria isso,
+//    mas o usuario preferiu so aproveitar as FORMULAS/regras de negocio).
+// 3) Isso é uma camada de SIMULACAO/PROJECAO, aditiva - nao substitui nem mexe
+//    nos calculos das secoes 09-12 (que usam leitura REAL dos codigos 03/103,
+//    sem estimar, regra ja documentada). O simulador é so pra planejamento
+//    (payback, economia projetada, cenarios futuros de reajuste tarifario).
+
+// ----- Configuracao parametrizada (nunca numero solto dentro das funcoes) -----
+const r2Sim = x => Math.round(x*100)/100; // r2 original é privado de outra função (escopo diferente) - versão própria aqui
+const SolarConfig = {
+  tarifas: { // Resolucao Homologatoria ANEEL 3518/2025, Grupo B1 Residencial, vigencia 28/08/2025
+    TE: 0.25632,
+    TUSD: 0.41933,
+    FioA: 0.05116,
+    FioB: 0.24028,
+    PerdasTecnicas: 0.04193,
+    PerdasNaoTecnicas: 0.03774,
+    Encargos: 0.04822
+  },
+  tributos: { ICMS: 0.18, PIS_COFINS: 0.045 }, // PIS+COFINS combinado p/ simulacao, conforme doc
+  bandeiras: { Verde: 0, Amarela: 0.0188, Vermelha1: 0.0446, Vermelha2: 0.0787 },
+  lei14300: {
+    // percentual do Fio B cobrado sobre energia compensada, por ano (regra de transicao) -
+    // parametrizado por ano, nunca fixo dentro de funcao (pedido explicito do documento)
+    percentualFioBPorAno: { 2023:0.15, 2024:0.30, 2025:0.45, 2026:0.60, 2027:0.75, 2028:0.90, 2029:1.00 },
+    validadeCreditoMeses: 60
+  },
+  disponibilidade: { MONO: 30, BI: 50, TRI: 100 }, // kWh
+  forecast: {
+    reajusteTarifarioAnual: 0.06,   // 6% a.a., padrao de mercado p/ simulacao (ajustavel)
+    inflacaoAnual: 0.045,           // 4.5% a.a.
+    degradacaoModuloAnual: 0.005,   // 0.5% a.a., padrao garantia de fabricante
+    aumentoConsumoAnual: 0.0        // 0% a.a. default - usuario pode simular cenarios de aumento
+  }
+};
+
+function getDisponibilidade(tipoLigacao){
+  return SolarConfig.disponibilidade[tipoLigacao] ?? SolarConfig.disponibilidade.MONO;
+}
+
+function getPercentualFioB(ano){
+  const tabela = SolarConfig.lei14300.percentualFioBPorAno;
+  if(tabela[ano] !== undefined) return tabela[ano];
+  const anos = Object.keys(tabela).map(Number).sort((a,b)=>a-b);
+  return ano > anos[anos.length-1] ? 1.00 : tabela[anos[0]]; // apos 2029: 100% (fim da transicao)
+}
+
+// Tarifa "por dentro" (ICMS/PIS/COFINS incidem sobre o proprio preco final, nao por fora)
+function aplicarTributosPorDentro(tarifaBase, bandeira){
+  const {ICMS, PIS_COFINS} = SolarConfig.tributos;
+  return (tarifaBase + bandeira) / (1 - (ICMS + PIS_COFINS));
+}
+
+// Conta SEM geracao solar - consumo integral faturado, sem nenhuma compensacao
+function calcularContaSemSolar(consumoKWh, tipoLigacao, bandeira=0){
+  const disp = getDisponibilidade(tipoLigacao);
+  const {TE, FioA, FioB, PerdasTecnicas, PerdasNaoTecnicas, Encargos} = SolarConfig.tarifas;
+  const perdas = PerdasTecnicas + PerdasNaoTecnicas;
+  const teComImposto = aplicarTributosPorDentro(TE, bandeira);
+  const fioAComImposto = aplicarTributosPorDentro(FioA, 0);
+  const fioBComImposto = aplicarTributosPorDentro(FioB, 0);
+  const perdasComImposto = aplicarTributosPorDentro(perdas, 0);
+  const encargosComImposto = aplicarTributosPorDentro(Encargos, 0);
+  const valorTE = consumoKWh * teComImposto;
+  const valorFioA = consumoKWh * fioAComImposto;
+  const valorFioB = consumoKWh * fioBComImposto; // sem solar, Fio B incide sobre TODO consumo
+  const valorPerdas = consumoKWh * perdasComImposto;
+  const valorEncargos = consumoKWh * encargosComImposto;
+  const total = r2Sim(valorTE + valorFioA + valorFioB + valorPerdas + valorEncargos);
+  return { total, detalhe:{valorTE:r2Sim(valorTE), valorFioA:r2Sim(valorFioA), valorFioB:r2Sim(valorFioB), valorPerdas:r2Sim(valorPerdas), valorEncargos:r2Sim(valorEncargos)} };
+}
+
+// Conta COM geracao solar - separa energia instantanea (nunca paga Fio B) de energia
+// compensada via credito (paga Fio B parcial, conforme % da Lei 14.300 do ano). Usa FIFO
+// de creditos com validade de 60 meses (creditosDisponiveis = array de {mes,ano,energia}).
+function calcularContaComSolar(consumoKWh, geracaoInstantaneaKWh, energiaInjetadaKWh, creditosDisponiveis, tipoLigacao, ano, bandeira=0){
+  const disp = getDisponibilidade(tipoLigacao);
+  const percentualFioB = getPercentualFioB(ano);
+  const {TE, FioA, FioB, PerdasTecnicas, PerdasNaoTecnicas, Encargos} = SolarConfig.tarifas;
+  const perdas = PerdasTecnicas + PerdasNaoTecnicas;
+
+  // energia instantanea nunca excede o proprio consumo
+  const energiaInstantanea = Math.min(geracaoInstantaneaKWh, consumoKWh);
+  const consumoElegivel = Math.max(0, consumoKWh - disp); // nunca negativo
+  const consumoRestante = Math.max(0, consumoKWh - energiaInstantanea);
+
+  // consome creditos mais antigos primeiro (FIFO), respeitando validade de 60 meses
+  let creditosOrdenados = creditosDisponiveis
+    .filter(c => c.energia > 0)
+    .sort((a,b)=> (a.ano*12+a.mes) - (b.ano*12+b.mes));
+  let precisaCompensar = Math.min(consumoElegivel, consumoRestante);
+  let energiaCompensada = 0;
+  const creditosAtualizados = [];
+  for(const c of creditosOrdenados){
+    if(precisaCompensar <= 0){ creditosAtualizados.push({...c}); continue; }
+    const usar = Math.min(c.energia, precisaCompensar);
+    energiaCompensada += usar;
+    precisaCompensar -= usar;
+    creditosAtualizados.push({...c, energia: r2Sim(c.energia - usar)});
+  }
+
+  // credito novo gerado neste periodo = injetado - o que ja foi usado pra compensar agora
+  const creditoNovo = Math.max(0, r2Sim(energiaInjetadaKWh - energiaCompensada));
+  creditosAtualizados.push({mes: null, ano: null, energia: creditoNovo}); // caller preenche mes/ano reais
+
+  const energiaFaturada = Math.max(0, consumoKWh - energiaCompensada);
+
+  const teComImposto = aplicarTributosPorDentro(TE, bandeira);
+  const fioAComImposto = aplicarTributosPorDentro(FioA, 0);
+  const fioBComImposto = aplicarTributosPorDentro(FioB, 0);
+  const perdasComImposto = aplicarTributosPorDentro(perdas, 0);
+  const encargosComImposto = aplicarTributosPorDentro(Encargos, 0);
+
+  const valorTE = energiaFaturada * teComImposto;
+  const valorFioA = energiaFaturada * fioAComImposto;
+  // Fio B: NAO incide sobre energia instantanea - so sobre energia COMPENSADA, e só o
+  // percentual da Lei 14.300 vigente naquele ano (regra de transicao)
+  const valorFioB = energiaCompensada * fioBComImposto * percentualFioB;
+  const valorPerdas = energiaFaturada * perdasComImposto;
+  const valorEncargos = energiaFaturada * encargosComImposto;
+  const total = r2Sim(valorTE + valorFioA + valorFioB + valorPerdas + valorEncargos);
+
+  return {
+    total,
+    energiaInstantanea: r2Sim(energiaInstantanea),
+    energiaCompensada: r2Sim(energiaCompensada),
+    energiaFaturada: r2Sim(energiaFaturada),
+    creditoNovo,
+    creditosAtualizados,
+    percentualFioBAplicado: percentualFioB,
+    detalhe:{valorTE:r2Sim(valorTE), valorFioA:r2Sim(valorFioA), valorFioB:r2Sim(valorFioB), valorPerdas:r2Sim(valorPerdas), valorEncargos:r2Sim(valorEncargos)}
+  };
+}
+
+function calcularEconomia(contaSemSolar, contaComSolar){
+  return r2Sim(contaSemSolar - contaComSolar);
+}
+
+function calcularValorKwhGerado(economia, energiaGeradaKWh){
+  return energiaGeradaKWh > 0 ? r2Sim(economia / energiaGeradaKWh) : 0;
+}
+
+function calcularPayback(investimento, economiaAnual){
+  return economiaAnual > 0 ? r2Sim(investimento / economiaAnual) : null;
+}
+
+// Forecast de N meses - simula reajuste tarifario, degradacao do modulo, aumento de consumo
+// e a curva de transicao da Lei 14.300, mes a mes. Retorna resumo (economia acumulada) +
+// serie anual (pra tabela resumida na UI).
+function gerarForecastSolar(params){
+  const {
+    consumoMensalInicial, geracaoMensalInicial, tipoLigacao,
+    anoInicial, mesesForecast, investimento
+  } = params;
+  let creditosAtuais = []; // FIFO acumulado ao longo do forecast
+  let economiaAcumulada = 0;
+  const resumoAnual = [];
+  let economiaDoAnoAtual = 0;
+
+  for(let m=0; m<mesesForecast; m++){
+    const anosPassados = Math.floor(m/12);
+    const anoCorrente = anoInicial + anosPassados;
+    const fatorReajuste = Math.pow(1 + SolarConfig.forecast.reajusteTarifarioAnual, anosPassados);
+    const fatorDegradacao = Math.pow(1 - SolarConfig.forecast.degradacaoModuloAnual, anosPassados);
+    const fatorConsumo = Math.pow(1 + SolarConfig.forecast.aumentoConsumoAnual, anosPassados);
+
+    const consumoDoMes = consumoMensalInicial * fatorConsumo;
+    const geracaoDoMes = geracaoMensalInicial * fatorDegradacao;
+    // simplificacao de simulacao: energia instantanea = min(geracao,consumo)*50% (estimativa
+    // padrao de autoconsumo simultaneo), resto vira injetado - documentado, nao e dado real
+    const energiaInstantaneaEstimada = Math.min(geracaoDoMes, consumoDoMes) * 0.5;
+    const energiaInjetadaEstimada = Math.max(0, geracaoDoMes - energiaInstantaneaEstimada);
+
+    // remove creditos vencidos (>60 meses) antes de calcular o mes
+    creditosAtuais = creditosAtuais.filter(c => (m - (c.mesIndex ?? -999)) < SolarConfig.lei14300.validadeCreditoMeses);
+
+    // aplica reajuste tarifario nas tarifas base (clona config com fator)
+    const tarifasAjustadas = {};
+    Object.keys(SolarConfig.tarifas).forEach(k => tarifasAjustadas[k] = SolarConfig.tarifas[k] * fatorReajuste);
+    const tarifasOriginais = SolarConfig.tarifas;
+    SolarConfig.tarifas = tarifasAjustadas; // temporario, restaurado logo abaixo
+
+    const semSolar = calcularContaSemSolar(consumoDoMes, tipoLigacao);
+    const comSolar = calcularContaComSolar(consumoDoMes, energiaInstantaneaEstimada, energiaInjetadaEstimada, creditosAtuais, tipoLigacao, anoCorrente);
+
+    SolarConfig.tarifas = tarifasOriginais; // restaura config real
+
+    const economiaDoMes = calcularEconomia(semSolar.total, comSolar.total);
+    economiaAcumulada = r2Sim(economiaAcumulada + economiaDoMes);
+    economiaDoAnoAtual += economiaDoMes;
+
+    creditosAtuais = comSolar.creditosAtualizados.map(c => c.mes===null ? {...c, mesIndex:m} : c);
+
+    if((m+1) % 12 === 0 || m === mesesForecast-1){
+      resumoAnual.push({
+        ano: anoCorrente, mesFinal: m+1,
+        economiaAcumulada,
+        payback: calcularPayback(investimento, economiaDoAnoAtual > 0 ? (economiaDoAnoAtual*12/((m%12)+1)) : 0)
+      });
+      economiaDoAnoAtual = 0;
+    }
+  }
+  return { economiaAcumuladaTotal: economiaAcumulada, resumoAnual };
+}
+
+// ----- Wiring da UI (secao 13) -----
+function calcularSimulacaoRegulatoria(){
+  const consumo = Number(document.getElementById('simConsumo')?.value) || 300;
+  const tipoLigacao = document.getElementById('simLigacao')?.value || 'TRI';
+  const geracao = Number(document.getElementById('simGeracao')?.value) || 850;
+  const investimento = Number(document.getElementById('simInvestimento')?.value) || 25000;
+  const mesesForecast = Number(document.getElementById('simMeses')?.value) || 60;
+  const anoInicial = new Date().getFullYear();
+
+  const resultado = gerarForecastSolar({
+    consumoMensalInicial: consumo, geracaoMensalInicial: geracao,
+    tipoLigacao, anoInicial, mesesForecast, investimento
+  });
+
+  // CORRIGIDO 03/08/2026 (achado ao testar de verdade): t() é uma função local de outro escopo
+  // (linha 1991), não é global - chamar ela aqui dava "t is not defined" e quebrava a página
+  // inteira. Substituído por manipulação direta do DOM, sem depender do helper de outro escopo.
+  const elEconomia = document.getElementById('simEconomiaAcumulada');
+  if(elEconomia) elEconomia.textContent = fmt(resultado.economiaAcumuladaTotal);
+  const anosForecast = (mesesForecast/12).toFixed(0);
+  const elPeriodo = document.getElementById('simPeriodo');
+  if(elPeriodo) elPeriodo.textContent = anosForecast + ' ano(s) (' + mesesForecast + ' meses)';
+
+  const tbody = document.getElementById('simTabelaAnual');
+  if(tbody){
+    tbody.innerHTML = resultado.resumoAnual.map(r =>
+      '<tr><td>'+r.ano+'</td><td>'+fmt(r.economiaAcumulada)+'</td><td>'+(r.payback ? r.payback.toFixed(1)+' anos' : '—')+'</td></tr>'
+    ).join('');
+  }
+}
+onDomPronto(() => {
+  const btnSim = document.getElementById('btnCalcularSimulacao');
+  if(btnSim) btnSim.addEventListener('click', calcularSimulacaoRegulatoria);
+  if(document.getElementById('simConsumo')) calcularSimulacaoRegulatoria(); // calculo inicial com defaults
+});
 // Antecipado do plano de 25/07 a pedido do usuario ("escolha as mais simples e ja implemente").
 // Botao flutuante (topo direito, fixo em todas as paginas) que aplica blur em todos os valores
 // monetarios (classes .v/.val/.r, ja usadas globalmente no painel) sem remover labels/estrutura -
@@ -4380,3 +4629,4 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   });
 }
 onDomPronto(inicializarBotoesPrintSecao);
+
