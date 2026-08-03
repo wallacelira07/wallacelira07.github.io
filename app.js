@@ -3616,6 +3616,34 @@ new Chart(document.getElementById('g_cAlivio'), {
   // Jun/26: real, confirmado na fatura Energisa.
   const mesesPares = ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai*','Jun'];
   const kwhAnoAnterior = [321,262,279,297,405,265,211,273,330,343,323,304];
+  // NOVO 03/08/2026 (pedido do usuário: gráfico 09 "deve andar pra frente automático... o deslocamento
+  // na 00h do dia 1 de cada mês" - diferente dos gráficos 10/11, que usam o ciclo de leitura dia 8,
+  // este aqui usa o MÊS CALENDÁRIO puro, por decisão explícita do usuário). Âncora = mês de ativação
+  // (Jul/2026, mesesPares[0]). Mesmo mecanismo usado em ciclosDesdeAncoraCiclo (topo do arquivo), só
+  // que a virada é sempre dia 1, não dia 25 (financeiro) nem dia 8 (leitura solar).
+  const ANCHOR_ENERGIA_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
+  const ANCHOR_ENERGIA_MES = Number(VARS.solarDataAtivacao.split('-')[1]); // 7 = Jul
+  function offsetMesesCalendario(){
+    const hoje = new Date();
+    return (hoje.getFullYear()-ANCHOR_ENERGIA_ANO)*12 + (hoje.getMonth()+1-ANCHOR_ENERGIA_MES);
+  }
+  const OFFSET_ENERGIA = Math.max(0, Math.min(11, offsetMesesCalendario())); // limitado a 11 - alem disso nao ha mais historico de 12 meses pra mostrar
+  function alignEnergia(series){
+    if(OFFSET_ENERGIA<=0) return series.slice();
+    const shifted = series.slice(OFFSET_ENERGIA);
+    while(shifted.length < series.length) shifted.push(null);
+    return shifted;
+  }
+  const MESES_ABREV_ENERGIA = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function gerarRotulosEnergia(){
+    const labels = [];
+    for(let i=0;i<12;i++){
+      const idxMes = ((ANCHOR_ENERGIA_MES - 1 + OFFSET_ENERGIA + i) % 12 + 12) % 12;
+      labels.push(MESES_ABREV_ENERGIA[idxMes]);
+    }
+    return labels;
+  }
+  const mesesParesEnergia = gerarRotulosEnergia(); // rotulos deslocados (o proprio eixo "anda" junto, igual aos outros graficos)
   const tarifa = VARS.faturaEnergisaValor/VARS.faturaEnergisaKwh;
   const anoAnterior = kwhAnoAnterior.map(k=>Math.round(k*tarifa*100)/100);
   // CORRIGIDO 01/08/2026 (pedido do usuario - "os R$70 são muito conservadores"): valorPosSolar
@@ -3638,8 +3666,10 @@ new Chart(document.getElementById('g_cAlivio'), {
     // fallback pro calculo antigo, so se a composicao tarifaria nao estiver disponivel por algum motivo
     valorPosSolar = Math.round((VARS.consumoMinimoComSolarKwh*tarifa + VARS.taxaMinimaEnergisa)*100)/100;
   }
-  // NOVO 31/07/2026: mesesPares[0]='Jul' e o mes atual (Jul/2026, quando o solar entrou em operacao) -
-  // agora usa a geracao REAL (VARS.SOLAR_LEITURAS_CALC, ultima leitura) em vez do valor fixo projetado.
+  // CORRIGIDO 03/08/2026 (achado do usuário: gráfico 09 nunca tinha avançado - ficava sempre em Jul):
+  // mesesPares[0]='Jul' é o mês de ATIVAÇÃO, não necessariamente "hoje" - o índice que recebe o valor
+  // calculado ao vivo (geração real, não projeção) é OFFSET_ENERGIA (quantos meses de calendário já
+  // passaram desde a ativação), não mais fixo em 0.
   // Regra: a fatura minima (valorPosSolar, calculado acima - Disponibilidade+FioB+Iluminacao+Encargos)
   // so vale se o credito solar cobrir 100% do consumo do apartamento; se a ultima leitura mostrar saldo
   // NEGATIVO (credito ainda nao cobre o consumo esperado), soma o deficit x tarifa por cima do minimo -
@@ -3649,13 +3679,11 @@ new Chart(document.getElementById('g_cAlivio'), {
   const valorMesAtualCalculado = Math.round((valorPosSolar + deficitWallaceAtual*tarifa)*100)/100;
   // CORRIGIDO 01/08/2026 (V227, pedido do usuario - "confuso, valor tem que ser o real quando eu der,
   // senao o calculado"): cada mes agora prioriza VARS.ENERGIA_FATURAS_REAIS[mes] (fatura de verdade,
-  // informada pelo usuario) e so cai pro calculo/projecao quando essa chave nao existir. Mes atual (Jul)
-  // usa o calculo baseado em geracao real (valorMesAtualCalculado); os demais usam a projecao fixa
-  // ate terem fatura real ou calculo proprio.
+  // informada pelo usuario) e so cai pro calculo/projecao quando essa chave nao existir.
   const esteAnoFonte = mesesPares.map((mes,i)=>{
     const nomeMes = mes.replace('*','');
     if(VARS.ENERGIA_FATURAS_REAIS[nomeMes] !== undefined) return {valor:VARS.ENERGIA_FATURAS_REAIS[nomeMes], fonte:'real'};
-    if(i===0) return {valor:valorMesAtualCalculado, fonte:'calculado'};
+    if(i===OFFSET_ENERGIA) return {valor:valorMesAtualCalculado, fonte:'calculado'};
     return {valor:valorPosSolar, fonte:'projetado'};
   });
   const esteAno = esteAnoFonte.map(e=>e.valor);
@@ -3665,6 +3693,14 @@ new Chart(document.getElementById('g_cAlivio'), {
   // "economia" sobreposto (ver historico). Agora so o valor da barra (sem o "-XXX" de economia por
   // cima, que era a causa real da colisao) - risco de colisao muito menor, mesmo padrao ja usado nos
   // graficos 10/11.
+  // NOVO 03/08/2026: versoes ALINHADAS (deslocadas por OFFSET_ENERGIA) de tudo que este grafico usa -
+  // mesmo cuidado do bug corrigido nos graficos 10/11 (rotulo e dado tem que vir da MESMA ancora,
+  // senao desalinha). anoAnterior/esteAno/esteAnoFonte continuam existindo em sua forma original
+  // (usados só internamente acima, ex. economiaAtual antigo) - a partir daqui só as versões alinhadas.
+  const anoAnteriorAlinhado = alignEnergia(anoAnterior);
+  const esteAnoAlinhado = alignEnergia(esteAno);
+  const esteAnoFonteAlinhado = alignEnergia(esteAnoFonte);
+
   const energiaBarLabelPlugin = {
     id:'energiaBarLabelPlugin',
     afterDatasetsDraw(chart){
@@ -3674,7 +3710,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
-        ctx.fillStyle = di===0 ? '#e8a63a' : (esteAnoFonte[0] && di===1 ? '#34c98a' : '#34c98a');
+        ctx.fillStyle = di===0 ? '#e8a63a' : '#34c98a';
         meta.data.forEach((bar,i)=>{
           const v = ds.data[i];
           if(v===null || v===undefined) return;
@@ -3689,7 +3725,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       ctx.fillStyle = '#3987e5';
       ctx.font = "700 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       metaAnoAnterior.data.forEach((bar,i)=>{
-        const economia = esteAno[i] - anoAnterior[i]; // sempre <=0 (negativo = economizou)
+        const economia = esteAnoAlinhado[i] - anoAnteriorAlinhado[i]; // sempre <=0 (negativo = economizou)
         if(economia===null || economia===undefined || isNaN(economia)) return;
         ctx.fillText((economia>=0?'+':'')+Math.round(economia), bar.x, bar.y - 14);
       });
@@ -3700,16 +3736,17 @@ new Chart(document.getElementById('g_cAlivio'), {
   new Chart(document.getElementById('cEnergiaSolar'), {
     type:'bar',
     plugins:[energiaBarLabelPlugin],
-    data:{labels:mesesPares,
+    data:{labels:mesesParesEnergia,
       datasets:[
-        {label:'Ano anterior (real, sem solar)', data:anoAnterior, backgroundColor:'#e8a63a', borderRadius:3},
-        {label:'Este ano (com solar)', data:esteAno, backgroundColor:esteAnoFonte.map(e=>e.fonte==='real' ? '#1f9d66' : '#34c98a'), borderRadius:3}
+        {label:'Ano anterior (real, sem solar)', data:anoAnteriorAlinhado, backgroundColor:'#e8a63a', borderRadius:3},
+        {label:'Este ano (com solar)', data:esteAnoAlinhado, backgroundColor:esteAnoFonteAlinhado.map(e=>e && e.fonte==='real' ? '#1f9d66' : '#34c98a'), borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:legendStd2,tooltip:{callbacks:{
         label:c=>{
           if(c.datasetIndex===1){
-            const f = esteAnoFonte[c.dataIndex].fonte;
+            const fonteObj = esteAnoFonteAlinhado[c.dataIndex];
+            const f = fonteObj ? fonteObj.fonte : null;
             const rotulo = f==='real' ? ' (fatura real)' : f==='calculado' ? ' (geração real)' : ' (projeção)';
             return c.dataset.label+rotulo+': '+fmt(c.raw);
           }
@@ -3717,18 +3754,22 @@ new Chart(document.getElementById('g_cAlivio'), {
         },
         afterLabel:c=>{
           if(c.datasetIndex!==1) return '';
-          const economia = anoAnterior[c.dataIndex] - esteAno[c.dataIndex];
+          const economia = anoAnteriorAlinhado[c.dataIndex] - esteAnoAlinhado[c.dataIndex];
           return 'Economia: '+fmt(economia);
         }
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.6,barPercentage:0.75},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
-  const economiaAtual = anoAnterior[0] - esteAno[0];
-  const economiaAnualEstimada = anoAnterior.reduce((s,v)=>s+v,0) - esteAno.reduce((s,v)=>s+v,0);
+  // CORRIGIDO 03/08/2026: era anoAnterior[0]/esteAno[0] (sempre Jul, nunca avançava) - agora usa o
+  // indice 0 do array JA ALINHADO, que corresponde ao mes atual de verdade (mesesParesEnergia[0]).
+  const economiaAtual = anoAnteriorAlinhado[0] - esteAnoAlinhado[0];
+  const economiaAnualEstimada = anoAnteriorAlinhado.reduce((s,v)=>s+(v||0),0) - esteAnoAlinhado.reduce((s,v)=>s+(v||0),0);
   const legEnergiaEl = document.getElementById('legEnergiaSolar');
   if(legEnergiaEl){
-    legEnergiaEl.innerHTML = 'Mês atual (Jul/26): ano anterior <strong style="color:#e8a63a">'+fmt(anoAnterior[0])+'</strong> vs. este ano <strong style="color:#34c98a">'+fmt(esteAno[0])+'</strong> ('+(esteAnoFonte[0].fonte==='real'?'fatura real':'baseado na geração real do medidor')+') → economia de <strong style="color:#3987e5">'+fmt(economiaAtual)+'</strong> no mês. Projeção de economia nos 12 meses: <strong style="color:#3987e5">'+fmt(economiaAnualEstimada)+'</strong>. Toque numa barra pro valor exato e a fonte (real/calculado/projeção).';
+    const mesAtualLabel = mesesParesEnergia[0];
+    const fonteAtual = esteAnoFonteAlinhado[0];
+    legEnergiaEl.innerHTML = 'Mês atual ('+mesAtualLabel+'/26): ano anterior <strong style="color:#e8a63a">'+fmt(anoAnteriorAlinhado[0])+'</strong> vs. este ano <strong style="color:#34c98a">'+fmt(esteAnoAlinhado[0])+'</strong> ('+(fonteAtual && fonteAtual.fonte==='real'?'fatura real':'baseado na geração real do medidor')+') → economia de <strong style="color:#3987e5">'+fmt(economiaAtual)+'</strong> no mês. Projeção de economia nos 12 meses: <strong style="color:#3987e5">'+fmt(economiaAnualEstimada)+'</strong>. Toque numa barra pro valor exato e a fonte (real/calculado/projeção).';
   }
 
   // NOVO 01/08/2026 (pedido do usuario): estimativa de fatura residual pos-solar por unidade,
@@ -3812,25 +3853,32 @@ new Chart(document.getElementById('g_cAlivio'), {
   // NOVO 03/08/2026 (pedido do usuario: "esses graficos devem andar pra frente automatico como o
   // grafico de necessidade"): mesmo padrao ja usado la (alignSeriesCiclo/ciclosDesdeAncoraCiclo,
   // topo do arquivo) - so que aqui a ancora e o CICLO DE LEITURA (dia 8), nao o ciclo financeiro
-  // (dia 25), porque e a base que este modulo inteiro passou a usar nesta sessao. Ancora = mes em que
-  // o PRIMEIRO ciclo fechou (Ago/2026). So afeta a CAMADA DE APRESENTACAO (labels/dados dos 2 graficos
-  // abaixo) - nao mexe nos arrays originais (creditoMensalWallace etc), que continuam servindo o
-  // texto/legenda/outras contas exatamente como antes.
+  // (dia 25), porque e a base que este modulo inteiro passou a usar nesta sessao. So afeta a CAMADA
+  // DE APRESENTACAO (labels/dados dos 2 graficos abaixo) - nao mexe nos arrays originais
+  // (creditoMensalWallace etc), que continuam servindo o texto/legenda/outras contas como antes.
+  //
+  // BUG CORRIGIDO 03/08/2026 (achado do usuario, print real - dado aparecendo 1 mes deslocado, "Set"
+  // em vez de "Ago"): a v1 usava ANCHOR_SOLAR_MES (mes de FECHAMENTO do 1o ciclo = Ago) como base dos
+  // ROTULOS, mas os dados (creditoMensalWallace/importadoMensal/etc, calculados mais acima) sao
+  // indexados a partir de mesAtivacao (mes de CALENDARIO da ativacao = Jul, idx0 sempre vazio por
+  // design). Rotulo e dado usando ancoras DIFERENTES = tudo sai 1 posicao trocado. Corrigido: rotulos
+  // agora usam a MESMA ancora dos dados (mesAtivacao), garantindo idx0='Jul' (vazio) e idx1='Ago' (com
+  // o credito real) em ambos, sempre em sincronia.
   const ANCHOR_SOLAR_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
-  const ANCHOR_SOLAR_MES = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026
+  const ANCHOR_SOLAR_MES_CICLO = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026 - usado SO pra saber quantos ciclos ja passaram (offset), nao pra rotular
   function offsetCiclosSolar(){
     const hoje = new Date();
     const inicioCicloAtual = hoje.getDate() > CICLO_DIA_LEITURA_GERACAO
       ? new Date(hoje.getFullYear(), hoje.getMonth()+1, 1)
       : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    return (inicioCicloAtual.getFullYear()-ANCHOR_SOLAR_ANO)*12 + (inicioCicloAtual.getMonth()+1-ANCHOR_SOLAR_MES);
+    return (inicioCicloAtual.getFullYear()-ANCHOR_SOLAR_ANO)*12 + (inicioCicloAtual.getMonth()+1-ANCHOR_SOLAR_MES_CICLO);
   }
   const OFFSET_SOLAR = Math.max(0, offsetCiclosSolar());
   const MESES_ABREV_SOLAR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   function gerarRotulosSolar(){
     const labels = [];
     for(let i=0;i<12;i++){
-      const idxMes = ((ANCHOR_SOLAR_MES - 1 + OFFSET_SOLAR + i) % 12 + 12) % 12;
+      const idxMes = ((mesAtivacao - 1 + OFFSET_SOLAR + i) % 12 + 12) % 12; // mesAtivacao (Jul), MESMA ancora dos dados
       labels.push(MESES_ABREV_SOLAR[idxMes]);
     }
     return labels;
@@ -3843,6 +3891,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   }
   const mesesParesSolar = gerarRotulosSolar(); // rotulos que os 2 graficos abaixo (Rede Energisa/Rateio) usam - "andam" sozinhos conforme os ciclos passam
 
+
   let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0, geracaoAcumAnterior = null;
   const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
   // CORRIGIDO 01/08/2026 (V250, documento "SEM ESTIMATIVAS"): consumo direto mensal agora deriva da
@@ -3850,6 +3899,10 @@ new Chart(document.getElementById('g_cAlivio'), {
   // solarGeracaoDiariaEstimada. Sem leitura real de geracao em 2 meses consecutivos, fica null (sem
   // barra) em vez de estimar.
   const importadoMensal = [], exportadoMensal = [], geracaoEstMensal = [], consumoDiretoMensal = [], saldoLiquidoMensal = [];
+  // NOVO 03/08/2026: rastreia quais meses tiveram o consumo direto CONGELADO (ver logica abaixo) -
+  // usado pra montar o aviso automatico na legenda do grafico.
+  const consumoDiretoCongeladoMes = [];
+  let ultimoConsumoDiretoValido = null; // carrega o ultimo valor >=0 confirmado, mes a mes
   for(let i=0;i<12;i++){
     const l = leituraMaisRecentePorMes[i];
     if(l){
@@ -3861,11 +3914,21 @@ new Chart(document.getElementById('g_cAlivio'), {
       const temGeracaoReal = l.geracaoAcumulada!=null && geracaoAcumAnterior!=null;
       const geracaoDoMes = temGeracaoReal ? Math.round((l.geracaoAcumulada - geracaoAcumAnterior)*100)/100 : null;
       const consumoDiretoBruto = temGeracaoReal ? Math.round((geracaoDoMes - exportadoDoMes)*100)/100 : null;
-      // CORRIGIDO 03/08/2026 (achado do usuário, gráfico "Rede Energisa"): consumo direto negativo é
-      // fisicamente impossível - só acontece quando a automação SAJ (geração) e a leitura manual do
-      // 103 (exportado) estão dessincronizadas no tempo. Mesma classe de proteção já usada na Unidade
-      // Geradora (consumoDiretoConfiavel) - aqui, mais simples: negativo vira null (barra vazia).
-      const consumoDiretoDoMes = (consumoDiretoBruto!=null && consumoDiretoBruto < 0) ? null : consumoDiretoBruto;
+      // CORRIGIDO 03/08/2026 (achado do usuário, gráfico "Rede Energisa") — REVISADO na mesma data
+      // (usuário não gostou de esconder a barra): consumo direto negativo é fisicamente impossível -
+      // só acontece quando a automação SAJ (geração) e a leitura manual do 103 (exportado) estão
+      // dessincronizadas no tempo. Em vez de null (barra some), agora CONGELA no último valor válido
+      // (>=0) já confirmado e marca o mês em consumoDiretoCongeladoMes[] - a legenda automática abaixo
+      // do gráfico avisa quais meses estão "presos" nesse estado, sem esconder informação nenhuma.
+      let consumoDiretoDoMes;
+      if(consumoDiretoBruto!=null && consumoDiretoBruto < 0){
+        consumoDiretoDoMes = ultimoConsumoDiretoValido; // pode ser null ainda se nunca teve um valor valido antes
+        consumoDiretoCongeladoMes.push(true);
+      } else {
+        consumoDiretoDoMes = consumoDiretoBruto;
+        consumoDiretoCongeladoMes.push(false);
+        if(consumoDiretoBruto!=null) ultimoConsumoDiretoValido = consumoDiretoBruto;
+      }
       importadoMensal.push(importadoDoMes);
       exportadoMensal.push(exportadoDoMes);
       geracaoEstMensal.push(geracaoDoMes);
@@ -3884,6 +3947,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       exportadoMensal.push(null);
       geracaoEstMensal.push(null);
       consumoDiretoMensal.push(null);
+      consumoDiretoCongeladoMes.push(false);
       saldoLiquidoMensal.push(null);
       temLeituraNoMes.push(false);
     }
@@ -4078,6 +4142,17 @@ new Chart(document.getElementById('g_cAlivio'), {
         scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     });
+    // NOVO 03/08/2026: aviso automatico dos meses com "Consumo direto" CONGELADO (dessincronia entre
+    // a automacao SAJ e a leitura manual do 103 - ver logica acima). Usa os MESMOS rotulos ja
+    // deslocados (mesesParesSolar) pra apontar o mes certo, mesmo apos o grafico "andar pra frente".
+    const legCongeladoEl = document.getElementById('legConsumoDiretoCongelado');
+    if(legCongeladoEl){
+      const congeladoAlinhado = alignSolar(consumoDiretoCongeladoMes);
+      const mesesCongelados = mesesParesSolar.filter((_,i)=>congeladoAlinhado[i]===true);
+      legCongeladoEl.textContent = mesesCongelados.length
+        ? '⚠️ Consumo direto CONGELADO no último valor confiável em: '+mesesCongelados.join(', ')+' — a automação SAJ e a leitura manual do código 103 ficaram dessincronizadas nesses meses; assim que uma leitura nova resolver isso, o valor volta a atualizar sozinho.'
+        : '';
+    }
   }
 
   const solarBarLabelPlugin = {
@@ -4137,8 +4212,12 @@ new Chart(document.getElementById('g_cAlivio'), {
   // mim"): meta deixa de ser numero fixo solto (321/119) e passa a derivar do mesmo indice (mes atual,
   // posicao 0) do historico real de 12 meses de cada casa - mesmo criterio ja usado pro Wallace desde o
   // inicio (321 sempre foi kwhAnoAnterior[0], so nao estava escrito assim). Nunca mais dessincroniza.
-  const META_WALLACE = kwhAnoAnterior[0];       // kWh, consumo real do mesmo mes no ano anterior (Wallace)
-  const META_WELLIDA = consumoMensalIrma[0];    // kWh, consumo real do mesmo mes no ano anterior (Wellida)
+  // CORRIGIDO 03/08/2026 (achado ao verificar a seção 12 após as mudanças de ciclo): meta usava
+  // kwhAnoAnterior[0]/consumoMensalIrma[0] fixo - sempre o valor de JULHO (mês de ativação), mesmo já
+  // estando em agosto+. Igual ao bug do gráfico 09 (mesma classe: índice fixo em vez de acompanhar o
+  // mês real) - agora usa OFFSET_ENERGIA (mesmo índice corrigido no gráfico 09, calendário puro, dia 1).
+  const META_WALLACE = kwhAnoAnterior[OFFSET_ENERGIA];       // kWh, consumo real do mesmo mes no ano anterior (Wallace)
+  const META_WELLIDA = consumoMensalIrma[OFFSET_ENERGIA];    // kWh, consumo real do mesmo mes no ano anterior (Wellida)
 
   function calcularDiasRestantes(diaLeituraAlvo, hojeRef){
     const hj = hojeRef || new Date();
