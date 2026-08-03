@@ -1,12 +1,14 @@
 name: Atualizar Cotações de Ações (PETR4/ITUB4)
-# Roda 2x por dia útil - abertura (10h) e fechamento (17h) da B3, horário de Brasília.
-# Horários deslocados da hora cheia (:12/:17 em vez de :00) - mesma razão do script solar:
-# agendamentos exatamente na hora cheia têm mais chance de atrasar/não disparar no GitHub Actions.
+# MIGRADO 03/08/2026: ver nota completa em atualizar_geracao_saj.yml - "schedule"
+# abandonado neste repositório (nunca disparou sozinho, mesmo com tudo correto).
+# Disparo agora é externo via cron-job.org -> API do GitHub -> executar_tudo.yml.
+# Continua reutilizável (workflow_call) e também disparável sozinho (workflow_dispatch),
+# útil pra testar só as cotações sem rodar solar/Pluggy junto.
+# PETR4/ITUB4/VALE3/MGLU3 não precisam de token; os demais tickers
+# (ITSA4/BBDC4/BBAS3/WEGE3/ABEV3/B3SA3) exigem o BRAPI_TOKEN.
 on:
-  schedule:
-    - cron: '12 13 * * 1-5'   # seg-sex, 13:12 UTC = 10:12 Brasília (abertura B3)
-    - cron: '17 20 * * 1-5'   # seg-sex, 20:17 UTC = 17:17 Brasília (fechamento B3)
   workflow_dispatch: {}
+  workflow_call: {}
 jobs:
   atualizar-cotacoes:
     runs-on: ubuntu-latest
