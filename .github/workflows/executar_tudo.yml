@@ -1,4 +1,4 @@
-name: Executar Tudo (SAJ + Cotações + Pluggy)
+name: Executar Tudo (SAJ + Cotações + Pluggy + Mercado Pago)
 # ORQUESTRADOR - criado 03/08/2026 como parte da migração pra abandonar "schedule"
 # do GitHub Actions (nunca disparava sozinho neste repositório, apesar de tudo
 # validado: YAML correto, branch main, repo público, execução manual funcionando).
@@ -7,52 +7,55 @@ name: Executar Tudo (SAJ + Cotações + Pluggy)
 # (workflow_dispatch). Ver AUTOMACAO_README.md pra configuração completa do
 # cron-job.org (URL, headers, body, horários).
 #
-# Ordem de execução: SAJ -> Cotações -> Pluggy, sequencial (cada um só começa
-# depois que o anterior TERMINA - não precisa ter dado certo, ver decisão abaixo).
+# Ordem de execução: SAJ -> Cotações -> Pluggy -> Mercado Pago, sequencial (cada um só
+# começa depois que o anterior TERMINA - não precisa ter dado certo, ver decisão abaixo).
 #
-# DECISÃO DE DESIGN: uso "if: always()" nos jobs 2 e 3 pra que uma falha no SAJ,
-# por exemplo, não impeça as cotações e o Pluggy de rodarem - são 3 automações
-# financeiras independentes, uma falhar não deveria travar as outras 2. O
-# resultado final (job "resumo") sempre reporta o status dos 3, mesmo que algum
+# DECISÃO DE DESIGN: uso "if: always()" nos jobs 2, 3 e 4 pra que uma falha no SAJ,
+# por exemplo, não impeça as cotações, o Pluggy e o Mercado Pago de rodarem - são 4
+# automações financeiras independentes, uma falhar não deveria travar as outras 3. O
+# resultado final (job "resumo") sempre reporta o status dos 4, mesmo que algum
 # tenha falhado - "erros tratados com logs claros", não silenciosamente ignorados.
 on:
   workflow_dispatch: {}
-
 jobs:
   saj:
-    name: "1/3 - Atualizar Geração Solar (SAJ)"
+    name: "1/4 - Atualizar Geração Solar (SAJ)"
     uses: ./.github/workflows/atualizar_geracao_saj.yml
     secrets: inherit
-
   cotacoes:
-    name: "2/3 - Atualizar Cotações de Ações"
+    name: "2/4 - Atualizar Cotações de Ações"
     needs: saj
     if: always()
     uses: ./.github/workflows/atualizar_cotacoes_acoes.yml
     secrets: inherit
-
   pluggy:
-    name: "3/3 - Sincronizar Pluggy"
+    name: "3/4 - Sincronizar Pluggy"
     needs: cotacoes
     if: always()
     uses: ./.github/workflows/sincronizar_pluggy.yml
     secrets: inherit
-
+  mercadopago:
+    name: "4/4 - Sincronizar Mercado Pago"
+    needs: pluggy
+    if: always()
+    uses: ./.github/workflows/mercadopago_sync.yml
+    secrets: inherit
   resumo:
     name: "Resumo da execução"
-    needs: [saj, cotacoes, pluggy]
+    needs: [saj, cotacoes, pluggy, mercadopago]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Reportar status de cada etapa
         run: |
           echo "===== RESUMO DA EXECUÇÃO ====="
-          echo "1/3 SAJ (geração solar):     ${{ needs.saj.result }}"
-          echo "2/3 Cotações de ações:       ${{ needs.cotacoes.result }}"
-          echo "3/3 Pluggy (bancos):         ${{ needs.pluggy.result }}"
+          echo "1/4 SAJ (geração solar):     ${{ needs.saj.result }}"
+          echo "2/4 Cotações de ações:       ${{ needs.cotacoes.result }}"
+          echo "3/4 Pluggy (bancos):         ${{ needs.pluggy.result }}"
+          echo "4/4 Mercado Pago:            ${{ needs.mercadopago.result }}"
           echo "==============================="
-          if [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ]; then
+          if [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ]; then
             echo "::warning::Pelo menos uma etapa não terminou com sucesso - confira os logs de cada job acima."
             exit 1
           fi
-          echo "Todas as 3 etapas rodaram com sucesso."
+          echo "Todas as 4 etapas rodaram com sucesso."
