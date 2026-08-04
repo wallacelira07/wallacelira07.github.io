@@ -110,19 +110,19 @@ def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas
     dias, pageSize default 500 conforme doc oficial), so a mecanica de paginacao
     muda. max_paginas e so um teto de seguranca contra loop infinito.
 
-    CORRIGIDO 04/08/2026: a chamada inicial estava mandando "&from=AAAA-MM-DD",
-    e a Pluggy passou a rejeitar com HTTP 400 "property from should not exist"
-    (confirmado em producao, request real via Supabase - o endpoint /v2/transactions
-    nao aceita mais esse nome de parametro). O nome correto, confirmado na propria
-    documentacao da Pluggy (usado no campo "createdAtFrom" dos webhooks
-    transactions/created/updated para o mesmo recurso de Transaction), e
-    "createdAtFrom", em datetime ISO-8601 completo (nao so a data) - trocado abaixo.
-    NAO TESTADO CONTRA A API REAL NESTA SESSAO (sem acesso a rede aqui) - rodar
-    manualmente uma vez e conferir o "conta_info['transacoes_recentes']"/
-    "conta_info['transacoes_erro']" no proximo `python3 sincronizar_pluggy.py`
-    antes de confiar 100% no cron.
+    CORRIGIDO 04/08/2026 (parte 55, achado ao vivo depois do 1º sync real): mesmo mandando
+    "createdAtFrom" certinho, a Pluggy documenta que na 1ª sincronização de uma conta ela
+    SEMPRE devolve o histórico completo (até 12 meses), ignorando esse filtro - só vale
+    pras sincronizações seguintes (incrementais). Confirmado em produção: transações vieram
+    até 28/07/2025 (mais de 1 ano), inflando o registro no Supabase pra ~2.700 transações e
+    deixando o carregamento do site lento (o site baixa esse blob inteiro em toda carga de
+    página, mesmo descontando o que não usa). Corrigido filtrando aqui, DEPOIS de receber a
+    resposta da Pluggy (não dá pra evitar a API mandar, só pra não guardar/propagar) - só
+    guarda transações dentro da janela pedida (parâmetro "dias"), o resto é descartado antes
+    de voltar pra quem chamou.
     """
-    data_de_iso = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%dT00:00:00.000Z")
+    data_de = datetime.now(timezone.utc) - timedelta(days=dias)
+    data_de_iso = data_de.strftime("%Y-%m-%dT00:00:00.000Z")
     transacoes: list[dict] = []
     proxima_url = f"{PLUGGY_BASE}/v2/transactions?accountId={account_id}&createdAtFrom={data_de_iso}"
     paginas = 0
@@ -136,7 +136,24 @@ def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas
         # com o host base da API. Se algum dia vier URL absoluta, usa direto.
         proxima_url = next_qs if next_qs.startswith("http") else f"{PLUGGY_BASE}/v2/transactions{next_qs}"
         paginas += 1
-    return transacoes
+    # parte 55: corta pra janela pedida ANTES de devolver - a Pluggy pode ter mandado ate 12 meses
+    # (1a sincronizacao), mas so a janela recente interessa pra guardar/propagar. "date" vem em
+    # ISO-8601 (ex: "2026-07-15T00:00:00.000Z") - comparacao de string funciona pq o formato e fixo
+    # e ordenavel lexicograficamente, mas parseia de verdade pra evitar essa armadilha silenciosa.
+    transacoes_recentes = []
+    for t in transacoes:
+        data_tx = t.get("date")
+        if not data_tx:
+            transacoes_recentes.append(t)  # sem data, nao arrisca descartar - mantem por seguranca
+            continue
+        try:
+            dt = datetime.fromisoformat(data_tx.replace("Z", "+00:00"))
+        except ValueError:
+            transacoes_recentes.append(t)  # formato inesperado, mesma logica de seguranca acima
+            continue
+        if dt >= data_de:
+            transacoes_recentes.append(t)
+    return transacoes_recentes
 
 
 def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict:
