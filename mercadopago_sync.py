@@ -17,16 +17,29 @@ DESTINO NO SUPABASE — decisao de nomenclatura (documentada, nao e a literal do
   "<INTEGRACAO>_CONTAS"/"<INTEGRACAO>_EVENTOS" pro que a Pluggy grava (VARS.PLUGGY_CONTAS) — pra manter
   consistencia com o app.js existente (reconciliarPluggy le VARS.PLUGGY_CONTAS, nao "financial_events"),
   este script grava em uma unica linha/coluna VARS chamada MERCADOPAGO_EVENTOS (RPC
-  'atualizar_mercadopago_eventos', a criar no Supabase — mesmo padrao das 3 RPCs ja existentes citadas
+  'atualizar_mercadopago_eventos', ja criada no Supabase — mesmo padrao das 3 RPCs ja existentes citadas
   na Passagem de Turno: atualizar_geracao_solar / atualizar_cotacoes_acoes / atualizar_pluggy_contas).
   app.js consome VARS.MERCADOPAGO_EVENTOS do mesmo jeito que ja consome VARS.PLUGGY_CONTAS.
+
+CORRIGIDO 04/08/2026 (parte 39) — bug real achado no 1o teste em produção: o 1o sync trouxe os
+500 pagamentos mais recentes (05/01/2026 a 02/08/2026, TODO o histórico da conta, sem filtro de
+data) e a RPC antiga SOBRESCREVIA o array inteiro a cada run — ou seja, além de inundar a Inbox com
+7 meses de histórico já reconciliado manualmente, qualquer decisão de triagem (aprovar/rejeitar) seria
+perdida no próximo sync, porque o array era substituído do zero.
+Correção em 2 pontas (script + RPC, RPC já corrigida direto no Supabase nesta sessão):
+  1. Este script agora lê o checkpoint MERCADOPAGO_ATUALIZADO_EM (já existente) antes de buscar, e passa
+     begin_date pra API (com 1 dia de margem de segurança pra não perder evento na borda do timestamp).
+  2. A RPC agora faz MERGE por id (preserva 'status_triagem' de eventos já existentes, marca novos como
+     'pendente') em vez de sobrescrever o array — a margem de 1 dia do item 1 não duplica nada porque o
+     merge é idempotente por id.
 
 NAO TESTADO CONTRA A API REAL NESTA SESSAO (sem rede/credenciais aqui) — so
 `python3 -m py_compile`. Os nomes de endpoint/campos abaixo seguem a doc publica da API de Pagamentos
 do Mercado Pago (`/v1/payments/search`) na melhor informacao disponivel no momento em que este script
-foi escrito; ANTES do primeiro deploy real, confirme os campos exatos (esp. PIX enviado/recebido,
-saldo de conta, extrato) contra a doc oficial atualizada — mesma regra ja aplicada aqui pras tarifas
-ANEEL (Politica secao 26): nunca assumir doc de terceiro como definitiva sem validar na hora.
+foi escrito; ANTES do proximo deploy, confirme contra a doc oficial atualizada: (a) os nomes exatos dos
+parametros de filtro de data (`range`/`begin_date`/`end_date`, formato ISO com timezone), e (b) os
+campos de PIX enviado/recebido e saldo de conta — mesma regra ja aplicada aqui pras tarifas ANEEL
+(Politica secao 26): nunca assumir doc de terceiro como definitiva sem validar na hora.
 
 Credenciais (env vars, NUNCA hardcoded — GitHub Secrets no workflow):
   MERCADO_PAGO_ACCESS_TOKEN
@@ -40,11 +53,13 @@ import os
 import sys
 import json
 import time
+import datetime
 import urllib.request
 import urllib.error
 
 MP_API_BASE = "https://api.mercadopago.com"
 PAGE_LIMIT = 50  # tamanho de pagina da API de pagamentos (ajustar conforme doc oficial se mudar)
+MARGEM_SEGURANCA_HORAS = 24  # reprocessa 1 dia antes do ultimo checkpoint; merge por id absorve a sobreposicao
 
 
 class MercadoPagoGateway:
@@ -72,9 +87,16 @@ class MercadoPagoGateway:
             corpo = e.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"MercadoPagoGateway: HTTP {e.code} em {path} — {corpo[:300]}") from e
 
-    def buscar_pagamentos(self, offset=0):
-        """GET /v1/payments/search, paginado por offset/limit (confirmar contra doc oficial antes do 1o deploy)."""
-        return self._get("/v1/payments/search", {"offset": offset, "limit": PAGE_LIMIT, "sort": "date_created", "criteria": "desc"})
+    def buscar_pagamentos(self, offset=0, begin_date=None, end_date=None):
+        """GET /v1/payments/search, paginado por offset/limit, com filtro opcional de data de criacao.
+        NOMES DE PARAMETRO A CONFIRMAR contra a doc oficial atual antes do proximo deploy real
+        (range/begin_date/end_date e o padrao documentado publicamente, mas nunca testado aqui)."""
+        params = {"offset": offset, "limit": PAGE_LIMIT, "sort": "date_created", "criteria": "desc"}
+        if begin_date and end_date:
+            params["range"] = "date_created"
+            params["begin_date"] = begin_date
+            params["end_date"] = end_date
+        return self._get("/v1/payments/search", params)
 
     def buscar_saldo_conta(self):
         """Saldo/consumo da conta MP — endpoint a confirmar (ex: /v1/account/settings ou equivalente atual da doc oficial)."""
@@ -85,7 +107,9 @@ def normalizar_evento(pagamento_bruto):
     """Etapa 2 do brief V450: payload bruto da API -> FinancialEvent (unico formato guardado).
     Estrutura fixa pedida no brief: {id, origem, tipo, descricao, valor, data, status, metadata}.
     Nunca guarda o payload bruto inteiro — so os campos abaixo (metadata fica enxuto, so o essencial
-    pra rastreio/dedupe, nao o JSON completo da API)."""
+    pra rastreio/dedupe, nao o JSON completo da API).
+    'status_triagem' NAO e definido aqui de proposito — quem decide isso e a RPC no merge (preserva
+    o que ja existe, default 'pendente' pro que e novo)."""
     return {
         "id": f"MP{pagamento_bruto.get('id')}",
         "origem": "Mercado Pago",
@@ -110,11 +134,51 @@ class MercadoPagoSyncService:
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
 
+    def obter_checkpoint(self):
+        """Le VARS.MERCADOPAGO_ATUALIZADO_EM direto do Supabase (mesmo service_role key da escrita) pra
+        saber a partir de quando buscar pagamentos novos. Retorna None se nunca sincronizou (1o run)."""
+        url = f"{self.supabase_url}/rest/v1/wallace_dados?id=eq.1&select=dados"
+        req = urllib.request.Request(url, headers={
+            "apikey": self.supabase_key,
+            "Authorization": f"Bearer {self.supabase_key}",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                linhas = json.loads(resp.read().decode("utf-8"))
+            if not linhas:
+                return None
+            return linhas[0].get("dados", {}).get("MERCADOPAGO_ATUALIZADO_EM")
+        except Exception as e:
+            print(f"mercadopago_sync: nao consegui ler checkpoint (seguindo sem filtro de data): {e}", file=sys.stderr)
+            return None
+
+    def calcular_janela_busca(self):
+        """1o run (sem checkpoint): sem begin_date/end_date -> busca tudo (comportamento antigo, so
+        acontece 1 vez). Runs seguintes: begin_date = checkpoint - MARGEM_SEGURANCA_HORAS, end_date = agora.
+        A margem existe pra nao perder pagamento processado perto do instante exato do ultimo run; o
+        merge por id na RPC absorve a sobreposicao sem duplicar."""
+        checkpoint = self.obter_checkpoint()
+        if not checkpoint:
+            return None, None
+        try:
+            ultimo = datetime.datetime.fromisoformat(checkpoint.replace("Z", "+00:00"))
+        except ValueError:
+            return None, None
+        inicio = ultimo - datetime.timedelta(hours=MARGEM_SEGURANCA_HORAS)
+        fim = datetime.datetime.now(datetime.timezone.utc)
+        fmt = "%Y-%m-%dT%H:%M:%S.000-00:00"
+        return inicio.strftime(fmt), fim.strftime(fmt)
+
     def coletar_eventos(self, max_paginas=10):
+        begin_date, end_date = self.calcular_janela_busca()
+        if begin_date:
+            print(f"mercadopago_sync: buscando pagamentos desde {begin_date} (checkpoint - {MARGEM_SEGURANCA_HORAS}h de margem).")
+        else:
+            print("mercadopago_sync: sem checkpoint anterior — 1o sync, buscando historico completo (unica vez).")
         eventos = []
         offset = 0
         for _ in range(max_paginas):
-            pagina = self.gateway.buscar_pagamentos(offset=offset)
+            pagina = self.gateway.buscar_pagamentos(offset=offset, begin_date=begin_date, end_date=end_date)
             resultados = pagina.get("results", [])
             if not resultados:
                 break
@@ -125,9 +189,8 @@ class MercadoPagoSyncService:
         return eventos
 
     def gravar_supabase(self, eventos):
-        """RPC 'atualizar_mercadopago_eventos' — a criar no Supabase, mesmo padrao (REVOKE de anon/
-        authenticated depois de configurar, igual foi feito pras 3 RPCs existentes) das outras 3
-        funcoes de escrita ja em producao."""
+        """RPC 'atualizar_mercadopago_eventos' (corrigida 04/08/2026 parte 39: agora faz MERGE por id,
+        preservando 'status_triagem' de eventos ja existentes em vez de sobrescrever o array inteiro)."""
         url = f"{self.supabase_url}/rest/v1/rpc/atualizar_mercadopago_eventos"
         body = json.dumps({"eventos": eventos}).encode("utf-8")
         req = urllib.request.Request(url, data=body, method="POST", headers={
@@ -143,7 +206,7 @@ class MercadoPagoSyncService:
         print(f"mercadopago_sync: {len(eventos)} evento(s) normalizado(s).")
         if eventos:
             status = self.gravar_supabase(eventos)
-            print(f"mercadopago_sync: gravado no Supabase, HTTP {status}.")
+            print(f"mercadopago_sync: gravado no Supabase (merge por id), HTTP {status}.")
         else:
             print("mercadopago_sync: nenhum evento novo, nada gravado.")
 
