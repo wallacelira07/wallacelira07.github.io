@@ -385,8 +385,20 @@ def main() -> int:
 
             if suspeitas and email_from and email_password and email_to:
                 print("\nEnviando e-mail de aviso...")
-                enviar_email_suspeitas(suspeitas, email_smtp_host, email_smtp_port, email_from, email_password, email_to)
-                print("E-mail enviado.")
+                # CORRIGIDO 04/08/2026 (parte 58, bug real reportado pelo usuario: run do GitHub Actions
+                # terminou com "exit code 1" logo apos "Enviando e-mail de aviso..."): o Supabase JA
+                # tinha sido atualizado (atualizar_supabase() roda ANTES disso, linha acima) - ou seja,
+                # a sincronizacao de verdade tinha dado certo, so o aviso por e-mail (feature bonus,
+                # nao critica) falhou (mais provavel: Gmail exige "Senha de app" quando a conta tem
+                # verificacao em 2 etapas, EMAIL_PASSWORD normal da conta e rejeitado no login SMTP) e
+                # isso derrubava o job INTEIRO por causa do try/except unico em volta de tudo. Envolvido
+                # num try/except proprio agora - falha no e-mail vira aviso no log, nunca mais marca o
+                # job inteiro como falho por causa de uma notificacao que nao e o objetivo real do script.
+                try:
+                    enviar_email_suspeitas(suspeitas, email_smtp_host, email_smtp_port, email_from, email_password, email_to)
+                    print("E-mail enviado.")
+                except Exception as e:
+                    print(f"AVISO: falha ao enviar e-mail de aviso ({e}) - Supabase já foi atualizado normalmente, isso não afeta a sincronização.", file=sys.stderr)
             elif suspeitas:
                 print("AVISO: encontrei transações suspeitas mas EMAIL_FROM/EMAIL_PASSWORD/EMAIL_TO não configurados - não enviei nada.", file=sys.stderr)
         else:
