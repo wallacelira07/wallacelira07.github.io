@@ -100,7 +100,7 @@ def listar_faturas(api_key: str, account_id: str) -> list[dict]:
 
 
 def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas: int = 30) -> list[dict]:
-    """GET /v2/transactions?accountId=X&from=DATA -> extrato da conta, paginado por CURSOR.
+    """GET /v2/transactions?accountId=X&createdAtFrom=DATA-HORA-ISO -> extrato da conta, paginado por CURSOR.
 
     CORRIGIDO 03/08/2026: o endpoint antigo /transactions (paginacao por numero de
     pagina) foi DESCONTINUADO pela Pluggy (retornava HTTP 410 Gone). Migrado para
@@ -109,10 +109,22 @@ def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas
     "next" ate ele vir None/ausente. Mesmo comportamento de antes (so ultimos N
     dias, pageSize default 500 conforme doc oficial), so a mecanica de paginacao
     muda. max_paginas e so um teto de seguranca contra loop infinito.
+
+    CORRIGIDO 04/08/2026: a chamada inicial estava mandando "&from=AAAA-MM-DD",
+    e a Pluggy passou a rejeitar com HTTP 400 "property from should not exist"
+    (confirmado em producao, request real via Supabase - o endpoint /v2/transactions
+    nao aceita mais esse nome de parametro). O nome correto, confirmado na propria
+    documentacao da Pluggy (usado no campo "createdAtFrom" dos webhooks
+    transactions/created/updated para o mesmo recurso de Transaction), e
+    "createdAtFrom", em datetime ISO-8601 completo (nao so a data) - trocado abaixo.
+    NAO TESTADO CONTRA A API REAL NESTA SESSAO (sem acesso a rede aqui) - rodar
+    manualmente uma vez e conferir o "conta_info['transacoes_recentes']"/
+    "conta_info['transacoes_erro']" no proximo `python3 sincronizar_pluggy.py`
+    antes de confiar 100% no cron.
     """
-    data_de = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%d")
+    data_de_iso = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%dT00:00:00.000Z")
     transacoes: list[dict] = []
-    proxima_url = f"{PLUGGY_BASE}/v2/transactions?accountId={account_id}&from={data_de}"
+    proxima_url = f"{PLUGGY_BASE}/v2/transactions?accountId={account_id}&createdAtFrom={data_de_iso}"
     paginas = 0
     while proxima_url and paginas < max_paginas:
         resp = _request(proxima_url, headers={"X-API-KEY": api_key})
