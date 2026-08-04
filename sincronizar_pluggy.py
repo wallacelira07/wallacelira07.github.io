@@ -55,7 +55,7 @@ def _request(url: str, method: str = "GET", headers: dict | None = None, body: d
 
 
 def autenticar(client_id: str, client_secret: str) -> str:
-    """POST /auth -> devolve a API Key (v'alida 2h)."""
+    """POST /auth -> devolve a API Key (valida 2h)."""
     resp = _request(
         f"{PLUGGY_BASE}/auth",
         method="POST",
@@ -64,28 +64,20 @@ def autenticar(client_id: str, client_secret: str) -> str:
     api_key = resp.get("apiKey")
     if not api_key:
         raise RuntimeError(f"Resposta de /auth sem apiKey: {resp}")
-    # DEBUG (nao expoe a chave completa, so confirma que ela existe e tem formato plausivel)
     print(f"[debug] apiKey recebida: {len(api_key)} caracteres, começa com '{api_key[:6]}...'")
     return api_key
 
 
 def testar_conectividade(api_key: str) -> None:
     """GET /connectors -> teste de diagnostico recomendado pela propria doc da Pluggy
-    pra confirmar se a API Key funciona, SEM depender de nenhum item ja existir.
-    Se isso tambem der 401, o problema e na chave/credenciais em si (nao em permissao
-    de item especifico). Se isso funcionar mas /items falhar, o problema e outro."""
+    pra confirmar se a API Key funciona, SEM depender de nenhum item ja existir."""
     resp = _request(f"{PLUGGY_BASE}/connectors", headers={"X-API-KEY": api_key})
     total = resp.get("total", len(resp.get("results", [])))
     print(f"[debug] GET /connectors OK - {total} conectores disponíveis (confirma que a API Key funciona em geral)")
 
 
 def buscar_item(api_key: str, item_id: str) -> dict:
-    """GET /items/{id} -> detalhes de UM item especifico.
-    IMPORTANTE (descoberto 02/08/2026): a Pluggy NAO disponibiliza um endpoint pra
-    listar todos os items de uma vez ('Listing existing connections its not provided
-    due to security reasons' - docs.pluggy.ai/docs/item). Por isso os itemIds precisam
-    ser configurados manualmente (variavel PLUGGY_ITEM_IDS), um por banco conectado.
-    """
+    """GET /items/{id} -> detalhes de UM item especifico."""
     return _request(f"{PLUGGY_BASE}/items/{item_id}", headers={"X-API-KEY": api_key})
 
 
@@ -102,40 +94,36 @@ def listar_investimentos(api_key: str, item_id: str) -> list[dict]:
 
 
 def listar_faturas(api_key: str, account_id: str) -> list[dict]:
-    """GET /bills?accountId=X -> faturas (Bill) de uma conta de cartao de credito.
-    IMPORTANTE: em conexoes Open Finance Regulado (caso do MeuPluggy), o campo
-    'balance' da conta CREDIT retorna o LIMITE TOTAL USADO, nao a fatura do mes
-    (confirmado na documentacao oficial: docs.pluggy.ai/docs/accounts#balance -
-    'For Open Finance connectors, Credit Card balance is the used limit'). A fatura
-    de verdade (o que fecha e vence todo mes) vem dessa entidade Bill separada.
-    Endpoint inferido pelo padrao dos demais (/transactions?accountId=X) - se der
-    404/erro, o log vai mostrar a mensagem exata da API pra corrigir na proxima rodada.
-    """
+    """GET /bills?accountId=X -> faturas (Bill) de uma conta de cartao de credito."""
     resp = _request(f"{PLUGGY_BASE}/bills?accountId={account_id}", headers={"X-API-KEY": api_key})
     return resp.get("results", [])
 
 
-def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas: int = 5) -> list[dict]:
-    """GET /transactions?accountId=X&from=DATA -> extrato da conta, paginado.
-    Traz so os ultimos N dias (padrao 40, cobre o ciclo financeiro atual + folga
-    pra virada) - nao a historia toda, pra manter o payload diario pequeno.
-    NOTA (02/08/2026): esse endpoint classico esta marcado como deprecated pela
-    Pluggy, disponivel so ate 2026-12-31 (migrar pra GET /v2/transactions, cursor-
-    based, depois disso). Usado por ora porque e mais simples e ainda valido por
-    varios meses - registrar como pendencia de migracao antes do prazo.
+def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas: int = 30) -> list[dict]:
+    """GET /v2/transactions?accountId=X&from=DATA -> extrato da conta, paginado por CURSOR.
+
+    CORRIGIDO 03/08/2026: o endpoint antigo /transactions (paginacao por numero de
+    pagina) foi DESCONTINUADO pela Pluggy (retornava HTTP 410 Gone). Migrado para
+    GET /v2/transactions, que pagina via cursor: cada resposta traz "next" (uma
+    query-string pronta com o parametro "after") - repete a chamada usando esse
+    "next" ate ele vir None/ausente. Mesmo comportamento de antes (so ultimos N
+    dias, pageSize default 500 conforme doc oficial), so a mecanica de paginacao
+    muda. max_paginas e so um teto de seguranca contra loop infinito.
     """
     data_de = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%d")
-    transacoes = []
-    pagina = 1
-    while pagina <= max_paginas:
-        url = f"{PLUGGY_BASE}/transactions?accountId={account_id}&from={data_de}&page={pagina}&pageSize=500"
-        resp = _request(url, headers={"X-API-KEY": api_key})
-        resultados = resp.get("results", [])
-        transacoes.extend(resultados)
-        total_paginas = resp.get("totalPages", 1)
-        if pagina >= total_paginas or not resultados:
+    transacoes: list[dict] = []
+    proxima_url = f"{PLUGGY_BASE}/v2/transactions?accountId={account_id}&from={data_de}"
+    paginas = 0
+    while proxima_url and paginas < max_paginas:
+        resp = _request(proxima_url, headers={"X-API-KEY": api_key})
+        transacoes.extend(resp.get("results", []))
+        next_qs = resp.get("next")
+        if not next_qs:
             break
-        pagina += 1
+        # "next" vem como query-string (ex: "?accountId=...&after=...") - concatena
+        # com o host base da API. Se algum dia vier URL absoluta, usa direto.
+        proxima_url = next_qs if next_qs.startswith("http") else f"{PLUGGY_BASE}/v2/transactions{next_qs}"
+        paginas += 1
     return transacoes
 
 
@@ -153,7 +141,7 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
             continue
 
         nome_banco = item.get("connector", {}).get("name", "desconhecido")
-        status = item.get("status")  # UPDATED, LOGIN_ERROR, OUTDATED, etc.
+        status = item.get("status")
 
         entrada = {
             "item_id": item_id,
@@ -168,15 +156,14 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
             contas = listar_contas(api_key, item_id)
             for c in contas:
                 conta_info = {
-                    "tipo": c.get("type"),           # BANK / CREDIT
-                    "subtipo": c.get("subtype"),      # CHECKING_ACCOUNT / SAVINGS_ACCOUNT / CREDIT_CARD
+                    "tipo": c.get("type"),
+                    "subtipo": c.get("subtype"),
                     "nome": c.get("name"),
                     "numero": c.get("number"),
                     "saldo": c.get("balance"),
                     "moeda": c.get("currencyCode"),
                 }
                 if c.get("type") == "CREDIT":
-                    # 'saldo' aqui e o LIMITE TOTAL USADO (Open Finance), nao a fatura do mes.
                     conta_info["saldo_significado"] = "limite total usado (não é a fatura do mês)"
                     cd = c.get("creditData") or {}
                     conta_info["limite_total"] = cd.get("creditLimit")
@@ -185,7 +172,6 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                     try:
                         faturas = listar_faturas(api_key, c["id"])
                         if faturas:
-                            # a mais recente costuma vir primeiro - ordena por dueDate pra garantir
                             faturas_ordenadas = sorted(faturas, key=lambda f: f.get("dueDate") or "", reverse=True)
                             fatura_atual = faturas_ordenadas[0]
                             conta_info["fatura_mes_atual"] = {
@@ -196,11 +182,6 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                     except RuntimeError as e:
                         conta_info["fatura_mes_atual_erro"] = str(e)
 
-                # NOVO 02/08/2026 (pedido do usuario): traz o extrato dos ultimos 40 dias
-                # de cada conta - alimenta a classificacao de compras sem precisar de
-                # print/DeepSeek pros 5 bancos ja cobertos pelo Pluggy. Formato enxuto
-                # (so os campos uteis pro Claude classificar depois), nao o objeto bruto
-                # inteiro da API, pra manter o payload diario do Supabase pequeno.
                 try:
                     transacoes = listar_transacoes(api_key, c["id"])
                     conta_info["transacoes_recentes"] = [
@@ -210,7 +191,7 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                             "descricao": t.get("description"),
                             "valor": t.get("amount"),
                             "categoria": t.get("category"),
-                            "status": t.get("status"),  # POSTED / PENDING
+                            "status": t.get("status"),
                         }
                         for t in transacoes
                     ]
@@ -231,8 +212,7 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                     "valor": inv.get("balance") or inv.get("value"),
                     "instituicao": inv.get("institution", {}).get("name") if inv.get("institution") else None,
                 })
-        except RuntimeError as e:
-            # Nem todo banco tem produto de investimento - erro aqui costuma ser normal, nao critico
+        except RuntimeError:
             pass
 
         resultado["conexoes"].append(entrada)
@@ -248,13 +228,7 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
 
 def buscar_valores_conhecidos(supabase_url: str, supabase_key: str) -> set[float]:
     """Le todos os livros de transacao ja lancados no ERP (Supabase) e devolve um
-    conjunto (set) dos valores absolutos ja conhecidos - usado pra comparar contra
-    o extrato novo da Pluggy e achar o que pode estar faltando lancar.
-    Comparacao e so por VALOR (nao por data/descricao) - simples de proposito, pra
-    nao gerar falso-negativo por causa de diferenca de 1-2 dias entre data de compra
-    e data de posting no banco. Pode gerar falso-positivo (2 compras coincidentes
-    do mesmo valor), mas isso e mais seguro que deixar passar uma compra de verdade.
-    """
+    conjunto (set) dos valores absolutos ja conhecidos."""
     headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
     url = f"{supabase_url}/rest/v1/wallace_dados?select=dados&id=eq.1"
     req = Request(url, headers=headers, method="GET")
@@ -262,8 +236,6 @@ def buscar_valores_conhecidos(supabase_url: str, supabase_key: str) -> set[float
         linhas = json.loads(resp.read().decode("utf-8"))
     dados = linhas[0]["dados"] if linhas else {}
 
-    # Livros de transacao conhecidos no ERP - cada um e uma lista de objetos com
-    # campo "valor" (as vezes "premioRecebido" pra opcoes, ignorado aqui de proposito).
     livros = [
         "LRW_TRANSACOES", "LRV_TRANSACOES", "LRC_LIMBO_TRANSACOES", "LRCV_TRANSACOES",
         "PV_TRANSACOES", "LRPV_TRANSACOES", "BOLETOS_TRANSACOES",
@@ -278,10 +250,7 @@ def buscar_valores_conhecidos(supabase_url: str, supabase_key: str) -> set[float
 
 
 def detectar_transacoes_suspeitas(resultado: dict, valores_conhecidos: set[float], valor_minimo: float = 5.0) -> list[dict]:
-    """Percorre as transacoes recentes trazidas da Pluggy e separa as que NAO batem
-    com nenhum valor ja lancado no ERP - candidatas a "esqueci de mandar pro Claude".
-    Filtra valores pequenos (< valor_minimo) pra nao poluir com taxas/juros/estorno.
-    """
+    """Separa transacoes da Pluggy que nao batem com nenhum valor ja lancado no ERP."""
     suspeitas = []
     for conexao in resultado["conexoes"]:
         for conta in conexao["contas"]:
@@ -305,8 +274,6 @@ def detectar_transacoes_suspeitas(resultado: dict, valores_conhecidos: set[float
 
 
 def enviar_email_suspeitas(suspeitas: list[dict], smtp_host: str, smtp_port: int, email_from: str, email_password: str, email_to: str) -> None:
-    """Manda um e-mail simples (texto puro) avisando sobre transacoes que apareceram
-    no extrato da Pluggy mas nao parecem estar lancadas no ERP ainda."""
     import smtplib
     from email.mime.text import MIMEText
 
@@ -333,16 +300,6 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, resultado: dict) ->
         "Authorization": f"Bearer {supabase_key}",
         "Content-Type": "application/json",
     }
-    patch_url = f"{supabase_url}/rest/v1/wallace_dados?id=eq.1"
-    # Grava o resultado inteiro (contas + investimentos + saldo total) num campo unico
-    # PLUGGY_CONTAS - mesmo padrao das outras automacoes (ACOES_COTACOES, SOLAR_LEITURAS).
-    # PATCH simples aqui SUBSTITUI o campo (nao faz merge profundo) - ok porque e um snapshot
-    # completo a cada sincronizacao, nao um historico incremental.
-    body = json.dumps({"dados": {"PLUGGY_CONTAS": resultado, "PLUGGY_ATUALIZADO_EM": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}}).encode("utf-8")
-    # PATCH simples do PostgREST NAO faz merge profundo de JSON - precisa ser via RPC
-    # pra nao apagar o resto de "dados". Ver nota em atualizar_geracao_saj.py sobre isso.
-    # Por ora, usa jsonb_set via RPC generico (se existir) ou avisa que precisa de uma
-    # funcao dedicada, igual foi feito pra geracao solar.
     rpc_url = f"{supabase_url}/rest/v1/rpc/atualizar_pluggy_contas"
     rpc_body = json.dumps({"contas": resultado}).encode("utf-8")
     req = Request(rpc_url, data=rpc_body, headers=headers, method="POST")
@@ -390,8 +347,6 @@ def main() -> int:
             print("\nAtualizando Supabase...")
             atualizar_supabase(supabase_url, supabase_key, resultado)
 
-            # NOVO 02/08/2026 (pedido do usuario): compara o extrato novo contra o
-            # que ja esta lancado no ERP - se achar algo que nao bate, manda e-mail.
             print("\nConferindo transações contra o ERP...")
             valores_conhecidos = buscar_valores_conhecidos(supabase_url, supabase_key)
             suspeitas = detectar_transacoes_suspeitas(resultado, valores_conhecidos)
