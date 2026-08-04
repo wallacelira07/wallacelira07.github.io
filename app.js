@@ -17,7 +17,342 @@ function onDomPronto(fn){
   }
 }
 
+// V300 (Etapa 1.2): so cria o grafico quando o canvas entra na viewport (ou 200px antes, via
+// rootMargin, pra nao dar flash em branco no scroll rapido). Usado nos graficos mais pesados/mais
+// abaixo na pagina (secao solar, caixas/alivio) - reduz trabalho de canvas mesmo depois que a aba
+// ja esta aberta. Nao muda NENHUM dado/calculo, so adia o instante em que o Chart.js pinta o canvas.
+// Fallback: se o navegador nao suporta IntersectionObserver, cria na hora (comportamento antigo).
+function observeAndRenderChart(canvasEl, factory){
+  if(!canvasEl) return;
+  if(!('IntersectionObserver' in window)){ factory(); return; }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        factory();
+        io.disconnect();
+      }
+    });
+  }, {rootMargin:'200px'});
+  io.observe(canvasEl);
+}
+
+// V300 (Etapa 1.3): utilitario generico, pronto pra Busca Global (Etapa 6, ainda nao implementada)
+// e qualquer listener futuro de resize/scroll/input. Sem uso ainda hoje - hoje nao existe nenhum
+// listener de resize/scroll/busca no sistema (o resize dos graficos e tratado internamente pelo
+// proprio Chart.js via responsive:true, ja existente); criar um listener novo so pra ter debounce
+// seria codigo morto. Fica aqui documentado e pronto pro dia que a Busca Global for implementada.
+function debounce(fn, waitMs){
+  let timer = null;
+  return function(...args){
+    clearTimeout(timer);
+    timer = setTimeout(()=>fn.apply(this, args), waitMs);
+  };
+}
+
 function fmt(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+// V300 (Etapa 2 - Event Bus): infraestrutura pura, aditiva - NAO substitui nenhuma chamada direta
+// existente (hydrate(), atualizarGraficosPorCiclo(), etc continuam sendo chamadas do jeito que
+// sempre foram, na mesma ordem - trocar isso por um modelo 100% orientado a evento seria uma
+// reescrita de fluxo, risco alto sem navegador real pra validar visualmente). O que existe hoje:
+// os pontos naturais do sistema (troca de aba, troca de ciclo, atualizacao de grafico por ciclo)
+// TAMBEM emitem um evento, pra qualquer modulo futuro poder escutar sem precisar tocar na funcao
+// original. emit()/on()/off() simples, sem dependencia externa.
+// Eventos minimos do brief e onde cada um e emitido hoje:
+//   abaAlterada      -> showMaster() (toda troca de aba master: Painel/Graficos/Cenarios/Balanco)
+//   cicloAlterado    -> trocarCiclo() (toda troca no seletor de ciclo)
+//   saldoAtualizado  -> trocarCiclo(), apos recalcularAgregadosDerivados()
+//   graficoAtualizado-> atualizarGraficosPorCiclo() e initGraficosECenariosLazy()
+//   transacaoCriada  -> RESERVADO, sem emissor ainda: o site e estatico (dados vem do Supabase/
+//                       app.js numa proxima entrega, nao ha formulario de criar TX ao vivo no
+//                       navegador) - nao existe um ponto real pra emitir isso hoje. Documentado
+//                       aqui pra quando/se essa funcionalidade existir, sem inventar uso falso agora.
+const WallaceBus = (function(){
+  const listeners = {};
+  return {
+    emit(evento, payload){
+      (listeners[evento] || []).forEach(fn => { try{ fn(payload); }catch(e){ console.error('WallaceBus listener falhou em "'+evento+'":', e); } });
+    },
+    on(evento, fn){
+      (listeners[evento] = listeners[evento] || []).push(fn);
+      return () => this.off(evento, fn); // conveniencia: on() retorna a propria funcao de unsubscribe
+    },
+    off(evento, fn){
+      if(!listeners[evento]) return;
+      listeners[evento] = listeners[evento].filter(f => f !== fn);
+    }
+  };
+})();
+
+// V300 (Etapa 12 - Observabilidade): infraestrutura aditiva, mesmo critério de sempre - só o que é real
+// e testável sem navegador (nao existe backend de logging/telemetria neste sistema estático, entao nao
+// foi inventado envio pra servico externo). 2 partes:
+// 1) Captura de erros nao tratados (window.onerror + unhandledrejection) - antes disso, um erro de JS em
+//    producao nao deixava nenhum registro central, so sumia no console de quem estivesse olhando na hora.
+//    Nao suprime nem re-lanca o erro, so registra e emite via WallaceBus (erroCapturado) pra quem quiser ouvir.
+// 2) Metrica de tempo de carregamento (window 'load'), unico numero real e comparavel sem infra externa.
+// Acesso manual: window.WallaceObs.listarErros() no console do navegador. Nenhuma UI nova criada -
+// mesma decisao de escopo da Etapa 10 (nao inventar card/badge sem criterio definido pelo usuario).
+const WallaceObs = (function(){
+  const erros = [];
+  window.addEventListener('error', function(e){
+    const registro = {tipo:'erro', mensagem:e.message, arquivo:e.filename, linha:e.lineno, hora:new Date().toISOString()};
+    erros.push(registro);
+    console.error('[Wallace] Erro capturado:', registro);
+    WallaceBus.emit('erroCapturado', registro);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    const motivo = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+    const registro = {tipo:'promise', mensagem:motivo, hora:new Date().toISOString()};
+    erros.push(registro);
+    console.error('[Wallace] Promise rejeitada sem tratamento:', registro);
+    WallaceBus.emit('erroCapturado', registro);
+  });
+  window.addEventListener('load', function(){
+    const tempoMs = Math.round(performance.now());
+    console.info('[Wallace] Carregado em ' + tempoMs + 'ms');
+    WallaceBus.emit('performanceMedida', {tempoMs, hora:new Date().toISOString()});
+  });
+  return { listarErros: () => erros.slice() };
+})();
+window.WallaceObs = WallaceObs;
+
+// V300 (Etapa 4 - Componentização): auditoria (03/08/2026) achou só 1 ponto real no código onde um
+// badge muda de classe dinamicamente via JS (rocStatusBadge, className setado na mão) - os outros
+// ~112 ".badge"/".card" do painel são HTML estático (texto/valor muda via t(), classe nunca muda).
+// Componentizar esse HTML estático em massa (createCard genérico pra todas as seções) exigiria reescrever
+// e validar visualmente ~1245 linhas de HTML sem navegador real aqui - risco alto, não feito. O que é
+// real e testável agora: extrair o padrão "className = 'badge X' + textContent" pra uma função única,
+// reutilizável nos pontos que hoje (ou no futuro) precisem de badge com cor dinâmica.
+function setBadge(el, classe, texto){
+  if(!el) return;
+  el.className = classe ? ('badge ' + classe) : 'badge';
+  el.textContent = texto;
+}
+
+// 04/08/2026 (parte 41) - Capa como Dashboard: cards de navegacao no cabecalho (.cover), pedido
+// explicito do usuario ("usar o cabecalho pra montar um dashboard, do dashboard acessa as abas e
+// volta"). Reaproveita o mesmo padrao de navegacao ja usado na Busca Global (Etapa 6) - showMaster()
+// pra trocar de aba + scrollIntoView pra pousar na secao certa - so que com destinos curados em vez
+// de busca livre. tituloSecao:null = so troca de aba e fica no topo dela (usado pros paneis
+// Graficos/Cenarios/Balanco, que nao tem 1 secao-alvo obvia).
+//
+// CORRIGIDO 04/08/2026 (parte 42, pedido do usuario - "tem botoes que nao estao funcionando"):
+// a causa real era o mecanismo de navegacao inteiro depender de encontrar um <button class="master-tab">
+// cujo atributo onclick continha o paneId como substring - se esse botao nao existisse (ou nao fosse
+// encontrado por qualquer motivo), showMaster() NUNCA era chamado (o "if(btn)" engolia o clique em
+// silencio, sem erro no console). Agora showMaster(id) e chamado direto pelo id do pane, sem procurar
+// nenhum botao - elimina essa classe inteira de bug e nao depende mais da barra de abas existir no DOM
+// (removida nesta mesma parte - navegacao de paineis agora e so pelo dashboard + .page-strip).
+//
+// grupo: usado so pra organizar os cards em fileiras simetricas no dashboard (renderCapaNav) - nao
+// afeta navegacao.
+const CAPA_DESTINOS = [
+  // Visão geral
+  {grupo:'Visão geral', icone:'⭐', titulo:'Resumo Executivo', sub:'visão geral do ciclo', paneId:'painel', tituloSecao:'Resumo executivo'},
+  {grupo:'Visão geral', icone:'💰', titulo:'Caixa Variável', sub:'quanto ainda dá pra gastar', paneId:'painel', tituloSecao:'Controle caixa variável'},
+  {grupo:'Visão geral', icone:'📥', titulo:'Inbox Financeira', sub:'itens aguardando triagem', paneId:'painel', tituloSecao:'📥 Inbox Financeira'},
+  {grupo:'Visão geral', icone:'🅿️', titulo:'Mercado Pago', sub:'eventos e conciliação', paneId:'painel', tituloSecao:'Mercado Pago'},
+  // Financeiro
+  {grupo:'Financeiro', icone:'💳', titulo:'Cartões', sub:'Mastercard Black e faturas', paneId:'painel', tituloSecao:'Mastercard Black'},
+  {grupo:'Financeiro', icone:'📚', titulo:'Livros Razão', sub:'LRW · LRV · LRC · e mais', paneId:'painel', tituloSecao:'Livros razão'},
+  {grupo:'Financeiro', icone:'🏦', titulo:'Patrimônio', sub:'financeiro e físico', paneId:'painel', tituloSecao:'Patrimônio financeiro'},
+  {grupo:'Financeiro', icone:'🏛️', titulo:'Balanço', sub:'patrimonial completo', paneId:'balancov2', tituloSecao:null},
+  // Metas & análises
+  {grupo:'Metas & análises', icone:'🎯', titulo:'Meta do Milhão', sub:'progresso da meta', paneId:'painel', tituloSecao:'Meta do milhão'},
+  {grupo:'Metas & análises', icone:'☀️', titulo:'Energia Solar', sub:'geração e economia', paneId:'graficos', tituloSecao:'Energia Solar'},
+  {grupo:'Metas & análises', icone:'📈', titulo:'Gráficos', sub:'evolução e composição', paneId:'graficos', tituloSecao:null},
+  {grupo:'Metas & análises', icone:'🛡️', titulo:'Cenários', sub:'crítico · déficit zero', paneId:'cenarios', tituloSecao:null},
+];
+
+// Nomes de exibicao dos 4 paineis - usados pelo indicador de pagina atual (.page-strip, parte 42) e
+// por qualquer outro lugar que precise mostrar "onde o usuario esta" de forma consistente.
+const NOMES_PANE = {painel:'📊 Painel', graficos:'📈 Gráficos', cenarios:'🛡️ Cenários', balancov2:'🏛️ Balanço'};
+
+function renderCapaNav(){
+  const wrap = $('coverNavGrid');
+  if(!wrap) return; // HTML antigo em cache, sem esse container - nao quebra nada
+  const grupos = [];
+  CAPA_DESTINOS.forEach(d=>{
+    let g = grupos.find(x=>x.nome===d.grupo);
+    if(!g){ g = {nome:d.grupo, itens:[]}; grupos.push(g); }
+    g.itens.push(d);
+  });
+  wrap.innerHTML = grupos.map(g => `
+    <div class="cover-nav-grupo">
+      <div class="cover-nav-grupo-titulo">${g.nome}</div>
+      <div class="cover-nav-linha">
+        ${g.itens.map(d=>{
+          const i = CAPA_DESTINOS.indexOf(d);
+          return `<button type="button" class="cover-nav-card" onclick="irParaCapaDestino(CAPA_DESTINOS[${i}])">
+             <div class="cnc-icone">${d.icone}</div>
+             <div class="cnc-text">
+               <div class="cnc-titulo">${d.titulo}</div>
+               <div class="cnc-sub">${d.sub}</div>
+             </div>
+           </button>`;
+        }).join('')}
+      </div>
+    </div>`
+  ).join('');
+}
+
+// NOVO 04/08/2026 (parte 47, pedido do usuario - "a aba painel tem que vir para esse ponto" + prints
+// mostrando o titulo da secao tampado): a .master-tabs e position:sticky;top:0 - ela fica por CIMA do
+// conteudo depois que a pagina rola, mas scrollIntoView() nao sabe disso e alinha o topo do alvo com o
+// topo do VIEWPORT, nao com o topo VISIVEL abaixo da barra colada. Resultado: o h2 da secao ficava
+// escondido atras da barra (ou colado nela, sem respiro). Helper unico com offset real (altura medida
+// da .master-tabs + folga) usado nos 3 pontos que navegam pra uma secao - substitui o scrollIntoView
+// direto por window.scrollTo calculado, mesmo destaque de fundo de antes.
+function scrollParaSecaoComOffset(alvo){
+  if(!alvo) return;
+  const tabs = document.querySelector('.master-tabs');
+  const offset = (tabs ? tabs.offsetHeight : 0) + 20; // +20 = folga visual, titulo nao cola na barra
+  const y = alvo.getBoundingClientRect().top + window.pageYOffset - offset;
+  window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
+  alvo.style.transition = 'background 0.3s';
+  const corOriginal = alvo.style.background;
+  alvo.style.background = 'rgba(57,135,229,0.15)';
+  setTimeout(()=>{ alvo.style.background = corOriginal; }, 1200);
+}
+
+// Mesma logica de irParaSecaoBusca (Etapa 6), generalizada pra aceitar {paneId, tituloSecao} direto
+// em vez de um item ja resolvido do indice de busca. setTimeout pequeno pra deixar o pane trocar de
+// active/display antes do scrollParaSecaoComOffset medir a posicao (senao mede com o pane escondido).
+function irParaCapaDestino(destino){
+  showMaster(destino.paneId);
+  const pane = document.getElementById(destino.paneId);
+  let alvo = null;
+  if(destino.tituloSecao && pane){
+    alvo = Array.from(pane.querySelectorAll('.section-num')).find(s=>{
+      const h2 = s.querySelector('h2');
+      return h2 && h2.textContent.trim().startsWith(destino.tituloSecao);
+    });
+  }
+  // CORRIGIDO 04/08/2026 (parte 43, pedido do usuario - "toda aba deve ir pra sua secao 01, nao pro
+  // topo da pagina"): sem tituloSecao (Graficos/Cenarios/Balanco) o codigo antigo dava window.scrollTo(0),
+  // que pousa no topo FISICO da pagina (acima do pane, na capa/page-strip) - nao na secao 01 do pane.
+  // Agora sempre resolve um alvo real: a secao pedida OU, na falta dela, a 1a .section-num do pane
+  // (a que tem <span class="n">01</span>) - nunca mais cai no scrollTo(0) generico.
+  if(!alvo && pane){
+    alvo = pane.querySelector('.section-num');
+  }
+  if(alvo){
+    setTimeout(()=>{ scrollParaSecaoComOffset(alvo); }, 30);
+    return;
+  }
+  window.scrollTo({top:0, behavior:'smooth'}); // fallback extremo: pane sem nenhuma .section-num
+}
+
+function voltarParaCapa(){
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// NOVO 04/08/2026 (parte 42, pedido do usuario - remover a barra de abas redundante com o dashboard):
+// substitui .master-tabs (4 botoes fixos, duplicava navegacao que os cards da Capa ja fazem) por uma
+// faixa fina e sticky que so mostra "onde o usuario esta agora" + um atalho de volta pro dashboard -
+// uma unica forma de navegar (os cards), uma unica forma de se orientar (esta faixa), sem duplicidade.
+function renderPageStrip(paneId){
+  const el = $('pageStrip');
+  if(!el) return; // HTML antigo em cache, sem esse elemento - nao quebra nada
+  const nome = NOMES_PANE[paneId] || paneId;
+  el.innerHTML = `<button type="button" class="page-strip-home" onclick="voltarParaCapa()">🏠 Dashboard</button>
+    <span class="page-strip-sep">/</span>
+    <span class="page-strip-atual">${nome}</span>`;
+}
+WallaceBus.on('abaAlterada', ({id}) => renderPageStrip(id));
+
+function toggleBtnVoltarCapa(){
+  const btn = $('btnVoltarCapa');
+  if(!btn) return;
+  btn.style.display = window.scrollY > 320 ? 'flex' : 'none';
+}
+
+// V300 (Etapa 6 - Busca Global): indice construido 1x a partir do HTML estatico (49 secoes),
+// nao duplica nenhum dado do VARS - so mapeia texto visivel (titulo de secao + rotulo de linha)
+// pra navegacao rapida entre abas. Nao esconde nenhum elemento (zero risco pro lazy loading das
+// Etapas 1.1/1.2) - so navega ate a secao e da um destaque temporario. Usa o debounce() da Etapa 1.3,
+// que ate aqui estava criado mas sem nenhum uso real.
+let _buscaGlobalIndice = null;
+
+function construirIndiceBuscaGlobal(){
+  const indice = [];
+  document.querySelectorAll('.section-num').forEach(secEl => {
+    const h2 = secEl.querySelector('h2');
+    const paneEl = secEl.closest('.master-pane');
+    if(!h2 || !paneEl) return;
+    const tituloSecao = h2.textContent.trim();
+    const paneId = paneEl.id;
+    indice.push({texto: tituloSecao.toLowerCase(), rotulo: tituloSecao, paneId, alvo: secEl});
+    const conteudo = secEl.nextElementSibling;
+    if(conteudo){
+      conteudo.querySelectorAll('.row .k').forEach(kEl => {
+        const rotulo = kEl.textContent.trim();
+        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: secEl});
+      });
+    }
+  });
+  return indice;
+}
+
+function irParaSecaoBusca(item){
+  showMaster(item.paneId);
+  setTimeout(()=>{ scrollParaSecaoComOffset(item.alvo); }, 30);
+}
+
+function renderResultadosBusca(termo){
+  const wrap = $('buscaGlobalResultados');
+  if(!wrap) return;
+  if(!termo){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  if(!_buscaGlobalIndice) _buscaGlobalIndice = construirIndiceBuscaGlobal();
+  const t = termo.toLowerCase();
+  const vistos = new Set();
+  const resultados = _buscaGlobalIndice
+    .filter(it => it.texto.includes(t))
+    .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
+    .slice(0, 8);
+  if(resultados.length === 0){
+    wrap.innerHTML = '<div class="busca-resultado-vazio">Nada encontrado</div>';
+    wrap.style.display = 'block';
+    return;
+  }
+  wrap.innerHTML = '';
+  resultados.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'busca-resultado-item';
+    div.textContent = item.rotulo;
+    div.onclick = () => { irParaSecaoBusca(item); wrap.style.display = 'none'; $('buscaGlobalInput').value = ''; };
+    wrap.appendChild(div);
+  });
+  wrap.style.display = 'block';
+}
+
+const buscaGlobalDebounced = debounce(function(e){ renderResultadosBusca(e.target.value.trim()); }, 200);
+
+function initBuscaGlobal(){
+  const input = $('buscaGlobalInput');
+  if(!input) return;
+  input.addEventListener('input', buscaGlobalDebounced);
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.busca-global-wrap')){
+      const wrap = $('buscaGlobalResultados');
+      if(wrap) wrap.style.display = 'none';
+    }
+  });
+}
+
+// ===== Cache global de seletores DOM (PRIORIDADE 2, item 1 do plano de otimização) =====
+// document.getElementById() direto tem custo de busca no DOM a cada chamada; $() guarda a referência
+// na primeira vez que encontra o elemento. ||= (em vez de simples atribuição) é proposital: se o
+// elemento ainda não existir no momento da 1a chamada (ex: botão de ciclo criado dinamicamente depois
+// do carregamento inicial), o cache fica "vazio" (undefined/null, falsy) e a próxima chamada tenta de
+// novo - nunca fica preso buscando um elemento que não existia ainda. Não substitui elementos cujo nó
+// original é destruído/recriado por engano - conferido: nenhum innerHTML deste arquivo recria elementos
+// com id (auditado 03/08/2026), todo id existente no HTML permanece no mesmo nó pra sempre.
+const DOM = {};
+function $(id){
+  return DOM[id] ||= document.getElementById(id);
+}
 
 // V192 (27/07/2026): calcularSaldoCaixa() - nucleo da arquitetura "editavel/auditavel" pedida pelo
 // usuario apos bug real (Caixa Saude Familia travada em R$135,00 por 3h depois de um gasto de R$135,06
@@ -45,6 +380,19 @@ function yRange(data, padPct=0.12){
   const step = mx >= 5000 ? 100 : mx >= 500 ? 10 : 1;
   return { min: Math.max(0, Math.floor((mn-pad)/step)*step), max: Math.ceil((mx+pad)/step)*step };
 }
+// Memoização (item 8 do plano de otimização) - função pura (mesma entrada = mesma saída), cache por
+// chave textual dos argumentos. Sempre retorna uma cópia nova do objeto ({...cached}), nunca a mesma
+// referência guardada no cache, pra nenhum código que eventualmente mexa no retorno estragar o cache.
+(function(){
+  const _orig = yRange, _cache = new Map();
+  yRange = function(data, padPct=0.12){
+    const key = JSON.stringify(data)+'|'+padPct;
+    if(_cache.has(key)) return {..._cache.get(key)};
+    const r = _orig(data, padPct);
+    _cache.set(key, r);
+    return {...r};
+  };
+})();
 
 // ===== Janela rolante de 12 meses (padrao unico definido 17/07/2026, V50 item 4) =====
 // Pedido do usuario: "crie o padrao de mostrar essas projecoes com 12 meses... todo mes que mudar as
@@ -62,6 +410,16 @@ function gerarMeses(n){
   }
   return labels;
 }
+// Memoização (item 8 do plano) - chamada com o mesmo n por vários gráficos na mesma carga de página.
+(function(){
+  const _orig = gerarMeses, _cache = new Map();
+  gerarMeses = function(n){
+    if(_cache.has(n)) return _cache.get(n).slice();
+    const r = _orig(n);
+    _cache.set(n, r);
+    return r.slice();
+  };
+})();
 
 // V163 (pedido do usuario: "acho melhor remover automaticamente o mes pelo ciclo e nao na virada do
 // mes ou de um jeito de nao causar essas mudancas" - referindo-se ao grafico Necessidade Liquida caindo
@@ -89,6 +447,16 @@ function gerarMesesCiclo(n){
   }
   return labels;
 }
+// Memoização (item 8 do plano) - mesmo padrão de gerarMeses.
+(function(){
+  const _orig = gerarMesesCiclo, _cache = new Map();
+  gerarMesesCiclo = function(n){
+    if(_cache.has(n)) return _cache.get(n).slice();
+    const r = _orig(n);
+    _cache.set(n, r);
+    return r.slice();
+  };
+})();
 function alignSeriesCiclo(series){
   const offset = ciclosDesdeAncoraCiclo();
   if (offset <= 0) return series.slice();
@@ -96,6 +464,18 @@ function alignSeriesCiclo(series){
   while (shifted.length < series.length) shifted.push(series[series.length-1]);
   return shifted;
 }
+// Memoização (item 8 do plano) - chave = conteúdo da série + offset do ciclo no momento (offset não
+// muda durante a sessão, mas incluído na chave por segurança, sem custo real).
+(function(){
+  const _orig = alignSeriesCiclo, _cache = new Map();
+  alignSeriesCiclo = function(series){
+    const key = ciclosDesdeAncoraCiclo()+'|'+JSON.stringify(series);
+    if(_cache.has(key)) return _cache.get(key).slice();
+    const r = _orig(series);
+    _cache.set(key, r);
+    return r.slice();
+  };
+})();
 
 // ===== CORRECAO 18/07/2026 (V72, bug real apontado em auditoria externa): as series de projecao
 // (evolucao.totalOperacional/necessidadeLiquida, superavitNormal, deficitZero, alivioData) sao arrays
@@ -121,6 +501,17 @@ function alignSeries(series){
   while (shifted.length < series.length) shifted.push(series[series.length-1]);
   return shifted;
 }
+// Memoização (item 8 do plano) - mesmo padrão de alignSeriesCiclo.
+(function(){
+  const _orig = alignSeries, _cache = new Map();
+  alignSeries = function(series){
+    const key = mesesDesdeAncora()+'|'+JSON.stringify(series);
+    if(_cache.has(key)) return _cache.get(key).slice();
+    const r = _orig(series);
+    _cache.set(key, r);
+    return r.slice();
+  };
+})();
 function alignEventos(eventos){
   const offset = mesesDesdeAncora();
   if (offset <= 0) return Object.assign({}, eventos);
@@ -407,7 +798,7 @@ const VARS = {
 
   // Cartoes (comprometido, corporativo Wartsila)
   cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
-  cartaoMBTotal: 5215.00,               // CORRIGIDO 01/08/2026 (auditoria SSOT, divergencia real encontrada): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Julio, 01/08) - ja estava somado em mbLRVConfirmado (detalhamento) mas nunca tinha propagado pra ca (total agregado), causando gap de R$50,00 entre mbDetalhe e cartaoMB.total na auditoria automatica (checagem #12). Era R$5.165,00: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão MB 4628). Era R$5.132,94 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351). Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
+  cartaoMBTotal: 5445.21,               // CORRIGIDO 04/08/2026 (2a correção do dia, mesmo gap de propagação - agora do lado mbLRWConfirmado, ver comentário lá): +R$206,48 (TX000192/195/196/197/198/199, ver mbLRWConfirmado). mbDetalhe (1950,77 consórcios+1099,68 wallace+1279,65 recorrências+297,31 corp+513,10 assinaturas+304,70 vanessa) soma exato 5.445,21 - checagem #12 volta a bater. Era R$5.238,73 (auditoria automática, mesmo gap de propagação já documentado abaixo): +R$23,73 (TX000193 R$12,23 + TX000194 R$11,50, ambas Uber/Vanessa cartão MB 4628, lançadas em mbLRVConfirmado em 03/08 mas nunca propagadas pra cá) — mbDetalhe (5238,73) × cartaoMB.total (5215,00) divergiam por isso, checagem #12 acusou certo. Era R$5.215,00 (CORRIGIDO 01/08/2026, auditoria SSOT, divergencia real encontrada): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Julio, 01/08) - ja estava somado em mbLRVConfirmado (detalhamento) mas nunca tinha propagado pra ca (total agregado), causando gap de R$50,00 entre mbDetalhe e cartaoMB.total na auditoria automatica (checagem #12). Era R$5.165,00: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão MB 4628). Era R$5.132,94 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351). Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
@@ -504,6 +895,17 @@ const VARS = {
   // padrao ja aplicado em todas as outras caixas - evita o mesmo bug de "total desatualizado" que
   // ja aconteceu varias vezes neste sistema.
   opcoesVendidasValorMercado: 0, // PLACEHOLDER - sobrescrito pelo calculo derivado logo abaixo do VARS
+
+  // NOVO 03/08/2026 (Módulo 17 - ROC): parâmetro externo, não deriva de nenhuma TX interna - precisa
+  // ser atualizado manualmente de tempos em tempos (mesmo tratamento das tarifas ANEEL, cotações
+  // Ipiranga, etc: input de mercado, documentado, nunca forçado a bater com nada do sistema).
+  // Fonte: Meelion/B3, Taxa DI de 31/07/2026 = 14,15% a.a. -> ~1,10% a.m. equivalente. Atualizar aqui
+  // quando o COPOM mexer no Selic/CDI (a cada ~45 dias) ou quando o usuário informar valor mais recente.
+  CDI_MENSAL_ATUAL: 1.10, // % ao mês (referência 31/07/2026)
+  CDI_MENSAL_ATUAL_DATA_REF: '31/07/2026',
+  // Limites de classificação de status do ROC (Módulo 17, seção "Status") - parametrizados, editáveis.
+  ROC_STATUS_LIMITES: { boaAte: 2.0, muitoBoaAte: 4.0 }, // < CDI = Fraca; CDI-boaAte = Boa; boaAte-muitoBoaAte = Muito Boa; > muitoBoaAte = Excelente
+
   opcoesVendidasDetalhe: [
     // CORRIGIDO 01/08/2026 (notas de corretagem reais, BTG/Necton): premioRecebido JA ERA o valor
     // LIQUIDO (campo "Liquido para [data]" da nota) - nao o bruto. Adicionado premioBruto (= Valor
@@ -511,10 +913,20 @@ const VARS = {
     // taxa de registro + emolumentos + clearing + ISS), conferido nota a nota: bruto - custo = liquido
     // bate exato nos 3 casos (testado via harness Node antes de subir). Nunca mais confundir - o
     // "Premio recebido" que ja existia sempre foi o liquido de fato creditado na conta.
-    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioBruto: 160.00, custoOperacional: 5.16, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null, notaCorretagem: '32928176 (03/07/2026)' },
-    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: null, vencimento: '31/07/2026', quantidade: -100, premioBruto: 45.00, custoOperacional: 5.03, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00, notaCorretagem: '32757842 (25/06/2026)' },
-    { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioBruto: 180.00, custoOperacional: 2.96, premioRecebido: 177.04, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33, notaCorretagem: '33025429 (09/07/2026)' },
+    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioBruto: 160.00, custoOperacional: 5.16, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null, notaCorretagem: '32928176 (03/07/2026)', exercida: false },
+    // CORRIGIDO 03/08/2026 (pedido do usuario): strike confirmado como 36,86 - mesmo strike de
+    // PETRT379 (ambas PETR4, o usuario confirmou que sao o mesmo valor pras duas opcoes da Petrobras).
+    // Antes: null (pendencia aberta desde V222, ver passagem de turno parte 5). Agora entra na soma
+    // consolidada do ROC (Modulo 17) e no capital travado, deixando de ser excluida da carteira.
+    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: 36.86, vencimento: '31/07/2026', quantidade: -100, premioBruto: 45.00, custoOperacional: 5.03, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00, notaCorretagem: '32757842 (25/06/2026)', exercida: false },
+    { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioBruto: 180.00, custoOperacional: 2.96, premioRecebido: 177.04, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33, notaCorretagem: '33025429 (09/07/2026)', exercida: false },
   ],
+  // NOVO 03/08/2026 (pedido do usuario, opcao A): "exercida" e um campo MANUAL, igual precoExercicio -
+  // o sistema nao tem como saber sozinho se uma put vencida foi de fato exercida pela contraparte
+  // (isso so aparece na nota de corretagem/extrato da B3, dias depois do vencimento). Default false
+  // (assume "virou po"/expirou OTM, o caso normal). Quando o usuario confirmar via nota que uma
+  // posicao vencida foi exercida, troca pra true aqui - a linha se move sozinha pra tabela "Posições
+  // exercidas" (mesmo padrao automatico ja usado pra o.vencida, nao precisa mexer em HTML nenhum).
   // CORRIGIDO 31/07/2026 (V222): terceira posição encontrada - PETRS368W5 (100un, vencimento 31/07,
   // hoje mesmo) que eu não tinha registrado. E PETRT379 tinha valor ERRADO (R$180,00, deduzido de
   // outro print) - o print direto da corretora mostra preço médio R$0,7742 × 200un = R$154,84,
@@ -633,7 +1045,7 @@ const VARS = {
   visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
   visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 893.20,       // ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
+  mbLRWConfirmado: 1099.68,       // CORRIGIDO 04/08/2026 (mesmo gap de propagação detalhamento->agregado, usuário achou pelo print da Seção 15): +R$206,48 (TX000192 R$20,00 Drogaria Benif + TX000195 R$20,14 Uber Gabriela/exceção-LRW + TX000196 R$42,28 H57Store + TX000197/198/199 R$51,69+R$51,69+R$20,68 ANTHROPIC/assinatura Claude, todas cartão MB, lançadas em SWP_INPUT_TX entre 02-03/08 mas nunca propagadas pra este agregado - confirmado pelo usuário que as 3 cobranças Anthropic são reais, não duplicidade). Bate exato com o total de 13 lançamentos (R$1.099,68) mostrado ao vivo na Seção 15. Era R$893,20. ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
   mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
   mbLRVConfirmado: 304.70,         // ATUALIZADO 03/08/2026: +R$11,50 (TX000194, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$293,20 (03/08): +R$12,23 (TX000193, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$280,97 (01/08): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Júlio, cartão não especificado - assumido 6351 Mastercard Black da Vanessa). Era R$230,97: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
@@ -888,6 +1300,253 @@ const VARS = {
   ],
 
 
+  // V400 (03/08/2026, Etapa 1 - Inbox Financeira): componente central do projeto de automacao de
+  // captura. Continuo, nao filtrado por ciclo (mesma classe de LREI/boletos - ver Politicas secao 20) -
+  // um item pendente nao "expira" na virada do dia 25. Comeca vazio: nenhuma automacao de captura
+  // (Pluggy/Email/Telegram/OCR/Corretoras, Etapas 2-9 do brief) esta implementada ainda nesta sessao
+  // (sem acesso a rede/conectores externos aqui) - populado manualmente via inboxAdicionarItem() ate
+  // essas automacoes existirem. Status parado em PENDENTE ate uma decisao humana (aprovar/rejeitar);
+  // aprovacao NAO lanca automaticamente no livro razao (isso seria "lançar transação sem confirmação",
+  // proibicao explicita do brief) - so marca a intencao, o lancamento real continua seguindo o fluxo
+  // manual ja existente (Claude classifica e lanca, referenciando o ID do item da Inbox por rastreio).
+  INBOX_FINANCEIRA: [
+  ],
+
+  // NOVO 04/08/2026 (parte 57, pedido explicito do usuario: "precisamos manter os livros dos ciclos
+  // passados"): HISTORICO_ERP_TODOS_CICLOS - copia integral de SWP_INPUT_TX (ERP_WALLACE_LIRA_V11.xlsx),
+  // TODOS os lancamentos com VALOR preenchido (222 linhas, qualquer livro/ciclo, TX000001 em diante,
+  // 19/06/2026 a 03/08/2026 nesta extracao) - nao so os 7 livros AO VIVO do ciclo atual que
+  // reconciliarTransacoesPluggy() ja usava. Motivo: transacao antiga da Pluggy "nao bater" com os
+  // livros ao vivo NAO significa que nao tem registro - so significa que o registro dela mora num
+  // ciclo fechado, que o site so mostra resumido (CICLO_SNAPSHOTS, decisao de V174: "o site so deveria
+  // mostrar o que e do seu ciclo"). Este array e so para RECONCILIACAO (comparar valor), nao para
+  // exibicao - resolve o falso-positivo "sem registro" sem precisar duplicar a exibicao completa de
+  // cada ciclo fechado no site. Fonte: SWP_INPUT_TX, extraido em 04/08/2026 - snapshot pontual, nao se
+  // atualiza sozinho quando a planilha muda (mesma natureza estatica de todo o resto do VARS).
+  HISTORICO_ERP_TODOS_CICLOS: [
+    {tx:'TX000001', data:'19/06/2026', livro:'LRW', nome:'MAGALU', valor:66.89},
+    {tx:'TX000002', data:'20/06/2026', livro:'LRV', nome:'UBER', valor:21.98},
+    {tx:'TX000003', data:'22/06/2026', livro:'LRV', nome:'UBER', valor:21.74},
+    {tx:'TX000004', data:'25/06/2026', livro:'LRV', nome:'UBER', valor:24.78},
+    {tx:'TX000005', data:'27/06/2026', livro:'LRW', nome:'TAPIOCA', valor:81.0},
+    {tx:'TX000006', data:'27/06/2026', livro:'LRW', nome:'MERCADO_CLOVIS', valor:8.5},
+    {tx:'TX000007', data:'27/06/2026', livro:'LRW', nome:'ABASTECE_AI', valor:103.0},
+    {tx:'TX000008', data:'28/06/2026', livro:'LRW', nome:'KI_FRANGO', valor:64.0},
+    {tx:'TX000009', data:'28/06/2026', livro:'LRW', nome:'ALEKS_BOLOS', valor:44.0},
+    {tx:'TX000010', data:'28/06/2026', livro:'LRW', nome:'CLAUVENIENCIA', valor:45.0},
+    {tx:'TX000011', data:'01/07/2026', livro:'LRV', nome:'UBER', valor:9.21},
+    {tx:'TX000012', data:'04/07/2026', livro:'LRW', nome:'MENDONCA_PASTEIS', valor:75.97},
+    {tx:'TX000013', data:'04/07/2026', livro:'LRW', nome:'H57_STORE', valor:9.19},
+    {tx:'TX000014', data:'05/07/2026', livro:'LRW', nome:'ELIAS_ANDRADE', valor:120.0},
+    {tx:'TX000015', data:'05/07/2026', livro:'LRW', nome:'TAMYLLA', valor:32.0},
+    {tx:'TX000016', data:'05/07/2026', livro:'LRW', nome:'TAMYLLA', valor:36.0},
+    {tx:'TX000017', data:'05/07/2026', livro:'LRW', nome:'PIZZA_NOSTRA', valor:241.0},
+    {tx:'TX000018', data:'06/07/2026', livro:'LRW', nome:'BROTHERS_CLUB', valor:85.0},
+    {tx:'TX000020', data:'07/07/2026', livro:'LRW', nome:'HORTIFRUTI', valor:10.0},
+    {tx:'TX000021', data:'07/07/2026', livro:'LRW', nome:'H57_STORE', valor:9.99},
+    {tx:'TX000026', data:'10/07/2026', livro:'LRW', nome:'PANIFICADORA', valor:23.8},
+    {tx:'TX000027', data:'10/07/2026', livro:'LRW', nome:'AMAZON_PRIME_VIDEO', valor:9.99},
+    {tx:'TX000029', data:'11/07/2026', livro:'LRW', nome:'MADOSKA_SORVETES', valor:127.43},
+    {tx:'TX000030', data:'12/07/2026', livro:'LRW', nome:'PASTIANNE_RESTAURANTE', valor:126.28},
+    {tx:'TX000086', data:'22/06/2026', livro:'LRV', nome:'PAGUE_MENOS', valor:75.87},
+    {tx:'TX000031', data:'10/07/2026', livro:'LRW', nome:'H57STORE', valor:40.98},
+    {tx:'TX000032', data:'11/07/2026', livro:'LRW', nome:'SONIA_MARMITARIA', valor:5.0},
+    {tx:'TX000019', data:'06/07/2026', livro:'LRV', nome:'DORGIVAL_DE_OLIVEIRA_B', valor:31.7},
+    {tx:'TX000023', data:'09/07/2026', livro:'LRV', nome:'DORGIVAL', valor:21.3},
+    {tx:'TX000024', data:'10/07/2026', livro:'LRV', nome:'H57STORE', valor:9.99},
+    {tx:'TX000028', data:'10/07/2026', livro:'LRV', nome:'H57STORE', valor:9.88},
+    {tx:'TXR000001', data:'22/06/2026', livro:'LRV', nome:'CAROLINA', valor:65.0},
+    {tx:'TXR000002', data:'19/06/2026', livro:'LRV', nome:'PANIFICADORA', valor:22.0},
+    {tx:'TXR000004', data:'28/06/2026', livro:'LRV', nome:'H57_STORE', valor:15.97},
+    {tx:'TXR000005', data:'12/07/2026', livro:'LRV', nome:'DROGARIA_DROGAVISTA', valor:45.19},
+    {tx:'TXR000006', data:'07/07/2026', livro:'LRV', nome:'DORGIVAL_DE_OLIVEIRA_B', valor:34.0},
+    {tx:'TXR000007', data:'10/07/2026', livro:'LRW', nome:'H57STORE', valor:9.99},
+    {tx:'TX000087', data:'27/06/2026', livro:'LRW-I', nome:'A_SOUZA_FECHINE_CIA', valor:103.0},
+    {tx:'TX22001', data:'29/06/2026', livro:'LRC', nome:'LMSERVICE', valor:102.96},
+    {tx:'TX22002', data:'29/06/2026', livro:'LRC', nome:'PORTO_GALLO', valor:42.56},
+    {tx:'TX22003', data:'01/07/2026', livro:'LRC', nome:'CAFE_DA_VILLA', valor:150.0},
+    {tx:'TX22004', data:'02/07/2026', livro:'LRC', nome:'LA_URSA', valor:146.62},
+    {tx:'TX22005', data:'02/07/2026', livro:'LRC', nome:'CACAU_SHOW_CAFE', valor:19.8},
+    {tx:'TX22006', data:'02/07/2026', livro:'LRC', nome:'CACAU_SHOW_SORVETE', valor:21.49},
+    {tx:'TX28001', data:'27/06/2026', livro:'LRCV', nome:'GERONCIO_BORGES_ANANIAS', valor:70.0},
+    {tx:'TX28002', data:'12/07/2026', livro:'LRCV', nome:'GERONCIO_BORGES_ANANIAS', valor:60.0},
+    {tx:'TX28003', data:'12/07/2026', livro:'LRCV', nome:'Reembolso', valor:64.0},
+    {tx:'TXCON000001', data:'10/07/2026', livro:'LRCON', nome:'PORTO_CONSORCIO', valor:501.32},
+    {tx:'TXCON000002', data:'10/07/2026', livro:'LRCON', nome:'PORTO_CONSORCIO', valor:1449.45},
+    {tx:'TXS000001', data:'07/07/2026', livro:'LRS', nome:'IFOOD', valor:5.95},
+    {tx:'TXS000002', data:'12/07/2026', livro:'LRS', nome:'CLAUDE_AI', valor:110.0},
+    {tx:'TXS000003', data:'10/07/2026', livro:'LRS', nome:'GOOGLE_YOUTUBE', valor:7.99},
+    {tx:'TXS000004', data:'11/07/2026', livro:'LRS', nome:'UBER_ONE_MEMBERSHIP', valor:21.9},
+    {tx:'TXMP000001', data:'19/05/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:56.39},
+    {tx:'TXMP000002', data:'20/02/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:106.04},
+    {tx:'TXMP000003', data:'16/02/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:50.4},
+    {tx:'TXMP000004', data:'15/02/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:68.36},
+    {tx:'TXMP000005', data:'22/10/2025', livro:'LRMP', nome:'MERCADO_LIVRE', valor:166.62},
+    {tx:'TXMP000006', data:'19/05/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:23.66},
+    {tx:'TXMP000007', data:'02/07/2026', livro:'LRMP', nome:'MP_WALLACELIRA', valor:638.94},
+    {tx:'TXMP000008', data:'29/06/2026', livro:'LRMP', nome:'MP_WALLACELIRA', valor:638.94},
+    {tx:'TXB000001', data:'25/06/2026', livro:'LRB', nome:'PRESTACAO_CASA', valor:588.66},
+    {tx:'TXB000002', data:'10/07/2026', livro:'LRB', nome:'CONDOMINIO_BELLAGIO', valor:210.0},
+    {tx:'TXB000003', data:'10/07/2026', livro:'LRB', nome:'CURSO_INGLES', valor:695.0},
+    {tx:'TXB000004', data:'10/07/2026', livro:'LRB', nome:'AGUA_MEDINTECH', valor:133.41},
+    {tx:'TXB000005', data:'10/07/2026', livro:'LRB', nome:'GAS_MEDINTECH', valor:30.28},
+    {tx:'TXB000006', data:'22/07/2026', livro:'LRB', nome:'ANDERSON_RAMOS', valor:210.0},
+    {tx:'TXB000007', data:'10/07/2026', livro:'LRB', nome:'FIES_VANESSA', valor:245.0},
+    {tx:'TXB000008', data:'30/06/2026', livro:'LRB', nome:'CONSELHO_REGIONAL', valor:163.24},
+    {tx:'TXB000009', data:'26/06/2026', livro:'LRB', nome:'ENERGIA_MEDIA', valor:322.99},
+    {tx:'TXP000001', data:'23/03/2026', livro:'LRP', nome:'TEACHER_MATIAS', valor:134.14},
+    {tx:'TXP000002', data:'21/03/2026', livro:'LRP', nome:'DECKFRIEND', valor:13.03},
+    {tx:'TXP000003', data:'05/12/2025', livro:'LRP', nome:'KORPOS_ESTETICA', valor:189.99},
+    {tx:'TXP000004', data:'23/05/2026', livro:'LRP', nome:'RL_ARTESAO', valor:66.83},
+    {tx:'TXP000005', data:'28/05/2026', livro:'LRP', nome:'MERCADO_LIVRE', valor:38.25},
+    {tx:'TXP000006', data:'20/05/2026', livro:'LRP', nome:'MERCADO_LIVRE', valor:68.01},
+    {tx:'TXP000007', data:'18/02/2026', livro:'LRP', nome:'MERCADO_LIVRE_MP', valor:48.33},
+    {tx:'TXP000008', data:'03/07/2026', livro:'LRP', nome:'SEGURO_TOKIO_MARINE', valor:200.99},
+    {tx:'TXP000009', data:'31/05/2026', livro:'LRP', nome:'ARAM_BEACH_HOTEL', valor:486.64},
+    {tx:'TXP000010', data:'21/07/2026', livro:'LRP', nome:'PICPAY_WALLACE_PATRI', valor:183.47},
+    {tx:'TXP000011', data:'20/05/2026', livro:'LRP', nome:'HUB_SMART_HOME', valor:72.96},
+    {tx:'TXP000012', data:'19/05/2026', livro:'LRP', nome:'EDILSON_LOURENCO', valor:425.0},
+    {tx:'TXP000013', data:'19/05/2026', livro:'LRP', nome:'SILMARA_MACEDO', valor:375.0},
+    {tx:'TXP000014', data:'08/07/2026', livro:'LRP', nome:'HOTMART_FERNANDO', valor:42.0},
+    {tx:'TXS000005', data:'28/06/2026', livro:'LRS', nome:'CHATGPT', valor:39.99},
+    {tx:'TXS000006', data:'29/06/2026', livro:'LRS', nome:'NETFLIX', valor:72.8},
+    {tx:'TXS000007', data:'30/06/2026', livro:'LRS', nome:'YOUTUBE_PREMIUM', valor:53.9},
+    {tx:'TXS000008', data:'', livro:'LRS', nome:'FABIO_SABINO', valor:7.99},
+    {tx:'TXS000009', data:'19/07/2026', livro:'LRS', nome:'AMAZON_PRIME', valor:19.9},
+    {tx:'TXS000010', data:'22/07/2026', livro:'LRS', nome:'MEGA', valor:30.99},
+    {tx:'TXS000011', data:'26/06/2026', livro:'LRS', nome:'INTELBRAS_CLOUD', valor:45.9},
+    {tx:'TXS000012', data:'17/07/2026', livro:'LRS', nome:'SPOTIFY', valor:23.9},
+    {tx:'TXRR000001', data:'25/07/2026', livro:'LRR', nome:'VIVO', valor:435.0},
+    {tx:'TXRR000002', data:'17/07/2026', livro:'LRR', nome:'BRISANET', valor:113.13},
+    {tx:'TXRR000003', data:'25/06/2026', livro:'LRR', nome:'DIGNA', valor:152.41},
+    {tx:'TXRR000004', data:'28/06/2026', livro:'LRR', nome:'CAMPO_SANTO_DA_PAZ', valor:77.79},
+    {tx:'TXRR000005', data:'13/07/2026', livro:'LRR', nome:'FACULDADE_ENGENHARIA', valor:441.33},
+    {tx:'TXRR000006', data:'17/07/2026', livro:'LRR', nome:'NEW_CAR_RASTREADOR', valor:59.99},
+    {tx:'TXR_FACULDADE_MB_JUL26', data:'17/07/2026', livro:'LRR', nome:'FACULDADE_ENGENHARIA', valor:441.33},
+    {tx:'TX000033', data:'12/07/2026', livro:'LRV', nome:'SONIA_MARMITARIA', valor:5.0},
+    {tx:'TX000034', data:'12/07/2026', livro:'LRW', nome:'H57STORE', valor:26.36},
+    {tx:'TX000035', data:'12/07/2026', livro:'LRW', nome:'ANTHROPIC_API', valor:20.0},
+    {tx:'TX000036', data:'12/07/2026', livro:'LRW', nome:'ANTHROPIC_API', valor:20.0},
+    {tx:'TXP000015', data:'13/05/2026', livro:'LRP', nome:'KINESIOCENTEOS', valor:74.85},
+    {tx:'TX000037', data:'13/07/2026', livro:'LRCV', nome:'VANESSA_MEDICA_JULIO', valor:50.0},
+    {tx:'TX000038', data:'04/07/2026', livro:'LRCV', nome:'CLESTON_DA_SILVA', valor:33.0},
+    {tx:'TX000039', data:'03/07/2026', livro:'LRCV', nome:'EDGLEY_DIAS_DE_ARAUJO', valor:150.0},
+    {tx:'TX000040', data:'03/07/2026', livro:'LRCV', nome:'EDGLEY_DIAS_DE_ARAUJO', valor:150.0},
+    {tx:'TX000041', data:'30/06/2026', livro:'LRCV', nome:'WALLACE_PATRICK_GALDINO_LIRA', valor:15489.0},
+    {tx:'TX000042', data:'04/07/2026', livro:'LRPG', nome:'VANESSA_GOMES_GALDINO', valor:300.0},
+    {tx:'TX000043', data:'05/07/2026', livro:'LRPG', nome:'VANESSA_GOMES_GALDINO', valor:30.0},
+    {tx:'TX000044', data:'06/07/2026', livro:'LRCV', nome:'MAGALUPAY', valor:112.61},
+    {tx:'TX000045', data:'10/07/2026', livro:'LRCV', nome:'WALLACE_PATRICK_GALDINO_LIRA', valor:1.0},
+    {tx:'TXMP000009', data:'27/06/2026', livro:'LRMP', nome:'EDJAMILSON_MARQUES_BARBOSA', valor:266.23},
+    {tx:'TXMP000010', data:'19/05/2026', livro:'LRMP', nome:'MERCADO_LIVRE', valor:42.58},
+    {tx:'TX000046', data:'27/06/2026', livro:'LRPG', nome:'ROMARIO_NOGUEIRA', valor:62.0},
+    {tx:'TX000047', data:'27/06/2026', livro:'LRPG', nome:'VITORIA_DRIELI_CAMELO_DA_SILVA', valor:111.0},
+    {tx:'TX000048', data:'03/07/2026', livro:'LRPG', nome:'ROMARIO_NOGUEIRA', valor:44.0},
+    {tx:'TX000049', data:'03/07/2026', livro:'LRPG', nome:'WALLACE_PATRICK_GALDINO_LIRA', valor:30.0},
+    {tx:'TX000050', data:'04/07/2026', livro:'LRPG', nome:'VITORIA_DRIELI_CAMELO_DA_SILVA', valor:26.0},
+    {tx:'TX000051', data:'04/07/2026', livro:'LRPG', nome:'REBECA_DE_SOUZA_OLIVEIRA', valor:31.5},
+    {tx:'TX000052', data:'10/07/2026', livro:'LRPG', nome:'ROMARIO_NOGUEIRA', valor:68.0},
+    {tx:'TX000053', data:'10/07/2026', livro:'LRPG', nome:'VANESSA_GOMES_GALDINO', valor:9.36},
+    {tx:'TX000054', data:'12/07/2026', livro:'LRPG', nome:'H57_STORE', valor:14.99},
+    {tx:'TX000055', data:'13/07/2026', livro:'LRPG', nome:'WALLACE_PATRICK_GALDINO_LIRA', valor:50.0},
+    {tx:'TX000056', data:'13/07/2026', livro:'LRPG', nome:'MEDICA_DE_CRIANCA', valor:50.0},
+    {tx:'TX000057', data:'27/06/2026', livro:'LRCV', nome:'CAIXA_PIX_VANESSA', valor:300.0},
+    {tx:'TX000058', data:'10/07/2026', livro:'LRCV', nome:'VANESSA_GOMES_GALDINO', valor:245.0},
+    {tx:'TX000059', data:'10/07/2026', livro:'LRCV', nome:'JR_PRESTACAO_DE_SERVICOS', valor:110.0},
+    {tx:'TX000060', data:'06/07/2026', livro:'LRCV', nome:'RODRIGO_TORRES_DE_MORAIS', valor:120.0},
+    {tx:'TX000061', data:'06/07/2026', livro:'LRCV', nome:'CAIXA_LANCE', valor:120.0},
+    {tx:'TX000062', data:'06/07/2026', livro:'LRCV', nome:'CLOVIS_CABRAL_BARBOSA', valor:20.0},
+    {tx:'TX000063', data:'05/07/2026', livro:'LRCV', nome:'UNIAO_CAMPINENSE', valor:10.0},
+    {tx:'TX000088', data:'17/07/2026', livro:'LRCV', nome:'CLESTON_DA_SILVA', valor:22.0},
+    {tx:'TX000109', data:'18/07/2026', livro:'LRCV', nome:'EDGLEY_DIAS_DE_ARAUJO', valor:60.0},
+    {tx:'TX000110', data:'19/07/2026', livro:'LRW', nome:'PANIFICADORA', valor:13.8},
+    {tx:'TX000111', data:'19/07/2026', livro:'LRW', nome:'H57STORE', valor:7.38},
+    {tx:'TX000089', data:'16/07/2026', livro:'LRW-I', nome:'BRADESCO', valor:281.34},
+    {tx:'TX000090', data:'16/07/2026', livro:'LRW-I', nome:'BRADESCO', valor:8.75},
+    {tx:'TX000091', data:'01/07/2026', livro:'LRW-I', nome:'BRADESCO', valor:1.85},
+    {tx:'TX000092', data:'01/07/2026', livro:'LRW-I', nome:'BRADESCO', valor:42.93},
+    {tx:'TX000093', data:'13/07/2026', livro:'LRW-I', nome:'ANTHROPIC_API', valor:20.0},
+    {tx:'TX000094', data:'14/07/2026', livro:'LRW-I', nome:'ANTHROPIC_API', valor:20.0},
+    {tx:'TX000064', data:'06/07/2026', livro:'LRCV', nome:'CAIXA_LANCE', valor:5.81},
+    {tx:'TX000065', data:'03/07/2026', livro:'LRCV', nome:'CAIXA_LANCE', valor:264.97},
+    {tx:'TX000066', data:'03/07/2026', livro:'LRCV', nome:'CAIXA_LANCE', valor:30.0},
+    {tx:'TX000067', data:'03/07/2026', livro:'LRCV', nome:'CAIXA_LANCE', valor:462.29},
+    {tx:'TX000068', data:'09/07/2026', livro:'LRCV', nome:'STONE_INSTITUICAO_PAGAMENTO', valor:20.0},
+    {tx:'TX000069', data:'09/07/2026', livro:'LRB', nome:'BOLETOS_DIVERSOS', valor:1313.69},
+    {tx:'TX000070', data:'07/07/2026', livro:'LRCV', nome:'FATURA_WARTSILA', valor:680.0},
+    {tx:'TXP2P0001', data:'10/07/2026', livro:'?', nome:'JR_PRESTACAO_DE_SERVICOS', valor:66.0},
+    {tx:'TXP2P0002', data:'23/07/2026', livro:'?', nome:'COMPRADOR_NAO_ESPECIFICADO', valor:20.0},
+    {tx:'TXP2P0003', data:'23/07/2026', livro:'?', nome:'ELCIO_DA_SILVA_SANTOS', valor:40.0},
+    {tx:'TXRP2P001', data:'13/07/2026', livro:'P2P', nome:'P2P_CREDITO_VANESSA', valor:11.0},
+    {tx:'TX000071', data:'05/07/2026', livro:'LRPG', nome:'CONTA_CONJUNTA_BRADESCO', valor:30.0},
+    {tx:'TX000072', data:'29/05/2026', livro:'LRCV', nome:'VANESSA_GOMES_GALDINO', valor:10.0},
+    {tx:'TX000073', data:'29/05/2026', livro:'LRCV', nome:'VANESSA_GOMES_GALDINO', valor:1.0},
+    {tx:'TX000074', data:'03/07/2026', livro:'LRCV', nome:'VANESSA_GOMES_GALDINO', valor:30.0},
+    {tx:'TX000075', data:'02/06/2026', livro:'LRV_HISTORICO', nome:'JANAINA_JAPIASSU', valor:36.9},
+    {tx:'TX000076', data:'13/07/2026', livro:'LRV', nome:'DL', valor:24.03},
+    {tx:'TX000078', data:'13/07/2026', livro:'LRW', nome:'H57STORE', valor:25.93},
+    {tx:'TX000079', data:'14/07/2026', livro:'LRW', nome:'ANTHROPIC_API', valor:20.0},
+    {tx:'TX000080', data:'16/07/2026', livro:'LRPG', nome:'DUPOMAR_HORTIFRUTTI', valor:133.81},
+    {tx:'TX000081', data:'16/07/2026', livro:'LRW', nome:'NOBRE_CARNES_LI', valor:206.4},
+    {tx:'TX000096', data:'17/07/2026', livro:'LRW', nome:'H57STORE', valor:3.19},
+    {tx:'TX000098', data:'18/07/2026', livro:'LRW', nome:'H57STORE', valor:12.79},
+    {tx:'TX000099', data:'18/07/2026', livro:'LRW', nome:'H57STORE', valor:3.19},
+    {tx:'TX000100', data:'17/07/2026', livro:'LRW', nome:'DENIS_MASSAS', valor:32.0},
+    {tx:'TX000101', data:'17/07/2026', livro:'LRW', nome:'VENDEDORA', valor:71.0},
+    {tx:'TX000102', data:'17/07/2026', livro:'LRW', nome:'H57STORE', valor:6.99},
+    {tx:'TX000103', data:'17/07/2026', livro:'LRW', nome:'H57STORE', valor:12.79},
+    {tx:'TX000104', data:'18/07/2026', livro:'LRW', nome:'FILEZAO_SAO_CRISTOVAO', valor:38.26},
+    {tx:'TX000105', data:'18/07/2026', livro:'LRW', nome:'MARIA_DO_SOCORRO', valor:40.0},
+    {tx:'TX000106', data:'18/07/2026', livro:'LRW', nome:'MP_SOLANGEARTESA', valor:10.0},
+    {tx:'TX000108', data:'18/07/2026', livro:'LRW', nome:'IFD_BROTHERS_BURGER', valor:230.67},
+    {tx:'TX000107', data:'18/07/2026', livro:'LRCV', nome:'LUCIANO_SARTORI_PAQUI', valor:20.0},
+    {tx:'TX000097', data:'17/07/2026', livro:'LRW', nome:'H57STORE', valor:4.37},
+    {tx:'TX000082', data:'16/07/2026', livro:'LRW', nome:'SUP_IDEAL', valor:313.12},
+    {tx:'TX000083', data:'16/07/2026', livro:'LRCV', nome:'PIX_VANESSA', valor:208.24},
+    {tx:'TX000084', data:'17/07/2026', livro:'LRPG', nome:'PIX_VANESSA', valor:95.0},
+    {tx:'TX000085', data:'17/07/2026', livro:'LRCV', nome:'PIX_VANESSA', valor:399.13},
+    {tx:'TX000133', data:'23/07/2026', livro:'LRCV', nome:'ELCIO_DA_SILVA_SANTOS', valor:40.0},
+    {tx:'TX000131', data:'23/07/2026', livro:'LRV-I', nome:'H57STORE', valor:17.98},
+    {tx:'TX000132', data:'23/07/2026', livro:'LRW-MB', nome:'GOOGLE_SUNSURVEYORAPP', valor:56.99},
+    {tx:'TX000134', data:'21/06/2026', livro:'LRS', nome:'AMAZON_PRIME_CANAIS', valor:19.99},
+    {tx:'TX000135', data:'30/06/2026', livro:'LRW-I', nome:'AMAZON_PRIME_ALUGUEL', valor:9.99},
+    {tx:'TX000165', data:'27/07/2026', livro:'LRCL', nome:'LREI0002', valor:164.94},
+    {tx:'TX000166', data:'27/07/2026', livro:'LRSF', nome:'DRA_CINTIA', valor:135.06},
+    {tx:'TX000167', data:'28/07/2026', livro:'LRV', nome:'DL', valor:12.42},
+    {tx:'TX000168', data:'28/07/2026', livro:'LRV', nome:'DL', valor:11.12},
+    {tx:'TX000169', data:'28/07/2026', livro:'LRV', nome:'H57STORE', valor:8.08},
+    {tx:'TX000170', data:'28/07/2026', livro:'LRPV', nome:'DRA_CINTIA', valor:40.0},
+    {tx:'TX000172', data:'29/07/2026', livro:'LRC', nome:'ANTONIO_DOMINGOS_ANGEL', valor:9.0},
+    {tx:'TX000173', data:'29/07/2026', livro:'LRC', nome:'ANTONIO_DOMINGOS_ANGEL', valor:3.0},
+    {tx:'TX000174', data:'29/07/2026', livro:'LRC', nome:'CONVENIENCIA_CAPUABA', valor:40.96},
+    {tx:'TX000175', data:'29/07/2026', livro:'LRV', nome:'DL', valor:12.02},
+    {tx:'TX000176', data:'29/07/2026', livro:'LRV', nome:'DROGASIL_2305', valor:132.26},
+    {tx:'TX000177', data:'29/07/2026', livro:'LRV', nome:'DL', valor:19.65},
+    {tx:'TX000178', data:'29/07/2026', livro:'LRPV', nome:'PGV', valor:300.0},
+    {tx:'TX000179', data:'31/07/2026', livro:'LRV', nome:'DL', valor:5.06},
+    {tx:'TX000180', data:'31/07/2026', livro:'LRV', nome:'DL', valor:6.43},
+    {tx:'TX000181', data:'31/07/2026', livro:'LRPV', nome:'RAYSSA_DOS_SANTOS_PEREIRA', valor:70.0},
+    {tx:'TX000182', data:'31/07/2026', livro:'LRPV', nome:'ROMARIO_NOGUEIRA_CUNHA', valor:65.0},
+    {tx:'TX000183', data:'31/07/2026', livro:'LRW', nome:'TAPIOCARIA_IRMAO_FIRMI', valor:227.0},
+    {tx:'TX000184', data:'31/07/2026', livro:'LRW', nome:'H57STORE', valor:18.36},
+    {tx:'TX000185', data:'31/07/2026', livro:'LRW', nome:'H57STORE', valor:5.59},
+    {tx:'TX000186', data:'31/07/2026', livro:'LRW', nome:'H57STORE', valor:2.19},
+    {tx:'TX000187', data:'01/08/2026', livro:'LRPV', nome:'PGV', valor:300.0},
+    {tx:'TX000188', data:'01/08/2026', livro:'LRW', nome:'AMAZON', valor:32.06},
+    {tx:'TX000189', data:'01/08/2026', livro:'LRPV', nome:'MEU_PEQUENO', valor:276.0},
+    {tx:'TX000190', data:'01/08/2026', livro:'LRCV', nome:'CLESTON_DA_SILVA', valor:22.0},
+    {tx:'TX000191', data:'01/08/2026', livro:'LRV', nome:'TIORAFAKIDS', valor:50.0},
+    {tx:'TX000192', data:'02/08/2026', livro:'LRW', nome:'DROGARIA_BENIF', valor:20.0},
+    {tx:'TXPV000001', data:'02/08/2026', livro:'LRPV', nome:'SHPB_BRASIL_SANTANDER', valor:34.34},
+    {tx:'TXPV000002', data:'02/08/2026', livro:'LRPV', nome:'KENNEDY_EVARISTO_DOS_SANTOS', valor:20.0},
+    {tx:'TX000193', data:'03/08/2026', livro:'LRV', nome:'DL', valor:12.23},
+    {tx:'TX000194', data:'03/08/2026', livro:'LRV', nome:'DL', valor:11.5},
+    {tx:'TX000195', data:'03/08/2026', livro:'LRW', nome:'DL', valor:20.14},
+    {tx:'TX000196', data:'03/08/2026', livro:'LRW', nome:'H57STORE', valor:42.28},
+    {tx:'TX000197', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:51.69},
+    {tx:'TX000198', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:51.69},
+    {tx:'TX000199', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:20.68},  ],
+
   // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
   // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
   // existia LRPV_TRANSACOES (na verdade sempre foi a PGV) - a PV (aportes do Wallace + reforcos a PGV)
@@ -958,19 +1617,81 @@ const VARS = {
       mercadoPagoFaturaCongelada: 1791.93, // CONGELADO - fatura MP de quando este ciclo fechou (sem o adiantamento de transporte corporativo, que so entrou no ciclo seguinte)
       diasRestantes: 0,
       observacoes: 'Ciclo fechado na virada de 25/07/2026. O salário de R$16.819,56 recebido em 24/07 (adiantado por ser sábado) é do ciclo SEGUINTE, já distribuído no dia do recebimento.',
-      // V174 (26/07/2026): FOTOGRAFIA CONGELADA das transacoes de compras variaveis deste ciclo (26/06-24/07) -
-      // pedido explicito do usuario ("cada mes deve mostrar o seu igual excel, depois vai preservando no ERP,
-      // o site so deveria mostrar o que e do seu ciclo"). Nao e a lista completa (61 compras do Wallace no
-      // periodo, ver ERP para o historico linha-a-linha) - e um resumo representativo do que fechou aqui,
-      // suficiente para o site mostrar o ciclo antigo sem repetir os mesmos numeros do ciclo atual.
+      // CORRIGIDO 04/08/2026 (parte 59, pedido do usuario apos investigacao real): o resumo de 1
+      // linha por livro (V174, "61 compras/R$1.406,92" etc) estava DESATUALIZADO - conferido contra
+      // ERP_WALLACE_LIRA_V11.xlsx (SWP_INPUT_TX) real, linha a linha. LRC bateu exato (validou o
+      // metodo); LRW e LRV nao batiam com o resumo antigo. Usuario perguntou especificamente sobre a
+      // tag "Visita Familia de Vanessa"/"Viagem Recife" (hotel ARAM BEACH HOTEL=TXP000009, transporte
+      // Joao Pessoa x Campina Grande=TXMP000009, ambos ja lancados, so em livros diferentes de LRW/LRV)
+      // - usuario esclareceu que a tag e SO informativa, nao reclassifica livro, entao a explicacao
+      // real da divergencia e simplesmente resumo desatualizado, nao regra de negocio nenhuma. Trocado
+      // pelos 43+10+6 lancamentos reais da planilha (mesmo criterio de filtro: LIVRO+DATA dentro do
+      // periodo do ciclo, 26/06-24/07/2026). Novos totais: LRW R$2.426,36 (43), LRV R$206,27 (10),
+      // LRC R$483,43 (6, inalterado - ja batia).
       LRW_TRANSACOES: [
-        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'61 compras variáveis do Wallace no ciclo fechado', obs:'ver ERP_WALLACE_LIRA para o detalhamento linha a linha', valor:1406.92 },
+        { tx:'TX000005', data:'27/06', nome:'TAPIOCA', valor:81.0 },
+        { tx:'TX000006', data:'27/06', nome:'MERCADO_CLOVIS', valor:8.5 },
+        { tx:'TX000007', data:'27/06', nome:'ABASTECE_AI', valor:103.0 },
+        { tx:'TX000008', data:'28/06', nome:'KI_FRANGO', valor:64.0 },
+        { tx:'TX000009', data:'28/06', nome:'ALEKS_BOLOS', valor:44.0 },
+        { tx:'TX000010', data:'28/06', nome:'CLAUVENIENCIA', valor:45.0 },
+        { tx:'TX000012', data:'04/07', nome:'MENDONCA_PASTEIS', valor:75.97 },
+        { tx:'TX000013', data:'04/07', nome:'H57_STORE', valor:9.19 },
+        { tx:'TX000014', data:'05/07', nome:'ELIAS_ANDRADE', valor:120.0 },
+        { tx:'TX000015', data:'05/07', nome:'TAMYLLA', valor:32.0 },
+        { tx:'TX000016', data:'05/07', nome:'TAMYLLA', valor:36.0 },
+        { tx:'TX000017', data:'05/07', nome:'PIZZA_NOSTRA', valor:241.0 },
+        { tx:'TX000018', data:'06/07', nome:'BROTHERS_CLUB', valor:85.0 },
+        { tx:'TX000020', data:'07/07', nome:'HORTIFRUTI', valor:10.0 },
+        { tx:'TX000021', data:'07/07', nome:'H57_STORE', valor:9.99 },
+        { tx:'TX000026', data:'10/07', nome:'PANIFICADORA', valor:23.8 },
+        { tx:'TX000027', data:'10/07', nome:'AMAZON_PRIME_VIDEO', valor:9.99 },
+        { tx:'TX000031', data:'10/07', nome:'H57STORE', valor:40.98 },
+        { tx:'TXR000007', data:'10/07', nome:'H57STORE', valor:9.99 },
+        { tx:'TX000029', data:'11/07', nome:'MADOSKA_SORVETES', valor:127.43 },
+        { tx:'TX000032', data:'11/07', nome:'SONIA_MARMITARIA', valor:5.0 },
+        { tx:'TX000030', data:'12/07', nome:'PASTIANNE_RESTAURANTE', valor:126.28 },
+        { tx:'TX000034', data:'12/07', nome:'H57STORE', valor:26.36 },
+        { tx:'TX000035', data:'12/07', nome:'ANTHROPIC_API', valor:20.0 },
+        { tx:'TX000036', data:'12/07', nome:'ANTHROPIC_API', valor:20.0 },
+        { tx:'TX000078', data:'13/07', nome:'H57STORE', valor:25.93 },
+        { tx:'TX000079', data:'14/07', nome:'ANTHROPIC_API', valor:20.0 },
+        { tx:'TX000081', data:'16/07', nome:'NOBRE_CARNES_LI', valor:206.4 },
+        { tx:'TX000082', data:'16/07', nome:'SUP_IDEAL', valor:313.12 },
+        { tx:'TX000096', data:'17/07', nome:'H57STORE', valor:3.19 },
+        { tx:'TX000100', data:'17/07', nome:'DENIS_MASSAS', valor:32.0 },
+        { tx:'TX000101', data:'17/07', nome:'VENDEDORA', valor:71.0 },
+        { tx:'TX000102', data:'17/07', nome:'H57STORE', valor:6.99 },
+        { tx:'TX000103', data:'17/07', nome:'H57STORE', valor:12.79 },
+        { tx:'TX000097', data:'17/07', nome:'H57STORE', valor:4.37 },
+        { tx:'TX000098', data:'18/07', nome:'H57STORE', valor:12.79 },
+        { tx:'TX000099', data:'18/07', nome:'H57STORE', valor:3.19 },
+        { tx:'TX000104', data:'18/07', nome:'FILEZAO_SAO_CRISTOVAO', valor:38.26 },
+        { tx:'TX000105', data:'18/07', nome:'MARIA_DO_SOCORRO', valor:40.0 },
+        { tx:'TX000106', data:'18/07', nome:'MP_SOLANGEARTESA', valor:10.0 },
+        { tx:'TX000108', data:'18/07', nome:'IFD_BROTHERS_BURGER', valor:230.67 },
+        { tx:'TX000110', data:'19/07', nome:'PANIFICADORA', valor:13.8 },
+        { tx:'TX000111', data:'19/07', nome:'H57STORE', valor:7.38 },
       ],
       LRV_TRANSACOES: [
-        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'compras variáveis da Vanessa no ciclo fechado', obs:'ver ERP_WALLACE_LIRA para o detalhamento', valor:462.12 },
+        { tx:'TXR000004', data:'28/06', nome:'H57_STORE', valor:15.97 },
+        { tx:'TX000011', data:'01/07', nome:'UBER', valor:9.21 },
+        { tx:'TX000019', data:'06/07', nome:'DORGIVAL_DE_OLIVEIRA_B', valor:31.7 },
+        { tx:'TXR000006', data:'07/07', nome:'DORGIVAL_DE_OLIVEIRA_B', valor:34.0 },
+        { tx:'TX000023', data:'09/07', nome:'DORGIVAL', valor:21.3 },
+        { tx:'TX000024', data:'10/07', nome:'H57STORE', valor:9.99 },
+        { tx:'TX000028', data:'10/07', nome:'H57STORE', valor:9.88 },
+        { tx:'TXR000005', data:'12/07', nome:'DROGARIA_DROGAVISTA', valor:45.19 },
+        { tx:'TX000033', data:'12/07', nome:'SONIA_MARMITARIA', valor:5.0 },
+        { tx:'TX000076', data:'13/07', nome:'DL', valor:24.03 },
       ],
       LRC_LIMBO_TRANSACOES: [
-        { tx:'(histórico completo no ERP)', data:'26/06–22/07', nome:'6 despesas corporativas do ciclo fechado', obs:'LM Service, Porto Gallo, Café da Villa, La Ursa, Cacau Show Café, Cacau Show Sorvete', valor:483.43 },
+        { tx:'TX22001', data:'29/06', nome:'LMSERVICE', valor:102.96 },
+        { tx:'TX22002', data:'29/06', nome:'PORTO_GALLO', valor:42.56 },
+        { tx:'TX22003', data:'01/07', nome:'CAFE_DA_VILLA', valor:150.0 },
+        { tx:'TX22004', data:'02/07', nome:'LA_URSA', valor:146.62 },
+        { tx:'TX22005', data:'02/07', nome:'CACAU_SHOW_CAFE', valor:19.8 },
+        { tx:'TX22006', data:'02/07', nome:'CACAU_SHOW_SORVETE', valor:21.49 },
       ],
       LRPV_TRANSACOES: [
         { tx:'TX000042', data:'04/07', nome:'Transferência Pix Geral (autonomia)', tipo:'Entrada', valor:300.00 },
@@ -1028,6 +1749,14 @@ const VARS = {
     }
   }
 };
+
+// Congela objetos que nunca deveriam ser mutados em runtime - protege contra edição acidental
+// (ex: alguém escrever VARS.LEGENDAS.algumId = "..." num ponto novo do código sem perceber que
+// deveria estar editando o objeto original, lá em cima). Confirmado (03/08/2026): só leitura no
+// resto do arquivo para os 3.
+Object.freeze(VARS.LEGENDAS);
+Object.freeze(VARS.CRONOGRAMA_BOLETOS_FIXOS);
+Object.freeze(VARS.ROC_STATUS_LIMITES);
 
 // V169: aplica os dados buscados do Supabase (window.WALLACE_DADOS_REMOTOS, populado pelo script no
 // HTML antes deste arquivo carregar) por cima do VARS estatico - assim as compras/saldos mais recentes
@@ -1147,7 +1876,130 @@ VARS.contaSuavizacao = calcularSaldoCaixa(VARS.SUAVIZACAO_SALDO_INICIAL, VARS.SU
 // Razao continuou mostrando so o Outback. Agora derivam do array real, sempre.
 // V222: opcoesVendidasValorMercado agora deriva da soma de VARS.opcoesVendidasDetalhe, nunca mais
 // numero fixo dessincronizado (era o mesmo bug ja corrigido em ~17 outras caixas neste sistema).
-VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+o.valorMercado,0)*100)/100;
+// CORRIGIDO 03/08/2026 (pedido do usuario): "Valor de mercado (posicoes ATIVAS)" nao deve mais somar
+// posicao ja vencida (ex: PETRS368W5, venceu 31/07/2026) - por definicao uma posicao encerrada nao
+// tem mais "valor de mercado" de posicao aberta. o.vencida e calculado 1x aqui (unica fonte, P1) e
+// reaproveitado depois na tabela da secao 17 (nunca duplicado) - o registro em si NAO e apagado do
+// array (P6, rastreabilidade), so sai da soma/da lista de posicoes ativas exibida.
+const parseVencimentoBR = str => { const [d,m,a] = str.split('/').map(Number); return new Date(a,m-1,d); };
+const HOJE_OPCOES = new Date();
+VARS.opcoesVendidasDetalhe.forEach(o => { o.vencida = parseVencimentoBR(o.vencimento) < HOJE_OPCOES; });
+VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.filter(o=>!o.vencida).reduce((s,o)=>s+o.valorMercado,0)*100)/100;
+
+// NOVO 03/08/2026 (Módulo 17 - Rentabilidade da Operação/ROC): mede o retorno do prêmio líquido sobre
+// o capital comprometido (strike x 100 x contratos) - não mede lucro capturado, mede rentabilidade
+// sobre o dinheiro travado, pra comparar com CDI/renda fixa. Roda em cima de VARS.opcoesVendidasDetalhe,
+// nenhum dado duplicado. Documentado na especificação enviada pelo usuário.
+(function calcularROCOpcoes(){
+  const parseDataNota = str => {
+    // notaCorretagem vem no formato "12345678 (DD/MM/AAAA)" - extrai a data entre parênteses.
+    const m = str && str.match(/\((\d{2})\/(\d{2})\/(\d{4})\)/);
+    if(!m) return null;
+    return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+  };
+  const parseDataBR = str => {
+    if(!str) return null;
+    const [d,mo,a] = str.split('/').map(Number);
+    return new Date(a, mo-1, d);
+  };
+  const hoje = new Date();
+
+  // Classificação de status (🔴 Fraca / 🟡 Boa / 🟢 Muito Boa / 🔵 Excelente) - extraída pra função
+  // reutilizável (03/08/2026, layout do ROC) porque agora é usada tanto por posição quanto no
+  // card consolidado da carteira (antes só existia por posição, o card consolidado não tinha status
+  // nenhum). "classe" mapeia pra uma das 4 classes .badge já existentes em styles.css (bg/ba/br/bb),
+  // mesmas cores do emoji, sem inventar CSS novo.
+  const classificarStatusROC = (rentMensalPct) => {
+    const lim = VARS.ROC_STATUS_LIMITES;
+    if(rentMensalPct < VARS.CDI_MENSAL_ATUAL) return { label: 'Fraca', emoji: '🔴', classe: 'br' };
+    if(rentMensalPct <= lim.boaAte) return { label: 'Boa', emoji: '🟡', classe: 'ba' };
+    if(rentMensalPct <= lim.muitoBoaAte) return { label: 'Muito Boa', emoji: '🟢', classe: 'bg' };
+    return { label: 'Excelente', emoji: '🔵', classe: 'bb' };
+  };
+
+  VARS.opcoesVendidasDetalhe.forEach(o => {
+    const dataVenda = parseDataNota(o.notaCorretagem);
+    const dataVencimento = parseDataBR(o.vencimento);
+    // Se o vencimento já passou, a operação está encerrada - usa a data de vencimento como fim da
+    // contagem de dias (não a data de hoje, que continuaria somando dias de uma posição que já fechou).
+    const dataReferencia = (dataVencimento && dataVencimento < hoje) ? dataVencimento : hoje;
+
+    let diasOperacao = null;
+    if(dataVenda){
+      diasOperacao = Math.round((dataReferencia - dataVenda) / 86400000);
+      if(diasOperacao < 1) diasOperacao = 1; // mesmo dia (ex: PETRS368W5 venceu no próprio dia) - evita divisão por zero
+    }
+
+    // Contratos = |quantidade| / 100 (padrão B3, 1 contrato = 100 ações). Capital Travado = Strike x 100 x Contratos.
+    const contratos = Math.round(Math.abs(o.quantidade) / 100);
+    // precoExercicio pode ser null quando o strike ainda não foi confirmado por print/nota - não
+    // força um número, documenta como lacuna (P1), ROC fica indisponível pra esse item. (Não há
+    // nenhum caso assim no momento, 03/08/2026 — todas as 3 posições têm strike confirmado.)
+    const capitalTravado = (o.precoExercicio !== null && o.precoExercicio !== undefined)
+      ? Math.round(o.precoExercicio * 100 * contratos * 100) / 100
+      : null;
+
+    const premioLiquido = o.premioRecebido; // já é o líquido (ver comentário na origem do dado acima)
+
+    let rentabilidade = null, rentabilidadeMensal = null, rentabilidadeAnual = null, statusROC = null, comparacaoCDI = null;
+    if(capitalTravado !== null && premioLiquido !== null && diasOperacao){
+      rentabilidade = premioLiquido / capitalTravado; // fração, ex: 0.042
+      rentabilidadeMensal = rentabilidade * 30 / diasOperacao;
+      rentabilidadeAnual = Math.pow(1 + rentabilidade, 365 / diasOperacao) - 1;
+
+      const cdiMensalFracao = VARS.CDI_MENSAL_ATUAL / 100;
+      comparacaoCDI = cdiMensalFracao > 0 ? (rentabilidadeMensal / cdiMensalFracao) : null;
+
+      const rentMensalPct = rentabilidadeMensal * 100;
+      statusROC = classificarStatusROC(rentMensalPct);
+    }
+
+    o.roc = {
+      contratos, diasOperacao, capitalTravado, premioLiquido,
+      rentabilidade, rentabilidadeMensal, rentabilidadeAnual, comparacaoCDI, statusROC,
+    };
+  });
+
+  // Consolidado da carteira: soma capital travado / soma prêmio líquido (só entre os itens com ROC
+  // calculável - item sem strike confirmado ficaria de fora da soma, não forçado a zero; desde
+  // 03/08/2026 as 3 posições atuais têm strike confirmado, então nenhuma fica excluída no momento).
+  // CORRIGIDO 03/08/2026 (pedido do usuario - "capital travado deve ser removido da opção que já
+  // venceu"): faltava o filtro !o.vencida aqui - o mesmo padrão já usado em opcoesVendidasValorMercado
+  // (linha ~1250) não tinha sido replicado neste consolidado. Resultado prático: PETRS368W5 (venceu
+  // 31/07/2026, capital travado R$3.686,00) continuava dentro da soma consolidada (R$19.422,00 errado),
+  // mesmo já fora da tabela de posições ativas e do Valor de Mercado. Agora consistente com o resto do
+  // sistema - posição vencida não é mais "capital travado" (não há mais nada travado nela).
+  const comROC = VARS.opcoesVendidasDetalhe.filter(o => o.roc.capitalTravado !== null && !o.vencida);
+  const somaCapital = Math.round(comROC.reduce((s,o) => s + o.roc.capitalTravado, 0) * 100) / 100;
+  const somaPremio = Math.round(comROC.reduce((s,o) => s + o.roc.premioLiquido, 0) * 100) / 100;
+  const rentabilidadeCarteira = somaCapital > 0 ? somaPremio / somaCapital : null;
+  const diasMedios = comROC.length ? Math.round(comROC.reduce((s,o) => s + o.roc.diasOperacao, 0) / comROC.length) : null;  // Rentabilidade mensal/anualizada da carteira usam os dias médios como padronização (mesma lógica
+  // aplicada item a item, agora no consolidado).
+  const rentMensalCarteira = (rentabilidadeCarteira !== null && diasMedios) ? rentabilidadeCarteira * 30 / diasMedios : null;
+  const rentAnualCarteira = (rentabilidadeCarteira !== null && diasMedios) ? Math.pow(1 + rentabilidadeCarteira, 365/diasMedios) - 1 : null;
+  const cdiMensalFracao = VARS.CDI_MENSAL_ATUAL / 100;
+  const comparacaoCDICarteira = (rentMensalCarteira !== null && cdiMensalFracao > 0) ? rentMensalCarteira / cdiMensalFracao : null;
+  // NOVO 03/08/2026 (layout do ROC, pedido do usuario): status do consolidado, mesma classificacao
+  // usada por posicao - antes o card resumo nao tinha nenhum indicador de status.
+  const statusROCCarteira = (rentMensalCarteira !== null) ? classificarStatusROC(rentMensalCarteira * 100) : null;
+
+  VARS.rocCarteira = {
+    capitalTravado: somaCapital,
+    premioLiquido: somaPremio,
+    rentabilidade: rentabilidadeCarteira,
+    rentabilidadeMensal: rentMensalCarteira,
+    rentabilidadeAnualizada: rentAnualCarteira,
+    comparacaoCDI: comparacaoCDICarteira,
+    diasMedios,
+    statusROC: statusROCCarteira,
+    // CORRIGIDO 04/08/2026 (achado do usuario via print - legenda dizia "falta de strike confirmado"
+    // pra PETRS368W5, que na verdade estava fora por estar VENCIDA, nao por falta de strike - a mesma
+    // variavel itensExcluidos servia pros 2 motivos, texto fixo so cobria 1 deles). Agora os 2 motivos
+    // sao contados separado, pra legenda dizer o motivo certo em cada caso.
+    itensSemStrike: VARS.opcoesVendidasDetalhe.filter(o => o.roc.capitalTravado === null).length,
+    itensVencidosExcluidos: VARS.opcoesVendidasDetalhe.filter(o => o.roc.capitalTravado !== null && o.vencida).length,
+  };
+})();
 // CORRIGIDO 31/07/2026 (V225, achado do usuario): necessidadeLiquidaHeld (patamar final da projecao de 12
 // meses, usado no badge "Queda total" da Necessidade Liquida) era um numero solto editado numa sessao
 // diferente de totalOperacionalHeld (mesmo patamar final, mas do Total Operacional) - por isso o badge
@@ -1690,6 +2542,9 @@ recalcularAgregadosDerivados(); // chamada inicial, na carga da pagina
 function trocarCiclo(cicloKey){
   aplicarCicloAoVARS(cicloKey);
   recalcularAgregadosDerivados();
+  // V300 (Etapa 2): eventos aditivos, emitidos depois do recalculo real - nao mudam o que ja acontecia.
+  WallaceBus.emit('cicloAlterado', {cicloKey});
+  WallaceBus.emit('saldoAtualizado', {saldoReal: REG.caixaVariavel.saldoReal, comprometido: REG.caixaVariavel.comprometido, disponivel: REG.caixaVariavel.disponivel});
   hydrate();
   renderLivrosVariaveis(); // V174: regenera as tabelas LRW/LRV/LRC-limbo/LRPV com os dados do ciclo selecionado - antes so rodava no carregamento inicial, nunca ao trocar de ciclo
   atualizarBotoesSeletorCiclo();
@@ -1703,23 +2558,24 @@ function trocarCiclo(cicloKey){
 function atualizarGraficosPorCiclo(){
   if(typeof Chart === 'undefined' || !Chart.getChart) return;
   ['cVariavel','g_cVariavel'].forEach(id=>{
-    const canvas = document.getElementById(id);
+    const canvas = $(id);
     if(!canvas) return;
     const chart = Chart.getChart(canvas);
     if(!chart) return;
     chart.data.datasets[0].data = [REG.caixaVariavel.saldoReal, REG.caixaVariavel.comprometido, REG.caixaVariavel.disponivel];
     chart.update();
   });
+  WallaceBus.emit('graficoAtualizado', {origem:'atualizarGraficosPorCiclo'}); // V300 (Etapa 2)
 }
 
 function atualizarBotoesSeletorCiclo(){
   CICLO_LISTA.forEach(key=>{
-    const btn = document.getElementById('cicloBtn_'+key);
+    const btn = $('cicloBtn_'+key);
     if(!btn) return;
     if(key===VARS.cicloAtual){ btn.classList.add('ciclo-ativo'); }
     else { btn.classList.remove('ciclo-ativo'); }
   });
-  const banner = document.getElementById('cicloBannerFechado');
+  const banner = $('cicloBannerFechado');
   if(banner){
     const snap = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
     banner.style.display = snap.fechado ? 'flex' : 'none';
@@ -1757,8 +2613,8 @@ function atualizarContadoresAbasLR(){
     lrpv: {id:'qtdLRPGV', singular:'lançamento (fluxo do período)', plural:'lançamentos (fluxo do período)'},
   };
   paineis.forEach(id => {
-    const painel = document.getElementById(id);
-    const btn = document.getElementById('lrTabBtn_'+id);
+    const painel = $(id);
+    const btn = $('lrTabBtn_'+id);
     if(!painel || !btn) return;
     const linhas = painel.querySelectorAll('tbody tr');
     let count = 0;
@@ -1771,7 +2627,7 @@ function atualizarContadoresAbasLR(){
     btn.textContent = labels[id]+' ('+count+')';
     const rf = rodapes[id];
     if(rf){
-      const rfEl = document.getElementById(rf.id);
+      const rfEl = $(rf.id);
       if(rfEl) rfEl.textContent = count+' '+(count===1?rf.singular:rf.plural);
     }
   });
@@ -1786,7 +2642,7 @@ function renderLivrosVariaveis(){
     return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
   }
   function preencher(id, arr, temTipo){
-    const tbody = document.getElementById(id);
+    const tbody = $(id);
     if(!tbody) return;
     if(!arr.length){
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação neste ciclo ainda.</td></tr>';
@@ -1800,7 +2656,7 @@ function renderLivrosVariaveis(){
   preencher('lrcvTbody', VARS.LRCV_TRANSACOES, true);
 
   // LRPV tem formato proprio (Entrada/Saida colorida) - renderizacao especifica, nao usa preencher() generico
-  const lrpvTbody = document.getElementById('lrpvTbody');
+  const lrpvTbody = $('lrpvTbody');
   if(lrpvTbody){
     if(!VARS.LRPV_TRANSACOES.length){
       lrpvTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
@@ -1810,7 +2666,7 @@ function renderLivrosVariaveis(){
         return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
-    const tfLRPVEl = document.getElementById('tfLRPV');
+    const tfLRPVEl = $('tfLRPV');
     if(tfLRPVEl){
       const liquido = VARS.LRPV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
       tfLRPVEl.textContent = fmt(Math.round(liquido*100)/100);
@@ -1818,7 +2674,7 @@ function renderLivrosVariaveis(){
   }
 
   // V176: painel PV (reserva do Wallace) - mesma logica do PGV, array proprio (VARS.PV_TRANSACOES)
-  const lrpvsaldoTbody = document.getElementById('lrpvsaldoTbody');
+  const lrpvsaldoTbody = $('lrpvsaldoTbody');
   if(lrpvsaldoTbody){
     if(!VARS.PV_TRANSACOES.length){
       lrpvsaldoTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
@@ -1828,31 +2684,31 @@ function renderLivrosVariaveis(){
         return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
-    const tfPVEl = document.getElementById('tfPV');
+    const tfPVEl = $('tfPV');
     if(tfPVEl){
       const liquido = VARS.PV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
       tfPVEl.textContent = fmt(Math.round(liquido*100)/100);
     }
-    const qtdPVEl = document.getElementById('qtdPV');
+    const qtdPVEl = $('qtdPV');
     if(qtdPVEl) qtdPVEl.textContent = VARS.PV_TRANSACOES.length+' lançamento(s)';
   }
 
   const somaLRW = VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0);
   const somaLRV = VARS.LRV_TRANSACOES.reduce((s,t)=>s+t.valor,0);
-  const tfLRWEl = document.getElementById('tfLRW');
+  const tfLRWEl = $('tfLRW');
   if(tfLRWEl) tfLRWEl.textContent = fmt(somaLRW);
-  const tfLRVEl = document.getElementById('tfLRV');
+  const tfLRVEl = $('tfLRV');
   if(tfLRVEl) tfLRVEl.textContent = fmt(somaLRV);
-  const qtdLRWEl = document.getElementById('qtdLRW');
+  const qtdLRWEl = $('qtdLRW');
   if(qtdLRWEl) qtdLRWEl.textContent = VARS.LRW_TRANSACOES.length+' lançamento(s)';
-  const qtdLRVEl = document.getElementById('qtdLRV');
+  const qtdLRVEl = $('qtdLRV');
   if(qtdLRVEl) qtdLRVEl.textContent = VARS.LRV_TRANSACOES.length+' lançamento(s)';
 
   // V189 (27/07/2026): LREI (Empréstimos Internos) tornado dinâmico - antes era HTML fixo com texto
   // "Nenhum empréstimo interno ativo no momento" hardcoded, mesmo com LREI_ATIVAS já tendo 2 dívidas
   // reais (LREI0002 Saúde Família R$164,94 + LREI0003 Fatura Mercado Pago R$266,23) - o array existia
   // no VARS mas nada lia ele pra tela. Bug apontado pelo usuário via print do painel real.
-  const lreiTbody = document.getElementById('lreiTbody');
+  const lreiTbody = $('lreiTbody');
   if(lreiTbody){
     if(!VARS.LREI_ATIVAS.length){
       lreiTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhum empréstimo interno ativo no momento.</td></tr>';
@@ -1867,12 +2723,578 @@ function renderLivrosVariaveis(){
       }).join('');
     }
   }
-  const lreiTabBtn = document.getElementById('lrTabBtn_lrei');
+  const lreiTabBtn = $('lrTabBtn_lrei');
   if(lreiTabBtn) lreiTabBtn.textContent = `LREI - Empréstimos (${VARS.LREI_ATIVAS.length})`;
 }
 
+// ===== V400 Etapa 1 - Inbox Financeira =====
+// Componente central do brief V400: "toda informacao capturada entra primeiro aqui, jamais lancar
+// diretamente no ERP". As Etapas 2-9 (Pluggy/Email/Telegram/OCR/Corretoras/Energisa) sao os futuros
+// PRODUTORES de itens (chamando inboxAdicionarItem) - nenhuma delas existe ainda nesta sessao (sem
+// acesso a rede/conectores). O que ja funciona hoje, testavel sem rede: o pipeline em si (criar item,
+// listar, aprovar, rejeitar) e a UI (secao 22 do Painel).
+// CORRIGIDO 04/08/2026 (parte 54, bug real reportado pelo usuário: "This page isn't responding" +
+// "os dados não atualizam" — reproduzido e confirmado a causa lendo o código real, não só supondo):
+// gerarProximoInboxId() escaneava VARS.INBOX_FINANCEIRA INTEIRO a cada item novo. Enquanto a Inbox
+// tinha 0-4 itens de teste, isso era imperceptível — mas agora que a Pluggy real chegou (parte 53,
+// 2.612 transações em 11 contas), reconciliarTransacoesPluggy() passou a chamar isso centenas de vezes
+// na mesma carga, virando O(n²) (cada chamada mais lenta que a anterior) — trava a aba. Cache simples:
+// escaneia 1x (lazy, na 1ª chamada) e só incrementa depois, O(1) daí em diante.
+let _inboxContadorId = null;
+function gerarProximoInboxId(){
+  if(_inboxContadorId === null){
+    let maior = 0;
+    VARS.INBOX_FINANCEIRA.forEach(it=>{
+      const m = /^INBX(\d{6})$/.exec(it.id);
+      if(m) maior = Math.max(maior, parseInt(m[1], 10));
+    });
+    _inboxContadorId = maior;
+  }
+  _inboxContadorId += 1;
+  return 'INBX' + String(_inboxContadorId).padStart(6, '0');
+}
+
+// origem: string livre (ex: 'Pluggy', 'Email Itaú', 'Telegram', 'OCR', 'Manual'). confianca: 0-1 ou null.
+// idExterno (NOVO 04/08/2026, parte 49 — CORRIGIDO 04/08/2026, parte 48: comentario original citava
+// "parte 41" por engano, numero ja usado pela Capa como Dashboard; renumerado pra nao colidir e pra nao
+// sumir de auditorias futuras que buscam por numero de parte): id estavel do item na fonte de origem -
+// pro Mercado Pago e o id do evento (ja existia); pro Pluggy agora tambem existe (ver gerarIdExternoPluggy),
+// sintetico mas deterministico, usado so pra persistir a decisao de Aprovar/Rejeitar em PLUGGY_TRIAGEM.
+// descricaoCompleta (NOVO, parte 49 - melhoria do campo Descrição): texto integral pro title="" (hover);
+// descricao pode ser encurtada na chamada sem perder a explicação completa.
+// silencioso (NOVO 04/08/2026, parte 54): quando true, NÃO chama renderInboxFinanceira() a cada item —
+// quem adiciona vários itens em lote (reconciliarPluggy/reconciliarTransacoesPluggy/
+// sincronizarMercadoPagoParaInbox) passa true e renderiza 1 única vez no final. Antes, cada item
+// (mesmo 1 de centenas) disparava um innerHTML da tabela inteira — O(n²) real, era a causa da trava
+// "This page isn't responding" com volume real da Pluggy (parte 53). Comportamento padrão (chamada
+// manual/avulsa) continua igual: renderiza na hora.
+function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, categoriaSugerida, livroSugerido, confianca, idExterno, silencioso}){
+  const item = {
+    id: gerarProximoInboxId(),
+    origem: origem || 'Manual',
+    descricao: descricao || '',
+    descricaoCompleta: descricaoCompleta || descricao || '',
+    valor: typeof valor === 'number' ? valor : 0,
+    data: data || '',
+    categoriaSugerida: categoriaSugerida || null,
+    livroSugerido: livroSugerido || null,
+    confianca: (typeof confianca === 'number') ? confianca : null,
+    idExterno: idExterno || null,
+    status: 'PENDENTE',
+    criadoEm: new Date().toISOString()
+  };
+  VARS.INBOX_FINANCEIRA.push(item);
+  WallaceBus.emit('inboxItemAdicionado', item);
+  if(!silencioso) renderInboxFinanceira();
+  return item.id;
+}
+
+// Credenciais publicas do Supabase (mesma chave anon/publishable ja exposta no fetch de
+// Sistema_Wallace_Lira_Completo.html - nao e segredo, e a chave publica do projeto).
+// Usadas so pra chamar a RPC restrita triar_mercadopago_evento (04/08/2026, parte 40) - essa RPC
+// SO deixa trocar o campo status_triagem de 1 evento por id, nada mais (ver migration no Supabase).
+const SUPABASE_URL_WALLACE = 'https://bakdgacmwlopvrrppwdm.supabase.co';
+const SUPABASE_ANON_KEY_WALLACE = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+
+// 04/08/2026 (parte 40): persiste a decisao de triagem de um evento do Mercado Pago no Supabase,
+// via RPC restrita (so troca status_triagem, nunca outro campo). Fire-and-forget com log de erro -
+// a UI ja mudou otimisticamente (inboxAprovar/inboxRejeitar chamam isso, mas nao esperam a resposta
+// pra atualizar a tela), pra nao travar o clique numa rede lenta/instavel.
+function persistirTriagemMercadoPago(idExterno, statusTriagem){
+  if(!idExterno) return; // item nao veio do Mercado Pago (ex: manual/Pluggy) - nada a persistir aqui
+  fetch(`${SUPABASE_URL_WALLACE}/rest/v1/rpc/triar_mercadopago_evento`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY_WALLACE,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY_WALLACE}`
+    },
+    body: JSON.stringify({ p_id: idExterno, p_status_triagem: statusTriagem })
+  }).then(resp=>{
+    if(!resp.ok) console.error('persistirTriagemMercadoPago: falhou HTTP', resp.status, idExterno, statusTriagem);
+  }).catch(err=>console.error('persistirTriagemMercadoPago: erro de rede', err));
+}
+
+// 04/08/2026 (parte 49): persiste a decisao de triagem de um item da Pluggy no Supabase, via RPC
+// restrita triar_pluggy_item (so escreve dentro de PLUGGY_TRIAGEM por id sintetico, nada mais - ver
+// migration no Supabase, ja aplicada e confirmada ao vivo). Mesmo padrao fire-and-forget de
+// persistirTriagemMercadoPago. Resolve a pendencia deixada em aberto na parte 42 ("Aprovar/Rejeitar
+// no Pluggy volta apos atualizar a pagina").
+function persistirTriagemPluggy(idExterno, statusTriagem){
+  if(!idExterno) return;
+  fetch(`${SUPABASE_URL_WALLACE}/rest/v1/rpc/triar_pluggy_item`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY_WALLACE,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY_WALLACE}`
+    },
+    body: JSON.stringify({ p_id_externo: idExterno, p_status_triagem: statusTriagem })
+  }).then(resp=>{
+    if(!resp.ok) console.error('persistirTriagemPluggy: falhou HTTP', resp.status, idExterno, statusTriagem);
+  }).catch(err=>console.error('persistirTriagemPluggy: erro de rede', err));
+}
+
+// 04/08/2026 (parte 49): dispatcher unico - decide qual RPC chamar conforme a origem do item. Pluggy
+// usa PLUGGY_TRIAGEM (mapa por id sintetico); qualquer outra origem com idExterno (hoje so Mercado
+// Pago) continua no fluxo antigo. Nao muda nada pra itens manuais (idExterno null, ambas as funcoes
+// ja tem guarda pra isso).
+// AJUSTADO 04/08/2026 (parte 54): 'Pluggy-Transação' (transação individual, reconciliarTransacoesPluggy)
+// também usa o mapa PLUGGY_TRIAGEM - mesma RPC/escopo de 'Pluggy' (cartão), só a origem no rótulo muda.
+// Sem isso, aprovar/rejeitar uma transação individual nunca persistia (caía no fluxo do Mercado Pago
+// por engano, que ignora silenciosamente por falta de idExterno reconhecido).
+function persistirTriagemItem(item, statusTriagem){
+  if(item.origem === 'Pluggy' || item.origem === 'Pluggy-Transação') persistirTriagemPluggy(item.idExterno, statusTriagem);
+  else persistirTriagemMercadoPago(item.idExterno, statusTriagem);
+}
+
+function inboxAprovar(id){
+  const item = VARS.INBOX_FINANCEIRA.find(i=>i.id===id);
+  if(!item) return;
+  // Aprovar so marca a intencao - nunca lanca automaticamente no livro razao (proibicao explicita do
+  // brief V400: "lancar transacao sem confirmacao"). O lancamento real segue o fluxo manual existente.
+  item.status = 'APROVADO';
+  persistirTriagemItem(item, 'aprovado'); // 04/08/2026 (parte 49): agora persiste de fato tambem pra Pluggy
+  WallaceBus.emit('inboxItemAprovado', item);
+  renderInboxFinanceira();
+}
+
+function inboxRejeitar(id, motivo){
+  const item = VARS.INBOX_FINANCEIRA.find(i=>i.id===id);
+  if(!item) return;
+  item.status = 'REJEITADO';
+  item.motivoRejeicao = motivo || null;
+  persistirTriagemItem(item, 'rejeitado'); // 04/08/2026 (parte 49): agora persiste de fato tambem pra Pluggy
+  WallaceBus.emit('inboxItemRejeitado', item);
+  renderInboxFinanceira();
+}
+
+function renderInboxFinanceira(){
+  const tbody = $('inboxFinanceiraTbody');
+  if(!tbody) return; // secao pode nao existir ainda num HTML antigo carregado em cache
+  const itens = VARS.INBOX_FINANCEIRA;
+  if(!itens.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhum item capturado ainda — automações de captura (Pluggy/Email/Telegram/OCR) ainda não implementadas.</td></tr>';
+  } else {
+    tbody.innerHTML = itens.slice().reverse().map(it=>{
+      const classeStatus = it.status==='APROVADO' ? 'bg' : (it.status==='REJEITADO' ? 'br' : 'ba');
+      const conf = it.confianca!=null ? Math.round(it.confianca*100)+'%' : '—';
+      // CORRIGIDO 04/08/2026: botoes trocados de style="" inline pra classes .inbox-btn-ok/.inbox-btn-no
+      // (styles.css) - inline sozinho deixava o cromado nativo do <button> (Safari/iOS) por cima da cor,
+      // ficava quase invisivel. type="button" evita qualquer comportamento de submit acidental tambem.
+      const acoes = it.status==='PENDENTE'
+        ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
+        : '—';
+      // MELHORADO 04/08/2026 (parte 49): descricao longa (comum em itens da Pluggy) agora fica num
+      // span com clamp de 2 linhas (CSS) + title="" com o texto integral pro hover, em vez de esticar
+      // a linha da tabela inteira. escapeHtml() no atributo title pra nao quebrar com aspas na descricao.
+      const descTitle = String(it.descricaoCompleta||it.descricao||'').replace(/"/g,'&quot;');
+      return `<tr><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
+    }).join('');
+  }
+  const pendentes = itens.filter(i=>i.status==='PENDENTE').length;
+  const aprovados = itens.filter(i=>i.status==='APROVADO').length;
+  const rejeitados = itens.filter(i=>i.status==='REJEITADO').length;
+  const resumoEl = $('inboxFinanceiraResumo');
+  if(resumoEl) resumoEl.textContent = `${pendentes} pendente(s) · ${aprovados} aprovado(s) · ${rejeitados} rejeitado(s)`;
+  const tabBadge = $('inboxFinanceiraBadge');
+  if(tabBadge) tabBadge.textContent = pendentes > 0 ? String(pendentes) : '';
+}
+
+// V400 Etapa 2 (Pluggy Total) - reconciliarPluggy(). ESCOPO REAL, nao o do brief original: o brief pedia
+// reconciliar "lancamentos" (transacao a transacao), mas a automacao que grava VARS.PLUGGY_CONTAS no
+// Supabase reporta erro HTTP 410 em TODAS as contas ao buscar transacoes ("endpoint descontinuado, usar
+// /v2/transactions com cursor") - ou seja, hoje so saldo/fatura por conta chegam, nunca a lista de
+// lancamentos. Reconciliar por SALDO/FATURA e o que da pra fazer sem fabricar dado que nao existe.
+// Mapa fixo final-4-digitos -> livro/titular, copiado literal da Politica secao 3 (CARTAO_MAPA) - nunca
+// inventado aqui. So os finais com um total agregado correspondente em VARS entram no mapa (2244/4628/6351
+// somam em cartaoMBTotal; 4845 e o unico Infinite ativo, cartaoInfiniteTotal). Cartao Mercado Pago casado
+// pelo nome da conexao (Pluggy nao usa final-4 pra ele, usa "numero" interno tipo "7642").
+const CARTAO_PLUGGY_MAPA = {
+  '2244': {titular:'Wallace', apelido:'MB físico', totalVar:'cartaoMBTotal'},
+  '4628': {titular:'Wallace', apelido:'MB virtual', totalVar:'cartaoMBTotal'},
+  '6351': {titular:'Vanessa', apelido:'MB ativo', totalVar:'cartaoMBTotal'},
+  '4845': {titular:'Vanessa', apelido:'Visa Infinite ativo', totalVar:'cartaoInfiniteTotal'},
+  '4844': {titular:'Vanessa', apelido:'Visa Infinite aposentado', totalVar:null}, // so liquidacao, sem total agregado pra comparar
+  '2773': {titular:'Wallace', apelido:'Bradesco parcelamentos antigos', totalVar:null},
+  '0026': {titular:'Vanessa', apelido:'Bradesco', totalVar:null},
+  // CONFIRMADO PELO USUARIO 03/08/2026: substituido de verdade pelo 6351 - a conexao Pluggy ainda nao foi
+  // atualizada (continua puxando o cartao antigo). Fica mapeado (nao mais "nao mapeado"), mas sinalizado
+  // como conexao desatualizada - acao real necessaria e do lado da Pluggy/banco, nao do codigo.
+  '2250': {titular:'Vanessa', apelido:'MB (substituído pelo 6351)', totalVar:null, conexaoDesatualizada:true},
+  // CONFIRMADO PELO USUARIO 03/08/2026: cartao bloqueado, sem uso - nao precisa reconciliar, so documentar
+  // pra nao aparecer mais como "nao mapeado" a cada carga.
+  '9187': {titular:null, apelido:'AZUL ITAU VISA INFINITE (bloqueado, sem uso)', totalVar:null, bloqueado:true}
+};
+// 04/08/2026 (parte 49): id sintetico e deterministico por item da Pluggy, usado pra persistir a
+// triagem (PLUGGY_TRIAGEM) e pra nao re-adicionar na Inbox um item que o usuario ja aprovou/rejeitou
+// - sem isso, toda carga da pagina recriava o item do zero (reconciliarPluggy roda em todo onDomPronto)
+// e o clique em Aprovar/Rejeitar nunca "grudava" de fato. Divergencia inclui o vencimento no id de
+// proposito: uma nova fatura com nova divergencia deve poder aparecer de novo, mesmo cartao.
+function gerarIdExternoPluggy(tipo, numero, extra){
+  return `pluggy-${tipo}-${numero}${extra?('-'+extra):''}`;
+}
+function pluggyJaTriado(idExterno){
+  const t = VARS.PLUGGY_TRIAGEM;
+  return !!(t && t[idExterno] && (t[idExterno].status_triagem === 'aprovado' || t[idExterno].status_triagem === 'rejeitado'));
+}
+
+function reconciliarPluggy(){
+  const pc = VARS.PLUGGY_CONTAS;
+  const resultado = {divergencias:[], naoMapeados:[], erros:[], ok:[]};
+  if(!pc || !pc.conexoes){
+    console.warn('reconciliarPluggy: VARS.PLUGGY_CONTAS ainda nao chegou (offline ou Supabase sem esse campo nesta carga).');
+    return resultado;
+  }
+  if(Array.isArray(pc.erros) && pc.erros.length){
+    resultado.erros = pc.erros.slice();
+    pc.erros.forEach(e=>console.warn('⚠ reconciliarPluggy - erro de conexao Pluggy:', e));
+  }
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  pc.conexoes.forEach(conexao=>{
+    (conexao.contas||[]).forEach(conta=>{
+      if(conta.tipo !== 'CREDIT') return; // V1: so cartao de credito tem total agregado pra comparar no VARS hoje
+      // Mercado Pago nao tem final-4 na Politica (CARTAO_MAPA so documenta Itau/Bradesco) - casa pelo nome.
+      const mapa = /mercado\s*pago/i.test(conta.nome) ? {titular:'', apelido:'Mercado Pago', totalVar:'mercadoPagoFatura'} : CARTAO_PLUGGY_MAPA[conta.numero];
+      if(!mapa){
+        resultado.naoMapeados.push({numero:conta.numero, nome:conta.nome, saldo:conta.saldo});
+        const idExt1 = gerarIdExternoPluggy('mapa', conta.numero);
+        if(!pluggyJaTriado(idExt1)) inboxAdicionarItem({
+          origem:'Pluggy', descricao:`Cartão final ${conta.numero} ("${conta.nome}") não mapeado na Política`,
+          descricaoCompleta:`Cartão não mapeado na Política (final ${conta.numero}, "${conta.nome}") — verificar se é conexão antiga/duplicada ou cartão novo não documentado`,
+          valor: conta.fatura_mes_atual ? conta.fatura_mes_atual.valor_total : conta.saldo,
+          data: (conexao.atualizado_em||'').slice(0,10), categoriaSugerida:null, livroSugerido:null, confianca:null,
+          idExterno: idExt1, silencioso:true
+        });
+        return;
+      }
+      if(mapa.bloqueado){ resultado.ok.push({numero:conta.numero, obs:`cartão bloqueado/sem uso (${mapa.apelido}), ignorado por decisão do usuário`}); return; }
+      if(mapa.conexaoDesatualizada){
+        resultado.ok.push({numero:conta.numero, obs:`conexão Pluggy desatualizada — ${mapa.apelido}, precisa reconectar no Pluggy pro cartão novo (6351), não é ajuste de código`});
+        // so 1x por carga faz sentido lembrar isso - continua indo pra Inbox pra nao esquecer de reconectar
+        const idExt2 = gerarIdExternoPluggy('desatualizada', conta.numero);
+        if(!pluggyJaTriado(idExt2)) inboxAdicionarItem({
+          origem:'Pluggy', descricao:`Conexão Pluggy desatualizada: final ${conta.numero} → 6351 (${mapa.apelido})`,
+          descricaoCompleta:`Conexão Pluggy desatualizada: final ${conta.numero} foi substituído por 6351, mas a conexão ainda aponta pro cartão antigo — reconectar a conta no painel da Pluggy`,
+          valor: conta.saldo, data: (conexao.atualizado_em||'').slice(0,10), categoriaSugerida:null, livroSugerido:null, confianca:null,
+          idExterno: idExt2, silencioso:true
+        });
+        return;
+      }
+      if(!mapa.totalVar){ resultado.ok.push({numero:conta.numero, obs:'sem total agregado pra comparar (cartão aposentado/sem VARS correspondente)'}); return; }
+      const faturaPluggy = conta.fatura_mes_atual ? conta.fatura_mes_atual.valor_total : null;
+      const totalERP = VARS[mapa.totalVar];
+      if(faturaPluggy == null){ resultado.ok.push({numero:conta.numero, obs:'Pluggy sem fatura_mes_atual nesta carga'}); return; }
+      // CORRIGIDO 03/08/2026 (usuario apontou 2 falsos positivos reais): fatura_mes_atual da Pluggy pode
+      // ser a ULTIMA fatura FECHADA (ja vencida/paga), nao a fatura em aberto - nesse caso comparar contra
+      // o total corrente do ERP (que zera/reinicia apos o pagamento) e comparacao invalida, nao divergencia
+      // real. So compara como divergencia quando o vencimento ainda esta no futuro (fatura em aberto).
+      const vencStr = conta.fatura_vencimento_atual || (conta.fatura_mes_atual && conta.fatura_mes_atual.vencimento);
+      const venc = vencStr ? new Date(vencStr) : null;
+      if(venc && venc < hoje){
+        resultado.ok.push({numero:conta.numero, obs:`fatura já vencida/paga (venc. ${vencStr.slice(0,10)}) — não comparada contra o total corrente do ERP`});
+        return;
+      }
+      const diff = Math.round((faturaPluggy - totalERP)*100)/100;
+      if(Math.abs(diff) > 0.01){
+        const rotulo = (mapa.titular ? mapa.titular+' ' : '') + mapa.apelido;
+        resultado.divergencias.push({cartao:`${rotulo} (${conta.numero})`, faturaPluggy, totalERP, diff});
+        // vencimento entra no id: uma divergencia de um ciclo novo (fatura seguinte) deve poder
+        // reaparecer mesmo que a do ciclo anterior ja tenha sido triada.
+        const vencId = (conta.fatura_vencimento_atual||conexao.atualizado_em||'').slice(0,10);
+        const idExt3 = gerarIdExternoPluggy('divergencia', conta.numero, vencId);
+        if(!pluggyJaTriado(idExt3)) inboxAdicionarItem({
+          origem:'Pluggy', descricao:`Divergência ${rotulo} (final ${conta.numero}): Pluggy R$${faturaPluggy.toFixed(2)} × ERP R$${totalERP.toFixed(2)} (diff R$${diff.toFixed(2)})`,
+          descricaoCompleta:`Divergência ${rotulo} (final ${conta.numero}): fatura Pluggy R$${faturaPluggy.toFixed(2)} × ${mapa.totalVar} no ERP R$${totalERP.toFixed(2)} (diff R$${diff.toFixed(2)})`,
+          valor: diff, data: (conta.fatura_vencimento_atual||'').slice(0,10), categoriaSugerida:null, livroSugerido:null, confianca:null,
+          idExterno: idExt3, silencioso:true
+        });
+      } else {
+        resultado.ok.push({numero:conta.numero, obs:'✅ fatura bate com o ERP'});
+      }
+    });
+  });
+  console.log('reconciliarPluggy:', resultado.divergencias.length, 'divergência(s),', resultado.naoMapeados.length, 'cartão(ões) não mapeado(s),', resultado.ok.length, 'ok(s).');
+  renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por item (ver silencioso:true acima)
+  return resultado;
+}
+
+// V400 Etapa 3 (Reconciliador transação-a-transação) - reconciliarTransacoesPluggy().
+// So faz sentido depois que o script externo sincronizar_pluggy.py (corrigido 03/08/2026, migrado
+// de /transactions para /v2/transactions com cursor) voltar a popular conta.transacoes_recentes no
+// Supabase - antes disso vinha so conta.transacoes_erro (HTTP 410), e essa funcao nao encontra nada
+// pra comparar (nao e bug, e o dado ainda nao existir na carga atual).
+// Mesma logica do script Python (buscar_valores_conhecidos/detectar_transacoes_suspeitas), so que em
+// JS direto sobre o VARS ja carregado (nao precisa bater no Supabase de novo) - comparacao SO POR VALOR
+// (nao por data/descricao), mesmo criterio do script: mais seguro deixar passar um falso-positivo
+// (2 compras coincidentes do mesmo valor) do que perder uma compra real nao lancada.
+// AJUSTADO 04/08/2026 (parte 55, achado ao vivo no Supabase, nao suposto): a 1a sincronizacao de uma
+// conta na Pluggy sempre traz o historico completo (ate 12 meses, doc oficial: "these transactions
+// are recovered... when syncing the item for the first time"), ignorando o "dias=40" do script Python -
+// isso so vale pras proximas sincronizacoes (incrementais). Resultado real visto em producao: transacoes
+// iam ate 28/07/2025 (mais de 1 ano), gerando 2.257 itens "suspeitos" - inviavel de revisar 1 a 1, e a
+// maioria (2.292 de 2.707) e de ANTES do ciclo atual, sem nenhuma relacao com o controle corrente do
+// ERP. Adicionado filtro por data aqui no JS (janelaDias, mesma janela que o script sempre pretendeu ter)
+// - resolve na fonte que o app.js le, sem depender de corrigir o script Python de novo.
+function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
+  valorMinimo = typeof valorMinimo === 'number' ? valorMinimo : 5.0;
+  janelaDias = typeof janelaDias === 'number' ? janelaDias : 45;
+  const dataCorte = new Date(Date.now() - janelaDias*86400000);
+  const pc = VARS.PLUGGY_CONTAS;
+  const resultado = {suspeitas:[], semDados:true, ignoradasPorData:0};
+  if(!pc || !pc.conexoes) return resultado;
+
+  // Mesmos 7 livros de transacao que o script Python le no Supabase - lista literal, nao inventada.
+  const LIVROS_CONHECIDOS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
+    'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES'];
+  const valoresConhecidos = new Set();
+  LIVROS_CONHECIDOS.forEach(nomeLivro=>{
+    (VARS[nomeLivro]||[]).forEach(t=>{
+      if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
+    });
+  });
+  // NOVO 04/08/2026 (parte 57, pedido do usuario): tambem soma o historico COMPLETO do ERP
+  // (HISTORICO_ERP_TODOS_CICLOS, todos os ciclos, nao so o atual) - sem isso, transacao de um ciclo
+  // FECHADO batia como "sem registro" so porque os 7 livros acima so guardam o ciclo ao vivo. O
+  // registro existe, so nao estava no conjunto de comparacao.
+  (VARS.HISTORICO_ERP_TODOS_CICLOS||[]).forEach(t=>{
+    if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
+  });
+
+  // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
+  // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as
+  // proprias contas do usuario (PIX pra si mesmo, "caixinhas" internas do Mercado Pago), operacao
+  // de investimento (aplicacao/resgate/liquidacao de bolsa), ou linha de RESUMO da fatura do banco
+  // (nao uma compra individual - obviamente nunca vai bater com um lancamento especifico do ERP,
+  // que rastreia item a item). Conferido ao vivo no Supabase: 118 das ~221 transacoes que a logica
+  // marcava como "suspeita" batiam nesses padroes - nao eram gasto esquecido, eram ruido estrutural
+  // do proprio extrato bancario. So exclui pelo padrao de DESCRICAO, nunca por valor/conta - continua
+  // seguro (nao esconde nada que pareça uma compra de verdade).
+  // AMPLIADO 04/08/2026 (parte 61, usuario listou 20 itens reais da Inbox, INBX000001-020): mais
+  // padroes confirmados como quitacao/rendimento estrutural, nunca compra: pagamento de fatura de
+  // cartao (Infinite/Mastercard Black/Mercado Pago) - ja rastreado por AGREGADO proprio
+  // (VARS.cartaoInfiniteTotal/cartaoMBTotal/mercadoPagoFatura/faturaWartsila), entao a quitacao nunca
+  // deveria bater com uma compra individual, e nao e "gasto sem lancar", e o lancamento agregado ja
+  // existe noutro lugar; juros/encargos por atraso (encargo do banco, nao compra); Pix recebido de
+  // programa de pontos (Livelo - entrada, nao gasto); movimentacao interna da conta de investimentos
+  // (Necton - resgate/aplicacao/rendimento, mesma familia de LIQ BOLSA acima).
+  // NAO incluido de proposito (usuario listou junto, mas SAO diferentes): conta Vivo/Brisanet (NAO
+  // aparecem em VARS.CRONOGRAMA_BOLETOS_FIXOS, os 9 boletos recorrentes ja rastreados - parecem gasto
+  // recorrente real ainda sem registro) e lavanderia DryUSA (compra avulsa comum, sem padrao
+  // estrutural nenhum) - excluir esses do filtro seria esconder um gasto real, contra a Politica P1.
+  const PADROES_RUIDO_TRANSACAO = [
+    /dinheiro (retirado|reservado)/i,        // "caixinhas" internas do Mercado Pago (transferencia entre bolsos, nao gasto novo)
+    /wallace patrick gald/i,                  // PIX/TED do usuario pra ele mesmo, entre contas proprias
+    /aplica[cç][aã]o cofrinhos|resgate aplica[cç][aã]o/i, // movimentacao de investimento
+    /liq bolsa|conta remunerada/i,            // liquidacao/rendimento de operacoes na bolsa (Necton) - nao e compra do dia a dia
+    /pagamento recebido|pagto\.? por deb em c\/c|pagto antecipado pix/i, // baixa/quitacao de fatura, nao compra individual
+    /gastos cartao de credito/i,              // linha de RESUMO da fatura (soma do periodo), nao um lancamento unico
+    /ted[- ]?transf.*wartsila|ted recebida wartsila/i, // salario/reembolso corporativo, ja rastreado por outro caminho
+    /encargos limite de cred|iof s\//i,       // encargo/tarifa bancaria automatica, nao compra
+    /pagamento.*fatura.*(infinite|mastercard black|mercado pago)|fatura.*(infinite|mastercard black|mercado pago).*pagamento/i, // quitacao de fatura - ja rastreada via VARS.cartaoInfiniteTotal/cartaoMBTotal/mercadoPagoFatura
+    /juros.*atraso|encargos rotativos|multa.*atraso/i, // juros/multa por atraso - encargo do banco, nao compra
+    /livelo/i,                                // Pix recebido de programa de pontos - entrada, nao gasto
+  ];
+  function pareceRuidoInterno(descricao){
+    const d = descricao || '';
+    return PADROES_RUIDO_TRANSACAO.some(re=>re.test(d));
+  }
+
+  pc.conexoes.forEach(conexao=>{
+    (conexao.contas||[]).forEach(conta=>{
+      const transacoes = conta.transacoes_recentes;
+      if(!Array.isArray(transacoes) || !transacoes.length) return; // ainda sem dado (410 antigo ou conta sem movimento)
+      resultado.semDados = false;
+      transacoes.forEach(t=>{
+        if(t.status !== 'POSTED' || typeof t.valor !== 'number') return;
+        // parte 55: fora da janela recente - historico do 1o sync completo da Pluggy, nao entra na
+        // Inbox (nao e "perder dado real" - e dado de fora do periodo que o ERP controla granularmente).
+        if(t.data && new Date(t.data) < dataCorte){ resultado.ignoradasPorData++; return; }
+        const valorAbs = Math.round(Math.abs(t.valor)*100)/100;
+        if(valorAbs < valorMinimo) return;
+        if(pareceRuidoInterno(t.descricao)){ resultado.ignoradasPorRuido = (resultado.ignoradasPorRuido||0)+1; return; }
+        if(!valoresConhecidos.has(valorAbs)){
+          // CORRIGIDO 04/08/2026 (parte 54): faltava idExterno + checagem pluggyJaTriado aqui - mesmo
+          // gap que a parte 42 diagnosticou e a parte 49 corrigiu pros itens de CARTAO da Pluggy, só
+          // que este produtor (transação individual) tinha ficado de fora. Sem isso, TODA transação
+          // suspeita seria recriada do zero em toda carga de página, pra sempre, mesmo já aprovada/
+          // rejeitada - e agora com volume real (milhares de transações) isso também alimentava a
+          // trava O(n²) corrigida acima. idExterno usa o id da própria transação da Pluggy (t.id),
+          // já estável e único por natureza - não precisa sintetizar como no nível de cartão.
+          const idExtTx = t.id ? `pluggy-tx-${t.id}` : null;
+          if(idExtTx && pluggyJaTriado(idExtTx)) return;
+          resultado.suspeitas.push({banco:conexao.banco, conta:conta.nome, data:t.data, descricao:t.descricao, valor:t.valor});
+          inboxAdicionarItem({
+            origem:'Pluggy-Transação',
+            descricao:`${conexao.banco} (${conta.nome}): "${t.descricao}" — não encontrada em nenhum livro do ERP (comparação só por valor)`,
+            valor: t.valor, data: (t.data||'').slice(0,10), categoriaSugerida:null, livroSugerido:null, confianca:null,
+            idExterno: idExtTx, silencioso:true
+          });
+        }
+      });
+    });
+  });
+  console.log('reconciliarTransacoesPluggy:', resultado.semDados ? 'sem transacoes_recentes ainda (aguardando script externo corrigido rodar)' : `${resultado.suspeitas.length} transação(ões) suspeita(s), ${resultado.ignoradasPorData} ignorada(s) por serem fora da janela recente, ${resultado.ignoradasPorRuido||0} ignorada(s) por serem movimentação interna/resumo de fatura`);
+  renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por transação (ver silencioso:true acima)
+  return resultado;
+}
+
+// V400 Etapa 10 (Classificador Determinístico) - regras fixas, zero IA/heurística nova, copiadas literal
+// das regras JÁ CONFIRMADAS pelo usuário na Política (secao 3) e na Passagem de Turno - nada inventado.
+// So SUGERE (preenche categoriaSugerida/livroSugerido/confianca no item da Inbox) - nunca muda o status
+// nem lanca no livro razao, mesma proibicao P1/brief V400 de sempre. Roda so em item PENDENTE ainda sem
+// sugestao (nao sobrescreve categorizacao ja feita manualmente ou por outra etapa).
+function classificarItemDeterministico(descricao){
+  const d = descricao || '';
+  if(/uber/i.test(d)){
+    // Excecao fixa da Politica (secao 3): Uber e sempre da Vanessa (LRV), EXCETO quando o nome da
+    // Gabriela aparece explicito na descricao/notificacao - ai vai pro LRW (regra nova 23/07/2026).
+    if(/gabriela/i.test(d)) return {categoriaSugerida:'Transporte (Uber - Gabriela)', livroSugerido:'LRW', confianca:0.90};
+    return {categoriaSugerida:'Transporte (Uber)', livroSugerido:'LRV', confianca:0.85};
+  }
+  // Regra confirmada na Passagem de Turno: compra Anthropic e avulsa internacional, vai pro LRW normal
+  // mesmo saindo do cartao 4628 (rotulado "assinaturas" na Politica, mas isso nao e assinatura).
+  if(/anthropic/i.test(d)) return {categoriaSugerida:'Compra internacional avulsa', livroSugerido:'LRW', confianca:0.85};
+  // Final-4-digitos do cartao, quando aparece na descricao (ex: itens vindos do reconciliarPluggy/
+  // reconciliarTransacoesPluggy costumam citar "final XXXX") - usa o mapa CARTAO_PLUGGY_MAPA (mesma
+  // fonte da Politica secao 3, ja usado por reconciliarPluggy) pra sugerir titular/livro. Confianca mais
+  // baixa que as regras acima porque e so titular do cartao, nao confirma se a compra e mesmo dele
+  // (ex: cartao adicional usado por outra pessoa) - por isso nao ultrapassa 0.7.
+  const finalCartao = d.match(/final\s*(\d{4})/i);
+  if(finalCartao && CARTAO_PLUGGY_MAPA[finalCartao[1]]){
+    const mapa = CARTAO_PLUGGY_MAPA[finalCartao[1]];
+    if(mapa.titular === 'Wallace') return {categoriaSugerida:`Cartão ${mapa.apelido}`, livroSugerido:'LRW', confianca:0.7};
+    if(mapa.titular === 'Vanessa') return {categoriaSugerida:`Cartão ${mapa.apelido}`, livroSugerido:'LRV', confianca:0.7};
+  }
+  return null; // sem regra confirmada pra esse texto - fica sem sugestao, nunca chuta
+}
+function classificarInboxPendentes(){
+  let classificados = 0;
+  VARS.INBOX_FINANCEIRA.forEach(item=>{
+    if(item.status !== 'PENDENTE' || item.categoriaSugerida) return; // ja tem sugestao (manual ou de outra etapa) - nao sobrescreve
+    const sugestao = classificarItemDeterministico(item.descricao);
+    if(sugestao){
+      item.categoriaSugerida = sugestao.categoriaSugerida;
+      item.livroSugerido = sugestao.livroSugerido;
+      item.confianca = sugestao.confianca;
+      classificados++;
+    }
+  });
+  if(classificados) renderInboxFinanceira();
+  console.log('classificarInboxPendentes:', classificados, 'item(ns) classificado(s) automaticamente (sugestão apenas — aprovação continua manual).');
+  return classificados;
+}
+
+// V450 (Mercado Pago Financial Gateway) - Etapas 5+6 da ordem obrigatoria do brief.
+// Le VARS.MERCADOPAGO_EVENTOS (gravado externamente por mercadopago_sync.py, mesmo padrao de
+// VARS.PLUGGY_CONTAS) - este arquivo NUNCA fala com a API do Mercado Pago diretamente, so consome
+// o que ja chegou pronto no Supabase. Mesma proibicao de sempre: nunca lanca TX, so alimenta a Inbox.
+
+// Etapa 5 (Classificador) - regras fixas do brief V450, SEM IA/LLM (exigencia explicita do brief).
+// categoriaSugerida cobre os exemplos literais do brief (Uber/iFood/Posto/Mercado Livre). livroSugerido
+// SO e preenchido quando ja existe regra confirmada na Politica/Passagem de Turno (hoje, so Uber) - pras
+// categorias novas (iFood/Posto/Mercado Livre) nao existe ainda uma regra de titular confirmada, entao
+// livroSugerido fica null por decisao (P1: nao chutar quem paga o que) ate o usuario confirmar um padrao,
+// mesmo tratamento que classificarItemDeterministico ja da a descricoes sem regra.
+function classificarItemMercadoPago(descricao){
+  const d = descricao || '';
+  if(/uber/i.test(d)){
+    // Mesma excecao fixa da Politica (secao 3): Gabriela -> LRW, padrao -> LRV.
+    if(/gabriela/i.test(d)) return {categoriaSugerida:'Transporte (Uber - Gabriela)', livroSugerido:'LRW', confianca:0.90};
+    return {categoriaSugerida:'Transporte (Uber)', livroSugerido:'LRV', confianca:0.85};
+  }
+  if(/anthropic/i.test(d)) return {categoriaSugerida:'Compra internacional avulsa', livroSugerido:'LRW', confianca:0.85};
+  if(/ifood/i.test(d)) return {categoriaSugerida:'Alimentação (iFood)', livroSugerido:null, confianca:0.6};
+  if(/posto\b|combust[ií]vel/i.test(d)) return {categoriaSugerida:'Combustível', livroSugerido:null, confianca:0.6};
+  if(/mercado\s*livre/i.test(d)) return {categoriaSugerida:'Compras Online (Mercado Livre)', livroSugerido:null, confianca:0.6};
+  return null; // sem regra confirmada - fica sem sugestao, nunca chuta
+}
+
+// Etapa 4->3 (ponte Sync -> Inbox) + Etapa 6 (Conciliacao) combinadas: cada FinancialEvent normalizado
+// vira 1 InboxItem (nunca direto em LRW/LRV/etc - proibicao central do brief). Antes de criar o item,
+// confere se o valor ja aparece em algum dos livros conhecidos (mesma lista/criterio de
+// reconciliarTransacoesPluggy, comparacao so por valor) - se aparecer, marca "possivel duplicidade" na
+// descricao em vez de lancar/pular sozinho (o brief pede deteccao, nao decisao automatica).
+// Dedupe entre cargas: usa o campo idExterno guardado no InboxItem (id do FinancialEvent, "MP<id>") -
+// um mesmo evento nunca gera 2 itens de Inbox, mesmo rodando de novo em cargas futuras.
+function sincronizarMercadoPagoParaInbox(){
+  const eventos = VARS.MERCADOPAGO_EVENTOS;
+  if(!Array.isArray(eventos) || !eventos.length){
+    console.warn('sincronizarMercadoPagoParaInbox: VARS.MERCADOPAGO_EVENTOS ainda nao chegou (offline, Supabase sem esse campo, ou mercadopago_sync.py ainda nao rodou nesta conta).');
+    return {novos:0};
+  }
+  const LIVROS_CONHECIDOS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
+    'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES'];
+  const valoresConhecidos = new Set();
+  LIVROS_CONHECIDOS.forEach(nomeLivro=>{
+    (VARS[nomeLivro]||[]).forEach(t=>{ if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100); });
+  });
+  // parte 57: mesmo ajuste de reconciliarTransacoesPluggy() - historico completo (todos os ciclos),
+  // nao so o ciclo ao vivo, pra "possivel duplicidade" nao ignorar registro de ciclo ja fechado.
+  (VARS.HISTORICO_ERP_TODOS_CICLOS||[]).forEach(t=>{
+    if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
+  });
+  const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
+  let novos = 0;
+  eventos.forEach(ev=>{
+    if(!ev || !ev.id || jaImportados.has(ev.id)) return; // ja esta na Inbox, nao duplica
+    // CORRIGIDO 04/08/2026 (parte 39): status_triagem e gravado pela RPC atualizar_mercadopago_eventos
+    // (merge por id) pra distinguir evento novo ('pendente') de historico ja reconciliado/decidido
+    // ('arquivado_historico' etc). Sem esse filtro, TODO reload reimportava os 500 eventos do 1o sync
+    // (INBOX_FINANCEIRA nao persiste entre cargas - ver nota abaixo). Ausencia do campo (dado antigo em
+    // cache) e tratada como 'pendente', pra nao esconder nada por engano.
+    if(ev.status_triagem && ev.status_triagem !== 'pendente') return;
+    if(typeof ev.valor !== 'number') return; // evento sem valor normalizado, nao entra (nada a conciliar)
+    const valorAbs = Math.round(Math.abs(ev.valor)*100)/100;
+    const possivelDuplicata = valoresConhecidos.has(valorAbs);
+    const sugestao = classificarItemMercadoPago(ev.descricao) || {};
+    // CORRIGIDO 04/08/2026 (parte 54): idExterno agora vai direto na criacao (idExterno: ev.id) em vez
+    // de um VARS.INBOX_FINANCEIRA.find(...) logo depois pra "achar de volta" o item e so entao setar -
+    // essa busca era O(n) a cada evento, mesma familia do bug O(n²) corrigido acima (gerarProximoInboxId/
+    // renderInboxFinanceira). silencioso:true pelo mesmo motivo: 1 render no final, nao 1 por evento.
+    inboxAdicionarItem({
+      origem: 'Mercado Pago',
+      descricao: (ev.descricao||'(sem descrição)') + (possivelDuplicata ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)' : ''),
+      valor: ev.valor, data: ev.data,
+      categoriaSugerida: sugestao.categoriaSugerida || null,
+      livroSugerido: sugestao.livroSugerido || null,
+      confianca: sugestao.confianca != null ? sugestao.confianca : null,
+      idExterno: ev.id, silencioso:true
+    });
+    novos++;
+  });
+  console.log('sincronizarMercadoPagoParaInbox:', novos, 'evento(s) novo(s) levado(s) pra Inbox.');
+  renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por evento
+  return {novos};
+}
+
+// Etapa 9 (Dashboard) - indicadores derivados so da Inbox (origem 'Mercado Pago') e de
+// VARS.MERCADOPAGO_EVENTOS, nunca de um calculo/estimativa nova - mesma regra P1 de sempre. Enquanto
+// mercadopago_sync.py nao roda de verdade, a secao fica com "—" em tudo (sem dado fabricado), igual a
+// Inbox ficou vazia ate a Etapa 1 ter dado real (mesmo padrao ja usado, nao e bug).
+function renderMercadoPagoDashboard(){
+  const el = $('mpDashboardResumo');
+  if(!el) return; // secao pode nao existir num HTML antigo carregado em cache
+  const itensMP = VARS.INBOX_FINANCEIRA.filter(i=>i.origem === 'Mercado Pago');
+  if(!itensMP.length){
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:0.72rem">Nenhum evento do Mercado Pago capturado ainda — aguardando mercadopago_sync.py (V450) rodar e gravar VARS.MERCADOPAGO_EVENTOS.</div>';
+    return;
+  }
+  const receitas = itensMP.filter(i=>i.valor > 0).reduce((s,i)=>s+i.valor, 0);
+  const despesas = itensMP.filter(i=>i.valor < 0).reduce((s,i)=>s+Math.abs(i.valor), 0);
+  const pendentes = itensMP.filter(i=>i.status === 'PENDENTE').length;
+  el.innerHTML = `
+    <div class="grid-4">
+      <div><div style="color:var(--text-dim);font-size:0.65rem">Receitas (Inbox)</div><div class="v" style="color:var(--green)">${fmt(receitas)}</div></div>
+      <div><div style="color:var(--text-dim);font-size:0.65rem">Gastos (Inbox)</div><div class="v" style="color:var(--red)">${fmt(despesas)}</div></div>
+      <div><div style="color:var(--text-dim);font-size:0.65rem">Eventos capturados</div><div class="v">${itensMP.length}</div></div>
+      <div><div style="color:var(--text-dim);font-size:0.65rem">Aguardando aprovação</div><div class="v">${pendentes}</div></div>
+    </div>`;
+}
+
+
 function renderParcelamentos(){
-  const lrpTbody = document.getElementById('lrpTbody');
+  const lrpTbody = $('lrpTbody');
   if(lrpTbody){
     lrpTbody.innerHTML = VARS.PARCELAMENTOS_VISA
       .filter(p => p.status === 'ATIVO')
@@ -1884,7 +3306,7 @@ function renderParcelamentos(){
       }).join('');
   }
 
-  const lrmpTbody = document.getElementById('lrmpTbody');
+  const lrmpTbody = $('lrmpTbody');
   if(lrmpTbody){
     lrmpTbody.innerHTML = VARS.PARCELAMENTOS_MP
       .filter(p => p.status === 'ATIVO')
@@ -1898,7 +3320,7 @@ function renderParcelamentos(){
 
   // V159: filtro dinamico por DATA - itens corporativos/avulsos so aparecem se a data deles for
   // dentro do ciclo selecionado (usando o periodo real do CICLO_SNAPSHOTS, nao mais editado a mao).
-  const lrmpCorpTbody = document.getElementById('lrmpCorpTbody');
+  const lrmpCorpTbody = $('lrmpCorpTbody');
   if(lrmpCorpTbody){
     const snap = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
     const [iniStr, fimStr] = snap.periodo.split(' a ').map(s=>{
@@ -1926,9 +3348,9 @@ function renderParcelamentos(){
     const dt = new Date(t.data);
     return dt >= iniAtual && dt <= fimAtual;
   }).length;
-  const lrpQtdEl = document.getElementById('tfLRPQtd');
+  const lrpQtdEl = $('tfLRPQtd');
   if(lrpQtdEl) lrpQtdEl.textContent = qtdVisaAtivo+' lançamentos ativos · âmbar = última parcela';
-  const lrmpQtdEl = document.getElementById('tfLRMPQtd');
+  const lrmpQtdEl = $('tfLRMPQtd');
   if(lrmpQtdEl) lrmpQtdEl.textContent = (qtdMPAtivo+qtdCorpAtivo)+' lançamentos ('+qtdMPAtivo+' parcelas + '+qtdCorpAtivo+' corp./avulso, filtrado por ciclo)';
 }
 
@@ -1943,7 +3365,7 @@ function atualizarContagemAbas(){
     lrmp: 'LRMP - Merc. Pago', lrcv: 'LRCV - Caixa Var.', lrei: 'LREI - Empréstimos', lrdoacao: 'LRDOA - Doações', lrpv: 'LRPGV - PGV', lrpvsaldo: 'LRPV - PV'
   };
   Object.keys(mapa).forEach(paneId => {
-    const pane = document.getElementById(paneId);
+    const pane = $(paneId);
     const btn = document.querySelector(`[onclick*="showLR('${paneId}'"]`);
     if(!pane || !btn) return;
     // CORRIGIDO 25/07/2026 (V162): antes contava TODAS as <tr> (.length), incluindo linhas escondidas
@@ -1962,7 +3384,7 @@ function atualizarContagemAbas(){
 }
 
 function popularSeletorCiclo(){
-  const wrap = document.getElementById('cicloSeletorBtns');
+  const wrap = $('cicloSeletorBtns');
   if(!wrap) return;
   wrap.innerHTML = '';
   // ordem mais recente primeiro (ciclo atual a esquerda)
@@ -1988,7 +3410,7 @@ const VISA_DETALHE_LABELS = ['Parcelas','Consórcios','Wallace','Recorrências',
 const VISA_DETALHE_CORES = ['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0','#4a4d52'];
 
 function hydrate(){
-  const t = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   const R = REG;
   t('kpiPatrimonio', 'R$ '+Math.round(R.patrimonio.total).toLocaleString('pt-BR'));
   t('kpiPatrimonioPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
@@ -2018,8 +3440,8 @@ function hydrate(){
     t('s02ModoBadge', cfg.badge);
     t('s02ModoFaixa', cfg.faixa);
     t('s02ModoTexto', cfg.texto);
-    const tituloEl = document.getElementById('s02ModoTitulo');
-    const cardEl = document.getElementById('s02ModoCard');
+    const tituloEl = $('s02ModoTitulo');
+    const cardEl = $('s02ModoCard');
     if(tituloEl) tituloEl.style.color = cfg.cor;
     if(cardEl) cardEl.style.borderLeftColor = cfg.cor;
   })();
@@ -2109,14 +3531,14 @@ function hydrate(){
   t('patAcumulado', fmt(R.patrimonio.total));
   t('patFalta', fmt(R.patrimonio.metaMilhao - R.patrimonio.total));
   t('patPctBadge', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
-  { const el=document.getElementById('patPctBar'); if(el) el.style.width = R.patrimonio.metaMilhaoPct+'%'; }
+  { const el=$('patPctBar'); if(el) el.style.width = R.patrimonio.metaMilhaoPct+'%'; }
 
   // V142: secao 11 Passivos Patrimoniais
   const PP = R.passivosPatrimoniais;
   t('ppFinanciamentoCasa', fmt(PP.financiamentoCasa));
   t('ppFinanciamentoDetalhe', 'Prestação '+fmt(PP.prestacaoFinanciamentoCasa)+' · '+PP.mesesRestantesFinanciamentoCasa+' meses restantes');
   t('ppConsorcioAuto', fmt(PP.consorcioAuto));
-  { const el=document.getElementById('ppConsorcioAutoBar'); if(el) el.style.width = PP.consorcioAutoPct+'%'; }
+  { const el=$('ppConsorcioAutoBar'); if(el) el.style.width = PP.consorcioAutoPct+'%'; }
   t('ppConsorcioAutoPct', PP.consorcioAutoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'% pago');
   t('ppConsorcioAutoParcela', 'Parcela '+fmt(PP.parcelaConsorcioAuto));
 
@@ -2126,14 +3548,14 @@ function hydrate(){
   t('cxBoletosSaldo', fmt(C.boletos.saldo));
   t('cxBoletosMeta', fmtInt(C.boletos.meta));
   t('cxBoletosPct', pctOf(C.boletos.saldo,C.boletos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
-  { const el=document.getElementById('cxBoletosBar'); if(el) el.style.width = pctOf(C.boletos.saldo,C.boletos.meta)+'%'; }
+  { const el=$('cxBoletosBar'); if(el) el.style.width = pctOf(C.boletos.saldo,C.boletos.meta)+'%'; }
   t('cxPixSaldo', fmt(C.pixVanessa.saldo));
   t('cxPgvSaldo', fmt(VARS.pixGeralVanessaSaldo)); // V175: card separado - PGV e conta autonoma da Vanessa, distinta da PV (reserva do Wallace)
   t('cxPixMeta', fmtInt(C.pixVanessa.meta));
   t('cxPixPct', pctOf(C.pixVanessa.saldo,C.pixVanessa.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
-  { const el=document.getElementById('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
+  { const el=$('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
   t('cxManutSaldo', fmt(C.manutencao.saldo));       t('cxManutMeta', fmtInt(C.manutencao.meta));
-  { const el=document.getElementById('cxManutBar'); if(el) el.style.width = pctOf(C.manutencao.saldo, C.manutencao.meta)+'%'; }
+  { const el=$('cxManutBar'); if(el) el.style.width = pctOf(C.manutencao.saldo, C.manutencao.meta)+'%'; }
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
   t('cxEventosPct', pctOf(C.eventos.saldo, C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.querySelector('#cxEventosSaldo').closest('.card').querySelector('.fill'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
@@ -2147,13 +3569,13 @@ function hydrate(){
   // decisão do usuário: pior déficit mensal x 3 meses de colchão, arredondado pra meta mínima das
   // 3 opções apresentadas). Nome do card mantido ("Fundo de Suavização Salarial") - só a meta mudou.
   t('cxSuavizProLabore', 'Meta ' + fmt(VARS.metaSuavizacao));
-  const suavizTxtEl = document.getElementById('cxSuavizTxt');
+  const suavizTxtEl = $('cxSuavizTxt');
   if(suavizTxtEl){
     if(suaviz === 0 && suavizExcedente > 0) suavizTxtEl.textContent = 'Zerada · excedente do ciclo: ' + fmt(suavizExcedente);
     else if(suaviz === 0) suavizTxtEl.textContent = 'Zerada';
     else suavizTxtEl.textContent = pctOf(suaviz, VARS.metaSuavizacao).toFixed(1) + '% da meta · ' + (suaviz/VARS.proLaboreFixo).toFixed(1) + ' mês(es) de colchão';
   }
-  const suavizBar = document.getElementById('cxSuavizBar');
+  const suavizBar = $('cxSuavizBar');
   if(suavizBar) suavizBar.style.width = pctOf(suaviz, VARS.metaSuavizacao) + '%';
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
@@ -2163,7 +3585,7 @@ function hydrate(){
   t('cxEscolaSaldo', fmt(R.escolaJulioSaldo));
   t('cxEscolaMeta', fmtInt(R.patrimonio.metaEscolaJulio));
   t('cxEscolaPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
-  { const el=document.getElementById('cxEscolaBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
+  { const el=$('cxEscolaBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
 
   // caixa variavel
   t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));
@@ -2225,9 +3647,9 @@ function hydrate(){
   const cvDisponivel = R.caixaVariavel.disponivel;
   const reposicaoNecessaria = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
   t('gCVDisponivelLine', fmt(cvDisponivel));
-  const elDisp = document.getElementById('gCVDisponivelLine');
+  const elDisp = $('gCVDisponivelLine');
   if(elDisp) elDisp.style.color = cvDisponivel < 0 ? '#e2554f' : '#34c98a';
-  const elRepo = document.getElementById('gCVReposicaoLine');
+  const elRepo = $('gCVReposicaoLine');
   if(reposicaoNecessaria > 0){
     t('gCVReposicaoLine', fmt(reposicaoNecessaria));
     if(elRepo) elRepo.style.color = '#e2554f';
@@ -2297,11 +3719,11 @@ function hydrate(){
   }
   t('cxWartsilaProvisionado', 'Provisionado '+fmt(R.wartsilaCaixa.provisionado));
   t('cxSaudeAporteTxt', '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês');
-  { const el=document.getElementById('cxSaudeSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.saudeFamilia.saldo, C.saudeFamilia.meta)+'%'; } // V177 CORRIGIDO: barra estava fixa em 0%
+  { const el=$('cxSaudeSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.saudeFamilia.saldo, C.saudeFamilia.meta)+'%'; } // V177 CORRIGIDO: barra estava fixa em 0%
   t('cxAnivAporteTxt', 'Nova · aporte '+fmt(VARS.aporteAniversarioJulio)+'/mês até 14/09');
-  { const el=document.getElementById('cxAnivSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.aniversarioJulio.saldo, C.aniversarioJulio.meta)+'%'; } // V176 CORRIGIDO: barra estava fixa em 0%, nunca era preenchida pelo JS
+  { const el=$('cxAnivSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.aniversarioJulio.saldo, C.aniversarioJulio.meta)+'%'; } // V176 CORRIGIDO: barra estava fixa em 0%, nunca era preenchida pelo JS
   t('cxSeguroAporteTxt', 'Nova · aporte '+fmt(VARS.seguroEmplacamentoAporte)+'/mês (permanente)');
-  { const el=document.getElementById('cxSeguroSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.seguroEmplacamento.saldo, C.seguroEmplacamento.meta)+'%'; } // V176 CORRIGIDO: mesma falha
+  { const el=$('cxSeguroSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.seguroEmplacamento.saldo, C.seguroEmplacamento.meta)+'%'; } // V176 CORRIGIDO: mesma falha
   t('tfLRCDetalhe', R.livroLRCDetalhe.qtd+' lançamentos · Reembolso pendente '+fmt(R.livroLRCDetalhe.valor));
   t('tfPixDiversosDetalhe', 'Saídas '+fmt(R.pixDiversos.saidas)+' · Entradas '+fmt(R.pixDiversos.entradas));
   t('tfPixDiversosLiquido', 'Líquido '+(R.pixDiversos.liquido<0?'− ':'+ ')+fmt(Math.abs(R.pixDiversos.liquido)));
@@ -2315,11 +3737,11 @@ function hydrate(){
   t('ccnParcela', fmt(CCN.parcela));
   t('ccnPagoPct', CCN.pagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   t('ccnQuitacao', fmt(CCN.quitacaoValor)+' ('+CCN.quitacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%)');
-  { const el=document.getElementById('ccnBar'); if(el) el.style.width = CCN.pagoPct+'%'; }
+  { const el=$('ccnBar'); if(el) el.style.width = CCN.pagoPct+'%'; }
   // NOVO 31/07/2026 (V215): data da assembleia agora dinamica, com alerta automatico se ja passou -
   // antes era texto FIXO no HTML ("21/07/2026 ja passou"), corrigido uma vez pelo usuario mas
   // continuaria travado pra sempre se nao virasse formula. Compara com a data real de hoje.
-  const consorcioAssembleiaEl = document.getElementById('consorcioAssembleia');
+  const consorcioAssembleiaEl = $('consorcioAssembleia');
   if(consorcioAssembleiaEl){
     const [d,m,a] = VARS.consorcioCasaProximaAssembleia.split('/').map(Number);
     const dataAssembleia = new Date(a, m-1, d);
@@ -2340,6 +3762,38 @@ function hydrate(){
   t('opcoesPremioTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0)) + (VARS.opcoesVendidasDetalhe.some(o=>o.premioRecebido===null) ? ' (parcial, falta confirmar)' : ''));
   t('opcoesPremioBrutoTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioBruto||0),0)));
   t('opcoesCustosTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.custoOperacional||0),0)));
+  // NOVO 03/08/2026 (Módulo 17 - ROC): resumo consolidado da carteira de opções, mesmo padrão dos
+  // outros cards - deriva 100% de VARS.rocCarteira (calculado logo após opcoesVendidasValorMercado).
+  const rc = VARS.rocCarteira;
+  t('rocCapitalTravado', fmt(rc.capitalTravado));
+  t('rocPremioLiquido', fmt(rc.premioLiquido));
+  t('rocRentabilidade', rc.rentabilidade !== null ? (rc.rentabilidade*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
+  t('rocRentabilidadeMensal', rc.rentabilidadeMensal !== null ? (rc.rentabilidadeMensal*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
+  t('rocRentabilidadeAnualizada', rc.rentabilidadeAnualizada !== null ? (rc.rentabilidadeAnualizada*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
+  t('rocComparacaoCDI', rc.comparacaoCDI !== null ? rc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'x CDI' : '—');
+  t('rocDiasMedios', rc.diasMedios !== null ? rc.diasMedios+' dias' : '—');
+  // NOVO 03/08/2026 (layout do ROC): badge de status do consolidado - precisa de className (não só
+  // texto), então não usa o helper t(). Mesmas 4 classes .badge (bg/ba/br/bb) já usadas em outros
+  // cards do painel (ex: "Não líquido" do PGBL/FGTS), cor deriva do status calculado em VARS.rocCarteira.statusROC.
+  const rocBadgeEl = $('rocStatusBadge');
+  if(rocBadgeEl){
+    if(rc.statusROC){
+      setBadge(rocBadgeEl, rc.statusROC.classe, rc.statusROC.emoji + ' ' + rc.statusROC.label);
+    } else {
+      setBadge(rocBadgeEl, null, '—');
+    }
+  }
+  const legRocEl = $('legRocCarteira');
+  if(legRocEl){
+    // CORRIGIDO 04/08/2026 (achado do usuario): motivos separados agora - "sem strike confirmado" e
+    // "vencida" sao coisas diferentes, cada um com seu proprio trecho de texto (so aparece quando o
+    // contador correspondente e >0, pode aparecer os 2 juntos se um dia acontecer ao mesmo tempo).
+    const motivos = [];
+    if(rc.itensSemStrike > 0) motivos.push(`${rc.itensSemStrike} posição(ões) fora da soma por falta de strike confirmado`);
+    if(rc.itensVencidosExcluidos > 0) motivos.push(`${rc.itensVencidosExcluidos} posição(ões) vencida(s) fora da soma (capital não está mais travado)`);
+    legRocEl.textContent = `CDI mensal de referência: ${VARS.CDI_MENSAL_ATUAL.toLocaleString('pt-BR',{minimumFractionDigits:2})}% (${VARS.CDI_MENSAL_ATUAL_DATA_REF})`
+      + (motivos.length > 0 ? ` · ${motivos.join(' · ')}` : '');
+  }
   // NOVO 31/07/2026 (V218): aplica as 28 legendas de VARS.LEGENDAS nos elementos correspondentes -
   // um loop so, nunca precisa lembrar de chamar t() individualmente pra cada uma. Usa innerHTML
   // porque varias legendas tem <strong>/<span> internos que precisam ser preservados.
@@ -2352,11 +3806,11 @@ function hydrate(){
   // em legendas novas no futuro.
   const RE_VALOR_MONETARIO = /R\$\s?-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
   Object.keys(VARS.LEGENDAS).forEach(id => {
-    const el = document.getElementById(id);
+    const el = $(id);
     if(el) el.innerHTML = VARS.LEGENDAS[id].replace(RE_VALOR_MONETARIO, m => `<span class="v">${m}</span>`);
   });
   // NOVO 31/07/2026 (V219): alivio de agosto - calculo real, ver VARS.alivioProximoMes acima.
-  const legAlivioEl = document.getElementById('legAlivioAgosto');
+  const legAlivioEl = $('legAlivioAgosto');
   if(legAlivioEl) legAlivioEl.innerHTML = `Alívio de <span class="v">${fmt(VARS.alivioProximoMes)}</span>/mês a partir do próximo ciclo (parcelas do Visa Infinite + Mercado Pago que terminam agora) — não considera ainda o fim do seguro auto em outubro/2026`;
   t('credUberTotal', fmt(VARS.creditoUberBalance));
   t('credShellBox', fmt(VARS.creditoShellBox));
@@ -2369,7 +3823,7 @@ function hydrate(){
   // CORRIGIDO 31/07/2026 (V217): PGBL+FGTS somados estava fixo em R$209.898,34 (desatualizado desde
   // a atualizacao de ambos em 30-31/07) - agora deriva sempre dos 2 valores reais.
   t('balPgblFgtsSoma', fmt(VARS.patPgbl + VARS.patFgts));
-  const opcoesTbodyEl = document.getElementById('opcoesTbody');
+  const opcoesTbodyEl = $('opcoesTbody');
   if(opcoesTbodyEl){
     // NOVO 01/08/2026 (pedido do usuario): integra as cotacoes reais da brapi.dev (VARS.ACOES_COTACOES,
     // atualizadas automaticamente via GitHub Actions -> Supabase, ver PASSAGEM_DE_TURNO) na tabela de
@@ -2382,7 +3836,19 @@ function hydrate(){
     // Datas no formato DD/MM/AAAA - convertidas pra Date so pra comparar, sem alterar o array original
     // (nao mexe em VARS.opcoesVendidasDetalhe, so na copia usada pra desenhar a tabela).
     const parseVencimento = str => { const [d,m,a] = str.split('/').map(Number); return new Date(a,m-1,d); };
-    const opcoesOrdenadas = [...VARS.opcoesVendidasDetalhe].sort((a,b) => parseVencimento(a.vencimento) - parseVencimento(b.vencimento));
+    // CORRIGIDO 03/08/2026 (pedido do usuario - tabela "muito bagunçada" misturando ativas e vencidas):
+    // a tabela principal da secao 17 agora mostra SO posicoes ativas (o.vencida=false, mesma fonte
+    // calculada 1x em recalcularAgregadosDerivados(), nunca duplicada). Posicao vencida (ex:
+    // PETRS368W5) sai da lista visual, mas o registro continua intacto em VARS.opcoesVendidasDetalhe
+    // (P6 - nao apaga dado) - so nao participa mais da tabela de "posicoes ativas" nem do Valor de
+    // Mercado (ver calculo acima). Contagem exposta na legenda logo abaixo da tabela, mesmo padrao
+    // ja usado em legRocCarteira pra "itens fora da soma".
+    // CORRIGIDO 03/08/2026 (pedido do usuario, opcao A - confirmacao manual): "Vencidas" agora so
+    // mostra quem venceu SEM confirmacao de exercicio (o.exercida=false, o caso normal/"virou po").
+    // Quem foi confirmado como exercida sai daqui e vai pra tabela propria abaixo (opcoesExercidas).
+    const opcoesVencidas = VARS.opcoesVendidasDetalhe.filter(o => o.vencida && !o.exercida);
+    const opcoesExercidas = VARS.opcoesVendidasDetalhe.filter(o => o.vencida && o.exercida);
+    const opcoesOrdenadas = VARS.opcoesVendidasDetalhe.filter(o => !o.vencida).sort((a,b) => parseVencimento(a.vencimento) - parseVencimento(b.vencimento));
     opcoesTbodyEl.innerHTML = opcoesOrdenadas.map(o => {
       // CORRIGIDO 01/08/2026: antes a cor vermelha do valorMercado vinha "de graca" de um bug
       // (classe .r colidindo entre "alinhar a direita" e "cor vermelha", ver styles.css) - o Strike
@@ -2421,10 +3887,21 @@ function hydrate(){
       // premioRecebido direto (SEM subtrair de novo, isso seria descontar os custos 2x). "Premio bruto"
       // e a nova coluna = premioBruto (valor da operacao antes dos descontos).
       const custoTxt = o.custoOperacional > 0 ? fmt(o.custoOperacional) : '<span style="color:var(--text-dim)">—</span>';
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td></tr>`;
+      // NOVO 03/08/2026 (Módulo 17 - ROC): coluna "Rentabilidade" - % ao mês + status semáforo + dias
+      // corridos da operação, mesmo padrão 2-linhas já usado na coluna "Ação agora" (table-layout:fixed
+      // não aceita nowrap sem transbordar, ver comentário acima).
+      let rocLinha1 = '<span style="color:var(--text-dim)">— sem strike confirmado</span>';
+      let rocLinha2 = '';
+      if(o.roc && o.roc.rentabilidadeMensal !== null){
+        const pctMensal = o.roc.rentabilidadeMensal * 100;
+        rocLinha1 = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
+        rocLinha2 = `<span style="color:var(--text-dim);font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+      }
+      const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
     // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
-    const legCotacoesEl = document.getElementById('legOpcoesCotacoes');
+    const legCotacoesEl = $('legOpcoesCotacoes');
     if(legCotacoesEl){
       if(VARS.ACOES_COTACOES_ATUALIZADO_EM){
         const dt = new Date(VARS.ACOES_COTACOES_ATUALIZADO_EM);
@@ -2433,10 +3910,76 @@ function hydrate(){
         legCotacoesEl.textContent = 'OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)';
       }
     }
+    // CORRIGIDO 03/08/2026 (pedido do usuario - "a operação que venceu se move automaticamente pra
+    // uma linha abaixo só de vencidas"): antes a posição vencida só era citada em texto solto
+    // (legOpcoesVencidas). Agora ganha uma tabela própria (opcoesVencidasTbody), esmaecida, logo
+    // abaixo da tabela ativa - mesma fonte (VARS.opcoesVendidasDetalhe, filtro o.vencida), nunca uma
+    // segunda cópia escrita a mão. Ordenada por vencimento também (mais recente primeiro, já que são
+    // todas passadas - a mais perto de hoje é a mais relevante pra conferir).
+    const opcoesVencidasOrdenadas = [...opcoesVencidas].sort((a,b) => parseVencimento(b.vencimento) - parseVencimento(a.vencimento));
+    const vencidasWrapEl = $('opcoesVencidasWrap');
+    const vencidasTbodyEl = $('opcoesVencidasTbody');
+    if(vencidasWrapEl && vencidasTbodyEl){
+      vencidasWrapEl.style.display = opcoesVencidasOrdenadas.length > 0 ? '' : 'none';
+      vencidasTbodyEl.innerHTML = opcoesVencidasOrdenadas.map(o => {
+        const custoTxt = o.custoOperacional > 0 ? fmt(o.custoOperacional) : '<span style="color:var(--text-dim)">—</span>';
+        // NOVO 03/08/2026 (pedido do usuario): mesma coluna de status ROC (semáforo + %/mês + dias +
+        // xCDI) já usada na tabela de posições ativas - reaproveita o mesmo o.roc calculado 1x em
+        // calcularROCOpcoes() (nunca recalculado aqui), então mostra "Fraca/Boa/Muito Boa/Excelente"
+        // mesmo pra uma posição encerrada, deixando claro se aquela operação já fechada valeu a pena.
+        let rocLinha1v = '<span style="color:var(--text-dim)">— sem strike confirmado</span>';
+        let rocLinha2v = '';
+        if(o.roc && o.roc.rentabilidadeMensal !== null){
+          const pctMensalV = o.roc.rentabilidadeMensal * 100;
+          rocLinha1v = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensalV.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
+          rocLinha2v = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+        }
+        const rocHtmlV = `<div>${rocLinha1v}</div><div style="min-height:1em">${rocLinha2v}</div>`;
+        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlV}</td></tr>`;
+      }).join('');
+    }
+    // NOVO 03/08/2026 (pedido do usuario): avisa por que a posicao vencida saiu da tabela ativa e do
+    // Valor de mercado, sem esconder o fato de que ela existe/existiu - documentado, nao omitido (P1).
+    // Texto encurtado agora que a tabela acima já mostra ticker/strike/prêmios - não precisa repetir.
+    const legVencidasEl = $('legOpcoesVencidas');
+    if(legVencidasEl){
+      legVencidasEl.textContent = opcoesVencidasOrdenadas.length > 0
+        ? `Fora da tabela de posições ativas e do Valor de mercado; resultado final de cada uma registrado em "resultadoHistorico".`
+        : '';
+    }
+
+    // NOVO 03/08/2026 (pedido do usuario, opcao A): tabela "Posições exercidas" - mesmo padrao exato
+    // da tabela de Vencidas acima (mesma fonte, mesmas colunas, mesmo ROC reaproveitado), so trocando
+    // o filtro pra o.exercida=true. Confirmacao de exercicio e sempre manual (ver comentario no campo
+    // o.exercida, na origem do array) - o "automatico" aqui e so o MOVIMENTO da linha, nao a deteccao.
+    const opcoesExercidasOrdenadas = [...opcoesExercidas].sort((a,b) => parseVencimento(b.vencimento) - parseVencimento(a.vencimento));
+    const exercidasWrapEl = $('opcoesExercidasWrap');
+    const exercidasTbodyEl = $('opcoesExercidasTbody');
+    if(exercidasWrapEl && exercidasTbodyEl){
+      exercidasWrapEl.style.display = opcoesExercidasOrdenadas.length > 0 ? '' : 'none';
+      exercidasTbodyEl.innerHTML = opcoesExercidasOrdenadas.map(o => {
+        const custoTxt = o.custoOperacional > 0 ? fmt(o.custoOperacional) : '<span style="color:var(--text-dim)">—</span>';
+        let rocLinha1e = '<span style="color:var(--text-dim)">— sem strike confirmado</span>';
+        let rocLinha2e = '';
+        if(o.roc && o.roc.rentabilidadeMensal !== null){
+          const pctMensalE = o.roc.rentabilidadeMensal * 100;
+          rocLinha1e = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensalE.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
+          rocLinha2e = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+        }
+        const rocHtmlE = `<div>${rocLinha1e}</div><div style="min-height:1em">${rocLinha2e}</div>`;
+        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlE}</td></tr>`;
+      }).join('');
+    }
+    const legExercidasEl = $('legOpcoesExercidas');
+    if(legExercidasEl){
+      legExercidasEl.textContent = opcoesExercidasOrdenadas.length > 0
+        ? `Exercício confirmado manualmente via nota de corretagem — capital travado já saiu da soma do ROC desde o vencimento (mesma regra de qualquer posição vencida).`
+        : '';
+    }
   }
   t('pcnCapital', fmt(PCN.capitalDisponivel));
   t('pcnPctBadge', PCN.pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
-  { const el=document.getElementById('pcnBar'); if(el) el.style.width = PCN.pct+'%'; }
+  { const el=$('pcnBar'); if(el) el.style.width = PCN.pct+'%'; }
   t('pcnMeta', 'Meta lance '+fmt(PCN.metaLance));
   t('pcnFalta', 'Falta '+fmt(PCN.falta));
 
@@ -2477,7 +4020,7 @@ function hydrate(){
   { // NOVO 01/08/2026 (V245, usuario apontou "nao tem nada" nessa caixa - nao havia detalhamento
     // visivel de onde o numero vinha, mesmo a formula ja sendo automatica). Gera o extrato curto a
     // partir do proprio array MASTERCARD_INFINITE_TRANSACOES, nunca escrito a mao.
-    const detEl = document.getElementById('balOpMastercardInfiniteDetalhe');
+    const detEl = $('balOpMastercardInfiniteDetalhe');
     if(detEl){
       const partes = [fmt(VARS.MASTERCARD_INFINITE_SALDO_INICIAL)+' inicial'].concat(
         VARS.MASTERCARD_INFINITE_TRANSACOES.map(t=>(t.tipo==='Entrada'?'+':'−')+fmt(t.valor)+' ('+t.nome+')')
@@ -2506,7 +4049,7 @@ function hydrate(){
   // conectado ao array real (a aba LREI dedicada ja tinha sido corrigida em V189, mas ESTE card,
   // separado, ficou esquecido - mesma classe de bug, lugar diferente). Usuario apontou via print.
   const lreiAtivosNow = VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO');
-  const balLreiEl = document.getElementById('balLreiAtivos');
+  const balLreiEl = $('balLreiAtivos');
   if(balLreiEl){
     if(lreiAtivosNow.length === 0){
       balLreiEl.textContent = 'Nenhum';
@@ -2526,9 +4069,24 @@ function hydrate(){
   t('patFgts', fmt(B.fgts));
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
+onDomPronto(initBuscaGlobal); // V300 (Etapa 6): so liga o listener do input, nao depende de hydrate/dados
 onDomPronto(popularSeletorCiclo); // V145/V170: cria os botoes do seletor de ciclo
 onDomPronto(renderParcelamentos); // V155/V170: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
 onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados
+onDomPronto(renderCapaNav); // parte 41: monta os cards de navegacao da Capa/Dashboard
+onDomPronto(toggleBtnVoltarCapa); // parte 41: estado inicial do botao flutuante (escondido no topo)
+onDomPronto(()=>renderPageStrip('painel')); // parte 42: estado inicial da faixa "onde estou" (painel e o pane ativo por padrao no HTML)
+window.addEventListener('scroll', toggleBtnVoltarCapa, {passive:true}); // parte 41: mostra/esconde ao rolar
+onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
+// V400 Etapas 2/3: rodam apos renderInboxFinanceira (mesma tabela que elas alimentam via inboxAdicionarItem).
+// Ate hoje (03/08/2026) essas 2 funcoes so tinham sido testadas em harness Node isolado, nunca ligadas
+// ao carregamento real da pagina - VARS.PLUGGY_CONTAS ja chega pronto antes daqui (aplicado de
+// window.WALLACE_DADOS_REMOTOS no topo do arquivo), entao e seguro rodar no mesmo onDomPronto.
+onDomPronto(reconciliarPluggy);
+onDomPronto(reconciliarTransacoesPluggy);
+onDomPronto(sincronizarMercadoPagoParaInbox); // V450 Etapas 4+5+6: FinancialEvent -> Inbox (com classificacao e checagem de duplicidade)
+onDomPronto(classificarInboxPendentes); // V400 Etapa 10: roda por último, classifica o que as etapas acima adicionaram nesta mesma carga
+onDomPronto(renderMercadoPagoDashboard); // V450 Etapa 9: so leitura/exibicao, roda depois da Inbox estar populada
 onDomPronto(atualizarContadoresAbasLR); // V162/V170: conta linhas reais das abas de Livros Razao
 // onDomPronto(aplicarFiltroLivrosRazao) movido para depois de LIVROS_FILTRAVEIS_POR_CICLO ser declarada (ver abaixo, V170)
 
@@ -2640,7 +4198,7 @@ function auditoriaAutomatica(){
     }
   }
 
-  const healthBadge = document.getElementById('healthBadge');
+  const healthBadge = $('healthBadge');
 
   if(problemas.length === 0){
     console.log('%c✅ Auditoria automática: 0 divergências encontradas na matemática do REG.', 'color:#34c98a;font-weight:600');
@@ -2695,7 +4253,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
   const pct = Math.round(decorridos/totalDias*100);
   const fmtData = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
   const fmtCurta = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
-  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const set = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
   // Disponivel/dia = REG.caixaVariavel.disponivel (SSOT unico) / dias restantes do ciclo (inclui hoje).
   // CORRIGIDO 22/07/2026 (V128, usuario apontou): quando o disponivel ja e negativo, dividir por dia
@@ -2814,8 +4372,44 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       alertas.push({icone:'✅', cor:'#34c98a',
         txto:`Fundo de Suavização com ${fmt(fundoSuavizacao)} — colchão de ${(fundoSuavizacao/VARS.proLaboreFixo).toFixed(1)} mês(es) de pró-labore`});
     }
+    // NOVO 03/08/2026 (V400 Etapa 11 - Alertas): Inbox Financeira acumulando item pendente sem revisão.
+    // So conta o que ja existe em VARS.INBOX_FINANCEIRA (nada novo capturado aqui) - mesmo criterio das
+    // demais linhas desta funcao (expor contador ja mantido, nao inventar fonte de dado nova). Idade em
+    // dias calculada a partir de item.criadoEm (ISO), que ja existe desde a Etapa 1 (inboxAdicionarItem).
+    const inboxPendentes = (VARS.INBOX_FINANCEIRA||[]).filter(i=>i.status==='PENDENTE');
+    if(inboxPendentes.length === 0){
+      alertas.push({icone:'✅', cor:'#34c98a', txto:'Inbox Financeira sem item pendente'});
+    } else {
+      const maisAntigo = inboxPendentes.reduce((a,b)=> new Date(a.criadoEm) < new Date(b.criadoEm) ? a : b);
+      const diasParado = Math.floor((Date.now() - new Date(maisAntigo.criadoEm))/86400000);
+      const nivel = diasParado <= 2 ? {icone:'ℹ️',cor:'#3987e5'} : diasParado <= 7 ? {icone:'⚠️',cor:'#e8a63a'} : {icone:'🔴',cor:'#e2554f'};
+      alertas.push({icone:nivel.icone, cor:nivel.cor,
+        txto:`${inboxPendentes.length} item(ns) pendente(s) na Inbox Financeira — mais antigo há ${diasParado} dia(s) (${maisAntigo.id})`});
+    }
     return alertas;
   }
+
+  // NOVO 04/08/2026 (V400 Etapa 12 - Assistente): resumo em linguagem natural, formalizando o que ja
+  // era feito manualmente em sessao (ler alertas/Inbox e resumir). So LE dado ja calculado (cv,
+  // REG.operacional, montarAlertasNegocio(), VARS.INBOX_FINANCEIRA) - nunca calcula nada novo, mesma
+  // regra das Etapas 10/11. Deterministico, sem IA/LLM - compativel com o WallaceAIService do V500
+  // (Alexa): a Alexa consumiria isso via /api/insights, nunca calculando nada por conta propria.
+  function montarResumoAssistente(){
+    const modo = REG.operacional.modoOperacional;
+    const alertas = montarAlertasNegocio();
+    const criticos = alertas.filter(a=>a.icone==='🔴');
+    const atencao = alertas.filter(a=>a.icone==='⚠️');
+    const partes = [`Modo operacional: ${modo}.`,
+      `Caixa Variável disponível: ${fmt(cv.disponivel)}, comprometido ${fmt(cv.comprometido)}.`];
+    if(criticos.length) partes.push(`${criticos.length} alerta(s) crítico(s): ${criticos.map(a=>a.txto).join(' | ')}`);
+    else if(atencao.length) partes.push(`${atencao.length} ponto(s) de atenção: ${atencao.map(a=>a.txto).join(' | ')}`);
+    else partes.push('Nenhum alerta crítico ou de atenção no momento.');
+    const inboxPendentes = (VARS.INBOX_FINANCEIRA||[]).filter(i=>i.status==='PENDENTE');
+    if(inboxPendentes.length) partes.push(`${inboxPendentes.length} item(ns) aguardando revisão na Inbox Financeira.`);
+    return { texto: partes.join(' '), modo, criticos: criticos.length, atencao: atencao.length, inboxPendentes: inboxPendentes.length };
+  }
+  window.WallaceAI = window.WallaceAI || {};
+  window.WallaceAI.resumo = montarResumoAssistente; // ponte pro futuro /api/insights (V500) - so leitura
 
   onDomPronto(()=>{ // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava (script injetado dinamicamente)
     set('diasDecorridos', decorridos);
@@ -2824,10 +4418,10 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     set('atualizadoEm', 'Atualizado em '+fmtData(hoje));
     set('cicloRange', fmtCurta(inicio)+' → '+fmtData(fim));
     set('dispDia', dispDiaReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
-    const bar = document.getElementById('cicloProgress');
+    const bar = $('cicloProgress');
     if(bar) bar.style.width = pct+'%';
     lreiAtivos.forEach(l=>{
-      const el = document.getElementById(l.id);
+      const el = $(l.id);
       if(el){
         const dias = diasAging(l.abertura);
         el.textContent = dias+(dias===1?' dia':' dias');
@@ -2837,7 +4431,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
 
     // Simulador Fim de Ciclo
     // Card ECC (secao 07 do painel principal) - status real, nao mais hardcoded "RESOLVIDO"
-    const eccStatusEl = document.getElementById('eccStatus');
+    const eccStatusEl = $('eccStatus');
     if(eccStatusEl){
       eccStatusEl.textContent = cv.disponivel >= 0 ? 'RESOLVIDO' : (folego >= 0 ? 'ATIVO (dentro da tolerância)' : 'ATIVO (estourou a tolerância)');
       eccStatusEl.style.color = cv.disponivel >= 0 ? '#34c98a' : (folego >= 0 ? '#e8a63a' : '#e2554f');
@@ -2850,7 +4444,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     const nlSerie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V165: baseado no ciclo financeiro
     const quedaTotal = Math.round((nlSerie[0] - nlSerie[nlSerie.length-1])*100)/100;
     set('quedaTotalNL', 'Queda total: '+fmt(quedaTotal));
-    const r21EccEl = document.getElementById('r21ECC');
+    const r21EccEl = $('r21ECC');
     if(r21EccEl){
       r21EccEl.textContent = cv.disponivel >= 0 ? 'Zerado' : (folego >= 0 ? 'Ativo (na tolerância)' : 'Ativo (estourado)');
       r21EccEl.style.color = cv.disponivel >= 0 ? 'var(--green)' : (folego >= 0 ? 'var(--accent)' : 'var(--red)');
@@ -2860,12 +4454,12 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     set('simTeto', fmt(tetoEfetivo)+(cv.tolerenciaTemp>0 ? ' *' : ''));
     set('simComprometido', fmt(cv.comprometido));
     set('simSaldoReal', fmt(cv.saldoReal));
-    const faltaEl = document.getElementById('simFalta');
+    const faltaEl = $('simFalta');
     if(faltaEl){
       faltaEl.textContent = faltaCobrir > 0 ? fmt(faltaCobrir) : 'R$ 0,00 (coberto)';
       faltaEl.style.color = faltaCobrir > 0 ? '#e2554f' : '#34c98a';
     }
-    const folegoEl = document.getElementById('simFolego');
+    const folegoEl = $('simFolego');
     if(folegoEl){
       folegoEl.textContent = fmt(cv.disponivel); // CORRIGIDO 26/07/2026 (V182, usuario apontou "Folego ate teto errado"): antes mostrava tetoEfetivo-comprometido (fôlego contra o TETO OFICIAL de R$2.000, sempre igual mesmo com saldo real menor) - renomeado para "Disponível real hoje" e agora mostra cv.disponivel (saldoReal-comprometido), a mesma metrica do card Caixa Variavel acima, sem ambiguidade.
       folegoEl.style.color = cv.disponivel >= 0 ? '#34c98a' : '#e2554f';
@@ -2873,7 +4467,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // NOVO 26/07/2026 (V182): "cadê o valor que possa gastar por dia?" - a descricao do card ja
     // prometia "ritmo sugerido por dia" (Politicas sec.15) mas nunca foi implementado. Disponivel real
     // dividido pelos dias restantes do ciclo, nunca negativo (minimo R$0,00 se ja estourou).
-    const porDiaEl = document.getElementById('simPorDia');
+    const porDiaEl = $('simPorDia');
     if(porDiaEl){
       const porDia = restantes > 0 ? Math.max(0, cv.disponivel) / restantes : 0;
       porDiaEl.textContent = fmt(Math.round(porDia*100)/100);
@@ -2881,13 +4475,13 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO): card so aparece se houver algo represado -
     // enquanto pendenteProximoCiclo=0 (sem compras na janela 23-25 ainda), fica escondido para nao
     // poluir o painel com um card vazio.
-    const pendenteBox = document.getElementById('simPendenteBox');
+    const pendenteBox = $('simPendenteBox');
     const pendenteValor = cv.pendenteProximoCiclo || 0;
     if(pendenteBox){
       pendenteBox.style.display = pendenteValor > 0 ? 'block' : 'none';
     }
     set('simPendenteValor', fmt(pendenteValor));
-    const msgEl = document.getElementById('simMensagem');
+    const msgEl = $('simMensagem');
     if(msgEl){
       const porDiaMsg = restantes > 0 ? Math.max(0, cv.disponivel) / restantes : 0;
       if(faltaCobrir <= 0){
@@ -2899,20 +4493,34 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     }
 
     // Verificações de Negócio
-    const alertasEl = document.getElementById('alertasNegocio');
+    const alertasEl = $('alertasNegocio');
     if(alertasEl){
+      // parte 44 (pedido do usuario, "não conversa com o resto do site"): trocado de linha inteira colorida
+      // (style="color:...") pra um chip circular colorido + texto em --text-mid, reaproveitando a mesma
+      // paleta de 4 cores que ja formava .badge.bg/.ba/.br/.bb no resto do site, so que como icone em vez de pill de texto.
+      const CLASSE_POR_COR = {'#34c98a':'bg','#e8a63a':'ba','#e2554f':'br','#3987e5':'bb'};
       alertasEl.innerHTML = montarAlertasNegocio().map(a=>
-        `<div style="color:${a.cor}">${a.icone} ${a.txto}</div>`
+        `<div class="verif-item ${CLASSE_POR_COR[a.cor]||'bb'}"><span class="verif-ico">${a.icone}</span><span class="verif-txt">${a.txto}</span></div>`
       ).join('');
     }
   });
 })();
 
-function showMaster(id, btn){
+// CORRIGIDO 04/08/2026 (parte 42): 2o parametro (btn) removido - a versao antiga so trocava de pane
+// se recebesse o elemento do botao clicado, o que obrigava todo chamador a primeiro *encontrar* esse
+// botao no DOM (fragil, ver nota em CAPA_DESTINOS acima). Agora showMaster(id) troca o pane sozinho;
+// se ainda existir algum elemento com data-pane="<id>" na pagina (nenhum hoje, mantido por seguranca
+// caso volte a existir um seletor visual de pane), ele recebe .active - senao, no-op silencioso.
+function showMaster(id){
   document.querySelectorAll('.master-pane').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.master-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  btn.classList.add('active');
+  document.querySelectorAll('[data-pane]').forEach(t=>t.classList.remove('active'));
+  $(id).classList.add('active');
+  document.querySelectorAll(`[data-pane="${id}"]`).forEach(t=>t.classList.add('active'));
+  // V300 (Etapa 1.1): so cria os graficos de Graficos/Cenarios quando o usuario realmente abre uma
+  // dessas 2 abas pela 1a vez (initGraficosECenariosLazy tem flag interna, seguro chamar sempre aqui).
+  if(id === 'graficos' || id === 'cenarios'){
+    initGraficosECenariosLazy();
+  }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
   // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
   // ainda esta escondida (display:none) no carregamento inicial - o Chart.js nao consegue medir o
@@ -2924,12 +4532,28 @@ function showMaster(id, btn){
       Object.values(Chart.instances).forEach(c=>{ try{ c.resize(); }catch(e){} });
     });
   }
+  // V300 (Etapa 2): evento aditivo, nao substitui nada do que ja acontece acima nesta funcao.
+  WallaceBus.emit('abaAlterada', {id});
+}
+
+// NOVO 04/08/2026 (parte 44, pedido do usuario - "clico nas abas painel/grafico e vai pro topo da
+// pagina, nao pro primeiro item da aba"): causa real era o .master-tabs (barra de 4 botoes fixos)
+// ter onclick inline proprio com window.scrollTo({top:0}) direto, sem passar por irParaCapaDestino -
+// entao o fix da parte 43 (la em cima, so pros cards da Capa) nunca era executado por esses 4 botoes.
+// Esta funcao e o que os 4 botoes agora chamam: mesma logica de "achar a 1a .section-num do pane e
+// scrollIntoView nela" que irParaCapaDestino usa quando nao tem tituloSecao especifico.
+function irParaPrimeiraSecao(id){
+  showMaster(id);
+  const pane = document.getElementById(id);
+  const alvo = pane && pane.querySelector('.section-num');
+  if(!alvo){ window.scrollTo({top:0, behavior:'smooth'}); return; }
+  setTimeout(()=>{ scrollParaSecaoComOffset(alvo); }, 30);
 }
 
 function showLR(id, btn){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  $(id).classList.add('active');
   btn.classList.add('active');
 }
 
@@ -2965,7 +4589,7 @@ let filtroLivroRazaoAtivo = true; // true = mostra so limbo+ciclo atual. false =
 
 function aplicarFiltroLivrosRazao(){
   LIVROS_FILTRAVEIS_POR_CICLO.forEach(id=>{
-    const pane = document.getElementById(id);
+    const pane = $(id);
     if(!pane) return;
     const rows = pane.querySelectorAll('tbody tr');
     rows.forEach(tr=>{
@@ -2990,7 +4614,7 @@ function alternarFiltroLivrosRazao(){
 }
 
 function atualizarBotaoFiltroLivrosRazao(){
-  const btn = document.getElementById('btnFiltroLivrosRazao');
+  const btn = $('btnFiltroLivrosRazao');
   if(!btn) return;
   btn.textContent = filtroLivroRazaoAtivo
     ? '🔍 Mostrando: ciclo atual + limbo — ver histórico completo'
@@ -3030,7 +4654,7 @@ Chart.defaults.color = muted;
 Chart.defaults.font.family = "-apple-system, 'Segoe UI', Roboto, sans-serif";
 Chart.defaults.font.size = 11;
 
-new Chart(document.getElementById('cPatrim'), {
+new Chart($('cPatrim'), {
   type:'doughnut',
   data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
     datasets:[{data:Object.values(REG.patrimonioDetalhe),
@@ -3040,7 +4664,7 @@ new Chart(document.getElementById('cPatrim'), {
     tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart(document.getElementById('cVisa'), {
+new Chart($('cVisa'), {
   type:'doughnut',
   data:{labels:VISA_DETALHE_LABELS,
     datasets:[{data:Object.values(REG.visaDetalhe),
@@ -3051,7 +4675,7 @@ new Chart(document.getElementById('cVisa'), {
     tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart(document.getElementById('cVisaMB'), {
+new Chart($('cVisaMB'), {
   type:'doughnut',
   data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
     datasets:[{data:Object.values(REG.mbDetalhe),
@@ -3062,7 +4686,7 @@ new Chart(document.getElementById('cVisaMB'), {
     tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart(document.getElementById('cVariavel'), {
+new Chart($('cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:['Saldo real','Comprometido','Disponível'],
@@ -3076,7 +4700,7 @@ new Chart(document.getElementById('cVariavel'), {
 
 const totalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro (25-24)
 const totalOpRange = yRange(totalOpSeries);
-new Chart(document.getElementById('cEvol'), {
+new Chart($('cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -3092,7 +4716,7 @@ new Chart(document.getElementById('cEvol'), {
 
 const necLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no ciclo financeiro
 const necLiqRange = yRange(necLiqSeries);
-new Chart(document.getElementById('cNecessidadeLiquida'), {
+new Chart($('cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -3107,7 +4731,7 @@ new Chart(document.getElementById('cNecessidadeLiquida'), {
 });
 })();
 
-(function(){
+function _lazyRenderCenariosSalario(){
 const grid='#2a2d31';
 const cenarioLabelPlugin = {
   id:'cenarioLabel',
@@ -3129,7 +4753,7 @@ const cenarioLabelPlugin = {
 };
 const cenarioSalarioData = [REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,VARS.cenarioMesesBonsMedia];
 const cenarioSalarioRange = yRange(cenarioSalarioData, 0.18);
-new Chart(document.getElementById('cCenarioSalario'), {
+new Chart($('cCenarioSalario'), {
   type:'bar',
   plugins:[cenarioLabelPlugin],
   data:{labels:['Não trabalha','Ponto de\nempate','Média\n(sobra)','Meses bons\n(média)'],
@@ -3144,9 +4768,9 @@ new Chart(document.getElementById('cCenarioSalario'), {
     scales:{x:{grid:{display:false},ticks:{font:{size:10.5}}},
       y:{grid:{color:grid},max:cenarioSalarioRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
-})();
+}
 
-(function(){
+function _lazyRenderGraficosSecao(){
 // ===== Aba GRAFICOS =====
 const muted = '#a9a79f', grid='#2a2d31';
 const legendStd = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
@@ -3170,7 +4794,7 @@ const metaValuePlugin = {
   }
 };
 
-new Chart(document.getElementById('g_cPatrim'), {
+new Chart($('g_cPatrim'), {
   type:'doughnut',
   data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
     datasets:[{data:Object.values(REG.patrimonioDetalhe),
@@ -3179,7 +4803,7 @@ new Chart(document.getElementById('g_cPatrim'), {
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart(document.getElementById('g_cVisa'), {
+new Chart($('g_cVisa'), {
   type:'doughnut',
   data:{labels:VISA_DETALHE_LABELS,
     datasets:[{data:Object.values(REG.visaDetalhe),
@@ -3202,7 +4826,7 @@ const FATURA_COMBINADA_VALORES = [
   REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas,
   REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa,
 ];
-new Chart(document.getElementById('g_cVisaBar'), {
+new Chart($('g_cVisaBar'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:FATURA_COMBINADA_LABELS,
@@ -3226,7 +4850,7 @@ new Chart(document.getElementById('g_cVisaBar'), {
   const mbTotal = REG.cartaoMB.total;
   const liquido = Math.round((visaTotal + mbTotal - cvComprometido)*100)/100;
   const reposicao = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
-  new Chart(document.getElementById('g_cCartoesLiquidoCV'), {
+  new Chart($('g_cCartoesLiquidoCV'), {
     type:'bar',
     plugins:[barValuePlugin],
     data:{labels:['Mastercard Black','Visa Infinite','Caixa Variável (comprometido)','Líquido não coberto','Disponível real em caixa','Reposição necessária'],
@@ -3245,14 +4869,14 @@ const totalOpLabels = ['Boletos','Parcelas','Consórcios','Recorrências','Aport
 const totalOpData = Object.values(REG.totalOpDetalhe);
 const totalOpColors = ['#3987e5','#9085e9','#e2554f','#34c98a','#e8a63a','#6f6d66','#e879b0'];
 
-new Chart(document.getElementById('g_cTotalOp'), {
+new Chart($('g_cTotalOp'), {
   type:'doughnut',
   data:{labels:totalOpLabels,datasets:[{data:totalOpData,backgroundColor:totalOpColors,borderColor:'#16181b',borderWidth:3}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart(document.getElementById('g_cTotalOpBar'), {
+new Chart($('g_cTotalOpBar'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:totalOpLabels,datasets:[{data:totalOpData,backgroundColor:totalOpColors,borderRadius:4}]},
@@ -3262,7 +4886,7 @@ new Chart(document.getElementById('g_cTotalOpBar'), {
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
 
-new Chart(document.getElementById('g_cVariavel'), {
+new Chart($('g_cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:['Saldo real','Comprometido','Disponível'],
@@ -3299,7 +4923,7 @@ const metasDetalhe = [
   'Carta '+fmt(VARS.consorcioAutoCartaCredito)+', saldo devedor '+fmt(REG.balanco.passivos.consorcioAutoContemplado)
 ];
 
-new Chart(document.getElementById('g_cMetas'), {
+new Chart($('g_cMetas'), {
   type:'bar',
   plugins:[metaValuePlugin],
   data:{labels:metasNomes,
@@ -3313,7 +4937,7 @@ new Chart(document.getElementById('g_cMetas'), {
 
 const gTotalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro
 const gTotalOpRange = yRange(gTotalOpSeries);
-new Chart(document.getElementById('g_cEvol'), {
+new Chart($('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -3329,7 +4953,7 @@ new Chart(document.getElementById('g_cEvol'), {
 
 const gNecLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no CICLO financeiro (25-24), nao no mes calendario - evita o valor "pular" quando mes vira mas ciclo nao, ou vice-versa
 const gNecLiqRange = yRange(gNecLiqSeries);
-new Chart(document.getElementById('g_cNecessidadeLiquida'), {
+new Chart($('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -3380,7 +5004,7 @@ const caixasValuePlugin = {
   }
 };
 
-new Chart(document.getElementById('g_cCaixas'), {
+observeAndRenderChart($('g_cCaixas'), () => new Chart($('g_cCaixas'), {
   type:'bar',
   plugins:[caixasValuePlugin],
   data:{labels:caixasLabels,
@@ -3395,7 +5019,7 @@ new Chart(document.getElementById('g_cCaixas'), {
     }}},
     scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
       y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
-});
+}));
 
 // 08 — Alivio de pressao: soma dos aportes das caixas incrementais (Aniversario Julio, Escola Julio,
 // Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar/trocar seu aporte ao bater meta/prazo.
@@ -3454,7 +5078,7 @@ const alivioStepPlugin = {
   }
 };
 
-new Chart(document.getElementById('g_cAlivio'), {
+observeAndRenderChart($('g_cAlivio'), () => new Chart($('g_cAlivio'), {
   type:'line',
   plugins:[alivioStepPlugin],
   data:{labels:alivioLabels,
@@ -3466,11 +5090,11 @@ new Chart(document.getElementById('g_cAlivio'), {
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes incrementais ativos'}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
       y:{grid:{color:grid},min:0,max:yRange(alivioData,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
-});
-})();
+}));
+}
 
 // ===== Operação Superávit Normal (Cenarios, secao 05) - mesmo piso do Deficit Zero, renda media 12m =====
-(function(){
+function _lazyRenderCenariosSuperavit(){
   const grid2b = '#2a2d31';
   function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
 
@@ -3516,7 +5140,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     }
   };
 
-  new Chart(document.getElementById('cSuperavitNormal'), {
+  new Chart($('cSuperavitNormal'), {
     type:'bar',
     plugins:[snDataLabelPlugin],
     data:{labels:snLabels,
@@ -3531,7 +5155,7 @@ new Chart(document.getElementById('g_cAlivio'), {
         y:{grid:{color:grid2b},ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:9.5}}}}}
   });
 
-  const snTbody = document.getElementById('snTableBody');
+  const snTbody = $('snTableBody');
   if(snTbody){
     snTbody.innerHTML = snLabels.map((m,i)=>{
       return '<tr style="border-bottom:1px solid var(--border)">'+
@@ -3542,10 +5166,10 @@ new Chart(document.getElementById('g_cAlivio'), {
         '</tr>';
     }).join('');
   }
-})();
+}
 
 // ===== Operação Déficit Zero e Energia Solar (Cenarios, secoes 06/07) =====
-(function(){
+function _lazyRenderCenariosDeficitEGraficosSolar(){
   const grid2 = '#2a2d31';
     function fmt0(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const legendStd2 = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
@@ -3577,7 +5201,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     }
   };
 
-  new Chart(document.getElementById('cDeficitZero'), {
+  new Chart($('cDeficitZero'), {
     type:'bar',
     plugins:[dzDataLabelPlugin],
     data:{labels:dzLabels,
@@ -3594,7 +5218,7 @@ new Chart(document.getElementById('g_cAlivio'), {
 
   // Tabela HTML organizada abaixo do grafico - liquido, piso e diferenca por mes, texto real
   // (nao desenhado em canvas), garante legibilidade sem risco de sobreposicao.
-  const dzTbody = document.getElementById('dzTableBody');
+  const dzTbody = $('dzTableBody');
   if(dzTbody){
     dzTbody.innerHTML = dzLabels.map((m,i)=>{
       const d = dzDeficit[i];
@@ -3608,6 +5232,24 @@ new Chart(document.getElementById('g_cAlivio'), {
         '</tr>';
     }).join('');
   }
+
+  // CORRIGIDO 04/08/2026: "Déficit vira superávit em" estava hardcoded no HTML ("Set/26 (3º mês)"),
+  // nunca recalculado - por isso ficou errado assim que o ciclo virou. Calculado agora a partir da
+  // MESMA serie dzDeficit/dzLabels que ja alimenta o grafico e a tabela acima (sem duplicar logica,
+  // sem numero novo inventado). i+1 = ordinal contado a partir do 1o mes da janela atual (gerarMesesCiclo),
+  // nao de uma data fixa antiga - por isso passa a acompanhar o ciclo automaticamente daqui pra frente.
+  const dzViraEl = $('dzViraSuperavit');
+  if(dzViraEl){
+    const idxVira = dzDeficit.findIndex(d=>d>=0);
+    if(idxVira === 0){
+      dzViraEl.textContent = 'Já em superávit';
+    } else if(idxVira > 0){
+      dzViraEl.textContent = dzLabels[idxVira]+' ('+(idxVira+1)+'º mês)';
+    } else {
+      dzViraEl.textContent = 'Não vira nos próximos 12 meses';
+    }
+  }
+
 
   // Energia: comparacao mes a mes, ano anterior (real) vs este ano (projetado com solar).
   // Tarifa real da fatura Jun/2026 (R$322,99/304kWh=R$1,0625/kWh, ICMS+PIS/COFINS ja embutidos).
@@ -3750,7 +5392,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     }
   };
 
-  new Chart(document.getElementById('cEnergiaSolar'), {
+  observeAndRenderChart($('cEnergiaSolar'), () => new Chart($('cEnergiaSolar'), {
     type:'bar',
     plugins:[energiaBarLabelPlugin],
     data:{labels:mesesParesEnergia,
@@ -3777,12 +5419,12 @@ new Chart(document.getElementById('g_cAlivio'), {
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.6,barPercentage:0.75},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
-  });
+  }));
   // CORRIGIDO 03/08/2026: era anoAnterior[0]/esteAno[0] (sempre Jul, nunca avançava) - agora usa o
   // indice 0 do array JA ALINHADO, que corresponde ao mes atual de verdade (mesesParesEnergia[0]).
   const economiaAtual = anoAnteriorAlinhado[0] - esteAnoAlinhado[0];
   const economiaAnualEstimada = anoAnteriorAlinhado.reduce((s,v)=>s+(v||0),0) - esteAnoAlinhado.reduce((s,v)=>s+(v||0),0);
-  const legEnergiaEl = document.getElementById('legEnergiaSolar');
+  const legEnergiaEl = $('legEnergiaSolar');
   if(legEnergiaEl){
     const mesAtualLabel = mesesParesEnergia[0];
     const fonteAtual = esteAnoFonteAlinhado[0];
@@ -3800,7 +5442,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   //   4) Encargos setoriais = fatura_base x pct_encargos - nao compensados pelos creditos de GD
   // Mesma logica ja usada isoladamente pro apartamento (VARS.taxaMinimaEnergisa/consumoMinimoComSolarKwh,
   // ver secao 09) - generalizada aqui pras 3 unidades com a tarifa real de cada uma.
-  const residualTbodyEl = document.getElementById('residualPosSolarTbody');
+  const residualTbodyEl = $('residualPosSolarTbody');
   if(residualTbodyEl){
     const comp = VARS.ENERGISA_TARIFA_COMPOSICAO || {};
     const fioBFracaoDaDistribuicao = (VARS.FIO_B_COBRANCA_2026_PCT/100) * (VARS.FIO_B_PCT_DA_DISTRIBUICAO/100); // 0,168
@@ -4008,7 +5650,7 @@ new Chart(document.getElementById('g_cAlivio'), {
   // eliminar qualquer estimativa - agora so calcula quando existir leitura REAL de geracaoAcumulada
   // (inversor SAJ). Sem esse dado, os campos dependentes mostram "Dados insuficientes para calculo"
   // em vez de estimar - nunca mais inventar um numero.
-  const avisosConsistenciaEl = document.getElementById('ugAvisosConsistencia');
+  const avisosConsistenciaEl = $('ugAvisosConsistencia');
   if(avisosConsistenciaEl && VARS.SOLAR_AVISOS_CONSISTENCIA.length){
     avisosConsistenciaEl.style.display = 'block';
     avisosConsistenciaEl.innerHTML = '⚠️ <strong>Possível erro de leitura detectado:</strong><br>' + VARS.SOLAR_AVISOS_CONSISTENCIA.join('<br>');
@@ -4035,13 +5677,13 @@ new Chart(document.getElementById('g_cAlivio'), {
       }
     }
 
-    const setUG = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    const setUG = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
     const INSUFICIENTE = 'Dados insuficientes para cálculo.';
 
     setUG('ugImportado', importadoAcum+' kWh');
     setUG('ugExportado', exportadoAcum+' kWh');
     setUG('ugSaldoLiquido', (saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
-    const ugSaldoEl = document.getElementById('ugSaldoLiquido');
+    const ugSaldoEl = $('ugSaldoLiquido');
     if(ugSaldoEl) ugSaldoEl.style.color = saldoLiquidoAcum>=0 ? '#34c98a' : '#e2554f';
 
     // NOVO 02/08/2026 (pedido EXPLICITO do usuario, reversao PONTUAL da regra "SEM ESTIMATIVAS" de
@@ -4069,7 +5711,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       ? Math.round((saldoLiquidoAcum + diasDesdeLeitura * (geracaoMediaDiaria - consumoMedioDiarioMae)) * 100) / 100
       : null;
 
-    const ugEstimativaEl = document.getElementById('ugSaldoLiquidoEstimado');
+    const ugEstimativaEl = $('ugSaldoLiquidoEstimado');
     if(ugEstimativaEl){
       if(saldoLiquidoEstimado !== null && diasDesdeLeitura > 0){
         ugEstimativaEl.style.display = 'block';
@@ -4116,10 +5758,10 @@ new Chart(document.getElementById('g_cAlivio'), {
     let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
     if(saldoLiquidoAcum > 0) statusUG = {emoji:'🟢', texto:'Excedente (exportando mais do que importa)', cor:'#34c98a'};
     else if(saldoLiquidoAcum === 0) statusUG = {emoji:'🟡', texto:'Equilibrado', cor:'#e8a63a'};
-    const ugStatusEl = document.getElementById('ugStatus');
+    const ugStatusEl = $('ugStatus');
     if(ugStatusEl){ ugStatusEl.textContent = statusUG.emoji+' '+statusUG.texto; ugStatusEl.style.color = statusUG.cor; }
 
-    const ugResumoEl = document.getElementById('ugResumo');
+    const ugResumoEl = $('ugResumo');
     if(ugResumoEl){
       if(consumoDiretoConfiavel){
         ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
@@ -4138,7 +5780,7 @@ new Chart(document.getElementById('g_cAlivio'), {
     // Historico mes a mes (03, 103, consumo direto real, saldo liquido) - so plota consumo direto
     // quando existir geracaoAcumulada real naquele mes (senao fica null, sem barra - mesmo padrao
     // ja usado pros meses sem leitura de credito).
-    new Chart(document.getElementById('cUnidadeGeradora'), {
+    observeAndRenderChart($('cUnidadeGeradora'), () => new Chart($('cUnidadeGeradora'), {
       type:'bar',
       data:{labels:mesesParesSolar,
         datasets:[
@@ -4156,11 +5798,11 @@ new Chart(document.getElementById('g_cAlivio'), {
         }}},
         scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
-    });
+    }));
     // NOVO 03/08/2026: aviso automatico dos meses com "Consumo direto" CONGELADO (dessincronia entre
     // a automacao SAJ e a leitura manual do 103 - ver logica acima). Usa os MESMOS rotulos ja
     // deslocados (mesesParesSolar) pra apontar o mes certo, mesmo apos o grafico "andar pra frente".
-    const legCongeladoEl = document.getElementById('legConsumoDiretoCongelado');
+    const legCongeladoEl = $('legConsumoDiretoCongelado');
     if(legCongeladoEl){
       const congeladoAlinhado = alignSolar(consumoDiretoCongeladoMes);
       const mesesCongelados = mesesParesSolar.filter((_,i)=>congeladoAlinhado[i]===true);
@@ -4189,7 +5831,7 @@ new Chart(document.getElementById('g_cAlivio'), {
       ctx.restore();
     }
   };
-  new Chart(document.getElementById('cSolarRateio'), {
+  observeAndRenderChart($('cSolarRateio'), () => new Chart($('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
     data:{labels:mesesParesSolar,
@@ -4209,8 +5851,8 @@ new Chart(document.getElementById('g_cAlivio'), {
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
-  });
-  const legSolarEl = document.getElementById('legSolarRateio');
+  }));
+  const legSolarEl = $('legSolarRateio');
   if(legSolarEl && ultimaSolar){
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
     const avisoEstimativa = ' A barra do mês atual pode incluir uma <strong style="color:#3987e5">estimativa</strong> (geração real do inversor − consumo médio histórico) pros dias sem leitura ainda — sempre corrigida quando a leitura real do medidor chegar.';
@@ -4270,8 +5912,8 @@ new Chart(document.getElementById('g_cAlivio'), {
     const saldoEsperado = Math.round((previsao-meta)*10)/10;
     const status = calcularStatus(mediaRealizada, mediaNecessaria);
     const pct = Math.min(100, Math.max(0, Math.round(creditoAtual/meta*100)));
-    const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-    const barEl = document.getElementById(prefixo+'Bar');
+    const set = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+    const barEl = $(prefixo+'Bar');
     if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = status.cor; }
     set(prefixo+'Fracao', creditoAtual+' / '+meta+' kWh');
     set(prefixo+'Pct', pct+'%');
@@ -4282,9 +5924,9 @@ new Chart(document.getElementById('g_cAlivio'), {
     set(prefixo+'Previsao', previsao+' kWh');
     const saldoTxt = (saldoEsperado>=0?'+':'')+saldoEsperado+' kWh';
     set(prefixo+'Saldo', saldoTxt);
-    const saldoEl = document.getElementById(prefixo+'Saldo');
+    const saldoEl = $(prefixo+'Saldo');
     if(saldoEl) saldoEl.style.color = saldoEsperado>=0 ? '#34c98a' : '#e2554f';
-    const statusEl = document.getElementById(prefixo+'Status');
+    const statusEl = $(prefixo+'Status');
     if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto; statusEl.style.color = status.cor; }
   }
 
@@ -4292,7 +5934,29 @@ new Chart(document.getElementById('g_cAlivio'), {
     renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, ultimaSolar.creditoWallace, ultimaSolar.dias, '#34c98a');
     renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, ultimaSolar.creditoIrma, ultimaSolar.dias, '#e8a63a');
   }
-})();
+}
+
+// V300 (03/08/2026, Etapa 1.1 do plano de modernizacao): antes disso, os graficos das abas
+// Cenarios/Graficos (nao visiveis no carregamento inicial, so a aba Painel e) ja nao bloqueavam
+// mais a 1a pintura (item 5 antigo, double-rAF), mas ainda eram criados sempre, incondicionalmente,
+// mesmo se o usuario nunca abrisse essas abas. Agora so sao criados na 1a vez que o usuario abre
+// 'graficos' OU 'cenarios' (showMaster chama initGraficosECenariosLazy()) - flag garante que roda
+// uma unica vez (as funcoes internas nao sao idempotentes, cada uma faz "new Chart" de novo se
+// chamada 2x). Mesmos graficos, mesmos dados, mesmo resultado - so o gatilho de criacao mudou (aba
+// aberta em vez de "sempre, um instante depois"). _lazyRenderCenariosDeficitEGraficosSolar mistura
+// cDeficitZero (Cenarios) com os 3 graficos solares (Graficos) no mesmo escopo de funcao - nao
+// separado por aba pra nao arriscar quebrar variaveis locais compartilhadas entre eles - por isso
+// o gatilho e "qualquer uma das duas abas abriu primeiro" (cobre as duas com uma unica carga).
+let _graficosECenariosCarregados = false;
+function initGraficosECenariosLazy(){
+  if(_graficosECenariosCarregados) return;
+  _graficosECenariosCarregados = true;
+  _lazyRenderCenariosSalario();
+  _lazyRenderGraficosSecao();
+  _lazyRenderCenariosSuperavit();
+  _lazyRenderCenariosDeficitEGraficosSolar();
+  WallaceBus.emit('graficoAtualizado', {origem:'initGraficosECenariosLazy'}); // V300 (Etapa 2)
+}
 
 // ===================================================================================
 // NOVO 03/08/2026 - SIMULADOR REGULATORIO SOLAR (Lei 14.300 / ANEEL) - secao 13
@@ -4511,11 +6175,11 @@ function gerarForecastSolar(params){
 
 // ----- Wiring da UI (secao 13) -----
 function calcularSimulacaoRegulatoria(){
-  const consumo = Number(document.getElementById('simConsumo')?.value) || 300;
-  const tipoLigacao = document.getElementById('simLigacao')?.value || 'TRI';
-  const geracao = Number(document.getElementById('simGeracao')?.value) || 850;
-  const investimento = Number(document.getElementById('simInvestimento')?.value) || 25000;
-  const mesesForecast = Number(document.getElementById('simMeses')?.value) || 60;
+  const consumo = Number($('simConsumo')?.value) || 300;
+  const tipoLigacao = $('simLigacao')?.value || 'TRI';
+  const geracao = Number($('simGeracao')?.value) || 850;
+  const investimento = Number($('simInvestimento')?.value) || 25000;
+  const mesesForecast = Number($('simMeses')?.value) || 60;
   const anoInicial = new Date().getFullYear();
 
   const resultado = gerarForecastSolar({
@@ -4526,13 +6190,13 @@ function calcularSimulacaoRegulatoria(){
   // CORRIGIDO 03/08/2026 (achado ao testar de verdade): t() é uma função local de outro escopo
   // (linha 1991), não é global - chamar ela aqui dava "t is not defined" e quebrava a página
   // inteira. Substituído por manipulação direta do DOM, sem depender do helper de outro escopo.
-  const elEconomia = document.getElementById('simEconomiaAcumulada');
+  const elEconomia = $('simEconomiaAcumulada');
   if(elEconomia) elEconomia.textContent = fmt(resultado.economiaAcumuladaTotal);
   const anosForecast = (mesesForecast/12).toFixed(0);
-  const elPeriodo = document.getElementById('simPeriodo');
+  const elPeriodo = $('simPeriodo');
   if(elPeriodo) elPeriodo.textContent = anosForecast + ' ano(s) (' + mesesForecast + ' meses)';
 
-  const tbody = document.getElementById('simTabelaAnual');
+  const tbody = $('simTabelaAnual');
   if(tbody){
     tbody.innerHTML = resultado.resumoAnual.map(r =>
       '<tr><td>'+r.ano+'</td><td>'+fmt(r.economiaAcumulada)+'</td><td>'+(r.payback ? r.payback.toFixed(1)+' anos' : '—')+'</td></tr>'
@@ -4540,9 +6204,9 @@ function calcularSimulacaoRegulatoria(){
   }
 }
 onDomPronto(() => {
-  const btnSim = document.getElementById('btnCalcularSimulacao');
+  const btnSim = $('btnCalcularSimulacao');
   if(btnSim) btnSim.addEventListener('click', calcularSimulacaoRegulatoria);
-  if(document.getElementById('simConsumo')) calcularSimulacaoRegulatoria(); // calculo inicial com defaults
+  if($('simConsumo')) calcularSimulacaoRegulatoria(); // calculo inicial com defaults
 });
 // Antecipado do plano de 25/07 a pedido do usuario ("escolha as mais simples e ja implemente").
 // Botao flutuante (topo direito, fixo em todas as paginas) que aplica blur em todos os valores
@@ -4551,7 +6215,7 @@ onDomPronto(() => {
 // (arquivo estatico rodando no navegador do proprio usuario, nao e artifact do Claude.ai - ok usar).
 function toggleEsconderValores(){
   // CORRIGIDO 01/08/2026: o botao de verdade mora no index.html (FORA deste documento, que roda
-  // dentro do iframe) - document.getElementById('btnEsconderValores') aqui dentro NUNCA vai achar
+  // dentro do iframe) - $('btnEsconderValores') aqui dentro NUNCA vai achar
   // esse botao, entao o icone nunca trocava. Agora esta funcao so alterna o blur (sua responsabilidade
   // real) e RETORNA o estado, pra quem chamou (index.html, via iframe.contentWindow) atualizar o
   // proprio botao visivel.

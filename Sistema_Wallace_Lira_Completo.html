@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -9,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<link rel="stylesheet" href="styles.css?v=260">
+<link rel="stylesheet" href="styles.css?v=269">
 </head>
 <body>
 <script>
@@ -32,47 +33,60 @@
 <div class="wrap">
 
   <div class="cover">
-    <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span></div>
-    <h1>Painel Financeiro</h1>
-    <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
+    <div class="cover-top">
+      <div class="cover-top-text">
+        <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span></div>
+        <h1>Painel Financeiro</h1>
+        <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
+      </div>
+      <!-- V300 Etapa 6 (Busca Global). Movida (parte 47, pedido do usuario) pro canto vazio do
+           cabecalho, no lugar da faixa inteira que ficava entre a Capa e o Simulador so pra ela -
+           mesmos ids/logica (initBuscaGlobal em app.js), so o local no HTML mudou. -->
+      <div class="busca-global-wrap cover-search-corner">
+        <input type="text" id="buscaGlobalInput" placeholder="Buscar…" autocomplete="off">
+        <div id="buscaGlobalResultados" style="display:none"></div>
+      </div>
+    </div>
     <div class="cover-metrics">
-      <div><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div>
-      <div><div class="cm-lbl">Meta do milhão</div><div class="cm-val p" id="coverMetaPct">—</div></div>
-      <div><div class="cm-lbl">Modo operacional</div><div class="cm-val g" id="coverModoOp">—</div></div>
-      <div><div class="cm-lbl">Caixa variável</div><div class="cm-val g" id="coverCaixaVar">—</div></div>
+      <div class="cm-card cm-c1"><div class="cm-ico">💰</div><div class="cm-body"><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div></div>
+      <div class="cm-card cm-c2"><div class="cm-ico">🎯</div><div class="cm-body"><div class="cm-lbl">Meta do milhão</div><div class="cm-val p" id="coverMetaPct">—</div></div></div>
+      <div class="cm-card cm-c3"><div class="cm-ico">⚙️</div><div class="cm-body"><div class="cm-lbl">Modo operacional</div><div class="cm-val g" id="coverModoOp">—</div></div></div>
+      <div class="cm-card cm-c4"><div class="cm-ico">💳</div><div class="cm-body"><div class="cm-lbl">Caixa variável</div><div class="cm-val g" id="coverCaixaVar">—</div></div></div>
     </div>
   </div>
 
   <div class="card" style="margin-bottom:1.5rem">
-    <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem">🔮 Simulador Fim de Ciclo — quanto ainda dá pra gastar na Caixa Variável</div>
-    <div class="grid-4" style="gap:1rem">
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dias restantes</div><div style="font-size:1.15rem;font-weight:700" id="simDiasRestantes">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Tem na caixa</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simSaldoReal">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Comprometido</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simComprometido">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Falta para cobrir</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFalta">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Teto efetivo</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simTeto">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Disponível real hoje</div><div class="v" style="font-size:1.15rem;font-weight:700" id="simFolego">—</div></div>
-      <div><div class="cm-lbl" style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase">Dá pra gastar por dia</div><div class="v" style="font-size:1.15rem;font-weight:700;color:var(--accent)" id="simPorDia">—</div></div>
+    <div class="card-header-icon">
+      <div class="chi-ico">🔮</div>
+      <div>
+        <div class="chi-title">Simulador Fim de Ciclo</div>
+        <div class="chi-sub">Quanto ainda dá pra gastar na Caixa Variável</div>
+      </div>
     </div>
-    <div id="simPendenteBox" style="display:none;margin-top:0.7rem;padding:0.6rem 0.8rem;background:rgba(57,135,229,0.08);border:1px solid rgba(57,135,229,0.25);border-radius:8px">
-      <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem">📤 Pendente para o próximo ciclo</div>
+    <div class="kpi-strip" style="margin-bottom:0">
+      <div class="kpi"><div class="lbl">Dias restantes</div><div class="val" id="simDiasRestantes">—</div></div>
+      <div class="kpi"><div class="lbl">Tem na caixa</div><div class="val v" id="simSaldoReal">—</div></div>
+      <div class="kpi"><div class="lbl">Comprometido</div><div class="val v" id="simComprometido">—</div></div>
+      <div class="kpi"><div class="lbl">Falta para cobrir</div><div class="val v" id="simFalta">—</div></div>
+      <div class="kpi"><div class="lbl">Teto efetivo</div><div class="val v" id="simTeto">—</div></div>
+      <div class="kpi"><div class="lbl">Disponível real hoje</div><div class="val v" id="simFolego">—</div></div>
+      <div class="kpi"><div class="lbl">Dá pra gastar por dia</div><div class="val v" style="color:var(--accent)" id="simPorDia">—</div></div>
+    </div>
+    <div id="simPendenteBox" class="callout info" style="display:none;margin-top:1rem">
+      <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem;letter-spacing:0.04em">📤 Pendente para o próximo ciclo</div>
       <div class="v" style="font-size:1.05rem;font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
       <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem">Compras no Mastercard Black feitas depois do fechamento da fatura (dia 22) mas ainda dentro deste ciclo — não entram no comprometido de agora, já vêm pré-debitadas do orçamento da Caixa Variável do próximo ciclo.</div>
     </div>
-    <div class="v" id="simMensagem" style="font-size:0.78rem;color:var(--text-mid);margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid var(--border)">—</div>
+    <div class="v" id="simMensagem" style="font-size:0.8rem;color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
 
-  <div class="card" style="margin-bottom:1.5rem">
-    <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.6rem">🔍 Verificações de Negócio</div>
-    <div class="v" id="alertasNegocio" style="font-size:0.8rem;line-height:1.9">—</div>
-  </div>
-
-  <div class="master-tabs">
-    <button class="master-tab active" onclick="showMaster('painel', this)">📊 Painel</button>
-    <button class="master-tab" onclick="showMaster('graficos', this)">📈 Gráficos</button>
-    <button class="master-tab" onclick="showMaster('cenarios', this)">🛡️ Cenários</button>
-    <button class="master-tab" onclick="showMaster('balancov2', this)">🏛️ Balanço</button>
-  </div>
+  <!-- parte 51 (pedido do usuario: "tudo, os espacos entre linhas, o tamanho dele, parece que nao
+       combina nessa posicao") - Verificacoes de Negocio movida daqui (topo, logo apos o Simulador,
+       antes de qualquer secao numerada real) pro fim do Painel, depois da secao 22 (Inbox Financeira).
+       Motivo: e uma lista de diagnostico/saude do sistema, nao conteudo financeiro primario - fazia
+       mais sentido como fechamento ("tudo conferido") do que como a 2a coisa vista ao abrir a aba,
+       na frente de Ciclo financeiro/Modo operacional/Patrimonio. Ver bloco novo perto do fim do
+       #painel, logo antes do fechamento da div. -->
 
   <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
        (Caixa Variavel, Reembolso, Tolerancia, Cascata do Reembolso, Modo Operacional) sem tocar em
@@ -84,6 +98,16 @@
   <div id="cicloBannerFechado" style="display:none">
     <span>🔒</span>
     <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
+  </div>
+
+  <!-- parte 45 (pedido do usuario): tabs movidas pra logo acima do conteudo que elas de fato trocam -
+       antes ficavam la em cima, longe da area que muda ao clicar, dando a impressao de que o clique
+       "nao fazia nada" (a mudança real só aparecia varias telas abaixo). -->
+  <div class="master-tabs">
+    <button type="button" class="master-tab active" data-pane="painel" onclick="irParaPrimeiraSecao('painel')">📊 Painel</button>
+    <button type="button" class="master-tab" data-pane="graficos" onclick="irParaPrimeiraSecao('graficos')">📈 Gráficos</button>
+    <button type="button" class="master-tab" data-pane="cenarios" onclick="irParaPrimeiraSecao('cenarios')">🛡️ Cenários</button>
+    <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
   </div>
 
   <div id="painel" class="master-pane active">
@@ -140,6 +164,14 @@
 
   <!-- 3 -->
   <div class="section-num"><span class="n">03</span><h2>Patrimônio financeiro</h2></div>
+  <!-- CORRIGIDO 03/08/2026 (pedido do usuario): o botao de download JPEG desta secao usa
+       header.nextElementSibling como area de captura (ver inicializarBotoesPrintSecao/app.js) -
+       antes disso era so o .grid-2 (Total+Composicao), entao PGBL/FGTS/Creditos e Cupons (que
+       ficavam soltos como irmaos seguintes, antes da secao 04) nunca apareciam no JPEG baixado.
+       Agora os 4 blocos vivem dentro do mesmo wrapper, capturados juntos. "card-agrupador" e so
+       pra casar com o regex de elegibilidade do botao (/\bcard\b/) - nao tem CSS proprio, entao
+       nao muda nada visualmente, cada card interno mantem seu proprio estilo/espacamento. -->
+  <div class="card-agrupador">
   <div class="grid-2">
     <div class="card">
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.3rem">Total</div>
@@ -189,6 +221,7 @@
       <div><div style="font-size:0.68rem;color:var(--text-dim)">KMV Ipiranga</div><div class="v" style="font-weight:600" id="credKmv">—</div></div>
     </div>
     <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem">Créditos e cupons de apps (Uber, Shell Box, KMV) — não são dinheiro líquido, não somam no patrimônio nem na Meta do Milhão. Acompanhados aqui só por transparência.</div>
+  </div>
   </div>
 
   <!-- 4 -->
@@ -368,7 +401,6 @@
       <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRV_TRANSACOES -->
       </tbody></table>
-      <div class="callout ok">Filtro por ciclo: mostrando o "limbo" (pós-fechamento da fatura) + as compras do ciclo atual, no Mastercard Black (final 6351). Consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
       <div class="tfoot"><span id="qtdLRV">—</span><span class="total v" id="tfLRV">—</span></div>
     </div>
 
@@ -520,12 +552,78 @@
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em custos (corretagem/taxas)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--red)" id="opcoesCustosTotal">—</div></div>
       <div><div style="font-size:0.72rem;color:var(--text-mid)">Total líquido recebido</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
     </div>
-    <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Vencimento das posições em aberto: <strong>21/08/2026</strong></div>
+
+    <!-- Módulo 17 (03/08/2026, layout revisado a pedido do usuário): Rentabilidade da Operação (ROC) -
+         consolidado da carteira. Antes era um grid plano de 7 campos sem hierarquia nem status. Agora:
+         badge de status no topo (antes só existia por posição na tabela, não no resumo), número
+         principal (rentabilidade mensal, o dado mais acionável pra comparar com CDI) em destaque com
+         comparação CDI e anualizada como subtítulo, e o grid secundário com labels mais explícitos
+         (ex: "Rentabilidade (período)" em vez de só "Rentabilidade", pra não confundir com a mensal). -->
+    <!-- CORRIGIDO 03/08/2026 (pedido do usuario - "mais sobrio"): removida a borda-esquerda azul de
+         destaque (var(--accent)) e o fundo forte (var(--surface-2)) - card agora usa o mesmo estilo
+         neutro dos outros cards do painel (.card padrão: var(--surface) + borda var(--border)).
+         Numero principal reduzido de 2rem/var(--accent) pra 1.5rem/var(--text) - continua em destaque
+         (maior que o resto do card) mas sem gritar cor/tamanho, badge de status ao lado ja comunica o
+         "veredito" (Muito Boa/Boa/etc), o numero nao precisa competir em cor por cima disso. -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:0.9rem;padding:1.1rem 1.3rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.9rem">
+        <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Rentabilidade da Operação (ROC)</div>
+        <span class="badge" id="rocStatusBadge">—</span>
+      </div>
+
+      <div style="display:flex;align-items:baseline;gap:0.7rem;flex-wrap:wrap;padding-bottom:0.9rem;margin-bottom:0.9rem;border-bottom:1px solid var(--border)">
+        <div class="v" style="font-size:1.5rem;font-weight:700;color:var(--text);line-height:1" id="rocRentabilidadeMensal">—</div>
+        <div style="font-size:0.78rem;color:var(--text-mid)">ao mês&nbsp; · &nbsp;<span class="v" style="font-weight:600;color:var(--text)" id="rocComparacaoCDI">—</span>&nbsp; · &nbsp;<span class="v" style="font-weight:600" id="rocRentabilidadeAnualizada">—</span> ao ano</div>
+      </div>
+
+      <div class="grid-4">
+        <div><div style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.15rem">Capital travado</div><div class="v" style="font-weight:600" id="rocCapitalTravado">—</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.15rem">Prêmio líquido</div><div class="v" style="font-weight:600;color:var(--green)" id="rocPremioLiquido">—</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.15rem">Rentabilidade (período)</div><div class="v" style="font-weight:600" id="rocRentabilidade">—</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.15rem">Dias médios</div><div class="v" style="font-weight:600" id="rocDiasMedios">—</div></div>
+      </div>
+
+      <div class="v" id="legRocCarteira" style="font-size:0.65rem;color:var(--text-dim);margin-top:0.7rem">—</div>
+    </div>
+
+    <div style="font-size:0.72rem;color:var(--text-mid);margin:0.7rem 0 0.5rem">Vencimento das posições em aberto: <strong>21/08/2026</strong></div>
     <div style="overflow-x:auto">
-    <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Ação agora</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Valor de mercado</th></tr></thead><tbody id="opcoesTbody">
+    <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Ação agora</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Valor de mercado</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesTbody">
     </tbody></table>
     </div>
     <div class="v" id="legOpcoesCotacoes" style="font-size:0.65rem;color:var(--text-dim);margin-top:0.3rem">—</div>
+
+    <!-- NOVO 03/08/2026 (pedido do usuario - "a operação que venceu se move automaticamente pra uma
+         linha abaixo só de vencidas"): antes as posições vencidas só apareciam citadas em texto
+         (legOpcoesVencidas). Agora ganham uma tabela própria, visualmente separada e esmaecida, logo
+         abaixo da tabela de posições ativas - populada automaticamente a partir do mesmo array
+         (VARS.opcoesVendidasDetalhe, filtro o.vencida=true), nunca escrita a mão. O bloco inteiro
+         fica com display:none quando não há nenhuma posição vencida (evita título "Posições vencidas"
+         vazio) - controlado em app.js. -->
+    <div id="opcoesVencidasWrap" style="display:none;margin-top:1rem;padding-top:0.9rem;border-top:1px dashed var(--border)">
+      <div style="font-size:0.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:0.5rem">Posições vencidas</div>
+      <div style="overflow-x:auto">
+      <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Vencimento</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesVencidasTbody">
+      </tbody></table>
+      </div>
+      <div class="v" id="legOpcoesVencidas" style="font-size:0.65rem;color:var(--text-dim);margin-top:0.4rem"></div>
+    </div>
+
+    <!-- NOVO 03/08/2026 (pedido do usuario - "linha abaixo da vencida que funciona igual, automaticamente,
+         para as exercidas"): mesma logica/estrutura da tabela de Vencidas acima, mas so pras posicoes
+         vencidas que o usuario CONFIRMOU manualmente (via nota de corretagem) que foram exercidas, nao so
+         expiraram OTM viram-po. Campo o.exercida e manual (nao tem como o sistema saber isso sozinho, ver
+         PASSAGEM_DE_TURNO) - uma vez marcado, a linha se move sozinha pra ca, sem edicao de HTML. Fica
+         escondida (display:none) quando nao ha nenhuma exercida, mesmo padrao do bloco de Vencidas. -->
+    <div id="opcoesExercidasWrap" style="display:none;margin-top:1rem;padding-top:0.9rem;border-top:1px dashed var(--border)">
+      <div style="font-size:0.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:0.5rem">Posições exercidas</div>
+      <div style="overflow-x:auto">
+      <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Strike</th><th class="r">Vencimento</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesExercidasTbody">
+      </tbody></table>
+      </div>
+      <div class="v" id="legOpcoesExercidas" style="font-size:0.65rem;color:var(--text-dim);margin-top:0.4rem"></div>
+    </div>
+
     <div class="v" id="legOpcoesReconstruido" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
@@ -617,9 +715,39 @@
 
   <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
 
+  <!-- 22 -->
+  <!-- V400 (03/08/2026) Etapa 1 - Inbox Financeira: componente central do projeto de automacao de
+       captura (brief V400). Continua/nao filtrada por ciclo (mesma classe de LREI/boletos). Comeca
+       vazia - nenhuma automacao de captura (Pluggy/Email/Telegram/OCR/Corretoras) existe ainda,
+       populavel via inboxAdicionarItem() no console/app.js ate essas automacoes chegarem em etapas
+       futuras. Aprovar/Rejeitar so muda o status aqui dentro - nunca lanca automaticamente no livro
+       razao (ver app.js, funcao inboxAprovar). -->
+  <div class="section-num"><span class="n">22</span><h2>📥 Inbox Financeira</h2></div>
+  <div class="card">
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
+    <div class="v" id="inboxFinanceiraResumo" style="font-size:0.68rem;color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
+    <div style="overflow-x:auto">
+      <table id="inboxFinanceiraTable"><thead><tr><th>ID</th><th>Origem</th><th>Descrição</th><th class="r">Valor</th><th>Data</th><th class="r">Confiança</th><th>Status</th><th>Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- parte 51: Verificações de Negócio, movida do topo pra cá (ver nota lá em cima) - fechamento do
+       Painel, versão compacta (linhas mais baixas, ícone menor, texto menor) - pedido explícito do
+       usuário: "tudo, os espaços entre linhas, o tamanho dele". -->
+  <div class="card verif-card" style="margin-top:1.5rem;margin-bottom:1.5rem">
+    <div class="card-header-icon" style="margin-bottom:0.7rem">
+      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
+      <div>
+        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
+        <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
+      </div>
+    </div>
+    <div class="v" id="alertasNegocio">—</div>
+  </div>
+
 
   
-
 
   </div>
 
@@ -1008,7 +1136,7 @@
           <tbody id="dzTableBody"></tbody>
         </table>
       </div>
-      <div class="total-line" style="margin-top:0.6rem"><span>Déficit vira superávit em</span><span class="v" style="color:var(--green)">Set/26 (3º mês)</span></div>
+      <div class="total-line" style="margin-top:0.6rem"><span>Déficit vira superávit em</span><span class="v" style="color:var(--green)" id="dzViraSuperavit">—</span></div>
     </div>
 
   </div>
@@ -1136,6 +1264,10 @@
   </footer>
 
 </div>
+
+<!-- parte 41: botao flutuante "voltar a capa" (Dashboard) - escondido no topo da pagina, aparece so
+     depois de rolar (toggleBtnVoltarCapa em app.js). Fora de .wrap de proposito, pra position:fixed
+     nao herdar nenhum contexto de empilhamento estranho. -->
 
 <script>
 // V169 (26/07/2026): busca os dados MAIS RECENTES (compras, saldos) do Supabase antes de carregar
