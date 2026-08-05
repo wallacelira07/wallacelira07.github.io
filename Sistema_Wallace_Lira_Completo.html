@@ -243,6 +243,7 @@
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-103 · PIX Geral Vanessa (conta autônoma dela, PGV)</div><div class="v" style="font-weight:600" id="cxPgvSaldo">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--text-dim)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--text-dim)">Autonomia total</span><span class="v" style="color:var(--text-dim)">sem meta</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fatura Wärtsilä</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" style="width:100%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" id="cxManutBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span style="color:var(--green)">LREI0001: QUITADO 21/07 (reembolso Wärtsilä)</span><span class="v" id="cxManutMeta">—</span></div></div>
+    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Bens Duráveis (eletrônico, roupa, panela)</div><div class="v" style="font-weight:600" id="cxBensDuraveisSaldo">—</div><div class="progress"><div class="fill" id="cxBensDuraveisBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxBensDuraveisAporte">—</span><span class="v" id="cxBensDuraveisMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxEventosPct">—</span><span class="v" id="cxEventosMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-304 · Fundo de Suavização Salarial (Itaú)</div><div class="v" style="font-weight:600" id="cxSuavizSaldo">—</div><div class="progress"><div class="fill" id="cxSuavizBar" style="width:0%;background:var(--blue)"></div></div><div class="progress-lbl"><span class="v" id="cxSuavizTxt">—</span><span class="v" id="cxSuavizProLabore">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudeAporteTxt">—</span><span class="v" id="cxSaudeMeta">—</span></div></div>
@@ -388,6 +389,7 @@
       <button class="tab" id="lrTabBtn_lrdoacao" onclick="showLR('lrdoacao',this)">LRDOA - Doações</button>
       <button class="tab" id="lrTabBtn_lrpv" onclick="showLR('lrpv',this)">LRPGV - PIX Geral Vanessa</button>
       <button class="tab" id="lrTabBtn_lrpvsaldo" onclick="showLR('lrpvsaldo',this)">LRPV - PIX Vanessa</button>
+      <button class="tab" id="lrTabBtn_lrbd" onclick="showLR('lrbd',this)">LRBD - Bens Duráveis</button>
     </div>
 
     <div id="lrw" class="pane active">
@@ -519,6 +521,14 @@
       </tbody></table>
       <div class="callout ok">Reserva do Wallace para apoiar a Vanessa — aportes mensais + reforços diretos à PGV quando o saldo dela fica baixo (regra: repor quando PGV cai abaixo de R$50,00, seção 7 Políticas).</div>
       <div class="tfoot"><span id="qtdPV">—</span><span class="total v" id="tfPV">—</span></div>
+    </div>
+
+    <div id="lrbd" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrbdTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.BENS_DURAVEIS_TRANSACOES -->
+      </tbody></table>
+      <div class="callout ok">Compras de bem durável (eletrônico, roupa, calçado, panela) — separadas do consumo recorrente da Caixa Variável. Aporte alvo R$250,00/mês. Saldo pode ficar negativo quando a compra acontece antes da reserva cobrir.</div>
+      <div class="tfoot"><span id="qtdBD">—</span><span class="total v" id="tfBD">—</span></div>
     </div>
 
     <div id="lrpv" class="pane">
@@ -893,8 +903,8 @@
       <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
       <div class="grid-3">
         <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Autoconsumo</div><div class="v" style="font-weight:600" id="ugAutoconsumoPct">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
         <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dependência da rede</div><div class="v" style="font-weight:600" id="ugDependenciaPct">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600" id="ugStatus">—</div>
 
@@ -930,7 +940,7 @@
            mesmo padrão de bug já documentado (2 .card empilhados sem margem entre si tocam com 0px -
            os cantos arredondados colados criam ilusão de caixa vazia na costura). margin-top aqui. -->
       <div style="font-weight:600;margin-bottom:0.3rem">☀️ Geração por dia (real + média histórica)</div>
-      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem">Barra verde = geração real daquele dia, capturada pelo robô SAJ (2x/dia). Barra laranja = média de geração por dia dentro de um intervalo entre leituras manuais do medidor (histórico, antes do robô guardar o dado diário) — não é um dia isolado real, é a média do período.</div>
+      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Barra laranja = média de geração por dia dentro de um intervalo entre leituras manuais do medidor (histórico, antes do robô guardar o dado diário) — não é um dia isolado real, é a média do período.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
       <div class="legend-note v" id="legGeracaoPorDia">—</div>
     </div>
@@ -1286,7 +1296,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V11 · v05/08/2026 (parte 92)</span>
+    <span>Sistema Wallace Lira · ERP V11 · v05/08/2026 (parte 94)</span>
   </footer>
 
 </div>

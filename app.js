@@ -308,7 +308,7 @@ function irParaSecaoBusca(item){
 // conhecidos + o historico cross-ciclo (parte 57). Busca por: codigo TX (com ou sem "TX"), valor
 // (com vírgula/ponto, com ou sem "R$"), ou nome do estabelecimento/descricao.
 const LIVROS_BUSCAVEIS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
-  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS'];
+  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS','BENS_DURAVEIS_TRANSACOES'];
 let _buscaGlobalIndiceTransacoes = null;
 
 function construirIndiceTransacoesBusca(){
@@ -345,7 +345,8 @@ const LIVRO_PARA_TAB_LR = {
   'LRCV_TRANSACOES': 'lrcv',
   'BOLETOS_TRANSACOES': 'lrb',
   'PV_TRANSACOES': 'lrpvsaldo',
-  'LRPV_TRANSACOES': 'lrpv'
+  'LRPV_TRANSACOES': 'lrpv',
+  'BENS_DURAVEIS_TRANSACOES': 'lrbd'
 };
 
 function irParaTransacaoNoLivro(t, livro){
@@ -840,6 +841,19 @@ const VARS = {
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:1.06 },
   ],
   caixaManutencao: 345.39,              // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MANUTENCAO_TRANSACOES.
+  // NOVO 05/08/2026 (pedido do usuario, "quero criar uma caixa de verdade pra bens duraveis, sem
+  // saldo previo - vai ficar negativa"): mesmo padrao das outras 12 caixas (saldo derivado via
+  // calcularSaldoCaixa). Comeca SEM saldo inicial (0) - as 2 primeiras saidas ja fazem ela nascer
+  // negativa em R$355,00 (fone+cortador, ja gastos antes desta caixa existir). Aporte mensal alvo:
+  // R$250,00 (R$1.000/ano cada - Wallace, Vanessa, Julio - dividido por 12, confirmado pelo usuario).
+  // Meta de reserva: R$3.000 (1 ano de aporte acumulado).
+  BENS_DURAVEIS_SALDO_INICIAL: 0,
+  BENS_DURAVEIS_APORTE_MENSAL_ALVO: 250.00,
+  BENS_DURAVEIS_TRANSACOES: [
+    {tx:'TX000159-A', data:'25/07', nome:'Fone de Ouvido QCY HT08', tipo:'Saída', valor:319.90, obs:'Bem durável (eletrônico) - separado de TX000159 (compra conjunta no Mercado Livre).'},
+    {tx:'TX000159-B', data:'25/07', nome:'Cortador de Pelo Nasal Wahl', tipo:'Saída', valor:35.10, obs:'Bem durável (eletrônico) - separado de TX000159 (compra conjunta no Mercado Livre).'}
+  ],
+  caixaBensDuraveis: -355.00,           // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar BENS_DURAVEIS_TRANSACOES.
 
   ANIVERSARIO_JULIO_SALDO_INICIAL: 200.10,
   ANIVERSARIO_JULIO_TRANSACOES: [
@@ -1950,6 +1964,34 @@ Object.freeze(VARS.ROC_STATUS_LIMITES);
 if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
   const dr = window.WALLACE_DADOS_REMOTOS;
   Object.assign(VARS, dr); // campos de 1o nivel (LRW_TRANSACOES, cartaoMBTotal, etc)
+  // CORRIGIDO 05/08/2026 (parte 95, usuario apontou "o valor do Mercado Pago nao aparece"): mercadoPagoFatura
+  // ficava travado no valor MANUAL do ultimo pagamento (27/07, gravado como 0 no Supabase) porque nada
+  // atualizava esse campo depois disso. A funcao reconciliarPluggy() ja calculava o valor real da fatura
+  // aberta via Pluggy (resultado.mercadoPagoSaldoAbertoPluggy), mas (1) so roda depois que REG/hydrate ja
+  // tinham renderizado a tela inteira (onDomPronto só dispara apos DOMContentLoaded, e REG nasce no parse
+  // do script, antes disso) e (2) o resultado nunca era escrito de volta em VARS - so ficava numa variavel
+  // local, descartada a cada carga. Corrigido fazendo a MESMA extracao aqui, sincrona, ANTES do REG nascer
+  // (window.WALLACE_DADOS_REMOTOS ja contem VARS.PLUGGY_CONTAS neste ponto, injetado no HTML antes deste
+  // script). Mesmo criterio ja usado em reconciliarPluggy (parte 77): mostra o saldo/fatura ATUAL da
+  // Pluggy sempre, independente do vencimento - nao esconde do usuario so pra evitar falso-positivo de
+  // divergencia (essa e uma preocupacao separada, tratada em reconciliarPluggy). Se a Pluggy estiver fora
+  // do ar ou sem esse cartao mapeado nesta carga, mantem o valor ja existente em VARS (fallback), o site
+  // nunca quebra.
+  if(VARS.PLUGGY_CONTAS && Array.isArray(VARS.PLUGGY_CONTAS.conexoes)){
+    let faturaMPPluggy = null, vencMPPluggy = null;
+    VARS.PLUGGY_CONTAS.conexoes.forEach(conexao=>{
+      (conexao.contas||[]).forEach(conta=>{
+        if(conta.tipo === 'CREDIT' && /mercado\s*pago/i.test(conta.nome||'') && conta.fatura_mes_atual){
+          faturaMPPluggy = conta.fatura_mes_atual.valor_total;
+          vencMPPluggy = conta.fatura_vencimento_atual || conta.fatura_mes_atual.vencimento || null;
+        }
+      });
+    });
+    if(faturaMPPluggy != null){
+      VARS.mercadoPagoFatura = faturaMPPluggy;
+      VARS.mercadoPagoVencimentoPluggy = vencMPPluggy;
+    }
+  }
   // caixaVariavelComprometido/SaldoReal vivem dentro de CICLO_SNAPSHOTS[cicloAtual], nao no topo do
   // VARS - precisam ser aplicados no snapshot do ciclo atual especificamente.
   // BUG CORRIGIDO 26/07/2026 (V181): so caixaVariavelComprometido tinha esse tratamento - o Saldo Real
@@ -2007,6 +2049,7 @@ VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO = 0.04; // V192: diferenca documentada ent
 VARS.pixGeralVanessaSaldo = calcularSaldoCaixa(VARS.PGV_SALDO_INICIAL_CICLO, VARS.LRPV_TRANSACOES) - VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO; // V192: derivado do array LRPV_TRANSACOES, nunca mais numero fixo dessincronizado
 VARS.caixaLance = calcularSaldoCaixa(VARS.CAIXA_LANCE_SALDO_INICIAL_CICLO, VARS.CAIXA_LANCE_TRANSACOES); // V192: derivado do array CAIXA_LANCE_TRANSACOES, nunca mais numero fixo dessincronizado
 VARS.caixaManutencao = calcularSaldoCaixa(VARS.MANUTENCAO_SALDO_INICIAL, VARS.MANUTENCAO_TRANSACOES);
+VARS.caixaBensDuraveis = calcularSaldoCaixa(VARS.BENS_DURAVEIS_SALDO_INICIAL, VARS.BENS_DURAVEIS_TRANSACOES);
 VARS.caixaAniversarioJulio = calcularSaldoCaixa(VARS.ANIVERSARIO_JULIO_SALDO_INICIAL, VARS.ANIVERSARIO_JULIO_TRANSACOES);
 VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES);
 // NOVO 31/07/2026 (V214, pedido explicito do usuario: "quero que o pagamento desses boletos sejam
@@ -2405,6 +2448,7 @@ const REG = {
     saudeFamilia:        { saldo:VARS.caixaSaudeFamilia,       meta:1600 },
     aniversarioJulio:    { saldo:VARS.caixaAniversarioJulio,   meta:400  },
     seguroEmplacamento:  { saldo:VARS.caixaSeguroEmplacamento, meta:5100 },
+    bensDuraveis:        { saldo:VARS.caixaBensDuraveis,       meta:3000 },
     escolaJulio:         { saldo:VARS.escolaJulioSaldo,        meta:VARS.metaEscolaJulio }
   }, // V134: todos os saldos agora leem do VARS (fonte unica) - antes eram literais duplicados aqui, em balanco.reservas e em escolaJulioSaldo separadamente, 3 copias que ja dessincronizaram nesta sessao.
   // V143: card "Fatura Wartsila" (secao 05) tinha "excedente R$23,84" como texto fixo - agora DERIVADO.
@@ -2831,11 +2875,18 @@ function atualizarBotoesSeletorCiclo(){
 // Linhas riscadas (duplicatas/estornos, style="text-decoration:line-through") sao EXCLUIDAS da contagem -
 // elas aparecem na tabela por rastreabilidade (P1/P6) mas nao sao lancamentos validos ativos.
 function atualizarContadoresAbasLR(){
-  const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo'];
+  // CORRIGIDO 05/08/2026 (parte 95, usuario apontou "o botao do LRBD nao mostra a quantidade de itens
+  // como os demais"): 'lrbd' faltava neste array - o painel existe (id="lrbd" no HTML) mas nunca era
+  // varrido por esta funcao, entao nunca ganhava o sufixo "(N)" que os outros 14 botoes ganham. Mesmo
+  // padrao de bug ja documentado no manual (regra 03): toda caixa/livro novo precisa ser adicionado
+  // aqui manualmente, nao ha auto-descoberta de paineis - registrar pra proxima vez que uma caixa nova
+  // ganhar aba propria (usuario pediu isso explicitamente: "acho bom toda caixa ter o seu LR").
+  const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo','lrbd'];
   const labels = {
     lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
     lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
-    lrcv:'LRCV - Caixa Variável', lrei:'LREI - Empréstimos Internos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PIX Geral Vanessa', lrpvsaldo:'LRPV - PIX Vanessa'
+    lrcv:'LRCV - Caixa Variável', lrei:'LREI - Empréstimos Internos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PIX Geral Vanessa', lrpvsaldo:'LRPV - PIX Vanessa',
+    lrbd:'LRBD - Bens Duráveis'
   };
   // NOVO 01/08/2026 (V243, pedido do usuario - "torne isso automatico em todas"): rodapes de tabela
   // (ex: "9 lançamentos", "13 assinaturas ativas") eram texto FIXO no HTML, nunca contado de verdade -
@@ -2928,6 +2979,23 @@ function renderLivrosVariaveis(){
     }
     const qtdPVEl = $('qtdPV');
     if(qtdPVEl) qtdPVEl.textContent = VARS.PV_TRANSACOES.length+' lançamento(s)';
+  }
+
+  // NOVO 05/08/2026: painel LRBD (Bens Duraveis) - mesma logica do PV
+  const lrbdTbody = $('lrbdTbody');
+  if(lrbdTbody){
+    if(!VARS.BENS_DURAVEIS_TRANSACOES.length){
+      lrbdTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+    } else {
+      lrbdTbody.innerHTML = VARS.BENS_DURAVEIS_TRANSACOES.map(t=>{
+        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+      }).join('');
+    }
+    const tfBDEl = $('tfBD');
+    if(tfBDEl) tfBDEl.textContent = fmt(VARS.caixaBensDuraveis);
+    const qtdBDEl = $('qtdBD');
+    if(qtdBDEl) qtdBDEl.textContent = VARS.BENS_DURAVEIS_TRANSACOES.length+' lançamento(s)';
   }
 
   const somaLRW = VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0);
@@ -3847,6 +3915,17 @@ function hydrate(){
   { const el=$('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
   t('cxManutSaldo', fmt(C.manutencao.saldo));       t('cxManutMeta', fmtInt(C.manutencao.meta));
   { const el=$('cxManutBar'); if(el) el.style.width = pctOf(C.manutencao.saldo, C.manutencao.meta)+'%'; }
+  // NOVO 05/08/2026: card Bens Duraveis - saldo pode ficar NEGATIVO (compra ja feita sem reserva
+  // previa) - cor muda pra vermelho nesse caso, barra fica em 0% (pctOf ja trata negativo como 0 via
+  // Math.min(100, ...) mas nao evita negativo dentro do min - forcamos max(0,...) aqui especificamente).
+  {
+    const elSaldo = $('cxBensDuraveisSaldo');
+    if(elSaldo){ elSaldo.textContent = fmt(C.bensDuraveis.saldo); elSaldo.style.color = C.bensDuraveis.saldo < 0 ? 'var(--red)' : 'var(--green)'; }
+    t('cxBensDuraveisMeta', fmtInt(C.bensDuraveis.meta));
+    const pctBens = Math.max(0, pctOf(C.bensDuraveis.saldo, C.bensDuraveis.meta));
+    const elBar = $('cxBensDuraveisBar'); if(elBar) elBar.style.width = pctBens+'%';
+    const elAporte = $('cxBensDuraveisAporte'); if(elAporte) elAporte.textContent = 'Aporte alvo: '+fmt(VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO)+'/mês';
+  }
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
   t('cxEventosPct', pctOf(C.eventos.saldo, C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.querySelector('#cxEventosSaldo').closest('.card').querySelector('.fill'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
@@ -5307,19 +5386,29 @@ new Chart($('g_cNecessidadeLiquida'), {
 // repasse de reembolso (P3: Reembolsos Wärtsilä → Fatura Wärtsilä → Mercado Pago → Caixa Lance,
 // nunca "pertence" a uma caixa - ver Princípios Contábeis no SWP_INPUT). Layout horizontal para
 // caber os 7 nomes sem cortar, com o valor ao final de cada barra.
-const caixasLabels = ['Boletos','PIX Vanessa','Manutenção','Eventos e Viagens','Saúde Família','Aniversário Júlio','Seguro/Emplacamento','Escola Júlio'];
-const caixasSaldo = Object.values(REG.caixasOperacionais).map(c=>c.saldo);
-const caixasMeta =  Object.values(REG.caixasOperacionais).map(c=>c.meta);
-const caixasNotas = [
-  '23,6% da meta',
-  '0% da meta (zerada)',
-  'LREI0001 quitado (21/07) — depósito direto do reembolso Wärtsilä',
-  'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo',
-  '2x Júlio + 1x Vanessa/ano · aporte R$100/mês',
-  '50% da meta · aporte R$200/mês até 14/09',
-  'Aporte R$425/mês (permanente)',
-  '5,5% da meta · meta R$9.236,00, fora da Meta do Milhão (P5)'
-];
+// CORRIGIDO 05/08/2026 (parte 95, usuario apontou "a caixa Bens Duraveis no grafico esta trepada na
+// Escola de Julio"): este array era POSICIONAL e hardcoded - quando a caixa Bens Duraveis foi criada
+// (parte 90ish) e inserida em REG.caixasOperacionais ANTES de escolaJulio, este array de 8 rotulos nao
+// foi atualizado. Resultado: a 8a barra (dado real de bensDuraveis, -R$355,00) herdava o 8o ROTULO
+// antigo ("Escola Júlio"), e a Escola Julio de verdade (9a chave) ficava sem rotulo nenhum. Corrigido
+// derivando os rotulos/notas de um MAPA por chave (nao mais por posicao) - assim uma caixa nova nunca
+// mais desalinha as que vem depois dela, so precisa de uma entrada nova no mapa abaixo.
+const CAIXAS_OPERACIONAIS_INFO = {
+  boletos:            { label:'Boletos',             nota:'23,6% da meta' },
+  pixVanessa:         { label:'PIX Vanessa',          nota:'0% da meta (zerada)' },
+  manutencao:         { label:'Manutenção',           nota:'LREI0001 quitado (21/07) — depósito direto do reembolso Wärtsilä' },
+  eventos:            { label:'Eventos e Viagens',    nota:'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo' },
+  saudeFamilia:       { label:'Saúde Família',        nota:'2x Júlio + 1x Vanessa/ano · aporte R$100/mês' },
+  aniversarioJulio:   { label:'Aniversário Júlio',    nota:'50% da meta · aporte R$200/mês até 14/09' },
+  seguroEmplacamento: { label:'Seguro/Emplacamento',  nota:'Aporte R$425/mês (permanente)' },
+  bensDuraveis:       { label:'Bens Duráveis',        nota:'Nasceu em -R$355,00 (fone + cortador de pelo, comprados antes da caixa existir) · aporte R$250/mês' },
+  escolaJulio:        { label:'Escola Júlio',         nota:'5,5% da meta · meta R$9.236,00, fora da Meta do Milhão (P5)' }
+};
+const caixasChaves = Object.keys(REG.caixasOperacionais);
+const caixasLabels = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].label) || k);
+const caixasSaldo = caixasChaves.map(k=>REG.caixasOperacionais[k].saldo);
+const caixasMeta =  caixasChaves.map(k=>REG.caixasOperacionais[k].meta);
+const caixasNotas = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].nota) || '');
 
 const caixasValuePlugin = {
   id:'caixasValuePlugin',
