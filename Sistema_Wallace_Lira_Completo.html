@@ -390,6 +390,15 @@
       <button class="tab" id="lrTabBtn_lrpv" onclick="showLR('lrpv',this)">LRPGV - PIX Geral Vanessa</button>
       <button class="tab" id="lrTabBtn_lrpvsaldo" onclick="showLR('lrpvsaldo',this)">LRPV - PIX Vanessa</button>
       <button class="tab" id="lrTabBtn_lrbd" onclick="showLR('lrbd',this)">LRBD - Bens Duráveis</button>
+      <button class="tab" id="lrTabBtn_lrlance" onclick="showLR('lrlance',this)">LRCL - Caixa Lance</button>
+      <button class="tab" id="lrTabBtn_lrmanut" onclick="showLR('lrmanut',this)">LRMN - Manutenção</button>
+      <button class="tab" id="lrTabBtn_lraniv" onclick="showLR('lraniv',this)">LRAJ - Aniversário Júlio</button>
+      <button class="tab" id="lrTabBtn_lreventos" onclick="showLR('lreventos',this)">LREV - Eventos e Viagens</button>
+      <button class="tab" id="lrTabBtn_lrsaude" onclick="showLR('lrsaude',this)">LRSF - Saúde Família</button>
+      <button class="tab" id="lrTabBtn_lrseguro" onclick="showLR('lrseguro',this)">LRSE - Seguro/Emplacamento</button>
+      <button class="tab" id="lrTabBtn_lrcomb" onclick="showLR('lrcomb',this)">LRCB - Combustível</button>
+      <button class="tab" id="lrTabBtn_lrchurrasco" onclick="showLR('lrchurrasco',this)">LRCH - Churrasco</button>
+      <button class="tab" id="lrTabBtn_lrmci" onclick="showLR('lrmci',this)">LRMI - Mastercard/Infinite</button>
     </div>
 
     <div id="lrw" class="pane active">
@@ -529,6 +538,74 @@
       </tbody></table>
       <div class="callout ok">Compras de bem durável (eletrônico, roupa, calçado, panela) — centro de custo separado da Caixa Variável (mesma lógica do custo corporativo), mesmo sendo cobrado na mesma fatura Mastercard Black. Desde 05/08/2026 esse custo NÃO entra mais no comprometido/disponível da Caixa Variável (fica só aqui e no total da fatura do cartão) — isso libera saldo na Caixa Variável. Aporte alvo R$250,00/mês. Saldo pode ficar negativo quando a compra acontece antes da reserva cobrir — isso é normal, não indica erro.</div>
       <div class="tfoot"><span id="qtdBD">—</span><span class="total v" id="tfBD">—</span></div>
+    </div>
+
+    <!-- NOVO 05/08/2026 (parte 99, pedido repetido do usuario: "nao esqueça, cada caixa deve ter seu
+         LR") - 9 caixas que ja tinham array de transacoes real no Supabase mas nenhuma aba propria.
+         Mesma estrutura exata do LRBD acima, renderizadas pelo bloco generico CAIXAS_LR_SIMPLES em
+         renderLivrosVariaveis() (app.js). -->
+    <div id="lrlance" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrlanceTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CAIXA_LANCE_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrlance">—</span><span class="total v" id="tf_lrlance">—</span></div>
+    </div>
+
+    <div id="lrmanut" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrmanutTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MANUTENCAO_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrmanut">—</span><span class="total v" id="tf_lrmanut">—</span></div>
+    </div>
+
+    <div id="lraniv" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lranivTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.ANIVERSARIO_JULIO_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lraniv">—</span><span class="total v" id="tf_lraniv">—</span></div>
+    </div>
+
+    <div id="lreventos" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lreventosTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.EVENTOS_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lreventos">—</span><span class="total v" id="tf_lreventos">—</span></div>
+    </div>
+
+    <div id="lrsaude" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrsaudeTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SAUDE_FAMILIA_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrsaude">—</span><span class="total v" id="tf_lrsaude">—</span></div>
+    </div>
+
+    <div id="lrseguro" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrseguroTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SEGURO_EMPLACAMENTO_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrseguro">—</span><span class="total v" id="tf_lrseguro">—</span></div>
+    </div>
+
+    <div id="lrcomb" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrcombTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.COMBUSTIVEL_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrcomb">—</span><span class="total v" id="tf_lrcomb">—</span></div>
+    </div>
+
+    <div id="lrchurrasco" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrchurrascoTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CHURRASCO_TRANSACOES -->
+      </tbody></table>
+      <div class="tfoot"><span id="qtd_lrchurrasco">—</span><span class="total v" id="tf_lrchurrasco">—</span></div>
+    </div>
+
+    <div id="lrmci" class="pane">
+      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrmciTbody">
+      <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MASTERCARD_INFINITE_TRANSACOES -->
+      </tbody></table>
+      <div class="callout ok">Guarda o valor pra pagar as faturas Visa Infinite + Mastercard Black. Aportes reais avisados pelo usuário (não são pagamentos que saíram desta caixa).</div>
+      <div class="tfoot"><span id="qtd_lrmci">—</span><span class="total v" id="tf_lrmci">—</span></div>
     </div>
 
     <div id="lrpv" class="pane">

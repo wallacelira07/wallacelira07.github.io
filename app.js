@@ -1275,16 +1275,21 @@ const VARS = {
     casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
     casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
   },
-  solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico) - apartamento do Wallace, recebe 71% do rateio de creditos (solarRateioWallace)
-  // CORRIGIDO 05/08/2026 (parte 97, usuario apontou o erro: "so existe 3 casas, a geradora da minha
-  // mae, o meu apartamento e casa da minha irma, nao existe essa 3a casa"): eu tinha colocado o dado
-  // real da fatura da casa da MAE dentro desta variavel "Irma" por engano - Irma (rateio 29%,
-  // solarRateioIrma) e a casa da IRMA, uma unidade DIFERENTE que recebe credito, nao a casa da mae
-  // (essa e a GERADORA, consome localmente antes de exportar - rastreada por SOLAR_LEITURAS/leitura103,
-  // nao por este par Wallace/Irma que so existe pra dividir o EXCEDENTE exportado entre 2 unidades
-  // remotas). Revertido ao valor antigo (119/30) ate ter a fatura real da casa da irma - nao tenho
-  // esse dado ainda, nao inventar.
-  solarConsumoDiarioIrma: 119/30,      // 3,97 kWh/dia (119 kWh/mes historico) - casa da IRMA (nao a da mae), fonte original nao documentada, AINDA sem fatura real conferida
+  // ATUALIZADO 05/08/2026 (parte 99): fatura Energisa real do apartamento do Wallace (UC 1.994.775.053-05,
+  // Rua Luzinalda Edite de Araujo Leite 598 Bloco C Apto 806C - Serrotão, leitura dia 21 = bate exato
+  // com DIA_LEITURA_WALLACE=21). Usa a linha "Média" da propria fatura (300 kWh / 30 dias, a mesma
+  // referencia de 30 dias que a Energisa usa nas outras 2 faturas ja conferidas nesta sessao). Era
+  // 291/30=9,70 (fonte antiga nao documentada) - bem proximo do valor real, so agora com fonte.
+  solarConsumoDiarioWallace: 300/30,  // 10,00 kWh/dia (fatura Energisa real, linha Média)
+  // ATUALIZADO 05/08/2026 (parte 99): agora com fatura real da casa da IRMA (UC 2.064.202.053-60, Rua
+  // Jose Palmeira Filho 580 - Jd America, leitura dia 08, confirmado pelo proprio usuario nesta mensagem:
+  // "segue a fatura da minha irma e minha"). NOTA: essa UC le no mesmo dia 08 que a UC da mae (573...) -
+  // coincidencia de roteiro de leitura da Energisa (bairros proximos), nao confundir com o comentario
+  // antigo de DIA_LEITURA_WELLIDA dizendo "mesmo ciclo da Casa da Mae" - a leitura acontece no mesmo dia,
+  // mas sao 2 unidades consumidoras diferentes, confirmado pelo usuario diretamente nesta sessao. Usa a
+  // linha "Média" da fatura (112 kWh / 30 dias). Era 119/30=3,97 (fonte antiga nao documentada) - bem
+  // proximo do valor real, so agora com fonte.
+  solarConsumoDiarioIrma: 112/30,      // 3,73 kWh/dia (fatura Energisa real, linha Média)
   // NOVO 05/08/2026 (parte 97): casa da MAE/geradora - a fatura real da UC 573.702.053-77 (Rua Gildete
   // Gomes Bezerra 79, leitura dia 08 = bate com DIA_LEITURA_WELLIDA=8) e dela, nao da Irma. Media
   // calculada so com os 7 MESES DE LEITURA REAL (excluindo os 6 marcados "*" = "Faturamento pela
@@ -2972,12 +2977,20 @@ function atualizarContadoresAbasLR(){
   // padrao de bug ja documentado no manual (regra 03): toda caixa/livro novo precisa ser adicionado
   // aqui manualmente, nao ha auto-descoberta de paineis - registrar pra proxima vez que uma caixa nova
   // ganhar aba propria (usuario pediu isso explicitamente: "acho bom toda caixa ter o seu LR").
-  const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo','lrbd'];
+  // ATUALIZADO 05/08/2026 (parte 99, pedido repetido do usuario: "nao esqueça, cada caixa deve ter seu
+  // LR"): adicionadas as 9 caixas que so tinham array de transacoes no Supabase, sem aba nenhuma - agora
+  // toda caixa operacional/patrimonial do sistema tem seu LR proprio (14 caixas + Caixa Variavel = 15,
+  // mais os livros que nao sao caixa: Wallace/Vanessa/Boletos/Parcelas/etc).
+  const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo','lrbd',
+    'lrlance','lrmanut','lraniv','lreventos','lrsaude','lrseguro','lrcomb','lrchurrasco','lrmci'];
   const labels = {
     lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
     lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
     lrcv:'LRCV - Caixa Variável', lrei:'LREI - Empréstimos Internos', lrdoacao:'LRDOA - Doações', lrpv:'LRPGV - PIX Geral Vanessa', lrpvsaldo:'LRPV - PIX Vanessa',
-    lrbd:'LRBD - Bens Duráveis'
+    lrbd:'LRBD - Bens Duráveis',
+    lrlance:'LRCL - Caixa Lance', lrmanut:'LRMN - Manutenção', lraniv:'LRAJ - Aniversário Júlio',
+    lreventos:'LREV - Eventos e Viagens', lrsaude:'LRSF - Saúde Família', lrseguro:'LRSE - Seguro/Emplacamento',
+    lrcomb:'LRCB - Combustível', lrchurrasco:'LRCH - Churrasco', lrmci:'LRMI - Mastercard/Infinite'
   };
   // NOVO 01/08/2026 (V243, pedido do usuario - "torne isso automatico em todas"): rodapes de tabela
   // (ex: "9 lançamentos", "13 assinaturas ativas") eram texto FIXO no HTML, nunca contado de verdade -
@@ -3088,6 +3101,41 @@ function renderLivrosVariaveis(){
     const qtdBDEl = $('qtdBD');
     if(qtdBDEl) qtdBDEl.textContent = VARS.BENS_DURAVEIS_TRANSACOES.length+' lançamento(s)';
   }
+
+  // NOVO 05/08/2026 (parte 99, pedido repetido do usuario: "nao esqueça, cada caixa deve ter seu LR").
+  // Generalizado o MESMO padrao ja usado no LRBD acima (nunca reescrito 9x) pras 9 caixas que ainda nao
+  // tinham aba propria, mesmo ja tendo array de transacoes real no Supabase havia sessoes: Caixa Lance,
+  // Manutencao, Aniversario Julio, Eventos, Saude Familia, Seguro/Emplacamento, Combustivel, Churrasco,
+  // Mastercard/Infinite. Config unica abaixo - uma caixa nova so precisa de 1 linha aqui + o par
+  // botao/pane no HTML (ver checklist no comentario de atualizarContadoresAbasLR).
+  const CAIXAS_LR_SIMPLES = [
+    { id:'lrlance',     arr:'CAIXA_LANCE_TRANSACOES',           saldo:'caixaLance' },
+    { id:'lrmanut',     arr:'MANUTENCAO_TRANSACOES',            saldo:'caixaManutencao' },
+    { id:'lraniv',      arr:'ANIVERSARIO_JULIO_TRANSACOES',     saldo:'caixaAniversarioJulio' },
+    { id:'lreventos',   arr:'EVENTOS_TRANSACOES',               saldo:'caixaEventos' },
+    { id:'lrsaude',     arr:'SAUDE_FAMILIA_TRANSACOES',         saldo:'caixaSaudeFamilia' },
+    { id:'lrseguro',    arr:'SEGURO_EMPLACAMENTO_TRANSACOES',   saldo:'caixaSeguroEmplacamento' },
+    { id:'lrcomb',      arr:'COMBUSTIVEL_TRANSACOES',           saldo:'caixaCombustivel' },
+    { id:'lrchurrasco', arr:'CHURRASCO_TRANSACOES',             saldo:'caixaChurrasco' },
+    { id:'lrmci',       arr:'MASTERCARD_INFINITE_TRANSACOES',   saldo:'caixaMastercardInfinite' }
+  ];
+  CAIXAS_LR_SIMPLES.forEach(cfg=>{
+    const tbody = $(cfg.id+'Tbody');
+    if(!tbody) return; // pane ainda nao existe neste HTML (versao antiga em cache) - nao quebra
+    const arr = VARS[cfg.arr] || [];
+    if(!arr.length){
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+    } else {
+      tbody.innerHTML = arr.map(t=>{
+        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+      }).join('');
+    }
+    const tfEl = $('tf_'+cfg.id);
+    if(tfEl) tfEl.textContent = fmt(VARS[cfg.saldo]);
+    const qtdEl = $('qtd_'+cfg.id);
+    if(qtdEl) qtdEl.textContent = arr.length+' lançamento(s)';
+  });
 
   const somaLRW = VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0);
   const somaLRV = VARS.LRV_TRANSACOES.reduce((s,t)=>s+t.valor,0);
@@ -6442,7 +6490,7 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     if(legGeracaoPorDiaEl){
       const qtdReal = Object.keys(diariosPorData).length;
       legGeracaoPorDiaEl.textContent = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas (Wallace 9,70 + irmã 3,97 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia). A da irmã ainda usa valor antigo sem fatura conferida — manda a fatura dela quando puder pra deixar as 3 igualmente confiáveis.'
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
         : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
