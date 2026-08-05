@@ -350,6 +350,11 @@ const LIVRO_PARA_TAB_LR = {
 
 function irParaTransacaoNoLivro(t, livro){
   showMaster('painel');
+  // CORRIGIDO 05/08/2026 (achado do usuário: busca só achava TX do ciclo atual - TX de ciclos
+  // antigos existe na linha (tr com display:none, o filtro de ciclo so esconde via CSS) mas
+  // scrollIntoView num elemento escondido nao faz nada. Forca "histórico completo" antes de navegar,
+  // sempre - garante que a linha alvo esteja visivel, nao importa de qual ciclo ela seja.
+  if(filtroLivroRazaoAtivo){ filtroLivroRazaoAtivo = false; aplicarFiltroLivrosRazao(); }
   // acha a section-num "Livros razao" pelo texto do h2 (mais confiavel que indice fixo)
   const secaoAlvo = Array.from(document.querySelectorAll('.section-num')).find(s => s.querySelector('h2')?.textContent.trim() === 'Livros razão');
 
@@ -6156,7 +6161,7 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
       data:{labels:mesesParesSolar,
         datasets:[
           {label:'Importado (código 03)', data:alignSolar(importadoMensal), backgroundColor:'#e2554f', borderRadius:3},
-          {label:'Consumo direto (real)', data:alignSolar(consumoDiretoMensal), backgroundColor:'#e8a63a', borderRadius:3},
+          {label:'Consumo direto (calculado)', data:alignSolar(consumoDiretoMensal), backgroundColor:'#e8a63a', borderRadius:3},
           {label:'Exportado (código 103)', data:alignSolar(exportadoMensal), backgroundColor:'#3987e5', borderRadius:3},
           {label:'Saldo líquido', data:alignSolar(saldoLiquidoMensal), backgroundColor:'#34c98a', borderRadius:3}
         ]},
