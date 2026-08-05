@@ -973,13 +973,13 @@ const VARS = {
   // MIGRADO 27/07/2026 (V193): caixaMastercardInfinite migrada para saldo derivado, mesmo padrao das
   // demais. Historico reconstruido do que ja estava documentado em V187 (pagamento das faturas +
   // juros repassados a Caixa Lance) - nenhum valor novo inventado.
-  MASTERCARD_INFINITE_SALDO_INICIAL: 11167.23,
+  MASTERCARD_INFINITE_SALDO_INICIAL: 0, // CORRIGIDO 05/08/2026 (parte 96, usuario apontou: "esse valor nao existe... voce deveria ter essa movimentacao no ERP porque eu sempre aviso qualquer valor que vou mover"): era 11167.23 - os 2 pagamentos abaixo NAO foram saidas desta caixa, foram APORTES (reforcos) que o usuario fez pra caixa, avisados em sessao anterior e nunca registrados. Corrigido tambem no Supabase (chave nova, antes so existia como default local).
   MASTERCARD_INFINITE_TRANSACOES: [
-    { tx:'PIX-BRADESCO-27-07', data:'27/07', nome:'Pagamento fatura Visa Infinite (PIX → Bradesco)', tipo:'Saída', valor:9073.92 },
-    { tx:'PIX-ITAU-27-07', data:'27/07', nome:'Pagamento fatura Mastercard Black (PIX → Itaú)', tipo:'Saída', valor:1937.18 },
+    { tx:'PIX-BRADESCO-27-07', data:'27/07', nome:'Aporte para fatura Visa Infinite (avisado pelo usuário, corrigido 05/08 — não era saída de pagamento, e sim reforço na caixa)', tipo:'Entrada', valor:9073.92 },
+    { tx:'PIX-ITAU-27-07', data:'27/07', nome:'Aporte para fatura Mastercard Black (avisado pelo usuário, corrigido 05/08 — não era saída de pagamento, e sim reforço na caixa)', tipo:'Entrada', valor:1937.18 },
     { tx:'JUROS-27-07-MB', data:'27/07', nome:'Juros acumulados (repassados à Caixa Lance)', tipo:'Entrada', valor:161.12 },
   ],
-  caixaMastercardInfinite: 317.25, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MASTERCARD_INFINITE_TRANSACOES.
+  caixaMastercardInfinite: 11172.22, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MASTERCARD_INFINITE_TRANSACOES.
   mastercardBlackCongelado: 1937.18,    // Congelado 22/07/2026, vencimento 28/07/2026 (fatura real do app, 25 lancamentos validos).
 
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
@@ -1275,8 +1275,24 @@ const VARS = {
     casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
     casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
   },
-  solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico)
-  solarConsumoDiarioIrma: 119/30,     // 3,97 kWh/dia (119 kWh/mes historico)
+  solarConsumoDiarioWallace: 291/30,  // 9,70 kWh/dia (291 kWh/mes historico) - apartamento do Wallace, recebe 71% do rateio de creditos (solarRateioWallace)
+  // CORRIGIDO 05/08/2026 (parte 97, usuario apontou o erro: "so existe 3 casas, a geradora da minha
+  // mae, o meu apartamento e casa da minha irma, nao existe essa 3a casa"): eu tinha colocado o dado
+  // real da fatura da casa da MAE dentro desta variavel "Irma" por engano - Irma (rateio 29%,
+  // solarRateioIrma) e a casa da IRMA, uma unidade DIFERENTE que recebe credito, nao a casa da mae
+  // (essa e a GERADORA, consome localmente antes de exportar - rastreada por SOLAR_LEITURAS/leitura103,
+  // nao por este par Wallace/Irma que so existe pra dividir o EXCEDENTE exportado entre 2 unidades
+  // remotas). Revertido ao valor antigo (119/30) ate ter a fatura real da casa da irma - nao tenho
+  // esse dado ainda, nao inventar.
+  solarConsumoDiarioIrma: 119/30,      // 3,97 kWh/dia (119 kWh/mes historico) - casa da IRMA (nao a da mae), fonte original nao documentada, AINDA sem fatura real conferida
+  // NOVO 05/08/2026 (parte 97): casa da MAE/geradora - a fatura real da UC 573.702.053-77 (Rua Gildete
+  // Gomes Bezerra 79, leitura dia 08 = bate com DIA_LEITURA_WELLIDA=8) e dela, nao da Irma. Media
+  // calculada so com os 7 MESES DE LEITURA REAL (excluindo os 6 marcados "*" = "Faturamento pela
+  // média/mínimo", que sao estimativa da Energisa, nao leitura real): Out/25 168kWh/32d, Nov/25 201/30,
+  // Dez/25 270/33, Jan/26 242/30, Fev/26 210/28, Mar/26 215/28, Abr/26 266/32 -> soma 1572 kWh / 213
+  // dias = 7,38 kWh/dia. Usada so pra estimar o consumo total das 3 casas (grafico "Geracao por dia");
+  // NAO entra no rateio Wallace/Irma (essa casa e a fonte, nao uma recebedora de credito).
+  solarConsumoDiarioMae: 1572/213,      // 7,38 kWh/dia (media real ponderada por dias, so meses com leitura de verdade - fatura Energisa confirmada)
   solarGeracaoDiariaEstimada: 25.6,   // kWh/dia bruto (app SAJ), usado so como fallback quando faltar leitura real
   // NOVO 31/07/2026: quando o usuario informar o valor REAL da fatura pos-solar de um mes (a partir da
   // fatura de 21/08), a chave (mesmo nome usado em mesesPares: 'Jul','Ago',...) entra aqui e passa a
@@ -1922,12 +1938,12 @@ const VARS = {
       caixaVariavelSaldoReal: 1878.00, // ATUALIZADO 01/08/2026: -R$22,00 (TX000190, PIX água mineral, reclassificado de PV para Caixa Variável - correção do usuário). Era R$1.900,00 (26/07, V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
       caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
       reembolsoRecebido: 0,
-      reembolsoAReceber: 7795.56, // ATUALIZADO 31/07/2026: +R$340,00 (usuario pediu para somar ao valor de reembolso a receber). Era R$7.455,56 - valor oficial do portal de reembolso Wärtsilä (relatório 07/31/2026) - "Due Employee". NOTA: R$3.280,47 do mesmo relatorio ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
+      reembolsoAReceber: 7022.76, // CORRIGIDO 05/08/2026 (parte 96, usuario confirmou o valor real: R$6.682,76 + R$340,00 = R$7.022,76): este fallback estatico estava desatualizado (7795.56, base antiga 7455.56+340) desde 31/07 - o Supabase (fonte real que o site busca ao vivo) ja estava correto em 7022.76, so este DEFAULT local (usado so se o Supabase estiver fora do ar) que nao tinha sido resincronizado. NOTA: R$3.280,47 do mesmo relatorio ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
       toleranciaTempValor: 0,
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
       tetoEfetivo: 2000,
-      cascata: { faturaWartsila: 5768.06, mpCorporativo: 266.23, cartaoCorporativo: 297.31, mpPessoal: 0, sobraTotal: 0 }, // ATUALIZADO 01/08/2026: mpCorporativo 0->266.23 (TXMP000011, PIX Isabel Cristina Barbosa - Transporte corporativo via PicPay). cartaoCorporativo 0->297.31 ja estava valendo via override (V223); consolidado aqui tambem. faturaWartsila 5768.06 confirmado 31/07/2026 (item 1 da cascata, Politica sec.5). Impacto real dessas pernas = R$0 no bolso do Wallace (custos da empresa) - so registra para rastreabilidade (P6), nao afeta necessidadeLiquida.
+      cascata: { faturaWartsila: 5056.95, mpCorporativo: 266.23, cartaoCorporativo: 297.31, mpPessoal: 0, sobraTotal: 0 }, // CORRIGIDO 05/08/2026 (parte 96, usuario confirmou valor real do cartao Wartsila = R$5.056,95): era 5768.06 (tanto aqui quanto no Supabase - corrigido nos dois lugares nesta sessao). mpCorporativo 0->266.23 (TXMP000011, PIX Isabel Cristina Barbosa - Transporte corporativo via PicPay). cartaoCorporativo 0->297.31 ja estava valendo via override (V223); consolidado aqui tambem. Impacto real dessas pernas = R$0 no bolso do Wallace (custos da empresa) - so registra para rastreabilidade (P6), nao afeta necessidadeLiquida.
       necessidadeTotalBruta: 13146.21, // ATUALIZADO V146/V147: parcelas Visa+MP recalculadas via PARCELAMENTOS_ATIVOS
       necessidadeTotalLiquida: 12743.10, // ATUALIZADO V147: NECESSIDADE_TOTAL - COBERTURA_JA_GARANTIDA_25 (403.11, cascata zerada corretamente)
       modoOperacional: 'Normal',
@@ -2287,7 +2303,18 @@ VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelSaldoReal = calcularSaldoCaixa(VARS
 // mesmo bug ja corrigido em 15 outras caixas (numero fixo nunca atualizado quando novas compras
 // entravam). Politica secao 13: "CAIXA_VARIAVEL_COMPROMETIDO = soma de TODAS as transacoes LRW+LRV
 // do ciclo atual". Agora deriva de verdade dos 4 registradores que ja capturam isso.
-VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelComprometido = Math.round((VARS.visaLRWHistorico + VARS.visaLRVHistorico + VARS.mbLRWConfirmado + VARS.mbLRVConfirmado) * 100) / 100;
+// CORRIGIDO 05/08/2026 (parte 98, decisao explicita do usuario apos discussao: "deve remover o
+// custo de LRBD da caixa variavel, para liberar o saldo da caixa variavel, esse custo do fone e
+// cortador pertence a outro centro de custo, mesmo ja estando no cartao de credito"): Bens Duraveis
+// agora e um CENTRO DE CUSTO SEPARADO da Caixa Variavel, mesmo padrao conceitual do custo corporativo
+// (LRC) - a diferenca fisica (bens duraveis E cobrado na MESMA fatura MB, corporativo nunca foi) so
+// importa pro calculo de cartaoMBTotal (que continua intacto, feito a parte, nunca deriva desta soma -
+// ver comentario em cartaoMBTotal, e mantido manualmente junto de mbLRWConfirmado a cada compra) - nao
+// importa pro que a Caixa Variavel considera "comprometido do meu dia a dia". EXTRAORDINARIO_BENS_DURAVEIS
+// e a mesma fonte unica ja usada pro PIB (consumoNaoRecorrentePIB) e pro teto (comprometidoParaTeto) -
+// reaproveitada aqui, nao inventada de novo.
+const somaBensDuraveisComprometido = Math.round((VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0)*100)/100;
+VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelComprometido = Math.round((VARS.visaLRWHistorico + VARS.visaLRVHistorico + VARS.mbLRWConfirmado + VARS.mbLRVConfirmado - somaBensDuraveisComprometido) * 100) / 100;
 VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelDisponivel = Math.round((VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelSaldoReal - VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelComprometido) * 100) / 100;
 // 14 caixas patrimoniais + Caixa Variavel migradas - todas seguem o mesmo padrao calcularSaldoCaixa(),
 // nenhuma mais e numero fixo editado a mao. Testar cada uma via harness antes de prosseguir (ver sessao de testes).
@@ -2648,6 +2675,15 @@ function recalcularAgregadosDerivados(){
   // Estas linhas sao a razao de ser do VARS: qualquer lugar do painel que usa estes valores
   // agora vem de UMA formula so, calculada aqui, nunca mais de numero duplicado em 3-4 lugares.
   REG.caixaVariavel.disponivel = r2(REG.caixaVariavel.saldoReal - REG.caixaVariavel.comprometido);
+  // ATUALIZADO 05/08/2026 (parte 98, decisao do usuario apos discutir a troca-off): Bens Duraveis
+  // agora ja e excluida NA ORIGEM de VARS.caixaVariavelComprometido (ver comentario grande junto da
+  // formula de caixaVariavelComprometido, mais acima no arquivo) - "comprometido" ja vem liquido de
+  // bens duraveis, entao "comprometidoParaTeto" nao precisa mais subtrair de novo (isso duplicaria o
+  // desconto). Mantido como campo separado só por clareza de nome/uso nos outros lugares que já
+  // referenciam cv.comprometidoParaTeto - mas agora e simplesmente igual a comprometido.
+  REG.caixaVariavel.comprometidoParaTeto = REG.caixaVariavel.comprometido;
+  REG.caixaVariavel.tetoEfetivo = r2(REG.caixaVariavel.tetoOficial + (REG.caixaVariavel.tolerenciaTemp||0));
+  REG.caixaVariavel.folegoAteTeto = r2(REG.caixaVariavel.tetoEfetivo - REG.caixaVariavel.comprometidoParaTeto);
   REG.patrimonio.total = r2(VARS.reserva + VARS.btgNecton + VARS.caixaLance + VARS.nectonContaCorrente);
   REG.patrimonio.metaMilhaoPct = r2(REG.patrimonio.total / REG.patrimonio.metaMilhao * 100);
   REG.visa.totalComprometido = r2(VARS.cartaoInfiniteTotal + VARS.cartaoMBTotal);
@@ -2679,6 +2715,13 @@ function recalcularAgregadosDerivados(){
   bp.total = r2(bp.financiamentoCasa + bp.consorcioAutoContemplado);
   REG.balanco.ativosTotal = r2(bf.total + bfin.total);
   REG.balanco.patrimonioLiquido = r2(REG.balanco.ativosTotal - bp.total);
+  // NOVO 05/08/2026 (parte 97, pedido do usuario: "campo em balanco que some o patrimonio fisico,
+  // financeiro, previdencia privada e FGTS, preciso ver quanto tenho de valor"). PGBL e FGTS ficam de
+  // proposito FORA de ativosTotal/patrimonioLiquido (regra ja documentada acima: "nao liquido, fora do
+  // total financeiro e da Meta do Milhao" - previdencia e FGTS nao sao resgatáveis livremente, misturar
+  // com patrimonio liquido de verdade distorceria a Meta do Milhao). Este e um total PARALELO, separado,
+  // so pra responder "quanto eu tenho no total, contando tudo" - nao substitui nem afeta os outros.
+  REG.balanco.patrimonioTotalGeral = r2(REG.balanco.ativosTotal + REG.balanco.pgbl + REG.balanco.fgts - bp.total);
 
   // V128 (bug real apontado pelo usuario): entradasTotais agora DERIVADO de salario+reembolsoCicloTotal, nunca mais um numero fixo que "esquecia" de atualizar quando o reembolso mudava de status (a receber -> recebido).
   // CORRIGIDO 31/07/2026 (V222, bug real apontado pelo usuario): reembolsoCicloTotal e BRUTO - inclui as
@@ -2702,13 +2745,20 @@ function recalcularAgregadosDerivados(){
   // - valorizacaoInvestimentos: 0, NAO TRACKEADO (precisaria de snapshot mes a mes do valor de mercado,
   //   que nao existe) - marcado como pendente, nunca estimado por cima
   // - consumoNaoRecorrente: soma de VARS.EXTRAORDINARIO_BENS_DURAVEIS (categoria nova da parte 77)
-  const rendimentosOpcoes = r2(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.resultadoHistorico||0),0));
+  // CORRIGIDO 05/08/2026 (parte 96, usuario apontou a divergencia: "recebi R$371,85 total e R$331,88
+  // para as opcoes ativas"): rendimentosOpcoes somava resultadoHistorico (desconta custo operacional E
+  // uma marcacao a mercado de posicoes AINDA ABERTAS - PETRT379/ITUBT424 vencem em 21/08, ainda nao
+  // realizado) - isso contraria a propria definicao do PIB ("mede o que VIROU riqueza", nao oscilacao
+  // de posicao aberta). Numa opcao VENDIDA, o premio e recebido integralmente no ato da venda e so e
+  // devolvido se a opcao for exercida contra o Wallace - ate la, e dinheiro real na conta. Corrigido pra
+  // somar premioRecebido (R$371,85 = R$331,88 das 2 ativas + R$39,97 da PETRS368W5, ja vencida 31/07).
+  const rendimentosOpcoes = r2(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0));
   const consumoNaoRecorrentePIB = r2((VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0));
   REG.pibWallace = {
     salarioLiquido: VARS.salario,
     reembolsos: r2(VARS.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo),
     rendimentos: rendimentosOpcoes,
-    rendimentosNota: 'acumulado das posições abertas, não isolado por mês (sem série histórica ainda)',
+    rendimentosNota: 'prêmio recebido no ato da venda (dinheiro real já na conta), não resultado marcado a mercado — não isolado por mês (sem série histórica ainda)',
     valorizacaoInvestimentos: 0,
     valorizacaoNota: 'não trackeado — precisa de snapshot mês a mês do valor de mercado (pendente)',
     consumoNaoRecorrente: consumoNaoRecorrentePIB,
@@ -2718,6 +2768,47 @@ function recalcularAgregadosDerivados(){
     + REG.pibWallace.valorizacaoInvestimentos - REG.pibWallace.consumoNaoRecorrente);
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
+
+  // NOVO 05/08/2026 (parte 97, pedido do usuario: "implemente Taxa de Crescimento, Eficiencia
+  // Financeira e Consumo Improdutivo, precisam de serie historica mes a mes que o site ainda nao
+  // guarda"). Persistido agora no Supabase (PIB_WALLACE_HISTORICO, chave = ciclo "YYYY-MM", via RPC
+  // registrar_pib_mensal - escopo minimo, mesmo padrao de triar_mercadopago_evento, so grava dentro
+  // dessa 1 chave). Definicoes (primeira vez que esses 3 indicadores existem no sistema, documentadas
+  // aqui porque nao existiam em nenhum outro lugar):
+  // - Eficiencia Financeira = PIB Wallace do mes / Entradas Totais do mes x 100 (% da renda que virou
+  //   riqueza real, nao so "entrou e saiu pela caixa")
+  // - Consumo Improdutivo = Consumo Nao Recorrente do mes / Entradas Totais do mes x 100 (% da renda
+  //   queimada em bens duraveis avulsos, fora do custo de viver recorrente)
+  // - Taxa de Crescimento = variacao % do PIB Wallace total vs o ciclo anterior mais recente que exista
+  //   no historico (nao necessariamente o ciclo imediatamente anterior, se algum mes faltar registro)
+  REG.pibWallace.eficienciaFinanceiraPct = REG.operacional.entradasTotais ? r2(REG.pibWallace.total / REG.operacional.entradasTotais * 100) : null;
+  REG.pibWallace.consumoImprodutivoPct = REG.operacional.entradasTotais ? r2(REG.pibWallace.consumoNaoRecorrente / REG.operacional.entradasTotais * 100) : null;
+  const pibHistorico = VARS.PIB_WALLACE_HISTORICO || {};
+  const pibCiclosAnteriores = Object.keys(pibHistorico).filter(k => k < VARS.cicloAtual).sort();
+  const pibCicloAnteriorKey = pibCiclosAnteriores[pibCiclosAnteriores.length - 1];
+  const pibCicloAnterior = pibCicloAnteriorKey ? pibHistorico[pibCicloAnteriorKey] : null;
+  REG.pibWallace.taxaCrescimentoPct = (pibCicloAnterior && typeof pibCicloAnterior.total === 'number' && pibCicloAnterior.total !== 0)
+    ? r2((REG.pibWallace.total - pibCicloAnterior.total) / Math.abs(pibCicloAnterior.total) * 100)
+    : null;
+  REG.pibWallace.mesesNoHistorico = Object.keys(pibHistorico).length + (pibHistorico[VARS.cicloAtual] ? 0 : 1);
+  // Grava o snapshot deste ciclo no historico (fire-and-forget, mesmo padrao das outras persistencias
+  // deste arquivo - a tela ja usa o valor calculado na hora, nao espera a resposta da rede).
+  if(typeof fetch !== 'undefined'){
+    fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/registrar_pib_mensal', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+      },
+      body: JSON.stringify({ p_mes: VARS.cicloAtual, p_snapshot: {
+        salarioLiquido: REG.pibWallace.salarioLiquido, reembolsos: REG.pibWallace.reembolsos,
+        rendimentos: REG.pibWallace.rendimentos, valorizacaoInvestimentos: REG.pibWallace.valorizacaoInvestimentos,
+        consumoNaoRecorrente: REG.pibWallace.consumoNaoRecorrente, total: REG.pibWallace.total,
+        entradasTotais: REG.operacional.entradasTotais, registradoEm: new Date().toISOString()
+      }})
+    }).catch(err=>console.warn('registrar_pib_mensal: erro de rede (nao critico, tela ja mostra o valor calculado)', err));
+  }
   // V135: Recebidos no ciclo = Total do ciclo - A receber (sempre a diferenca, nunca mais numero fixo
   // que "esquece" de subir quando uma nova TED e confirmada e A_RECEBER zera).
   REG.reembolsos.recebidosNoCiclo = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsosAReceber);
@@ -4385,6 +4476,7 @@ function hydrate(){
   t('balAtivosTotal', fmt(B.ativosTotal));
   t('balPassivosTotal2', fmt(B.passivos.total));
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
+  t('balPatrimonioTotalGeral', fmt(B.patrimonioTotalGeral));
   // NOVO 04/08/2026 (parte 78): render do card PIB Wallace, secao 23.
   { const P = REG.pibWallace;
     if(P){
@@ -4394,6 +4486,22 @@ function hydrate(){
       t('pibValorizacao', fmt(P.valorizacaoInvestimentos));
       t('pibConsumoNaoRecorrente', '-'+fmt(P.consumoNaoRecorrente));
       t('pibTotal', fmt(P.total));
+      // NOVO 05/08/2026 (parte 97): Eficiencia Financeira e Consumo Improdutivo ja aparecem no
+      // primeiro mes (nao dependem de historico, so do ciclo atual). Taxa de Crescimento SO aparece
+      // a partir do 2o mes registrado (precisa de um ciclo anterior pra comparar) - nao inventa 0%
+      // nem esconde que ainda esta pendente.
+      const serieEl = $('pibSerieHistorica');
+      if(serieEl){
+        const partes = [];
+        partes.push('Eficiência Financeira: <strong>'+P.eficienciaFinanceiraPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> da renda virou riqueza real');
+        partes.push('Consumo Improdutivo: <strong>'+P.consumoImprodutivoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> da renda foi bens duráveis avulsos');
+        if(P.taxaCrescimentoPct != null){
+          partes.push('Taxa de Crescimento: <strong style="color:'+(P.taxaCrescimentoPct>=0?'var(--green)':'var(--red)')+'">'+(P.taxaCrescimentoPct>=0?'+':'')+P.taxaCrescimentoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> vs. ciclo anterior registrado');
+        } else {
+          partes.push('Taxa de Crescimento: ainda sem ciclo anterior no histórico ('+P.mesesNoHistorico+' mês(es) registrado(s) até agora — aparece a partir do 2º)');
+        }
+        serieEl.innerHTML = partes.join(' · ');
+      }
     }
   }
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
@@ -4673,10 +4781,11 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
   // continuam certos. Só o teto/fôlego (pace de gasto RECORRENTE, seção 13 da Política) usa um
   // comprometido à parte, subtraindo bens duráveis - eles não deveriam contar contra o ritmo mensal,
   // mas continuam contando contra "quanto preciso ter guardado pra pagar a fatura".
-  const somaBensDuraveisCiclo = (VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0);
-  const comprometidoParaTeto = Math.round((cv.comprometido - somaBensDuraveisCiclo)*100)/100;
-  const tetoEfetivo = cv.tetoOficial + (cv.tolerenciaTemp||0);
-  const folego = Math.round((tetoEfetivo - comprometidoParaTeto)*100)/100;
+  // CENTRALIZADO 05/08/2026 (parte 97): formula movida pra REG.caixaVariavel (recalcularAgregadosDerivados),
+  // agora e fonte unica - antes essa formula so existia aqui dentro, local, sem reuso garantido.
+  const comprometidoParaTeto = cv.comprometidoParaTeto;
+  const tetoEfetivo = cv.tetoEfetivo;
+  const folego = cv.folegoAteTeto;
   const folegoPorDia = restantes > 0 ? folego/restantes : folego;
   // NOVO 22/07/2026 (V128, pedido do usuario): o "Fôlego" (teto - comprometido) confunde porque parece
   // que falta cobrir o valor do estouro do TETO (ex: R$423), quando na real falta so a diferenca entre
@@ -6302,13 +6411,25 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     const labelsPorDia = todasDatas.map(d=>{ const [,mes,dia] = d.split('-'); return dia+'/'+mes; });
     const valoresPorDia = todasDatas.map(d=> mediasPorData[d] ?? null);
     const valoresDiarioReal = todasDatas.map(d=> diariosPorData[d] ?? null);
+    // CORRIGIDO 05/08/2026 (parte 96, pedido do usuario): "essa barra de media por intervalo historico
+    // nao faz sentido, remova... o que voce podia por e seria interessante seria a media de consumo das
+    // 3 casas somadas, ai da pra ver se o gerado e suficiente". Barra laranja removida. Linha vermelha
+    // tracejada nova = consumo medio diario somado das casas com dado confiavel, pra comparar contra a
+    // geracao real do dia (barra verde). AINDA FALTA 1 DAS 3 CASAS: Wallace (9,70 kWh/dia, fonte antiga
+    // sem documentacao) + mae/Wellida (7,38 kWh/dia, fatura Energisa real confirmada nesta sessao,
+    // media dos 7 meses com leitura de verdade) = 17,08 kWh/dia. A soma fica INCOMPLETA ate a 3a casa
+    // ser identificada e ter dado real (nao inventado) - ver legenda abaixo do grafico.
+    // CORRIGIDO 05/08/2026 (parte 97): agora soma as 3 casas de verdade - Wallace (apartamento),
+    // Irma (casa da irma, ainda com valor antigo sem fatura conferida) e Mae (casa geradora, fatura
+    // real confirmada nesta sessao). Nao existe "3a casa desconhecida" - eram sempre essas 3, so a
+    // atribuicao da fatura da mae tinha ido pra variavel errada (Irma) na rodada anterior.
+    const consumoMedioDiarioCasas = Math.round((VARS.solarConsumoDiarioWallace + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
+    const linhaConsumoMedio = todasDatas.map(()=> consumoMedioDiarioCasas);
     observeAndRenderChart($('cGeracaoPorDia'), () => new Chart($('cGeracaoPorDia'), {
       type:'bar',
       data:{labels:labelsPorDia, datasets:[
-        {label:'Média por intervalo de leitura (histórico)', data:valoresPorDia, backgroundColor:'#e8a63a', borderRadius:4},
-        // Serie separada, cor diferente, pra nao misturar "media grosseira do intervalo" (laranja) com
-        // "dia real capturado pelo robo" (verde) na mesma barra - sao precisoes diferentes.
-        {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4}
+        {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4},
+        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', borderColor:'#e2554f', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:legendStd2,tooltip:{callbacks:{
@@ -6321,8 +6442,8 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     if(legGeracaoPorDiaEl){
       const qtdReal = Object.keys(diariosPorData).length;
       legGeracaoPorDiaEl.textContent = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde) + '+Object.keys(mediasPorData).length+' intervalo(s) históricos por média (barra laranja).'
-        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h) — por enquanto só as médias por intervalo de leitura manual (barra laranja).';
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas (Wallace 9,70 + irmã 3,97 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia). A da irmã ainda usa valor antigo sem fatura conferida — manda a fatura dela quando puder pra deixar as 3 igualmente confiáveis.'
+        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
 
