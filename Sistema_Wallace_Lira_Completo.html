@@ -923,6 +923,15 @@
       <div class="legend-note v" id="legConsumoDiretoCongelado" style="font-size:0.68rem;margin-top:0.3rem;color:var(--amber)"></div>
     </div>
 
+    <!-- NOVO 05/08/2026 (pedido do usuario: "gráfico abaixo do gráfico 10... mostrando o gerado por
+         dia do sistema") -->
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:0.3rem">☀️ Geração por dia (real + média histórica)</div>
+      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem">Barra verde = geração real daquele dia, capturada pelo robô SAJ (2x/dia). Barra laranja = média de geração por dia dentro de um intervalo entre leituras manuais do medidor (histórico, antes do robô guardar o dado diário) — não é um dia isolado real, é a média do período.</div>
+      <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
+      <div class="legend-note v" id="legGeracaoPorDia">—</div>
+    </div>
+
     <div class="section-num"><span class="n">11</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>

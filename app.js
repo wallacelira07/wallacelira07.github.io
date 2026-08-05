@@ -344,6 +344,21 @@ function renderResultadoTransacao(t, livro){
   return div;
 }
 
+// NOVO 05/08/2026: calcula a posicao real do dropdown (position:fixed agora, ver styles.css) a partir
+// da caixa de busca na tela. Roda toda vez que o dropdown abre, e de novo em scroll/resize enquanto
+// estiver aberto, pra nao descolar da caixa de busca se a pagina rolar.
+function posicionarResultadosBusca(){
+  const input = $('buscaGlobalInput');
+  const wrap = $('buscaGlobalResultados');
+  if(!input || !wrap || wrap.style.display === 'none') return;
+  const r = input.getBoundingClientRect();
+  wrap.style.top = (r.bottom + 4) + 'px';
+  wrap.style.left = r.left + 'px';
+  wrap.style.width = r.width + 'px';
+}
+window.addEventListener('scroll', posicionarResultadosBusca, {passive:true});
+window.addEventListener('resize', posicionarResultadosBusca);
+
 function renderResultadosBusca(termo){
   const wrap = $('buscaGlobalResultados');
   if(!wrap) return;
@@ -380,6 +395,7 @@ function renderResultadosBusca(termo){
   if(resultadosSecao.length === 0 && resultadosTransacao.length === 0){
     wrap.innerHTML = '<div class="busca-resultado-vazio">Nada encontrado</div>';
     wrap.style.display = 'block';
+    posicionarResultadosBusca();
     return;
   }
   wrap.innerHTML = '';
@@ -394,6 +410,7 @@ function renderResultadosBusca(termo){
     wrap.appendChild(renderResultadoTransacao(it.registro, it.livro));
   });
   wrap.style.display = 'block';
+  posicionarResultadosBusca();
 }
 
 const buscaGlobalDebounced = debounce(function(e){ renderResultadosBusca(e.target.value.trim()); }, 200);
@@ -1236,6 +1253,12 @@ const VARS = {
     // calculo" em vez de estimar. Nunca mais usar solarGeracaoDiariaEstimada para isso.
     { data:'2026-07-31', dias:10, leitura03:38, leitura103:210, geracaoAcumulada:268.74, geracaoAcumuladaData:'2026-08-01', fonte:'real' }, // NOVO 01/08/2026 (V259): geracaoAcumuladaData rastreia quando ESSE numero foi lido de verdade (o robo da SAJ atualiza isso sozinho todo dia - ver script atualizar_geracao_saj.py), separado da data da leitura 03/103 (manual, so muda quando o usuario manda foto do medidor). Sem isso, consumo direto ficaria cada vez mais errado conforme os dois descasam (geracao andando sozinha, 03/103 parado).
   ],
+  // NOVO 05/08/2026 (pedido do usuario: "não vai conseguir me dar dados de vários dias?"): a API da
+  // SAJ sempre devolveu geracao de HOJE (energy1Today) alem do total acumulado, mas o script
+  // atualizar_geracao_saj.py so guardava o total - o valor diario era buscado e jogado fora. Corrigido
+  // (ver script) pra tambem gravar aqui, 1 registro por dia que o robo rodar (2x/dia, sobrescreve o
+  // mesmo dia). Vazio por enquanto - populado sozinho a partir da proxima execucao do robo.
+  SOLAR_GERACAO_DIARIA: [],
 
   // Projecoes "held flat" (meses futuros alem do ultimo recalculado manualmente - repetem o ultimo
   // valor conhecido, mesma logica conservadora ja documentada). Antes: mesmo numero literal 6x em cada
@@ -6058,7 +6081,57 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
         ? '⚠️ Consumo direto CONGELADO no último valor confiável em: '+mesesCongelados.join(', ')+' — a automação SAJ e a leitura manual do código 103 ficaram dessincronizadas nesses meses; assim que uma leitura nova resolver isso, o valor volta a atualizar sozinho.'
         : '';
     }
+
+    // NOVO 05/08/2026 (pedido do usuario: grafico de geracao media por dia, logo abaixo do grafico
+    // 10/Unidade Geradora). So usa intervalos onde AS DUAS leituras (anterior e atual) tem
+    // geracaoAcumulada real - sem isso, nao da pra calcular um delta confiavel. Media = delta de
+    // geracaoAcumulada no intervalo / dias do intervalo (SOLAR_LEITURAS[i].dias) - nao e leitura
+    // diaria de verdade, e a media do periodo, deixado claro na legenda do card tambem.
+    const leiturasSolar = VARS.SOLAR_LEITURAS;
+    const mediasPorData = {}; // 'YYYY-MM-DD' -> media kWh/dia do intervalo que terminou nessa data
+    for(let i=1;i<leiturasSolar.length;i++){
+      const anterior = leiturasSolar[i-1];
+      const atual = leiturasSolar[i];
+      if(atual.geracaoAcumulada==null || anterior.geracaoAcumulada==null) continue;
+      const diasIntervalo = (atual.dias||0) - (anterior.dias||0); // CORRIGIDO: "dias" e acumulado desde a ativacao, nao o intervalo - precisa da diferenca entre as duas leituras
+      if(diasIntervalo<=0) continue;
+      const deltaGeracao = Math.round((atual.geracaoAcumulada - anterior.geracaoAcumulada)*100)/100;
+      mediasPorData[atual.data] = Math.round((deltaGeracao / diasIntervalo)*100)/100;
+    }
+    // NOVO 05/08/2026 (pedido do usuario: "não vai conseguir me dar dados de vários dias?"): junta as
+    // datas das medias por intervalo (grosso, historico) com as datas do SOLAR_GERACAO_DIARIA (fino,
+    // dado real do robo SAJ, a partir de agora) - um EIXO DE DATAS SO, ordenado, cada serie preenche
+    // null onde nao tem dado daquele tipo naquela data (Chart.js pula null sem quebrar a barra do lado).
+    const diariosPorData = {};
+    (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r=>{ diariosPorData[r.data] = r.kwh; });
+    const todasDatas = Array.from(new Set([...Object.keys(mediasPorData), ...Object.keys(diariosPorData)])).sort();
+    const labelsPorDia = todasDatas.map(d=>{ const [,mes,dia] = d.split('-'); return dia+'/'+mes; });
+    const valoresPorDia = todasDatas.map(d=> mediasPorData[d] ?? null);
+    const valoresDiarioReal = todasDatas.map(d=> diariosPorData[d] ?? null);
+    observeAndRenderChart($('cGeracaoPorDia'), () => new Chart($('cGeracaoPorDia'), {
+      type:'bar',
+      data:{labels:labelsPorDia, datasets:[
+        {label:'Média por intervalo de leitura (histórico)', data:valoresPorDia, backgroundColor:'#e8a63a', borderRadius:4},
+        // Serie separada, cor diferente, pra nao misturar "media grosseira do intervalo" (laranja) com
+        // "dia real capturado pelo robo" (verde) na mesma barra - sao precisoes diferentes.
+        {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:legendStd2,tooltip:{callbacks:{
+          label:c=>c.raw==null ? c.dataset.label+': sem dado' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh'
+        }}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
+          y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+    }));
+    const legGeracaoPorDiaEl = $('legGeracaoPorDia');
+    if(legGeracaoPorDiaEl){
+      const qtdReal = Object.keys(diariosPorData).length;
+      legGeracaoPorDiaEl.textContent = qtdReal
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde) + '+Object.keys(mediasPorData).length+' intervalo(s) históricos por média (barra laranja).'
+        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h) — por enquanto só as médias por intervalo de leitura manual (barra laranja).';
+    }
   }
+
 
   const solarBarLabelPlugin = {
     id:'solarBarLabelPlugin',

@@ -147,8 +147,13 @@ def buscar_geracao_acumulada(auth_header: str, plant_uid: str) -> dict:
     return {"energy_hoje": pv.get("energy1Today"), "energy_total": pv.get("energy1Total")}
 
 
-def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float) -> None:
-    """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da ÚLTIMA leitura, grava de volta."""
+def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float, geracao_hoje: float | None) -> None:
+    """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da ÚLTIMA leitura, grava de volta.
+    NOVO 05/08/2026 (pedido do usuário: "não vai conseguir me dar dados de vários dias?"): também
+    acrescenta/atualiza um registro em SOLAR_GERACAO_DIARIA (histórico diário de verdade, um valor
+    por execução do robô - antes esse dado (energy1Today, já vinha da API) era buscado e descartado,
+    só o total acumulado era salvo. Isso permite um gráfico de geração por dia real, não só a média
+    entre leituras manuais do medidor."""
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
@@ -161,31 +166,40 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
         linhas = json.loads(resp.read().decode("utf-8"))
     if not linhas:
         raise RuntimeError("Linha id=1 não encontrada em wallace_dados.")
-    leituras = linhas[0]["dados"].get("SOLAR_LEITURAS", [])
+    dados_atuais = linhas[0]["dados"]
+    leituras = dados_atuais.get("SOLAR_LEITURAS", [])
     if not leituras:
         raise RuntimeError("SOLAR_LEITURAS está vazio — nada para atualizar.")
 
-    # 2) Atualiza a geração da ÚLTIMA leitura
+    # 2) Atualiza a geração da ÚLTIMA leitura (mesmo comportamento de sempre)
     leituras[-1]["geracaoAcumulada"] = round(geracao_total, 2)
     leituras[-1].setdefault("fonte", "real")
 
-    # 3) Grava de volta (merge via jsonb_build_object no PATCH)
+    # 3) NOVO: registra a geração de HOJE no histórico diário, se a API devolveu esse valor.
+    # Chave = data de hoje (UTC) - se o robô já rodou hoje (roda 2x/dia), sobrescreve o mesmo dia em
+    # vez de duplicar, sempre com o valor mais recente da API (mais confiável quanto mais tarde no dia).
+    historico_diario = dados_atuais.get("SOLAR_GERACAO_DIARIA", [])
+    if geracao_hoje is not None:
+        hoje_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        idx_existente = next((i for i, r in enumerate(historico_diario) if r.get("data") == hoje_str), None)
+        registro = {"data": hoje_str, "kwh": round(geracao_hoje, 2), "capturadoEm": datetime.now(timezone.utc).isoformat()}
+        if idx_existente is not None:
+            historico_diario[idx_existente] = registro
+        else:
+            historico_diario.append(registro)
+
+    # 4) Grava tudo de volta numa única atualização (merge simples via || no Postgres,
+    # equivalente ao que sincronizar_erp_supabase.py já faz).
     patch_url = f"{supabase_url}/rest/v1/wallace_dados?id=eq.1"
-    body = json.dumps({"dados": {"SOLAR_LEITURAS": leituras}}).encode("utf-8")
-    # PostgREST não faz merge profundo de JSON via PATCH simples do jeito que
-    # o Supabase SQL faz com `||` — por isso usamos a função RPC abaixo em vez
-    # de um PATCH cru. Ver função SQL sugerida no README do script.
-    # CORRIGIDO 02/08/2026: existia uma versao antiga e duplicada desta funcao
-    # RPC no banco (mesmo nome, assinatura diferente) causando erro HTTP 300
-    # "Multiple Choices" (Postgres nao sabia qual versao chamar) - removida a
-    # duplicata, so a versao completa (com geracao_hoje/receita_hoje/receita_total
-    # opcionais) ficou.
-    rpc_url = f"{supabase_url}/rest/v1/rpc/atualizar_geracao_solar"
-    rpc_body = json.dumps({"nova_geracao": round(geracao_total, 2)}).encode("utf-8")
-    req2 = Request(rpc_url, data=rpc_body, headers=headers, method="POST")
-    with urlopen(req2, timeout=20) as resp2:
-        resultado = resp2.read().decode("utf-8")
-    print(f"Supabase atualizado via RPC: {resultado}")
+    novo_dados = dict(dados_atuais)
+    novo_dados["SOLAR_LEITURAS"] = leituras
+    novo_dados["SOLAR_GERACAO_DIARIA"] = historico_diario
+    body = json.dumps({"dados": novo_dados}).encode("utf-8")
+    req_patch = Request(patch_url, data=body, headers=headers, method="PATCH")
+    with urlopen(req_patch, timeout=20) as resp_patch:
+        resp_patch.read()
+    print(f"Supabase atualizado: geracaoAcumulada={geracao_total} kWh na última leitura"
+          + (f", SOLAR_GERACAO_DIARIA[{hoje_str}]={geracao_hoje} kWh" if geracao_hoje is not None else " (sem valor de hoje pra registrar)"))
 
 
 def main() -> int:
@@ -210,7 +224,7 @@ def main() -> int:
         energia = buscar_geracao_acumulada(auth, plant_uid)
         print(f"Geração hoje: {energia['energy_hoje']} kWh | Geração total acumulada: {energia['energy_total']} kWh")
         print("Atualizando Supabase...")
-        atualizar_supabase(supabase_url, supabase_key, energia["energy_total"])
+        atualizar_supabase(supabase_url, supabase_key, energia["energy_total"], energia.get("energy_hoje"))
         print("Concluído com sucesso.")
         return 0
     except Exception as e:

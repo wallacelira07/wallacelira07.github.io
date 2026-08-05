@@ -75,10 +75,14 @@
   }
   .cover-top-text{flex:1 1 320px;min-width:0}
   .cover-top .busca-global-wrap.cover-search-corner{
-    margin:0.3rem 0 0;max-width:220px;flex:none;
+    margin:0.3rem 0 1.2rem;max-width:220px;flex:none;
+    /* CORRIGIDO 05/08/2026 (usuario apontou com seta no print: sem espaco nenhum entre a busca e os
+       cards de baixo) - essa regra zerava a margem de baixo (era "0.3rem 0 0") pra centralizar no
+       cabecalho, mas a base de .busca-global-wrap (que tem 1.2rem embaixo) ficava sem efeito. Restaurado
+       o espacamento embaixo tambem, nao so em cima. */
   }
   @media (max-width:640px){
-    .cover-top .busca-global-wrap.cover-search-corner{max-width:100%;flex:1 1 100%;margin-top:1rem}
+    .cover-top .busca-global-wrap.cover-search-corner{max-width:100%;flex:1 1 100%;margin:1rem 0 1.2rem}
   }
   .cover-eyebrow{
     font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
@@ -452,7 +456,14 @@
   }
   #buscaGlobalInput:focus{ border-color:var(--accent); box-shadow:var(--shadow-focus-accent-lg); }
   #buscaGlobalResultados{
-    position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:200; /* parte 83: subido de 60 pra 200 */
+    /* CORRIGIDO 05/08/2026 (bug real, usuario mostrou 2 vezes que ainda misturava com os cards mesmo
+       apos 2 tentativas de ajuste de z-index): position:absolute prendia o dropdown dentro do contexto
+       de empilhamento do .cover-top, sempre disputando com irmaos (.cover-metrics) - qualquer z-index
+       interno, por maior que fosse, so valia DENTRO dessa disputa que ja podia estar perdida um nivel
+       acima. Trocado pra position:fixed: agora o dropdown pinta na camada de topo do navegador,
+       coordenadas calculadas via JS (posicionarResultadosBusca(), app.js) toda vez que abre/rola/
+       redimensiona - nao depende mais de nenhuma hierarquia de z-index pra funcionar certo. */
+    position:fixed; z-index:9999;
     background:var(--surface-2); border:1px solid var(--border-strong);
     border-radius:var(--radius-lg); overflow:hidden;
     box-shadow:0 8px 24px rgba(0,0,0,0.35);
