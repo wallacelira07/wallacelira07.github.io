@@ -2628,7 +2628,14 @@ const REG = {
     patrimonioLiquido: 0,
     reservas: {
       boletos:0, escolaJulio:VARS.escolaJulioSaldo, caixaLance:VARS.caixaLance, manutencao:VARS.caixaManutencao, eventos:VARS.caixaEventos,
-      churrasco:VARS.caixaChurrasco, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio, total:0 // total DERIVADO em recalcularAgregadosDerivados()
+      churrasco:VARS.caixaChurrasco, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio,
+      // ADICIONADAS 05/08/2026 (parte 100, usuario listou as caixas reais que tem e apontou que faltavam
+      // varias aqui): pixVanessa (VARS.caixaPixVanessa, PV - ja existia na Politica/Caixas Operacionais
+      // do Painel, nunca tinha chegado no Balanco), combustivel, bensDuraveis e o Fundo de Suavizacao
+      // (contaSuavizacao) - as 4 ja existiam como caixas de verdade (com array de transacoes real),
+      // so nunca tinham entrado nesta soma especifica.
+      pixVanessa:VARS.caixaPixVanessa, combustivel:VARS.caixaCombustivel, bensDuraveis:VARS.caixaBensDuraveis, suavizacao:VARS.contaSuavizacao,
+      total:0 // total DERIVADO em recalcularAgregadosDerivados()
     }, // V134: todos os saldos leem do VARS agora (fonte unica) - eliminada a 2a/3a copia que ja causou 2 rodadas de bug nesta sessao. CORRIGIDO 24/07/2026 (V139): churrasco agora le do VARS (tinha 0 hardcoded, VARS ja tinha o valor certo mas nao estava conectado).
     operacional: { caixaVariavel:VARS.caixaVariavelSaldoReal, pixVanessaSaldoReal:VARS.pixGeralVanessaSaldo, caixaBoletos:VARS.caixaBoletos, mastercardInfinite:VARS.caixaMastercardInfinite, total:0 }, // total DERIVADO. V134: le do VARS. V139: adicionada Caixa Mastercard/Infinite (nova, guarda valor a pagar dos 2 cartoes ate 28/07).
     // V137: Wartsila REMOVIDA da soma do total (pedido do usuario 23/07/2026: "nao deve misturar
@@ -2704,7 +2711,8 @@ function recalcularAgregadosDerivados(){
   REG.totalOpDetalhe.assinaturas = r2(REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas);
   REG.balanco.reservas.total = r2(REG.balanco.reservas.boletos + REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
     REG.balanco.reservas.manutencao + REG.balanco.reservas.eventos + REG.balanco.reservas.churrasco +
-    REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio);
+    REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio +
+    REG.balanco.reservas.pixVanessa + REG.balanco.reservas.combustivel + REG.balanco.reservas.bensDuraveis + REG.balanco.reservas.suavizacao);
   REG.balanco.operacional.total = r2(REG.balanco.operacional.caixaVariavel + REG.balanco.operacional.caixaBoletos + REG.balanco.operacional.mastercardInfinite); // CORRIGIDO 26/07/2026 (V166): PIX Vanessa (conta autonoma dela) removida do total - nunca deveria ter somado como "reserva do Wallace".
 
   // V135: totais do Balanço Patrimonial DERIVADOS (antes eram numeros fixos que so por coincidencia
@@ -2774,6 +2782,27 @@ function recalcularAgregadosDerivados(){
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
 
+  // NOVO 05/08/2026 (parte 100, pedido do usuario: "quero o Valor total tenha metricas pra que eu
+  // saiba se pra o que eu ganho meu patrimonio esta abaixo ou dentro da faixa"). Nao ha idade do
+  // usuario cadastrada em lugar nenhum do sistema, entao a regra classica de mercado (Patrimonio
+  // Ideal = Idade x Renda Anual / 10, de "The Millionaire Next Door") nao da pra aplicar sem inventar
+  // um dado que nao tenho (regra 04 do manual - nunca assumir no escuro). Usada em vez disso uma
+  // metrica que NAO depende de idade e e igualmente reconhecida em planejamento financeiro pessoal:
+  // "quantos MESES da renda atual o patrimonio total cobriria" (mesmo raciocinio ja usado aqui pra
+  // Reserva de Emergencia, so que estendido pro patrimonio inteiro). Faixas (adaptadas dos marcos
+  // classicos de independencia financeira - se o usuario tiver uma regra propria/diferente em mente,
+  // e so pedir que troco):
+  // < 12 meses = Fase inicial · 12-60 meses (1-5 anos) = Construindo · 60-120 (5-10 anos) = Consolidado
+  // > 120 meses (10+ anos) = Avançado
+  REG.balanco.patrimonioTotalMesesDeRenda = REG.operacional.entradasTotais ? r2(REG.balanco.patrimonioTotalGeral / REG.operacional.entradasTotais) : null;
+  REG.balanco.patrimonioTotalFaixa = (function(meses){
+    if(meses == null) return {label:'Sem dado', cor:'var(--text-dim)'};
+    if(meses < 12) return {label:'Fase inicial (< 1 ano de renda)', cor:'var(--red)'};
+    if(meses < 60) return {label:'Construindo (1-5 anos de renda)', cor:'var(--yellow, #e8a63a)'};
+    if(meses < 120) return {label:'Consolidado (5-10 anos de renda)', cor:'var(--green)'};
+    return {label:'Avançado (10+ anos de renda)', cor:'var(--green)'};
+  })(REG.balanco.patrimonioTotalMesesDeRenda);
+
   // NOVO 05/08/2026 (parte 97, pedido do usuario: "implemente Taxa de Crescimento, Eficiencia
   // Financeira e Consumo Improdutivo, precisam de serie historica mes a mes que o site ainda nao
   // guarda"). Persistido agora no Supabase (PIB_WALLACE_HISTORICO, chave = ciclo "YYYY-MM", via RPC
@@ -2786,7 +2815,6 @@ function recalcularAgregadosDerivados(){
   //   queimada em bens duraveis avulsos, fora do custo de viver recorrente)
   // - Taxa de Crescimento = variacao % do PIB Wallace total vs o ciclo anterior mais recente que exista
   //   no historico (nao necessariamente o ciclo imediatamente anterior, se algum mes faltar registro)
-  REG.pibWallace.eficienciaFinanceiraPct = REG.operacional.entradasTotais ? r2(REG.pibWallace.total / REG.operacional.entradasTotais * 100) : null;
   REG.pibWallace.consumoImprodutivoPct = REG.operacional.entradasTotais ? r2(REG.pibWallace.consumoNaoRecorrente / REG.operacional.entradasTotais * 100) : null;
   const pibHistorico = VARS.PIB_WALLACE_HISTORICO || {};
   const pibCiclosAnteriores = Object.keys(pibHistorico).filter(k => k < VARS.cicloAtual).sort();
@@ -2837,6 +2865,18 @@ function recalcularAgregadosDerivados(){
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
   REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta; // CORRIGIDO V150: era numero fixo, agora e a mesma Necessidade Total Bruta (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+OrcamentoOperacional). Movido para APOS necessidadeTotalBruta ser calculado (ordem de execucao).
   REG.balanco.fluxo.resultado = r2(REG.balanco.fluxo.entradas - REG.balanco.fluxo.saidas); // CORRIGIDO V150: era numero fixo, agora e Entradas-Saidas de verdade
+  // CORRIGIDO 05/08/2026 (parte 100, usuario apontou o erro real: "como 100% virou riqueza, nao tem
+  // que descontar todos meus gastos" - tinha razao). Formula antiga (PIB Wallace / Entradas Totais)
+  // dava ~100% quase sempre, porque o proprio PIB Wallace = Salario Liquido + Reembolsos + ... , que
+  // e quase a MESMA COISA que Entradas Totais (Salario + Reembolso liquido) - o PIB nunca desconta os
+  // gastos reais do ciclo (Boletos, Caixa Variavel, aportes), so desconta o "consumo nao recorrente"
+  // (bens duraveis avulsos, tipicamente pequeno). Dividir uma coisa quase igual a outra sempre da ~100%,
+  // numero tecnicamente correto pra formula errada, mas inutil como indicador. Eficiencia Financeira
+  // de verdade precisa ser uma TAXA DE POUPANCA: quanto da renda sobrou depois de TODOS os gastos
+  // comprometidos do ciclo (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+
+  // OrcamentoOperacional = REG.balanco.fluxo.saidas, ja calculado ali em cima). Movido pra AQUI porque
+  // fluxo.saidas so existe depois de necessidadeTotalBruta ser calculada (ordem de execucao).
+  REG.pibWallace.eficienciaFinanceiraPct = REG.balanco.fluxo.entradas ? r2(REG.balanco.fluxo.resultado / REG.balanco.fluxo.entradas * 100) : null;
   // CORRIGIDO 25/07/2026 (V143→V144, erro do Claude apontado pelo usuario): o pro-labore NAO substitui o
   // salario real nos calculos - ele so decide o ROTEAMENTO do excedente/complemento (Fundo de Suavizacao,
   // secao 16 Politicas). Modo Operacional continua reagindo ao saldoCiclo real (dinheiro de verdade
@@ -4525,6 +4565,11 @@ function hydrate(){
   t('balPassivosTotal2', fmt(B.passivos.total));
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
   t('balPatrimonioTotalGeral', fmt(B.patrimonioTotalGeral));
+  { const faixaEl = $('balPatrimonioTotalFaixa');
+    if(faixaEl && B.patrimonioTotalMesesDeRenda != null){
+      faixaEl.innerHTML = 'Equivale a <strong>'+B.patrimonioTotalMesesDeRenda.toLocaleString('pt-BR',{maximumFractionDigits:1})+' meses</strong> da renda atual (~'+(B.patrimonioTotalMesesDeRenda/12).toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos) — <strong style="color:'+B.patrimonioTotalFaixa.cor+'">'+B.patrimonioTotalFaixa.label+'</strong>';
+    }
+  }
   // NOVO 04/08/2026 (parte 78): render do card PIB Wallace, secao 23.
   { const P = REG.pibWallace;
     if(P){
@@ -4541,7 +4586,7 @@ function hydrate(){
       const serieEl = $('pibSerieHistorica');
       if(serieEl){
         const partes = [];
-        partes.push('Eficiência Financeira: <strong>'+P.eficienciaFinanceiraPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> da renda virou riqueza real');
+        partes.push('Eficiência Financeira: <strong>'+P.eficienciaFinanceiraPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> da renda sobrou depois de todos os gastos do ciclo (taxa de poupança real)');
         partes.push('Consumo Improdutivo: <strong>'+P.consumoImprodutivoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> da renda foi bens duráveis avulsos');
         if(P.taxaCrescimentoPct != null){
           partes.push('Taxa de Crescimento: <strong style="color:'+(P.taxaCrescimentoPct>=0?'var(--green)':'var(--red)')+'">'+(P.taxaCrescimentoPct>=0?'+':'')+P.taxaCrescimentoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%</strong> vs. ciclo anterior registrado');
@@ -4573,6 +4618,10 @@ function hydrate(){
   t('balResSaude', fmt(B.reservas.saudeFamilia));
   t('balResSeguro', fmt(B.reservas.seguroEmplacamento));
   t('balResAniv', fmt(B.reservas.aniversarioJulio));
+  t('balResPixVanessa', fmt(B.reservas.pixVanessa));
+  t('balResCombustivel', fmt(B.reservas.combustivel));
+  t('balResBensDuraveis', fmt(B.reservas.bensDuraveis));
+  t('balResSuavizacao', fmt(B.reservas.suavizacao));
   t('balReservasTotal', fmt(B.reservas.total));
   t('balOpCaixaVariavel', fmt(B.operacional.caixaVariavel));
   t('balOpPixVanessa', fmt(B.operacional.pixVanessaSaldoReal));
@@ -4681,9 +4730,9 @@ function auditoriaAutomatica(){
 
   // 7) Reservas (Balanço) = soma das 9 caixas de reserva
   const r = REG.balanco.reservas;
-  const resCalc = round2(r.boletos+r.escolaJulio+r.caixaLance+r.manutencao+r.eventos+r.churrasco+r.saudeFamilia+r.seguroEmplacamento+r.aniversarioJulio);
+  const resCalc = round2(r.boletos+r.escolaJulio+r.caixaLance+r.manutencao+r.eventos+r.churrasco+r.saudeFamilia+r.seguroEmplacamento+r.aniversarioJulio+r.pixVanessa+r.combustivel+r.bensDuraveis+r.suavizacao);
   if(!bate(resCalc, r.total)){
-    problemas.push(`Reservas: soma das 9 caixas=${resCalc} ≠ total(${r.total})`);
+    problemas.push(`Reservas: soma das 13 caixas=${resCalc} ≠ total(${r.total})`);
   }
 
   // 8) Patrimônio Financeiro = Reserva + BTG/Necton + Caixa Lance + Necton Conta Corrente (ADICIONADO 20/07/2026, pedido do usuário)
@@ -4856,6 +4905,18 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     } else {
       const nivel = maxIdade<=30 ? {icone:'ℹ️',cor:'#3987e5'} : maxIdade<=60 ? {icone:'⚠️',cor:'#e8a63a'} : {icone:'🔴',cor:'#e2554f'};
       alertas.push({icone:nivel.icone, cor:nivel.cor, txto:`${q.lreiAtivos} empréstimo(s) interno(s) ativo(s) — mais antigo com ${maxIdade} dias`});
+    }
+    // NOVO 05/08/2026 (parte 100, pendencia deixada em aberto na parte 97: "aplique uma solucao
+    // profissional" pro mecanismo de emprestimo interno da Bens Duraveis). Mesmo padrao ja usado pras
+    // outras 2 LREI ativas (Caixa Lance emprestando pra Saude Familia/Fatura MP) - so um ALERTA
+    // automatico sinalizando a OPORTUNIDADE quando o saldo vira positivo, nunca cria o LREI sozinho
+    // (lancamento continua manual/confirmado pelo usuario, regra 04 do manual - nunca lancar no escuro).
+    // Enquanto negativo, mostra nota neutra confirmando que isso e esperado (nao e erro, nao significa
+    // que saiu dinheiro da Caixa Variavel - ver callout da aba LRBD).
+    if(VARS.caixaBensDuraveis > 0){
+      alertas.push({icone:'💡', cor:'#3987e5', txto:`Caixa Bens Duráveis com saldo positivo (${fmt(VARS.caixaBensDuraveis)}) — pode virar empréstimo interno (LREI) pra ajudar a cobrir a fatura do Mastercard, mesmo mecanismo já usado com a Caixa Lance. Precisa de confirmação explícita antes de lançar.`});
+    } else if(VARS.caixaBensDuraveis < 0){
+      alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Caixa Bens Duráveis negativa (${fmt(VARS.caixaBensDuraveis)}) — normal, é só o medidor de quanto falta reservar pra compras já feitas; não significa que saiu dinheiro da Caixa Variável.`});
     }
     // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),
     // uma variavel errada para "quanto passou do teto oficial". O teto oficial e comparado contra o COMPROMETIDO
@@ -6476,8 +6537,8 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     observeAndRenderChart($('cGeracaoPorDia'), () => new Chart($('cGeracaoPorDia'), {
       type:'bar',
       data:{labels:labelsPorDia, datasets:[
-        {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4},
-        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', borderColor:'#e2554f', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false}
+        {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
+        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', borderColor:'#ff6b6b', borderDash:[8,3], borderWidth:3.5, pointRadius:0, fill:false, order:0}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:legendStd2,tooltip:{callbacks:{
