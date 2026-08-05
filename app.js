@@ -1088,12 +1088,12 @@ const VARS = {
     // taxa de registro + emolumentos + clearing + ISS), conferido nota a nota: bruto - custo = liquido
     // bate exato nos 3 casos (testado via harness Node antes de subir). Nunca mais confundir - o
     // "Premio recebido" que ja existia sempre foi o liquido de fato creditado na conta.
-    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioBruto: 160.00, custoOperacional: 5.16, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null, notaCorretagem: '32928176 (03/07/2026)', exercida: false },
+    { ticker: 'PETRT379', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -10.00, precoExercicio: 36.86, vencimento: '21/08/2026', quantidade: -200, premioBruto: 160.00, custoOperacional: 5.16, premioRecebido: 154.84, precoMedio: 0.7742, cotacaoAtual: 0.05, resultadoDiario: 6.00, resultadoHistorico: 144.84, precoBlackScholes: null, notaCorretagem: '32928176 (03/07/2026)', exercida: false, statusPosicao: 'ENCERRADA' },
     // CORRIGIDO 03/08/2026 (pedido do usuario): strike confirmado como 36,86 - mesmo strike de
     // PETRT379 (ambas PETR4, o usuario confirmou que sao o mesmo valor pras duas opcoes da Petrobras).
     // Antes: null (pendencia aberta desde V222, ver passagem de turno parte 5). Agora entra na soma
     // consolidada do ROC (Modulo 17) e no capital travado, deixando de ser excluida da carteira.
-    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: 36.86, vencimento: '31/07/2026', quantidade: -100, premioBruto: 45.00, custoOperacional: 5.03, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00, notaCorretagem: '32757842 (25/06/2026)', exercida: false },
+    { ticker: 'PETRS368W5', ativo: 'PETR4', tipo: 'Put vendida', valorMercado: -1.00, precoExercicio: 36.86, vencimento: '31/07/2026', quantidade: -100, premioBruto: 45.00, custoOperacional: 5.03, premioRecebido: 39.97, precoMedio: 0.3997, cotacaoAtual: 0.01, resultadoDiario: 0.00, resultadoHistorico: 38.97, precoBlackScholes: 0.00, notaCorretagem: '32757842 (25/06/2026)', exercida: false, statusPosicao: 'ATIVA' },
     { ticker: 'ITUBT424', ativo: 'ITUB4', tipo: 'Put vendida', valorMercado: -98.00, precoExercicio: 41.82, vencimento: '21/08/2026', quantidade: -200, premioBruto: 180.00, custoOperacional: 2.96, premioRecebido: 177.04, precoMedio: 0.8852, cotacaoAtual: 0.49, resultadoDiario: 60.00, resultadoHistorico: 79.04, precoBlackScholes: 0.33, notaCorretagem: '33025429 (09/07/2026)', exercida: false },
   ],
   // NOVO 03/08/2026 (pedido do usuario, opcao A): "exercida" e um campo MANUAL, igual precoExercicio -
@@ -2134,7 +2134,20 @@ VARS.contaSuavizacao = calcularSaldoCaixa(VARS.SUAVIZACAO_SALDO_INICIAL, VARS.SU
 // array (P6, rastreabilidade), so sai da soma/da lista de posicoes ativas exibida.
 const parseVencimentoBR = str => { const [d,m,a] = str.split('/').map(Number); return new Date(a,m-1,d); };
 const HOJE_OPCOES = new Date();
-VARS.opcoesVendidasDetalhe.forEach(o => { o.vencida = parseVencimentoBR(o.vencimento) < HOJE_OPCOES; });
+// CORRIGIDO 05/08/2026 (parte 103, usuario deu o calculo real de capital travado: "100 petrobras e 200
+// itau... 36,86x100=3686 + 41,82x200=8364 = 12050"): a matematica so fecha se PETRS368W5 (qtd -100,
+// premioRecebido 39.97 = precoMedio 0.3997 x 100 - bate exato) for a posicao PETR4 REALMENTE ativa, e
+// PETRT379 (qtd -200, premioRecebido 154.84 = precoMedio 0.7742 x 200 - tambem bate exato pra 200) ja
+// tenha sido ENCERRADA antes do vencimento (recompra), mesmo tendo vencimento futuro no dado (21/08/26)
+// - a data sozinha nao capturava isso. Adicionado campo manual 'statusPosicao' (so gravado quando o
+// usuario CONFIRMA um encerramento antecipado ou uma posicao que segue ativa apesar da data - nunca
+// inferido por formula), que agora tem prioridade sobre o calculo por data. Sem esse campo, comportamento
+// antigo (por data) continua valendo.
+VARS.opcoesVendidasDetalhe.forEach(o => {
+  if(o.statusPosicao === 'ENCERRADA') o.vencida = true;
+  else if(o.statusPosicao === 'ATIVA') o.vencida = false;
+  else o.vencida = parseVencimentoBR(o.vencimento) < HOJE_OPCOES;
+});
 VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.filter(o=>!o.vencida).reduce((s,o)=>s+o.valorMercado,0)*100)/100;
 
 // NOVO 03/08/2026 (Módulo 17 - Rentabilidade da Operação/ROC): mede o retorno do prêmio líquido sobre
@@ -4375,6 +4388,12 @@ function hydrate(){
   // outros cards - deriva 100% de VARS.rocCarteira (calculado logo após opcoesVendidasValorMercado).
   const rc = VARS.rocCarteira;
   t('rocCapitalTravado', fmt(rc.capitalTravado));
+  { const detEl = $('rocCapitalTravadoDetalhe');
+    if(detEl){
+      const ativas = VARS.opcoesVendidasDetalhe.filter(o=>!o.vencida && o.roc && o.roc.capitalTravado!=null);
+      detEl.textContent = ativas.map(o=>`${o.ativo} ${Math.abs(o.quantidade)}un @ R$${o.precoExercicio.toFixed(2)} (${o.vencimento})`).join(' · ');
+    }
+  }
   t('rocPremioLiquido', fmt(rc.premioLiquido));
   t('rocRentabilidade', rc.rentabilidade !== null ? (rc.rentabilidade*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
   t('rocRentabilidadeMensal', rc.rentabilidadeMensal !== null ? (rc.rentabilidadeMensal*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
