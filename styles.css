@@ -65,7 +65,13 @@
      a esquerda, busca compacta alinhada no topo a direita, mesma linha. */
   .cover-top{
     display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem;
-    position:relative;z-index:1;flex-wrap:wrap;
+    position:relative;z-index:10;flex-wrap:wrap;
+    /* CORRIGIDO 05/08/2026 (bug real visto pelo usuario no celular): z-index era 1, empatado com
+       .cover-metrics (tambem z-index:1) - como .cover-metrics vem DEPOIS no DOM, ele sempre pintava
+       por cima do .cover-top inteiro (inclusive o dropdown da busca la dentro, mesmo o dropdown tendo
+       z-index:200 - esse 200 so vale DENTRO do contexto de empilhamento do .cover-top, que perdia pra
+       .cover-metrics ANTES de qualquer numero interno importar). Subido pra 10, bem acima do 1 do
+       .cover-metrics, resolvendo a disputa no nivel certo. */
   }
   .cover-top-text{flex:1 1 320px;min-width:0}
   .cover-top .busca-global-wrap.cover-search-corner{
