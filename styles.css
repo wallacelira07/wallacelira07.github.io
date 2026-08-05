@@ -39,6 +39,7 @@
 
   .cover{
     position:relative;
+    z-index:5; /* NOVO parte 83: garante que o dropdown da busca (dentro deste card) sempre pinte por cima dos cards normais que vêm depois no DOM, sem depender de nuance de stacking context */
     background: radial-gradient(ellipse at top left, rgba(57,135,229,0.18), transparent 55%),
                 radial-gradient(ellipse at bottom right, rgba(52,201,138,0.12), transparent 50%),
                 linear-gradient(160deg, #0d1420 0%, #0b0c0e 70%);
@@ -46,12 +47,18 @@
     border-radius:var(--radius-3xl);
     padding:2.5rem 2.2rem;
     margin-bottom:1.6rem;
-    overflow:hidden;
+    /* CORRIGIDO 04/08/2026 (parte 83, bug real visto pelo usuario no celular): "overflow:hidden" aqui
+       cortava/atropelava o dropdown de resultados da busca (#buscaGlobalResultados), que mora dentro
+       deste card desde a parte 47 (busca movida pro cabecalho) - o dropdown e position:absolute e
+       precisa poder extravasar o card pra aparecer por cima do conteudo abaixo. Trocado por
+       overflow:visible; os circulos decorativos do ::before continuam funcionando (sao gradiente
+       radial ja esmaecendo pra transparente antes da borda, a perda do corte duro e imperceptivel).
   }
   .cover::before{
     content:'';position:absolute;top:-40%;right:-10%;
     width:420px;height:420px;border-radius:50%;
     background:radial-gradient(circle, rgba(57,135,229,0.15), transparent 70%);
+    z-index:0; pointer-events:none;
   }
   /* parte 47 (pedido do usuario): busca movida pro canto vazio do cabecalho - texto (eyebrow/h1/sub)
      a esquerda, busca compacta alinhada no topo a direita, mesma linha. */
@@ -64,7 +71,7 @@
     margin:0.3rem 0 0;max-width:220px;flex:none;
   }
   @media (max-width:640px){
-    .cover-top .busca-global-wrap.cover-search-corner{max-width:100%;flex:1 1 100%}
+    .cover-top .busca-global-wrap.cover-search-corner{max-width:100%;flex:1 1 100%;margin-top:1rem}
   }
   .cover-eyebrow{
     font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
@@ -438,7 +445,7 @@
   }
   #buscaGlobalInput:focus{ border-color:var(--accent); box-shadow:var(--shadow-focus-accent-lg); }
   #buscaGlobalResultados{
-    position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:60;
+    position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:200; /* parte 83: subido de 60 pra 200 */
     background:var(--surface-2); border:1px solid var(--border-strong);
     border-radius:var(--radius-lg); overflow:hidden;
     box-shadow:0 8px 24px rgba(0,0,0,0.35);
@@ -450,4 +457,9 @@
   .busca-resultado-item:last-child{ border-bottom:none; }
   .busca-resultado-item:hover{ background:rgba(57,135,229,0.1); color:var(--text); }
   .busca-resultado-vazio{ padding:0.6rem 0.9rem; font-size:0.78rem; color:var(--text-dim); }
+  /* NOVO parte 76: resultado de transacao (TX/valor) - mesma linha, mais um subtitulo pequeno com
+     data/livro/obs, ja que a maioria dos livros nao tem uma linha na tela pra navegar ate. */
+  .busca-resultado-transacao{ cursor:default; }
+  .busca-resultado-transacao strong{ color:var(--text); }
+  .busca-resultado-sub{ display:block; font-size:0.7rem; color:var(--text-dim); margin-top:0.15rem; }
 

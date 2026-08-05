@@ -300,29 +300,98 @@ function irParaSecaoBusca(item){
   setTimeout(()=>{ scrollParaSecaoComOffset(item.alvo); }, 30);
 }
 
+// NOVO 04/08/2026 (parte 76, pedido do usuario: "quero que no campo de pesquisa possa pesquisar
+// valores e TX pra achar compras"): a busca antiga so indexava texto ESTATICO da tela (titulo de
+// secao + rotulo de linha) - nunca os dados de transacao em si (a maioria dos livros nao tem tabela
+// item-a-item visivel na tela, so cards de agregado, entao nao tinha como achar por texto/DOM).
+// Constroi um segundo indice, direto do VARS (nao do DOM), varrendo todos os livros de transacao
+// conhecidos + o historico cross-ciclo (parte 57). Busca por: codigo TX (com ou sem "TX"), valor
+// (com vírgula/ponto, com ou sem "R$"), ou nome do estabelecimento/descricao.
+const LIVROS_BUSCAVEIS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
+  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS'];
+let _buscaGlobalIndiceTransacoes = null;
+
+function construirIndiceTransacoesBusca(){
+  const indice = [];
+  const vistos = new Set(); // evita duplicar a mesma TX se aparecer em 2 arrays (ex: ciclo atual + historico)
+  LIVROS_BUSCAVEIS.forEach(nomeLivro=>{
+    (VARS[nomeLivro]||[]).forEach(t=>{
+      if(typeof t.valor !== 'number' || !t.tx) return;
+      const chave = t.tx + '|' + t.valor;
+      if(vistos.has(chave)) return;
+      vistos.add(chave);
+      const valorFmt = fmt(t.valor); // ja usa a mesma formatacao de moeda do resto do site
+      indice.push({
+        tx: (t.tx||'').toLowerCase(),
+        valorTexto: valorFmt.toLowerCase().replace(/\s/g,''),
+        valorNumStr: String(t.valor).replace('.',','),
+        nome: (t.nome||'').toLowerCase(),
+        livro: nomeLivro,
+        registro: t
+      });
+    });
+  });
+  return indice;
+}
+
+function renderResultadoTransacao(t, livro){
+  const div = document.createElement('div');
+  div.className = 'busca-resultado-item busca-resultado-transacao';
+  const nomeLivroCurto = livro.replace('_TRANSACOES','').replace('HISTORICO_ERP_TODOS_CICLOS','Histórico');
+  div.innerHTML = `<strong>${t.tx||'—'}</strong> · ${t.nome||t.descricao||'(sem descrição)'} · <strong>${fmt(t.valor)}</strong>`
+    + `<span class="busca-resultado-sub"> ${t.data||''} — ${nomeLivroCurto}${t.obs ? ' — '+t.obs : ''}</span>`;
+  div.onclick = () => { /* so exibe o detalhe - a maioria dos livros nao tem linha visivel na tela pra navegar ate */ };
+  return div;
+}
+
 function renderResultadosBusca(termo){
   const wrap = $('buscaGlobalResultados');
   if(!wrap) return;
   if(!termo){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
   if(!_buscaGlobalIndice) _buscaGlobalIndice = construirIndiceBuscaGlobal();
-  const t = termo.toLowerCase();
+  if(!_buscaGlobalIndiceTransacoes) _buscaGlobalIndiceTransacoes = construirIndiceTransacoesBusca();
+  const t = termo.toLowerCase().trim();
+  const tSemTx = t.replace(/^tx0*/, ''); // "tx201" ou "201" acham "TX000201" do mesmo jeito
+  const tSoDigitos = t.replace(/[^\d,.]/g, ''); // pra buscar valor mesmo digitando "R$ 60,90" ou "60.90"
+
   const vistos = new Set();
-  const resultados = _buscaGlobalIndice
+  const resultadosSecao = _buscaGlobalIndice
     .filter(it => it.texto.includes(t))
     .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
-    .slice(0, 8);
-  if(resultados.length === 0){
+    .slice(0, 5);
+
+  const resultadosTransacao = t.length >= 2 ? _buscaGlobalIndiceTransacoes.filter(it=>{
+    if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;
+    if(it.nome.includes(t)) return true;
+    if(tSoDigitos && (it.valorTexto.includes(tSoDigitos.replace('.',',')) || it.valorNumStr.includes(tSoDigitos))) return true;
+    return false;
+  }).sort((a,b)=>{
+    // NOVO parte 83 (bug real: busca de "100" nao achava um valor de R$100,00 - existiam muitos
+    // OUTROS valores contendo "100" como substring, ex: 1006.04, 5100.00, que enchiam o limite de 6
+    // resultados antes do match exato aparecer). Match EXATO de valor sempre primeiro.
+    const valorBuscado = tSoDigitos ? parseFloat(tSoDigitos.replace(',','.')) : null;
+    const aExato = valorBuscado !== null && a.registro.valor === valorBuscado;
+    const bExato = valorBuscado !== null && b.registro.valor === valorBuscado;
+    if(aExato && !bExato) return -1;
+    if(bExato && !aExato) return 1;
+    return 0;
+  }).slice(0, 6) : [];
+
+  if(resultadosSecao.length === 0 && resultadosTransacao.length === 0){
     wrap.innerHTML = '<div class="busca-resultado-vazio">Nada encontrado</div>';
     wrap.style.display = 'block';
     return;
   }
   wrap.innerHTML = '';
-  resultados.forEach(item => {
+  resultadosSecao.forEach(item => {
     const div = document.createElement('div');
     div.className = 'busca-resultado-item';
     div.textContent = item.rotulo;
     div.onclick = () => { irParaSecaoBusca(item); wrap.style.display = 'none'; $('buscaGlobalInput').value = ''; };
     wrap.appendChild(div);
+  });
+  resultadosTransacao.forEach(it => {
+    wrap.appendChild(renderResultadoTransacao(it.registro, it.livro));
   });
   wrap.style.display = 'block';
 }
@@ -725,6 +794,13 @@ const VARS = {
     { tx:'TXB000007', nome:'FIES Vanessa (PIX Vanessa Gomes Galdino)', diaVencimento:10, valor:245.00 },
     { tx:'TXB000008', nome:'Conselho Regional', diaVencimento:31, valor:163.24 },
     { tx:'TXB000009', nome:'Energia (Energisa Paraíba)', diaVencimento:26, valor:367.36 },
+    // REVERTIDO 04/08/2026 (parte 63): a parte 62 tinha adicionado TXB000010/011/012 (Vivo+Brisanet)
+    // aqui, achando que nao tinham registro nenhum - erro meu, so tinha procurado em
+    // CRONOGRAMA_BOLETOS_FIXOS, nao no resto do app.js. Usuario mostrou print confirmando que Vivo
+    // (R$435,00, TXRR000001) e Brisanet (R$113,13, TXRR000002) JA estavam rastreadas no livro LRR
+    // (linha 1429-1430 do HISTORICO_ERP_TODOS_CICLOS, parte 57) - cadastrar de novo aqui, com valor
+    // estimado E diferente (484+55,08 vs o real 435,00), teria criado um debito duplicado e errado na
+    // Caixa de Boletos (esse cronograma debita de verdade - nao e so referencia). Removido.
   ],
   BOLETOS_SALDO_INICIAL: 613.17,
   BOLETOS_TRANSACOES: [
@@ -797,8 +873,16 @@ const VARS = {
   escolaJulioSaldo: 1006.74,            // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar ESCOLA_JULIO_TRANSACOES. Fora da Meta do Milhao (regra P5/V47).
 
   // Cartoes (comprometido, corporativo Wartsila)
+  // AVISO 04/08/2026 (parte 69): cartaoMBTotal, mbLRWConfirmado, mbLRSConfirmado (e mbLRVConfirmado)
+  // JA EXISTEM como chave de topo em wallace_dados.dados no Supabase - Object.assign(VARS, dr) (ver
+  // "Object.assign(VARS, dr)" mais abaixo no arquivo) SOBRESCREVE o valor escrito aqui, sempre, em
+  // toda carga real de pagina. Editar esses 3 numeros aqui e cosmetico/documental (mantido pra quem
+  // le o arquivo sem acesso ao banco), mas NUNCA e o jeito de atualizar o site de verdade - o
+  // lancamento de compra tem que ir direto no Supabase (UPDATE wallace_dados SET dados = dados ||
+  // jsonb_build_object(...) WHERE id=1), nunca so aqui. Erro cometido nas partes 64/67/68 desta mesma
+  // sessao - 3 compras "lancadas" so no arquivo, sem efeito nenhum no site real, ate o usuario avisar.
   cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
-  cartaoMBTotal: 5445.21,               // CORRIGIDO 04/08/2026 (2a correção do dia, mesmo gap de propagação - agora do lado mbLRWConfirmado, ver comentário lá): +R$206,48 (TX000192/195/196/197/198/199, ver mbLRWConfirmado). mbDetalhe (1950,77 consórcios+1099,68 wallace+1279,65 recorrências+297,31 corp+513,10 assinaturas+304,70 vanessa) soma exato 5.445,21 - checagem #12 volta a bater. Era R$5.238,73 (auditoria automática, mesmo gap de propagação já documentado abaixo): +R$23,73 (TX000193 R$12,23 + TX000194 R$11,50, ambas Uber/Vanessa cartão MB 4628, lançadas em mbLRVConfirmado em 03/08 mas nunca propagadas pra cá) — mbDetalhe (5238,73) × cartaoMB.total (5215,00) divergiam por isso, checagem #12 acusou certo. Era R$5.215,00 (CORRIGIDO 01/08/2026, auditoria SSOT, divergencia real encontrada): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Julio, 01/08) - ja estava somado em mbLRVConfirmado (detalhamento) mas nunca tinha propagado pra ca (total agregado), causando gap de R$50,00 entre mbDetalhe e cartaoMB.total na auditoria automatica (checagem #12). Era R$5.165,00: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão MB 4628). Era R$5.132,94 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351). Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
+  cartaoMBTotal: 5633.11,               // ATUALIZADO 04/08/2026 (parte 68): +R$17,00 (TX000202, MP *FESTA, ver mbLRWConfirmado). mbDetalhe (1950,77 consórcios+1177,58 wallace+1279,65 recorrências+297,31 corp+623,10 assinaturas+304,70 vanessa) soma exato 5.633,11. Era R$5.616,11 (parte 67): +R$60,90 (TX000201, PANIFICADORA, ver mbLRWConfirmado). mbDetalhe (1950,77 consórcios+1160,58 wallace+1279,65 recorrências+297,31 corp+623,10 assinaturas+304,70 vanessa) soma exato 5.616,11. Era R$5.555,21 (parte 64): +R$110,00 (TX000200, ANTHROPIC*CLAUDE SUB, ver mbLRSConfirmado). mbDetalhe (1950,77 consórcios+1099,68 wallace+1279,65 recorrências+297,31 corp+623,10 assinaturas+304,70 vanessa) soma exato 5.555,21. Era R$5.445,21 (2a correção do dia, mesmo gap de propagação - agora do lado mbLRWConfirmado, ver comentário lá): +R$206,48 (TX000192/195/196/197/198/199, ver mbLRWConfirmado). mbDetalhe (1950,77 consórcios+1099,68 wallace+1279,65 recorrências+297,31 corp+513,10 assinaturas+304,70 vanessa) soma exato 5.445,21 - checagem #12 volta a bater. Era R$5.238,73 (auditoria automática, mesmo gap de propagação já documentado abaixo): +R$23,73 (TX000193 R$12,23 + TX000194 R$11,50, ambas Uber/Vanessa cartão MB 4628, lançadas em mbLRVConfirmado em 03/08 mas nunca propagadas pra cá) — mbDetalhe (5238,73) × cartaoMB.total (5215,00) divergiam por isso, checagem #12 acusou certo. Era R$5.215,00 (CORRIGIDO 01/08/2026, auditoria SSOT, divergencia real encontrada): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Julio, 01/08) - ja estava somado em mbLRVConfirmado (detalhamento) mas nunca tinha propagado pra ca (total agregado), causando gap de R$50,00 entre mbDetalhe e cartaoMB.total na auditoria automatica (checagem #12). Era R$5.165,00: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão MB 4628). Era R$5.132,94 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371). Era R$5.106,80: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão MB 2244). Era R$4.879,80: +R$6,43 (TX000180, Uber DL*UberRides, cartão MB 4628). Era R$4.873,37: +R$5,06 (TX000179, Uber DL*UberRides, cartão MB 4628). Era R$4.868,31 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351). Era R$4.736,05 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$4.716,40.
 
   // NOVA CAIXA 24/07/2026 (V139): renomeacao de CAIXA_FATURA_VISA_INFINITE (nao caixa nova) -
   // passa a guardar o valor combinado dos 2 cartoes (Mastercard Black + Visa Infinite) ate o
@@ -821,6 +905,13 @@ const VARS = {
   // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
   // duplicado em totalOpDetalhe E visaDetalhe (2 copias que podiam dessincronizar) - agora moram so aqui.
   livroLRP: 0,      // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_VISA (soma dos ATIVO). Nunca editar este numero diretamente - editar os itens do array.
+  // NOVO 04/08/2026 (parte 77, metodologia definida pelo usuario): categoria nova - compras avulsas
+  // de bem durável/eletrônico (fone, cortador de pelo, smartwatch, ferramentas) NÃO entram na Caixa
+  // Variável (que deveria medir só o custo RECORRENTE de viver - mercado, farmácia, Uber, higiene).
+  // Ficam aqui, separadas, pra nao distorcer o indicador do teto de R$2.000/mes da Caixa Variavel.
+  // Default vazio aqui - valor real vive no Supabase (EXTRAORDINARIO_BENS_DURAVEIS), mesmo padrao dos
+  // outros livros de transacao.
+  EXTRAORDINARIO_BENS_DURAVEIS: [],
   livroLRCON: 1950.77,    // = LIVRO_LRCON_TOTAL do ERP (2 consorcios: Porto Carro + Porto Casa Nova). USADO NO MASTERCARD BLACK (mbDetalhe.consorcios) - ambos ja migrados para MB desde 17/07/2026, valor correto aqui.
   livroLRCONVisaOnly: 0,    // NOVO 25/07/2026 (V159): parte do LRCON que e do Visa Infinite (usado em visaDetalhe.consorcios) - ZERADO porque os 2 consorcios ja migraram 100% para o Mastercard Black desde 17/07/2026. Nao ha nenhum consorcio no Visa.
 
@@ -1045,9 +1136,9 @@ const VARS = {
   visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
   visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
-  mbLRWConfirmado: 1099.68,       // CORRIGIDO 04/08/2026 (mesmo gap de propagação detalhamento->agregado, usuário achou pelo print da Seção 15): +R$206,48 (TX000192 R$20,00 Drogaria Benif + TX000195 R$20,14 Uber Gabriela/exceção-LRW + TX000196 R$42,28 H57Store + TX000197/198/199 R$51,69+R$51,69+R$20,68 ANTHROPIC/assinatura Claude, todas cartão MB, lançadas em SWP_INPUT_TX entre 02-03/08 mas nunca propagadas pra este agregado - confirmado pelo usuário que as 3 cobranças Anthropic são reais, não duplicidade). Bate exato com o total de 13 lançamentos (R$1.099,68) mostrado ao vivo na Seção 15. Era R$893,20. ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
+  mbLRWConfirmado: 1177.58,       // ATUALIZADO 04/08/2026 (parte 68): +R$17,00 (TX000202, MP *FESTA, notificação Itaú cartão 1371 às 17h03 - conta consolidada 2250). Era R$1.160,58 (parte 67): +R$60,90 (TX000201, PANIFICADORA, notificação Itaú Personnalité Black Pontos cartão 1371 às 16h37 - conta consolidada 2250, ver parte 66). Era R$1.099,68 (CORRIGIDO 04/08/2026, mesmo gap de propagação detalhamento->agregado, usuário achou pelo print da Seção 15): +R$206,48 (TX000192 R$20,00 Drogaria Benif + TX000195 R$20,14 Uber Gabriela/exceção-LRW + TX000196 R$42,28 H57Store + TX000197/198/199 R$51,69+R$51,69+R$20,68 ANTHROPIC/assinatura Claude, todas cartão MB, lançadas em SWP_INPUT_TX entre 02-03/08 mas nunca propagadas pra este agregado - confirmado pelo usuário que as 3 cobranças Anthropic são reais, não duplicidade). Bate exato com o total de 13 lançamentos (R$1.099,68) mostrado ao vivo na Seção 15. Era R$893,20. ATUALIZADO 01/08/2026: +R$32,06 (TX000188, Amazon - Repelente Bebê, cartão virtual 4628). Era R$861,14 (31/07): +R$26,14 (TX000184/185/186, H57Store x3, cartão NOVO 1371, substitui 2244). Era R$835,00: +R$227,00 (TX000183, Tapiocaria Irmão Firmi, cartão físico 2244). Era R$608,00 (29/07, V199).
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
-  mbLRSConfirmado: 513.10,        // ATUALIZADO 28/07/2026 (V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
+  mbLRSConfirmado: 623.10,        // ATUALIZADO 04/08/2026 (parte 64): +R$110,00 (TX000200, ANTHROPIC*CLAUDE SUB, notificação Itaú Personnalité Black Pontos cartão MB 4628 às 10h21, compra internacional aprovada - valor base, SEM IOF/taxas cambiais ainda: Itaú avisou 3,38% de IOF a mais na fatura, valor final ~R$113,72, conferir quando a fatura fechar). Renovação mensal da assinatura Claude (já existia TXS000002, 12/07, mesmo serviço, ciclo anterior). Era R$513,10 (28/07/2026, V196): +R$39,99 (TX000171, ChatGPT, compra internacional, valor base sem IOF/taxas cambiais - conferir na fatura). Era R$473,11 (25/07, V159): TODAS as assinaturas migradas para o MB (IFood, Meli+, Amazon Canais confirmadas). = LIVRO_LRS_TOTAL. Era R$43,80 (parcial).
   mbLRVConfirmado: 304.70,         // ATUALIZADO 03/08/2026: +R$11,50 (TX000194, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$293,20 (03/08): +R$12,23 (TX000193, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - regra fixa de Uber). Era R$280,97 (01/08): +R$50,00 (TX000191, MP *TIORAFAKIDS, corte de cabelo do Júlio, cartão não especificado - assumido 6351 Mastercard Black da Vanessa). Era R$230,97: +R$6,43 (TX000180, Uber DL*UberRides, cartão virtual MB 4628, Vanessa - padrão default). Era R$224,54: +R$5,06 (TX000179, Uber DL*UberRides, cartão virtual MB 4628, Vanessa). Era R$219,48 (30/07, V207): +R$132,26 (TX000176, Drogasil, cartão 6351) - nunca tinha entrado aqui, foi lançada por engano no Visa Infinite (V201). Cartão 6351 é Mastercard Black da Vanessa (tabela oficial de cartões). Era R$87,22 (29/07, V201): +R$19,65 (TX000177, Uber, cartão MB 4628). Era R$67,57 (28/07, V195): +R$11,12 (TX000168, Uber) +R$8,08 (TX000169, H57Store). Era R$48,37 (V194): +R$12,42 (TX000167, Uber, pré-autorização). Era R$35,95 (25/07, V161): TX000154 (24/07, R$30,97) + TX000156/157 (25/07, R$2,49x2).
   mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
   totalOpBoletos: 2600,           // APORTE_BOLETOS (nao o total bruto do livro LRB)
@@ -1545,7 +1636,27 @@ const VARS = {
     {tx:'TX000196', data:'03/08/2026', livro:'LRW', nome:'H57STORE', valor:42.28},
     {tx:'TX000197', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:51.69},
     {tx:'TX000198', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:51.69},
-    {tx:'TX000199', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:20.68},  ],
+    {tx:'TX000199', data:'03/08/2026', livro:'LRW', nome:'ANTHROPIC', valor:20.68},
+    // NOVOS 04/08/2026 (parte 75): confirmados via triagem Visa Infinite Prime (partes 72-73) - todos
+    // do ciclo JA FECHADO (25/06-24/07). CORRIGIDO 04/08/2026 (parte 75, erro meu): tinham sido
+    // lancados por engano no LRW_TRANSACOES/cartaoInfiniteTotal do CICLO ATUAL (Supabase) - inflava o
+    // ciclo errado. Revertidos de la, adicionados aqui (historico cross-ciclo, so pra reconciliacao -
+    // nao afeta nenhum agregado do ciclo atual). TX000207 (Mercado Livre R$48,45) NAO incluido - usuario
+    // conferiu o app do Mercado Livre e nao achou pedido correspondente, revertido tambem (parte 74).
+    {tx:'TX000203', data:'26/06/2026', livro:'LRW', nome:'BRISANET', valor:114.99},
+    {tx:'TX000204', data:'30/06/2026', livro:'LRW', nome:'CONTA_VIVO', valor:469.00},
+    {tx:'TX000205', data:'01/07/2026', livro:'LRW', nome:'CONTA_VIVO', valor:54.00},
+    {tx:'TX000206', data:'15/07/2026', livro:'LRW', nome:'DRYCLEAN_USA', valor:132.00},
+    {tx:'TX000208', data:'07/07/2026', livro:'LRW', nome:'RBM_RELOGIOS', valor:80.97},
+    {tx:'TX000209', data:'15/07/2026', livro:'LRW', nome:'VENDEDORA', valor:22.30},
+    // NOVO 04/08/2026 (parte 80): NAO sao compras - estornos confirmados via fatura real Bradesco
+    // (Visa Infinite Prime, junho+julho/2026). MERCADOLIVRE*MERCADOLIVRE R$48,45 cobrado 29/06,
+    // estornado 02/07 (junto com um R$132,03 sem cobranca correspondente visivel nas 2 faturas - pode
+    // ser de um periodo anterior). Adicionados aqui SO pra reconciliacao parar de flagar como "sem
+    // registro" - dinheiro ja voltou, nao e gasto pendente de lancar.
+    {tx:'TX000210-ESTORNO', data:'02/07/2026', livro:'LRW', nome:'MERCADOLIVRE_ESTORNO', valor:48.45},
+    {tx:'TX000211-ESTORNO', data:'02/07/2026', livro:'LRW', nome:'MERCADOLIVRE_ESTORNO', valor:132.03},
+  ],
 
   // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
   // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
@@ -2265,7 +2376,33 @@ const REG = {
   },
   deficitZero: {
     liquidoSemTrabalhar: VARS.liquidoSemTrabalhar, // REGRA_CENARIO_FICOU_EM_CASA
-    piso: [VARS.reservaPiso,7821.63,7369.83,7088.69,7320.83,7220.83,...Array(6).fill(VARS.pisoHeld)]
+    // CORRIGIDO 04/08/2026 (parte 77, bug real apontado pelo usuario: "porque dezembro ficou maior
+    // se a tendencia e das contas acabarem?"): Nov/26 e Dez/26 tinham valores MAIORES que Out/26, o
+    // que e matematicamente impossivel dado que nada nesta formula reinicia antes de Jan/27 (parcelas
+    // do LRP so terminam, Escola Julio 2027 so comeca em Jan/27 - ver alivioData acima, mesmo arquivo).
+    // Reconstruido simulando PARCELAMENTOS_VISA avancando +1 parcela por ciclo (mesma regra ja usada
+    // em outro lugar do proprio app.js) + os aportes de alivioData - validado contra o mes ATUAL
+    // (bate exato com cartaoInfiniteTotal, R$1.017,89). Valores de Nov/Dez ESTIMADOS por essa
+    // reconstrucao, nao auditados centavo a centavo contra boletos/assinaturas/recorrencias/consorcios
+    // (assumidos constantes, mesma premissa ja documentada em legTotalOperacionalDefinicao) - avisar
+    // o usuario que pode ter uma margem de erro de ~R$100-300, mesmo nivel de ruido ja visto entre
+    // Ago/Set/Out antes desta correcao.
+    // VALIDADO 04/08/2026 (parte 81): usuario confirmou que boletos/assinaturas/consorcios nao tem
+    // data de termino conhecida entre agora e Dez/26 ("aviso caso cancele") - premissa de constancia
+    // sustentada. Unico ajuste real encontrado: Vivo cai de R$523,00 pra R$435,00 a partir do proximo
+    // ciclo (confirmado pelo usuario, print da fatura) - aplicado aqui como -R$88,00/mes em Nov/Dez
+    // (nao retroagido pro Out, que ja estava calibrado antes dessa mudanca ser conhecida).
+    // MIGRADO 04/08/2026 (parte 84, ERP->Supabase): VARS.DEFICIT_ZERO_PISO_OVERRIDE (chave de topo no
+    // Supabase) sobrescreve os valores literais Ago/26..Dez/26 quando existir - mesmo motivo do
+    // CARTAO_PLUGGY_MAPA acima. Indice 0 do override fica null de proposito (reservaPiso e sempre
+    // dinamico/formula, nunca literal) - por isso o merge abaixo usa "??" pra so trocar os indices que
+    // o Supabase de fato definiu, mantendo reservaPiso/pisoHeld como sempre foram.
+    piso: (() => {
+      const base = [VARS.reservaPiso,7821.63,7369.83,7373.69,6584.70,6394.71,...Array(6).fill(VARS.pisoHeld)];
+      const overr = VARS.DEFICIT_ZERO_PISO_OVERRIDE;
+      if(!Array.isArray(overr)) return base;
+      return base.map((v,i) => (overr[i] !== undefined && overr[i] !== null) ? overr[i] : v);
+    })()
   },
   superavitNormal: {
     // REGRA DEFINIDA PELO USUARIO 19/07/2026: liquidoMes(0) agora segue prioridade por DIA DO MES,
@@ -2435,6 +2572,33 @@ function recalcularAgregadosDerivados(){
   // dando impressao de sobra maior do que a real (chegou a mudar o Modo Operacional de Normal pra Alto
   // indevidamente). Descontado aqui, na fonte, pra nunca mais vazar pro resto do painel.
   REG.operacional.reembolsoPassThroughCorporativo = r2(REG.operacional.reembolsoPagaWartsila + REG.operacional.reembolsoPagaMPCorporativo + REG.operacional.reembolsoPagaCartaoCorporativo);
+
+  // NOVO 04/08/2026 (parte 78, continuacao da parte 77 - ficou pela metade): PIB Wallace, indicador de
+  // geracao de riqueza (nao de quanto entrou). Formula do usuario: Salario Liquido + Reembolsos +
+  // Rendimentos + Valorizacao de Investimentos - Consumo Nao Recorrente. Movido pra AQUI (depois de
+  // reembolsoPassThroughCorporativo, que precisa existir antes de usar). Fontes, uma a uma:
+  // - salarioLiquido: VARS.salario (real)
+  // - reembolsos: reembolsoCicloTotal menos pass-through corporativo (mesma logica de entradasTotais -
+  //   reembolso que so cobre gasto da empresa nao gera riqueza pessoal)
+  // - rendimentos: soma "resultadoHistorico" das opcoes vendidas - ACUMULADO por posicao, nao isolado
+  //   por mes (nao existe serie mensal ainda) - marcado explicitamente na tela, nao escondido
+  // - valorizacaoInvestimentos: 0, NAO TRACKEADO (precisaria de snapshot mes a mes do valor de mercado,
+  //   que nao existe) - marcado como pendente, nunca estimado por cima
+  // - consumoNaoRecorrente: soma de VARS.EXTRAORDINARIO_BENS_DURAVEIS (categoria nova da parte 77)
+  const rendimentosOpcoes = r2(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.resultadoHistorico||0),0));
+  const consumoNaoRecorrentePIB = r2((VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0));
+  REG.pibWallace = {
+    salarioLiquido: VARS.salario,
+    reembolsos: r2(VARS.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo),
+    rendimentos: rendimentosOpcoes,
+    rendimentosNota: 'acumulado das posições abertas, não isolado por mês (sem série histórica ainda)',
+    valorizacaoInvestimentos: 0,
+    valorizacaoNota: 'não trackeado — precisa de snapshot mês a mês do valor de mercado (pendente)',
+    consumoNaoRecorrente: consumoNaoRecorrentePIB,
+    total: 0
+  };
+  REG.pibWallace.total = r2(REG.pibWallace.salarioLiquido + REG.pibWallace.reembolsos + REG.pibWallace.rendimentos
+    + REG.pibWallace.valorizacaoInvestimentos - REG.pibWallace.consumoNaoRecorrente);
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
   // V135: Recebidos no ciclo = Total do ciclo - A receber (sempre a diferenca, nunca mais numero fixo
@@ -2910,22 +3074,56 @@ function renderInboxFinanceira(){
 // inventado aqui. So os finais com um total agregado correspondente em VARS entram no mapa (2244/4628/6351
 // somam em cartaoMBTotal; 4845 e o unico Infinite ativo, cartaoInfiniteTotal). Cartao Mercado Pago casado
 // pelo nome da conexao (Pluggy nao usa final-4 pra ele, usa "numero" interno tipo "7642").
-const CARTAO_PLUGGY_MAPA = {
+const CARTAO_PLUGGY_MAPA_DEFAULT = {
   '2244': {titular:'Wallace', apelido:'MB físico', totalVar:'cartaoMBTotal'},
   '4628': {titular:'Wallace', apelido:'MB virtual', totalVar:'cartaoMBTotal'},
   '6351': {titular:'Vanessa', apelido:'MB ativo', totalVar:'cartaoMBTotal'},
   '4845': {titular:'Vanessa', apelido:'Visa Infinite ativo', totalVar:'cartaoInfiniteTotal'},
-  '4844': {titular:'Vanessa', apelido:'Visa Infinite aposentado', totalVar:null}, // so liquidacao, sem total agregado pra comparar
+  '4844': {titular:'Wallace', apelido:'Visa Infinite aposentado', totalVar:null}, // CORRIGIDO 04/08/2026 (parte 84, achado durante migracao pro Supabase): estava 'Vanessa' aqui, mas a Politica (secao 3, tabela oficial de cartoes) diz Wallace - inconsistencia entre os dois, Politica prevalece (documento de referencia formal). so liquidacao, sem total agregado pra comparar
   '2773': {titular:'Wallace', apelido:'Bradesco parcelamentos antigos', totalVar:null},
   '0026': {titular:'Vanessa', apelido:'Bradesco', totalVar:null},
   // CONFIRMADO PELO USUARIO 03/08/2026: substituido de verdade pelo 6351 - a conexao Pluggy ainda nao foi
   // atualizada (continua puxando o cartao antigo). Fica mapeado (nao mais "nao mapeado"), mas sinalizado
   // como conexao desatualizada - acao real necessaria e do lado da Pluggy/banco, nao do codigo.
-  '2250': {titular:'Vanessa', apelido:'MB (substituído pelo 6351)', totalVar:null, conexaoDesatualizada:true},
+  // CORRIGIDO 04/08/2026 (parte 65, erro de sessao anterior): mapeamento estava errado - dizia
+  // titular Vanessa, "substituido pelo 6351", conexaoDesatualizada. Usuario mostrou print do proprio
+  // app da Pluggy: as 61 transacoes deste cartao (H57Store, Tapiocaria Irmao Firmi, Uber, Pax Domini)
+  // sao EXATAMENTE as mesmas ja rastreadas manualmente como compras do WALLACE (TX000183-186,
+  // TX000179/180 - conferido valor a valor, bate 100%). Ou seja: e o cartao MB atual do Wallace (o
+  // "cartao NOVO 1371" mencionado nos comentarios de TX000184-186), a conexao Pluggy JA esta
+  // atualizada e sincronizando normal - a resposta anterior desta sessao ("nenhum cartao do Wallace
+  // aparece no Pluggy") estava errada, baseada neste mapeamento incorreto. totalVar agora aponta pra
+  // cartaoMBTotal (mesmo agregado onde essas compras ja foram somadas manualmente), permitindo o
+  // cruzamento fatura-Pluggy x ERP que antes ficava pulado (totalVar:null).
+  // CORRIGIDO 04/08/2026 (parte 66, achado real ao vivo - usuario suspeitou certo): puxada a lista
+  // COMPLETA das 61 transacoes deste "2250" no Supabase (nao so uma amostra) - e a FATURA UNICA E
+  // CONSOLIDADA de todo o produto Itau Personnalite Multi Black, nao um cartao de uma pessoa so.
+  // Mistura na mesma fatura: compras do Wallace (H57Store, Uber, Tapiocaria), TODAS as assinaturas/
+  // recorrencias ja rastreadas em LRS/LRR (Netflix, Spotify, ChatGPT, Amazon Prime, Vivo, Brisanet,
+  // Faculdade/SOCEC, Digna, New Car), E coisas antes atribuidas "assumidamente" a um cartao separado
+  // da Vanessa (Drogasil TX000176, MP*TIORAFAKIDS TX000191 - corte de cabelo do filho) - todas aqui
+  // tambem, sob o MESMO numero de conta Pluggy. Ou seja: os numeros "2244"/"4628"/"6351"/"1371"
+  // citados nos comentarios do codigo sao os PLASTICOS fisicos/virtuais usados por cada pessoa da
+  // familia, mas a Pluggy so enxerga UMA conta consolidada (fatura unica do produto Personnalite
+  // Multi Black) - nao da pra saber por essa API qual pessoa/plastico fez cada compra individual
+  // (precisaria de campo por-transacao que o script atual nao captura, nao confirmado se a Pluggy
+  // ate expõe isso). CORRECAO DA PARTE 65 (que disse titular:'Wallace' sozinho) estava incompleta -
+  // e conta compartilhada titular+dependente(s), nao so do Wallace. totalVar continua cartaoMBTotal
+  // (esse SIM ja e o agregado combinado certo, isso a parte 65 acertou).
+  '2250': {titular:'Compartilhada (Wallace+Vanessa, fatura única Personnalité Multi Black)', apelido:'MB - fatura consolidada (físicos 1371/2244 + virtual 4628 + dependente)', totalVar:'cartaoMBTotal'},
   // CONFIRMADO PELO USUARIO 03/08/2026: cartao bloqueado, sem uso - nao precisa reconciliar, so documentar
   // pra nao aparecer mais como "nao mapeado" a cada carga.
   '9187': {titular:null, apelido:'AZUL ITAU VISA INFINITE (bloqueado, sem uso)', totalVar:null, bloqueado:true}
 };
+// NOVO 04/08/2026 (parte 84, migracao ERP->Supabase pedida pelo usuario: "nao pode em nenhuma
+// hipotese estar sem sincronismo entre o site e o ERP... nao deve sair alterando 10 numeros iguais no
+// site, so deve mudar em 1 lugar, o site que busque a fonte"): CARTAO_PLUGGY_MAPA agora busca
+// primeiro do Supabase (VARS.CARTAO_PLUGGY_MAPA, chave de topo em wallace_dados.dados, mesmo
+// mecanismo Object.assign(VARS, dr) ja usado pra tudo mais) - o objeto literal acima
+// (CARTAO_PLUGGY_MAPA_DEFAULT) vira só o fallback pra quando o Supabase estiver fora do ar/sem essa
+// chave ainda. Daqui em diante, corrigir o mapeamento de cartao é 1 UPDATE no banco, nao 1 edicao de
+// arquivo + deploy - fecha exatamente o gap que fez a correcao da parte 71 "sumir" entre sessoes.
+const CARTAO_PLUGGY_MAPA = VARS.CARTAO_PLUGGY_MAPA || CARTAO_PLUGGY_MAPA_DEFAULT;
 // 04/08/2026 (parte 49): id sintetico e deterministico por item da Pluggy, usado pra persistir a
 // triagem (PLUGGY_TRIAGEM) e pra nao re-adicionar na Inbox um item que o usuario ja aprovou/rejeitou
 // - sem isso, toda carga da pagina recriava o item do zero (reconciliarPluggy roda em todo onDomPronto)
@@ -2985,6 +3183,18 @@ function reconciliarPluggy(){
       const faturaPluggy = conta.fatura_mes_atual ? conta.fatura_mes_atual.valor_total : null;
       const totalERP = VARS[mapa.totalVar];
       if(faturaPluggy == null){ resultado.ok.push({numero:conta.numero, obs:'Pluggy sem fatura_mes_atual nesta carga'}); return; }
+      // NOVO 04/08/2026 (parte 77, pedido do usuario: "eu nao quero que o ciclo do mercado pago me
+      // engane, resolva da forma profissional"): a checagem de vencimento abaixo (correta, evita
+      // falso-positivo comparando fatura ja fechada) tinha o efeito colateral de o valor real do
+      // Mercado Pago só aparecer pra quem le o console, nunca no painel - resultado.ok nunca é
+      // mostrado linha a linha pro usuario (so contado, ver montarAlertasNegocio). Corrigido expondo
+      // o saldo/fatura ATUAL da Pluggy (sempre, independente do vencimento) num campo proprio que o
+      // painel pode mostrar direto - separa "e uma divergencia real?" (so faz sentido perto do
+      // vencimento) de "qual e o saldo agora?" (deveria ser visivel o mes inteiro, sem enganar).
+      if(mapa.totalVar === 'mercadoPagoFatura'){
+        resultado.mercadoPagoSaldoAbertoPluggy = faturaPluggy;
+        resultado.mercadoPagoVencimentoPluggy = conta.fatura_vencimento_atual || (conta.fatura_mes_atual && conta.fatura_mes_atual.vencimento) || null;
+      }
       // CORRIGIDO 03/08/2026 (usuario apontou 2 falsos positivos reais): fatura_mes_atual da Pluggy pode
       // ser a ULTIMA fatura FECHADA (ja vencida/paga), nao a fatura em aberto - nesse caso comparar contra
       // o total corrente do ERP (que zera/reinicia apos o pagamento) e comparacao invalida, nao divergencia
@@ -3082,19 +3292,27 @@ function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   // aparecem em VARS.CRONOGRAMA_BOLETOS_FIXOS, os 9 boletos recorrentes ja rastreados - parecem gasto
   // recorrente real ainda sem registro) e lavanderia DryUSA (compra avulsa comum, sem padrao
   // estrutural nenhum) - excluir esses do filtro seria esconder um gasto real, contra a Politica P1.
-  const PADROES_RUIDO_TRANSACAO = [
-    /dinheiro (retirado|reservado)/i,        // "caixinhas" internas do Mercado Pago (transferencia entre bolsos, nao gasto novo)
-    /wallace patrick gald/i,                  // PIX/TED do usuario pra ele mesmo, entre contas proprias
-    /aplica[cç][aã]o cofrinhos|resgate aplica[cç][aã]o/i, // movimentacao de investimento
-    /liq bolsa|conta remunerada/i,            // liquidacao/rendimento de operacoes na bolsa (Necton) - nao e compra do dia a dia
-    /pagamento recebido|pagto\.? por deb em c\/c|pagto antecipado pix/i, // baixa/quitacao de fatura, nao compra individual
-    /gastos cartao de credito/i,              // linha de RESUMO da fatura (soma do periodo), nao um lancamento unico
-    /ted[- ]?transf.*wartsila|ted recebida wartsila/i, // salario/reembolso corporativo, ja rastreado por outro caminho
-    /encargos limite de cred|iof s\//i,       // encargo/tarifa bancaria automatica, nao compra
-    /pagamento.*fatura.*(infinite|mastercard black|mercado pago)|fatura.*(infinite|mastercard black|mercado pago).*pagamento/i, // quitacao de fatura - ja rastreada via VARS.cartaoInfiniteTotal/cartaoMBTotal/mercadoPagoFatura
-    /juros.*atraso|encargos rotativos|multa.*atraso/i, // juros/multa por atraso - encargo do banco, nao compra
-    /livelo/i,                                // Pix recebido de programa de pontos - entrada, nao gasto
+  const PADROES_RUIDO_TRANSACAO_DEFAULT_STR = [
+    'dinheiro (retirado|reservado)',
+    'wallace patrick gald',
+    'aplica[cç][aã]o cofrinhos|resgate aplica[cç][aã]o',
+    'liq bolsa|conta remunerada',
+    'pagamento recebido|pagto\\.? por deb em c\\/c|pagto\\.? antec',
+    'gastos cartao de credito',
+    'ted[- ]?transf.*wartsila|ted recebida wartsila',
+    'encargos limite de cred|iof s\\/',
+    'pagamento.*fatura.*(infinite|mastercard black|mercado pago)|fatura.*(infinite|mastercard black|mercado pago).*pagamento',
+    'juros.*atraso|encargos rotativos|multa.*atraso',
+    'livelo',
+    'encargos.{0,4}rotativo|iof.*rotativo',
+    'pagamento cart[aã]o de cr[eé]dito|pagamento de fatura|fatura paga',
+    'cartao corporativo',
   ];
+  // MIGRADO 04/08/2026 (parte 84, ERP->Supabase): VARS.PADROES_RUIDO_TRANSACAO (array de strings,
+  // regex nao serializa em JSON) sobrescreve a lista acima quando existir no Supabase - mesmo motivo
+  // do CARTAO_PLUGGY_MAPA/piso acima. Corrigir/adicionar um padrao novo vira 1 UPDATE no banco.
+  const PADROES_RUIDO_TRANSACAO = (VARS.PADROES_RUIDO_TRANSACAO || PADROES_RUIDO_TRANSACAO_DEFAULT_STR)
+    .map(s => new RegExp(s, 'i'));
   function pareceRuidoInterno(descricao){
     const d = descricao || '';
     return PADROES_RUIDO_TRANSACAO.some(re=>re.test(d));
@@ -4015,6 +4233,17 @@ function hydrate(){
   t('balAtivosTotal', fmt(B.ativosTotal));
   t('balPassivosTotal2', fmt(B.passivos.total));
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
+  // NOVO 04/08/2026 (parte 78): render do card PIB Wallace, secao 23.
+  { const P = REG.pibWallace;
+    if(P){
+      t('pibSalario', fmt(P.salarioLiquido));
+      t('pibReembolsos', fmt(P.reembolsos));
+      t('pibRendimentos', fmt(P.rendimentos));
+      t('pibValorizacao', fmt(P.valorizacaoInvestimentos));
+      t('pibConsumoNaoRecorrente', '-'+fmt(P.consumoNaoRecorrente));
+      t('pibTotal', fmt(P.total));
+    }
+  }
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
   t('balOpMastercardInfinite', fmt(B.operacional.mastercardInfinite)); // V139: nova caixa (24/07/2026), guarda valor a pagar dos 2 cartoes ate 28/07
   { // NOVO 01/08/2026 (V245, usuario apontou "nao tem nada" nessa caixa - nao havia detalhamento
@@ -4372,6 +4601,25 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       alertas.push({icone:'✅', cor:'#34c98a',
         txto:`Fundo de Suavização com ${fmt(fundoSuavizacao)} — colchão de ${(fundoSuavizacao/VARS.proLaboreFixo).toFixed(1)} mês(es) de pró-labore`});
     }
+    // NOVO 04/08/2026 (parte 77, pedido do usuario: "eu nao quero que o ciclo do mercado pago me
+    // engane, resolva da forma profissional"): mostra o saldo/fatura ATUAL do Mercado Pago (Pluggy)
+    // sempre, o mes inteiro - nao so perto do vencimento (dia 4). Antes esse valor so aparecia (e olhe
+    // la, so no console) quando a comparacao de divergencia entrava em jogo, que so faz sentido perto
+    // do vencimento (reconciliarPluggy, ver parte 77 la tambem). Aqui e so informativo (nao compara
+    // contra o ERP, so mostra o que a Pluggy ve agora), busca direto de VARS.PLUGGY_CONTAS - nao
+    // depende do resultado do reconciliador rodar antes.
+    (function(){
+      const pc = VARS.PLUGGY_CONTAS;
+      if(!pc || !pc.conexoes) return;
+      let contaMP = null;
+      pc.conexoes.forEach(cx=> (cx.contas||[]).forEach(c=>{ if(/mercado\s*pago/i.test(c.nome||'')) contaMP = c; }));
+      if(!contaMP || !contaMP.fatura_mes_atual) return;
+      const valor = contaMP.fatura_mes_atual.valor_total;
+      const venc = contaMP.fatura_vencimento_atual || contaMP.fatura_mes_atual.vencimento;
+      const vencFmt = venc ? new Date(venc).toLocaleDateString('pt-BR') : '?';
+      alertas.push({icone:'ℹ️', cor:'#3987e5',
+        txto:`Mercado Pago (fatura aberta, ao vivo): ${fmt(valor)} — vence ${vencFmt}`});
+    })();
     // NOVO 03/08/2026 (V400 Etapa 11 - Alertas): Inbox Financeira acumulando item pendente sem revisão.
     // So conta o que ja existe em VARS.INBOX_FINANCEIRA (nada novo capturado aqui) - mesmo criterio das
     // demais linhas desta funcao (expor contador ja mantido, nao inventar fonte de dado nova). Idade em

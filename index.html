@@ -296,23 +296,90 @@
         <div id="dashboardContent"></div>
     </div>
 
+    <!-- NOVO 04/08/2026 (parte 76): modal de confirmacao de senha pra DESATIVAR o modo de esconder
+         valores. So aparece nesse sentido (ativar continua 1 clique, sem atrito). -->
+    <div id="modalSenhaEsconderValores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+      <div style="background:#16181b;border:1px solid #2a2d31;border-radius:12px;padding:1.5rem;width:90%;max-width:320px;">
+        <div style="font-weight:600;color:#eceae4;margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
+        <div style="font-size:0.78rem;color:#a9a79f;margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
+        <input type="password" id="senhaEsconderValoresInput" placeholder="PIN" inputmode="numeric" maxlength="4" autocomplete="off"
+          style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:1px solid #2a2d31;background:#0b0c0e;color:#eceae4;font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
+          onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores();">
+        <div id="senhaEsconderValoresErro" style="display:none;color:#e2554f;font-size:0.78rem;margin-bottom:0.5rem;"></div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+          <button type="button" onclick="fecharModalSenhaEsconderValores()"
+            style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid #2a2d31;background:transparent;color:#a9a79f;cursor:pointer;">Cancelar</button>
+          <button type="button" id="senhaEsconderValoresBtnConfirmar" onclick="confirmarSenhaEsconderValores()"
+            style="flex:1;padding:0.55rem;border-radius:8px;border:none;background:#3987e5;color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
     <script>
         // NOVO 01/08/2026 (V252, pedido do usuario): botao de esconder valores movido pra barra
         // superior fixa (fora do iframe) - fica acessivel ANTES de rolar/ver qualquer valor, em vez
         // de estar dentro do painel (so aparecia depois de carregar o conteudo sensivel).
+        // AJUSTADO 04/08/2026 (parte 76, pedido do usuario: "quando o olho de nublar for ativado, so
+        // consegue desativar via senha"): ATIVAR o blur continua instantaneo (sem atrito - precisa ser
+        // rapido pra esconder valores na hora que alguem chega perto). DESATIVAR agora exige reautenticar
+        // com a senha real da conta (mesmo endpoint Firebase do login, signInWithPassword) - nao um PIN
+        // novo/paralelo, que seria mais uma senha pra lembrar e mais facil de descobrir por tentativa.
+        // Usa window.authObj.email (ja setado no login) + reusa firebaseAuth() ja existente.
         function toggleEsconderValoresHeader() {
             const iframe = document.getElementById('mainIframe');
             const btn = document.getElementById('btnEsconderValoresHeader');
             if (!iframe || !iframe.contentWindow) return;
+            const estaAtivoAgora = btn && btn.classList.contains('ativo');
+            if (estaAtivoAgora) {
+                abrirModalSenhaEsconderValores();
+                return;
+            }
             try {
-                // CORRIGIDO 01/08/2026: toggleEsconderValores() agora RETORNA o estado (ativo/inativo)
-                // - antes o icone deste botao nunca mudava porque a logica de troca de icone rodava
-                // dentro do iframe, que nao tem acesso a este elemento (documentos diferentes).
                 const ativo = iframe.contentWindow.toggleEsconderValores();
                 if (btn) btn.classList.toggle('ativo', !!ativo);
             } catch (e) {
                 console.error('Nao foi possivel alternar valores no painel:', e);
             }
+        }
+
+        function abrirModalSenhaEsconderValores() {
+            const modal = document.getElementById('modalSenhaEsconderValores');
+            const input = document.getElementById('senhaEsconderValoresInput');
+            const erro = document.getElementById('senhaEsconderValoresErro');
+            if (!modal) return;
+            erro.style.display = 'none';
+            input.value = '';
+            modal.style.display = 'flex';
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function fecharModalSenhaEsconderValores() {
+            const modal = document.getElementById('modalSenhaEsconderValores');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // AJUSTADO 04/08/2026 (parte 77, pedido do usuario: "crie o pin 1322 para desbloquear o
+        // nublado" - troca a reautenticacao por senha completa da parte 76 por um PIN numerico
+        // dedicado, mais rapido de digitar quando alguem esta querendo ver o painel rapido).
+        const PIN_DESBLOQUEIO_VALORES = '1322';
+        function confirmarSenhaEsconderValores() {
+            const input = document.getElementById('senhaEsconderValoresInput');
+            const erro = document.getElementById('senhaEsconderValoresErro');
+            const pin = (input.value || '').trim();
+            if (pin !== PIN_DESBLOQUEIO_VALORES) {
+                erro.textContent = 'PIN incorreto.';
+                erro.style.display = 'block';
+                input.value = '';
+                input.focus();
+                return;
+            }
+            const iframe = document.getElementById('mainIframe');
+            const btn = document.getElementById('btnEsconderValoresHeader');
+            if (iframe && iframe.contentWindow) {
+                const ativo = iframe.contentWindow.toggleEsconderValores();
+                if (btn) btn.classList.toggle('ativo', !!ativo);
+            }
+            fecharModalSenhaEsconderValores();
         }
 
         // NOVO 01/08/2026: sincroniza o icone do botao com a preferencia ja salva - localStorage e
