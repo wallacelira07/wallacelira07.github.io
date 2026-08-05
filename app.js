@@ -5879,7 +5879,15 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
   const mesesParesSolar = gerarRotulosSolar(); // rotulos que os 2 graficos abaixo (Rede Energisa/Rateio) usam - "andam" sozinhos conforme os ciclos passam
 
 
-  let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0, geracaoAcumAnterior = null;
+  // CORRIGIDO 05/08/2026 (achado do usuário: barra amarela "Consumo direto" nunca aparecia no
+  // 1º ciclo, mesmo com geracaoAcumulada real em todas as leituras): geracaoAcumAnterior começava em
+  // `null` (diferente de creditoAcumAnterior/leitura03Anterior/leitura103Anterior, que começam em 0),
+  // só pra distinguir "sem dado do robô SAJ ainda" de "zero de verdade". Mas isso também fazia
+  // `temGeracaoReal` ficar falso pro 1º ciclo inteiro (nada pra comparar "antes" da ativação) - mesmo
+  // problema que credito/leitura03/103 JÁ resolviam corretamente usando 0 como ponto de partida (a
+  // geração TOTAL desde a ativação conta pro 1º ciclo, mesma lógica do crédito). Alinhado com o
+  // mesmo padrão dos outros 3 campos - 0 aqui também, não null.
+  let creditoAcumAnterior = 0, leitura03Anterior = 0, leitura103Anterior = 0, diasAcumAnterior = 0, geracaoAcumAnterior = 0;
   const creditoMensalWallace = [], creditoMensalIrma = [], temLeituraNoMes = [];
   // CORRIGIDO 01/08/2026 (V250, documento "SEM ESTIMATIVAS"): consumo direto mensal agora deriva da
   // GERACAO REAL do inversor SAJ (delta mes-a-mes de geracaoAcumulada), nunca mais da estimativa fixa
@@ -5984,6 +5992,14 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
       const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + geracaoEstimadaTotalPeriodo - diasDesdeLeituraChart * consumoMedioDiarioMaeChart;
       diasComDadoRealSolar = diasComDadoReal;
       diasProjetadosSolar = diasDesdeLeituraChart - diasComDadoReal;
+      // NOVO 05/08/2026 (pedido do usuario, 3a vez reportando a mesma divergencia entre este grafico
+      // e a Secao 12/13): antes a Previsao usava so ultimaSolar.creditoLiquido (parado na ultima
+      // leitura manual), enquanto este grafico projetava pra frente - dois numeros diferentes pro
+      // mesmo conceito. Exposto em VARS pra a Previsao reusar a MESMA projecao, um numero so em vez
+      // de dois caminhos de calculo divergentes.
+      VARS._creditoLiquidoProjetadoHoje = saldoTotalEstimadoChart;
+      VARS._diasProjetadosSolar = diasProjetadosSolar;
+      VARS._diasComDadoRealSolar = diasComDadoRealSolar;
 
       const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10)); // CORRIGIDO 03/08/2026: era mes calendario puro (hojeChart.getMonth()+1) - agora usa o ciclo de leitura (dia 8), consistente com o resto deste grafico
       const idxMesAtual = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // CORRIGIDO 03/08/2026: mesma ancora unica (Ago)
@@ -6347,8 +6363,16 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
   }
 
   if(ultimaSolar){
-    renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, ultimaSolar.creditoWallace, ultimaSolar.dias, '#34c98a');
-    renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, ultimaSolar.creditoIrma, ultimaSolar.dias, '#e8a63a');
+    // CORRIGIDO 05/08/2026: antes usava ultimaSolar.creditoWallace/creditoIrma (parado na ultima
+    // leitura manual) - agora usa a MESMA projecao do grafico 10/11 quando disponivel (VARS.
+    // _creditoLiquidoProjetadoHoje, calculada mais acima), pra nao mostrar 2 numeros diferentes pro
+    // mesmo conceito de "credito atual". Cai pro valor parado só se a projecao nao pode ser calculada
+    // (ex: sem geracaoAcumulada real ainda).
+    const creditoLiquidoPrevisao = VARS._creditoLiquidoProjetadoHoje != null ? VARS._creditoLiquidoProjetadoHoje : ultimaSolar.creditoLiquido;
+    const creditoWallacePrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioWallace * 100) / 100;
+    const creditoIrmaPrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioIrma * 100) / 100;
+    renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, ultimaSolar.dias, '#34c98a');
+    renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, ultimaSolar.dias, '#e8a63a');
   }
 }
 

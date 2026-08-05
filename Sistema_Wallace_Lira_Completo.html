@@ -925,7 +925,10 @@
 
     <!-- NOVO 05/08/2026 (pedido do usuario: "gráfico abaixo do gráfico 10... mostrando o gerado por
          dia do sistema") -->
-    <div class="card">
+    <div class="card" style="margin-top:1.2rem">
+      <!-- CORRIGIDO 05/08/2026 (achado do usuário, print com espaço zero entre este card e o de cima):
+           mesmo padrão de bug já documentado (2 .card empilhados sem margem entre si tocam com 0px -
+           os cantos arredondados colados criam ilusão de caixa vazia na costura). margin-top aqui. -->
       <div style="font-weight:600;margin-bottom:0.3rem">☀️ Geração por dia (real + média histórica)</div>
       <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem">Barra verde = geração real daquele dia, capturada pelo robô SAJ (2x/dia). Barra laranja = média de geração por dia dentro de um intervalo entre leituras manuais do medidor (histórico, antes do robô guardar o dado diário) — não é um dia isolado real, é a média do período.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
@@ -1283,7 +1286,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V11 · v05/08/2026 (parte 89)</span>
+    <span>Sistema Wallace Lira · ERP V11 · v05/08/2026 (parte 91)</span>
   </footer>
 
 </div>
