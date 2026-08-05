@@ -751,6 +751,9 @@ function liquidoMes(i){
 // o numero. Atualizar um saldo = mudar uma linha aqui, e automaticamente todo
 // lugar que usa aquele valor (cards, tabelas, graficos) fica correto.
 const VARS = {
+  // NOVO 05/08/2026 (parte 101, pedido do usuario: "34 anos, nasci em 13.05.1992, pode automatizar a
+  // idade no sistema"). Data fixa, idade sempre calculada a partir de hoje (nunca hardcoded de novo).
+  dataNascimentoWallace: '1992-05-13',
   // NOVO 31/07/2026 (V218, pedido explicito do usuario: "legendas devem estar em uma lista de
   // variaveis para nunca precisar subir o site so para mudar legendas"): objeto LEGENDAS centraliza
   // todo texto explicativo do site (28 legendas migradas). O HTML agora tem so o id de cada uma,
@@ -2782,26 +2785,28 @@ function recalcularAgregadosDerivados(){
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
 
-  // NOVO 05/08/2026 (parte 100, pedido do usuario: "quero o Valor total tenha metricas pra que eu
-  // saiba se pra o que eu ganho meu patrimonio esta abaixo ou dentro da faixa"). Nao ha idade do
-  // usuario cadastrada em lugar nenhum do sistema, entao a regra classica de mercado (Patrimonio
-  // Ideal = Idade x Renda Anual / 10, de "The Millionaire Next Door") nao da pra aplicar sem inventar
-  // um dado que nao tenho (regra 04 do manual - nunca assumir no escuro). Usada em vez disso uma
-  // metrica que NAO depende de idade e e igualmente reconhecida em planejamento financeiro pessoal:
-  // "quantos MESES da renda atual o patrimonio total cobriria" (mesmo raciocinio ja usado aqui pra
-  // Reserva de Emergencia, so que estendido pro patrimonio inteiro). Faixas (adaptadas dos marcos
-  // classicos de independencia financeira - se o usuario tiver uma regra propria/diferente em mente,
-  // e so pedir que troco):
-  // < 12 meses = Fase inicial · 12-60 meses (1-5 anos) = Construindo · 60-120 (5-10 anos) = Consolidado
-  // > 120 meses (10+ anos) = Avançado
+  // CORRIGIDO 05/08/2026 (parte 101): usuario informou a idade (34 anos, nasce 13/05/1992) - agora da
+  // pra usar a regra classica de mercado de verdade (Thomas Stanley, "The Millionaire Next Door"):
+  // Patrimonio Esperado = Idade x Renda Anual Bruta / 10. Idade sempre CALCULADA a partir de
+  // VARS.dataNascimentoWallace + data de hoje, nunca hardcoded (nao precisa lembrar de atualizar todo
+  // ano). Mantido o indicador de "meses de renda" tambem, como segunda leitura complementar.
+  REG.idadeWallace = (function(nasc){
+    const hoje = new Date(); const dn = new Date(nasc+'T00:00:00');
+    let idade = hoje.getFullYear() - dn.getFullYear();
+    const aindaNaoFezAniversario = (hoje.getMonth() < dn.getMonth()) || (hoje.getMonth()===dn.getMonth() && hoje.getDate() < dn.getDate());
+    if(aindaNaoFezAniversario) idade--;
+    return idade;
+  })(VARS.dataNascimentoWallace);
   REG.balanco.patrimonioTotalMesesDeRenda = REG.operacional.entradasTotais ? r2(REG.balanco.patrimonioTotalGeral / REG.operacional.entradasTotais) : null;
-  REG.balanco.patrimonioTotalFaixa = (function(meses){
-    if(meses == null) return {label:'Sem dado', cor:'var(--text-dim)'};
-    if(meses < 12) return {label:'Fase inicial (< 1 ano de renda)', cor:'var(--red)'};
-    if(meses < 60) return {label:'Construindo (1-5 anos de renda)', cor:'var(--yellow, #e8a63a)'};
-    if(meses < 120) return {label:'Consolidado (5-10 anos de renda)', cor:'var(--green)'};
-    return {label:'Avançado (10+ anos de renda)', cor:'var(--green)'};
-  })(REG.balanco.patrimonioTotalMesesDeRenda);
+  REG.balanco.patrimonioEsperadoRegraClassica = r2(REG.idadeWallace * REG.operacional.entradasTotais * 12 / 10);
+  REG.balanco.patrimonioTotalFaixa = (function(atual, esperado){
+    if(!esperado) return {label:'Sem dado', cor:'var(--text-dim)'};
+    const pct = atual / esperado * 100;
+    if(pct < 50) return {label:'Abaixo da faixa esperada p/ idade e renda', cor:'var(--red)'};
+    if(pct < 100) return {label:'Dentro da faixa, ainda construindo', cor:'var(--yellow, #e8a63a)'};
+    if(pct < 200) return {label:'Dentro da faixa, acumulador acima da média', cor:'var(--green)'};
+    return {label:'Muito acima da faixa esperada', cor:'var(--green)'};
+  })(REG.balanco.patrimonioTotalGeral, REG.balanco.patrimonioEsperadoRegraClassica);
 
   // NOVO 05/08/2026 (parte 97, pedido do usuario: "implemente Taxa de Crescimento, Eficiencia
   // Financeira e Consumo Improdutivo, precisam de serie historica mes a mes que o site ainda nao
@@ -4566,8 +4571,9 @@ function hydrate(){
   t('balPatrimonioLiquido', fmt(B.patrimonioLiquido));
   t('balPatrimonioTotalGeral', fmt(B.patrimonioTotalGeral));
   { const faixaEl = $('balPatrimonioTotalFaixa');
-    if(faixaEl && B.patrimonioTotalMesesDeRenda != null){
-      faixaEl.innerHTML = 'Equivale a <strong>'+B.patrimonioTotalMesesDeRenda.toLocaleString('pt-BR',{maximumFractionDigits:1})+' meses</strong> da renda atual (~'+(B.patrimonioTotalMesesDeRenda/12).toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos) — <strong style="color:'+B.patrimonioTotalFaixa.cor+'">'+B.patrimonioTotalFaixa.label+'</strong>';
+    if(faixaEl && B.patrimonioEsperadoRegraClassica){
+      const pct = Math.round(B.patrimonioTotalGeral/B.patrimonioEsperadoRegraClassica*1000)/10;
+      faixaEl.innerHTML = `${REG.idadeWallace} anos · esperado p/ idade+renda (regra Idade×Renda Anual÷10): <strong>${fmt(B.patrimonioEsperadoRegraClassica)}</strong> · você tem <strong>${pct.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</strong> disso — <strong style="color:${B.patrimonioTotalFaixa.cor}">${B.patrimonioTotalFaixa.label}</strong><br><span style="color:var(--text-dim)">Também equivale a ${B.patrimonioTotalMesesDeRenda.toLocaleString('pt-BR',{maximumFractionDigits:1})} meses (~${(B.patrimonioTotalMesesDeRenda/12).toLocaleString('pt-BR',{maximumFractionDigits:1})} anos) da renda atual.</span>`;
     }
   }
   // NOVO 04/08/2026 (parte 78): render do card PIB Wallace, secao 23.
