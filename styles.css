@@ -47,12 +47,13 @@
     border-radius:var(--radius-3xl);
     padding:2.5rem 2.2rem;
     margin-bottom:1.6rem;
+    overflow:visible;
     /* CORRIGIDO 04/08/2026 (parte 83, bug real visto pelo usuario no celular): "overflow:hidden" aqui
        cortava/atropelava o dropdown de resultados da busca (#buscaGlobalResultados), que mora dentro
        deste card desde a parte 47 (busca movida pro cabecalho) - o dropdown e position:absolute e
        precisa poder extravasar o card pra aparecer por cima do conteudo abaixo. Trocado por
        overflow:visible; os circulos decorativos do ::before continuam funcionando (sao gradiente
-       radial ja esmaecendo pra transparente antes da borda, a perda do corte duro e imperceptivel).
+       radial ja esmaecendo pra transparente antes da borda, a perda do corte duro e imperceptivel). */
   }
   .cover::before{
     content:'';position:absolute;top:-40%;right:-10%;
