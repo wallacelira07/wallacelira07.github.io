@@ -2657,6 +2657,20 @@ const REG = {
 // de bug encontrada nesta sessao (ex: sobra da cascata ficou 2 dias errada porque ninguem lembrou de
 // atualizar o numero fixo quando um componente mudou). Os componentes (totalOpDetalhe, reembolsoCicloTotal
 // etc.) continuam sendo os valores digitados/confirmados - só os agregados que dependem deles viram formula.
+// NOVO 05/08/2026 (parte 102, pedido do usuario: "o valor de necessidade do mes e o alivio de pressao
+// sao interligadas, deve haver uma base unica, um unico lugar"). Fonte UNICA do calendario das caixas
+// incrementais (quando cada uma completa e libera aporte, quando uma nova comeca) - usada tanto pelo
+// grafico "Alivio de pressao" (secao 08, pagina Graficos) quanto pela projecao de Necessidade Liquida
+// (secao 05). Antes eram 2 implementacoes separadas da MESMA logica, podendo divergir silenciosamente.
+// Indice 0 = ciclo atual (Jul/26), cada indice seguinte = 1 ciclo financeiro a frente.
+function calcularAporteIncrementalPorCiclo(i){
+  let v = VARS.seguroEmplacamentoAporte + VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO; // continuos, sem data de termino conhecida
+  if(i < 2) v += 200;                              // Aniversario Julio - completa Set/26 (14/09)
+  if(i < 4) v += 500;                               // Escola Julio ciclo atual - completa Nov/26 (01/11)
+  if(i < 16) v += 100;                              // Saude Familia - projeta completar ~Nov/27
+  if(i >= 6 && i <= 16) v += VARS.escolaJulio2027Aporte; // Escola Julio 2027 - Jan/27 a Nov/27 (11 meses)
+  return Math.round(v*100)/100;
+}
 function recalcularAgregadosDerivados(){
   const r2 = x => Math.round(x*100)/100;
   const D = REG.totalOpDetalhe;
@@ -2868,6 +2882,47 @@ function recalcularAgregadosDerivados(){
     REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
   }
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
+
+  // NOVO 05/08/2026 (parte 102, pedido do usuario: "todo valor nao pode depender de nada manual, tudo
+  // precisa buscar referencia de uma base de dados... o valor de necessidade do mes e o alivio de
+  // pressao sao interligados, deve haver uma base unica"). Projecao dos proximos 12 ciclos, agora
+  // FORMULA, nao mais 12 numeros digitados: parcelas (data real de termino via parcelaAtual/
+  // totalParcelas) E aportes patrimoniais incrementais (via calcularAporteIncrementalPorCiclo, MESMA
+  // fonte usada pelo grafico Alivio de Pressao - nunca mais 2 implementacoes separadas) mudam mes a
+  // mes de verdade agora. Boletos/Assinaturas/Recorrencias/Consorcios/Orcamento seguem como o valor
+  // do ciclo atual (nao ha dado real de quando cada um muda no futuro).
+  function somaParcelasProjetadas(cicloOffset){
+    const somaLista = (lista)=> lista.reduce((s,p)=>{
+      if(p.status !== 'ATIVO') return s;
+      const parcelasRestantes = p.totalParcelas - p.parcelaAtual; // quantos ciclos AINDA faltam, alem do atual
+      return (cicloOffset <= parcelasRestantes) ? s + p.valor : s;
+    }, 0);
+    return r2(somaLista(VARS.PARCELAMENTOS_VISA||[]) + somaLista(VARS.PARCELAMENTOS_MP||[]));
+  }
+  // aportesPat do ciclo atual (D.aportesPat, valor real confirmado) e o ANCORA - meses futuros aplicam
+  // so o DELTA do calendario de caixas incrementais (calcularAporteIncrementalPorCiclo(i) - calcularAporteIncrementalPorCiclo(0)),
+  // nunca substituem o valor de hoje por uma soma reconstruida do zero (evita perder algum componente
+  // de aportesPat que nao faca parte das 4-5 caixas incrementais mapeadas, ex: aporte BTG regular).
+  const aporteIncrementalHoje = calcularAporteIncrementalPorCiclo(0);
+  const baseFixaOperacional = r2(D.boletos + D.consorcios + D.recorrencias + D.provMP + D.assinaturas);
+  REG.evolucao = REG.evolucao || {};
+  REG.evolucao.totalOperacional = [];
+  REG.evolucao.necessidadeLiquida = [];
+  for(let i=0;i<12;i++){
+    const parcelasProj = somaParcelasProjetadas(i);
+    const aportesPatProj = r2(D.aportesPat + (calcularAporteIncrementalPorCiclo(i) - aporteIncrementalHoje));
+    const totalOpProj = r2(baseFixaOperacional + aportesPatProj + parcelasProj);
+    const necBrutaProj = r2(totalOpProj + REG.operacional.orcamentoOperacional);
+    const coberturaProj = i===0 ? REG.operacional.coberturaGarantida : 0; // cobertura garantida so existe confirmada pro ciclo atual, nunca projetada pra frente (regra 04 - nao chutar confirmacao futura)
+    REG.evolucao.totalOperacional.push(totalOpProj);
+    REG.evolucao.necessidadeLiquida.push(r2(necBrutaProj - coberturaProj));
+  }
+  // ciclo atual (indice 0) sempre usa o valor JA COMPUTADO acima (fonte real do ciclo, pode incluir
+  // ajustes/overrides que a formula generica de parcelas nao capturaria) - so os indices 1+ sao 100%
+  // projecao por formula.
+  REG.evolucao.totalOperacional[0] = REG.operacional.totalOperacional;
+  REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
+
   REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta; // CORRIGIDO V150: era numero fixo, agora e a mesma Necessidade Total Bruta (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+OrcamentoOperacional). Movido para APOS necessidadeTotalBruta ser calculado (ordem de execucao).
   REG.balanco.fluxo.resultado = r2(REG.balanco.fluxo.entradas - REG.balanco.fluxo.saidas); // CORRIGIDO V150: era numero fixo, agora e Entradas-Saidas de verdade
   // CORRIGIDO 05/08/2026 (parte 100, usuario apontou o erro real: "como 100% virou riqueza, nao tem
@@ -5678,16 +5733,10 @@ observeAndRenderChart($('g_cCaixas'), () => new Chart($('g_cCaixas'), {
 // R$9.236,00 em novembro). Seguro/Emplacamento e um ciclo CONTINUO de 12 meses desde Jan/26, mesma taxa
 // (R$425/mes) ao virar pro ciclo 2027 - por isso nunca gera evento de alivio/aumento, so continua.
 const alivioLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan/27','Fev/27','Mar/27','Abr/27','Mai/27','Jun/27','Jul/27','Ago/27','Set/27','Out/27','Nov/27','Dez/27'];
-const ANIVERSARIO_JULIO_APORTE = 200, ESCOLA_JULIO_ATUAL_APORTE = 500, SAUDE_FAMILIA_APORTE = 100,
-      SEGURO_EMPLACAMENTO_APORTE = VARS.seguroEmplacamentoAporte, ESCOLA_JULIO_2027_APORTE = VARS.escolaJulio2027Aporte;
-const alivioData = alivioLabels.map((_,i)=>{
-  let v = SEGURO_EMPLACAMENTO_APORTE; // ciclo continuo, sempre ativo nos 18 meses
-  if(i < 2) v += ANIVERSARIO_JULIO_APORTE;       // completa Set/26 (14/09)
-  if(i < 4) v += ESCOLA_JULIO_ATUAL_APORTE;      // completa Nov/26 (01/11, coberto por 13o/ferias)
-  if(i < 16) v += SAUDE_FAMILIA_APORTE;          // projeta completar ~Nov/27 (16 meses, ritmo atual)
-  if(i >= 6 && i <= 16) v += ESCOLA_JULIO_2027_APORTE; // ciclo 2027: Jan/27-Nov/27 (11 meses)
-  return Math.round(v*100)/100;
-});
+// ATUALIZADO 05/08/2026 (parte 102): usa calcularAporteIncrementalPorCiclo() - mesma fonte que a
+// projecao de Necessidade Liquida (secao 05) agora usa, nunca mais 2 implementacoes separadas da
+// mesma logica. Bens Duraveis (R$250/mes, sem data de termino) adicionada, faltava aqui.
+const alivioData = alivioLabels.map((_,i)=> calcularAporteIncrementalPorCiclo(i));
 const alivioEventos = {
   2: {tipo:'alivio',  texto:'Aniversário Júlio completa (14/09) — R$200,00/mês liberados'},
   4: {tipo:'alivio',  texto:'Escola Júlio (ciclo atual) completa (01/11) — R$500,00/mês liberados'},
