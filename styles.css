@@ -476,8 +476,18 @@
   .busca-resultado-item:hover{ background:rgba(57,135,229,0.1); color:var(--text); }
   .busca-resultado-vazio{ padding:0.6rem 0.9rem; font-size:0.78rem; color:var(--text-dim); }
   /* NOVO parte 76: resultado de transacao (TX/valor) - mesma linha, mais um subtitulo pequeno com
-     data/livro/obs, ja que a maioria dos livros nao tem uma linha na tela pra navegar ate. */
-  .busca-resultado-transacao{ cursor:default; }
+     data/livro/obs. CORRIGIDO 05/08/2026: agora navega ate a aba do livro razao certo quando existe
+     mapeamento conhecido (ver LIVRO_PARA_TAB_LR no app.js) - cursor pointer, nao mais default. */
+  .busca-resultado-transacao{ cursor:pointer; }
+  .busca-resultado-transacao:hover{ background:rgba(255,255,255,0.06); }
   .busca-resultado-transacao strong{ color:var(--text); }
   .busca-resultado-sub{ display:block; font-size:0.7rem; color:var(--text-dim); margin-top:0.15rem; }
+
+  /* NOVO 05/08/2026: destaque temporario da linha na tabela do Livro Razao, ao chegar via clique
+     num resultado de busca de transacao - pisca suave e desaparece sozinho depois de 2.5s. */
+  .linha-destacada-busca{ animation: destacarLinhaBusca 2.5s ease-out; }
+  @keyframes destacarLinhaBusca{
+    0%{ background:rgba(52,201,138,0.35); }
+    100%{ background:transparent; }
+  }
 

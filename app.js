@@ -334,13 +334,58 @@ function construirIndiceTransacoesBusca(){
   return indice;
 }
 
+// NOVO 05/08/2026 (pedido do usuario: "quando clico na TX da compra quero que va para o lugar onde
+// ela esta o LR correto"): mapeia o nome do array (usado no indice de busca) pra chave do showLR()
+// (a aba dentro da secao 15 "Livros razao"). Nem todo livro buscavel tem uma aba 1-pra-1 (ex:
+// LRC_LIMBO_TRANSACOES e HISTORICO_ERP_TODOS_CICLOS nao tem aba propria - sao vistas cross-livro/
+// cross-ciclo) - nesses casos o clique so leva ate a secao, sem trocar de aba, em vez de acertar errado.
+const LIVRO_PARA_TAB_LR = {
+  'LRW_TRANSACOES': 'lrw',
+  'LRV_TRANSACOES': 'lrv',
+  'LRCV_TRANSACOES': 'lrcv',
+  'BOLETOS_TRANSACOES': 'lrb',
+  'PV_TRANSACOES': 'lrpvsaldo',
+  'LRPV_TRANSACOES': 'lrpv'
+};
+
+function irParaTransacaoNoLivro(t, livro){
+  showMaster('painel');
+  // acha a section-num "Livros razao" pelo texto do h2 (mais confiavel que indice fixo)
+  const secaoAlvo = Array.from(document.querySelectorAll('.section-num')).find(s => s.querySelector('h2')?.textContent.trim() === 'Livros razão');
+
+  const chaveTab = LIVRO_PARA_TAB_LR[livro];
+  if(chaveTab){
+    const btn = document.getElementById('lrTabBtn_' + chaveTab);
+    if(btn) showLR(chaveTab, btn);
+  }
+
+  setTimeout(() => {
+    if(secaoAlvo) scrollParaSecaoComOffset(secaoAlvo);
+    if(!t.tx) return;
+    // procura a linha (<tr>) que contem o codigo TX, dentro da tabela ja visivel apos o showLR acima
+    setTimeout(() => {
+      const linhas = document.querySelectorAll('.pane.active tbody tr');
+      const alvo = Array.from(linhas).find(tr => tr.textContent.includes(t.tx));
+      if(alvo){
+        alvo.scrollIntoView({behavior:'smooth', block:'center'});
+        alvo.classList.add('linha-destacada-busca');
+        setTimeout(() => alvo.classList.remove('linha-destacada-busca'), 2500);
+      }
+    }, 120);
+  }, 40);
+}
+
 function renderResultadoTransacao(t, livro){
   const div = document.createElement('div');
   div.className = 'busca-resultado-item busca-resultado-transacao';
   const nomeLivroCurto = livro.replace('_TRANSACOES','').replace('HISTORICO_ERP_TODOS_CICLOS','Histórico');
   div.innerHTML = `<strong>${t.tx||'—'}</strong> · ${t.nome||t.descricao||'(sem descrição)'} · <strong>${fmt(t.valor)}</strong>`
     + `<span class="busca-resultado-sub"> ${t.data||''} — ${nomeLivroCurto}${t.obs ? ' — '+t.obs : ''}</span>`;
-  div.onclick = () => { /* so exibe o detalhe - a maioria dos livros nao tem linha visivel na tela pra navegar ate */ };
+  // CORRIGIDO 05/08/2026 (pedido do usuario, clique nao fazia nada): agora navega ate a aba do
+  // Livro Razao correto e destaca a linha da transacao, quando existe mapeamento conhecido pra
+  // aquele livro (ver LIVRO_PARA_TAB_LR acima) - sem mapeamento, so leva ate a secao geral.
+  div.onclick = () => irParaTransacaoNoLivro(t, livro);
+  div.style.cursor = 'pointer';
   return div;
 }
 
@@ -4533,8 +4578,21 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
   // temporaria (se ativa). Nao mexe em nenhum outro indicador - e so uma leitura combinada do que
   // ja existe em REG.caixaVariavel, calculada ao vivo (nunca hardcoded).
   const cv = REG.caixaVariavel;
+  // CORRIGIDO 05/08/2026 (achado real do usuário: "de onde vou tirar o valor pra cobrir bens
+  // duráveis, sai do salário sem caixa prévia?"): bens duráveis (fone de ouvido, cortador Wahl etc)
+  // tinham sido excluídos do `mbLRWConfirmado` inteiro pra não estourar o teto de R$2.000 - mas isso
+  // também tirava esse dinheiro (REAL, já cobrado no cartão, vai aparecer na fatura de verdade) do
+  // `comprometido`/`disponivel`, que é o que diz quanto dinheiro real falta cobrir. Dois problemas
+  // diferentes (1: não fazer bem durável parecer estouro de gasto recorrente; 2: nunca esconder
+  // dinheiro real da conta de "quanto cobrir") resolvidos com UM número a menos, não dois. Agora:
+  // `cv.comprometido` volta a ser o valor CHEIO (bens duráveis incluídos) - disponivel/faltaCobrir
+  // continuam certos. Só o teto/fôlego (pace de gasto RECORRENTE, seção 13 da Política) usa um
+  // comprometido à parte, subtraindo bens duráveis - eles não deveriam contar contra o ritmo mensal,
+  // mas continuam contando contra "quanto preciso ter guardado pra pagar a fatura".
+  const somaBensDuraveisCiclo = (VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0);
+  const comprometidoParaTeto = Math.round((cv.comprometido - somaBensDuraveisCiclo)*100)/100;
   const tetoEfetivo = cv.tetoOficial + (cv.tolerenciaTemp||0);
-  const folego = Math.round((tetoEfetivo - cv.comprometido)*100)/100;
+  const folego = Math.round((tetoEfetivo - comprometidoParaTeto)*100)/100;
   const folegoPorDia = restantes > 0 ? folego/restantes : folego;
   // NOVO 22/07/2026 (V128, pedido do usuario): o "Fôlego" (teto - comprometido) confunde porque parece
   // que falta cobrir o valor do estouro do TETO (ex: R$423), quando na real falta so a diferenca entre
@@ -4561,7 +4619,8 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),
     // uma variavel errada para "quanto passou do teto oficial". O teto oficial e comparado contra o COMPROMETIDO
     // (secao 13 da Politica), nunca contra o disponivel. Valor certo = comprometido - tetoOficial.
-    const excedente = Math.round((cv.comprometido - cv.tetoOficial)*100)/100;
+    // CORRIGIDO 05/08/2026: usa comprometidoParaTeto (exclui bens duráveis), mesma razão do folego acima.
+    const excedente = Math.round((comprometidoParaTeto - cv.tetoOficial)*100)/100;
     alertas.push(excedente <= 0
       ? {icone:'✅', cor:'#34c98a', txto:'Caixa Variável dentro do teto oficial'}
       : {icone: folego>=0 ? '⚠️' : '🔴', cor: folego>=0 ? '#e8a63a' : '#e2554f',
@@ -5889,6 +5948,7 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
   // casa), nao so ficar parada na ultima leitura real parcial daquele mes. Mesma formula/regra da
   // estimativa da Unidade Geradora: some pra dentro deste grafico especifico, nao muda o dado bruto
   // (SOLAR_LEITURAS continua 100% real) - so a exibicao desta barra.
+  let diasComDadoRealSolar = 0, diasProjetadosSolar = 0;
   if(ultimaSolar && ultimaSolar.geracaoAcumulada != null && diasAcumAnterior >= 0){
     const hojeChart = new Date();
     const hojeSoDataChart = new Date(Date.UTC(hojeChart.getFullYear(), hojeChart.getMonth(), hojeChart.getDate()));
@@ -5899,7 +5959,31 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
       const geracaoMediaDiariaChart = diasDesdeAtivacaoChart > 0 ? ultimaSolar.geracaoAcumulada / diasDesdeAtivacaoChart : 0;
       const consumoMedioMensalMaeChart = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
       const consumoMedioDiarioMaeChart = consumoMedioMensalMaeChart / 30;
-      const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + diasDesdeLeituraChart * (geracaoMediaDiariaChart - consumoMedioDiarioMaeChart);
+      // MELHORADO 05/08/2026 (pedido do usuario: "já temos dados diários do SAJ, tenta melhorar
+      // isso" - a estimativa usava só a MEDIA desde a ativacao pra projetar os dias entre a ultima
+      // leitura manual e hoje, mesmo quando o robo SAJ ja tem o dado REAL de alguns desses dias
+      // (SOLAR_GERACAO_DIARIA, gravado 2x/dia desde 03/08). Agora percorre dia a dia o periodo:
+      // usa o kWh REAL do robo quando existe pra aquele dia especifico, e só cai pra media nos dias
+      // sem dado real (ex: antes de 03/08, ou uma falha pontual do robo). Reduz a divergencia entre
+      // esta barra (grafico 10/11) e a Secao 12/13 (Previsao, usa só a ultima leitura confirmada).
+      const diariosPorDataMap = {};
+      (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r => { diariosPorDataMap[r.data] = r.kwh; });
+      let geracaoEstimadaTotalPeriodo = 0;
+      let diasComDadoReal = 0;
+      for(let d=1; d<=diasDesdeLeituraChart; d++){
+        const dataDoDia = new Date(dataUltimaLeituraChart);
+        dataDoDia.setDate(dataDoDia.getDate() + d);
+        const chaveISO = dataDoDia.toISOString().slice(0,10);
+        if(diariosPorDataMap[chaveISO] != null){
+          geracaoEstimadaTotalPeriodo += diariosPorDataMap[chaveISO];
+          diasComDadoReal++;
+        } else {
+          geracaoEstimadaTotalPeriodo += geracaoMediaDiariaChart;
+        }
+      }
+      const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + geracaoEstimadaTotalPeriodo - diasDesdeLeituraChart * consumoMedioDiarioMaeChart;
+      diasComDadoRealSolar = diasComDadoReal;
+      diasProjetadosSolar = diasDesdeLeituraChart - diasComDadoReal;
 
       const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10)); // CORRIGIDO 03/08/2026: era mes calendario puro (hojeChart.getMonth()+1) - agora usa o ciclo de leitura (dia 8), consistente com o resto deste grafico
       const idxMesAtual = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // CORRIGIDO 03/08/2026: mesma ancora unica (Ago)
@@ -6176,7 +6260,18 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
   const legSolarEl = $('legSolarRateio');
   if(legSolarEl && ultimaSolar){
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;
-    const avisoEstimativa = ' A barra do mês atual pode incluir uma <strong style="color:#3987e5">estimativa</strong> (geração real do inversor − consumo médio histórico) pros dias sem leitura ainda — sempre corrigida quando a leitura real do medidor chegar.';
+    // MELHORADO 05/08/2026 (pedido do usuario, "melhora isso porque é confuso"): antes o aviso era
+    // generico ("pode incluir uma estimativa"). Agora diz exatamente quantos dias da barra do ciclo
+    // atual vieram do robo SAJ (dado real, SOLAR_GERACAO_DIARIA) e quantos ainda sao media histórica
+    // - explica de forma direta por que esta barra pode diferir da Secao 12/13 (que só usa a última
+    // leitura manual confirmada, sem projetar nenhum dia à frente).
+    const avisoEstimativa = diasProjetadosSolar > 0
+      ? ' A barra do ciclo atual soma a última leitura manual confirmada + '
+        + (diasComDadoRealSolar>0 ? diasComDadoRealSolar+' dia(s) com geração REAL do robô SAJ' : '')
+        + (diasComDadoRealSolar>0 && diasProjetadosSolar>0 ? ' + ' : '')
+        + (diasProjetadosSolar>0 ? diasProjetadosSolar+' dia(s) por média histórica (robô ainda sem dado nesses dias)' : '')
+        + ' — por isso pode diferir um pouco da Seção 12/13 (Previsão), que mostra só a última leitura manual, sem projetar nenhum dia à frente.'
+      : '';
     legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 11 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
   }
 
