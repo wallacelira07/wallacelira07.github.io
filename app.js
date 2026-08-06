@@ -2673,7 +2673,7 @@ const REG = {
     ativosTotal: 0,
     patrimonioLiquido: 0,
     reservas: {
-      boletos:0, escolaJulio:VARS.escolaJulioSaldo, caixaLance:VARS.caixaLance, manutencao:VARS.caixaManutencao, eventos:VARS.caixaEventos,
+      boletos:VARS.caixaBoletos, escolaJulio:VARS.escolaJulioSaldo, caixaLance:VARS.caixaLance, manutencao:VARS.caixaManutencao, eventos:VARS.caixaEventos,
       churrasco:VARS.caixaChurrasco, saudeFamilia:VARS.caixaSaudeFamilia, seguroEmplacamento:VARS.caixaSeguroEmplacamento, aniversarioJulio:VARS.caixaAniversarioJulio,
       // ADICIONADAS 05/08/2026 (parte 100, usuario listou as caixas reais que tem e apontou que faltavam
       // varias aqui): pixVanessa (VARS.caixaPixVanessa, PV - ja existia na Politica/Caixas Operacionais
@@ -4986,8 +4986,51 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         .sort((a,b) => b.saldo_real_ciclo_atual - a.saldo_real_ciclo_atual)
         .map(c => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span class="v" style="font-weight:600;color:${c.saldo_real_ciclo_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${c.saldo_real_ciclo_atual.toFixed(2)}</span></div>`)
         .join('');
-      painel.innerHTML = `<div style="font-weight:700;margin-bottom:0.5rem;color:#8ab4f8">Caixas — Arquitetura V2</div>${linhas}<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#6b7a8f">Fonte: rpc_dashboard_resumo() · calibrado com dado real 05/08/2026</div>`;
 
+      // NOVO parte 110: patrimônio líquido, metas e reembolsos - já vêm na mesma resposta da RPC
+      // (resumoV2.patrimonio_resumo/metas/reembolsos_resumo), zero chamada de rede extra.
+      const pat = resumoV2.patrimonio_resumo || {};
+      const blocoPatrimonio = pat.liquido != null ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Patrimônio Líquido</div>
+        <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Ativo</span><span class="v">R$${Number(pat.total_ativo).toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Passivo</span><span class="v" style="color:#e2554f">R$${Number(pat.total_passivo).toFixed(2)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-weight:700"><span>Líquido</span><span class="v">R$${Number(pat.liquido).toFixed(2)}</span></div>` : '';
+
+      const metas = resumoV2.metas || [];
+      const blocoMetas = metas.length ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Metas</div>
+        ${metas.map(m => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${m.nome}</span><span class="v">${m.pct}%</span></div>`).join('')}` : '';
+
+      const reemb = resumoV2.reembolsos_resumo || [];
+      const blocoReembolsos = reemb.length ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Reembolsos</div>
+        ${reemb.map(r => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${r.origem} (${r.status})</span><span class="v">R$${(Number(r.a_receber)-Number(r.recebido)).toFixed(2)}</span></div>`).join('')}` : '';
+
+      const investimentos = resumoV2.investimentos || [];
+      const blocoInvestimentos = investimentos.length ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Investimentos</div>
+        ${investimentos.map(i => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${i.tipo}${i.quantidade!=null ? ' ('+i.quantidade+')' : ''}</span><span class="v" style="color:${i.valor_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${Number(i.valor_atual).toFixed(2)}</span></div>`).join('')}` : '';
+
+      const indic = resumoV2.indicadores_recentes || [];
+      const pib = indic.filter(i => i.nome.startsWith('PIB Wallace'));
+      const pibTotal = pib.find(i => i.nome === 'PIB Wallace - total');
+      const blocoIndicadores = pibTotal ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">PIB Wallace (${pibTotal.data})</div>
+        ${pib.filter(i => i.nome !== 'PIB Wallace - total').map(i => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${i.nome.replace('PIB Wallace - ','')}</span><span class="v">R$${Number(i.valor).toFixed(2)}</span></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-weight:700"><span>Total</span><span class="v">R$${Number(pibTotal.valor).toFixed(2)}</span></div>` : '';
+
+      const avisos = resumoV2.avisos || [];
+      const blocoAvisos = avisos.length ? `
+        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#e2a53d">⚠ Avisos estruturais</div>
+        ${avisos.map(a => `<div style="padding:0.15rem 0;color:#e2a53d;font-size:0.72rem">${a}</div>`).join('')}` : '';
+
+      painel.innerHTML = `<div style="font-weight:700;margin-bottom:0.5rem;color:#8ab4f8">Caixas — Arquitetura V2</div>${linhas}${blocoPatrimonio}${blocoInvestimentos}${blocoMetas}${blocoReembolsos}${blocoIndicadores}${blocoAvisos}<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#6b7a8f">Fonte: rpc_dashboard_resumo() · calibrado com dado real 05/08/2026</div>`;
+
+      if(avisos.length){
+        btn.style.background = '#3a2e12';
+        btn.style.color = '#e2a53d';
+        btn.textContent = `💰 V2 (${avisos.length})`;
+      }
       btn.onclick = () => { painel.style.display = painel.style.display === 'none' ? 'block' : 'none'; };
       document.body.appendChild(btn);
       document.body.appendChild(painel);

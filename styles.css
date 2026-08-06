@@ -491,3 +491,30 @@
     100%{ background:transparent; }
   }
 
+  /* NOVO 06/08/2026 (parte 111, pedido do usuário: "barras mais bonitas, clean e premium").
+     Scrollbar customizada usando as cores do próprio tema (--surface/--border/--accent) - fina,
+     sem seta quadrada padrão do navegador, cantos arredondados, hover sutil. Aplica em toda a
+     página (html/body) e em qualquer container com scroll interno (painéis, tabelas, modais). */
+  * {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--border-strong) var(--surface); /* Firefox: thumb track */
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 2px solid var(--surface); /* cria o efeito "flutuante", thumb não encosta na borda */
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--surface);
+  }
+
