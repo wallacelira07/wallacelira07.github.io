@@ -4954,10 +4954,21 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       // junto, medindo outra coisa - ver ESTADO_ATUAL.md pra reconciliação completa desse achado)
       const saldoV2 = caixaVariavelV2.saldo_real_ciclo_atual;
       const diff = Math.round(Math.abs(saldoV1 - saldoV2) * 100) / 100;
+      const badgeV2 = document.getElementById('syncV2Badge');
       if(diff > 0.05){
         console.warn(`⚠️ Auditoria V1↔V2: Caixa Variável (saldo real do ciclo) diverge - V1(app.js)=R$${saldoV1} vs V2(Supabase relacional)=R$${saldoV2} (diff R$${diff}). Investigar: a V2 costuma estar mais completa (captura toda compra migrada), enquanto o array manual do V1 pode estar incompleto - ver ESTADO_ATUAL.md da sessão 05/08/2026 pra um caso já resolvido assim (diferença de R$22 = TX000190, água mineral, que faltava no V1).`);
+        if(badgeV2){
+          badgeV2.textContent = `⚠ V2: diverge R$${diff}`;
+          badgeV2.style.color = '#e2a53d';
+          badgeV2.title = `Caixa Variável (saldo real do ciclo): app.js=R$${saldoV1} vs Supabase V2=R$${saldoV2}. Ver console para detalhe.`;
+        }
       } else {
         console.log(`%c✅ Auditoria V1↔V2: Caixa Variável bate (R$${saldoV1}) entre app.js e Supabase relacional.`, 'color:#34c98a');
+        if(badgeV2){
+          badgeV2.textContent = '✓ V2 sincronizado';
+          badgeV2.style.color = '#34c98a';
+          badgeV2.title = `Caixa Variável (saldo real do ciclo) bate entre app.js e Supabase V2: R$${saldoV1}.`;
+        }
       }
     }
   } catch(e) {
