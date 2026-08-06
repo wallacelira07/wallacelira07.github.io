@@ -4984,7 +4984,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       const linhas = resumoV2.caixas
         .slice()
         .sort((a,b) => b.saldo_real_ciclo_atual - a.saldo_real_ciclo_atual)
-        .map(c => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span style="font-weight:600;color:${c.saldo_real_ciclo_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${c.saldo_real_ciclo_atual.toFixed(2)}</span></div>`)
+        .map(c => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span class="v" style="font-weight:600;color:${c.saldo_real_ciclo_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${c.saldo_real_ciclo_atual.toFixed(2)}</span></div>`)
         .join('');
       painel.innerHTML = `<div style="font-weight:700;margin-bottom:0.5rem;color:#8ab4f8">Caixas — Arquitetura V2</div>${linhas}<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#6b7a8f">Fonte: rpc_dashboard_resumo() · calibrado com dado real 05/08/2026</div>`;
 
@@ -5005,7 +5005,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       if(diff > 0.05){
         console.warn(`⚠️ Auditoria V1↔V2: Caixa Variável (saldo real do ciclo) diverge - V1(app.js)=R$${saldoV1} vs V2(Supabase relacional)=R$${saldoV2} (diff R$${diff}). Investigar: a V2 costuma estar mais completa (captura toda compra migrada), enquanto o array manual do V1 pode estar incompleto - ver ESTADO_ATUAL.md da sessão 05/08/2026 pra um caso já resolvido assim (diferença de R$22 = TX000190, água mineral, que faltava no V1).`);
         if(badgeV2){
-          badgeV2.textContent = `⚠ V2: diverge R$${diff}`;
+          badgeV2.innerHTML = `⚠ V2: diverge <span class="v">R$${diff}</span>`;
           badgeV2.style.color = '#e2a53d';
           badgeV2.title = `Caixa Variável (saldo real do ciclo): app.js=R$${saldoV1} vs Supabase V2=R$${saldoV2}. Ver console para detalhe.`;
         }
