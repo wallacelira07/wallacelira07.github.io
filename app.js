@@ -2369,13 +2369,6 @@ function aplicarCicloAoVARS(cicloKey){
   VARS.reembolsoCicloTotal = Math.round((snap.reembolsoRecebido + snap.reembolsoAReceber)*100)/100;
   VARS.__reembolsosAReceber = snap.reembolsoAReceber;
   VARS.faturaWartsila = snap.cascata.faturaWartsila;
-  // CORRIGIDO 31/07/2026 (V223, pedido do usuario): reembolsoPagaCartaoCorporativo (perna 3, "Corporativo
-  // cartao Infinite/MB") lia de snap.cascata.cartaoCorporativo, um numero manual desconectado dos livros
-  // reais - por isso ficava 0 mesmo com R$297,31 ja lancados no LRC (MB) este ciclo. Agora deriva de
-  // verdade dos 2 livros corporativos (Visa + MB), nunca mais dessincroniza. cartaoCorporativo dentro do
-  // snapshot fica so como registro historico/override manual quando necessario via cicloAtualOverrides,
-  // mas nao e mais a fonte primaria deste calculo.
-  VARS.reembolsoPagaCartaoCorporativo = Math.round((VARS.livroLRCVisaOnly + VARS.livroLRC) * 100) / 100;
   VARS.reembolsoPagaMPCorporativo = snap.cascata.mpCorporativo;
 
   // V174: Visa/MB/MP e as 4 tabelas de Livros Razao agora respeitam o ciclo selecionado - nunca mais
@@ -2398,6 +2391,24 @@ function aplicarCicloAoVARS(cicloKey){
     VARS.LRC_LIMBO_TRANSACOES = LRC_LIMBO_TRANSACOES_CICLO_ATUAL;
     VARS.LRPV_TRANSACOES = LRPV_TRANSACOES_CICLO_ATUAL;
   }
+
+  // CORRIGIDO 06/08/2026 (BUG_CONFIRMADO_V1_LRC_OBSOLETO, ver AUDITORIA_IMPACTO_BUG_LRC.md):
+  // VARS.livroLRC so era calculado 1x no boot (app.js, a partir do array do ciclo ENTAO-atual) e nunca
+  // mais recalculado - ao trocar pra um ciclo fechado, VARS.LRC_LIMBO_TRANSACOES acima ja virava a
+  // fotografia congelada certa, mas livroLRC continuava sendo a soma do ciclo atual, nao do ciclo
+  // selecionado. Resultado: a perna 3 da cascata (abaixo) usava o LRC errado sempre que um ciclo fechado
+  // estava selecionado. Corrigido: livroLRC agora e recalculado AQUI, depois que VARS.LRC_LIMBO_TRANSACOES
+  // ja reflete o ciclo certo (fechado ou atual) - a mesma formula de sempre (V203), so que na hora certa.
+  VARS.livroLRC = Math.round(VARS.LRC_LIMBO_TRANSACOES.reduce((s,t)=>s+t.valor,0)*100)/100;
+
+  // CORRIGIDO 31/07/2026 (V223, pedido do usuario): reembolsoPagaCartaoCorporativo (perna 3, "Corporativo
+  // cartao Infinite/MB") lia de snap.cascata.cartaoCorporativo, um numero manual desconectado dos livros
+  // reais - por isso ficava 0 mesmo com R$297,31 ja lancados no LRC (MB) este ciclo. Agora deriva de
+  // verdade dos 2 livros corporativos (Visa + MB), nunca mais dessincroniza. cartaoCorporativo dentro do
+  // snapshot fica so como registro historico/override manual quando necessario via cicloAtualOverrides,
+  // mas nao e mais a fonte primaria deste calculo. (Reordenado 06/08/2026 pra rodar DEPOIS do recalculo
+  // de livroLRC acima - ver BUG_CONFIRMADO_V1_LRC_OBSOLETO.)
+  VARS.reembolsoPagaCartaoCorporativo = Math.round((VARS.livroLRCVisaOnly + VARS.livroLRC) * 100) / 100;
 }
 aplicarCicloAoVARS(VARS.cicloAtual); // aplica o ciclo padrao (2026-07) ANTES do REG nascer
 
@@ -5256,7 +5267,7 @@ const WallaceFinanceService = {
       // pelo array), mas a TRAVA DE SEGURANCA do promoverCampoV2SeConfiavel protege: so promove
       // 'balOpPixVanessa' se realmente bater (d<=0.05), senao so fica no console como divergencia,
       // nunca promove errado.
-      'PIX Geral Vanessa':{campo:'pixGeralVanessaSaldo', tipo:'saldo'}
+      'PIX Geral Vanessa':{campo:'pixGeralVanessaSaldo', tipo:'ciclo'}
     };
     Object.entries(MAPA_CAIXAS_V1_V2).forEach(([nomeV2, cfg])=>{
       const cxV2 = (resumoV2.caixas||[]).find(c => c.nome === nomeV2);
@@ -5413,6 +5424,114 @@ const WallaceFinanceService = {
   } catch(e) {
     // silencioso de propósito - é auditoria opcional, nunca deve quebrar o site nem poluir o
     // console do usuário com erro de rede que ele não pode fazer nada a respeito
+  }
+})();
+
+// ===== FASE 2D — primeira substituição operacional controlada (experimental, escopo único: Caixa
+// Variável) — 06/08/2026 =====
+// Cálculo em paralelo (V1 já existente acima + FinanceEngine via Comparator), sempre registrado no
+// console. Fecha o único critério pendente do marco de transição (ESTADO_ATUAL.md / FASE_2C_SERVICES.md):
+// "app.js consumindo Service de forma experimental".
+//
+// ACHADO desta rodada: src/services/FinanceService.js usa sintaxe ESM (import/export) e importa
+// FinanceEngine.js, que por sua vez é CommonJS (module.exports, escrito pros testes via node) —
+// os dois formatos são incompatíveis entre si E com app.js (script clássico, não module — mesmo
+// motivo já documentado no WallaceFinanceService, parte 118). Resultado: FinanceService.js não pode
+// ser carregado aqui sem editá-lo, o que estaria fora do escopo autorizado (Services já congelados).
+// Solução adotada: FinanceEngine.js e Comparator.js são carregados sem alteração nenhuma (shim de
+// module.exports em Sistema_Wallace_Lira_Completo.html) e o corpo de FinanceService.getSaldoCaixa()
+// é replicado aqui (mesmo fetch, mesma adaptação de tipo) — a MATEMÁTICA vem 100% do FinanceEngine
+// (não duplicada), a COMPARAÇÃO vem 100% do Comparator (não duplicada). Nenhuma fórmula nova.
+(async function experimentalCaixaVariavelViaFinanceEngine(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2D] FinanceEngine/Comparator não carregados nesta sessão — comparação experimental da Caixa Variável pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || !VARS.CICLO_SNAPSHOTS || !VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]) return;
+
+    // 1) V1 — mesma fonte já usada no badge de auditoria existente (linha ~5401 acima), zero recálculo novo.
+    const saldoV1 = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].caixaVariavelSaldoReal;
+
+    // 2) V2 — fetch equivalente a FinanceService.getSaldoCaixa('Caixa Variável') + cálculo real via FinanceEngine.
+    const _url = 'https://bakdgacmwlopvrrppwdm.supabase.co';
+    const _key = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+    const respCaixa = await fetch(`${_url}/rest/v1/caixas?select=id,nome,saldo_inicial_ciclo&nome=eq.${encodeURIComponent('Caixa Variável')}`, {
+      headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+    });
+    if (!respCaixa.ok) throw new Error(`erro ${respCaixa.status} ao buscar caixa`);
+    const caixas = await respCaixa.json();
+    const caixa = caixas[0];
+    if (!caixa) { console.warn('[FASE 2D] Caixa Variável não encontrada na tabela caixas (V2) — comparação pulada.'); return; }
+
+    const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado`, {
+      headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+    });
+    if (!respTx.ok) throw new Error(`erro ${respTx.status} ao buscar transações`);
+    const transacoes = await respTx.json();
+    const transacoesAdaptadas = transacoes.map(t => ({ tipo: t.tipo === 'entrada' ? 'Entrada' : 'Saída', valor: Number(t.valor) }));
+    const saldoV2 = WallaceFinanceEngine.calcularSaldoCaixa(Number(caixa.saldo_inicial_ciclo || 0), transacoesAdaptadas);
+
+    // 3) Comparação — Comparator.js, não reimplementada na mão. Mantida intacta (regra do usuário:
+    // não apagar o cálculo antigo, o comparator, nem os logs).
+    const lote = WallaceComparator.compararLote([{ nome: 'Caixa Variável (saldo real)', antigo: saldoV1, novo: saldoV2 }]);
+    if (lote.totalDivergente === 0) {
+      console.log(`%c[OK] Caixa Variável V1=V2 (R$${saldoV1})`, 'color:#34c98a');
+    } else {
+      console.warn(`[WARN] divergência detectada — Caixa Variável: valor antigo(V1)=R$${saldoV1} | valor novo(V2/FinanceEngine)=R$${saldoV2} (diferença R$${lote.log[0].diferenca})`);
+    }
+    console.log(WallaceComparator.formatarLog(lote));
+
+    // ===== PRIMEIRA SUBSTITUIÇÃO REAL — autorizado 06/08/2026 (parte 139) =====
+    // Escopo único: Caixa Variável. A partir daqui, o valor EXIBIDO NA UI passa a vir do
+    // FinanceEngine (saldoV2), não mais do V1 (saldoV1). O cálculo V1 continua rodando acima
+    // (VARS.CICLO_SNAPSHOTS[...].caixaVariavelSaldoReal / VARS.caixaVariavelSaldoReal não são
+    // apagados nem sobrescritos) — só existe pra alimentar o Comparator e o log, exatamente como
+    // antes. O que muda é que REG.caixaVariavel.saldoReal (a fonte real de tudo que é renderizado)
+    // passa a receber saldoV2 em vez do valor V1 que `recalcularAgregadosDerivados()` já tinha
+    // colocado lá na carga da página.
+    //
+    // Único campo tocado: REG.caixaVariavel.saldoReal. .disponivel é recalculado com a MESMA fórmula
+    // já usada em recalcularAgregadosDerivados() (saldoReal - comprometido) — não é fórmula nova.
+    // .comprometido, .tolerenciaTemp, .tetoEfetivo, .folegoAteTeto: não dependem de saldoReal,
+    // ficam como estavam.
+    //
+    // Re-render: reaproveita hydrate() e atualizarGraficosPorCiclo(), já existentes e já usadas pelo
+    // próprio trocarCiclo() pra este mesmo tipo de atualização — nenhuma função de renderização nova.
+    // Efeito colateral aceito e documentado: como as duas funções releem o REG inteiro, todo texto/
+    // gráfico que já estava na tela é re-escrito com os MESMOS valores de antes (nenhum outro campo
+    // do REG foi alterado) — não é uma substituição fora do escopo, é o jeito mais simples de
+    // reaproveitar o pipeline de renderização já existente sem escrever um terceiro pipeline paralelo.
+    //
+    // Limitação conhecida, não corrigida aqui (fora do escopo "somente Caixa Variável" — mexer nela
+    // exigiria tocar em código de outras seções): o texto "Disponível/dia" (id `dispDia`) e o gráfico
+    // `g_cCartoesLiquidoCV` são calculados 1x no boot, dentro de uma IIFE de topo de arquivo que não é
+    // re-chamável — não são atualizados por este bloco (mesma limitação que já existe hoje quando o
+    // usuário troca de ciclo pela UI: `trocarCiclo()` também não re-executa essas duas IIFEs).
+    //
+    // GATE OBRIGATÓRIO (regra explícita da autorização: "Confirmar: divergência = zero"): só troca o
+    // valor exibido se o Comparator confirmou divergência zero. Se divergir, a troca NÃO acontece —
+    // a UI continua mostrando V1 (nunca expõe um número que a própria validação reprovou), e o WARN
+    // acima já registra o motivo no console pra investigação.
+    if (lote.totalDivergente === 0 && typeof REG !== 'undefined' && REG.caixaVariavel) {
+      REG.caixaVariavel.saldoReal = saldoV2;
+      REG.caixaVariavel.disponivel = Math.round((REG.caixaVariavel.saldoReal - REG.caixaVariavel.comprometido) * 100) / 100;
+
+      if (typeof hydrate === 'function') hydrate();
+      if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+      if (typeof WallaceBus !== 'undefined') {
+        WallaceBus.emit('saldoAtualizado', { saldoReal: REG.caixaVariavel.saldoReal, comprometido: REG.caixaVariavel.comprometido, disponivel: REG.caixaVariavel.disponivel });
+      }
+
+      console.log(`%c[FASE 2D] Caixa Variável — UI atualizada para o valor do FinanceEngine: R$${saldoV2} (V1 era R$${saldoV1}). Fonte V1 preservada em VARS/CICLO_SNAPSHOTS, só REG.caixaVariavel foi trocado.`, 'color:#3987e5');
+    } else if (lote.totalDivergente !== 0) {
+      console.warn('[FASE 2D] Substituição NÃO aplicada — divergência acima do gate de segurança. UI continua mostrando o valor V1.');
+    }
+  } catch(e) {
+    // silencioso de propósito, mesmo padrão do bloco de auditoria acima — se o fetch ao V2 falhar
+    // (rede indisponível, etc.), o site simplesmente continua mostrando o valor V1 que já estava
+    // renderizado desde o boot — nunca quebra, nunca mostra tela quebrada.
+    console.warn('[FASE 2D] comparação/substituição experimental da Caixa Variável falhou (não afeta o site — valor V1 permanece exibido):', e);
   }
 })();
 

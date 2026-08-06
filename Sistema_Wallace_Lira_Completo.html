@@ -1391,7 +1391,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V11 · v06/08/2026 (parte 138)</span>
+    <span>Sistema Wallace Lira · ERP V11 · v06/08/2026 (parte 139)</span>
   </footer>
 
 </div>
@@ -1425,6 +1425,32 @@ window.WALLACE_DADOS_REMOTOS = null;
   } catch(e) {
     console.warn('Nao consegui buscar dados remotos do Supabase, usando versao publicada localmente:', e);
   }
+  // FASE 2D (06/08/2026, experimental, autorizado - escopo unico Caixa Variavel) — CORRIGIDO na mesma
+  // rodada (regressao real encontrada e confirmada: carregar FinanceEngine.js como <script src> classico
+  // colocava as declaracoes top-level dele no MESMO escopo global do app.js - `const SolarConfig` existe
+  // nos 2 arquivos, causando `SyntaxError: Identifier 'SolarConfig' has already been declared` e
+  // interrompendo a inicializacao inteira do app.js). Correcao: FinanceEngine.js/Comparator.js NUNCA sao
+  // injetados como <script src> - o texto-fonte e buscado via fetch (sem alterar 1 byte dos arquivos
+  // originais) e executado dentro de um IIFE isolado (via `new Function`), com um `module` LOCAL aquele
+  // escopo (nunca `window.module`, nem antes nem depois). Nada dentro de FinanceEngine.js/Comparator.js
+  // (SolarConfig, r2, TOLERANCIA_PADRAO, nenhuma const/let/function) toca o escopo global da pagina -
+  // so o resultado final de `module.exports` de cada um e exposto, explicitamente, em
+  // window.WallaceFinanceEngine / window.WallaceComparator.
+  async function carregarModuloIsoladoCommonJS(src, nomeGlobal){
+    try {
+      const resp = await fetch(src + '?v=' + Date.now());
+      if(!resp.ok) throw new Error(`erro ${resp.status} ao buscar ${src}`);
+      const codigoFonte = await resp.text();
+      const wrapped = '(function(){\n  var module = { exports: {} };\n  var exports = module.exports;\n'
+        + codigoFonte + '\n  //# sourceURL=' + src + '\n  return module.exports;\n})()';
+      window['Wallace' + nomeGlobal] = new Function('return ' + wrapped)();
+    } catch(e) {
+      console.warn(`[FASE 2D] nao consegui carregar/isolar ${src} - comparacao experimental da Caixa Variavel fica desativada nesta sessao (nao bloqueia o resto do site):`, e);
+    }
+  }
+  await carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine');
+  await carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator');
+
   const script = document.createElement('script');
   script.src = 'app.js?v=' + Date.now(); // V170: cache-busting - forca o navegador a sempre buscar a versao mais recente do app.js, nunca servir uma copia antiga do cache local
   document.body.appendChild(script);
