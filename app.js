@@ -789,6 +789,11 @@ const VARS = {
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     legMPCorporativoRetorno: `O corporativo do Mercado Pago só volta a contar após a fatura anterior (venc. dia 4) ser paga e uma nova despesa corporativa surgir neste ciclo — enquanto isso, fica zerado (ver Cascata do Reembolso).`,
     legDestinoExcedente: `Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.`,
+    // NOVA 05/08/2026 (parte 106, pedido do usuario: legenda da Inbox vazia estava desatualizada -
+    // dizia "nenhuma automacao implementada" quando Pluggy e Mercado Pago ja capturam de verdade.
+    // Migrada pro sistema VARS.LEGENDAS (antes vivia hardcoded dentro de renderInboxFinanceira(),
+    // por isso nao dava pra editar sem deploy) - agora edita direto no Supabase, igual as outras 28.
+    legInboxVazia: `Nenhum item pendente no momento — a Inbox já recebe automaticamente via Pluggy e Mercado Pago. Captura por Email/Telegram/OCR ainda não implementada.`,
   },
   // Caixa Variavel (operacional, dia-a-dia)
   // MIGRADO 27/07/2026 (V193): caixaVariavelSaldoReal migrada para saldo derivado - ULTIMA caixa da
@@ -3456,7 +3461,7 @@ function renderInboxFinanceira(){
   if(!tbody) return; // secao pode nao existir ainda num HTML antigo carregado em cache
   const itens = VARS.INBOX_FINANCEIRA;
   if(!itens.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhum item capturado ainda — automações de captura (Pluggy/Email/Telegram/OCR) ainda não implementadas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">' + VARS.LEGENDAS.legInboxVazia + '</td></tr>';
   } else {
     tbody.innerHTML = itens.slice().reverse().map(it=>{
       const classeStatus = it.status==='APROVADO' ? 'bg' : (it.status==='REJEITADO' ? 'br' : 'ba');
