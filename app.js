@@ -3442,22 +3442,6 @@ function inboxAprovar(id){
   persistirTriagemItem(item, 'aprovado'); // 04/08/2026 (parte 49): agora persiste de fato tambem pra Pluggy
   WallaceBus.emit('inboxItemAprovado', item);
   renderInboxFinanceira();
-  // NOVO 06/08/2026 (parte 132, decisao do usuario: "Opcao A - Via de entrada unica" pra V2): aprovar
-  // um item da Inbox agora ABRE e PRE-PREENCHE o form "+ Lancar" (data/descricao/valor) - usuario ainda
-  // precisa clicar Salvar pra gravar de verdade na V2 (mantem a proibicao de auto-lancamento sem
-  // confirmacao, so reduz o trabalho de digitar de novo). Antes disso, aprovar so "marcava intencao" e
-  // o lancamento na V2 real dependia do usuario lembrar de fazer a parte manualmente.
-  const formEl = document.getElementById('formLancarTx');
-  if(formEl){
-    formEl.style.display = 'block';
-    const elData = document.getElementById('ltxData'), elDesc = document.getElementById('ltxDescricao'), elValor = document.getElementById('ltxValor');
-    if(elData && item.data) elData.value = item.data;
-    if(elDesc) elDesc.value = item.descricao || '';
-    if(elValor) elValor.value = Math.abs(item.valor||0);
-    const elTipo = document.getElementById('ltxTipo');
-    if(elTipo) elTipo.value = (item.valor||0) < 0 ? 'saida' : 'entrada';
-    formEl.scrollIntoView({behavior:'smooth', block:'center'});
-  }
 }
 
 function inboxRejeitar(id, motivo){
@@ -4992,64 +4976,19 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
 // offline). Existe pra pegar cedo qualquer descasamento entre os dois sistemas rodando em
 // paralelo durante a migração da Fase 5 (mesmo raciocínio da auditoria SSOT acima, mas
 // comparando contra a fonte V2 em vez de comparando o V1 consigo mesmo).
-// NOVO 06/08/2026 (parte 118, "avance para a fase 5 nao adianta ficar protelando" - pedido explicito
-// do usuario). Comeca a consumir de verdade a camada /services (src/services/FinanceService.js) - MAS
-// app.js NAO e um ES module (carregado via <script src>, injetado dinamicamente, dezenas de onclick=
-// inline no HTML dependem de funcao GLOBAL) - converter pra type="module" quebraria TODOS esses onclick
-// de uma vez, risco alto demais pra fazer as cegas sem navegador real pra testar. Solucao: mesma API
-// publica do FinanceService.js (getDashboardResumo, getCaixas, getSaldoCaixa), reimplementada aqui como
-// objeto global plano (WallaceFinanceService) - comportamento identico, sem sintaxe de modulo. Isso
-// elimina a duplicacao real que existia (o fetch de rpc_dashboard_resumo abaixo era copiado a mao,
-// diferente do FinanceService.js que nunca era chamado por ninguem) - agora so existe 1 implementacao,
-// reusada. Primeiro passo real e seguro de Fase 5: consolidar antes de expandir.
-const WallaceFinanceService = {
-  _cache: new Map(),
-  _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
-  _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-  invalidarCache(){ this._cache.clear(); },
-  async getDashboardResumo(){
-    const chave = 'rpc:dashboard_resumo';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
-      method:'POST',
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
-      body:'{}'
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  async getCaixas(){
-    const chave = 'caixas';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  async getSaldoCaixa(nomeCaixa){
-    const caixas = await this.getCaixas();
-    const caixa = caixas.find(c => c.nome === nomeCaixa);
-    if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes`);
-    const transacoes = await resp.json();
-    let saldo = 0;
-    for(const t of transacoes) saldo += t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor);
-    return Math.round(saldo*100)/100;
-  }
-};
-
 (async function auditoriaCruzadaV1V2(){
   try {
-    const resumoV2 = await WallaceFinanceService.getDashboardResumo();
-    if(!resumoV2) return;
+    const resp = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/rpc_dashboard_resumo', {
+      method: 'POST',
+      headers: {
+        'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+    if(!resp.ok) return; // offline/banco fora do ar - auditoria simplesmente não roda, não quebra nada
+    const resumoV2 = await resp.json();
 
     // NOVO parte 105: mostra cobertura de categorização da V2 (Fase 3) - quantas das transações
     // migradas já têm categoria_id preenchido, pra acompanhar o avanço do motor de classificação
@@ -5080,20 +5019,10 @@ const WallaceFinanceService = {
       const painel = document.createElement('div');
       painel.id = 'painelV2Caixas';
       painel.style.cssText = 'position:fixed;bottom:3.2rem;right:1rem;z-index:9999;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;max-height:70vh;overflow-y:auto;width:280px;display:none;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
-      const CAIXAS_CAMPO_SALDO_CUMULATIVO = new Set(['Caixa Mastercard/Infinite', 'PIX Vanessa']);
-      const campoCicloOuSaldo = c => CAIXAS_CAMPO_SALDO_CUMULATIVO.has(c.nome) ? c.saldo : c.saldo_real_ciclo_atual;
       const linhas = resumoV2.caixas
         .slice()
-        // CORRIGIDO 06/08/2026 (parte 130, print real mostrou 10/13 "divergencias" que eram erro meu,
-        // nao erro de dado): a suposicao da parte 129 ("saldo cumulativo bate com V1 pra todas exceto
-        // Caixa Variavel") tambem estava errada. Confirmado numero a numero contra o V1 real: SO
-        // Mastercard/Infinite e PIX Vanessa usam "saldo" (cumulativo) - todas as outras 11 (incluindo
-        // Caixa Variavel) usam saldo_real_ciclo_atual (resetam por ciclo/aporte mensal). Set explicito,
-        // nao mais um "todas menos 1" genérico - erro real de menos chance de acontecer de novo.
-        .sort((a,b) => campoCicloOuSaldo(b) - campoCicloOuSaldo(a))
-        .map(c => { const v = campoCicloOuSaldo(c);
-          return `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span class="v" style="font-weight:600;color:${v < 0 ? '#e2554f' : '#c8d4e3'}">R$${v.toFixed(2)}</span></div>`;
-        })
+        .sort((a,b) => b.saldo_real_ciclo_atual - a.saldo_real_ciclo_atual)
+        .map(c => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span class="v" style="font-weight:600;color:${c.saldo_real_ciclo_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${c.saldo_real_ciclo_atual.toFixed(2)}</span></div>`)
         .join('');
 
       // NOVO parte 110: patrimônio líquido, metas e reembolsos - já vêm na mesma resposta da RPC
@@ -5167,43 +5096,12 @@ const WallaceFinanceService = {
         <input id="ltxDescricao" placeholder="Descrição" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
         <input id="ltxValor" type="number" step="0.01" placeholder="Valor" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
         <select id="ltxTipo" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
-        <select id="ltxCaixa" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem">${caixaOpts}</select>
-        <select id="ltxUsuario" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Usuário (opcional)</option><option value="f70b0f48-9d73-44fd-a05b-6f3248bbea21">Wallace</option><option value="77496938-c875-4578-b6d1-06ffbde3f247">Vanessa</option><option value="89f205ad-2381-4149-b10f-7170aa13f5d5">Júlio</option><option value="3bb93c24-8353-4a4b-91cb-ef055809cc04">Gabriela</option></select>
-        <select id="ltxCategoria" style="width:100%;margin-bottom:0.3rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Categoria (opcional)</option><option value="533eef0f-0591-4c23-a248-566b95da7ffd">Alimentação</option><option value="69866dc9-89f9-42e3-b10c-5898287c6dd2">Assinaturas</option><option value="558fb61e-c215-4970-a498-b6fbcf67dd97">Bens Duráveis</option><option value="89557dd0-e475-483d-8d90-7cf698c3103a">Boletos</option><option value="b6576c3a-e74e-4f06-afcf-8b07c42785b0">Consórcios</option><option value="e5f8498f-ec63-41db-a333-3de5e8a9a7e3">Educação</option><option value="99915d56-41d2-4ca5-8d5f-c6188b33dc06">Eventos e Viagens</option><option value="f143d814-3883-4f24-a636-7ff80b9f6d1b">P2P</option><option value="1cc9db18-aec4-4cf1-962d-4d9a36f44f70">Reembolsável Corporativo</option><option value="5937378d-f087-48a4-8815-c1ab8055fdf8">Saúde</option><option value="2f08db6b-a018-471f-ad9c-26cb453e3b87">Transporte</option></select>
-        <div id="ltxSugestao" style="font-size:0.68rem;color:#8ab4f8;margin-bottom:0.4rem;min-height:1em"></div>
+        <select id="ltxCaixa" style="width:100%;margin-bottom:0.5rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem">${caixaOpts}</select>
         <button id="ltxSalvar" style="width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600">Salvar</button>
         <div id="ltxMsg" style="margin-top:0.4rem;font-size:0.72rem"></div>`;
       btnLancar.onclick = () => { form.style.display = form.style.display === 'none' ? 'block' : 'none'; };
       document.body.appendChild(btnLancar);
       document.body.appendChild(form);
-
-      // NOVO 06/08/2026 (parte 119): fecha o pipeline Nivel1->2->3 no unico form interativo que
-      // existe hoje - ao escolher categoria/usuario, chama resolver_caixa() de verdade e AUTO-
-      // SELECIONA a caixa sugerida no <select> (usuario ainda pode trocar manualmente, nunca trava).
-      const sugerirCaixa = async () => {
-        const catId = document.getElementById('ltxCategoria').value;
-        const usrId = document.getElementById('ltxUsuario').value;
-        const sugEl = document.getElementById('ltxSugestao');
-        if(!catId){ sugEl.textContent = ''; return; }
-        sugEl.textContent = 'Resolvendo caixa...';
-        try {
-          const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/resolver_caixa', {
-            method:'POST',
-            headers: { 'Content-Type':'application/json', apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
-            body: JSON.stringify({ p_categoria_id:catId, p_usuario_id:usrId||null, p_origem:'manual' })
-          });
-          const caixaId = r.ok ? await r.json() : null;
-          if(caixaId){
-            document.getElementById('ltxCaixa').value = caixaId;
-            const nomeOpt = document.querySelector(`#ltxCaixa option[value="${caixaId}"]`);
-            sugEl.textContent = `✓ Sugerido: ${nomeOpt ? nomeOpt.textContent : caixaId}`;
-          } else {
-            sugEl.textContent = 'Sem regra pra essa combinação — escolha a caixa manualmente.';
-          }
-        } catch(e){ sugEl.textContent = ''; }
-      };
-      document.getElementById('ltxCategoria').onchange = sugerirCaixa;
-      document.getElementById('ltxUsuario').onchange = sugerirCaixa;
 
       document.getElementById('ltxSalvar').onclick = async () => {
         const msg = document.getElementById('ltxMsg');
@@ -5218,109 +5116,13 @@ const WallaceFinanceService = {
           const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/lancar_transacao_manual', {
             method: 'POST',
             headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
-            body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:valor, p_tipo:tipo, p_caixa_id:caixaId, p_usuario_id: document.getElementById('ltxUsuario').value || null, p_categoria_id: document.getElementById('ltxCategoria').value || null })
+            body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:valor, p_tipo:tipo, p_caixa_id:caixaId })
           });
           if(!r.ok){ const err = await r.text(); msg.textContent = 'Erro: '+err; msg.style.color = '#e2554f'; return; }
           msg.textContent = '✓ Lançado (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).'; msg.style.color = '#5fd68a';
           document.getElementById('ltxDescricao').value = ''; document.getElementById('ltxValor').value = '';
         } catch(e){ msg.textContent = 'Erro de rede: '+e.message; msg.style.color = '#e2554f'; }
       };
-    }
-
-    // CORRIGIDO 06/08/2026 (parte 130, print real do usuario mostrou 10/13 caixas "divergindo" - eram
-    // TODAS um erro meu, nao um erro de dado): a suposicao da parte 118 ("saldo_real_ciclo_atual so
-    // vale pra Caixa Variavel") estava ERRADA. Testado numero a numero contra o print: Boletos, Lance,
-    // Manutencao, Aniversario Julio, Eventos, Saude Familia, Seguro Emplacamento, Combustivel,
-    // Churrasco, Bens Duraveis batem EXATO com saldo_real_ciclo_atual (sao caixas de aporte
-    // mensal/ciclo, resetam como a Caixa Variavel) - so Mastercard/Infinite e PIX Vanessa sao
-    // realmente cumulativas (usam "saldo"). Mapa agora diz qual campo usar POR CAIXA, nao mais uma
-    // regra unica pra todas.
-    const divergenciasV1V2 = [];
-    const MAPA_CAIXAS_V1_V2 = {
-      'Caixa Boletos':{campo:'caixaBoletos', tipo:'ciclo', domId:'balResBoletos'}, 'Caixa Lance':{campo:'caixaLance', tipo:'ciclo', domId:'balResLance'},
-      'Caixa Manutenção':{campo:'caixaManutencao', tipo:'ciclo', domId:'balResManut'}, 'Caixa Aniversário Júlio':{campo:'caixaAniversarioJulio', tipo:'ciclo', domId:'balResAniv'},
-      'Caixa Eventos':{campo:'caixaEventos', tipo:'ciclo', domId:'balResEventos'}, 'Caixa Saúde Família':{campo:'caixaSaudeFamilia', tipo:'ciclo', domId:'balResSaude'},
-      'Caixa Seguro Emplacamento':{campo:'caixaSeguroEmplacamento', tipo:'ciclo', domId:'balResSeguro'}, 'Caixa Combustível':{campo:'caixaCombustivel', tipo:'ciclo', domId:'balResCombustivel'},
-      'Caixa Churrasco':{campo:'caixaChurrasco', tipo:'ciclo', domId:'balResChurrasco'}, 'Caixa Bens Duráveis':{campo:'caixaBensDuraveis', tipo:'ciclo', domId:'balResBensDuraveis'},
-      'Escola de Júlio':{campo:'escolaJulioSaldo', tipo:'ciclo', domId:'balResEscola'},
-      'Caixa Mastercard/Infinite':{campo:'caixaMastercardInfinite', tipo:'saldo'},
-      'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo', domId:'balResPixVanessa'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo', domId:'balResSuavizacao'}
-    };
-    Object.entries(MAPA_CAIXAS_V1_V2).forEach(([nomeV2, cfg])=>{
-      const cxV2 = (resumoV2.caixas||[]).find(c => c.nome === nomeV2);
-      if(!cxV2 || typeof VARS[cfg.campo] !== 'number') return;
-      const sV1 = VARS[cfg.campo];
-      const sV2 = cfg.tipo === 'ciclo' ? cxV2.saldo_real_ciclo_atual : cxV2.saldo;
-      const d = Math.round(Math.abs(sV1 - sV2)*100)/100;
-      if(d > 0.05){
-        console.warn(`⚠️ Auditoria V1↔V2: ${nomeV2} diverge - V1=R$${sV1} vs V2=R$${sV2} (diff R$${d}).`);
-        divergenciasV1V2.push(`${nomeV2}: V1=R$${sV1} vs V2=R$${sV2} (diff R$${d})`);
-      } else if(cfg.domId && typeof promoverCampoV2SeConfiavel === 'function'){
-        // NOVO 06/08/2026 (parte 138): mesma promocao com trava de seguranca das partes 136-137,
-        // aplicada agora nas 12 linhas de texto simples da secao "Gestao das Reservas" (sem barra de
-        // progresso, mesmo perfil de risco baixo ja validado). So promove quando ja confirmado batendo
-        // (d<=0.05 aqui, mais rigoroso que os 5.00 do Balanco principal, porque estes valores sao
-        // tipicamente menores - centenas, nao dezenas de milhares).
-        promoverCampoV2SeConfiavel(cfg.domId, sV2, 0.06);
-      }
-    });
-    // NOVO 06/08/2026 (parte 124, achado da parte 123 - PIX Vanessa dessincronizada e ninguem tinha
-    // visto porque so ia pro console): divergencias agora aparecem tambem NO PAINEL (visivel sem abrir
-    // devtools), nao so no console.warn. Anexado direto no painel ja existente (nao recria do zero,
-    // idempotente - so atualiza o proprio bloco a cada carga).
-    const painelExistente = document.getElementById('painelV2Caixas');
-    if(painelExistente){
-      let blocoDiv = document.getElementById('painelV2Divergencias');
-      if(!blocoDiv){
-        blocoDiv = document.createElement('div');
-        blocoDiv.id = 'painelV2Divergencias';
-        painelExistente.appendChild(blocoDiv);
-      }
-      blocoDiv.innerHTML = divergenciasV1V2.length
-        ? `<div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#e2a53d">⚠ V1↔V2 dessincronizado (${divergenciasV1V2.length})</div>${divergenciasV1V2.map(t=>`<div style="padding:0.15rem 0;color:#e2a53d;font-size:0.7rem">${t}</div>`).join('')}`
-        : `<div style="margin-top:0.7rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#34c98a">✓ V1↔V2 sincronizado (14 caixas conferidas)</div>`;
-      if(divergenciasV1V2.length){
-        const btnV2 = document.getElementById('painelV2Toggle');
-        if(btnV2 && !btnV2.textContent.includes('⚠')) btnV2.textContent = `💰 V2 ⚠ ${divergenciasV1V2.length}`;
-      }
-    }
-
-    // NOVO 06/08/2026 (parte 120, prova de conceito real "V2 vira fonte exibida na tela", pedido do
-    // usuario "avance"): primeiro valor onde a V2 aparece FORA do painel flutuante/console - direto
-    // no Balanco, como nota complementar (nao substitui o V1 ainda, so mostra ao lado - baixo risco,
-    // e so leitura adicional, nao mexe no calculo V1 existente). Zero fetch extra (resumoV2 ja veio).
-    const elPatV2 = document.getElementById('balPatrimonioLiquidoV2');
-    if(elPatV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.liquido != null){
-      elPatV2.textContent = `V2 (Supabase relacional): R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-      // PROMOVIDO 06/08/2026 (parte 136, refatorado parte 137 pra usar promoverCampoV2SeConfiavel -
-      // funcao com hoisting, definida mais abaixo neste mesmo bloco, ja disponivel aqui). Patrimonio
-      // Liquido foi o primeiro campo promovido a fonte EXIBIDA (trava de seguranca <R$5 de diferenca).
-      promoverCampoV2SeConfiavel('balPatrimonioLiquido', resumoV2.patrimonio_resumo.liquido, 5);
-    }
-    // NOVO 06/08/2026 (parte 137): extraida a logica de "promover com trava de seguranca" da parte 136
-    // pra uma funcao reutilizavel - evita reescrever o mesmo bloco de comparacao 3x (Liquido, Ativo,
-    // Passivo), reduz chance de um dos 3 ficar com a trava diferente por descuido de copy-paste.
-    function promoverCampoV2SeConfiavel(idElementoPrincipal, valorV2, tolerancia){
-      const el = document.getElementById(idElementoPrincipal);
-      if(!el || valorV2 == null) return;
-      const vAtual = parseFloat(el.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));
-      if(!isNaN(vAtual) && Math.abs(vAtual - valorV2) < (tolerancia||5)){
-        el.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
-        el.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
-      }
-    }
-    // AMPLIADO parte 121/137: nota complementar + promocao (mesma trava de seguranca da parte 136)
-    // pros 2 totais que compoem o liquido - ajuda a ver ONDE a divergencia mora (ativo ou passivo) se
-    // o total acima um dia nao bater, em vez de so saber que "algo" diverge.
-    const elAtivoV2 = document.getElementById('balAtivosTotalV2');
-    if(elAtivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_ativo != null){
-      elAtivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_ativo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-      promoverCampoV2SeConfiavel('balAtivosTotal', resumoV2.patrimonio_resumo.total_ativo, 5);
-    }
-    const elPassivoV2 = document.getElementById('balPassivosTotalV2');
-    if(elPassivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_passivo != null){
-      elPassivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_passivo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-      promoverCampoV2SeConfiavel('balPassivosTotal', resumoV2.patrimonio_resumo.total_passivo, 5);
     }
 
     const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
@@ -5538,17 +5340,11 @@ const WallaceFinanceService = {
       let contaMP = null;
       pc.conexoes.forEach(cx=> (cx.contas||[]).forEach(c=>{ if(/mercado\s*pago/i.test(c.nome||'')) contaMP = c; }));
       if(!contaMP || !contaMP.fatura_mes_atual) return;
+      const valor = contaMP.fatura_mes_atual.valor_total;
       const venc = contaMP.fatura_vencimento_atual || contaMP.fatura_mes_atual.vencimento;
       const vencFmt = venc ? new Date(venc).toLocaleDateString('pt-BR') : '?';
-      // CORRIGIDO 06/08/2026 (parte 135, usuario apontou confusao real: este alerta mostrava R$0,00
-      // cru da Pluggy ao lado do card principal (secao 10) ja mostrando R$669,34 com fallback -
-      // pareciam 2 sistemas discordando, quando na verdade so este alerta nunca tinha o fallback.
-      // Agora usa VARS.mercadoPagoFatura (ja resolvido com fallback, mesma fonte do card) em vez do
-      // valor bruto contaMP.fatura_mes_atual.valor_total - consistente em todo o site.
-      const valorFinal = VARS.mercadoPagoFatura;
-      const avisoFallback = VARS.mercadoPagoFaturaOrigem === 'fallback_erp_pluggy_zerada' ? ' (Pluggy zerada, valor calculado do ERP)' : '';
       alertas.push({icone:'ℹ️', cor:'#3987e5',
-        txto:`Mercado Pago (fatura aberta, ao vivo): ${fmt(valorFinal)} — vence ${vencFmt}${avisoFallback}`});
+        txto:`Mercado Pago (fatura aberta, ao vivo): ${fmt(valor)} — vence ${vencFmt}`});
     })();
     // NOVO 03/08/2026 (V400 Etapa 11 - Alertas): Inbox Financeira acumulando item pendente sem revisão.
     // So conta o que ja existe em VARS.INBOX_FINANCEIRA (nada novo capturado aqui) - mesmo criterio das
