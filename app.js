@@ -2398,6 +2398,31 @@ function aplicarCicloAoVARS(cicloKey){
 }
 aplicarCicloAoVARS(VARS.cicloAtual); // aplica o ciclo padrao (2026-07) ANTES do REG nascer
 
+// CORRIGIDO 05/08/2026 (parte 104, usuario apontou "Fatura atual (aberta)" mostrando R$0,00 mesmo com
+// Parcelas proprias + Transporte corporativo somando mais de zero): achado real - o proprio Pluggy
+// retorna fatura_mes_atual.valor_total = 0 pra conta Mercado Pago (CREDIT) mesmo com transacoes
+// recentes reais na mesma conta (compras postadas, corporativo pendente). Nao e o app.js confundindo
+// saldo total rotativo com fatura do mes (saldo total fica em conta.saldo, nunca usado aqui) - e a
+// Pluggy devolvendo um valor_total que nao bate com a realidade pra essa conta especifica.
+// Fallback: se VARS.mercadoPagoFatura (setado pela Pluggy acima) vier 0 (ou null) MAS o proprio ERP já
+// tiver uma soma bottom-up > 0 pras duas pernas que compoem essa fatura (parcelas proprias ativas +
+// transporte corporativo pendente, os dois numeros já mostrados separados no painel), usa essa soma em
+// vez do 0 da Pluggy - nunca esconde do usuario um valor que o proprio sistema já sabe que é real.
+// Marca a origem (mercadoPagoFaturaOrigem) pra o rodape/console poder distinguir "veio da Pluggy" de
+// "fallback calculado" (transparencia, nao finge que a Pluggy confirmou um numero que ela nao confirmou).
+if((!VARS.mercadoPagoFatura || VARS.mercadoPagoFatura === 0)){
+  const somaFallback = Math.round(((VARS.totalOpProvMP||0) + (VARS.reembolsoPagaMPCorporativo||0)) * 100) / 100;
+  if(somaFallback > 0){
+    VARS.mercadoPagoFatura = somaFallback;
+    VARS.mercadoPagoFaturaOrigem = 'fallback_erp_pluggy_zerada';
+    console.warn('mercadoPagoFatura: Pluggy devolveu 0 pra fatura_mes_atual, usando soma do ERP (Parcelas proprias + Transporte corporativo) =', somaFallback);
+  } else {
+    VARS.mercadoPagoFaturaOrigem = 'pluggy_ou_zero_real';
+  }
+} else {
+  VARS.mercadoPagoFaturaOrigem = 'pluggy';
+}
+
 const REG = {
   patrimonio: {
     // DERIVADO em recalcularAgregadosDerivados(): total = VARS.reserva+VARS.btgNecton+VARS.caixaLance+VARS.nectonContaCorrente
@@ -4244,7 +4269,15 @@ function hydrate(){
   t('mbLRC', fmt(R.mbDetalhe.corp));
 
   // mercado pago
-  t('mpFatura', fmt(R.mercadoPago));
+  // CORRIGIDO 05/08/2026 (parte 104): quando o valor exibido vem do fallback (Pluggy devolveu 0 mas o
+  // ERP tem soma propria real), mostra um aviso pequeno junto do numero - nunca deixa parecer que foi a
+  // Pluggy quem confirmou, quando na verdade foi calculado aqui por causa da falha dela.
+  const mpFaturaEl = $('mpFatura');
+  if(mpFaturaEl){
+    mpFaturaEl.innerHTML = fmt(R.mercadoPago) + (VARS.mercadoPagoFaturaOrigem === 'fallback_erp_pluggy_zerada'
+      ? ' <span style="font-size:0.62rem;color:var(--text-dim)" title="Pluggy devolveu R$0,00 pra fatura deste mês; valor calculado a partir do ERP (Parcelas próprias + Transporte corporativo)">⚠ calculado (Pluggy zerada)</span>'
+      : '');
+  }
   t('mpProprias', fmt(R.totalOpDetalhe.provMP));
   t('mpTransporteCorp', fmt(R.operacional.reembolsoPagaMPCorporativo));
 
