@@ -4927,6 +4927,45 @@ function auditoriaAutomatica(){
 }
 onDomPronto(auditoriaAutomatica); // V170: corrigido
 
+// NOVO 05/08/2026 (parte 104): auditoria cruzada V1 (VARS/REG, este arquivo) vs V2 (tabelas
+// relacionais no Supabase, Arquitetura V2). Só leitura, só console.warn - nunca altera nada na
+// tela, nunca bloqueia o carregamento (fetch assíncrono, fire-and-forget, falha silenciosa se
+// offline). Existe pra pegar cedo qualquer descasamento entre os dois sistemas rodando em
+// paralelo durante a migração da Fase 5 (mesmo raciocínio da auditoria SSOT acima, mas
+// comparando contra a fonte V2 em vez de comparando o V1 consigo mesmo).
+(async function auditoriaCruzadaV1V2(){
+  try {
+    const resp = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/rpc_dashboard_resumo', {
+      method: 'POST',
+      headers: {
+        'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+    if(!resp.ok) return; // offline/banco fora do ar - auditoria simplesmente não roda, não quebra nada
+    const resumoV2 = await resp.json();
+    const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
+    if(caixaVariavelV2 && typeof VARS !== 'undefined' && VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
+      const saldoV1 = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].caixaVariavelSaldoReal;
+      // usa saldo_real_ciclo_atual (campo novo, 05/08/2026 - já respeita saldo_inicial_ciclo e só
+      // conta movimentos com afeta_saldo_real=true), NAO o "saldo" bruto (que soma compra de cartão
+      // junto, medindo outra coisa - ver ESTADO_ATUAL.md pra reconciliação completa desse achado)
+      const saldoV2 = caixaVariavelV2.saldo_real_ciclo_atual;
+      const diff = Math.round(Math.abs(saldoV1 - saldoV2) * 100) / 100;
+      if(diff > 0.05){
+        console.warn(`⚠️ Auditoria V1↔V2: Caixa Variável (saldo real do ciclo) diverge - V1(app.js)=R$${saldoV1} vs V2(Supabase relacional)=R$${saldoV2} (diff R$${diff}). Investigar: a V2 costuma estar mais completa (captura toda compra migrada), enquanto o array manual do V1 pode estar incompleto - ver ESTADO_ATUAL.md da sessão 05/08/2026 pra um caso já resolvido assim (diferença de R$22 = TX000190, água mineral, que faltava no V1).`);
+      } else {
+        console.log(`%c✅ Auditoria V1↔V2: Caixa Variável bate (R$${saldoV1}) entre app.js e Supabase relacional.`, 'color:#34c98a');
+      }
+    }
+  } catch(e) {
+    // silencioso de propósito - é auditoria opcional, nunca deve quebrar o site nem poluir o
+    // console do usuário com erro de rede que ele não pode fazer nada a respeito
+  }
+})();
+
 // ===== Ciclo financeiro 100% dinâmico (recalcula sempre que o arquivo é aberto, qualquer mês/ano) =====
 // Regra do sistema: ciclo vai do dia 25 de um mês ao dia 24 do mês seguinte.
 (function(){
