@@ -4263,6 +4263,8 @@ function hydrate(){
     const elAporte = $('cxBensDuraveisAporte'); if(elAporte) elAporte.textContent = 'Aporte alvo: '+fmt(VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO)+'/mês';
   }
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
+  t('cxEventosPct', pctOf(C.eventos.saldo,C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  { const el=$('cxEventosBar'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
   t('cxEventosPct', pctOf(C.eventos.saldo, C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=document.querySelector('#cxEventosSaldo').closest('.card').querySelector('.fill'); if(el) el.style.width = pctOf(C.eventos.saldo, C.eventos.meta)+'%'; }
   // NOVO 30/07/2026 (V206): card do Fundo de Suavização - existia no calculo (VARS.contaSuavizacao)
@@ -4284,8 +4286,11 @@ function hydrate(){
   const suavizBar = $('cxSuavizBar');
   if(suavizBar) suavizBar.style.width = pctOf(suaviz, VARS.metaSuavizacao) + '%';
   t('cxSaudeSaldo', fmt(C.saudeFamilia.saldo));     t('cxSaudeMeta', fmtInt(C.saudeFamilia.meta));
+  { const el=$('cxSaudeBar'); if(el) el.style.width = pctOf(C.saudeFamilia.saldo, C.saudeFamilia.meta)+'%'; }
   t('cxAnivSaldo', fmt(C.aniversarioJulio.saldo));  t('cxAnivMeta', fmtInt(C.aniversarioJulio.meta));
+  { const el=$('cxAnivBar'); if(el) el.style.width = pctOf(C.aniversarioJulio.saldo, C.aniversarioJulio.meta)+'%'; }
   t('cxSeguroSaldo', fmt(C.seguroEmplacamento.saldo)); t('cxSeguroMeta', fmtInt(C.seguroEmplacamento.meta));
+  { const el=$('cxSeguroBar'); if(el) el.style.width = pctOf(C.seguroEmplacamento.saldo, C.seguroEmplacamento.meta)+'%'; }
   // NOVO 23/07/2026: card Escola de Julio adicionado na secao 05 (Caixas Operacionais) a pedido do
   // usuario - mesma fonte ja usada no card dedicado da secao 14 (R.escolaJulioSaldo/R.patrimonio.metaEscolaJulio).
   t('cxEscolaSaldo', fmt(R.escolaJulioSaldo));
@@ -5244,7 +5249,14 @@ const WallaceFinanceService = {
       'Caixa Churrasco':{campo:'caixaChurrasco', tipo:'ciclo', domId:'balResChurrasco'}, 'Caixa Bens Duráveis':{campo:'caixaBensDuraveis', tipo:'ciclo', domId:'balResBensDuraveis'},
       'Escola de Júlio':{campo:'escolaJulioSaldo', tipo:'ciclo', domId:'balResEscola'},
       'Caixa Mastercard/Infinite':{campo:'caixaMastercardInfinite', tipo:'saldo'},
-      'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo', domId:'balResPixVanessa'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo', domId:'balResSuavizacao'}
+      'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo', domId:'balResPixVanessa'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo', domId:'balResSuavizacao'},
+      // ADICIONADA 06/08/2026 (parte 143): PIX Geral Vanessa existe como caixa propria na V2 (nao
+      // sabia disso ate agora - so tinha PIX Vanessa/PV mapeada). Formula V1 e mais complexa (subtrai
+      // PGV_RENDIMENTO_CDI_NAO_RASTREADO) - tipo 'saldo' e um palpite conservador (nao cycle-scoped
+      // pelo array), mas a TRAVA DE SEGURANCA do promoverCampoV2SeConfiavel protege: so promove
+      // 'balOpPixVanessa' se realmente bater (d<=0.05), senao so fica no console como divergencia,
+      // nunca promove errado.
+      'PIX Geral Vanessa':{campo:'pixGeralVanessaSaldo', tipo:'saldo'}
     };
     Object.entries(MAPA_CAIXAS_V1_V2).forEach(([nomeV2, cfg])=>{
       const cxV2 = (resumoV2.caixas||[]).find(c => c.nome === nomeV2);
@@ -5263,6 +5275,36 @@ const WallaceFinanceService = {
         // tipicamente menores - centenas, nao dezenas de milhares).
         promoverCampoV2SeConfiavel(cfg.domId, sV2, 0.06);
       }
+      // NOVO 06/08/2026 (parte 139): so estas 4 caixas tem o trio saldo+%+barra dinamico confirmado -
+      // promove independente do bloco acima (que ja rodou/nao rodou baseado no domId da Gestao das
+      // Reservas), reaproveitando o mesmo sV2 ja calculado nesta iteracao.
+      const CARDS_COM_BARRA = {
+        'Caixa Boletos':     {idSaldo:'cxBoletosSaldo', idPct:'cxBoletosPct', idBarra:'cxBoletosBar', meta:2600},
+        'PIX Vanessa':       {idSaldo:'cxPixSaldo',     idPct:'cxPixPct',     idBarra:'cxPixBar',     meta:1200},
+        'Caixa Manutenção':  {idSaldo:'cxManutSaldo',   idPct:'cxManutPct',   idBarra:'cxManutBar',   meta:2000},
+        'Escola de Júlio':   {idSaldo:'cxEscolaSaldo',  idPct:'cxEscolaPct',  idBarra:'cxEscolaBar',  meta:9236},
+        // ADICIONADAS 06/08/2026 (parte 140): estas 4 tinham barra ESTATICA ate agora (bug pre-
+        // existente achado na parte 139, corrigido nesta mesma rodada - agora tem trio dinamico real).
+        // Saude/Aniversario/Seguro nao tem span de %, so idPct=null (funcao ja trata isso com seguranca).
+        'Caixa Eventos':             {idSaldo:'cxEventosSaldo', idPct:'cxEventosPct', idBarra:'cxEventosBar', meta:2000},
+        'Caixa Saúde Família':       {idSaldo:'cxSaudeSaldo',   idPct:null,           idBarra:'cxSaudeBar',   meta:1600},
+        'Caixa Aniversário Júlio':   {idSaldo:'cxAnivSaldo',    idPct:null,           idBarra:'cxAnivBar',    meta:400},
+        'Caixa Seguro Emplacamento': {idSaldo:'cxSeguroSaldo',  idPct:null,           idBarra:'cxSeguroBar',  meta:5100},
+        'Conta Suavização (CC-304)': {idSaldo:'cxSuavizSaldo',  idPct:null,           idBarra:'cxSuavizBar',  meta:12000}
+      };
+      if(CARDS_COM_BARRA[nomeV2] && d <= 0.05){
+        const cb = CARDS_COM_BARRA[nomeV2];
+        promoverCaixaComBarraSeConfiavel(cb.idSaldo, cb.idPct, cb.idBarra, sV2, cb.meta, 0.06);
+      }
+      // NOVO 06/08/2026 (parte 140): Caixa Lance tambem aparece como linha de texto simples na secao
+      // Patrimonio (id diferente de balResLance, que ja e promovido acima) - promove os 2 lugares.
+      // NOVO 06/08/2026 (parte 141): 2 campos extra na secao "Reservas de Pagamento" (texto simples,
+      // mesmos valores ja confirmados no mapa - Caixa Variavel e Mastercard/Infinite aparecem aqui
+      // TAMBEM, alem de onde ja foram promovidos antes).
+      if(nomeV2 === 'Caixa Variável' && d <= 0.05) promoverCampoV2SeConfiavel('balOpCaixaVariavel', sV2, 0.06);
+      if(nomeV2 === 'Caixa Mastercard/Infinite' && d <= 0.05) promoverCampoV2SeConfiavel('balOpMastercardInfinite', sV2, 0.06);
+      if(nomeV2 === 'PIX Geral Vanessa' && d <= 0.05){ promoverCampoV2SeConfiavel('balOpPixVanessa', sV2, 0.06); promoverCampoV2SeConfiavel('cxPgvSaldo', sV2, 0.06); }
+      if(nomeV2 === 'Caixa Lance' && d <= 0.05) promoverCampoV2SeConfiavel('patLance', sV2, 0.06);
     });
     // NOVO 06/08/2026 (parte 124, achado da parte 123 - PIX Vanessa dessincronizada e ninguem tinha
     // visto porque so ia pro console): divergencias agora aparecem tambem NO PAINEL (visivel sem abrir
@@ -5307,6 +5349,26 @@ const WallaceFinanceService = {
       if(!isNaN(vAtual) && Math.abs(vAtual - valorV2) < (tolerancia||5)){
         el.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
         el.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
+      }
+    }
+    // NOVO 06/08/2026 (parte 139): variante pros cards de caixa com barra de progresso (saldo+%+barra,
+    // os 3 amarrados no mesmo numero) - so promove os 4 cards confirmados com o trio completo e
+    // dinamico (Boletos, PIX Vanessa, Manutencao, Escola de Julio). As outras caixas com barra tem
+    // problema PRE-EXISTENTE (barra estatica, nunca atualizada por JS - achado nesta sessao, nao
+    // corrigido de proposito, fora do escopo desta promocao V2).
+    function promoverCaixaComBarraSeConfiavel(idSaldo, idPct, idBarra, valorV2, meta, tolerancia){
+      const elSaldo = document.getElementById(idSaldo);
+      if(!elSaldo || valorV2 == null) return;
+      const vAtual = parseFloat(elSaldo.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));
+      if(isNaN(vAtual) || Math.abs(vAtual - valorV2) >= (tolerancia||0.06)) return;
+      elSaldo.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      elSaldo.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
+      if(meta > 0){
+        const pct = Math.max(0, Math.min(100, Math.round((valorV2/meta)*1000)/10));
+        const elPct = document.getElementById(idPct);
+        if(elPct && /%/.test(elPct.textContent)) elPct.textContent = pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+        const elBarra = document.getElementById(idBarra);
+        if(elBarra) elBarra.style.width = pct+'%';
       }
     }
     // AMPLIADO parte 121/137: nota complementar + promocao (mesma trava de seguranca da parte 136)
