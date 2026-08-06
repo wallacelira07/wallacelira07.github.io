@@ -4946,6 +4946,20 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     });
     if(!resp.ok) return; // offline/banco fora do ar - auditoria simplesmente não roda, não quebra nada
     const resumoV2 = await resp.json();
+
+    // NOVO parte 105: mostra cobertura de categorização da V2 (Fase 3) - quantas das transações
+    // migradas já têm categoria_id preenchido, pra acompanhar o avanço do motor de classificação
+    // sem precisar abrir o Supabase. Badge próprio, não sobrescreve o syncV2Badge (saldo).
+    if(resumoV2.kpis){
+      const badgeCat = document.getElementById('catV2Badge');
+      if(badgeCat){
+        const total = resumoV2.kpis.total_transacoes;
+        const semCategoria = resumoV2.kpis.transacoes_sem_categoria;
+        const comCategoria = total - semCategoria;
+        badgeCat.textContent = `📊 ${comCategoria}/${total} categorizadas`;
+        badgeCat.title = `Arquitetura V2 (Supabase): ${comCategoria} de ${total} transações já têm categoria via regras_classificacao (Fase 3). ${semCategoria} ainda sem categoria (nomes de pessoa sem padrão seguro, na maioria).`;
+      }
+    }
     const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
     if(caixaVariavelV2 && typeof VARS !== 'undefined' && VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
       const saldoV1 = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].caixaVariavelSaldoReal;
