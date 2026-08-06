@@ -5237,14 +5237,14 @@ const WallaceFinanceService = {
     // regra unica pra todas.
     const divergenciasV1V2 = [];
     const MAPA_CAIXAS_V1_V2 = {
-      'Caixa Boletos':{campo:'caixaBoletos', tipo:'ciclo'}, 'Caixa Lance':{campo:'caixaLance', tipo:'ciclo'},
-      'Caixa Manutenção':{campo:'caixaManutencao', tipo:'ciclo'}, 'Caixa Aniversário Júlio':{campo:'caixaAniversarioJulio', tipo:'ciclo'},
-      'Caixa Eventos':{campo:'caixaEventos', tipo:'ciclo'}, 'Caixa Saúde Família':{campo:'caixaSaudeFamilia', tipo:'ciclo'},
-      'Caixa Seguro Emplacamento':{campo:'caixaSeguroEmplacamento', tipo:'ciclo'}, 'Caixa Combustível':{campo:'caixaCombustivel', tipo:'ciclo'},
-      'Caixa Churrasco':{campo:'caixaChurrasco', tipo:'ciclo'}, 'Caixa Bens Duráveis':{campo:'caixaBensDuraveis', tipo:'ciclo'},
-      'Escola de Júlio':{campo:'escolaJulioSaldo', tipo:'ciclo'},
+      'Caixa Boletos':{campo:'caixaBoletos', tipo:'ciclo', domId:'balResBoletos'}, 'Caixa Lance':{campo:'caixaLance', tipo:'ciclo', domId:'balResLance'},
+      'Caixa Manutenção':{campo:'caixaManutencao', tipo:'ciclo', domId:'balResManut'}, 'Caixa Aniversário Júlio':{campo:'caixaAniversarioJulio', tipo:'ciclo', domId:'balResAniv'},
+      'Caixa Eventos':{campo:'caixaEventos', tipo:'ciclo', domId:'balResEventos'}, 'Caixa Saúde Família':{campo:'caixaSaudeFamilia', tipo:'ciclo', domId:'balResSaude'},
+      'Caixa Seguro Emplacamento':{campo:'caixaSeguroEmplacamento', tipo:'ciclo', domId:'balResSeguro'}, 'Caixa Combustível':{campo:'caixaCombustivel', tipo:'ciclo', domId:'balResCombustivel'},
+      'Caixa Churrasco':{campo:'caixaChurrasco', tipo:'ciclo', domId:'balResChurrasco'}, 'Caixa Bens Duráveis':{campo:'caixaBensDuraveis', tipo:'ciclo', domId:'balResBensDuraveis'},
+      'Escola de Júlio':{campo:'escolaJulioSaldo', tipo:'ciclo', domId:'balResEscola'},
       'Caixa Mastercard/Infinite':{campo:'caixaMastercardInfinite', tipo:'saldo'},
-      'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo'}
+      'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo', domId:'balResPixVanessa'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo', domId:'balResSuavizacao'}
     };
     Object.entries(MAPA_CAIXAS_V1_V2).forEach(([nomeV2, cfg])=>{
       const cxV2 = (resumoV2.caixas||[]).find(c => c.nome === nomeV2);
@@ -5255,6 +5255,13 @@ const WallaceFinanceService = {
       if(d > 0.05){
         console.warn(`⚠️ Auditoria V1↔V2: ${nomeV2} diverge - V1=R$${sV1} vs V2=R$${sV2} (diff R$${d}).`);
         divergenciasV1V2.push(`${nomeV2}: V1=R$${sV1} vs V2=R$${sV2} (diff R$${d})`);
+      } else if(cfg.domId && typeof promoverCampoV2SeConfiavel === 'function'){
+        // NOVO 06/08/2026 (parte 138): mesma promocao com trava de seguranca das partes 136-137,
+        // aplicada agora nas 12 linhas de texto simples da secao "Gestao das Reservas" (sem barra de
+        // progresso, mesmo perfil de risco baixo ja validado). So promove quando ja confirmado batendo
+        // (d<=0.05 aqui, mais rigoroso que os 5.00 do Balanco principal, porque estes valores sao
+        // tipicamente menores - centenas, nao dezenas de milhares).
+        promoverCampoV2SeConfiavel(cfg.domId, sV2, 0.06);
       }
     });
     // NOVO 06/08/2026 (parte 124, achado da parte 123 - PIX Vanessa dessincronizada e ninguem tinha
@@ -5285,17 +5292,35 @@ const WallaceFinanceService = {
     const elPatV2 = document.getElementById('balPatrimonioLiquidoV2');
     if(elPatV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.liquido != null){
       elPatV2.textContent = `V2 (Supabase relacional): R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      // PROMOVIDO 06/08/2026 (parte 136, refatorado parte 137 pra usar promoverCampoV2SeConfiavel -
+      // funcao com hoisting, definida mais abaixo neste mesmo bloco, ja disponivel aqui). Patrimonio
+      // Liquido foi o primeiro campo promovido a fonte EXIBIDA (trava de seguranca <R$5 de diferenca).
+      promoverCampoV2SeConfiavel('balPatrimonioLiquido', resumoV2.patrimonio_resumo.liquido, 5);
     }
-    // AMPLIADO parte 121: mesmo padrao (nota complementar, zero fetch extra) pros 2 totais que
-    // compoem o liquido - ajuda a ver ONDE a divergencia mora (ativo ou passivo) se o total acima
-    // um dia nao bater, em vez de so saber que "algo" diverge.
+    // NOVO 06/08/2026 (parte 137): extraida a logica de "promover com trava de seguranca" da parte 136
+    // pra uma funcao reutilizavel - evita reescrever o mesmo bloco de comparacao 3x (Liquido, Ativo,
+    // Passivo), reduz chance de um dos 3 ficar com a trava diferente por descuido de copy-paste.
+    function promoverCampoV2SeConfiavel(idElementoPrincipal, valorV2, tolerancia){
+      const el = document.getElementById(idElementoPrincipal);
+      if(!el || valorV2 == null) return;
+      const vAtual = parseFloat(el.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));
+      if(!isNaN(vAtual) && Math.abs(vAtual - valorV2) < (tolerancia||5)){
+        el.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
+        el.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
+      }
+    }
+    // AMPLIADO parte 121/137: nota complementar + promocao (mesma trava de seguranca da parte 136)
+    // pros 2 totais que compoem o liquido - ajuda a ver ONDE a divergencia mora (ativo ou passivo) se
+    // o total acima um dia nao bater, em vez de so saber que "algo" diverge.
     const elAtivoV2 = document.getElementById('balAtivosTotalV2');
     if(elAtivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_ativo != null){
       elAtivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_ativo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      promoverCampoV2SeConfiavel('balAtivosTotal', resumoV2.patrimonio_resumo.total_ativo, 5);
     }
     const elPassivoV2 = document.getElementById('balPassivosTotalV2');
     if(elPassivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_passivo != null){
       elPassivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_passivo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      promoverCampoV2SeConfiavel('balPassivosTotal', resumoV2.patrimonio_resumo.total_passivo, 5);
     }
 
     const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
@@ -5513,11 +5538,17 @@ const WallaceFinanceService = {
       let contaMP = null;
       pc.conexoes.forEach(cx=> (cx.contas||[]).forEach(c=>{ if(/mercado\s*pago/i.test(c.nome||'')) contaMP = c; }));
       if(!contaMP || !contaMP.fatura_mes_atual) return;
-      const valor = contaMP.fatura_mes_atual.valor_total;
       const venc = contaMP.fatura_vencimento_atual || contaMP.fatura_mes_atual.vencimento;
       const vencFmt = venc ? new Date(venc).toLocaleDateString('pt-BR') : '?';
+      // CORRIGIDO 06/08/2026 (parte 135, usuario apontou confusao real: este alerta mostrava R$0,00
+      // cru da Pluggy ao lado do card principal (secao 10) ja mostrando R$669,34 com fallback -
+      // pareciam 2 sistemas discordando, quando na verdade so este alerta nunca tinha o fallback.
+      // Agora usa VARS.mercadoPagoFatura (ja resolvido com fallback, mesma fonte do card) em vez do
+      // valor bruto contaMP.fatura_mes_atual.valor_total - consistente em todo o site.
+      const valorFinal = VARS.mercadoPagoFatura;
+      const avisoFallback = VARS.mercadoPagoFaturaOrigem === 'fallback_erp_pluggy_zerada' ? ' (Pluggy zerada, valor calculado do ERP)' : '';
       alertas.push({icone:'ℹ️', cor:'#3987e5',
-        txto:`Mercado Pago (fatura aberta, ao vivo): ${fmt(valor)} — vence ${vencFmt}`});
+        txto:`Mercado Pago (fatura aberta, ao vivo): ${fmt(valorFinal)} — vence ${vencFmt}${avisoFallback}`});
     })();
     // NOVO 03/08/2026 (V400 Etapa 11 - Alertas): Inbox Financeira acumulando item pendente sem revisão.
     // So conta o que ja existe em VARS.INBOX_FINANCEIRA (nada novo capturado aqui) - mesmo criterio das
