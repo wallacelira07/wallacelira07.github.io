@@ -4965,6 +4965,34 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         badgeCat.title = `Arquitetura V2 (Supabase): ${comCategoria} de ${total} transações já têm categoria via regras_classificacao (Fase 3). ${semCategoria} ainda sem categoria (nomes de pessoa sem padrão seguro, na maioria).`;
       }
     }
+
+    // NOVO parte 107: painel flutuante autocontido mostrando as 18 caixas direto da V2 (Fase 5,
+    // primeiro consumo VISÍVEL de verdade da RPC além dos badges). Injetado via JS puro, não
+    // depende de nenhum elemento existente no HTML - zero risco de quebrar layout. Fecha por
+    // padrão (só o botão fica visível); clique abre/fecha. Só leitura, mesma disciplina das outras
+    // peças desta sessão.
+    if(resumoV2.caixas && resumoV2.caixas.length && !document.getElementById('painelV2Caixas')){
+      const btn = document.createElement('button');
+      btn.id = 'painelV2Toggle';
+      btn.textContent = '💰 V2';
+      btn.title = 'Ver as 18 caixas calculadas pela Arquitetura V2 (Supabase), calibradas com saldo real em 05/08/2026';
+      btn.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;background:#1a2332;color:#8ab4f8;border:1px solid #2d3b52;border-radius:8px;padding:0.5rem 0.8rem;font-size:0.8rem;cursor:pointer;font-weight:600';
+
+      const painel = document.createElement('div');
+      painel.id = 'painelV2Caixas';
+      painel.style.cssText = 'position:fixed;bottom:3.2rem;right:1rem;z-index:9999;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;max-height:70vh;overflow-y:auto;width:280px;display:none;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+      const linhas = resumoV2.caixas
+        .slice()
+        .sort((a,b) => b.saldo_real_ciclo_atual - a.saldo_real_ciclo_atual)
+        .map(c => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span style="font-weight:600;color:${c.saldo_real_ciclo_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${c.saldo_real_ciclo_atual.toFixed(2)}</span></div>`)
+        .join('');
+      painel.innerHTML = `<div style="font-weight:700;margin-bottom:0.5rem;color:#8ab4f8">Caixas — Arquitetura V2</div>${linhas}<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#6b7a8f">Fonte: rpc_dashboard_resumo() · calibrado com dado real 05/08/2026</div>`;
+
+      btn.onclick = () => { painel.style.display = painel.style.display === 'none' ? 'block' : 'none'; };
+      document.body.appendChild(btn);
+      document.body.appendChild(painel);
+    }
+
     const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
     if(caixaVariavelV2 && typeof VARS !== 'undefined' && VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
       const saldoV1 = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].caixaVariavelSaldoReal;
