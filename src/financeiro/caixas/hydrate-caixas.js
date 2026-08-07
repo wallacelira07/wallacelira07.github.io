@@ -19,6 +19,10 @@ function hydrateCaixas(){
   { const el=$('cxBoletosBar'); if(el) el.style.width = pctOf(C.boletos.saldo,C.boletos.meta)+'%'; }
   t('cxPixSaldo', fmt(C.pixVanessa.saldo));
   t('cxPgvSaldo', fmt(VARS.pixGeralVanessaSaldo)); // V175: card separado - PGV e conta autonoma da Vanessa, distinta da PV (reserva do Wallace)
+  // NOVO 07/08/2026: meta de R$300 confirmada pelo usuário pro card CC-103 (antes fixo em "sem meta")
+  t('cxPgvMeta', fmtInt(C.pixGeralVanessa.meta));
+  t('cxPgvPct', pctOf(C.pixGeralVanessa.saldo, C.pixGeralVanessa.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  { const el=$('cxPgvBar'); if(el) el.style.width = pctOf(C.pixGeralVanessa.saldo, C.pixGeralVanessa.meta)+'%'; }
   t('cxPixMeta', fmtInt(C.pixVanessa.meta));
   t('cxPixPct', pctOf(C.pixVanessa.saldo,C.pixVanessa.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=$('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }

@@ -26,7 +26,8 @@ function criarRegCaixas(){
       aniversarioJulio:    { saldo:VARS.caixaAniversarioJulio,   meta:400  },
       seguroEmplacamento:  { saldo:VARS.caixaSeguroEmplacamento, meta:5100 },
       bensDuraveis:        { saldo:VARS.caixaBensDuraveis,       meta:3000 },
-      escolaJulio:         { saldo:VARS.escolaJulioSaldo,        meta:VARS.metaEscolaJulio }
+      escolaJulio:         { saldo:VARS.escolaJulioSaldo,        meta:VARS.metaEscolaJulio },
+      pixGeralVanessa:     { saldo:VARS.pixGeralVanessaSaldo,    meta:300  } // NOVO 07/08/2026: meta confirmada pelo usuário pro card CC-103 (antes "sem meta")
     }, // V134: todos os saldos agora leem do VARS (fonte unica) - antes eram literais duplicados aqui, em balanco.reservas e em escolaJulioSaldo separadamente, 3 copias que ja dessincronizaram nesta sessao.
     pixDiversos: { saidas: VARS.pixDiversosSaidas, entradas: VARS.pixDiversosEntradas, liquido: 0 },
     livroLRCDetalhe: { qtd: VARS.livroLRCQtdLancamentos, valor: VARS.livroLRC },

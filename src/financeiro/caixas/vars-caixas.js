@@ -22,6 +22,8 @@ function criarVarsCaixas(){
     { tx:'TX000137', data:'25/07', nome:'Aporte mensal (salário Wärtsilä, novo ciclo)', tipo:'Entrada', valor:2000.00 },
     { tx:'TX000162', data:'26/07', nome:'PIX poda das bananeiras (Ednaldo Caetano da Silva)', tipo:'Saída', valor:100.00 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:4.80 },
+    { tx:'TX000217', data:'06/08', nome:'PIX Vanessa Gomes Galdino (adiantamento do bolo de Júlio, repassado por ela à Maria Karoline de Lima Frazao)', tipo:'Saída', valor:107.50 },
+    { tx:'TX000218', data:'06/08', nome:'Reembolso da Caixa Aniversário Júlio (referente ao adiantamento TX000217)', tipo:'Entrada', valor:107.50 },
   ],
   // NOTA (mesma migração, V193): o comentário histórico (V144/V145) mencionava TX000139 = R$4.002,61 e uma
   // "folga de R$69,24" - reconferindo a aritmética, a transferência que saiu de fato da Caixa Variável foi
@@ -43,12 +45,16 @@ function criarVarsCaixas(){
     { tx:'PIX-LIVELO-29-07', data:'29/07', nome:'PIX recebido Livelo S.a. (cashback/pontos)', tipo:'Entrada', valor:8.58 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:9.42 },
     { tx:'TX000210', data:'05/08', nome:'PIX Itaú → Mercado Pago (aporte Caixa Lance, rendimento Reserva de Emergência)', tipo:'Entrada', valor:921.17 },
+    { tx:'TX000212', data:'07/08', nome:'Reembolso Bradesco - quitação LREI0002 (Caixa Saúde Família)', tipo:'Entrada', valor:164.94 },
+    { tx:'TX000216', data:'07/08', nome:'Empréstimo p/ Caixa Manutenção (LREI0004, complemento pagamento das cortinas)', tipo:'Saída', valor:103.55 },
   ],
   caixaLance: 4453.50,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
   MANUTENCAO_SALDO_INICIAL: 178.72,
   MANUTENCAO_TRANSACOES: [
     { tx:'TX000143', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:166.67 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:1.06 },
+    { tx:'TX000214', data:'07/08', nome:'Cortinas', tipo:'Saída', valor:450.00 },
+    { tx:'TX000215', data:'07/08', nome:'Empréstimo recebido da Caixa Lance (LREI0004, complemento pagamento das cortinas)', tipo:'Entrada', valor:103.55 },
   ],
   caixaManutencao: 345.39,              // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MANUTENCAO_TRANSACOES.
   // NOVO 05/08/2026 (pedido do usuario, "quero criar uma caixa de verdade pra bens duraveis, sem
@@ -66,10 +72,13 @@ function criarVarsCaixas(){
   caixaBensDuraveis: -355.00,           // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar BENS_DURAVEIS_TRANSACOES.
 
   ANIVERSARIO_JULIO_SALDO_INICIAL: 200.10,
+  // SINCRONIZADO 07/08/2026 (fonte: Supabase) - faltava AJUSTE-06-08 e a nova saída TX000208.
   ANIVERSARIO_JULIO_TRANSACOES: [
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.70 },
+    { tx:'AJUSTE-06-08', data:'06/08', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:0.40 },
+    { tx:'TX000208', data:'06/08', nome:'Reembolso à Caixa Variável (adiantamento do bolo de Júlio, repassado por ela via TX000217/TX000218; comprovante MP 172377811244 / Pix E10573521202608061644RhYaOmLbuda)', tipo:'Saída', valor:107.50 },
   ],
-  caixaAniversarioJulio: 200.10,        // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar ANIVERSARIO_JULIO_TRANSACOES.
+  caixaAniversarioJulio: 93.30,        // SINCRONIZADO 07/08/2026 (fonte: Supabase): -R$107,50 (TX000208, adiantamento bolo de Júlio). Era R$200,80. PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar ANIVERSARIO_JULIO_TRANSACOES.
   // NOVO 31/07/2026 (V214): CRONOGRAMA_BOLETOS_FIXOS - lista completa dos 9 boletos recorrentes com
   // dia de vencimento, confirmada pelo usuario. Base para o auto-credito por data (ver funcao
   // aplicarBoletosVencidosAutomaticamente() logo apos o VARS fechar) - elimina a necessidade de
@@ -213,6 +222,7 @@ function criarVarsCaixas(){
   SAUDE_FAMILIA_TRANSACOES: [
     { tx:'TX000147', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:135.00 },
     { tx:'TX000166', data:'27/07', nome:'Conduta pediátrica de Júlio (saldo próprio, complementado por empréstimo Caixa Lance)', tipo:'Saída', valor:135.06 },
+    { tx:'TX000213', data:'07/08', nome:'Reembolso Bradesco (referente à conduta pediátrica de Júlio, TX000166/LREI0002)', tipo:'Entrada', valor:147.06 },
   ],
   // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
   // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
@@ -251,6 +261,7 @@ function criarVarsCaixas(){
     // (linha 2083) e do total do livro (linha 2080). Bug real confirmado contra o banco antes de aplicar.
     { tx:'TXPV000001', data:'02/08', nome:'Sandália de Júlio (PIX pra SHPB Brasil/Santander, comprovante E10573521202608021819nvP5QumT3Zb)', tipo:'Saída', valor:34.34 },
     { tx:'TXPV000002', data:'02/08', nome:'Kennedy Evaristo Dos Santos - Copinhos para Júlio', tipo:'Saída', valor:20.00 },
+    { tx:'TX000219', data:'06/08', nome:'PIX Dupomar Hortifruti (comprovante MP 172431149270)', tipo:'Saída', valor:46.97 },
   ],
 
   };

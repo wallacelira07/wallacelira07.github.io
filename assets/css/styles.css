@@ -254,6 +254,18 @@
 
   .progress{height:6px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:0.55rem}
   .progress .fill{height:100%;border-radius:var(--radius-sm);transition:width 0.6s ease}
+  /* NOVO 07/08/2026 (pedido do usuário: card CC-103/PIX Geral Vanessa ganhou meta de R$300 - "coloque
+     cor e animação na barra"): gradiente animado (accent-2 -> accent), distinto das barras sólidas
+     das outras caixas, pra destacar visualmente que essa é a conta autônoma da Vanessa. */
+  .progress .fill.fill-pgv{
+    background: linear-gradient(90deg, var(--accent-2), var(--accent), var(--accent-2));
+    background-size: 200% 100%;
+    animation: fillPgvFlow 2.4s linear infinite;
+  }
+  @keyframes fillPgvFlow{
+    0%{ background-position: 0% 0; }
+    100%{ background-position: -200% 0; }
+  }
   .progress-lbl{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem}
   .legend-note{font-size:0.7rem;color:var(--text-dim);margin-top:0.6rem;line-height:1.4;font-family:inherit}
   .total-line{display:flex;justify-content:space-between;align-items:baseline;padding-top:0.65rem;margin-top:0.65rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-mid)}
@@ -497,7 +509,7 @@
      página (html/body) e em qualquer container com scroll interno (painéis, tabelas, modais). */
   * {
     scrollbar-width: thin; /* Firefox */
-    scrollbar-color: var(--border-strong) var(--surface); /* Firefox: thumb track */
+    scrollbar-color: #b8bcc2 var(--surface); /* Firefox: thumb track */
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -507,7 +519,7 @@
     background: var(--surface);
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
+    background: #b8bcc2; /* cinza claro (pedido do usuário, 07/08/2026 - o --border-strong anterior ficava quase invisível no tema escuro) */
     border-radius: 999px;
     border: 2px solid var(--surface); /* cria o efeito "flutuante", thumb não encosta na borda */
   }
