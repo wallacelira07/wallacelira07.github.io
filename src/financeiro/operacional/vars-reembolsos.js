@@ -31,7 +31,7 @@ function criarVarsReembolsos(){
   WARTSILA_CAIXA_SALDO_INICIAL: 683.04, // saldo do ciclo antigo, confirmado pelo usuario em 27/07 (V188) - a zerada de 26/07 (V171) tinha sido erro, revertida
   WARTSILA_CAIXA_TRANSACOES: [
     { tx:'BOLETO-MP-27-07', data:'27/07', nome:'Pagamento fatura Wärtsilä (boleto Mercado Pago, comprovante #170856844164)', tipo:'Saída', valor:656.67 },
-    { tx:'JUROS-27-07-WARTSILA', data:'27/07', nome:'Juros acumulados (repassados à Caixa Lance)', tipo:'Entrada', valor:27.37 },
+    { tx:'JUROS-27-07-WARTSILA', data:'27/07', nome:'Juros acumulados repassados à Caixa Lance (CORRIGIDO 08/08/2026: estava lançado como Entrada aqui E o mesmo valor já entrava em CAIXA_LANCE_TRANSACOES/JUROS-27-07 - dobrava a contagem, inflava esta caixa em vez de esvaziar. É Saída: o juro sai daqui e vira a entrada em Lance)', tipo:'Saída', valor:27.37 },
     { tx:'TX000220', data:'07/08', nome:'Reembolso Wärtsilä recebido (transferência do usuário pra dentro da Caixa Wärtsilä)', tipo:'Entrada', valor:340.00 },
   ],
   provisionadoWartsila: 0,  // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar WARTSILA_CAIXA_TRANSACOES.

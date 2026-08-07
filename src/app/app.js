@@ -942,6 +942,14 @@ const WallaceFinanceService = {
       wallaceFabCss.id = 'wallaceFabStyles';
       wallaceFabCss.textContent = `
         #wallaceFabDock{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem}
+        /* NOVO 08/08/2026 (pedido do usuario: "no mobile os botoes ficam muito baixos, podem ficar em
+           meia lua na lateral da tela"): em telas estreitas o dock sai do canto inferior (perto da
+           barra de UI do navegador, dificil de alcancar com o polegar) e vai pro meio da lateral
+           direita, centralizado verticalmente - mais facil de alcancar numa mao so e longe da barra
+           do navegador. */
+        @media (max-width:640px){
+          #wallaceFabDock{bottom:auto;top:50%;right:0.6rem;transform:translateY(-50%)}
+        }
         /* REDESENHADO 07/08/2026 (pedido do usuário): pill fino → botão sólido preenchido. REFEITO
            ainda 07/08/2026 (pedido explícito do usuário, ficou pendente uma sessão inteira: "círculo
            pequeno com ícone, e ao passar o mouse uma tira lateral desliza revelando o texto" — não
@@ -1322,8 +1330,23 @@ const WallaceFinanceService = {
     const explicadasV1V2 = [];
     const CAIXAS_EXPLICADAS_V1_V2 = {
       'Caixa Boletos': 'corte de ciclo hardcoded afeta essa caixa de forma nao-uniforme (ja investigado, sem correcao uniforme viavel) - ver ESTADO_ATUAL.md',
-      'Caixa Lance': 'LREI0003 (emprestimo p/ fatura Mercado Pago, reembolsavel Wärtsilä) - abertura do ciclo depende de ancora de fechamento ainda nao confirmada',
-      'Caixa Bens Duráveis': 'deficit inicial conhecido (caixa criada negativa, sem fundo previo) - nao e anomalia'
+      'Caixa Lance': 'reconciliada linha a linha contra extrato bancario/app Itau em 08/08/2026 - V1 confirmado correto, resíduo e o V2 desatualizado (nunca recebeu os lancamentos manuais feitos so no V1)',
+      'Caixa Bens Duráveis': 'deficit inicial conhecido (caixa criada negativa, sem fundo previo) - nao e anomalia',
+      // ADICIONADAS 08/08/2026: investigacao completa (rendimento real dos cofrinhos confirmado ao
+      // vivo no app Mercado Pago pelo usuario, comparado contra V1 - ver conversa da sessao) mostrou
+      // que essas 9 caixas divergem do V2 pelo mesmo motivo - o V2 nunca foi atualizado com
+      // rendimento/lancamentos que so entraram no V1. Nao e bug, e a arquitetura V2 ainda nao ter
+      // sincronizacao automatica com o V1 (ver docs/changelog/ESTADO_ATUAL.md, secao "duas
+      // arquiteturas"). Usuario confirmou pra fechar o assunto, nao reabrir.
+      'Caixa Manutenção': 'V2 desatualizado - nao recebeu os lancamentos reais de 06-07/08 que so entraram no V1',
+      'Caixa Aniversário Júlio': 'V2 desatualizado - nao recebeu os lancamentos reais de 06-07/08 que so entraram no V1',
+      'Caixa Eventos': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
+      'Caixa Saúde Família': 'V2 desatualizado - nao recebeu o reembolso Bradesco Saude de 07/08 que so entrou no V1',
+      'Caixa Seguro Emplacamento': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
+      'Caixa Combustível': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
+      'Caixa Churrasco': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
+      'Escola de Júlio': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
+      'PIX Geral Vanessa': 'saldo_inicial_ciclo duplicado no Supabase (R$78,04, dupla-contagem ja documentada) + V2 desatualizado'
     };
     const MAPA_CAIXAS_V1_V2 = {
       'Caixa Boletos':{campo:'caixaBoletos', tipo:'ciclo', domId:'balResBoletos'}, 'Caixa Lance':{campo:'caixaLance', tipo:'ciclo', domId:'balResLance'},
