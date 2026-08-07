@@ -833,8 +833,9 @@ const VARS = {
     { tx:'JUROS-27-07', data:'27/07', nome:'Juros repassados das caixinhas de fatura (Mastercard/Infinite R$161,12 + Fatura Mercado Pago R$8,27 + Fatura Wärtsilä R$27,37)', tipo:'Entrada', valor:196.76 },
     { tx:'PIX-LIVELO-29-07', data:'29/07', nome:'PIX recebido Livelo S.a. (cashback/pontos)', tipo:'Entrada', valor:8.58 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:9.42 },
+    { tx:'TX000210', data:'05/08', nome:'PIX Itaú → Mercado Pago (aporte Caixa Lance, rendimento Reserva de Emergência)', tipo:'Entrada', valor:921.17 },
   ],
-  caixaLance: 3514.33,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
+  caixaLance: 4453.50,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
 
   // V184 (27/07/2026): LREI_ATIVAS criado - primeira vez que as dívidas internas da Caixa Lance
   // ganham registrador estruturado no app.js (antes só existiam como comentário solto no VARS.caixaLance).
@@ -5171,11 +5172,14 @@ const WallaceFinanceService = {
       btnLancar.id = 'btnLancarTx';
       btnLancar.textContent = '＋ Lançar';
       btnLancar.title = 'Lançar uma transação direto na Arquitetura V2 (Supabase relacional)';
-      btnLancar.style.cssText = 'position:fixed;bottom:1rem;right:5.2rem;z-index:9999;background:#123a24;color:#5fd68a;border:1px solid #1f5c38;border-radius:8px;padding:0.5rem 0.8rem;font-size:0.8rem;cursor:pointer;font-weight:600';
+      // CORRIGIDO 06/08/2026 (parte 144): right:5.2rem colava no botão painelV2Toggle (right:1rem)
+      // sempre que o badge de divergências crescia (ex: "V2 ⚠ 9" é mais largo que "V2"), os dois
+      // ficavam sobrepostos. bottom subiu 0.2rem só pra dar folga visual extra também no eixo vertical.
+      btnLancar.style.cssText = 'position:fixed;bottom:1.2rem;right:9.5rem;z-index:9999;background:#123a24;color:#5fd68a;border:1px solid #1f5c38;border-radius:8px;padding:0.5rem 0.8rem;font-size:0.8rem;cursor:pointer;font-weight:600';
 
       const form = document.createElement('div');
       form.id = 'formLancarTx';
-      form.style.cssText = 'position:fixed;bottom:3.2rem;right:5.2rem;z-index:9999;background:#0f1620;border:1px solid #1f5c38;border-radius:10px;padding:0.9rem;width:260px;display:none;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+      form.style.cssText = 'position:fixed;bottom:3.4rem;right:9.5rem;z-index:9999;background:#0f1620;border:1px solid #1f5c38;border-radius:10px;padding:0.9rem;width:260px;display:none;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
       const caixaOpts = resumoV2.caixas.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
       form.innerHTML = `
         <div style="font-weight:700;margin-bottom:0.5rem;color:#5fd68a">Lançar transação (V2)</div>
@@ -5532,6 +5536,587 @@ const WallaceFinanceService = {
     // (rede indisponível, etc.), o site simplesmente continua mostrando o valor V1 que já estava
     // renderizado desde o boot — nunca quebra, nunca mostra tela quebrada.
     console.warn('[FASE 2D] comparação/substituição experimental da Caixa Variável falhou (não afeta o site — valor V1 permanece exibido):', e);
+  }
+})();
+
+// ===== FASE 2F — promoção em lote das 10 caixas reconciliadas (Bens Duráveis, Grupo A x8,
+// Caixa Lance) — 06/08/2026, parte 142 =====
+// Mesmo padrão exato da FASE 2D (Caixa Variável): V1 já calculado (VARS), V2 via fetch +
+// WallaceFinanceEngine.calcularSaldoCaixa(), decisão via WallaceComparator, escreve em REG só se
+// aprovado, fallback automático pro V1 em qualquer falha. Diferença desta fase: 10 caixas em vez
+// de 1, cada uma com seu próprio gate independente (uma divergir não bloqueia as outras — mesma
+// lógica do Passo 4 do plano de execução, "cada caixa aprovada, não em lote único").
+//
+// Caixa Boletos NÃO está nesta lista — decisão explícita do usuário (06/08/2026): fica de fora
+// até o saldo real de abertura do ciclo (25/07) ser confirmado. Nenhuma leitura/escrita feita
+// nela por este bloco.
+//
+// Caixa Lance tem tolerância própria: o resíduo de R$258,99 já foi investigado, classificado como
+// divergência de baseline/calibração (não transação) e explicitamente aceito pelo usuário nesta
+// sessão — "não bloquear a promoção por causa dela". Por isso, e só para esta caixa, a comparação
+// usa uma tolerância elevada (R$260,00) que cobre exatamente esse resíduo já documentado. Isso não
+// é um enfraquecimento do gate padrão (R$0,005) do Comparator — TOLERANCIA_PADRAO continua a
+// mesma para as outras 9 caixas e para qualquer comparação futura; é uma exceção pontual, com
+// motivo registrado no próprio log.
+(async function promocaoLote10CaixasReconciliadas(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2F] FinanceEngine/Comparator não carregados nesta sessão — promoção das 10 caixas pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.balanco || !REG.balanco.reservas) return;
+
+    const CICLO_ATUAL_INICIO = '2026-07-24'; // mesmo valor e mesmo motivo documentado em src/services/FinanceService.js
+
+    const CAIXAS_PROMOCAO = [
+      { nomeV2:'Caixa Manutenção',          varsField:'caixaManutencao',          regField:'manutencao' },
+      { nomeV2:'Caixa Aniversário Júlio',   varsField:'caixaAniversarioJulio',    regField:'aniversarioJulio' },
+      { nomeV2:'Caixa Eventos',             varsField:'caixaEventos',             regField:'eventos' },
+      { nomeV2:'Caixa Saúde Família',       varsField:'caixaSaudeFamilia',        regField:'saudeFamilia' },
+      { nomeV2:'Caixa Seguro Emplacamento', varsField:'caixaSeguroEmplacamento',  regField:'seguroEmplacamento' },
+      { nomeV2:'Caixa Combustível',         varsField:'caixaCombustivel',         regField:'combustivel' },
+      { nomeV2:'Caixa Churrasco',           varsField:'caixaChurrasco',           regField:'churrasco' },
+      { nomeV2:'Escola de Júlio',           varsField:'escolaJulioSaldo',         regField:'escolaJulio' },
+      { nomeV2:'Caixa Bens Duráveis',       varsField:'caixaBensDuraveis',        regField:'bensDuraveis' },
+      { nomeV2:'Caixa Lance',               varsField:'caixaLance',               regField:'caixaLance', tolerancia:260.00,
+        motivo:'Resíduo de R$258,99 (baseline/calibração) já investigado e aceito pelo usuário em 06/08/2026 — não é transação perdida.' },
+    ];
+
+    const _url = 'https://bakdgacmwlopvrrppwdm.supabase.co';
+    const _key = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+
+    const nomesQuery = CAIXAS_PROMOCAO.map(c => encodeURIComponent(c.nomeV2)).join(',');
+    const respCaixas = await fetch(`${_url}/rest/v1/caixas?select=id,nome,saldo_inicial_ciclo&nome=in.(${nomesQuery})`, {
+      headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+    });
+    if (!respCaixas.ok) throw new Error(`erro ${respCaixas.status} ao buscar caixas`);
+    const caixasV2 = await respCaixas.json();
+
+    const relatorio = [];
+    for (const cfg of CAIXAS_PROMOCAO) {
+      const caixa = caixasV2.find(c => c.nome === cfg.nomeV2);
+      if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); continue; }
+
+      const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
+        headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+      });
+      if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); continue; }
+      const transacoes = await respTx.json();
+      const transacoesAdaptadas = transacoes.map(t => ({ tipo: t.tipo === 'entrada' ? 'Entrada' : 'Saída', valor: Number(t.valor) }));
+      const saldoV2 = WallaceFinanceEngine.calcularSaldoCaixa(Number(caixa.saldo_inicial_ciclo || 0), transacoesAdaptadas);
+      const saldoV1 = VARS[cfg.varsField];
+
+      const lote = WallaceComparator.compararLote(
+        [{ nome: cfg.nomeV2, antigo: saldoV1, novo: saldoV2 }],
+        cfg.tolerancia // undefined = usa TOLERANCIA_PADRAO (R$0,005) do próprio Comparator
+      );
+      const aprovado = lote.totalDivergente === 0;
+      relatorio.push({ nome: cfg.nomeV2, v1: saldoV1, v2: saldoV2, diferenca: lote.log[0].diferenca, aprovado, motivo: cfg.motivo || null });
+
+      if (aprovado) {
+        REG.balanco.reservas[cfg.regField] = saldoV2;
+      } else {
+        console.warn(`[FASE 2F] "${cfg.nomeV2}" NÃO promovida — divergência acima da tolerância. V1=R$${saldoV1} V2=R$${saldoV2}. UI continua mostrando V1.`);
+      }
+    }
+
+    // Total recalculado 1x no final, mesma fórmula já existente em recalcularAgregadosDerivados()
+    // (não duplicada — só reaplicada aqui porque este bloco roda DEPOIS dela no carregamento).
+    const r = REG.balanco.reservas;
+    r.total = Math.round((r.boletos + r.escolaJulio + r.caixaLance + r.manutencao + r.eventos + r.churrasco +
+      r.saudeFamilia + r.seguroEmplacamento + r.aniversarioJulio + r.pixVanessa + r.combustivel + r.bensDuraveis + r.suavizacao) * 100) / 100;
+
+    if (typeof hydrate === 'function') hydrate();
+    if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2F] Promoção em lote: ${aprovadas}/${relatorio.length} caixas movidas para o FinanceEngine.`, 'color:#34c98a');
+    console.table(relatorio);
+  } catch(e) {
+    // silencioso de propósito, mesmo padrão dos blocos anteriores — falha de rede não quebra o
+    // site, cada caixa não promovida simplesmente continua mostrando o valor V1 já renderizado.
+    console.warn('[FASE 2F] promoção em lote das 10 caixas falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2G — Domínio 3 (Patrimônio/Balanço): Patrimônio Financeiro, Meta do Milhão,
+// Formação Patrimonial, Meta de Investimento — 06/08/2026, parte 143 =====
+// Mesmo padrão das fases anteriores, mas sem fetch novo: os 4 cálculos deste domínio usam só
+// entradas que já estão em VARS/REG depois do boot (reserva, btgNecton e nectonContaCorrente são
+// valores manuais de extrato, iguais em V1 e V2 — não têm uma segunda fonte real no Supabase para
+// comparar; salario/aporteBTGPactual/depositoAtivacaoNecton idem; idade e entradasTotais são
+// derivados de outros campos já calculados). O único componente com fonte V2 genuinamente
+// diferente é a Caixa Lance, já promovida na FASE 2F (REG.balanco.reservas.caixaLance) — é ela
+// que entra aqui em vez do VARS.caixaLance (V1) usado antes.
+//
+// Consequência esperada e aceita: como Patrimônio Financeiro usa Caixa Lance, e Lance já carrega
+// o resíduo de R$258,99 aceito na FASE 2F, esse mesmo resíduo se propaga pra cá e pra Meta do
+// Milhão (que deriva de Patrimônio Financeiro). Não é uma divergência nova, é a mesma já registrada
+// aparecendo num agregado que depende dela — por isso as duas usam a mesma tolerância elevada
+// (R$260,00 / 0,05 pontos percentuais), com o motivo citado no log. Formação Patrimonial e Meta de
+// Investimento não dependem de Lance — tolerância padrão (R$0,005) nelas.
+//
+// Fora do escopo desta fase, propositalmente: Boletos, Livro LRC, ROC, Opções, Necessidade
+// Líquida (instrução explícita do usuário) — nenhum campo relacionado a eles é lido ou escrito
+// aqui.
+(function promocaoDominio3PatrimonioBalanco(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2G] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 3 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.patrimonio || !REG.balanco) return;
+
+    const relatorio = [];
+
+    // ---- 1) Patrimônio Financeiro (REG.patrimonio.total) ----
+    const patFinV1 = REG.patrimonio.total; // já calculado no boot com VARS.caixaLance (V1)
+    const patFinV2 = WallaceFinanceEngine.calcularPatrimonioFinanceiroMetaMilhao({
+      reserva: VARS.reserva,
+      btgNecton: VARS.btgNecton,
+      caixaLance: REG.balanco.reservas.caixaLance, // já promovido na FASE 2F
+      nectonContaCorrente: VARS.nectonContaCorrente,
+    });
+    const lotePatFin = WallaceComparator.compararLote(
+      [{ nome: 'Patrimônio Financeiro', antigo: patFinV1, novo: patFinV2 }], 260.00
+    );
+    const aprovPatFin = lotePatFin.totalDivergente === 0;
+    relatorio.push({ nome: 'Patrimônio Financeiro', v1: patFinV1, v2: patFinV2, diferenca: lotePatFin.log[0].diferenca, aprovado: aprovPatFin,
+      motivo: 'Herda o resíduo de R$258,99 da Caixa Lance (FASE 2F), já aceito.' });
+    if (aprovPatFin) REG.patrimonio.total = patFinV2;
+
+    // ---- 2) Meta do Milhão % (REG.patrimonio.metaMilhaoPct) ----
+    const metaMilhaoV1 = REG.patrimonio.metaMilhaoPct; // calculado no boot com patFinV1
+    const metaMilhaoV2 = WallaceFinanceEngine.calcularMetaMilhao(patFinV2, REG.patrimonio.metaMilhao);
+    const loteMetaMilhao = WallaceComparator.compararLote(
+      [{ nome: 'Meta do Milhão %', antigo: metaMilhaoV1, novo: metaMilhaoV2 }], 0.05
+    );
+    const aprovMetaMilhao = loteMetaMilhao.totalDivergente === 0;
+    relatorio.push({ nome: 'Meta do Milhão %', v1: metaMilhaoV1, v2: metaMilhaoV2, diferenca: loteMetaMilhao.log[0].diferenca, aprovado: aprovMetaMilhao,
+      motivo: 'Deriva do Patrimônio Financeiro acima — mesma causa.' });
+    if (aprovMetaMilhao) {
+      REG.patrimonio.metaMilhaoPct = metaMilhaoV2;
+      // Espelho que já causou bug real antes (V137, "milhaoPct travado") — atualizado junto,
+      // nunca separado, pra não reabrir a mesma classe de erro.
+      if (REG.metasPatrimoniais) REG.metasPatrimoniais.milhaoPct = metaMilhaoV2;
+    }
+
+    // ---- 3) Formação Patrimonial (REG.balanco.patrimonioEsperadoRegraClassica / .patrimonioTotalMesesDeRenda) ----
+    // Mesmas entradas em V1 e V2 (idade, entradasTotais e patrimonioTotalGeral não são tocados
+    // por esta fase) — divergência esperada é 0,00, isto valida que a função extraída no
+    // FinanceEngine reproduz fielmente a fórmula do app.js, não uma fonte de dado nova.
+    const formPatV1 = { esperado: REG.balanco.patrimonioEsperadoRegraClassica, meses: REG.balanco.patrimonioTotalMesesDeRenda };
+    const formPatV2 = WallaceFinanceEngine.calcularFormacaoPatrimonial({
+      idade: REG.idadeWallace,
+      entradasTotais: REG.operacional.entradasTotais,
+      patrimonioTotalGeral: REG.balanco.patrimonioTotalGeral,
+    });
+    const loteFormPat = WallaceComparator.compararLote([
+      { nome: 'Formação Patrimonial (esperado)', antigo: formPatV1.esperado, novo: formPatV2.patrimonioEsperadoRegraClassica },
+      { nome: 'Formação Patrimonial (meses de renda)', antigo: formPatV1.meses, novo: formPatV2.patrimonioTotalMesesDeRenda },
+    ]);
+    const aprovFormPat = loteFormPat.totalDivergente === 0;
+    relatorio.push({ nome: 'Formação Patrimonial', v1: formPatV1.esperado, v2: formPatV2.patrimonioEsperadoRegraClassica, diferenca: loteFormPat.log[0].diferenca, aprovado: aprovFormPat, motivo: null });
+    if (aprovFormPat) {
+      REG.balanco.patrimonioEsperadoRegraClassica = formPatV2.patrimonioEsperadoRegraClassica;
+      REG.balanco.patrimonioTotalMesesDeRenda = formPatV2.patrimonioTotalMesesDeRenda;
+      // cor/label da faixa: mesma logica de limiar do V1 (o Engine so devolve o texto, nao a cor
+      // usada no HTML) - reaplicada aqui, nao duplicada como formula nova.
+      const pct = formPatV2.patrimonioEsperadoRegraClassica ? (REG.balanco.patrimonioTotalGeral / formPatV2.patrimonioEsperadoRegraClassica) * 100 : null;
+      REG.balanco.patrimonioTotalFaixa = pct === null ? {label:'Sem dado', cor:'var(--text-dim)'}
+        : pct < 50 ? {label:formPatV2.faixa, cor:'var(--red)'}
+        : pct < 100 ? {label:formPatV2.faixa, cor:'var(--yellow, #e8a63a)'}
+        : {label:formPatV2.faixa, cor:'var(--green)'};
+    }
+
+    // ---- 4) Meta de Investimento (REG.metaInvestimento) ----
+    const metaInvV1 = { meta: REG.metaInvestimento.meta, investido: REG.metaInvestimento.investido, excedente: REG.metaInvestimento.excedente };
+    const metaInvV2 = WallaceFinanceEngine.calcularMetaInvestimento({
+      salario: VARS.salario,
+      aporteBTGPactual: VARS.aporteBTGPactual,
+      depositoAtivacaoNecton: VARS.depositoAtivacaoNecton,
+    });
+    const loteMetaInv = WallaceComparator.compararLote([
+      { nome: 'Meta de Investimento (meta)', antigo: metaInvV1.meta, novo: metaInvV2.meta },
+      { nome: 'Meta de Investimento (investido)', antigo: metaInvV1.investido, novo: metaInvV2.investido },
+      { nome: 'Meta de Investimento (excedente)', antigo: metaInvV1.excedente, novo: metaInvV2.excedente },
+    ]);
+    const aprovMetaInv = loteMetaInv.totalDivergente === 0;
+    relatorio.push({ nome: 'Meta de Investimento', v1: metaInvV1.meta, v2: metaInvV2.meta, diferenca: loteMetaInv.log[0].diferenca, aprovado: aprovMetaInv, motivo: null });
+    if (aprovMetaInv) {
+      REG.metaInvestimento.meta = metaInvV2.meta;
+      REG.metaInvestimento.investido = metaInvV2.investido;
+      REG.metaInvestimento.excedente = metaInvV2.excedente;
+    }
+
+    if (typeof hydrate === 'function') hydrate();
+    if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2G] Domínio 3 (Patrimônio/Balanço): ${aprovadas}/${relatorio.length} fórmulas movidas para o FinanceEngine.`, 'color:#34c98a');
+    console.table(relatorio);
+  } catch(e) {
+    console.warn('[FASE 2G] promoção do Domínio 3 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2H — Domínio 5 (Indicadores/PIB Wallace): PIB Wallace, Eficiência Financeira,
+// Consumo Improdutivo, Taxa de Crescimento — 06/08/2026, parte 145 =====
+// Mesmo padrão das fases 2F/2G, sem fetch novo: os 4 indicadores usam entradas que já estão em
+// VARS/REG (salário, reembolsoCicloTotal, reembolsoPassThroughCorporativo, prêmios de opções,
+// consumo extraordinário, histórico do PIB) — nenhuma delas depende de Caixa Lance, Boletos,
+// Livro LRC, ROC ou Opções (o prêmio de opções entra como dado já calculado, a fórmula do ROC em
+// si não é tocada). Por isso, ao contrário da FASE 2G, aqui não há nenhum resíduo esperado: V1 e
+// V2 usam exatamente as mesmas entradas, a promoção valida que o FinanceEngine reproduz a fórmula
+// fielmente, não migra uma fonte de dado nova.
+//
+// PIB Wallace tem 1 ressalva já documentada (MAPA_MIGRACAO_V2.md): classificado 🟡, não 🟢, porque
+// depende da perna-3 da cascata de reembolso (corrigida nesta sessão, mas só reclassificável pra
+// 🟢 depois de 1 ciclo fechado confirmar em produção). A promoção segue porque a correção já está
+// ativa e validada nesta mesma sessão — não é uma pendência nova, é a mesma já registrada.
+(function promocaoDominio5Indicadores(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2H] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 5 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.pibWallace) return;
+
+    const relatorio = [];
+
+    // ---- 1) PIB Wallace (REG.pibWallace.reembolsos / .total) ----
+    const rendimentosOpcoes = Math.round((VARS.opcoesVendidasDetalhe||[]).reduce((s,o)=>s+(o.premioRecebido||0),0)*100)/100;
+    const consumoNaoRecorrentePIB = Math.round((VARS.EXTRAORDINARIO_BENS_DURAVEIS||[]).reduce((s,t)=>s+(t.valor||0),0)*100)/100;
+    const pibV1 = { reembolsos: REG.pibWallace.reembolsos, total: REG.pibWallace.total };
+    const pibV2 = WallaceFinanceEngine.calcularIndicadores({
+      salarioLiquido: VARS.salario,
+      reembolsoCicloTotal: VARS.reembolsoCicloTotal,
+      passThroughCorporativo: REG.operacional.reembolsoPassThroughCorporativo,
+      rendimentos: rendimentosOpcoes,
+      valorizacaoInvestimentos: 0,
+      consumoNaoRecorrente: consumoNaoRecorrentePIB,
+    });
+    const lotePib = WallaceComparator.compararLote([
+      { nome: 'PIB Wallace (reembolsos)', antigo: pibV1.reembolsos, novo: pibV2.reembolsosPIB },
+      { nome: 'PIB Wallace (total)', antigo: pibV1.total, novo: pibV2.total },
+    ]);
+    const aprovPib = lotePib.totalDivergente === 0;
+    relatorio.push({ nome: 'PIB Wallace', v1: pibV1.total, v2: pibV2.total, diferenca: lotePib.log[1].diferenca, aprovado: aprovPib,
+      motivo: '🟡 no mapa (depende da perna-3, já corrigida e validada nesta sessão — não é pendência nova).' });
+    if (aprovPib) {
+      REG.pibWallace.reembolsos = pibV2.reembolsosPIB;
+      REG.pibWallace.total = pibV2.total;
+    }
+    // patrimonioTotalGeral/patrimonioEsperadoRegraClassica (Domínio 3) e o histórico do PIB
+    // (RPC registrar_pib_mensal) leem REG.pibWallace.total antes deste bloco rodar no boot — não
+    // recalculados aqui de novo (fora do escopo desta fase, e o snapshot do ciclo já foi gravado
+    // no valor V1, que é idêntico ao V2 quando aprovado).
+
+    // ---- 2) Eficiência Financeira % (REG.pibWallace.eficienciaFinanceiraPct) ----
+    const efV1 = REG.pibWallace.eficienciaFinanceiraPct;
+    const efV2 = WallaceFinanceEngine.calcularEficienciaFinanceira(REG.balanco.fluxo.resultado, REG.balanco.fluxo.entradas);
+    const loteEf = WallaceComparator.compararLote([{ nome: 'Eficiência Financeira %', antigo: efV1, novo: efV2 }]);
+    const aprovEf = loteEf.totalDivergente === 0;
+    relatorio.push({ nome: 'Eficiência Financeira %', v1: efV1, v2: efV2, diferenca: loteEf.log[0].diferenca, aprovado: aprovEf, motivo: null });
+    if (aprovEf) REG.pibWallace.eficienciaFinanceiraPct = efV2;
+
+    // ---- 3) Consumo Improdutivo % (REG.pibWallace.consumoImprodutivoPct) ----
+    const ciV1 = REG.pibWallace.consumoImprodutivoPct;
+    const ciV2 = WallaceFinanceEngine.calcularConsumoImprodutivoPct(consumoNaoRecorrentePIB, REG.operacional.entradasTotais);
+    const loteCi = WallaceComparator.compararLote([{ nome: 'Consumo Improdutivo %', antigo: ciV1, novo: ciV2 }]);
+    const aprovCi = loteCi.totalDivergente === 0;
+    relatorio.push({ nome: 'Consumo Improdutivo %', v1: ciV1, v2: ciV2, diferenca: loteCi.log[0].diferenca, aprovado: aprovCi, motivo: null });
+    if (aprovCi) REG.pibWallace.consumoImprodutivoPct = ciV2;
+
+    // ---- 4) Taxa de Crescimento % (REG.pibWallace.taxaCrescimentoPct) ----
+    const pibHistorico = VARS.PIB_WALLACE_HISTORICO || {};
+    const pibCiclosAnteriores = Object.keys(pibHistorico).filter(k => k < VARS.cicloAtual).sort();
+    const pibCicloAnteriorKey = pibCiclosAnteriores[pibCiclosAnteriores.length - 1];
+    const pibCicloAnterior = pibCicloAnteriorKey ? pibHistorico[pibCicloAnteriorKey] : null;
+    const tcV1 = REG.pibWallace.taxaCrescimentoPct;
+    const tcV2 = WallaceFinanceEngine.calcularTaxaCrescimentoPct(pibV2.total, pibCicloAnterior ? pibCicloAnterior.total : null);
+    const loteTc = WallaceComparator.compararLote([{ nome: 'Taxa de Crescimento %', antigo: tcV1, novo: tcV2 }]);
+    const aprovTc = loteTc.totalDivergente === 0;
+    relatorio.push({ nome: 'Taxa de Crescimento %', v1: tcV1, v2: tcV2, diferenca: loteTc.log[0].diferenca, aprovado: aprovTc, motivo: null });
+    if (aprovTc) REG.pibWallace.taxaCrescimentoPct = tcV2;
+
+    if (typeof hydrate === 'function') hydrate();
+    if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2H] Domínio 5 (Indicadores/PIB Wallace): ${aprovadas}/${relatorio.length} indicadores movidos para o FinanceEngine.`, 'color:#34c98a');
+    console.table(relatorio);
+  } catch(e) {
+    console.warn('[FASE 2H] promoção do Domínio 5 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2I — Domínio 2 (Reembolsos/Cascata): reembolsoCicloTotal, recebidosNoCiclo —
+// 06/08/2026, parte 146 =====
+// Escopo estritamente limitado aos 2 itens autorizados. calcularReembolsos() do FinanceEngine
+// também devolve cartaoCorporativo/passThroughCorporativo/sobraPessoal (dependem de livroLRC,
+// a perna-3 da cascata) — chamados aqui só porque a função não tem uma variante menor, mas os 3
+// campos são IGNORADOS de propósito: não lidos, não escritos em REG, não citados no relatório.
+// livroLRC entra como 0 (valor morto, nunca usado) só para satisfazer a assinatura da função —
+// não é uma leitura real do Livro LRC, que continua fora desta fase.
+(function promocaoDominio2Reembolsos(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2I] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 2 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.operacional || !REG.reembolsos) return;
+
+    const relatorio = [];
+
+    // ---- 1) reembolsoCicloTotal (REG.operacional.reembolsoCicloTotal) ----
+    const snap = (VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]) || null;
+    if (!snap) { console.warn('[FASE 2I] snapshot do ciclo atual não encontrado — promoção pulada.'); return; }
+    const rctV1 = REG.operacional.reembolsoCicloTotal;
+    const resultadoReembolsos = WallaceFinanceEngine.calcularReembolsos({
+      reembolsoRecebido: snap.reembolsoRecebido,
+      reembolsoAReceber: snap.reembolsoAReceber,
+      faturaWartsila: 0, mpCorporativo: 0, livroLRCVisaOnly: 0, livroLRC: 0, totalOpProvMP: 0, // não usados, ver nota acima
+    });
+    const rctV2 = resultadoReembolsos.reembolsoCicloTotal;
+    const loteRct = WallaceComparator.compararLote([{ nome: 'Reembolso Ciclo Total', antigo: rctV1, novo: rctV2 }]);
+    const aprovRct = loteRct.totalDivergente === 0;
+    relatorio.push({ nome: 'Reembolso Ciclo Total', v1: rctV1, v2: rctV2, diferenca: loteRct.log[0].diferenca, aprovado: aprovRct, motivo: null });
+    if (aprovRct) REG.operacional.reembolsoCicloTotal = rctV2;
+
+    // ---- 2) recebidosNoCiclo (REG.reembolsos.recebidosNoCiclo) ----
+    const rncV1 = REG.reembolsos.recebidosNoCiclo;
+    const rncV2 = WallaceFinanceEngine.calcularReembolsosRecebidosNoCiclo(rctV2, REG.operacional.reembolsosAReceber);
+    const loteRnc = WallaceComparator.compararLote([{ nome: 'Recebidos no Ciclo', antigo: rncV1, novo: rncV2 }]);
+    const aprovRnc = loteRnc.totalDivergente === 0;
+    relatorio.push({ nome: 'Recebidos no Ciclo', v1: rncV1, v2: rncV2, diferenca: loteRnc.log[0].diferenca, aprovado: aprovRnc, motivo: null });
+    if (aprovRnc) REG.reembolsos.recebidosNoCiclo = rncV2;
+
+    if (typeof hydrate === 'function') hydrate();
+    if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2I] Domínio 2 (Reembolsos/Cascata): ${aprovadas}/${relatorio.length} fórmulas movidas para o FinanceEngine.`, 'color:#34c98a');
+    console.table(relatorio);
+  } catch(e) {
+    console.warn('[FASE 2I] promoção do Domínio 2 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2J — Domínio 6 (Necessidade/Modo Operacional): Necessidade Líquida, Modo Operacional
+// — 06/08/2026, parte 147 =====
+// Só o ramo "ciclo aberto" é promovido (classificação 🟢 do mapa é explícita nisso — ciclo fechado
+// lê snapshot congelado, não é fórmula, fora do escopo). O ciclo atual (2026-07) está aberto, então
+// esta fase roda.
+//
+// `boletos` aqui é D.boletos = VARS.totalOpBoletos, o aporte mensal ORÇADO (R$2.600, uma constante
+// de planejamento) — não é o saldo da Caixa Boletos (que segue bloqueada, sem leitura nem escrita
+// nesta fase). É a mesma distinção já usada em REG.totalOpDetalhe desde antes desta sessão: um é
+// "quanto planejo depositar todo mês", o outro é "quanto tem guardado agora" — só o primeiro entra
+// em Necessidade Líquida. Livro LRC, ROC e Opções não são lidos por nenhuma das duas fórmulas desta
+// fase.
+(function promocaoDominio6NecessidadeModoOperacional(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2J] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 6 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.operacional) return;
+
+    const snap = (VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]) || null;
+    if (!snap || snap.fechado) { console.warn('[FASE 2J] ciclo atual fechado ou não encontrado — fora do escopo 🟢 (só ciclo aberto), promoção pulada.'); return; }
+
+    const relatorio = [];
+    const D = REG.totalOpDetalhe;
+
+    // ---- 1) Necessidade Líquida (+ totalOperacional, necessidadeTotalBruta, saldoCiclo) ----
+    const nlV1 = {
+      totalOperacional: REG.operacional.totalOperacional,
+      necessidadeTotalBruta: REG.operacional.necessidadeTotalBruta,
+      necessidadeLiquida: REG.operacional.necessidadeLiquida,
+      saldoCiclo: REG.operacional.saldoCiclo,
+    };
+    const nlV2 = WallaceFinanceEngine.calcularNecessidadeLiquida({
+      boletos: D.boletos, parcelas: D.parcelas, consorcios: D.consorcios, recorrencias: D.recorrencias,
+      aportesPat: D.aportesPat, provMP: D.provMP, assinaturas: D.assinaturas,
+      orcamentoOperacional: REG.operacional.orcamentoOperacional,
+      coberturaGarantida: REG.operacional.coberturaGarantida,
+      entradasTotais: REG.balanco.fluxo.entradas,
+    });
+    const loteNl = WallaceComparator.compararLote([
+      { nome: 'Total Operacional', antigo: nlV1.totalOperacional, novo: nlV2.totalOperacional },
+      { nome: 'Necessidade Total Bruta', antigo: nlV1.necessidadeTotalBruta, novo: nlV2.necessidadeTotalBruta },
+      { nome: 'Necessidade Líquida', antigo: nlV1.necessidadeLiquida, novo: nlV2.necessidadeLiquida },
+      { nome: 'Saldo do Ciclo', antigo: nlV1.saldoCiclo, novo: nlV2.saldoCiclo },
+    ]);
+    const aprovNl = loteNl.totalDivergente === 0;
+    relatorio.push({ nome: 'Necessidade Líquida', v1: nlV1.necessidadeLiquida, v2: nlV2.necessidadeLiquida, diferenca: loteNl.log[2].diferenca, aprovado: aprovNl, motivo: null });
+    if (aprovNl) {
+      REG.operacional.totalOperacional = nlV2.totalOperacional;
+      REG.operacional.necessidadeTotalBruta = nlV2.necessidadeTotalBruta;
+      REG.operacional.necessidadeLiquida = nlV2.necessidadeLiquida;
+      REG.operacional.saldoCiclo = nlV2.saldoCiclo;
+    }
+
+    // ---- 2) Modo Operacional (usa o saldoCiclo já promovido acima, se aprovado) ----
+    const moV1 = REG.operacional.modoOperacional;
+    const moV2 = WallaceFinanceEngine.calcularModoOperacional(aprovNl ? nlV2.saldoCiclo : nlV1.saldoCiclo);
+    const loteMo = WallaceComparator.compararLote([{ nome: 'Modo Operacional', antigo: moV1, novo: moV2 }]);
+    const aprovMo = loteMo.totalDivergente === 0;
+    relatorio.push({ nome: 'Modo Operacional', v1: moV1, v2: moV2, diferenca: null, aprovado: aprovMo, motivo: null });
+    if (aprovMo) REG.operacional.modoOperacional = moV2;
+
+    if (typeof hydrate === 'function') hydrate();
+    if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2J] Domínio 6 (Necessidade/Modo Operacional): ${aprovadas}/${relatorio.length} fórmulas movidas para o FinanceEngine.`, 'color:#34c98a');
+    console.table(relatorio);
+  } catch(e) {
+    console.warn('[FASE 2J] promoção do Domínio 6 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2K — Domínio 7 (Energia Solar): Conta com/sem Solar, Economia, Forecast, Leitura
+// Solar Derivada — 06/08/2026, parte 148 =====
+// Este domínio não escreve num REG.* fixo no boot (Conta com/sem Solar, Economia e Forecast só
+// existem quando o usuário interage com o Simulador Regulatório, seção 13 — não há valor "V1 já
+// exibido" pra comparar sem simular). Padrão adaptado: valida `WallaceFinanceEngine` contra as
+// funções V1 originais (ainda presentes no arquivo, nunca apagadas) rodando uma bateria de
+// cenários representativos via Comparator; só se TODOS baterem, o ponto de entrada real
+// (`gerarForecastSolar`, chamado por `calcularSimulacaoRegulatoria()`) passa a delegar pro
+// FinanceEngine, com fallback automático pro V1 se o Engine não estiver carregado ou lançar erro.
+//
+// ACHADO E CORRIGIDO antes desta promoção (não é uma pendência nova, foi resolvido nesta mesma
+// sessão): `WallaceFinanceEngine.calcularContaComSolar` estava sem o teto de "disponibilidade"
+// (custo mínimo por tipo de ligação, 30/50/100 kWh) que o app.js sempre aplicou — sem o teto, a
+// função deixava compensar mais energia do que a lei permite, subestimando a conta sempre que
+// havia crédito acumulado suficiente. Corrigido em src/services/FinanceEngine.js antes de rodar
+// a bateria abaixo (por isso ela passa limpa).
+//
+// Leitura Solar Derivada é caso à parte: tem saída real no boot (VARS.SOLAR_LEITURAS_CALC), então
+// segue o padrão de promoção por campo, igual às fases anteriores.
+(function promocaoDominio7EnergiaSolar(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2K] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 7 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined') return;
+
+    const relatorio = [];
+
+    // ---- 1) Bateria de validação: Conta sem Solar / Conta com Solar / Economia / Valor kWh / Payback ----
+    const cenarios = [
+      { consumo: 300, geracaoInst: 150, geracaoInj: 700, creditos: [], tipoLigacao: 'TRI', ano: 2026 },
+      { consumo: 300, geracaoInst: 150, geracaoInj: 700, creditos: [{mes:0,ano:2026,energia:400}], tipoLigacao: 'TRI', ano: 2026 },
+      { consumo: 50,  geracaoInst: 25,  geracaoInj: 825, creditos: [{mes:0,ano:2026,energia:500}], tipoLigacao: 'MONO', ano: 2026 }, // cenario que expos o bug do teto de disponibilidade
+      { consumo: 180, geracaoInst: 90,  geracaoInj: 400, creditos: [{mes:2,ano:2026,energia:120}], tipoLigacao: 'BI',   ano: 2027 },
+    ];
+    const paresBateria = [];
+    cenarios.forEach((c, i) => {
+      const semV1 = calcularContaSemSolar(c.consumo, c.tipoLigacao);
+      const semV2 = WallaceFinanceEngine.calcularContaSemSolar(c.consumo, c.tipoLigacao);
+      paresBateria.push({ nome: `Conta sem Solar #${i}`, antigo: semV1.total, novo: semV2.total });
+
+      const comV1 = calcularContaComSolar(c.consumo, c.geracaoInst, c.geracaoInj, c.creditos.map(x=>({...x})), c.tipoLigacao, c.ano);
+      const comV2 = WallaceFinanceEngine.calcularContaComSolar(c.consumo, c.geracaoInst, c.geracaoInj, c.creditos.map(x=>({...x})), c.tipoLigacao, c.ano);
+      paresBateria.push({ nome: `Conta com Solar #${i}`, antigo: comV1.total, novo: comV2.total });
+
+      const ecoV1 = calcularEconomia(semV1.total, comV1.total);
+      const ecoV2 = WallaceFinanceEngine.calcularEconomia(semV2.total, comV2.total);
+      paresBateria.push({ nome: `Economia #${i}`, antigo: ecoV1, novo: ecoV2 });
+
+      const paybackV1 = calcularPayback(25000, ecoV1 * 12);
+      const paybackV2 = WallaceFinanceEngine.calcularPayback(25000, ecoV2 * 12);
+      paresBateria.push({ nome: `Payback #${i}`, antigo: paybackV1, novo: paybackV2 });
+    });
+    const loteBateria = WallaceComparator.compararLote(paresBateria);
+    const aprovBateria = loteBateria.totalDivergente === 0;
+    relatorio.push({ nome: 'Bateria Conta/Economia/Payback (4 cenários)', v1: null, v2: null, diferenca: null, aprovado: aprovBateria,
+      motivo: aprovBateria ? null : 'Ver console.warn — divergência não esperada, promoção do Forecast NÃO aplicada.' });
+
+    // ---- 2) Forecast — só troca o ponto de entrada real se a bateria acima passou 100% ----
+    if (aprovBateria && typeof gerarForecastSolar === 'function') {
+      const gerarForecastSolar_V1 = gerarForecastSolar;
+      gerarForecastSolar = function(params){
+        try {
+          return WallaceFinanceEngine.gerarForecastSolar(params);
+        } catch(e) {
+          console.warn('[FASE 2K] Forecast: erro no FinanceEngine, fallback pro V1:', e);
+          return gerarForecastSolar_V1(params);
+        }
+      };
+      relatorio.push({ nome: 'Forecast Solar (gerarForecastSolar)', v1: null, v2: null, diferenca: null, aprovado: true, motivo: 'Delegado ao FinanceEngine; fallback automático pro V1 preservado.' });
+    } else {
+      relatorio.push({ nome: 'Forecast Solar (gerarForecastSolar)', v1: null, v2: null, diferenca: null, aprovado: false, motivo: 'Não promovido — depende da bateria acima.' });
+    }
+
+    // ---- 3) Leitura Solar Derivada (VARS.SOLAR_LEITURAS_CALC) ----
+    if (Array.isArray(VARS.SOLAR_LEITURAS) && VARS.SOLAR_LEITURAS.length) {
+      let todasBatem = true;
+      const novoCalc = VARS.SOLAR_LEITURAS.map((l) => {
+        const v2 = WallaceFinanceEngine.calcularLeituraSolarDerivada({
+          leitura03: l.leitura03, leitura103: l.leitura103, dias: l.dias,
+          rateioWallace: VARS.solarRateioWallace, rateioIrma: VARS.solarRateioIrma,
+          consumoDiarioWallace: VARS.solarConsumoDiarioWallace, consumoDiarioIrma: VARS.solarConsumoDiarioIrma,
+        });
+        const v1Existente = (VARS.SOLAR_LEITURAS_CALC || []).find(x => x.data === l.data);
+        if (v1Existente) {
+          const lote = WallaceComparator.compararLote([
+            { nome: `Leitura ${l.data} (saldoWallace)`, antigo: v1Existente.saldoWallace, novo: v2.saldoWallace },
+            { nome: `Leitura ${l.data} (saldoIrma)`, antigo: v1Existente.saldoIrma, novo: v2.saldoIrma },
+          ]);
+          if (lote.totalDivergente !== 0) todasBatem = false;
+        }
+        return Object.assign({}, l, v2);
+      });
+      relatorio.push({ nome: 'Leitura Solar Derivada', v1: null, v2: null, diferenca: null, aprovado: todasBatem, motivo: null });
+      if (todasBatem) VARS.SOLAR_LEITURAS_CALC = novoCalc;
+    }
+
+    const aprovadas = relatorio.filter(x => x.aprovado).length;
+    console.log(`%c[FASE 2K] Domínio 7 (Energia Solar): ${aprovadas}/${relatorio.length} itens promovidos.`, 'color:#34c98a');
+    console.table(relatorio);
+    if (!aprovBateria) console.warn(WallaceComparator.formatarLog(loteBateria));
+  } catch(e) {
+    console.warn('[FASE 2K] promoção do Domínio 7 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
+  }
+})();
+
+// ===== FASE 2L — Domínio 8 (P2P): saldo investido / rentabilidade % — 06/08/2026, parte 149 =====
+// Único item 🟢 do domínio. Mesmo padrão de formula-swap das fases 3/5/6: entradas já em VARS
+// (creditosRestantes, precoCompra, precoVenda), sem dependência de Boletos/Livro LRC/ROC/Opções.
+(function promocaoDominio8P2P(){
+  try {
+    if (typeof WallaceFinanceEngine === 'undefined' || typeof WallaceComparator === 'undefined') {
+      console.warn('[FASE 2L] FinanceEngine/Comparator não carregados nesta sessão — promoção do Domínio 8 pulada (não bloqueia o site).');
+      return;
+    }
+    if (typeof VARS === 'undefined' || typeof REG === 'undefined' || !REG.p2p) return;
+
+    const p2pV1 = { saldoInvestido: REG.p2p.saldoInvestido, rentabilidadePct: REG.p2p.rentabilidadePct };
+    const p2pV2 = WallaceFinanceEngine.calcularP2P({
+      creditosRestantes: VARS.p2pCreditosRestantes,
+      precoCompra: VARS.p2pPrecoCompra,
+      precoVenda: VARS.p2pPrecoVenda,
+    });
+    const lote = WallaceComparator.compararLote([
+      { nome: 'P2P Saldo Investido', antigo: p2pV1.saldoInvestido, novo: p2pV2.saldoInvestido },
+      { nome: 'P2P Rentabilidade %', antigo: p2pV1.rentabilidadePct, novo: p2pV2.rentabilidadePct },
+    ]);
+    const aprovado = lote.totalDivergente === 0;
+    if (aprovado) {
+      REG.p2p.saldoInvestido = p2pV2.saldoInvestido;
+      REG.p2p.rentabilidadePct = p2pV2.rentabilidadePct;
+      if (typeof hydrate === 'function') hydrate();
+      if (typeof atualizarGraficosPorCiclo === 'function') atualizarGraficosPorCiclo();
+    }
+
+    console.log(`%c[FASE 2L] Domínio 8 (P2P): ${aprovado ? '1/1' : '0/1'} item promovido.`, 'color:#34c98a');
+    console.table([{ nome: 'P2P (saldo/rentabilidade)', v1: p2pV1.saldoInvestido, v2: p2pV2.saldoInvestido, diferenca: lote.log[0].diferenca, aprovado }]);
+  } catch(e) {
+    console.warn('[FASE 2L] promoção do Domínio 8 falhou (não afeta o site — valores V1 permanecem exibidos):', e);
   }
 })();
 
