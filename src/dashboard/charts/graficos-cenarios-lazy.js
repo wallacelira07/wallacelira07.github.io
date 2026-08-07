@@ -1175,11 +1175,40 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     // atribuicao da fatura da mae tinha ido pra variavel errada (Irma) na rodada anterior.
     const consumoMedioDiarioCasas = Math.round((VARS.solarConsumoDiarioWallace + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
     const linhaConsumoMedio = todasDatas.map(()=> consumoMedioDiarioCasas);
+    // CORRIGIDO 07/08/2026 (pedido do usuário: "mude essa linha de indicação, ela tem que começar no
+    // início do gráfico e ir até o final e eu acho ela feia, melhore a aparência"): como dataset `line`
+    // num eixo de categoria (barras), o Chart.js desenha a linha ligando os PONTOS de cada categoria -
+    // ela começa/termina no CENTRO da primeira/última barra, não na borda do gráfico (por isso parecia
+    // cortada nas duas pontas). Trocado: o dataset continua existindo (mantém tooltip/legenda), mas com
+    // `borderWidth:0` (não desenha a linha nativa) - quem desenha agora é o plugin abaixo, direto na
+    // `chartArea` inteira (borda a borda), com traço mais fino/arredondado.
+    const linhaConsumoMedioPlugin = {
+      id:'linhaConsumoMedioPlugin',
+      afterDatasetsDraw(chart){
+        const di = chart.data.datasets.findIndex(d=>d.__linhaConsumoMedio);
+        if(di===-1 || !chart.isDatasetVisible(di)) return;
+        const valor = chart.data.datasets[di].data.find(v=>v!=null);
+        if(valor==null) return;
+        const {ctx, chartArea, scales} = chart;
+        const y = scales.y.getPixelForValue(valor);
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5,4]);
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,107,107,0.8)';
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
     observeAndRenderChart($('cGeracaoPorDia'), () => new Chart($('cGeracaoPorDia'), {
       type:'bar',
+      plugins:[linhaConsumoMedioPlugin],
       data:{labels:labelsPorDia, datasets:[
         {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
-        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', borderColor:'#ff6b6b', borderDash:[8,3], borderWidth:3.5, pointRadius:0, fill:false, order:0}
+        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', __linhaConsumoMedio:true, borderColor:'#ff6b6b', borderWidth:0, pointRadius:0, fill:false, order:0}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:legendStd2,tooltip:{callbacks:{
