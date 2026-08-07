@@ -1,0 +1,29 @@
+// MÓDULO: hydrateResumoP2P() — renderização dos "cover-metrics" (resumo do topo: Patrimônio/Meta do
+// Milhão/Modo Operacional/Caixa Variável), do resumo da Caixa Variável (seção dedicada) e das
+// Operações P2P (seção 18). Extraído de hydrate() (app.js) na modularização (07/08/2026). Script
+// clássico (não ES module), carrega ANTES do app.js — hydrate() é síncrona (onDomPronto(hydrate),
+// dentro do próprio app.js) e chama hydrateResumoP2P() no meio da própria execução. Nenhum id de
+// DOM, fórmula ou comportamento mudou.
+function hydrateResumoP2P(){
+  const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  const R = REG;
+  const fmtInt = v => 'R$ '+Math.round(v).toLocaleString('pt-BR');
+
+  // cover-metrics
+  t('coverPatrimonio', fmtInt(R.patrimonio.total));
+  t('coverMetaPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  t('coverModoOp', R.operacional.modoOperacional);
+  t('coverCaixaVar', fmt(R.caixaVariavel.disponivel));
+
+  // caixa variavel
+  t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));
+  t('cvComprometido', fmt(R.caixaVariavel.comprometido));
+  t('cvDisponivel', fmt(R.caixaVariavel.disponivel));
+
+  // NOVO 23/07/2026: Operacoes P2P (secao 18) - antes 100% hardcoded, agora vem do REG.p2p
+  t('p2pCapitalTotal', fmt(R.p2p.capitalTotal));
+  t('p2pCreditosRestantes', R.p2p.creditosRestantes + ' / ' + R.p2p.creditosTotal);
+  t('p2pSaldoInvestido', fmt(R.p2p.saldoInvestido));
+  t('p2pLucroRealizado', fmt(R.p2p.lucroRealizado));
+  t('p2pDetalhe', `Custo ${fmt(R.p2p.precoCompra)}/crédito · Venda ${fmt(R.p2p.precoVenda)}/crédito (rentabilidade ${R.p2p.rentabilidadePct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% sobre o custo) · ${R.p2p.creditosVendidos} créditos vendidos deste lote (1 crédito doado à Vanessa em 13/07, não contado como venda) — última venda: TXP2P0003, 2 créditos, R$40,00, 22/07/2026.`);
+}

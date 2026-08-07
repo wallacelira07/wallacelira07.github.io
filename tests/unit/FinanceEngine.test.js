@@ -47,7 +47,7 @@ const {
   calcularReembolsosRecebidosNoCiclo,
   calcularLiquidoMes,
   calcularAporteIncrementalPorCiclo,
-} = require('./FinanceEngine.js');
+} = require('../../src/services/FinanceEngine.js');
 
 let falhas = 0;
 let total = 0;
@@ -325,7 +325,7 @@ console.log('\n--- Fase 2C: funções genéricas de agregação (pra eliminar du
     somarCampo,
     calcularSaldoAbertoReembolsos,
     calcularCreditoLiquidoMedidor,
-  } = require('./FinanceEngine.js');
+  } = require('../../src/services/FinanceEngine.js');
 
   // Domínio 3: mesmos 11 itens reais da tabela `patrimonio` (Supabase)
   const itensPatrimonio = [
@@ -364,7 +364,7 @@ console.log('\n--- Fase 2C: funções genéricas de agregação (pra eliminar du
 
 console.log('\n--- Fase 1C (06/08/2026, TRILHA B "Promoção Operacional Controlada da V2"): agregadores de Energia e consolidadores patrimoniais restantes ---');
 {
-  const { calcularLeituraSolarDerivada, calcularMetaInvestimento, calcularProjetoCasaNova } = require('./FinanceEngine.js');
+  const { calcularLeituraSolarDerivada, calcularMetaInvestimento, calcularProjetoCasaNova } = require('../../src/services/FinanceEngine.js');
 
   // Energia: única leitura real cadastrada até 06/08/2026 (app.js:1348 — data 31/07, dias:10,
   // leitura03:38, leitura103:210), rateio Wallace 0,71/Irmã 0,29, consumo diário real (fatura

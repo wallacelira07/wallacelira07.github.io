@@ -8,7 +8,7 @@
  * Rodar: node src/services/CycleEngine.test.js
  */
 
-const { resolverCiclo } = require('./CycleEngine.js');
+const { resolverCiclo } = require('../../src/services/CycleEngine.js');
 
 let falhas = 0;
 let total = 0;

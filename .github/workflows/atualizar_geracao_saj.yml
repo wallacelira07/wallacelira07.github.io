@@ -28,4 +28,4 @@ jobs:
           SAJ_PLANT_UID: ${{ secrets.SAJ_PLANT_UID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python3 atualizar_geracao_saj.py
+        run: python3 scripts/sync/atualizar_geracao_saj.py

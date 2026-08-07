@@ -4,8 +4,8 @@
 /*.html
   Cache-Control: no-cache, no-store, must-revalidate
 
-/app.js
+/src/app/app.js
   Cache-Control: no-cache, no-store, must-revalidate
 
-/styles.css
+/assets/css/styles.css
   Cache-Control: no-cache, no-store, must-revalidate

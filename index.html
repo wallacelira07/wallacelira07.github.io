@@ -8,9 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Wallace Lira - Login</title>
 
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/images/favicon-192.png">
+    <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
     
     <style>
         * {
@@ -82,28 +82,30 @@
            do botao Sair ao lado) com transicao suave de opacidade+escala+rotacao. */
         .eye-toggle-btn {
             position: relative;
-            background: transparent;
-            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.12);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             cursor: pointer;
             color: #a9a79f;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
         .eye-toggle-btn:hover {
-            border-color: rgba(255,255,255,0.5);
-            color: #e8e6df;
-            transform: scale(1.06);
+            border-color: rgba(57, 135, 229, 0.55);
+            background: rgba(57, 135, 229, 0.1);
+            color: #8ab4f8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(57, 135, 229, 0.18);
         }
         .eye-toggle-btn:active {
-            transform: scale(0.9);
+            transform: translateY(0) scale(0.94);
         }
         .eye-toggle-btn.ativo {
-            background: rgba(57, 135, 229, 0.15);
+            background: rgba(57, 135, 229, 0.16);
             border-color: #3987e5;
             color: #3987e5;
         }
@@ -171,72 +173,167 @@
         }
 
         #dashboardScreen header {
-            background: #1c1d1f;
+            background: linear-gradient(180deg, #15171c 0%, #0e1013 100%);
             color: #eceae4;
-            padding: 10px 18px;
+            padding: 11px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #2a2d31;
-            min-height: 42px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+            min-height: 56px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+        }
+
+        #dashboardScreen header::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; bottom: -1px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(57,135,229,0.55) 0%, rgba(144,133,233,0.4) 45%, rgba(57,135,229,0) 100%);
+        }
+
+        #dashboardScreen header .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        #dashboardScreen header .brand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(57,135,229,0.22), rgba(144,133,233,0.16));
+            border: 1px solid rgba(255,255,255,0.09);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+
+        #dashboardScreen header .brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            line-height: 1.15;
         }
 
         #dashboardScreen header h1 {
-            font-size: 15px;
+            font-size: 15.5px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #f3f1ec;
+        }
+
+        #dashboardScreen header .brand-sub {
+            font-size: 10px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: #6f9bd8;
         }
 
         #dashboardScreen header .user-info {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
+        }
+
+        #dashboardScreen header .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px 6px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        #dashboardScreen header .user-avatar-icon {
+            color: #6f9bd8;
+            flex-shrink: 0;
         }
 
         #dashboardScreen header .user-email {
             font-size: 12px;
-            color: #8a8880;
+            font-weight: 500;
+            color: #a9a79f;
+            letter-spacing: 0.1px;
+        }
+
+        #dashboardScreen header .header-divider {
+            width: 1px;
+            height: 22px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        #dashboardScreen header .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         #dashboardScreen header .logout-btn {
-            width: 28px;
-            height: 28px;
+            width: 34px;
+            height: 34px;
             padding: 0;
             border-radius: 50%;
-            background: transparent;
-            border: 1px solid #3a3d42;
-            color: #8a8880;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #a9a79f;
             font-size: 13px;
             line-height: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
         #dashboardScreen header .logout-btn:hover {
-            background: rgba(231, 76, 60, 0.12);
-            border-color: #e74c3c;
-            color: #e74c3c;
+            background: rgba(226, 85, 79, 0.12);
+            border-color: rgba(226, 85, 79, 0.55);
+            color: #ff8783;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(226, 85, 79, 0.18);
+        }
+
+        #dashboardScreen header .logout-btn:active {
+            transform: translateY(0) scale(0.94);
         }
 
         @media (max-width: 560px) {
             #dashboardScreen header {
-                padding: 8px 12px;
-                min-height: 38px;
+                padding: 8px 14px;
+                min-height: 48px;
+            }
+            #dashboardScreen header .brand-icon {
+                width: 30px;
+                height: 30px;
+                font-size: 15px;
+                border-radius: 8px;
             }
             #dashboardScreen header h1 {
                 font-size: 13px;
             }
+            #dashboardScreen header .brand-sub {
+                display: none;
+            }
+            #dashboardScreen header .user-chip {
+                padding: 5px 10px 5px 7px;
+            }
             #dashboardScreen header .user-email {
                 display: none;
             }
+            #dashboardScreen header .header-divider {
+                display: none;
+            }
+            #dashboardScreen header .eye-toggle-btn,
             #dashboardScreen header .logout-btn {
-                width: 24px;
-                height: 24px;
+                width: 28px;
+                height: 28px;
                 font-size: 11px;
             }
         }
@@ -270,27 +367,42 @@
 
     <div id="dashboardScreen">
         <header>
-            <h1>📊 Sistema Wallace Lira</h1>
+            <div class="brand">
+                <span class="brand-icon" aria-hidden="true">📊</span>
+                <div class="brand-text">
+                    <h1>Sistema Wallace Lira</h1>
+                    <span class="brand-sub">Painel Financeiro</span>
+                </div>
+            </div>
             <div class="user-info">
-                <span id="userEmail" class="user-email"></span>
-                <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
-                    <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
+                <div class="user-chip">
+                    <svg class="user-avatar-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    <svg class="eye-icon eye-closed" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.42 20.42 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.16 3.19"></path>
-                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                </button>
-                <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                </button>
+                    <span id="userEmail" class="user-email"></span>
+                </div>
+                <div class="header-divider" aria-hidden="true"></div>
+                <div class="header-actions">
+                    <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
+                        <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg class="eye-icon eye-closed" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.42 20.42 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.16 3.19"></path>
+                            <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                    </button>
+                    <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </header>
         <div id="dashboardContent"></div>
@@ -475,7 +587,7 @@
         function showDashboard(email) {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('dashboardScreen').style.display = 'flex';
-            document.getElementById('userEmail').textContent = '👤 ' + email;
+            document.getElementById('userEmail').textContent = email;
             loadDashboard();
         }
 

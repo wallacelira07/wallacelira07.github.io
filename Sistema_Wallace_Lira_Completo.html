@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<link rel="stylesheet" href="styles.css?v=272">
+<link rel="stylesheet" href="assets/css/styles.css?v=272">
 </head>
 <body>
 <script>
@@ -1353,6 +1353,10 @@
       <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total obrigações</span><span class="v" id="balObrTotal">—</span></div>
       <div class="row" style="margin-top:0.6rem;opacity:0.75"><span class="k">Corporativo Mercado Pago (ciclo atual) <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3);margin-left:0.4rem;font-size:0.62rem">Já descontado acima</span></span><span class="v" id="balObrWartsila">—</span></div>
       <div class="v" id="legMPCorporativoRetorno" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">—</div>
+      <!-- NOVO 07/08/2026: indicador separado, informativo — NÃO participa do Mercado Pago líquido,
+           da Fatura do Ciclo, do Corporativo do Ciclo, nem de nenhuma necessidade do ciclo. -->
+      <div class="row" style="margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)"><span class="k" style="color:var(--text-dim)">Reembolso Wärtsilá pendente acumulado <span class="badge bg" style="background:rgba(226,165,61,0.12);color:#e2a53d;border:1px solid rgba(226,165,61,0.3);margin-left:0.4rem;font-size:0.62rem">Só informativo</span></span><span class="v" id="balReembolsoWartsilaAcumulado" style="color:var(--text-dim)">—</span></div>
+      <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.2rem">Histórico, não escopado a ciclo — zera só quando a Wärtsilá reembolsar de fato. Não entra em nenhuma conta acima.</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Migração para o Mastercard Black concluída (25/07/2026) — assinaturas, recorrências e consórcios já estão 100% no MB. Visa Infinite mantém só as parcelas em andamento, até quitar.</div>
     </div>
 
@@ -1380,9 +1384,31 @@
          master-panes, fora de qualquer div .master-pane/.pane, entao nunca ficava escondido (display:
          none so se aplica a quem tem essa classe) e sempre aparecia por cima de qualquer aba ativa.
          Movido pra DENTRO de #balancov2, como ultima secao (nao no topo, como pedido). -->
-    <div class="section-num"><span class="n">10</span><h2>📈 PIB Wallace</h2></div>
+    <!-- REDESENHADO 07/08/2026 (pedido do usuário, mudança de metodologia): o indicador principal
+         deixa de ser "PIB Wallace" (media fluxo de caixa, excluía consumo não recorrente da conta) e
+         passa a ser Crescimento Patrimonial + Taxa de Poupança (mede quanto o patrimônio líquido de
+         fato cresceu, e quanto da renda virou patrimônio — sem excluir nenhum gasto, "se saiu, contou").
+         PIB Wallace continua calculado e persistido no histórico (nada foi apagado), só não é mais o
+         número em destaque — fica como detalhe secundário, recolhido no fim do card. -->
+    <div class="section-num"><span class="n">10</span><h2>📈 Crescimento Patrimonial</h2></div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Não mede quanto entrou — mede quanto virou riqueza. Fórmula: Salário Líquido + Reembolsos + Rendimentos + Valorização de Investimentos − Consumo Não Recorrente (bens duráveis/eletrônicos avulsos não contam como custo de viver).</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Mede quanto o patrimônio líquido cresceu de verdade entre o fechamento do ciclo anterior e agora — não quanto entrou de renda.</div>
+      <div class="row"><span class="k">Patrimônio inicial (fechamento do ciclo anterior)</span><span class="v" id="crescPatrimInicial">—</span></div>
+      <div class="row"><span class="k">Patrimônio atual</span><span class="v" id="crescPatrimAtual">—</span></div>
+      <div class="row" style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.3rem"><span class="k" style="font-weight:600;color:var(--text)">Variação</span><span class="v" id="crescPatrimDelta" style="font-weight:700">—</span></div>
+    </div>
+
+    <div class="card" style="margin-top:0.8rem">
+      <div class="section-num" style="margin-bottom:0.5rem"><h2 style="font-size:0.95rem">💰 Taxa de Poupança</h2></div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Quanto da renda total (tudo que entrou) sobrou depois de todas as despesas (tudo que saiu, sem exceção — bens duráveis e gastos avulsos contam como gasto real).</div>
+      <div class="row"><span class="k">Receitas totais</span><span class="v" id="poupancaReceitas">—</span></div>
+      <div class="row"><span class="k">Despesas totais</span><span class="v" id="poupancaDespesas">—</span></div>
+      <div class="row" style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.3rem"><span class="k" style="font-weight:600;color:var(--text)">Sobrou</span><span class="v" id="poupancaSobrou" style="font-weight:700">—</span></div>
+    </div>
+
+    <details class="card" style="margin-top:0.8rem">
+      <summary style="cursor:pointer;font-weight:600;color:var(--text-dim);font-size:0.85rem">📊 PIB Wallace (metodologia antiga, mantida como referência)</summary>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin:0.6rem 0">Não mede quanto entrou — mede quanto virou riqueza. Fórmula: Salário Líquido + Reembolsos + Rendimentos + Valorização de Investimentos − Consumo Não Recorrente (bens duráveis/eletrônicos avulsos não contavam como custo de viver nesta metodologia).</div>
       <div class="row"><span class="k">Salário líquido</span><span class="v" id="pibSalario">—</span></div>
       <div class="row"><span class="k">Reembolsos (líquido de pass-through)</span><span class="v" id="pibReembolsos">—</span></div>
       <div class="row"><span class="k">Rendimentos <small style="color:var(--text-dim)">(prêmio recebido, não marcado a mercado)</small></span><span class="v" id="pibRendimentos">—</span></div>
@@ -1390,7 +1416,7 @@
       <div class="row"><span class="k">− Consumo não recorrente</span><span class="v" id="pibConsumoNaoRecorrente">—</span></div>
       <div class="row" style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.3rem"><span class="k" style="font-weight:600;color:var(--text)">PIB Wallace do mês</span><span class="v" id="pibTotal" style="font-weight:700;font-size:1rem">—</span></div>
       <div class="v" id="pibSerieHistorica" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">—</div>
-    </div>
+    </details>
 
   </div>
 
@@ -1404,6 +1430,239 @@
      depois de rolar (toggleBtnVoltarCapa em app.js). Fora de .wrap de proposito, pra position:fixed
      nao herdar nenhum contexto de empilhamento estranho. -->
 
+<script>
+// MODULARIZAÇÃO 07/08/2026: opcoes-roc.js precisa existir ANTES do app.js rodar (o app.js chama
+// aplicarStatusVencidoEValorMercadoOpcoes()/calcularROCOpcoes() no meio da própria execução síncrona,
+// não depois). Script estático (sem async/defer) bloqueia e executa em ordem de documento, garantido
+// completo antes deste bloco <script> seguinte sequer começar - diferente do app.js/energia-solar.js
+// (que carregam via injeção dinâmica DEPOIS, em cadeia onload).
+document.write('<' + 'script src="src/financeiro/investimentos/opcoes-roc.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: graficos-utilitarios.js (yRange, gerarMeses, alignSeries etc.) também
+// precisa existir ANTES do app.js — a IIFE dos gráficos do Painel principal chama essas funções no
+// meio da própria execução síncrona do app.js. Mesmo padrão estático de opcoes-roc.js, acima.
+document.write('<' + 'script src="src/dashboard/charts/graficos-utilitarios.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-roc.js (hydrateROC, extraída de dentro de hydrate()) também
+// precisa existir ANTES do app.js — hydrate() é chamada de forma síncrona (onDomPronto(hydrate),
+// dentro do próprio app.js) e chama hydrateROC() no meio da própria execução. Mesmo padrão estático.
+document.write('<' + 'script src="src/financeiro/investimentos/hydrate-roc.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-caixas.js (hydrateCaixas, extraída de dentro de hydrate()) também
+// precisa existir ANTES do app.js, mesmo motivo do hydrate-roc.js acima.
+document.write('<' + 'script src="src/financeiro/caixas/hydrate-caixas.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-patrimonio.js (hydratePatrimonio, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/patrimonio/hydrate-patrimonio.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-indicadores.js (hydrateIndicadores, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/indicadores/hydrate-indicadores.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-metas.js (hydrateMetas, extraída de dentro de hydrate()) também
+// precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/operacional/hydrate-metas.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-reembolsos.js (hydrateReembolsos, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/operacional/hydrate-reembolsos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-livros-razao.js (hydrateLivrosRazao, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/livros-razao/hydrate-livros-razao.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-mercado-pago.js (hydrateMercadoPago, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/cartoes/hydrate-mercado-pago.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-qualidade.js (montarAlertasNegocio + hydrateQualidade, extraídas
+// de dentro do onDomPronto() do app.js) também precisa existir ANTES do app.js — montarAlertasNegocio()
+// é chamada também por montarResumoAssistente(), definida dentro do próprio app.js.
+document.write('<' + 'script src="src/auditoria/verificacoes/hydrate-qualidade.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-cenarios.js (hydrateCenarios, extraída de dentro de hydrate())
+// também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/cenarios/hydrate-cenarios.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-resumo-p2p.js (hydrateResumoP2P, extraída de dentro de hydrate())
+// também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/investimentos/hydrate-resumo-p2p.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-visa-mb.js (hydrateVisaMB, extraída de dentro de hydrate())
+// também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/cartoes/hydrate-visa-mb.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-resumo-cartoes.js (hydrateResumoCartoes, extraída de dentro de
+// hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/cartoes/hydrate-resumo-cartoes.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-wartsila-caixas-textos.js (hydrateWartsilaCaixasTextos, extraída
+// de dentro de hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/cartoes/hydrate-wartsila-caixas-textos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-balanco.js (hydrateBalanco, extraída de dentro de hydrate() —
+// última seção do hydrate(), esgotando a função) também precisa existir ANTES do app.js, mesmo
+// motivo dos módulos hydrate-* acima. Também depende de hydrateIndicadores() já estar definida
+// (carregada antes dela na cadeia).
+document.write('<' + 'script src="src/financeiro/balanco/hydrate-balanco.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-resumo-executivo.js (hydrateResumoExecutivo, extraída de dentro
+// de hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/operacional/hydrate-resumo-executivo.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-estimador-salario.js (hydrateEstimadorSalario, extraída de
+// dentro de hydrate()) também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/operacional/hydrate-estimador-salario.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: hydrate-simulador-ciclo.js (hydrateSimuladorCiclo, extraída da IIFE
+// "Ciclo financeiro 100% dinâmico" — que NÃO fazia parte de hydrate(), tinha seu próprio
+// onDomPronto()) também precisa existir ANTES do app.js. Depende de hydrateQualidade() já estar
+// definida (carregada antes dela na cadeia, ver hydrate-qualidade.js acima).
+document.write('<' + 'script src="src/financeiro/cenarios/hydrate-simulador-ciclo.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: render-livros-variaveis.js/atualizar-contadores-abas-lr.js/
+// render-mercado-pago-dashboard.js/render-parcelamentos.js/popular-seletor-ciclo.js (funções globais
+// autocontidas, referenciadas via onDomPronto(nomeDaFuncao) em app.js) também precisam existir ANTES
+// do app.js — mesmo motivo dos módulos hydrate-* acima.
+document.write('<' + 'script src="src/financeiro/livros-razao/render-livros-variaveis.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/dashboard/widgets/atualizar-contadores-abas-lr.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/cartoes/render-mercado-pago-dashboard.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/livros-razao/render-parcelamentos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/dashboard/widgets/popular-seletor-ciclo.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: ciclo-selecao.js (trocarCiclo/atualizarGraficosPorCiclo/
+// atualizarBotoesSeletorCiclo) também precisa existir ANTES do app.js, mesmo motivo dos módulos
+// acima.
+document.write('<' + 'script src="src/financeiro/cenarios/ciclo-selecao.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: graficos-painel-principal.js (valueLeaderPlugin + renderGraficosPainelPrincipal,
+// chamada síncrona no meio do app.js) também precisa existir ANTES do app.js, mesmo motivo dos
+// módulos hydrate-* — depende de barValuePlugin/alignSeriesCiclo/yRange/gerarMesesCiclo já
+// carregados (graficos-utilitarios.js, acima na cadeia).
+document.write('<' + 'script src="src/dashboard/charts/graficos-painel-principal.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: auditoria-automatica.js (auditoriaAutomatica) também precisa existir
+// ANTES do app.js, mesmo motivo dos módulos acima.
+document.write('<' + 'script src="src/auditoria/verificacoes/auditoria-automatica.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: inbox-financeira.js/pluggy-reconciliacao.js/classificacao-inbox.js
+// (Inbox Financeira + reconciliação Pluggy + classificação) também precisam existir ANTES do app.js,
+// mesmo motivo dos módulos acima.
+document.write('<' + 'script src="src/auditoria/inbox/inbox-financeira.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/integrations/pluggy/pluggy-reconciliacao.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/auditoria/classificacao/classificacao-inbox.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+// MODULARIZAÇÃO 07/08/2026: recalcular-caixas.js (domínio Caixas de recalcularAgregadosDerivados())
+// também precisa existir ANTES do app.js, mesmo motivo dos módulos hydrate-*.
+document.write('<' + 'script src="src/financeiro/caixas/recalcular-caixas.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/cartoes/recalcular-mercado-pago.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/patrimonio/recalcular-patrimonio.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/investimentos/recalcular-p2p.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/recalcular-reembolsos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/recalcular-necessidade.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/indicadores/recalcular-indicadores.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/balanco/recalcular-balanco.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/reg-operacional.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/caixas/reg-caixas.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/cartoes/reg-mercado-pago.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/investimentos/reg-p2p.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/patrimonio/reg-patrimonio.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/reg-reembolsos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/balanco/reg-balanco.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/caixas/vars-caixas.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/cartoes/vars-mercado-pago.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/investimentos/vars-p2p.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/patrimonio/vars-patrimonio.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/vars-reembolsos.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/investimentos/vars-roc.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/solar/vars-energia-solar.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/cenarios/vars-ciclo-snapshots.js?v=' + Date.now() + '"><' + '/script>');
+</script>
+<script>
+document.write('<' + 'script src="src/financeiro/operacional/vars-operacional.js?v=' + Date.now() + '"><' + '/script>');
+</script>
 <script>
 // V169 (26/07/2026): busca os dados MAIS RECENTES (compras, saldos) do Supabase antes de carregar
 // o app.js - assim toda vez que o Claude atualizar uma compra no banco, o site ja reflete na proxima
@@ -1456,7 +1715,68 @@ window.WALLACE_DADOS_REMOTOS = null;
   await carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator');
 
   const script = document.createElement('script');
-  script.src = 'app.js?v=' + Date.now(); // V170: cache-busting - forca o navegador a sempre buscar a versao mais recente do app.js, nunca servir uma copia antiga do cache local
+  script.src = 'src/app/app.js?v=' + Date.now(); // V170: cache-busting - forca o navegador a sempre buscar a versao mais recente do app.js, nunca servir uma copia antiga do cache local
+  // NOVO 07/08/2026 (modularização, módulo 1): script criado dinamicamente é async=true por padrão
+  // - sem isso, o módulo abaixo poderia carregar/executar ANTES do app.js terminar, quebrando a
+  // ordem (o módulo depende de VARS/REG/hydrate/SolarConfig etc. já existirem). onload garante a
+  // ordem real de execução, não só a ordem de criação dos <script>.
+  script.onload = function(){
+    // NOVO 07/08/2026 (modularização, módulo 2): energia-solar.js precisa carregar ANTES de
+    // promocoes-financeengine.js, que depende de SolarConfig/calcularContaSemSolar/ComSolar já
+    // existirem (comparador V1↔V2 da FASE 2K). Mesmo padrão onload em cadeia do módulo 1.
+    const scriptSolar = document.createElement('script');
+    scriptSolar.src = 'src/solar/energia-solar.js?v=' + Date.now();
+    scriptSolar.onload = function(){
+      const scriptPromocoes = document.createElement('script');
+      scriptPromocoes.src = 'src/app/promocoes-financeengine.js?v=' + Date.now();
+      // NOVO 07/08/2026 (modularização, módulo 4): dashboard-navegacao.js só usa onDomPronto/onclick/
+      // eventos (nada síncrono que outra parte precise no meio da execução) - ordem exata entre ele e
+      // promocoes-financeengine.js não importa, carrega em seguida por conveniência.
+      scriptPromocoes.onload = function(){
+        const scriptDash = document.createElement('script');
+        scriptDash.src = 'src/dashboard/navigation/dashboard-navegacao.js?v=' + Date.now();
+        // NOVO 07/08/2026 (modularização, módulo 5): ui-navegacao-basica.js (showMaster/showLR/
+        // irParaPrimeiraSecao) - zero dependência de VARS/REG, ordem entre ele e os módulos
+        // anteriores não importa (só chamado via onclick/de dentro de outras funções).
+        scriptDash.onload = function(){
+          const scriptUiNav = document.createElement('script');
+          scriptUiNav.src = 'src/dashboard/navigation/ui-navegacao-basica.js?v=' + Date.now();
+          // NOVO 07/08/2026 (modularização, módulo 6): ui-componentes-visuais.js (esconder valores,
+          // download JPEG por seção) - zero dependência de VARS/REG, ordem não importa.
+          scriptUiNav.onload = function(){
+            const scriptUiComp = document.createElement('script');
+            scriptUiComp.src = 'src/dashboard/widgets/ui-componentes-visuais.js?v=' + Date.now();
+            // NOVO 07/08/2026 (modularização, módulo 7): graficos-cenarios-lazy.js — só roda via
+            // clique nas abas Gráficos/Cenários (initGraficosECenariosLazy), ordem não importa.
+            scriptUiComp.onload = function(){
+              const scriptGraf = document.createElement('script');
+              scriptGraf.src = 'src/dashboard/charts/graficos-cenarios-lazy.js?v=' + Date.now();
+              // NOVO 07/08/2026 (modularização, módulo 9): filtro-livros-razao.js — só roda via
+              // onclick/chamadas lazy, ordem não importa.
+              scriptGraf.onload = function(){
+                const scriptFiltro = document.createElement('script');
+                scriptFiltro.src = 'src/dashboard/navigation/filtro-livros-razao.js?v=' + Date.now();
+                // NOVO 07/08/2026 (modularização, módulo 10): contagem-abas-livros-razao.js — único
+                // chamador é aplicarFiltroLivrosRazao (módulo anterior), ordem não importa.
+                scriptFiltro.onload = function(){
+                  const scriptAbas = document.createElement('script');
+                  scriptAbas.src = 'src/dashboard/widgets/contagem-abas-livros-razao.js?v=' + Date.now();
+                  document.body.appendChild(scriptAbas);
+                };
+                document.body.appendChild(scriptFiltro);
+              };
+              document.body.appendChild(scriptGraf);
+            };
+            document.body.appendChild(scriptUiComp);
+          };
+          document.body.appendChild(scriptUiNav);
+        };
+        document.body.appendChild(scriptDash);
+      };
+      document.body.appendChild(scriptPromocoes);
+    };
+    document.body.appendChild(scriptSolar);
+  };
   document.body.appendChild(script);
 })();
 </script>

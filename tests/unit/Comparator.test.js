@@ -7,7 +7,7 @@
  * não só confirma o que já sabíamos que bate.
  */
 
-const { compararLote, formatarLog } = require('./Comparator.js');
+const { compararLote, formatarLog } = require('../../src/services/Comparator.js');
 
 // Pares reais dos cálculos já auditados (Domínios 1, 2, 3, 4, 6) — "antigo" é o
 // valor V1 já confirmado nas auditorias; "novo" é a saída real do FinanceEngine/
@@ -15,8 +15,8 @@ const { compararLote, formatarLog } = require('./Comparator.js');
 const {
   calcularSaldoCaixa, calcularReembolsos, calcularPatrimonioFinanceiroMetaMilhao,
   calcularMetaMilhao, calcularNecessidadeLiquida, calcularModoOperacional, calcularIndicadores,
-} = require('./FinanceEngine.js');
-const { resolverCiclo } = require('./CycleEngine.js');
+} = require('../../src/services/FinanceEngine.js');
+const { resolverCiclo } = require('../../src/services/CycleEngine.js');
 
 const pares = [];
 

@@ -1,0 +1,90 @@
+// MÓDULO: UI — componentes visuais autocontidos (esconder valores, download JPEG por seção)
+// Extraído do app.js na modularização (07/08/2026). Script clássico (não ES module), carrega
+// DEPOIS do app.js terminar (onload). Zero dependência de VARS/REG — só DOM/localStorage/html2canvas.
+// Nenhuma fórmula, comportamento ou resultado foi alterado, só o arquivo que hospeda o código.
+
+// Antecipado do plano de 25/07 a pedido do usuario ("escolha as mais simples e ja implemente").
+// Botao flutuante (topo direito, fixo em todas as paginas) que aplica blur em todos os valores
+// monetarios (classes .v/.val/.r, ja usadas globalmente no painel) sem remover labels/estrutura -
+// util pra mostrar o painel pra terceiros sem expor numeros. Preferencia salva no localStorage
+// (arquivo estatico rodando no navegador do proprio usuario, nao e artifact do Claude.ai - ok usar).
+function toggleEsconderValores(){
+  // CORRIGIDO 01/08/2026: o botao de verdade mora no index.html (FORA deste documento, que roda
+  // dentro do iframe) - $('btnEsconderValores') aqui dentro NUNCA vai achar
+  // esse botao, entao o icone nunca trocava. Agora esta funcao so alterna o blur (sua responsabilidade
+  // real) e RETORNA o estado, pra quem chamou (index.html, via iframe.contentWindow) atualizar o
+  // proprio botao visivel.
+  const ativo = document.body.classList.toggle('esconder-valores');
+  try { localStorage.setItem('wallace_esconder_valores', ativo ? '1' : '0'); } catch(e) {}
+  return ativo;
+}
+onDomPronto(() => { // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava
+  try {
+    if(localStorage.getItem('wallace_esconder_valores') === '1'){
+      document.body.classList.add('esconder-valores');
+    }
+  } catch(e) {}
+});
+
+// ===== NOVO 03/08/2026 - botao de download JPEG por secao =====
+// Pedido do usuario: um botao em cada campo/secao do painel pra baixar aquele
+// bloco especifico como JPEG, sob demanda, sem precisar pedir pro Claude toda vez.
+// Usa html2canvas (CDN, ver <head>) - roda 100% no navegador do usuario, sem
+// depender de rede/servidor nenhum na hora do clique (so a lib precisa ter
+// carregado uma vez ao abrir a pagina).
+function inicializarBotoesPrintSecao(){
+  document.querySelectorAll('.section-num').forEach(function(header){
+    if (header.querySelector('.btn-print-secao')) return; // evita duplicar se rodar 2x
+    var card = header.nextElementSibling;
+    // no HTML do painel o conteudo real e sempre o IRMAO seguinte do
+    // .section-num (nunca um ancestral) - mesma estrutura ja documentada
+    // na passagem de turno pra ferramenta de print via Claude. Pode ser um
+    // .card unico OU um container .grid-2/.grid-3 de mini-cards lado a lado
+    // (achado 03/08/2026: 12 das 48 secoes usam esse segundo padrao e
+    // ficavam sem botao na v1)
+    if (!card) return;
+    var classesCard = card.className || '';
+    var elegivel = /\bcard\b/.test(classesCard) || /\bgrid-\d/.test(classesCard);
+    if (!elegivel) return;
+
+    var num = header.querySelector('.n') ? header.querySelector('.n').textContent.trim() : '';
+    var titulo = header.querySelector('h2') ? header.querySelector('h2').textContent.trim() : ('secao-' + num);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-print-secao';
+    btn.title = 'Baixar esta seção como JPEG';
+    btn.setAttribute('aria-label', 'Baixar seção ' + num + ' como JPEG');
+    btn.textContent = '⬇';
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      baixarSecaoComoJPEG(card, num, titulo, btn);
+    });
+    header.appendChild(btn);
+  });
+}
+
+function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
+  if (typeof html2canvas === 'undefined'){
+    alert('A biblioteca de captura ainda está carregando. Tenta de novo em alguns segundos.');
+    return;
+  }
+  if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
+  var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1115';
+  html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
+    var slug = titulo.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    var hoje = new Date().toISOString().slice(0, 10);
+    var link = document.createElement('a');
+    link.download = 'secao-' + num + '-' + slug + '-' + hoje + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  }).catch(function(err){
+    console.error('Erro ao gerar JPEG da secao', num, err);
+    alert('Não consegui gerar o JPEG dessa seção. Tenta de novo.');
+  }).finally(function(){
+    if (btnOrigem){ btnOrigem.disabled = false; btnOrigem.textContent = '⬇'; }
+  });
+}
+onDomPronto(inicializarBotoesPrintSecao);
