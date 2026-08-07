@@ -948,7 +948,15 @@ const WallaceFinanceService = {
            direita, centralizado verticalmente - mais facil de alcancar numa mao so e longe da barra
            do navegador. */
         @media (max-width:640px){
-          #wallaceFabDock{bottom:auto;top:50%;right:0.6rem;transform:translateY(-50%)}
+          #wallaceFabDock{bottom:auto;top:50%;right:0;transform:translateY(-50%);gap:0.5rem}
+          /* NOVO 08/08/2026 (pedido do usuario: "quero que eles sejam uma aba na tela, ai quando
+             passar o dedo ele aparece e abre o campo"): cada botao fica quase todo escondido pra fora
+             da borda direita (so uma tira de ~16px visivel, "aba"). Tocar nela revela o dock inteiro
+             (desliza pra dentro da tela); tocar de novo no botao ja revelado executa a acao normal
+             (abre o painel/form). Fecha sozinho (volta a ser aba) depois de alguns segundos sem uso ou
+             ao tocar fora - controlado em JS, ver mais abaixo (dataset.abaLigada). */
+          #wallaceFabDock .wallace-fab{transform:translateX(calc(100% - 16px))}
+          #wallaceFabDock.wallace-fab-dock--aberto .wallace-fab{transform:translateX(0)}
         }
         /* REDESENHADO 07/08/2026 (pedido do usuário): pill fino → botão sólido preenchido. REFEITO
            ainda 07/08/2026 (pedido explícito do usuário, ficou pendente uma sessão inteira: "círculo
@@ -958,7 +966,6 @@ const WallaceFinanceService = {
            (ou foco, pra acessibilidade via teclado) o rótulo expande e aparece ao lado do ícone.
         */
         .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;height:2.6rem;padding:0;border-radius:999px;border:none;cursor:pointer;background:linear-gradient(155deg,#4a9eff,#3987e5);color:#fff;box-shadow:0 6px 20px rgba(57,135,229,0.4),0 2px 4px rgba(0,0,0,0.25);overflow:hidden;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,filter .18s ease}
-        .wallace-fab:active{transform:translateY(-1px) scale(0.98)}
         .wallace-fab-icon{flex:0 0 2.6rem;width:2.6rem;height:2.6rem;display:flex;align-items:center;justify-content:center;font-size:1.05rem;position:relative}
         .wallace-fab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:0.78rem;font-weight:700;letter-spacing:0.01em;transition:max-width .3s ease,opacity .2s ease,padding-right .3s ease}
         .wallace-fab--lancar{order:2;background:linear-gradient(155deg,#3fd68a,#27a866);box-shadow:0 6px 20px rgba(39,168,102,0.4),0 2px 4px rgba(0,0,0,0.25)}
@@ -971,6 +978,7 @@ const WallaceFinanceService = {
            circulo com o icone (o clique/tap continua funcionando normal, so nao expande visualmente). */
         @media (hover:hover) and (pointer:fine){
           .wallace-fab:hover,.wallace-fab:focus-visible{transform:translateY(-3px) scale(1.02);filter:brightness(1.08);box-shadow:0 10px 26px rgba(57,135,229,0.5),0 3px 6px rgba(0,0,0,0.3)}
+          .wallace-fab:active{transform:translateY(-1px) scale(0.98)}
           .wallace-fab:hover .wallace-fab-label,.wallace-fab:focus-visible .wallace-fab-label{max-width:8rem;opacity:1;padding-right:1.05rem}
           .wallace-fab--lancar:hover,.wallace-fab--lancar:focus-visible{box-shadow:0 10px 26px rgba(39,168,102,0.5),0 3px 6px rgba(0,0,0,0.3)}
           .wallace-fab--warn:hover,.wallace-fab--warn:focus-visible{box-shadow:0 10px 26px rgba(217,154,43,0.5),0 3px 6px rgba(0,0,0,0.3)}
@@ -1144,6 +1152,30 @@ const WallaceFinanceService = {
       };
       document.getElementById('wallaceFabDock').appendChild(btnLancar);
       document.body.appendChild(form);
+
+      // NOVO 08/08/2026 (pedido do usuario: "no mobile quero que eles sejam uma aba na tela, ai
+      // quando passar o dedo ele aparece e abre o campo"): no mobile (ver CSS acima, media
+      // max-width:640px) o dock comeca quase todo fora da tela, so uma tira visivel. 1o toque revela
+      // (classe wallace-fab-dock--aberto, so isso - nao dispara a acao do botao ainda); com o dock ja
+      // revelado, o toque seguinte passa direto pro onclick normal do botao (abre painel/form). Fecha
+      // sozinho (volta a ser so a tira) depois de alguns segundos sem uso, ou ao tocar fora do dock -
+      // guard por dataset pra rodar so uma vez mesmo chamado de novo em recargas do resumo V2.
+      const dockEl = document.getElementById('wallaceFabDock');
+      if(dockEl && !dockEl.dataset.abaLigada && window.matchMedia('(max-width:640px)').matches){
+        dockEl.dataset.abaLigada = '1';
+        let timerFecharAba = null;
+        const fecharAba = () => dockEl.classList.remove('wallace-fab-dock--aberto');
+        const agendarFechamento = () => { clearTimeout(timerFecharAba); timerFecharAba = setTimeout(fecharAba, 4000); };
+        dockEl.addEventListener('click', (ev) => {
+          if(!dockEl.classList.contains('wallace-fab-dock--aberto')){
+            ev.preventDefault();
+            ev.stopPropagation();
+            dockEl.classList.add('wallace-fab-dock--aberto');
+          }
+          agendarFechamento();
+        }, true); // fase de captura - roda ANTES do onclick de cada botao, pra poder interceptar o 1o toque
+        document.addEventListener('click', (ev) => { if(!dockEl.contains(ev.target)) fecharAba(); });
+      }
 
       // NOVO 06/08/2026 (parte 119): fecha o pipeline Nivel1->2->3 no unico form interativo que
       // existe hoje - ao escolher categoria/usuario, chama resolver_caixa() de verdade e AUTO-
@@ -1431,10 +1463,11 @@ const WallaceFinanceService = {
       const blocoDivergentes = divergenciasV1V2.length
         ? `<div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#e2a53d">⚠ V1↔V2 dessincronizado (${divergenciasV1V2.length})</div>${divergenciasV1V2.map(t=>`<div style="padding:0.15rem 0;color:#e2a53d;font-size:0.7rem">${t}</div>`).join('')}`
         : `<div style="margin-top:0.7rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#34c98a">✓ V1↔V2 sincronizado (sem divergência ativa)</div>`;
-      const blocoExplicadas = explicadasV1V2.length
-        ? `<div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#6b9fd4">ℹ Diferença explicada, não é bug (${explicadasV1V2.length})</div>${explicadasV1V2.map(t=>`<div style="padding:0.15rem 0;color:#8aa8c4;font-size:0.7rem">${t}</div>`).join('')}`
-        : '';
-      blocoDiv.innerHTML = blocoDivergentes + blocoExplicadas;
+      // REMOVIDO 08/08/2026 (pedido do usuario: "nao vejo utilidade de ter isso ai, pode remover"):
+      // bloco "Diferenca explicada, nao e bug" nao aparece mais no painel visivel - continua sendo
+      // calculado e logado no console (console.info acima) pra quem quiser conferir via devtools,
+      // so nao polui mais a tela.
+      blocoDiv.innerHTML = blocoDivergentes;
       if(divergenciasV1V2.length){
         atualizarBadgeV2(divergenciasV1V2.length, 'divergências V1↔V2 ativas');
       }
