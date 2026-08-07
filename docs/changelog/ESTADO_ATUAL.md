@@ -2,79 +2,77 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site`.
+Última reescrita: 07/08/2026 (fim de sessão, handoff por limite de crédito), via Claude Code, direto em `G:\My Drive\Livro Razão\Site`.
 
 ## PRODUÇÃO: domínio oficial é `wallacelira.com.br`
 
-Confirmado ao vivo em 07/08/2026: `https://wallacelira.com.br/` resolve, responde 200, HTTPS ativo, serve a tela de login. GitHub Pages (`wallacelira07.github.io`) passa a ser só a infraestrutura de hospedagem por baixo — qualquer diagnóstico, teste ou decisão de deploy/performance/autenticação daqui pra frente considera `wallacelira.com.br` como o ambiente real, não mais o domínio `.github.io`.
+`https://wallacelira.com.br/` (GitHub Pages por baixo) é o ambiente real. `git log --oneline -6` mostra tudo já commitado E enviado (`git push`) até `422b04d` — **working tree limpo, nada pendente** no fim desta sessão.
 
-**Pendente de verificação manual (não dá pra checar por código)**: confirmar em Firebase Console → Authentication → Settings → Authorized domains que `wallacelira.com.br` está cadastrado — sem isso o login por email/senha falha nesse domínio mesmo com o site carregando certo.
+**Pendente de verificação manual (não dá pra checar por código)**: confirmar em Firebase Console → Authentication → Settings → Authorized domains que `wallacelira.com.br` está cadastrado.
 
-**A V2 arquitetural e funcional estão concluídas (18/18 fases aprovadas)** — ver seção 1. Trabalho novo a partir daqui é otimização/manutenção evolutiva/performance/produção, não mais "migração V2".
+**A V2 arquitetural e funcional estão concluídas (18/18 fases, ver seção 1).** Trabalho novo é otimização/manutenção evolutiva/produção — mas **ver seção 6, existem 2 arquiteturas paralelas de dados (V1 e V2) e é fácil confundir uma com a outra.**
 
 ## Protocolo de sessão nova (leia nesta ordem)
 
 1. Este arquivo (`ESTADO_ATUAL.md`)
-2. `PASSAGEM_DE_TURNO.md` (mesma pasta, `docs/changelog/`) — Bloco 15 tem o histórico mais recente
-3. `docs/architecture/ARCHITECTURE.md` + `docs/architecture/PROJECT_STRUCTURE.md` — mapa da estrutura física atual do projeto
-4. `docs/decisions/MAPA_MIGRACAO_V2.md` (só se for mexer em promoção V1→V2/FinanceEngine — não é o foco recente)
-5. **Sempre conferir o estado real do código** (`git status`, `git log --oneline -10`, tamanho de `src/app/app.js`) **antes de assumir qualquer coisa como pendente ou concluído** — a documentação já ficou desatualizada em relação ao código real mais de uma vez nesta mesma sessão.
+2. `PASSAGEM_DE_TURNO.md` — Bloco 16 tem o histórico mais recente (sessão de 07/08/2026, handoff por limite de crédito, ver detalhes de tudo que ficou pela metade)
+3. `docs/architecture/ARCHITECTURE.md` + `docs/architecture/PROJECT_STRUCTURE.md`
+4. **Sempre conferir o estado real do código** (`git status`, `git log --oneline -10`) **antes de assumir qualquer coisa como pendente ou concluído.**
 
 ---
 
-## 1. MODULARIZAÇÃO V2 ARQUITETURAL — ✅ CONCLUÍDA, VALIDADA E COMMITADA
+## 1. MODULARIZAÇÃO V2 ARQUITETURAL + REORGANIZAÇÃO FÍSICA — ✅ CONCLUÍDAS (sem mudança nesta sessão)
 
-O objetivo era: `app.js` deixar de ser o centro do sistema, `VARS`/`REG` deixarem de ser mega-containers globais, `hydrate()` parar de concentrar toda a renderização, `recalcularAgregadosDerivados()` parar de ser o motor central único. **As 4 fases estão 100% concluídas**:
+`app.js` → `src/app/app.js`, `VARS`/`REG` modularizados em fábricas por domínio, projeto reorganizado em pastas por domínio de negócio. Sem novidade aqui nesta sessão — ver `PASSAGEM_DE_TURNO.md` Blocos 9-14 pro histórico completo, não repetir.
 
-1. `hydrate()` → renderizadores por domínio ✅
-2. `recalcularAgregadosDerivados()` → 8 funções por domínio (caixas/mercadoPago/patrimonio/p2p/reembolsos/necessidade/indicadores/balanco) ✅
-3. `REG` → 7 módulos fábrica por domínio (`criarRegXxx()`) ✅
-4. `VARS` → 10 módulos fábrica por domínio (`criarVarsXxx()`) ✅
+## 2. ATENÇÃO: DUAS ARQUITETURAS DE DADOS PARALELAS (V1 "clássica" e V2 "relacional") — fonte comum de confusão
 
-**Resultado**: `app.js` original (8.890 linhas) foi reduzido e depois **fisicamente movido** para `src/app/app.js` — hoje com **1.423 linhas**, contendo só: utilitários globais, bootstrap de `VARS`/`REG` (chamadas `Object.assign` pros módulos fábrica), pós-processamento síncrono que genuinamente precisa do objeto inteiro já montado (freeze, merge de dados remotos, saldos derivados), `aplicarCicloAoVARS()`, o orquestrador `recalcularAgregadosDerivados()` (8 chamadas), `hydrate()` (14 chamadas), o `WallaceFinanceService` (~500 linhas, serviço FinanceEngine autocontido, já validado 18/18 desde antes desta modularização — nunca foi alvo dela) e algumas chamadas de orquestração que não podem virar módulo por exigirem ordem síncrona de execução.
+Descoberto/confirmado nesta sessão (07/08/2026) que existem **DOIS sistemas de dados completamente separados**, e é fácil (já aconteceu nesta sessão) confundir um com o outro:
 
-**Validado em navegador**: console sem erros, `WALLACE_VALIDACAO_RUNTIME` 18/18 `APROVADA`, `healthBadge` "✅ Sistema íntegro", valores reais do painel conferidos em cada domínio.
+- **V1 ("clássica")**: `VARS`/`REG` estáticos (as fábricas `criarVarsXxx()`/`criarRegXxx()`) + uma única linha JSON no Supabase (`wallace_dados`, tabela solta, `id=1`, coluna `dados` jsonb) que é buscada a cada carregamento (`fetch` com `cache:'no-store'`) e sobrescreve por cima do VARS estático via `Object.assign(VARS, dr)`. **É isso que alimenta 100% do Painel Financeiro visível** (todos os cards, caixas, saldos que o usuário vê). Editar dado financeiro real = editar os 2 lugares (arquivo `.js` local E a linha `wallace_dados` no Supabase, via SQL direto tipo `jsonb_set`) pra manter os dois em sincronia — **só editar o arquivo local NÃO muda o que aparece no site ao vivo**, o Supabase sobrescreve por cima.
+- **V2 ("relacional")**: tabelas normais do Postgres (`caixas`, `transacoes`, `categorias`, `usuarios` etc.), alimentadas pelo botão flutuante "+ Lançar" (grava via RPC `lancar_transacao_manual`) e pela Inbox Financeira (Aprovar pré-preenche o mesmo formulário). **Isso NÃO afeta o Painel visível ainda** — é dado paralelo, existe só pra comparação/migração futura (Fase 5, ainda não chegou). O painel flutuante "💰 V2" mostra os saldos calculados por essa arquitetura, e o `FASE 2F` da bateria de validação (`WALLACE_VALIDACAO_RUNTIME`) compara V1×V2 por caixa — divergência aqui é **esperada e não-bloqueante** enquanto as duas arquiteturas não forem unificadas (gate de segurança: só promove V2→V1 se as duas baterem, senão mantém V1 na tela).
 
-**Detalhes completos de cada extração** (qual módulo, quais campos, qual armadilha de ordem de execução foi encontrada e como foi resolvida) estão em `PASSAGEM_DE_TURNO.md`, Blocos 9 a 13. Não repetir esse histórico aqui — ele não muda mais, essa frente está fechada.
+**Implicação prática pra próxima sessão**: quando o usuário disser "lancei uma transação real", perguntar/confirmar se é pra entrar no V1 (o que aparece no painel — editar `wallace_dados` no Supabase) ou também replicar no V2 (formulário "+ Lançar"). Hoje (07/08) só o V1 foi mantido atualizado; a Inbox Financeira tinha 12 itens pendentes que **foram todos rejeitados** nesta sessão porque já estavam cobertos no V1 manualmente — **nenhum foi lançado no V2** (então o V2 e o V1 estão propositalmente dessincronizados agora, é esperado).
 
-## 2. REORGANIZAÇÃO FÍSICA COMPLETA DO PROJETO — ✅ CONCLUÍDA, VALIDADA E COMMITADA
+## 3. Lançamentos financeiros reais aplicados nesta sessão (07/08/2026) — todos no V1 (arquivo local + Supabase `wallace_dados`)
 
-Depois da V2 arquitetural concluída, o projeto inteiro foi reorganizado fisicamente (não só o código, a árvore de pastas toda). Ver `PASSAGEM_DE_TURNO.md` Bloco 14 para o processo completo e as decisões de poda de estrutura.
+Ver `PASSAGEM_DE_TURNO.md` Bloco 15/16 para a lista completa e valores exatos. Resumo:
+- Reembolso Bradesco R$312 (split R$164,94 Caixa Lance + R$147,06 Caixa Saúde Família), cortinas R$450 + empréstimo LREI0004 R$103,55 (Lance→Manutenção), reembolso Wärtsilä R$340 (dentro da própria Caixa Wärtsilä, não Caixa Lance — segue cascata da política seção 5), R$107,50 adiantamento bolo de Júlio (Variável↔Aniversário↔Vanessa), Hortifruti R$46,97 (PIX Geral Vanessa), correção de IOF ausente em 2 compras Anthropic (TX000200/TX000205, +R$3,72 cada).
+- `reembolsoAReceber` (Wärtsilä) atualizado pra R$6.700,61 (usuário confirmou), R$340 já recebido conta à parte.
+- Inbox Financeira: 12 pendentes → 0 pendentes (11 rejeitados por já estarem cobertos no V1; 1 item de R$652 **desapareceu sozinho da Inbox antes de eu mexer nele — motivo desconhecido, vale investigar se reaparecer**).
 
-**Estrutura atual** (ver árvore completa e convenções em `docs/architecture/PROJECT_STRUCTURE.md` e `docs/architecture/ARCHITECTURE.md`):
+## 4. Bugs reais encontrados e corrigidos nesta sessão
 
-- `src/app/` — `app.js` (bootstrap, 1.423 linhas) + `promocoes-financeengine.js` (cross-domínio)
-- `src/financeiro/{caixas,cartoes,patrimonio,cenarios,indicadores,livros-razao,operacional,balanco,investimentos}/` — cada pasta reúne `hydrate-*`/`recalcular-*`/`reg-*`/`vars-*`/`render-*` do MESMO domínio de negócio
-- `src/dashboard/{navigation,charts,widgets}/` — navegação, gráficos, widgets de UI
-- `src/solar/` — Simulador Regulatório Solar
-- `src/auditoria/{inbox,classificacao,verificacoes}/` — Inbox Financeira, classificação, auditoria automática
-- `src/integrations/pluggy/` — reconciliação Pluggy
-- `src/services/` — **não mexer na organização interna**: tem `import`/`require` relativos entre si (`CycleEngine.js`, `FinanceService.js`, `EnergiaService.js` etc.), mover qualquer um quebra referência. 9 dos 11 arquivos não são usados em produção (arquitetura anterior superada) — mantidos, fora de escopo.
-- `docs/{architecture,changelog,decisions,database}/` — toda a documentação (este arquivo está em `docs/changelog/`)
-- `scripts/{database,sync}/` — scripts Python (sincronização Pluggy/Mercado Pago/cotações/geração solar)
-- `assets/{css,images}/` — CSS e favicons
-- `tests/unit/` — os 3 testes `.test.js`
+1. **Performance de carregamento** (~10-15s → ~4s medido local): 55 módulos + 3 fetches iniciais eram 100% sequenciais (`document.write`/`await` em cadeia) — paralelizados. Cache-busting `Date.now()` (nunca cacheava nada) trocado por versão fixa `__V` (bump manual em deploy futuro, ver `Sistema_Wallace_Lira_Completo.html` linha ~1452).
+2. **Bug de parser HTML real**: um comentário JS continha o texto literal `</script>` — fechava a tag prematuramente, truncando todo o resto do bloco (causa de "ReferenceError: __V is not defined" e tela travada em "—"). **Lição**: nunca escrever `</script>` como texto solto dentro de um bloco `<script>`, nem em comentário — sempre quebrar a string tipo `'<' + '/script>'` se precisar mencionar.
+3. **Card FGTS**: placeholder HTML tinha valor antigo hardcoded (`R$ 77.683,60`) em vez de `—` — mascarava falha de carregamento como se fosse valor fixo real. Corrigido pra `—`, igual aos outros cards.
+4. **Card Caixa Wärtsilä**: (a) número principal mostrava a fatura em vez do saldo real da caixa — trocado; (b) barra de progresso era decorativa (`width:100%` fixo no HTML, sem id) — agora conectada; (c) legenda usava um indicador genérico do ciclo (`recebidosNoCiclo = reembolsoCicloTotal - reembolsosAReceber`) que dava **negativo** mesmo com dinheiro real recebido, sempre mostrando "R$0 recebido" — trocado pra comparar direto provisionado×fatura desta caixa específica.
+5. **IOF ausente** em 2 transações Mastercard Black (Anthropic, TX000200/TX000205) — valor não incluía os 3,38% apesar do comentário dizer que incluía. Corrigido nos 2 + no total mestre `cartaoMBTotal`.
+6. **API REST do Supabase servindo resposta em cache** mesmo com `cache:'no-store'` no fetch (confirmado: SQL direto via MCP mostrava R$5.056,95 pra `cascata.faturaWartsila`, mas o navegador recebia R$5.768,06 da REST API) — **não investigado a fundo, não corrigido, só documentado aqui.** Pode ser CDN/edge cache do Supabase na frente do PostgREST.
 
-**Validado em navegador após a reorganização**: reload completo, ~140 requests de rede em 200 OK nos caminhos novos, console sem erro novo, `WALLACE_VALIDACAO_RUNTIME` 18/18 `APROVADA`, `healthBadge` íntegro, valores reais idênticos aos de antes da reorganização.
+## 5. Features novas implementadas nesta sessão (não são bugfix, são pedido explícito do usuário)
 
-**Ajustes fora de `src/` já feitos**: os 4 workflows GitHub Actions (`atualizar_cotacoes_acoes.yml`, `atualizar_geracao_saj.yml`, `mercadopago_sync.yml`, `sincronizar_pluggy.yml`) e o `_headers` foram atualizados pros caminhos novos.
+1. **Saudação premium**: "Bom dia/Boa tarde/Boa noite, Wallace/Vanessa" no topo do painel, conforme e-mail logado (`wallace.termica@gmail.com` / `vanessaflor.galdino@gmail.com`, únicos 2 com acesso) + horário local. `Sistema_Wallace_Lira_Completo.html` (guard de acesso no topo + elemento `#saudacaoPremium`), CSS em `assets/css/styles.css` (`.greeting-premium`).
+2. **Logout por inatividade**: 15 minutos sem interação (mouse/teclado/toque/scroll) desloga sozinho. `index.html` (`iniciarMonitorInatividade`/`resetarTimerInatividade`/`pararMonitorInatividade`).
+3. **Formulário "+ Lançar" (V2)**: opção de dividir o valor lançado entre mais de 1 caixa (várias linhas caixa+valor, valida soma=total, 1 chamada de RPC por linha) e opção de criar categoria nova direto do formulário (nova função Postgres `criar_categoria`, `SECURITY DEFINER`, evita duplicata por nome — ver migration aplicada via Supabase MCP, não está em nenhum arquivo `.sql` do repo, só no banco).
+4. **Botões flutuantes redesenhados**: de pill fina/quase transparente pra botão sólido com gradiente (ainda **INCOMPLETO**, ver seção 7 "Pendente/incompleto").
 
-## 3. COMMITS — estado do git agora (confira sempre com `git log`/`git status`, isto pode ficar desatualizado rápido)
+## 6. Como aplicar dado financeiro real daqui pra frente (fluxo que se consolidou nesta sessão)
 
-- **Tudo da V2 arquitetural + reorganização física está commitado** — commit `b83e165` "Conclusão da atualização V2" (que sozinho remove `app.js` da raiz — 8.890 linhas — e move ~78 arquivos) seguido do merge `e4a0226`, ambos já em `HEAD`.
-- **O remote (`origin/main`) está 2 commits à frente do local** (`91bf9de` "Create CNAME", `962e834` "Delete CNAME") — edições pequenas feitas direto pelo GitHub web, relacionadas à decisão de deploy ainda em aberto (ver seção 5). Rodar `git pull` antes de mexer em CNAME/deploy pra não perder essas mudanças.
-- **2 arquivos com mudanças NÃO commitadas agora**: `src/financeiro/caixas/vars-caixas.js` e `src/financeiro/cartoes/vars-mercado-pago.js` — sincronização de dados reais vindos do Supabase (transações `TX000192` a `TX000208`, que o arquivo local não tinha — achado durante a auditoria da reorganização física). Ver detalhe exato em `PASSAGEM_DE_TURNO.md` Bloco 15. **Não commitado ainda** (usuário commita via VS Code, nunca fazer isso pela IA sem pedido explícito) — avisar o usuário que esses 2 arquivos têm dado financeiro real pendente de revisão/commit.
+1. Usuário confirma o lançamento (nunca aplicar sem confirmação explícita — regra permanente).
+2. Aplicar nos 2 lugares do V1: arquivo `.js` local relevante (`src/financeiro/**/vars-*.js`) **e** a linha `wallace_dados` no Supabase (SQL via MCP `execute_sql`, tipo `dados = dados || jsonb_build_object('CHAVE', ...)` pra arrays, ou `jsonb_set` pra campo aninhado) — **checar antes se a chave em questão realmente existe na linha do Supabase** (`select jsonb_object_keys(dados) from wallace_dados where id=1`), porque nem toda chave do VARS está espelhada lá (ex: `WARTSILA_CAIXA_TRANSACOES`/`reembolsoCicloTotal` não estavam, tiveram que ser adicionadas como chave nova).
+3. **Autorização de commit mudou nesta sessão**: usuário disse explicitamente "você comita sozinho, só me avise antes" — não é mais preciso esperar pedido pra cada commit individual, só avisar o que vai ser commitado antes de rodar `git commit`. `git push` também já foi autorizado ("se precisar faça o deploy"). Ver memória `feedback_workflow_sessao` (arquivo de memória, não deste repo) pra detalhe completo dessa mudança de regra.
 
-## 4. Pendências que dependem de decisão do usuário
+## 7. Pendente / incompleto no fim desta sessão (handoff por limite de crédito, não por conclusão)
 
-1. **Revisar e commitar (via VS Code) os 2 arquivos com sincronização de transações reais** (`vars-caixas.js`, `vars-mercado-pago.js` — ver seção 3). Não é código de infraestrutura, é dado financeiro real (TX000192-208) — vale conferir antes de commitar.
-2. **Deploy**: retomar o plano do domínio próprio `wallacelira.com.br` (CNAME + Firebase authorized domain) — estava em andamento antes da reorganização física começar, congelado pra dar prioridade à reorganização. `git pull` primeiro pra trazer os 2 commits de CNAME já feitos no GitHub web.
-3. **PIX Geral Vanessa**: campo `saldo_inicial_ciclo` da caixa no Supabase está com `78.04`, mas é dupla-contagem confirmada (mesmo valor já nas transações). Resíduo de R$78,08 aparece no painel V1↔V2 até o usuário decidir corrigir o banco (`update caixas set saldo_inicial_ciclo = 0 where nome = 'PIX Geral Vanessa'`) — **nunca fazer isso sem autorização explícita**.
-4. **Caixa Lance**: diferença de R$266,23 (V1 vs V2) é divergência no saldo de abertura do ciclo, não erro de transação. Precisa de uma âncora de fechamento real (saldo confirmado em 24/07/2026) pra reconciliar — não tentar sem esse dado.
-5. **`AJUSTE-06-08`** nas 8 caixas pequenas: classificação inconclusiva entre "rendimento CDI real" e "ajuste manual em lote" — não decidido, não removido. Ver `PASSAGEM_DE_TURNO.md` pro raciocínio completo.
+1. **Redesign dos botões flutuantes ficou pela metade.** O usuário rejeitou o visual "pill sólida com gradiente" (achou "horroroso", mandou print de referência) e pediu: círculo pequeno com ícone/emoji, e ao passar o mouse uma "tira lateral" desliza revelando o texto/descrição (padrão comum de FAB com label on-hover). **Nenhum código novo foi escrito pra isso ainda** — só decidido o approach (CSS com label posicionado absoluto atrás do círculo, `opacity`/`transform` no hover). Próximo passo: implementar em `src/app/app.js` (procurar `.wallace-fab` — é onde o CSS antigo/atual desses botões mora, criado dinamicamente via `<style>` injetado por JS, não em `assets/css/styles.css`).
+2. **R$652,00 sumiu da Inbox Financeira sozinho**, sem eu rejeitar — não investigado por quê. Se reaparecer ou se notar outros itens sumindo sem ação do usuário/IA, vale investigar `src/auditoria/classificacao/classificacao-inbox.js` e `src/integrations/pluggy/pluggy-reconciliacao.js` (fontes que alimentam `VARS.INBOX_FINANCEIRA`).
+3. **Cache stale da API REST do Supabase** (seção 4, item 6) — não investigado, só documentado.
+4. **IDs da Inbox Financeira (`INBX000001` etc.) parecem ser posicionais, não estáveis** — ao rejeitar um item, os que restam são renumerados no próximo render (confirmado empiricamente nesta sessão: um item que era "007" virou "004" depois de outras rejeições). Isso é OK pra uso manual (sempre reconferir o conteúdo antes de agir), mas **perigoso se algum código em outro lugar guardar um `INBX00000X` como referência persistente** — vale auditar `classificacao-inbox.js`/`inbox-financeira.js` se isso for mexido de novo.
+5. **Pendências antigas, ainda não resolvidas** (herdadas de sessões anteriores, não tocadas nesta): PIX Geral Vanessa `saldo_inicial_ciclo` duplicado no Supabase (R$78,04), Caixa Lance R$266,23 de diferença V1×V2 (precisa âncora de fechamento de ciclo), `AJUSTE-06-08` nas 8 caixas pequenas (rendimento real vs ajuste manual, inconclusivo), Firebase Authorized Domains (verificação manual).
 
-## 5. Ambiente de teste local
+## 8. Ambiente de teste local
 
-- `.claude/launch.json` + `.claude/serve.ps1`: servidor HTTP estático local em PowerShell (porta 8081), serve os arquivos direto (`http://localhost:8081/Sistema_Wallace_Lira_Completo.html`).
-- Login usa Firebase real (email/senha) — **a IA nunca digita senha em nenhum campo**, nem a do próprio usuário. Toda validação em navegador depende do usuário logar manualmente na aba primeiro (sessão fica em `sessionStorage`, persiste na aba enquanto ficar aberta). O painel real roda dentro de um `<iframe>` carregado por `index.html` — pra inspecionar via JS, usar `document.querySelector('iframe').contentWindow`.
-- `window.WALLACE_VALIDACAO_RUNTIME` no console mostra as 18 fases FinanceEngine (`APROVADA`/`REPROVADA`) — teste de regressão rápido padrão depois de qualquer mudança.
+- `.claude/launch.json` + `.claude/serve.ps1`: servidor HTTP estático local em PowerShell (porta 8081), `http://localhost:8081/index.html`.
+- Login usa Firebase real — **a IA nunca digita senha**. Painel roda dentro de `<iframe id="mainIframe">` carregado por `index.html` — inspecionar via `document.getElementById('mainIframe').contentWindow`. `VARS`/`REG` são bindings léxicos de topo (`const`), **não** aparecem como propriedade do `window` do iframe — usar `contentWindow.eval('VARS.algumaCoisa')` pra ler de fora, não `contentWindow.VARS` direto (dá `undefined` mesmo existindo).
+- `window.WALLACE_VALIDACAO_RUNTIME` (array de 18 fases `{fase, resultado, motivo}`) e `document.getElementById('healthBadge')` (12 checagens matemáticas do REG) são os 2 testes de regressão padrão depois de qualquer mudança.
