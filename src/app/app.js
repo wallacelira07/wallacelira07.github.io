@@ -948,14 +948,20 @@ const WallaceFinanceService = {
            direita, centralizado verticalmente - mais facil de alcancar numa mao so e longe da barra
            do navegador. */
         @media (max-width:640px){
-          #wallaceFabDock{bottom:auto;top:50%;right:0;transform:translateY(-50%);gap:0.5rem}
+          #wallaceFabDock{bottom:auto;top:44%;right:0;transform:translateY(-50%);gap:0.7rem}
           /* NOVO 08/08/2026 (pedido do usuario: "quero que eles sejam uma aba na tela, ai quando
              passar o dedo ele aparece e abre o campo"): cada botao fica quase todo escondido pra fora
-             da borda direita (so uma tira de ~16px visivel, "aba"). Tocar nela revela o dock inteiro
-             (desliza pra dentro da tela); tocar de novo no botao ja revelado executa a acao normal
-             (abre o painel/form). Fecha sozinho (volta a ser aba) depois de alguns segundos sem uso ou
-             ao tocar fora - controlado em JS, ver mais abaixo (dataset.abaLigada). */
-          #wallaceFabDock .wallace-fab{transform:translateX(calc(100% - 16px))}
+             da borda direita (so uma tira visivel, "aba"). Tocar nela revela o dock inteiro (desliza
+             pra dentro da tela); tocar de novo no botao ja revelado executa a acao normal (abre o
+             painel/form). Fecha sozinho (volta a ser aba) depois de alguns segundos sem uso ou ao
+             tocar fora - controlado em JS, ver mais abaixo (dataset.abaLigada).
+             AJUSTADO ainda 08/08/2026 (usuario pediu de novo, com print marcando a altura certa):
+             posicao subiu de 50% pra 44% (mais perto do meio da capa, no lugar marcado no print) e o
+             formato virou retangulo alto (nao mais circulo) - mais facil de notar como "aba" real, e
+             a tira que fica visivel por padrao aumentou de 16px pra 22px (mais perceptivel sem abrir
+             ainda). Cantos arredondados so do lado esquerdo (o direito fica sempre fora da tela). */
+          #wallaceFabDock .wallace-fab{height:4.4rem;border-radius:16px 0 0 16px;transform:translateX(calc(100% - 22px))}
+          #wallaceFabDock .wallace-fab-icon{width:2.6rem;height:4.4rem}
           #wallaceFabDock.wallace-fab-dock--aberto .wallace-fab{transform:translateX(0)}
         }
         /* REDESENHADO 07/08/2026 (pedido do usuário): pill fino → botão sólido preenchido. REFEITO
