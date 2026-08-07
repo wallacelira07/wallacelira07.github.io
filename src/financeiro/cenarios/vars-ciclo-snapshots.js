@@ -148,7 +148,7 @@ function criarVarsCicloSnapshots(){
       caixaVariavelSaldoReal: 1878.00, // ATUALIZADO 01/08/2026: -R$22,00 (TX000190, PIX água mineral, reclassificado de PV para Caixa Variável - correção do usuário). Era R$1.900,00 (26/07, V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
       caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
       reembolsoRecebido: 0,
-      reembolsoAReceber: 7022.76, // CORRIGIDO 05/08/2026 (parte 96, usuario confirmou o valor real: R$6.682,76 + R$340,00 = R$7.022,76): este fallback estatico estava desatualizado (7795.56, base antiga 7455.56+340) desde 31/07 - o Supabase (fonte real que o site busca ao vivo) ja estava correto em 7022.76, so este DEFAULT local (usado so se o Supabase estiver fora do ar) que nao tinha sido resincronizado. NOTA: R$3.280,47 do mesmo relatorio ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
+      reembolsoAReceber: 6700.61, // ATUALIZADO 07/08/2026: usuario confirmou R$6.700,61 ainda a receber + R$340,00 ja recebido (este ja está em reembolsoCicloTotal/WARTSILA_CAIXA_TRANSACOES, TX000220) = R$7.040,61 total do reembolso Wartsila neste ciclo. Era R$7.022,76 (05/08, parte 96). NOTA: R$3.280,47 do relatorio anterior ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
       toleranciaTempValor: 0,
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
