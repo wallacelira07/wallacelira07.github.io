@@ -91,25 +91,62 @@
   }
   .cover-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:var(--shadow-glow-green)}
   /* NOVO 07/08/2026 (pedido do usuário: saudação premium "Bom dia/Boa tarde, Nome" por e-mail
-     logado). Pill com brilho sutil de borda em gradiente (accent -> accent-2), texto também em
-     gradiente, entrada suave (fade + slide de baixo pra cima) assim que o e-mail é resolvido. */
-  .greeting-premium{
-    display:inline-flex;align-items:center;gap:0.5rem;
-    padding:0.4rem 0.9rem 0.4rem 0.7rem;margin-bottom:0.9rem;border-radius:var(--radius-pill);
-    background:linear-gradient(var(--surface),var(--surface)) padding-box,
-               linear-gradient(120deg,var(--accent),var(--accent-2),var(--green)) border-box;
-    border:1px solid transparent;
-    box-shadow:0 2px 14px rgba(57,135,229,0.12);
-    opacity:0;transform:translateY(6px);
-    transition:opacity 0.5s ease, transform 0.5s ease;
+     logado). ATUALIZADO 07/08/2026: pill fixa virou popup modal. REFEITO ainda 07/08/2026 (usuário
+     não gostou da 1ª versão com cena de céu/arco grande — pediu algo "menor, mais clean", sol/lua
+     sorrindo e piscando o olho, sem grande movimento, ou girando no próprio eixo): ícone único
+     (SVG, sol OU lua) com rosto simples, brilho suave atrás, balanço leve no próprio eixo (wobble)
+     e 1 olho que pisca de tempos em tempos — sem mais cena de céu/horizonte cruzando a tela. */
+  .greeting-overlay{
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(6,7,9,0.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    opacity:0;pointer-events:none;
+    transition:opacity 0.4s ease;
   }
-  .greeting-premium--in{opacity:1;transform:translateY(0)}
-  .greeting-premium .greeting-icon{font-size:1.05rem;line-height:1;filter:drop-shadow(0 0 6px rgba(255,255,255,0.25))}
-  .greeting-premium .greeting-text{
-    font-size:0.9rem;font-weight:700;letter-spacing:0.01em;
+  .greeting-overlay--in{opacity:1;pointer-events:auto}
+  .greeting-modal{
+    width:min(230px,78vw);padding:1.5rem 1.2rem 1.2rem;border-radius:var(--radius-2xl);
+    background:var(--surface);border:1px solid var(--border-strong);
+    box-shadow:0 20px 60px rgba(0,0,0,0.45);
+    text-align:center;
+    transform:translateY(10px) scale(0.97);
+    transition:transform 0.4s cubic-bezier(.2,.9,.3,1.2);
+  }
+  .greeting-overlay--in .greeting-modal{transform:translateY(0) scale(1)}
+  .greeting-icon-wrap{position:relative;width:58px;height:58px;margin:0 auto 0.5rem}
+  .greeting-icon-wrap::before{
+    content:'';position:absolute;inset:-9px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,210,87,0.35),transparent 70%);
+    filter:blur(5px);
+  }
+  .greeting-icon-wrap--noite::before{background:radial-gradient(circle,rgba(156,147,194,0.4),transparent 70%)}
+  .greeting-face{position:relative;display:block}
+  .greeting-face-rotate{transform-origin:50px 50px;animation:greetingWobble 5s ease-in-out infinite}
+  .greeting-eye-wink{transform-box:fill-box;transform-origin:center;animation:greetingWink 4.5s ease-in-out infinite}
+  @keyframes greetingWobble{
+    0%{transform:rotate(-6deg)}
+    50%{transform:rotate(6deg)}
+    100%{transform:rotate(-6deg)}
+  }
+  @keyframes greetingWink{
+    0%,85%,100%{transform:scaleY(1)}
+    90%,94%{transform:scaleY(0.15)}
+  }
+  .greeting-modal-text{
+    padding:0.3rem 0 0;font-size:1rem;font-weight:700;letter-spacing:0.01em;
     background:linear-gradient(120deg,var(--text),var(--accent-2));
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
+  .greeting-modal-ok{
+    display:inline-block;margin:1rem auto 1.2rem;padding:0.5rem 1.8rem;
+    border-radius:var(--radius-pill);border:1px solid transparent;
+    background:linear-gradient(120deg,var(--accent),var(--accent-2));
+    color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;
+    cursor:pointer;box-shadow:0 4px 14px rgba(57,135,229,0.3);
+    transition:transform 0.15s ease,box-shadow 0.15s ease;
+  }
+  .greeting-modal-ok:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(57,135,229,0.4)}
+  .greeting-modal-ok:active{transform:translateY(0)}
   .cover h1{
     font-size:2.3rem;font-weight:700;letter-spacing:-0.02em;
     line-height:1.1;margin-bottom:0.6rem;position:relative;z-index:1;

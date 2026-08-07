@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<link rel="stylesheet" href="assets/css/styles.css?v=272">
+<link rel="stylesheet" href="assets/css/styles.css?v=273">
 </head>
 <body>
 <script>
@@ -44,12 +44,82 @@
     <div class="cover-top">
       <div class="cover-top-text">
         <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span><span id="syncV2Badge" style="margin-left:0.6rem;font-weight:600;cursor:default;font-size:0.85em" title="Compara o saldo real da Caixa Variável entre este arquivo (app.js) e a Arquitetura V2 (Supabase relacional)"></span><span id="catV2Badge" style="margin-left:0.6rem;font-weight:600;cursor:default;font-size:0.85em;color:var(--text-dim)" title="Cobertura do motor de classificação (Fase 3 da Arquitetura V2)"></span></div>
-        <div class="greeting-premium" id="saudacaoPremium"><span class="greeting-icon" id="saudacaoIcone">✨</span><span class="greeting-text" id="saudacaoTexto">Bem-vindo(a)</span></div>
+        <div class="greeting-overlay" id="saudacaoOverlay">
+          <div class="greeting-modal" role="dialog" aria-modal="true" aria-labelledby="saudacaoTexto">
+            <div class="greeting-icon-wrap" id="saudacaoIconeWrap">
+              <svg class="greeting-face greeting-face--sol" id="saudacaoFaceSol" viewBox="0 0 100 100" width="58" height="58" style="display:none">
+                <defs>
+                  <radialGradient id="saudacaoSolGrad" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stop-color="#fff6d8"/>
+                    <stop offset="55%" stop-color="#ffd257"/>
+                    <stop offset="100%" stop-color="#f4a72c"/>
+                  </radialGradient>
+                </defs>
+                <g class="greeting-face-rotate">
+                  <g class="greeting-rays" stroke="#ffcf5c" stroke-width="5" stroke-linecap="round">
+                    <line x1="50" y1="4" x2="50" y2="15"/>
+                    <line x1="50" y1="85" x2="50" y2="96"/>
+                    <line x1="4" y1="50" x2="15" y2="50"/>
+                    <line x1="85" y1="50" x2="96" y2="50"/>
+                    <line x1="17" y1="17" x2="25" y2="25"/>
+                    <line x1="75" y1="75" x2="83" y2="83"/>
+                    <line x1="17" y1="83" x2="25" y2="75"/>
+                    <line x1="75" y1="25" x2="83" y2="17"/>
+                  </g>
+                  <circle cx="50" cy="50" r="30" fill="url(#saudacaoSolGrad)"/>
+                  <ellipse cx="30" cy="58" rx="6" ry="3.6" fill="#ff8f6b" opacity="0.45"/>
+                  <ellipse cx="70" cy="58" rx="6" ry="3.6" fill="#ff8f6b" opacity="0.45"/>
+                  <path d="M35 39 Q40 35.5 45.5 38" stroke="#8a5a12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                  <path d="M54.5 38 Q60 35.5 65 39" stroke="#8a5a12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                  <circle cx="40" cy="48" r="3.4" fill="#8a5a12"/>
+                  <circle class="greeting-eye-wink" cx="60" cy="48" r="3.4" fill="#8a5a12"/>
+                  <path d="M39 60 Q50 68 61 60" stroke="#8a5a12" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                </g>
+              </svg>
+              <svg class="greeting-face greeting-face--lua" id="saudacaoFaceLua" viewBox="0 0 100 100" width="58" height="58" style="display:none">
+                <defs>
+                  <radialGradient id="saudacaoLuaGrad" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stop-color="#f4f0ff"/>
+                    <stop offset="55%" stop-color="#cfc7ea"/>
+                    <stop offset="100%" stop-color="#9c93c2"/>
+                  </radialGradient>
+                </defs>
+                <g class="greeting-face-rotate">
+                  <circle cx="50" cy="50" r="30" fill="url(#saudacaoLuaGrad)"/>
+                  <circle cx="34" cy="34" r="4.5" fill="#b6acdb" opacity="0.6"/>
+                  <circle cx="64" cy="60" r="3" fill="#b6acdb" opacity="0.5"/>
+                  <circle cx="60" cy="30" r="2.2" fill="#b6acdb" opacity="0.5"/>
+                  <ellipse cx="30" cy="58" rx="6" ry="3.6" fill="#d9a3e0" opacity="0.4"/>
+                  <ellipse cx="70" cy="58" rx="6" ry="3.6" fill="#d9a3e0" opacity="0.4"/>
+                  <path d="M35 39 Q40 35.5 45.5 38" stroke="#4b4570" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                  <path d="M54.5 38 Q60 35.5 65 39" stroke="#4b4570" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                  <circle cx="40" cy="48" r="3.4" fill="#4b4570"/>
+                  <circle class="greeting-eye-wink" cx="60" cy="48" r="3.4" fill="#4b4570"/>
+                  <path d="M39 60 Q50 68 61 60" stroke="#4b4570" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                </g>
+              </svg>
+            </div>
+            <div class="greeting-modal-text" id="saudacaoTexto">Bem-vindo(a)</div>
+            <button type="button" class="greeting-modal-ok" id="saudacaoOk">OK</button>
+          </div>
+        </div>
         <script>
         // NOVO 07/08/2026 (pedido do usuario: "mensagem de bem vindo, Boa tarde Wallace / Bom dia
         // Vanessa de acordo com o email"): roda logo apos o elemento existir no DOM, sincrono, sem
         // esperar VARS/app.js (so precisa do email ja lido pelo guard de acesso, no topo do arquivo).
+        // ATUALIZADO 07/08/2026: virou popup modal (pedido do usuario). REFEITO ainda 07/08/2026
+        // (usuario nao gostou da 1a versao com "cena" grande - pediu algo menor/mais clean, sol/lua
+        // sorrindo e piscando o olho, sem grande movimento, ou girando no proprio eixo): trocado
+        // emoji+ceu animado por um icone SVG só (sol ou lua, com "rosto": 2 olhos + sorriso), 1 olho
+        // pisca de tempos em tempos (wink) e o icone balanca suavemente no proprio eixo (wobble leve,
+        // nao mais um arco cruzando a tela). Mostra 1x por sessao do navegador (sessionStorage).
         (function(){
+          var JA_VISTO_KEY = 'wallaceSaudacaoModalVista';
+          if(sessionStorage.getItem(JA_VISTO_KEY) === '1') {
+            var overlayPrevio = document.getElementById('saudacaoOverlay');
+            if(overlayPrevio) overlayPrevio.remove();
+            return;
+          }
           var NOMES_POR_EMAIL = {
             'wallace.termica@gmail.com': 'Wallace',
             'vanessaflor.galdino@gmail.com': 'Vanessa'
@@ -58,17 +128,28 @@
           var nome = NOMES_POR_EMAIL[email] || null;
           var h = new Date().getHours();
           var periodo = h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-          var icone = h < 6 ? '🌙' : h < 12 ? '☀️' : h < 18 ? '🌤️' : '🌙';
+          var ehNoite = h < 6 || h >= 18;
           var el = document.getElementById('saudacaoTexto');
-          var elIcone = document.getElementById('saudacaoIcone');
+          var elIconeWrap = document.getElementById('saudacaoIconeWrap');
+          var elSol = document.getElementById('saudacaoFaceSol');
+          var elLua = document.getElementById('saudacaoFaceLua');
+          var overlay = document.getElementById('saudacaoOverlay');
+          var btnOk = document.getElementById('saudacaoOk');
           if(el) el.textContent = nome ? (periodo + ', ' + nome) : periodo;
-          if(elIcone) elIcone.textContent = icone;
-          var wrap = document.getElementById('saudacaoPremium');
-          if(wrap) requestAnimationFrame(function(){ wrap.classList.add('greeting-premium--in'); });
+          if(elIconeWrap) elIconeWrap.classList.add(ehNoite ? 'greeting-icon-wrap--noite' : 'greeting-icon-wrap--dia');
+          if(ehNoite){ if(elLua) elLua.style.display = 'block'; } else { if(elSol) elSol.style.display = 'block'; }
+          if(overlay) requestAnimationFrame(function(){ overlay.classList.add('greeting-overlay--in'); });
+          function fechar(){
+            if(overlay) overlay.classList.remove('greeting-overlay--in');
+            sessionStorage.setItem(JA_VISTO_KEY, '1');
+            setTimeout(function(){ if(overlay) overlay.remove(); }, 400);
+          }
+          if(btnOk) btnOk.addEventListener('click', fechar);
+          if(overlay) overlay.addEventListener('click', function(ev){ if(ev.target === overlay) fechar(); });
         })();
         </script>
         <h1>Painel Financeiro</h1>
-        <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
+        <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span></div>
       </div>
       <!-- V300 Etapa 6 (Busca Global). Movida (parte 47, pedido do usuario) pro canto vazio do
            cabecalho, no lugar da faixa inteira que ficava entre a Capa e o Simulador so pra ela -
@@ -1476,7 +1557,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260807-1';
+var __V = '20260807-5';
 
 function __carregarScriptsParalelo(caminhos){
   return Promise.all(caminhos.map(function(src){
@@ -1579,6 +1660,30 @@ var __promiseDadosRemotos = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest
   console.warn('Nao consegui buscar dados remotos do Supabase, usando versao publicada localmente:', e);
 });
 
+// NOVO 07/08/2026 (pedido do usuario: "legendas devem ser hospedadas em um banco de legendas, para
+// quando quiser mudar nao precisar de deploy"): busca a tabela `legendas` (id text, texto text) em
+// paralelo ao wallace_dados acima - mesma seguranca (se falhar/banco fora do ar, window.WALLACE_LEGENDAS_REMOTAS
+// fica null e o app.js usa o texto local do VARS.LEGENDAS de sempre, o site nunca quebra por causa disso).
+window.WALLACE_LEGENDAS_REMOTAS = null;
+var __promiseLegendasRemotas = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/legendas?select=id,texto', {
+  headers: {
+    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+  },
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    var mapa = {};
+    rows.forEach(function(r){ if(r && r.id) mapa[r.id] = r.texto; });
+    window.WALLACE_LEGENDAS_REMOTAS = mapa;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar legendas remotas do Supabase, usando texto local publicado:', e);
+});
+
 // FASE 2D (06/08/2026, experimental, autorizado - escopo unico Caixa Variavel) — CORRIGIDO na mesma
 // rodada (regressao real encontrada e confirmada: carregar FinanceEngine.js como <script src> classico
 // colocava as declaracoes top-level dele no MESMO escopo global do app.js - `const SolarConfig` existe
@@ -1606,6 +1711,7 @@ function carregarModuloIsoladoCommonJS(src, nomeGlobal){
 Promise.all([
   window.__promiseModulosBase,
   __promiseDadosRemotos,
+  __promiseLegendasRemotas,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){

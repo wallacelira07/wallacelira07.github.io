@@ -251,8 +251,8 @@ Object.assign(VARS, criarVarsOperacional());
 // Congela objetos que nunca deveriam ser mutados em runtime - protege contra edição acidental
 // (ex: alguém escrever VARS.LEGENDAS.algumId = "..." num ponto novo do código sem perceber que
 // deveria estar editando o objeto original, lá em cima). Confirmado (03/08/2026): só leitura no
-// resto do arquivo para os 3.
-Object.freeze(VARS.LEGENDAS);
+// resto do arquivo para os 3. LEGENDAS NÃO é congelado ainda aqui (ver bloco depois do merge do
+// WALLACE_DADOS_REMOTOS logo abaixo) - só os outros 2.
 Object.freeze(VARS.CRONOGRAMA_BOLETOS_FIXOS);
 Object.freeze(VARS.ROC_STATUS_LIMITES);
 
@@ -325,6 +325,22 @@ if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
     }
   }
 }
+
+// NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
+// de deploy pra mudar"): completa o que o comentario da V218 (legInboxVazia) ja prometia mas nunca
+// foi de fato ligado - mescla VARS.LEGENDAS local (fallback, sempre funciona mesmo offline/banco
+// fora do ar) com window.WALLACE_LEGENDAS_REMOTAS (id->texto, buscado da tabela `legendas` no
+// Supabase pelo script no HTML). PRECISA rodar DEPOIS do bloco WALLACE_DADOS_REMOTOS acima - bug
+// real encontrado e corrigido nesta mesma sessao: `wallace_dados.dados` tem uma chave `LEGENDAS`
+// de nivel superior (snapshot antigo, de antes desta tabela existir) que o `Object.assign(VARS, dr)`
+// aplica por cima de TUDO - se este bloco rodasse antes (como na 1a tentativa), esse LEGENDAS velho
+// sobrescrevia a mesclagem silenciosamente, sem erro nenhum, e nenhuma edicao no Supabase novo aparecia.
+// Rodando depois, este bloco sempre tem a ultima palavra sobre VARS.LEGENDAS, nao importa o que exista
+// (ou volte a existir) em wallace_dados.
+if(typeof window !== 'undefined' && window.WALLACE_LEGENDAS_REMOTAS){
+  VARS.LEGENDAS = Object.assign({}, VARS.LEGENDAS, window.WALLACE_LEGENDAS_REMOTAS);
+}
+Object.freeze(VARS.LEGENDAS);
 
 const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = ordem cronologica
 
@@ -926,20 +942,24 @@ const WallaceFinanceService = {
       wallaceFabCss.id = 'wallaceFabStyles';
       wallaceFabCss.textContent = `
         #wallaceFabDock{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem}
-        /* REDESENHADO 07/08/2026 (pedido do usuário: "esses botões estão muito finos... se inspire
-           em sites profissionais"): de pill fino com fundo quase transparente e borda de 1px, pra
-           botão sólido preenchido (mesmo padrão de FAB de dashboards como Linear/Stripe) - cor cheia,
-           texto branco, sombra colorida com a própria cor do botão (profundidade real, não só preta),
-           leve escala + elevação no hover, active state de "afundar" ao clicar.
+        /* REDESENHADO 07/08/2026 (pedido do usuário): pill fino → botão sólido preenchido. REFEITO
+           ainda 07/08/2026 (pedido explícito do usuário, ficou pendente uma sessão inteira: "círculo
+           pequeno com ícone, e ao passar o mouse uma tira lateral desliza revelando o texto" — não
+           mais um pill sempre expandido com texto visível). Agora é um círculo fixo (2.6rem, só o
+           ícone) e o rótulo mora num span à parte, com max-width 0/opacity 0 por padrão — no hover
+           (ou foco, pra acessibilidade via teclado) o rótulo expande e aparece ao lado do ícone.
         */
-        .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;height:2.6rem;min-width:6rem;padding:0 1.1rem;border-radius:999px;font-size:0.78rem;font-weight:700;letter-spacing:0.01em;cursor:pointer;border:none;background:linear-gradient(155deg,#4a9eff,#3987e5);color:#fff;box-shadow:0 6px 20px rgba(57,135,229,0.4),0 2px 4px rgba(0,0,0,0.25);transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,filter .18s ease;white-space:nowrap}
-        .wallace-fab:hover{transform:translateY(-3px) scale(1.02);filter:brightness(1.08);box-shadow:0 10px 26px rgba(57,135,229,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;height:2.6rem;padding:0;border-radius:999px;border:none;cursor:pointer;background:linear-gradient(155deg,#4a9eff,#3987e5);color:#fff;box-shadow:0 6px 20px rgba(57,135,229,0.4),0 2px 4px rgba(0,0,0,0.25);overflow:hidden;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,filter .18s ease}
+        .wallace-fab:hover,.wallace-fab:focus-visible{transform:translateY(-3px) scale(1.02);filter:brightness(1.08);box-shadow:0 10px 26px rgba(57,135,229,0.5),0 3px 6px rgba(0,0,0,0.3)}
         .wallace-fab:active{transform:translateY(-1px) scale(0.98)}
+        .wallace-fab-icon{flex:0 0 2.6rem;width:2.6rem;height:2.6rem;display:flex;align-items:center;justify-content:center;font-size:1.05rem;position:relative}
+        .wallace-fab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:0.78rem;font-weight:700;letter-spacing:0.01em;transition:max-width .3s ease,opacity .2s ease,padding-right .3s ease}
+        .wallace-fab:hover .wallace-fab-label,.wallace-fab:focus-visible .wallace-fab-label{max-width:8rem;opacity:1;padding-right:1.05rem}
         .wallace-fab--lancar{order:2;background:linear-gradient(155deg,#3fd68a,#27a866);box-shadow:0 6px 20px rgba(39,168,102,0.4),0 2px 4px rgba(0,0,0,0.25)}
-        .wallace-fab--lancar:hover{box-shadow:0 10px 26px rgba(39,168,102,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab--lancar:hover,.wallace-fab--lancar:focus-visible{box-shadow:0 10px 26px rgba(39,168,102,0.5),0 3px 6px rgba(0,0,0,0.3)}
         .wallace-fab--warn{background:linear-gradient(155deg,#f0b94d,#d99a2b);box-shadow:0 6px 20px rgba(217,154,43,0.4),0 2px 4px rgba(0,0,0,0.25)}
-        .wallace-fab--warn:hover{box-shadow:0 10px 26px rgba(217,154,43,0.5),0 3px 6px rgba(0,0,0,0.3)}
-        .wallace-fab-badge{position:absolute;top:-0.4rem;right:-0.4rem;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:#e2554f;color:#fff;font-size:0.62rem;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 3px #0b0c0e,0 2px 6px rgba(226,85,79,0.5);line-height:1}
+        .wallace-fab--warn:hover,.wallace-fab--warn:focus-visible{box-shadow:0 10px 26px rgba(217,154,43,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab-badge{position:absolute;top:-0.25rem;right:-0.25rem;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:#e2554f;color:#fff;font-size:0.62rem;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 3px #0b0c0e,0 2px 6px rgba(226,85,79,0.5);line-height:1}
         .wallace-panel{position:fixed;right:1.25rem;bottom:4rem;z-index:9999;width:280px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,.4);display:none}
       `;
       document.head.appendChild(wallaceFabCss);
@@ -969,11 +989,18 @@ const WallaceFinanceService = {
       const btn = document.createElement('button');
       btn.id = 'painelV2Toggle';
       btn.className = 'wallace-fab';
-      btn.textContent = '💰 V2';
       btn.title = 'Ver as 18 caixas calculadas pela Arquitetura V2 (Supabase), calibradas com saldo real em 05/08/2026';
+      const btnIconWrap = document.createElement('span');
+      btnIconWrap.className = 'wallace-fab-icon';
+      btnIconWrap.textContent = '💰';
       const btnBadge = document.createElement('span');
       btnBadge.className = 'wallace-fab-badge';
-      btn.appendChild(btnBadge);
+      btnIconWrap.appendChild(btnBadge);
+      const btnLabel = document.createElement('span');
+      btnLabel.className = 'wallace-fab-label';
+      btnLabel.textContent = 'V2';
+      btn.appendChild(btnIconWrap);
+      btn.appendChild(btnLabel);
 
       const painel = document.createElement('div');
       painel.id = 'painelV2Caixas';
@@ -1055,8 +1082,15 @@ const WallaceFinanceService = {
       const btnLancar = document.createElement('button');
       btnLancar.id = 'btnLancarTx';
       btnLancar.className = 'wallace-fab wallace-fab--lancar';
-      btnLancar.textContent = '＋ Lançar';
       btnLancar.title = 'Lançar uma transação direto na Arquitetura V2 (Supabase relacional)';
+      const btnLancarIcon = document.createElement('span');
+      btnLancarIcon.className = 'wallace-fab-icon';
+      btnLancarIcon.textContent = '＋';
+      const btnLancarLabel = document.createElement('span');
+      btnLancarLabel.className = 'wallace-fab-label';
+      btnLancarLabel.textContent = 'Lançar';
+      btnLancar.appendChild(btnLancarIcon);
+      btnLancar.appendChild(btnLancarLabel);
       // CORRIGIDO 07/08/2026: agora entra no dock flutuante (#wallaceFabDock, flexbox) em vez de
       // right:9.5rem fixo — nunca mais cola no botão V2, mesmo com o badge crescendo.
 

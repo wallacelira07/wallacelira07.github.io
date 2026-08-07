@@ -197,6 +197,12 @@
             display: flex;
             align-items: center;
             gap: 11px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: opacity .15s ease;
+        }
+        #dashboardScreen header .brand:hover {
+            opacity: 0.82;
         }
 
         #dashboardScreen header .brand-icon {
@@ -367,7 +373,7 @@
 
     <div id="dashboardScreen">
         <header>
-            <div class="brand">
+            <div class="brand" id="brandLogo" role="button" tabindex="0" title="Voltar ao topo">
                 <span class="brand-icon" aria-hidden="true">📊</span>
                 <div class="brand-text">
                     <h1>Sistema Wallace Lira</h1>
@@ -677,6 +683,32 @@
         // EVENTOS
         document.getElementById('loginBtn').addEventListener('click', login);
         document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        // NOVO 07/08/2026 (pedido do usuario: clicar na logo "Sistema Wallace Lira / Painel
+        // Financeiro" volta pro topo do painel): o painel real mora dentro do #mainIframe (a pagina
+        // externa/index.html nao rola, so o iframe rola por dentro - ver #dashboardContent{overflow:hidden}
+        // acima) - por isso o scroll precisa ser feito no contentWindow do iframe, nao em window/document
+        // daqui de fora. CONFIRMADO por inspecao: dentro do painel quem rola de verdade e o <body>
+        // (overflow-y:auto), nao o <html>/window - contentWindow.scrollTo() sozinho nao move a tela
+        // visivel. Seta os 3 alvos possiveis (scrollTo do window + scrollTop de html e body) pra
+        // cobrir qualquer um que seja o container real, sem depender de qual exatamente é.
+        function scrollPainelParaTopo(){
+            const iframe = document.getElementById('mainIframe');
+            if(!iframe || !iframe.contentWindow) return;
+            const win = iframe.contentWindow;
+            const doc = win.document;
+            if(doc && doc.body && doc.body.scrollTo){ doc.body.scrollTo({ top: 0, behavior: 'smooth' }); }
+            if(doc && doc.body) doc.body.scrollTop = 0;
+            if(doc && doc.documentElement) doc.documentElement.scrollTop = 0;
+            win.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        const brandLogo = document.getElementById('brandLogo');
+        if(brandLogo){
+            brandLogo.addEventListener('click', scrollPainelParaTopo);
+            brandLogo.addEventListener('keydown', e => {
+                if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); scrollPainelParaTopo(); }
+            });
+        }
 
         document.getElementById('email').addEventListener('keypress', e => {
             if (e.key === 'Enter') login();

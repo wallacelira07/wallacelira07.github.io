@@ -147,8 +147,8 @@ function criarVarsCicloSnapshots(){
       caixaVariavelComprometido: 584.48, // ATUALIZADO 26/07/2026 (V178): +R$28,49 (TX000161, Super Bom Supermercado, cartao MB 2244). Era R$555,99.
       caixaVariavelSaldoReal: 1878.00, // ATUALIZADO 01/08/2026: -R$22,00 (TX000190, PIX água mineral, reclassificado de PV para Caixa Variável - correção do usuário). Era R$1.900,00 (26/07, V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
       caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
-      reembolsoRecebido: 0,
-      reembolsoAReceber: 6700.61, // ATUALIZADO 07/08/2026: usuario confirmou R$6.700,61 ainda a receber + R$340,00 ja recebido (este ja está em reembolsoCicloTotal/WARTSILA_CAIXA_TRANSACOES, TX000220) = R$7.040,61 total do reembolso Wartsila neste ciclo. Era R$7.022,76 (05/08, parte 96). NOTA: R$3.280,47 do relatorio anterior ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
+      reembolsoRecebido: 340, // CORRIGIDO 07/08/2026 (bug real apontado pelo usuario): estava 0, mas o R$340 do TX000220 (WARTSILA_CAIXA_TRANSACOES) precisa entrar AQUI pra reembolsoCicloTotal (=reembolsoRecebido+reembolsoAReceber) refletir o recebido de verdade - o comentario antigo dizia "ja esta em reembolsoCicloTotal" mas a formula em app.js so le este campo, nunca o array da caixa. Sem isso, "Recebidos no ciclo" (reembolsoCicloTotal-reembolsosAReceber) dava R$0,00 mesmo com o TED ja confirmado.
+      reembolsoAReceber: 6700.61, // ATUALIZADO 07/08/2026: usuario confirmou R$6.700,61 ainda a receber. Com reembolsoRecebido=340 acima, total do ciclo = R$7.040,61. Era R$7.022,76 (05/08, parte 96). NOTA: R$3.280,47 do relatorio anterior ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
       toleranciaTempValor: 0,
       toleranciaTempMotivo: null,
       tetoOficial: 2000,
