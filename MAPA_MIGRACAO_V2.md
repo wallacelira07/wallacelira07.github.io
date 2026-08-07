@@ -2,7 +2,9 @@
 
 **Missão**: "Promoção Operacional Controlada da V2", TRILHA A. Inventário de TODO cálculo real encontrado no `app.js` (7.782 linhas), classificado por prontidão pra substituição pelo `FinanceEngine`.
 
-**Regra absoluta em vigor**: nenhuma linha desta tabela autoriza troca de chamada. Isto é levantamento, não execução. A única promoção real feita até agora continua sendo a Caixa Variável (FASE 2E, sessão anterior).
+**Regra absoluta em vigor**: nenhuma linha desta tabela autoriza troca de chamada por si só — cada promoção real ainda passa por aprovação explícita antes da implementação. Ver `PASSAGEM_DE_TURNO.md` para o estado consolidado e atualizado de todas as promoções já feitas (Domínios 1, 2, 3, 5, 6, 7, 8 e o item de recorrências/assinaturas do Domínio 4) — esta matriz permanece como inventário de classificação, não como rastreador de progresso.
+
+**Fase 2 encerrada (07/08/2026)**: Caixa Bens Duráveis (V2 negativo, R$355,00 — déficit inicial conhecido, caixa criada sem fundo prévio) e Caixa Lance (diferença de R$266,23 — `LREI0003`, empréstimo interno com ressarcimento via Wärtsilá) estão **explicadas e sem ação necessária** do ponto de vista de negócio. Ambas continuam dentro do lote da FASE 2F, confirmado em fallback em runtime (0/10) por causa raiz separada (corte de ciclo `CICLO_ATUAL_INICIO`, congelada por decisão do usuário) — ver `ESTADO_ATUAL.md`.
 
 **Legenda de classificação**:
 - 🟢 **VERDE** — equivalente no `FinanceEngine` existe, testado, dependências conhecidas e disponíveis (V2 ou VARS). Pronto pra virar candidato de promoção real (TRILHA D).
@@ -16,7 +18,7 @@
 | Cálculo | Localização (`app.js`) | Dependências | Equivalente `FinanceEngine` | Teste? | Pronto? |
 |---|---|---|---|---|---|
 | Saldo de qualquer caixa (saldo inicial + Σ transações) | `calcularSaldoCaixa()`, linha 499 | `saldoInicial`, array de transações | `calcularSaldoCaixa()` | Sim (múltiplos casos) | 🟢 — **já promovido** (Caixa Variável, FASE 2E) |
-| Caixa Variável: disponível/tetoEfetivo/folegoAteTeto | `recalcularAgregadosDerivados()`, 2758-2767 | `saldoReal`, `comprometido`, `tetoOficial`, `tolerenciaTemp` | `calcularCaixaVariavel()` | Sim | 🟢 (disponível já promovido; tetoEfetivo/folegoAteTeto ainda não, mas função pronta) |
+| Caixa Variável: disponível/tetoEfetivo/folegoAteTeto | `recalcularAgregadosDerivados()`, 2758-2767 | `saldoReal`, `comprometido`, `tetoOficial`, `tolerenciaTemp` | `calcularCaixaVariavel()` | Sim | 🟢 — **já promovido, os 3 campos** (disponível: FASE 2D/2E; tetoEfetivo/folegoAteTeto: FASE 2N, 06/08/2026) |
 | `caixaVariavelComprometido` (Visa+MB Wallace/Vanessa − Bens Duráveis) | linha 2341 (fora da função principal) | 4 campos `VARS` de cartão + dedução Bens Duráveis | **nenhum** | — | 🔴 — fórmula de composição própria (parte 98), não extraída ainda |
 | Soma das 12 reservas (Boletos, Lance, Manutenção...) | `REG.balanco.reservas.total`, 2781-2784 | 12 campos `REG.balanco.reservas.*` | `somarCampo()` (genérico, serve) | Indireto (testado noutro contexto) | 🟡 — função genérica cobre, mas sem teste específico com estes 12 campos |
 | Soma operacional (Caixa Variável + Boletos + Mastercard/Infinite) | `REG.balanco.operacional.total`, 2785 | 3 campos | `somarCampo()` | Indireto | 🟡 |
@@ -39,21 +41,22 @@
 |---|---|---|---|---|---|
 | Patrimônio Financeiro (Meta do Milhão) = reserva+BTG+Lance+Necton | 2768 | 4 campos | `calcularPatrimonioFinanceiroMetaMilhao()` | Sim | 🟢 |
 | % Meta do Milhão | 2769 | patrimônio financeiro | `calcularMetaMilhao()` | Sim | 🟢 |
-| Balanço completo (físico, financeiro, passivos, ativos, líquido, geral) | 2789-2806 | ~13 campos `VARS`/`REG` | `calcularPatrimonio()` | Sim | 🟡 — fórmula pronta e testada, mas `BACKLOG_PATRIMONIO` (Financiamento Casa) segue com override manual não sincronizado, já pego pelo Comparator (única divergência real conhecida, ver `FASE_2C_SERVICES.md`) |
-| Formação Patrimonial (regra Thomas Stanley: idade × renda×12/10) | 2854-2875 | idade (calculada), entradasTotais, patrimônioTotalGeral | `calcularFormacaoPatrimonial()` + `calcularIdade()` | Sim | 🟢 |
+| Balanço completo (físico, financeiro, passivos, ativos, líquido, geral) | 2790-2807 | ~13 campos `VARS`/`REG` | `calcularPatrimonio()` | Sim | 🟢/🟡 — **conectado nesta rodada** (FASE 2U, 06/08/2026) com o mesmo gate do Comparator de sempre: se o override manual de Financiamento Casa (`BACKLOG_PATRIMONIO`) estiver dessincronizado, o gate reprova e a tela continua no V1 automaticamente — sem risco novo. Resultado real depende do Comparator ao vivo no navegador. |
+| Formação Patrimonial (regra Thomas Stanley: idade × renda×12/10) | 2854-2875 | idade (calculada), entradasTotais, patrimônioTotalGeral | `calcularFormacaoPatrimonial()` + `calcularIdade()` | Sim | 🟢 (Formação Patrimonial promovida na FASE 2G; `REG.idadeWallace` em si promovido separadamente na FASE 2T, 06/08/2026) |
 | Meta de Investimento (20% salário vs. investido) | 3049-3051 | salário, aporte BTG, depósito Necton | `calcularMetaInvestimento()` **(novo nesta rodada, TRILHA B)** | Sim | 🟢 |
-| Projeto Casa Nova (capital disponível vs. meta de lance) | 3062-3064 | BTG+Necton, Caixa Lance, meta | `calcularProjetoCasaNova()` **(novo nesta rodada, TRILHA B)** | Sim | 🟢 |
+| Projeto Casa Nova (capital disponível vs. meta de lance) | 3062-3064 | BTG+Necton, Caixa Lance, meta | `calcularProjetoCasaNova()` | Sim | 🟢 — **já promovido** (FASE 2O, 06/08/2026) |
 | Consórcio Casa Nova (% quitação) | 3061 | `pagoPct` | trivial (`100 - x`), não extraído — baixa prioridade | Não | 🔴 (trivial, mas sem função dedicada ainda) |
 | `patrimonioTotalMesesDeRenda` / `patrimonioEsperadoRegraClassica` / faixa | 2866-2875 | entradasTotais, patrimônioTotalGeral, idade | Coberto por `calcularFormacaoPatrimonial()` | Sim | 🟢 |
-| Escola de Júlio % da meta | 3045 | saldo, meta | `calcularEscolaPct()` | Sim | 🟢 |
+| Escola de Júlio % da meta | 3045 | saldo, meta | `calcularEscolaPct()` | Sim | 🟢 — **já promovido** (FASE 2P, 06/08/2026) |
 
 ## 4. Cartões / Livros Razão (Domínio 4)
 
 | Cálculo | Localização | Dependências | Equivalente `FinanceEngine` | Teste? | Pronto? |
 |---|---|---|---|---|---|
 | Visa total comprometido (Infinite+MB) e parte pessoal | 2770-2771 | 3 campos | `calcularVisaTotalComprometido()` | Sim | 🟡 — fórmula pronta; mas depende da mesma entrada perna-3 (ver seção 2) |
-| `totalOpDetalhe.recorrencias`/`.assinaturas` (soma Visa+MB) | 2779-2780 | 4 campos | `calcularTotalOpDetalheRecorrenciasAssinaturas()` | Sim | 🟢 |
-| `livroLRC` = Σ `LRC_LIMBO_TRANSACOES` | 2401 (recalculado dentro de `aplicarCicloAoVARS`, pós-correção) | array de transações | `calcularLivroLRC()` | Sim | 🟢 (a fórmula em si; a entrada agora é correta pós-fix) |
+| `totalOpDetalhe.recorrencias`/`.assinaturas` (soma Visa+MB) | 2779-2780 | 4 campos | `calcularTotalOpDetalheRecorrenciasAssinaturas()` | Sim | 🟢 — **já promovido** (FASE 2M, 06/08/2026 — confirmado sem dependência de Livro LRC ou `cartao_id`/`usuario_id`) |
+| `VARS.livroLRC` = Σ `LRC_LIMBO_TRANSACOES` (alimenta a perna-3 da cascata) | 2401 (recalculado dentro de `aplicarCicloAoVARS`, pós-correção) | array de transações | nenhum equivalente direto — continua represado por instrução do usuário, ligado à cascata (🟡 até 1 ciclo fechado confirmar) | — | 🟡 — **não promovido**, represado |
+| `REG.livrosRazaoTotais.LRC.total` (total exibido = `visaDetalhe.corp` + `mbDetalhe.corp`, escalares já confirmados, **não** o array acima) | 3039 | `visaDetalhe.corp`, `mbDetalhe.corp` | `calcularLivroLRC({visaCorp, mbCorp})` | Sim | 🟢 — **já promovido** (FASE 2Q, 06/08/2026) |
 | Livros Razão totais (LRC, LRS, LRR agregados) | 3038-3040 | `visaDetalhe`/`mbDetalhe` já calculados | Parcial — `somarCampo()` genérico cobre, função dedicada não existe | Indireto | 🟡 |
 | `caixaVariavelComprometido` (ver seção 1) | — | — | — | — | 🔴 |
 | Migração `transacoes.cartao_id`/`.usuario_id` (pré-requisito de tudo desta seção na V2) | — | — | N/A (dado, não fórmula) | — | 🔴 — **bloqueador estrutural**, 0/280 preenchidos no histórico migrado (só transação nova via form captura) |
@@ -101,12 +104,12 @@
 
 | Cálculo | Localização | Dependências | Equivalente `FinanceEngine` | Teste? | Pronto? |
 |---|---|---|---|---|---|
-| Dias em operação por posição | `calcularROCOpcoes()`, 2178-2185 | data venda, vencimento, hoje | `calcularDiasOperacao()` | Sim | 🟢 |
-| Classificação de status ROC (Fraca/Boa/Muito Boa/Excelente) | 2172-2177 | rentabilidade mensal, CDI, limites | `classificarStatusROC()` | Sim | 🟢 |
-| ROC por posição (contratos, capital travado, rentabilidade) | 2189-2214 | quantidade, strike, prêmio, dias, CDI | `calcularROCPosicao()` | Sim | 🟢 |
-| ROC consolidado da carteira | 2216-2233 | posições com ROC já calculado | `calcularROCConsolidado()` | Sim | 🟢 |
+| Dias em operação por posição | `calcularROCOpcoes()`, 2178-2185 | data venda, vencimento, hoje | `calcularDiasOperacao()` | Sim | 🟢 — **já promovido** (FASE 2S, 06/08/2026) |
+| Classificação de status ROC (Fraca/Boa/Muito Boa/Excelente) | 2172-2177 | rentabilidade mensal, CDI, limites | `classificarStatusROC()` | Sim | 🟢 — **já promovido** (FASE 2S — devolve label string, objeto {label,emoji,classe} reconstruído no `app.js` com mapa fixo, sem CSS novo) |
+| ROC por posição (contratos, capital travado, rentabilidade) | 2189-2214 | quantidade, strike, prêmio, dias, CDI | `calcularROCPosicao()` | Sim | 🟢 — **já promovido** (FASE 2S) |
+| ROC consolidado da carteira | 2216-2233 | posições com ROC já calculado | `calcularROCConsolidado()` | Sim | 🟢 — **já promovido** (FASE 2S) |
 | Comparação com CDI (`comparacaoCDI`, por posição e consolidado) | 2196, 2224 | rentabilidade mensal, CDI mensal | **não extraído separadamente** (é 1 divisão trivial, poderia entrar em `calcularROCPosicao`/`Consolidado` como campo extra) | Não | 🟡 — cálculo simples, fica de fora só porque a extração original não incluiu esse campo específico |
-| Valor de mercado consolidado (só posições não vencidas) | 2154 (`opcoesVendidasValorMercado`) | array de posições | `calcularValorMercadoConsolidado()` | Sim | 🟢 |
+| Valor de mercado consolidado (só posições não vencidas) | 2154 (`opcoesVendidasValorMercado`) | array de posições | `calcularValorMercadoConsolidado()` | Sim | 🟢 — **já promovido** (FASE 2R, 06/08/2026) |
 | `statusPosicao`/`vencida` (classificação booleana por data ou override manual) | 2148-2153 | vencimento, override manual | **não extraído** — é lógica de decisão (não é bem "fórmula"), baixo valor de extração | Não | 🔴 (baixa prioridade, é 1 if/else curto) |
 | Migração de opções pra V2 (tabela `investimentos` só tem quantidade/valor_atual, não strike/prêmio/vencimento) | — | — | N/A (dado, não fórmula) | — | 🔴 — **bloqueador estrutural**: schema `investimentos` da V2 não tem campos suficientes pra recalcular ROC lá |
 

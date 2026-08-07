@@ -18,9 +18,13 @@
   // se acessado direto pela URL, sem passar pelo index.html. Isso NAO substitui seguranca real
   // (o arquivo ainda contem os dados no HTML/JS - quem baixar o arquivo direto ve tudo, isso so
   // barra navegacao casual/link perdido/historico do navegador). Ver nota tecnica sobre isso.
+  // CORRIGIDO 07/08/2026: lia de localStorage, mas index.html grava a sessao em sessionStorage
+  // (linha ~459) - por isso o guard sempre falhava e mostrava "Sessao nao encontrada" mesmo com
+  // login valido, confirmado no console real do usuario (localStorage vazio, sessionStorage com
+  // o token). Trocado pra ler do lugar certo.
   (function(){
     try {
-      var auth = localStorage.getItem('auth');
+      var auth = sessionStorage.getItem('auth');
       if (!auth) throw new Error('sem sessao');
       JSON.parse(auth); // valida que e um JSON razoavel, nao garante que o token ainda e valido
     } catch(e) {
