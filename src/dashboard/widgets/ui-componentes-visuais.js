@@ -76,8 +76,9 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     var hoje = new Date().toISOString().slice(0, 10);
+    var prefixo = num ? ('secao-' + num + '-') : ''; // NOVO 07/08/2026: cards avulsos (ver abaixo) nao tem numero de secao
     var link = document.createElement('a');
-    link.download = 'secao-' + num + '-' + slug + '-' + hoje + '.jpg';
+    link.download = prefixo + slug + '-' + hoje + '.jpg';
     link.href = canvas.toDataURL('image/jpeg', 0.92);
     link.click();
   }).catch(function(err){
@@ -88,3 +89,24 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   });
 }
 onDomPronto(inicializarBotoesPrintSecao);
+
+// NOVO 07/08/2026 (pedido do usuário: "falta o botão de download nesse gráfico igual os outros
+// têm"): o loop acima só cobre o 1º .card/.grid-* logo depois de um .section-num — cards
+// secundários dentro da mesma seção (ex: "Geração por dia" dentro de "07 Energia Solar", que não é
+// o primeiro card da seção) nunca recebiam botão. Para esses, o próprio HTML já vem com o botão
+// inline (`class="btn-print-secao" data-print-titulo="..."`, mesmo estilo visual) — só falta ligar
+// o clique, achando o `.card` mais próximo pra capturar (não a seção inteira).
+function inicializarBotoesPrintCardAvulso(){
+  document.querySelectorAll('.btn-print-secao[data-print-titulo]').forEach(function(btn){
+    if (btn.dataset.printLigado) return;
+    btn.dataset.printLigado = '1';
+    var card = btn.closest('.card');
+    if (!card) return;
+    var titulo = btn.dataset.printTitulo;
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      baixarSecaoComoJPEG(card, '', titulo, btn);
+    });
+  });
+}
+onDomPronto(inicializarBotoesPrintCardAvulso);

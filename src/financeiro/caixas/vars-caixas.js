@@ -45,7 +45,7 @@ function criarVarsCaixas(){
     { tx:'PIX-LIVELO-29-07', data:'29/07', nome:'PIX recebido Livelo S.a. (cashback/pontos)', tipo:'Entrada', valor:8.58 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app)', tipo:'Entrada', valor:9.42 },
     { tx:'TX000210', data:'05/08', nome:'PIX Itaú → Mercado Pago (aporte Caixa Lance, rendimento Reserva de Emergência)', tipo:'Entrada', valor:921.17 },
-    { tx:'TX000212', data:'07/08', nome:'Reembolso Bradesco - quitação LREI0002 (Caixa Saúde Família)', tipo:'Entrada', valor:164.94 },
+    { tx:'TX000212', data:'07/08', nome:'Reembolso Bradesco Saúde - quitação LREI0002 (Caixa Saúde Família)', tipo:'Entrada', valor:164.94 },
     { tx:'TX000216', data:'07/08', nome:'Empréstimo p/ Caixa Manutenção (LREI0004, complemento pagamento das cortinas)', tipo:'Saída', valor:103.55 },
   ],
   caixaLance: 4453.50,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
@@ -222,7 +222,7 @@ function criarVarsCaixas(){
   SAUDE_FAMILIA_TRANSACOES: [
     { tx:'TX000147', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:135.00 },
     { tx:'TX000166', data:'27/07', nome:'Conduta pediátrica de Júlio (saldo próprio, complementado por empréstimo Caixa Lance)', tipo:'Saída', valor:135.06 },
-    { tx:'TX000213', data:'07/08', nome:'Reembolso Bradesco (referente à conduta pediátrica de Júlio, TX000166/LREI0002)', tipo:'Entrada', valor:147.06 },
+    { tx:'TX000213', data:'07/08', nome:'Reembolso Bradesco Saúde (referente à conduta pediátrica de Júlio, TX000166/LREI0002)', tipo:'Entrada', valor:147.06 },
   ],
   // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
   // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
@@ -262,6 +262,7 @@ function criarVarsCaixas(){
     { tx:'TXPV000001', data:'02/08', nome:'Sandália de Júlio (PIX pra SHPB Brasil/Santander, comprovante E10573521202608021819nvP5QumT3Zb)', tipo:'Saída', valor:34.34 },
     { tx:'TXPV000002', data:'02/08', nome:'Kennedy Evaristo Dos Santos - Copinhos para Júlio', tipo:'Saída', valor:20.00 },
     { tx:'TX000219', data:'06/08', nome:'PIX Dupomar Hortifruti (comprovante MP 172431149270)', tipo:'Saída', valor:46.97 },
+    { tx:'TX000221', data:'07/08', nome:'PIX Romario Nogueira Cunha - Hortifruti (comprovante MP 172570160396 / Pix E10573521202608071708zEIQz65uFJA)', tipo:'Saída', valor:75.00 },
   ],
 
   };

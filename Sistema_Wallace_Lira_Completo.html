@@ -1115,7 +1115,10 @@
       <!-- CORRIGIDO 05/08/2026 (achado do usuário, print com espaço zero entre este card e o de cima):
            mesmo padrão de bug já documentado (2 .card empilhados sem margem entre si tocam com 0px -
            os cantos arredondados colados criam ilusão de caixa vazia na costura). margin-top aqui. -->
-      <div style="font-weight:600;margin-bottom:0.3rem">☀️ Geração por dia vs. consumo médio das casas</div>
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
+        <div style="font-weight:600">☀️ Geração por dia vs. consumo médio das casas</div>
+        <button type="button" class="btn-print-secao" data-print-titulo="geracao-por-dia-vs-consumo" title="Baixar este gráfico como JPEG" aria-label="Baixar gráfico Geração por dia como JPEG">⬇</button>
+      </div>
       <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
       <div class="legend-note v" id="legGeracaoPorDia">—</div>
@@ -1557,7 +1560,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260807-5';
+var __V = '20260807-6';
 
 function __carregarScriptsParalelo(caminhos){
   return Promise.all(caminhos.map(function(src){
