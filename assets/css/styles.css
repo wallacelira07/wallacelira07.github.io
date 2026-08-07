@@ -90,6 +90,26 @@
     display:flex;align-items:center;gap:0.5rem;margin-bottom:0.9rem;
   }
   .cover-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:var(--shadow-glow-green)}
+  /* NOVO 07/08/2026 (pedido do usuário: saudação premium "Bom dia/Boa tarde, Nome" por e-mail
+     logado). Pill com brilho sutil de borda em gradiente (accent -> accent-2), texto também em
+     gradiente, entrada suave (fade + slide de baixo pra cima) assim que o e-mail é resolvido. */
+  .greeting-premium{
+    display:inline-flex;align-items:center;gap:0.5rem;
+    padding:0.4rem 0.9rem 0.4rem 0.7rem;margin-bottom:0.9rem;border-radius:var(--radius-pill);
+    background:linear-gradient(var(--surface),var(--surface)) padding-box,
+               linear-gradient(120deg,var(--accent),var(--accent-2),var(--green)) border-box;
+    border:1px solid transparent;
+    box-shadow:0 2px 14px rgba(57,135,229,0.12);
+    opacity:0;transform:translateY(6px);
+    transition:opacity 0.5s ease, transform 0.5s ease;
+  }
+  .greeting-premium--in{opacity:1;transform:translateY(0)}
+  .greeting-premium .greeting-icon{font-size:1.05rem;line-height:1;filter:drop-shadow(0 0 6px rgba(255,255,255,0.25))}
+  .greeting-premium .greeting-text{
+    font-size:0.9rem;font-weight:700;letter-spacing:0.01em;
+    background:linear-gradient(120deg,var(--text),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
   .cover h1{
     font-size:2.3rem;font-weight:700;letter-spacing:-0.02em;
     line-height:1.1;margin-bottom:0.6rem;position:relative;z-index:1;

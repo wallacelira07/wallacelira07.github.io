@@ -20,20 +20,23 @@ function hydrateWartsilaCaixasTextos(){
   // a aparecer só como texto secundário (onde antes ficava "Provisionado").
   t('cxWartsila', fmt(R.wartsilaCaixa.provisionado));
   // CORRIGIDO 31/07/2026 (V224, bug real apontado pelo usuario): texto era LITERAL "100% coberto · excedente
-  // "+valor, mesmo quando o excedente era NEGATIVO (ex: hoje, R$53,74 provisionado - R$5.768,06 de fatura =
-  // -R$5.714,32, mas a tela dizia "100% coberto" do mesmo jeito - mentira). Corrigido para 2 problemas:
-  // (1) so mostra "coberto" de verdade quando o reembolso do ciclo ja foi CONFIRMADO recebido
-  // (REG.reembolsos.recebidosNoCiclo > 0) - antes disso e so fatura/provisionamento esperado, nao cobertura
-  // real; (2) quando ha cobertura, o texto reflete o sinal certo (coberto com sobra vs faltando cobrir).
-  // CORRIGIDO 07/08/2026 (pedido do usuário: "a barra não está funcionando normalmente"): a barra
-  // (.fill) era um <div> estático no HTML, width:100% fixo, sem id - nunca foi conectada a nenhum
-  // cálculo, sempre aparecia cheia/verde não importa o estado real de cobertura. Agora reflete o
-  // mesmo % de cobertura do texto ao lado (provisionado/fatura), com cor por estado.
+  // "+valor, mesmo quando o excedente era NEGATIVO - mentira. CORRIGIDO DE NOVO 07/08/2026 (bug real
+  // apontado pelo usuario: "essa legenda não está correta, o dinheiro da caixa é de reembolso" - a
+  // R$393,74 provisionados na caixa SÃO reembolso já recebido, TX000220): o gate usava
+  // R.reembolsos.recebidosNoCiclo (reembolsoCicloTotal - reembolsosAReceber, um indicador GERAL do
+  // ciclo, não desta caixa especificamente) - como reembolsosAReceber (o que ainda falta vir) é maior
+  // que o total recebido até agora, essa conta dá NEGATIVA mesmo com dinheiro real na caixa, caindo
+  // sempre em "R$0 recebido" independente da realidade do provisionado. Trocado para comparar só os
+  // 2 números que realmente pertencem a esta caixa: provisionado (dinheiro que já entrou aqui) vs
+  // fatura (o que ainda precisa ser coberto).
   const barWartsila = $('cxWartsilaBar');
   const pctWartsila = R.faturaWartsila > 0 ? Math.min(100, Math.max(0, R.wartsilaCaixa.provisionado / R.faturaWartsila * 100)) : 100;
-  if(R.reembolsos.recebidosNoCiclo <= 0){
-    t('cxWartsilaExcedente', 'Aguardando confirmação do reembolso (ainda R$0 recebido este ciclo)');
-    if(barWartsila){ barWartsila.style.width = pctWartsila+'%'; barWartsila.style.background = 'var(--amber)'; }
+  if(R.faturaWartsila <= 0){
+    t('cxWartsilaExcedente', 'Sem fatura pendente nesta caixa');
+    if(barWartsila){ barWartsila.style.width = '100%'; barWartsila.style.background = 'var(--green)'; }
+  } else if(R.wartsilaCaixa.provisionado <= 0){
+    t('cxWartsilaExcedente', 'Aguardando reembolso (ainda nada provisionado nesta caixa)');
+    if(barWartsila){ barWartsila.style.width = '0%'; barWartsila.style.background = 'var(--amber)'; }
   } else if(R.wartsilaCaixa.excedente >= 0){
     t('cxWartsilaExcedente', '100% coberto · excedente '+fmt(R.wartsilaCaixa.excedente));
     if(barWartsila){ barWartsila.style.width = '100%'; barWartsila.style.background = 'var(--green)'; }

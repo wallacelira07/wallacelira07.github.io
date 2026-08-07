@@ -925,12 +925,21 @@ const WallaceFinanceService = {
       const wallaceFabCss = document.createElement('style');
       wallaceFabCss.id = 'wallaceFabStyles';
       wallaceFabCss.textContent = `
-        #wallaceFabDock{position:fixed;bottom:1.25rem;right:1.25rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.45rem}
-        .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;justify-content:center;height:2rem;min-width:5.5rem;padding:0 0.8rem;border-radius:999px;font-size:0.7rem;font-weight:600;cursor:pointer;border:1px solid #2d3b52;background:#1a2332;color:#8ab4f8;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .15s ease,filter .15s ease;white-space:nowrap}
-        .wallace-fab:hover{transform:translateY(-2px);filter:brightness(1.1)}
-        .wallace-fab--lancar{order:2;background:#123a24;color:#5fd68a;border-color:#1f5c38}
-        .wallace-fab--warn{background:#3a2e12;color:#e2a53d;border-color:#5c4a1f}
-        .wallace-fab-badge{position:absolute;top:-0.35rem;right:-0.35rem;min-width:1rem;height:1rem;padding:0 0.25rem;border-radius:999px;background:#e2554f;color:#fff;font-size:0.58rem;font-weight:700;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 2px #0f1620;line-height:1}
+        #wallaceFabDock{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem}
+        /* REDESENHADO 07/08/2026 (pedido do usuário: "esses botões estão muito finos... se inspire
+           em sites profissionais"): de pill fino com fundo quase transparente e borda de 1px, pra
+           botão sólido preenchido (mesmo padrão de FAB de dashboards como Linear/Stripe) - cor cheia,
+           texto branco, sombra colorida com a própria cor do botão (profundidade real, não só preta),
+           leve escala + elevação no hover, active state de "afundar" ao clicar.
+        */
+        .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;height:2.6rem;min-width:6rem;padding:0 1.1rem;border-radius:999px;font-size:0.78rem;font-weight:700;letter-spacing:0.01em;cursor:pointer;border:none;background:linear-gradient(155deg,#4a9eff,#3987e5);color:#fff;box-shadow:0 6px 20px rgba(57,135,229,0.4),0 2px 4px rgba(0,0,0,0.25);transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,filter .18s ease;white-space:nowrap}
+        .wallace-fab:hover{transform:translateY(-3px) scale(1.02);filter:brightness(1.08);box-shadow:0 10px 26px rgba(57,135,229,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab:active{transform:translateY(-1px) scale(0.98)}
+        .wallace-fab--lancar{order:2;background:linear-gradient(155deg,#3fd68a,#27a866);box-shadow:0 6px 20px rgba(39,168,102,0.4),0 2px 4px rgba(0,0,0,0.25)}
+        .wallace-fab--lancar:hover{box-shadow:0 10px 26px rgba(39,168,102,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab--warn{background:linear-gradient(155deg,#f0b94d,#d99a2b);box-shadow:0 6px 20px rgba(217,154,43,0.4),0 2px 4px rgba(0,0,0,0.25)}
+        .wallace-fab--warn:hover{box-shadow:0 10px 26px rgba(217,154,43,0.5),0 3px 6px rgba(0,0,0,0.3)}
+        .wallace-fab-badge{position:absolute;top:-0.4rem;right:-0.4rem;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:#e2554f;color:#fff;font-size:0.62rem;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 3px #0b0c0e,0 2px 6px rgba(226,85,79,0.5);line-height:1}
         .wallace-panel{position:fixed;right:1.25rem;bottom:4rem;z-index:9999;width:280px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,.4);display:none}
       `;
       document.head.appendChild(wallaceFabCss);
@@ -1062,9 +1071,18 @@ const WallaceFinanceService = {
         <input id="ltxDescricao" placeholder="Descrição" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
         <input id="ltxValor" type="number" step="0.01" placeholder="Valor" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
         <select id="ltxTipo" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
+        <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;color:#c8d4e3;margin-bottom:0.3rem;cursor:pointer"><input id="ltxDividir" type="checkbox" style="margin:0"> Dividir entre mais de 1 caixa</label>
         <select id="ltxCaixa" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem">${caixaOpts}</select>
+        <div id="ltxSplitRows" style="display:none;margin-bottom:0.4rem"></div>
+        <button id="ltxSplitAdd" type="button" style="display:none;width:100%;margin-bottom:0.4rem;background:#1a2332;color:#8ab4f8;border:1px dashed #2d3b52;border-radius:5px;padding:0.3rem;cursor:pointer;font-size:0.72rem">+ Adicionar caixa</button>
+        <div id="ltxSplitRestante" style="display:none;font-size:0.68rem;margin-bottom:0.4rem"></div>
         <select id="ltxUsuario" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Usuário (opcional)</option><option value="f70b0f48-9d73-44fd-a05b-6f3248bbea21">Wallace</option><option value="77496938-c875-4578-b6d1-06ffbde3f247">Vanessa</option><option value="89f205ad-2381-4149-b10f-7170aa13f5d5">Júlio</option><option value="3bb93c24-8353-4a4b-91cb-ef055809cc04">Gabriela</option></select>
-        <select id="ltxCategoria" style="width:100%;margin-bottom:0.3rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Categoria (opcional)</option><option value="533eef0f-0591-4c23-a248-566b95da7ffd">Alimentação</option><option value="69866dc9-89f9-42e3-b10c-5898287c6dd2">Assinaturas</option><option value="558fb61e-c215-4970-a498-b6fbcf67dd97">Bens Duráveis</option><option value="89557dd0-e475-483d-8d90-7cf698c3103a">Boletos</option><option value="b6576c3a-e74e-4f06-afcf-8b07c42785b0">Consórcios</option><option value="e5f8498f-ec63-41db-a333-3de5e8a9a7e3">Educação</option><option value="99915d56-41d2-4ca5-8d5f-c6188b33dc06">Eventos e Viagens</option><option value="f143d814-3883-4f24-a636-7ff80b9f6d1b">P2P</option><option value="1cc9db18-aec4-4cf1-962d-4d9a36f44f70">Reembolsável Corporativo</option><option value="5937378d-f087-48a4-8815-c1ab8055fdf8">Saúde</option><option value="2f08db6b-a018-471f-ad9c-26cb453e3b87">Transporte</option></select>
+        <div style="font-size:0.68rem;color:#8ab4f8;margin-bottom:0.15rem">Categoria</div>
+        <select id="ltxCategoria" style="width:100%;margin-bottom:0.3rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Categoria (opcional)</option><option value="533eef0f-0591-4c23-a248-566b95da7ffd">Alimentação</option><option value="69866dc9-89f9-42e3-b10c-5898287c6dd2">Assinaturas</option><option value="558fb61e-c215-4970-a498-b6fbcf67dd97">Bens Duráveis</option><option value="89557dd0-e475-483d-8d90-7cf698c3103a">Boletos</option><option value="b6576c3a-e74e-4f06-afcf-8b07c42785b0">Consórcios</option><option value="e5f8498f-ec63-41db-a333-3de5e8a9a7e3">Educação</option><option value="99915d56-41d2-4ca5-8d5f-c6188b33dc06">Eventos e Viagens</option><option value="f143d814-3883-4f24-a636-7ff80b9f6d1b">P2P</option><option value="1cc9db18-aec4-4cf1-962d-4d9a36f44f70">Reembolsável Corporativo</option><option value="5937378d-f087-48a4-8815-c1ab8055fdf8">Saúde</option><option value="2f08db6b-a018-471f-ad9c-26cb453e3b87">Transporte</option><option value="__nova__">+ Nova categoria…</option></select>
+        <div id="ltxNovaCategoriaBox" style="display:none;gap:0.3rem;margin-bottom:0.4rem">
+          <input id="ltxNovaCategoriaNome" placeholder="Nome da categoria nova" style="flex:1;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;box-sizing:border-box">
+          <button id="ltxNovaCategoriaCriar" type="button" style="background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0 0.6rem;cursor:pointer;font-size:0.72rem">Criar</button>
+        </div>
         <div id="ltxSugestao" style="font-size:0.68rem;color:#8ab4f8;margin-bottom:0.4rem;min-height:1em"></div>
         <button id="ltxSalvar" style="width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600">Salvar</button>
         <div id="ltxMsg" style="margin-top:0.4rem;font-size:0.72rem"></div>`;
@@ -1102,8 +1120,85 @@ const WallaceFinanceService = {
           }
         } catch(e){ sugEl.textContent = ''; }
       };
-      document.getElementById('ltxCategoria').onchange = sugerirCaixa;
+      // NOVO 07/08/2026 (pedido do usuário: "campo pra eu criar novas categorias caso eu queira"):
+      // opção "+ Nova categoria..." no select abre uma caixa de texto + botão Criar, que chama a RPC
+      // criar_categoria() (nova, SECURITY DEFINER, valida nome/tipo, evita duplicata por nome) -
+      // devolve o id, adiciona como <option> de verdade no select e já deixa selecionada.
+      document.getElementById('ltxCategoria').addEventListener('change', function(){
+        const box = document.getElementById('ltxNovaCategoriaBox');
+        box.style.display = this.value === '__nova__' ? 'flex' : 'none';
+        if(this.value !== '__nova__') sugerirCaixa();
+      });
+      document.getElementById('ltxNovaCategoriaCriar').onclick = async () => {
+        const nomeEl = document.getElementById('ltxNovaCategoriaNome');
+        const nome = nomeEl.value.trim();
+        const msg = document.getElementById('ltxMsg');
+        if(!nome){ msg.textContent = 'Digite um nome pra categoria nova.'; msg.style.color = '#e2554f'; return; }
+        msg.textContent = 'Criando categoria...'; msg.style.color = '#c8d4e3';
+        try {
+          const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/criar_categoria', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+            body: JSON.stringify({ p_nome: nome, p_tipo: 'extraordinaria' })
+          });
+          if(!r.ok){ const err = await r.text(); msg.textContent = 'Erro ao criar categoria: '+err; msg.style.color = '#e2554f'; return; }
+          const novoId = await r.json();
+          const sel = document.getElementById('ltxCategoria');
+          const opt = document.createElement('option');
+          opt.value = novoId; opt.textContent = nome;
+          sel.insertBefore(opt, sel.querySelector('option[value="__nova__"]'));
+          sel.value = novoId;
+          document.getElementById('ltxNovaCategoriaBox').style.display = 'none';
+          nomeEl.value = '';
+          msg.textContent = `✓ Categoria "${nome}" criada e selecionada.`; msg.style.color = '#5fd68a';
+          sugerirCaixa();
+        } catch(e){ msg.textContent = 'Erro de rede: '+e.message; msg.style.color = '#e2554f'; }
+      };
       document.getElementById('ltxUsuario').onchange = sugerirCaixa;
+
+      // NOVO 07/08/2026 (pedido do usuário: "implemente a opção de dividir o valor para mandar para
+      // mais de 1 caixa"): a RPC lancar_transacao_manual só aceita 1 caixa por chamada - em vez de
+      // mudar a RPC, o form agora pode chamá-la VÁRIAS VEZES em sequência (1 por linha da divisão),
+      // mesma data/descrição/tipo/categoria/usuário, só caixa_id e valor mudam por linha. Cada linha
+      // vira uma transação própria na V2 (rastreável separadamente, mesmo comportamento de uma
+      // divisão real entre caixas).
+      const criarLinhaSplit = () => {
+        const row = document.createElement('div');
+        row.className = 'ltx-split-row';
+        row.style.cssText = 'display:flex;gap:0.3rem;margin-bottom:0.3rem';
+        row.innerHTML = `
+          <select class="ltxSplitCaixa" style="flex:2;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0">${caixaOpts}</select>
+          <input class="ltxSplitValor" type="number" step="0.01" placeholder="Valor" style="flex:1;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;box-sizing:border-box">
+          <button type="button" class="ltxSplitDel" style="background:none;border:none;color:#e2554f;cursor:pointer;font-size:0.9rem;padding:0 0.2rem">✕</button>`;
+        row.querySelector('.ltxSplitValor').oninput = atualizarRestante;
+        row.querySelector('.ltxSplitDel').onclick = () => { row.remove(); atualizarRestante(); };
+        return row;
+      };
+      const atualizarRestante = () => {
+        const totalDeclarado = parseFloat(document.getElementById('ltxValor').value) || 0;
+        const linhas = document.querySelectorAll('#ltxSplitRows .ltxSplitValor');
+        let somado = 0;
+        linhas.forEach(l => { somado += parseFloat(l.value) || 0; });
+        const restante = Math.round((totalDeclarado - somado) * 100) / 100;
+        const el = document.getElementById('ltxSplitRestante');
+        el.textContent = `Restante a alocar: ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} de ${totalDeclarado.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+        el.style.color = Math.abs(restante) < 0.01 ? '#5fd68a' : '#e8a63a';
+      };
+      document.getElementById('ltxDividir').onchange = (e) => {
+        const ativo = e.target.checked;
+        document.getElementById('ltxCaixa').style.display = ativo ? 'none' : 'block';
+        document.getElementById('ltxSplitRows').style.display = ativo ? 'block' : 'none';
+        document.getElementById('ltxSplitAdd').style.display = ativo ? 'block' : 'none';
+        document.getElementById('ltxSplitRestante').style.display = ativo ? 'block' : 'none';
+        const rowsEl = document.getElementById('ltxSplitRows');
+        if(ativo && !rowsEl.children.length){
+          rowsEl.appendChild(criarLinhaSplit());
+          rowsEl.appendChild(criarLinhaSplit());
+          atualizarRestante();
+        }
+      };
+      document.getElementById('ltxSplitAdd').onclick = () => { document.getElementById('ltxSplitRows').appendChild(criarLinhaSplit()); atualizarRestante(); };
+      document.getElementById('ltxValor').addEventListener('input', atualizarRestante);
 
       document.getElementById('ltxSalvar').onclick = async () => {
         const msg = document.getElementById('ltxMsg');
@@ -1111,18 +1206,42 @@ const WallaceFinanceService = {
         const descricao = document.getElementById('ltxDescricao').value.trim();
         const valor = parseFloat(document.getElementById('ltxValor').value);
         const tipo = document.getElementById('ltxTipo').value;
-        const caixaId = document.getElementById('ltxCaixa').value;
+        const dividir = document.getElementById('ltxDividir').checked;
         if(!data || !descricao || !valor || valor <= 0){ msg.textContent = 'Preencha data, descrição e valor (>0).'; msg.style.color = '#e2554f'; return; }
+        const usuarioId = document.getElementById('ltxUsuario').value || null;
+        const categoriaId = document.getElementById('ltxCategoria').value || null;
+
+        let lancamentos; // [{caixaId, valor}]
+        if(dividir){
+          lancamentos = Array.from(document.querySelectorAll('#ltxSplitRows .ltx-split-row')).map(row => ({
+            caixaId: row.querySelector('.ltxSplitCaixa').value,
+            valor: parseFloat(row.querySelector('.ltxSplitValor').value)
+          }));
+          if(lancamentos.some(l => !l.valor || l.valor <= 0)){ msg.textContent = 'Preencha um valor (>0) em cada caixa da divisão.'; msg.style.color = '#e2554f'; return; }
+          const somado = Math.round(lancamentos.reduce((s,l)=>s+l.valor,0)*100)/100;
+          if(Math.abs(somado - Math.round(valor*100)/100) >= 0.01){ msg.textContent = `A soma das caixas (${somado.toLocaleString('pt-BR',{minimumFractionDigits:2})}) precisa bater com o Valor total (${valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}).`; msg.style.color = '#e2554f'; return; }
+        } else {
+          lancamentos = [{ caixaId: document.getElementById('ltxCaixa').value, valor }];
+        }
+
         msg.textContent = 'Salvando...'; msg.style.color = '#c8d4e3';
         try {
-          const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/lancar_transacao_manual', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
-            body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:valor, p_tipo:tipo, p_caixa_id:caixaId, p_usuario_id: document.getElementById('ltxUsuario').value || null, p_categoria_id: document.getElementById('ltxCategoria').value || null })
-          });
-          if(!r.ok){ const err = await r.text(); msg.textContent = 'Erro: '+err; msg.style.color = '#e2554f'; return; }
-          msg.textContent = '✓ Lançado (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).'; msg.style.color = '#5fd68a';
+          for(const l of lancamentos){
+            const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/lancar_transacao_manual', {
+              method: 'POST',
+              headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+              body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:l.valor, p_tipo:tipo, p_caixa_id:l.caixaId, p_usuario_id:usuarioId, p_categoria_id:categoriaId })
+            });
+            if(!r.ok){ const err = await r.text(); msg.textContent = `Erro (parte já lançada antes desta pode ter sido gravada): ${err}`; msg.style.color = '#e2554f'; return; }
+          }
+          msg.textContent = lancamentos.length > 1
+            ? `✓ Lançado em ${lancamentos.length} caixas (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).`
+            : '✓ Lançado (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).';
+          msg.style.color = '#5fd68a';
           document.getElementById('ltxDescricao').value = ''; document.getElementById('ltxValor').value = '';
+          document.getElementById('ltxSplitRows').innerHTML = '';
+          document.getElementById('ltxDividir').checked = false;
+          document.getElementById('ltxDividir').dispatchEvent(new Event('change'));
         } catch(e){ msg.textContent = 'Erro de rede: '+e.message; msg.style.color = '#e2554f'; }
       };
     }

@@ -26,7 +26,11 @@
     try {
       var auth = sessionStorage.getItem('auth');
       if (!auth) throw new Error('sem sessao');
-      JSON.parse(auth); // valida que e um JSON razoavel, nao garante que o token ainda e valido
+      var authObj = JSON.parse(auth); // valida que e um JSON razoavel, nao garante que o token ainda e valido
+      // NOVO 07/08/2026 (pedido do usuario: saudacao premium "Bom dia/Boa tarde, Nome"): guarda o
+      // email aqui, na mesma checagem sincrona que ja le sessionStorage - a saudacao (HTML logo
+      // abaixo, secao .cover) roda antes do app.js/VARS existirem, entao nao pode depender deles.
+      window.__saudacaoEmail = authObj && authObj.email || null;
     } catch(e) {
       document.write('<div style="font-family:sans-serif;text-align:center;padding:4rem 1rem;color:#666"><h2>Sessão não encontrada</h2><p>Redirecionando para o login…</p></div>');
       window.location.replace('index.html');
@@ -40,6 +44,29 @@
     <div class="cover-top">
       <div class="cover-top-text">
         <div class="cover-eyebrow"><span class="dot"></span>Sistema Wallace Lira · Ciclo em andamento <span id="healthBadge" style="margin-left:0.6rem;font-weight:600;cursor:default" title="Auditoria automática de consistência matemática do sistema (roda a cada carregamento)">—</span><span id="syncV2Badge" style="margin-left:0.6rem;font-weight:600;cursor:default;font-size:0.85em" title="Compara o saldo real da Caixa Variável entre este arquivo (app.js) e a Arquitetura V2 (Supabase relacional)"></span><span id="catV2Badge" style="margin-left:0.6rem;font-weight:600;cursor:default;font-size:0.85em;color:var(--text-dim)" title="Cobertura do motor de classificação (Fase 3 da Arquitetura V2)"></span></div>
+        <div class="greeting-premium" id="saudacaoPremium"><span class="greeting-icon" id="saudacaoIcone">✨</span><span class="greeting-text" id="saudacaoTexto">Bem-vindo(a)</span></div>
+        <script>
+        // NOVO 07/08/2026 (pedido do usuario: "mensagem de bem vindo, Boa tarde Wallace / Bom dia
+        // Vanessa de acordo com o email"): roda logo apos o elemento existir no DOM, sincrono, sem
+        // esperar VARS/app.js (so precisa do email ja lido pelo guard de acesso, no topo do arquivo).
+        (function(){
+          var NOMES_POR_EMAIL = {
+            'wallace.termica@gmail.com': 'Wallace',
+            'vanessaflor.galdino@gmail.com': 'Vanessa'
+          };
+          var email = (window.__saudacaoEmail || '').toLowerCase().trim();
+          var nome = NOMES_POR_EMAIL[email] || null;
+          var h = new Date().getHours();
+          var periodo = h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+          var icone = h < 6 ? '🌙' : h < 12 ? '☀️' : h < 18 ? '🌤️' : '🌙';
+          var el = document.getElementById('saudacaoTexto');
+          var elIcone = document.getElementById('saudacaoIcone');
+          if(el) el.textContent = nome ? (periodo + ', ' + nome) : periodo;
+          if(elIcone) elIcone.textContent = icone;
+          var wrap = document.getElementById('saudacaoPremium');
+          if(wrap) requestAnimationFrame(function(){ wrap.classList.add('greeting-premium--in'); });
+        })();
+        </script>
         <h1>Painel Financeiro</h1>
         <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span> · <span id="atualizadoEm">—</span> · Layout oficial congelado</div>
       </div>

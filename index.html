@@ -589,6 +589,35 @@
             document.getElementById('dashboardScreen').style.display = 'flex';
             document.getElementById('userEmail').textContent = email;
             loadDashboard();
+            iniciarMonitorInatividade();
+        }
+
+        // NOVO 07/08/2026 (pedido do usuário: "quero que o site bloqueie por inatividade... não
+        // ficando aberto em algum computador"): desloga sozinho depois de 15min sem nenhuma
+        // interação (mouse/teclado/toque/rolagem) - dado financeiro real, não pode ficar logado
+        // pra sempre numa máquina compartilhada/esquecida. Reinicia o contador a cada evento;
+        // dispara só uma vez (guarda __inatividadeTimer pra nunca empilhar timers duplicados).
+        const TEMPO_INATIVIDADE_MS = 15 * 60 * 1000; // 15 minutos
+        let __inatividadeTimer = null;
+        let __monitorInatividadeAtivo = false;
+        function resetarTimerInatividade() {
+            if (__inatividadeTimer) clearTimeout(__inatividadeTimer);
+            __inatividadeTimer = setTimeout(() => {
+                console.log('Sessão encerrada por inatividade (15min sem uso).');
+                logout();
+            }, TEMPO_INATIVIDADE_MS);
+        }
+        function iniciarMonitorInatividade() {
+            if (__monitorInatividadeAtivo) { resetarTimerInatividade(); return; }
+            __monitorInatividadeAtivo = true;
+            ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel'].forEach(evento => {
+                document.addEventListener(evento, resetarTimerInatividade, { passive: true });
+            });
+            resetarTimerInatividade();
+        }
+        function pararMonitorInatividade() {
+            if (__inatividadeTimer) clearTimeout(__inatividadeTimer);
+            __inatividadeTimer = null;
         }
 
         // MOSTRAR LOGIN
@@ -630,6 +659,7 @@
 
         // LOGOUT
         function logout() {
+            pararMonitorInatividade();
             sessionStorage.removeItem('auth');
             window.authObj = null;
             document.getElementById('dashboardContent').innerHTML = '';
