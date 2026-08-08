@@ -478,6 +478,32 @@ Reversível a qualquer momento, sem perda de dado — puramente estrutural.
 4. Revalidar diagnósticos (`diagnostico_sync_v1_v2()`, `vw_reconciliacao_v1_v2`).
 5. Só então iniciar o levantamento da Fase 4D.
 
+### Correção da narrativa histórica: `caixa_id = Caixa Variável` não é escolha técnica pragmática — é regra de negócio oficial (08/08/2026)
+
+A justificativa original registrada acima (e usada na execução da Parte A, seção 18) tratava `caixa_id = Caixa Variável` como a opção "menos invasiva", sem custo de reconciliação, entre alternativas tecnicamente equivalentes. **Investigação posterior identificou que a Política Interna já continha a resposta formal pra essa pergunta, desde antes desta frente de trabalho existir.**
+
+**Fundamentação — `POLITICAS_INTERNAS_SISTEMA_WALLACE.md`, seção 13 ("Função Real da Caixa Variável")**:
+> "Caixa Variável cobre custo de cartão — `CAIXA_VARIAVEL_COMPROMETIDO` = soma de TODAS as transações LRW+LRV (qualquer variante -I/-MB, qualquer dono) do ciclo atual, sempre, sem exceção por cartão específico."
+
+**Conclusão derivada, formalizada aqui**:
+- `LRW_TRANSACOES`/`LRV_TRANSACOES` **não são caixas independentes** — são a decomposição, por pessoa, do "Comprometido" que a própria Política já define como parte da Caixa Variável.
+- O meio de pagamento (PIX, Mastercard Black, Visa Infinite etc.) **não altera qual caixa econômica é responsável pelo gasto** — quem responde pelo compromisso é sempre a Caixa Variável, independente do cartão usado.
+- Compras de LRW/LRV **pertencem funcionalmente à Caixa Variável** — não é um "estacionamento neutro", é o destino correto por definição de negócio.
+- `afeta_saldo_real=false` continua sendo o mecanismo técnico certo pra diferenciar "gasto comprometido" (fatura futura) de "gasto já liquidado" (saldo real) — exatamente a distinção Saldo Real × Comprometido que a própria seção 13 documenta.
+
+**O que muda com essa descoberta**: nada na implementação (a Parte A, seção 18, já executou exatamente `caixa_id = Caixa Variável` inalterado — a ação tomada estava certa). O que muda é o **status da justificativa**: deixa de ser "solução técnica pragmática, sem melhor alternativa" e passa a ser **"decisão de negócio confirmada pela Política Interna §13, com compatibilidade técnica total já validada pela investigação"**.
+
+### STATUS FINAL — implementação 3a
+
+- ✅ **Alternativa 3** aprovada (seção 15).
+- ✅ **Estratégia 3a** implementada (Parte A, seção 18).
+- ✅ **Caixa Variável confirmada como destino correto de LRW/LRV** — não por eliminação, por regra de negócio explícita (Política Interna §13).
+- ✅ Compatível com a Política Interna §13.
+- ✅ Compatível com a arquitetura V2 (investigação técnica: zero impacto em reconciliação, zero impacto em saldo, zero conflito de constraint).
+- ✅ Sem impacto na reconciliação — nenhuma mudança de caixa foi ou é necessária.
+
+**A discussão 3a está formalmente encerrada.**
+
 ---
 
 ## 16. Fase 4B-1 — execução parcial e controlada (08/08/2026)
@@ -706,6 +732,55 @@ Garantia estrutural, não só testada: `vw_saldo_v2_por_caixa` e `vw_reconciliac
 
 ---
 
+## 19. `sincronizar_v1_v2()` — versão permanente, criação e validação em dry-run (08/08/2026)
+
+**Objetivo**: substituir a sincronização manual pontual (usada na 4B-1 e implicitamente na Parte A) por uma função reutilizável, idempotente, que qualquer sessão futura possa rodar sem reconstruir a lógica do zero.
+
+### Função criada
+`public.sincronizar_v1_v2(p_dry_run boolean DEFAULT true) RETURNS jsonb`, `SECURITY DEFINER`, `search_path='public'`. Migration `criar_sincronizar_v1_v2`.
+
+**Lógica** (reaproveita integralmente o que já foi validado manualmente na 4B-1):
+- Fonte única: `diagnostico_sync_v1_v2()` (função de leitura já existente).
+- Exclusão nominal de `TX000208` — comentário na própria migration documenta que é **temporária**, dependente da decisão futura de governança sobre a colisão de `tx_legado` (seção 16), e que o filtro deve ser removido explicitamente só quando essa decisão for tomada.
+- Exclusão estrutural de livros sem `confiavel=true` em `v1_v2_caixa_mapa` — comentário na migration documenta que isso cobre `LRW_TRANSACOES`/`LRV_TRANSACOES` por não terem mapeamento de caixa (decisão da seção 15), e qualquer livro futuro na mesma situação, sem hardcode de nome.
+- Idempotência via `ON CONFLICT (tx_legado, caixa_id) DO NOTHING` (constraint da 4B-2) + checagem prévia equivalente pra relatório preciso do motivo de cada linha ignorada.
+- Retorna `jsonb` com `inseridas`/`ignoradas` completos (cada ignorada com motivo) e contadores.
+- `EXECUTE` revogado de `PUBLIC`/`anon`/`authenticated` (mesma política de segurança das outras RPCs de escrita do projeto).
+
+### Validação da criação
+`prosecdef=true` (confirma `SECURITY DEFINER`), `proacl={postgres=X, service_role=X}` (confirma que `PUBLIC`/`anon`/`authenticated` não têm `EXECUTE`).
+
+### Resultado do dry-run (`sincronizar_v1_v2(true)`)
+```json
+{"modo": "dry_run", "qtd_inseridas": 0, "qtd_ignoradas": 6}
+```
+As 6 ignoradas: `TX000208` (governança) + as 5 transações de `LRW_TRANSACOES`/`LRV_TRANSACOES` que `diagnostico_sync_v1_v2()` ainda lista como pendentes por divergência de valor (mesmas 5 da "Parte B", seção 18) — todas corretamente excluídas pela regra estrutural de mapeamento, **antes mesmo de qualquer checagem de valor**. Confirma que a função nunca tentaria duplicar essas 5 linhas, mesmo que a Parte B nunca seja resolvida. Zero candidatos legítimos existem hoje (o backlog conhecido já foi coberto manualmente na 4B-1).
+
+### Decisão: não executar `sincronizar_v1_v2(false)` agora
+**Validação funcional concluída em modo dry-run.** Como não existem candidatos elegíveis no momento, rodar o modo de escrita agora não adicionaria evidência nova — só confirmaria que 0 inserções continuam sendo 0. **A validação de escrita efetiva será realizada na primeira ocorrência de um candidato elegível identificado por `diagnostico_sync_v1_v2()`.**
+
+### Teste de aceitação registrado para a próxima ocorrência
+
+**Pré-condição**: `diagnostico_sync_v1_v2()` retorna pelo menos 1 candidato elegível (livro com `confiavel=true`, `tx_legado ≠ TX000208`).
+
+**Execução**:
+1. Rodar `sincronizar_v1_v2(true)` — registrar a quantidade prevista de inserções.
+2. Rodar `sincronizar_v1_v2(false)`.
+3. Confirmar que a quantidade inserida corresponde exatamente ao previsto no passo 1.
+
+**Validações**:
+- `tx_legado` preservado exato.
+- Caixa correta (conforme `v1_v2_caixa_mapa`).
+- Categoria correta (quando resolvível via `regras_classificacao`).
+- Registro criado em `audit_log` por linha inserida.
+- Segunda execução de `sincronizar_v1_v2(false)` retorna 0 inserções (prova de idempotência).
+- Nenhuma duplicidade gerada (`(tx_legado, caixa_id)` continua único).
+
+### Conclusão
+**Função validada para entrada em produção.** Modo real não executado ainda — aguardando o próximo candidato legítimo pra validar escrita efetiva e idempotência de ponta a ponta com dado real, não hipotético.
+
+---
+
 ## Próximo passo
 
-**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). Decisão 3a/3b tomada — **3a implementada, Parte A concluída** (seção 18). Pendências reais: `TX000208` (governança, seção 16), Parte B — 5 divergências de valor (seção 18, não investigada), `sincronizar_v1_v2()` permanente (não construída), sincronização recorrente (sem mecanismo automático). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-18 antes de qualquer ação nova.
+**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). **Decisão 3a/3b encerrada formalmente — 3a implementada, Parte A concluída, `caixa_id=Caixa Variável` confirmado por regra de negócio (Política Interna §13), não só por pragmatismo técnico** (seção 18 + correção de narrativa na seção 15). `sincronizar_v1_v2()` construída e validada em dry-run, aguardando primeiro candidato real pra validar escrita (seção 19). Pendências reais: `TX000208` (governança, seção 16), Parte B — 5 divergências de valor (seção 18, não investigada), sincronização recorrente/agendada (sem mecanismo automático de disparo, só execução manual da função). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-19 antes de qualquer ação nova.
