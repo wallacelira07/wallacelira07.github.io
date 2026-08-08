@@ -45,7 +45,7 @@ Registrado formalmente (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`): titularidade, `C
 
 **O que continua em V1 no domínio Solar**: `SOLAR_GERACAO_DIARIA` (Qualidade da Geração, já sincronizado V1+V2 mas leitura do frontend ainda V1), `ENERGISA_TARIFA_COMPOSICAO`/consumos diários (seção 09, residual pós-solar), heurística de gráfico mensal por mês-calendário (mantida por decisão de não reescrever, convive com o histórico real novo).
 
-**Pendente, não implementado ainda (só proposta pedida)**: aba própria "☀️ Energia Solar" separando o domínio da aba Gráficos — usuário pediu estudo, não execução.
+**Aba própria "☀️ Energia Solar" implementada** (mesmo dia, commit seguinte): domínio inteiro extraído da aba Gráficos — pane `#solar` nova (7 seções renumeradas: Qualidade da Geração, Unidade Geradora, Rateio+Histórico, Previsão, Geração diária, Economia antes×depois, Simulador), lazy loading isolado (`initSolarLazy()`, não carrega mais junto com Gráficos/Cenários), Busca Global corrigida (apontava pro título antigo da seção, achado durante a implementação). Nenhum id de DOM, cálculo ou fórmula alterado — só reorganização de HTML + divisão de uma função JS em duas.
 
 ## 3. Verificação desta sessão
 

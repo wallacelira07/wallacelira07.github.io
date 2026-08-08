@@ -218,6 +218,7 @@
   <div class="master-tabs">
     <button type="button" class="master-tab active" data-pane="painel" onclick="irParaPrimeiraSecao('painel')">📊 Painel</button>
     <button type="button" class="master-tab" data-pane="graficos" onclick="irParaPrimeiraSecao('graficos')">📈 Gráficos</button>
+    <button type="button" class="master-tab" data-pane="solar" onclick="irParaPrimeiraSecao('solar')">☀️ Energia Solar</button>
     <button type="button" class="master-tab" data-pane="cenarios" onclick="irParaPrimeiraSecao('cenarios')">🛡️ Cenários</button>
     <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
   </div>
@@ -1041,32 +1042,20 @@
     <div class="legend-note v" id="legLegendaCaixasIncrementais">—</div>
   </div>
 
-    <div class="section-num"><span class="n">09</span><h2>Energia Solar — antes vs. depois (apartamento)</h2></div>
-    <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Comparação mês a mês: ano anterior real (laranja) vs. este ano com solar ativo (verde). Toque numa barra pra ver o valor e a fonte.</div>
-      <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
-      <div class="legend-note v" id="legEnergiaSolar">—</div>
-      <div class="legend-note" style="font-size:0.68rem;margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, projeção = Disponibilidade + Fio B + Iluminação + Encargos, ver card abaixo).</div>
-    </div>
+  </div>
 
-    <!-- NOVO 01/08/2026 (pedido do usuario): estimativa de fatura residual pos-solar, mesmo com creditos
-    cobrindo 100% do consumo. Regra real (Lei 14.300/2022): Iluminacao Publica e Encargos NUNCA sao
-    compensados pelos creditos solares, independente de quanto voce gerar - sempre sobra uma fatura minima. -->
-    <div class="card" style="border-left:3px solid var(--amber);margin-top:1rem">
-      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💡 Quanto você ainda vai pagar mesmo com 100% dos créditos</div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a 60% em 2026) é só uma <strong>fatia</strong> dela (~28%) — 60%×28% = 16,8% cobrado, <strong>83,2% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
-      <div id="residualPosSolarTbody" style="overflow-x:auto">—</div>
-      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real é sempre o <strong>maior valor entre o Fio B calculado acima e a Taxa Mínima/Custo de Disponibilidade</strong> (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Iluminação Pública. Em casas com consumo já baixo (ex: Wellida), a Taxa Mínima pode ficar acima do valor calculado pela fórmula — nesse caso, o piso da concessionária prevalece, não a fórmula.</div>
-    </div>
+  <!-- ABA PRÓPRIA "☀️ Energia Solar" (08/08/2026) — domínio inteiro extraído de dentro da aba
+       Gráficos (mesmos ids de DOM, mesmos cards, mesma lógica — só reorganizado e renumerado 01-07
+       pra ter sua própria numeração de seção, como qualquer outra aba). Ver
+       initSolarLazy()/showMaster() (só carrega quando esta aba abre) e
+       _lazyRenderSolarSecao() (graficos-cenarios-lazy.js). -->
+  <div id="solar" class="master-pane">
 
-    <div class="section-num"><span class="n">10</span><h2>☀️ Unidade Geradora (Casa da Mãe)</h2></div>
-
-    <!-- NOVO 08/08/2026: "Qualidade da geração" - card separado do crédito/rateio (que continua
-    pendente de validação conceitual, ver PLANO_UNIFICACAO_V1_V2.md). Objetivo único: responder "hoje
+    <div class="section-num"><span class="n">01</span><h2>☀️ Como a usina está indo</h2></div>
+    <!-- "Qualidade da geração" - card separado do crédito/rateio. Objetivo único: responder "hoje
     a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL,
     rateio). Ver hydrate-onda5-qualidade-geracao.js. -->
-    <div class="card" style="border-left:3px solid var(--amber);margin-bottom:1rem">
-      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.6rem">☀️ Como a usina está indo</div>
+    <div class="card" style="border-left:3px solid var(--amber)">
       <div class="grid-3">
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Hoje até agora</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgProducaoHoje">—</div></div>
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)" id="qgLabelReferencia">Último dia completo</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgMediaHistorica">—</div></div>
@@ -1076,6 +1065,7 @@
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
     </div>
 
+    <div class="section-num"><span class="n">02</span><h2>Unidade Geradora (Casa da Mãe)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
 
@@ -1126,40 +1116,25 @@
       <div class="legend-note v" id="legConsumoDiretoCongelado" style="font-size:0.68rem;margin-top:0.3rem;color:var(--amber)"></div>
     </div>
 
-    <!-- NOVO 05/08/2026 (pedido do usuario: "gráfico abaixo do gráfico 10... mostrando o gerado por
-         dia do sistema") -->
-    <div class="card" style="margin-top:1.2rem">
-      <!-- CORRIGIDO 05/08/2026 (achado do usuário, print com espaço zero entre este card e o de cima):
-           mesmo padrão de bug já documentado (2 .card empilhados sem margem entre si tocam com 0px -
-           os cantos arredondados colados criam ilusão de caixa vazia na costura). margin-top aqui. -->
-      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
-        <div style="font-weight:600">☀️ Geração por dia vs. consumo médio das casas</div>
-        <button type="button" class="btn-print-secao" data-print-titulo="geracao-por-dia-vs-consumo" title="Baixar este gráfico como JPEG" aria-label="Baixar gráfico Geração por dia como JPEG">⬇</button>
-      </div>
-      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
-      <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
-      <div class="legend-note v" id="legGeracaoPorDia">—</div>
-    </div>
-
-    <div class="section-num"><span class="n">11</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
+    <div class="section-num"><span class="n">03</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>
       <div class="chart-box tall"><canvas id="cSolarRateio"></canvas></div>
       <div class="legend-note v" id="legSolarRateio">—</div>
     </div>
 
-    <!-- NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): histórico real de ciclos
-         fechados (ciclos_solares, status='fechado') — cada linha é um fechamento oficial confirmado
-         com evidência (leitura + fatura Energisa real), nunca recalculado depois de gravado. -->
+    <!-- Histórico real de ciclos fechados (ciclos_solares, status='fechado') — cada linha é um
+         fechamento oficial confirmado com evidência (leitura + fatura Energisa real), nunca
+         recalculado depois de gravado. -->
     <div class="card" style="margin-top:1rem">
       <div style="font-weight:600;margin-bottom:0.4rem">📁 Histórico de ciclos fechados</div>
       <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa (evidência obrigatória) — o crédito daquele período fica congelado aqui, e um novo ciclo abre automaticamente.</div>
       <div id="historicoCiclosSolares">—</div>
     </div>
 
-    <div class="section-num"><span class="n">12</span><h2>📈 Previsão até a Próxima Leitura</h2></div>
+    <div class="section-num"><span class="n">04</span><h2>📈 Previsão até a Próxima Leitura</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Compara o ritmo de geração de crédito com o necessário pra cobrir a meta mensal até a próxima leitura da Energisa de cada unidade — atualiza sozinho conforme novas leituras (seção 10) chegam.</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Compara o ritmo de geração de crédito com o necessário pra cobrir a meta mensal até a próxima leitura da Energisa de cada unidade — atualiza sozinho conforme novas leituras (seção 02) chegam.</div>
 
       <div style="font-weight:600;margin-bottom:0.3rem">⚡ Wallace</div>
       <div class="progress"><div class="fill" id="prevWallaceBar" style="width:0%;background:var(--accent)"></div></div>
@@ -1196,7 +1171,36 @@
       <div class="legend-note" style="font-size:0.68rem;margin-top:0.7rem">Leitura Wallace (apartamento): dia 21 do mês (janela 19-21). Leitura Wellida (casa da mãe): dia 8 do mês (janela 06-09). 🟢 no ritmo (média ≥ necessário) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%).</div>
     </div>
 
-    <div class="section-num"><span class="n">13</span><h2>🧮 Simulador Regulatório (Lei 14.300)</h2></div>
+    <div class="section-num"><span class="n">05</span><h2>☀️ Geração diária</h2></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
+        <div style="font-weight:600">Geração por dia vs. consumo médio das casas</div>
+        <button type="button" class="btn-print-secao" data-print-titulo="geracao-por-dia-vs-consumo" title="Baixar este gráfico como JPEG" aria-label="Baixar gráfico Geração por dia como JPEG">⬇</button>
+      </div>
+      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
+      <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
+      <div class="legend-note v" id="legGeracaoPorDia">—</div>
+    </div>
+
+    <div class="section-num"><span class="n">06</span><h2>Economia antes × depois (apartamento)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Comparação mês a mês: ano anterior real (laranja) vs. este ano com solar ativo (verde). Toque numa barra pra ver o valor e a fonte.</div>
+      <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
+      <div class="legend-note v" id="legEnergiaSolar">—</div>
+      <div class="legend-note" style="font-size:0.68rem;margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, projeção = Disponibilidade + Fio B + Iluminação + Encargos, ver card abaixo).</div>
+    </div>
+
+    <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra
+    real (Lei 14.300/2022): Iluminacao Publica e Encargos NUNCA sao compensados pelos creditos
+    solares, independente de quanto voce gerar - sempre sobra uma fatura minima. -->
+    <div class="card" style="border-left:3px solid var(--amber);margin-top:1rem">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💡 Quanto você ainda vai pagar mesmo com 100% dos créditos</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a 60% em 2026) é só uma <strong>fatia</strong> dela (~28%) — 60%×28% = 16,8% cobrado, <strong>83,2% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
+      <div id="residualPosSolarTbody" style="overflow-x:auto">—</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real é sempre o <strong>maior valor entre o Fio B calculado acima e a Taxa Mínima/Custo de Disponibilidade</strong> (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Iluminação Pública. Em casas com consumo já baixo (ex: Wellida), a Taxa Mínima pode ficar acima do valor calculado pela fórmula — nesse caso, o piso da concessionária prevalece, não a fórmula.</div>
+    </div>
+
+    <div class="section-num"><span class="n">07</span><h2>🧮 Simulador Regulatório (Lei 14.300)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">
         <strong>Isto é uma SIMULAÇÃO, não dado real</strong> — não usa as leituras reais das seções acima. Serve pra planejar cenários (payback, economia projetada) com premissas de reajuste tarifário, degradação dos módulos e mudanças na Lei 14.300 ao longo dos anos. O rateio entre as casas continua sendo o real, paralelo (71%/29%) — este simulador não mexe nisso, é só uma calculadora de "e se".
@@ -1247,8 +1251,6 @@
         Premissas ajustáveis no código (SolarConfig): reajuste tarifário 6%a.a., inflação 4,5%a.a., degradação do módulo 0,5%a.a., aumento de consumo 0%a.a. (padrão conservador). Tarifas base: Resolução Homologatória ANEEL 3518/2025, Grupo B1 Residencial. Fio B segue a curva de transição da Lei 14.300 (60% em 2026, sobe para 100% até 2029) — incide só sobre energia compensada, nunca sobre energia instantânea.
       </div>
     </div>
-
-  
 
   </div>
 

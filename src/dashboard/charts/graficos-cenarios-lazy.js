@@ -536,7 +536,19 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       dzViraEl.textContent = 'Não vira nos próximos 12 meses';
     }
   }
+}
 
+// ===== Energia Solar — aba própria "☀️ Energia Solar" (08/08/2026) =====
+// Extraída de dentro de _lazyRenderCenariosDeficitEGraficosSolar() (só a divisão de função é nova —
+// zero linha de cálculo solar reescrita, é o mesmo corpo de código de antes, só passou a ter sua
+// própria função). Motivo: o Solar tinha esse gatilho compartilhado com Gráficos/Cenários só por
+// conveniência histórica (mesmo comentário antigo já admitia isso) — não havia nenhuma variável
+// realmente compartilhada com a parte de Déficit Zero (conferido: nenhum `dz*`/`fmt0` usado daqui
+// pra baixo). Chamada só quando a aba "solar" abre (initSolarLazy(), showMaster.js) — Gráficos/
+// Cenários não iniciam mais os gráficos solares.
+async function _lazyRenderSolarSecao(){
+  const grid2 = '#2a2d31';
+  const legendStd2 = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
 
   // Energia: comparacao mes a mes, ano anterior (real) vs este ano (projetado com solar).
   // Tarifa real da fatura Jun/2026 (R$322,99/304kWh=R$1,0625/kWh, ICMS+PIS/COFINS ja embutidos).
@@ -1143,16 +1155,16 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     const ugResumoEl = $('ugResumo');
     if(ugResumoEl){
       if(consumoDiretoConfiavel){
-        ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 11, abaixo.';
+        ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 03, abaixo.';
       } else if(temGeracao){
         // CORRIGIDO 02/08/2026 (achado do usuário): antes disso, se temGeracao=true o resumo sempre
         // calculava consumoDireto/autoconsumo misturando geracao viva com exportado congelado, sem
         // limite - agora que existe o travamento por dias de descompasso, esse ramo intermediario
         // cobre "tem geracao mas o descompasso ja passou do limite seguro" - mostra so o que e 100%
         // real (importado/exportado/saldo liquido), sem fingir precisao no consumo direto.
-        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Consumo direto/autoconsumo pausado</strong> — a leitura do medidor está desatualizada há <strong>'+diasDescompassoAtual+' dias</strong> (mais que o limite seguro de '+LIMITE_DIAS_DESCOMPASSO_SEGURO+'), então parei de calcular esses campos pra não mostrar número cada vez mais errado. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 11 normalmente. Manda uma leitura nova do 03/103 pra recalibrar tudo.';
+        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Consumo direto/autoconsumo pausado</strong> — a leitura do medidor está desatualizada há <strong>'+diasDescompassoAtual+' dias</strong> (mais que o limite seguro de '+LIMITE_DIAS_DESCOMPASSO_SEGURO+'), então parei de calcular esses campos pra não mostrar número cada vez mais errado. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente. Manda uma leitura nova do 03/103 pra recalibrar tudo.';
       } else {
-        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 11 normalmente.';
+        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente.';
       }
     }
 
@@ -1335,9 +1347,9 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         + (diasComDadoRealSolar>0 ? diasComDadoRealSolar+' dia(s) com geração REAL do robô SAJ' : '')
         + (diasComDadoRealSolar>0 && diasProjetadosSolar>0 ? ' + ' : '')
         + (diasProjetadosSolar>0 ? diasProjetadosSolar+' dia(s) por média histórica (robô ainda sem dado nesses dias)' : '')
-        + ' — por isso pode diferir um pouco da Seção 12/13 (Previsão), que mostra só a última leitura manual, sem projetar nenhum dia à frente.'
+        + ' — por isso pode diferir um pouco da Seção 04 (Previsão), que mostra só a última leitura manual, sem projetar nenhum dia à frente.'
       : '';
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 12 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
@@ -1458,4 +1470,16 @@ function initGraficosECenariosLazy(){
   _lazyRenderCenariosSuperavit();
   _lazyRenderCenariosDeficitEGraficosSolar();
   WallaceBus.emit('graficoAtualizado', {origem:'initGraficosECenariosLazy'}); // V300 (Etapa 2)
+}
+
+// NOVO 08/08/2026 (aba própria "☀️ Energia Solar"): mesmo padrão de flag-única de
+// initGraficosECenariosLazy() acima, mas disparado só quando a aba "solar" abre — antes disso, o
+// domínio Solar inteiro carregava junto com Gráficos OU Cenários (o que abrisse primeiro), mesmo que
+// o usuário nunca tivesse interesse em ver Solar. Reduz trabalho inicial das outras abas.
+let _solarCarregado = false;
+function initSolarLazy(){
+  if(_solarCarregado) return;
+  _solarCarregado = true;
+  _lazyRenderSolarSecao();
+  WallaceBus.emit('graficoAtualizado', {origem:'initSolarLazy'});
 }

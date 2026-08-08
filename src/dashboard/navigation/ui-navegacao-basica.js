@@ -20,6 +20,11 @@ function showMaster(id){
   if(id === 'graficos' || id === 'cenarios'){
     initGraficosECenariosLazy();
   }
+  // NOVO 08/08/2026 (aba própria "☀️ Energia Solar"): mesmo padrão da linha acima, flag própria
+  // (initSolarLazy(), graficos-cenarios-lazy.js) — Solar não carrega mais junto com Gráficos/Cenários.
+  if(id === 'solar'){
+    initSolarLazy();
+  }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
   // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
   // ainda esta escondida (display:none) no carregamento inicial - o Chart.js nao consegue medir o

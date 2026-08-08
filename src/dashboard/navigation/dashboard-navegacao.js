@@ -39,7 +39,7 @@ const CAPA_DESTINOS = [
   {grupo:'Financeiro', icone:'🏛️', titulo:'Balanço', sub:'patrimonial completo', paneId:'balancov2', tituloSecao:null},
   // Metas & análises
   {grupo:'Metas & análises', icone:'🎯', titulo:'Meta do Milhão', sub:'progresso da meta', paneId:'painel', tituloSecao:'Meta do milhão'},
-  {grupo:'Metas & análises', icone:'☀️', titulo:'Energia Solar', sub:'geração e economia', paneId:'graficos', tituloSecao:'Energia Solar'},
+  {grupo:'Metas & análises', icone:'☀️', titulo:'Energia Solar', sub:'geração e economia', paneId:'solar', tituloSecao:null},
   {grupo:'Metas & análises', icone:'📈', titulo:'Gráficos', sub:'evolução e composição', paneId:'graficos', tituloSecao:null},
   {grupo:'Metas & análises', icone:'🛡️', titulo:'Cenários', sub:'crítico · déficit zero', paneId:'cenarios', tituloSecao:null},
 ];
