@@ -17,6 +17,122 @@ function onDomPronto(fn){
   }
 }
 
+// MOVIDO 08/08/2026 pra cá (era definido lá embaixo, perto de auditoriaCruzadaV1V2) — CORRIGIDO
+// bug real de ordem de execução: onDomPronto() acima roda a função IMEDIATAMENTE, de forma
+// SÍNCRONA, sempre que o DOM já está pronto — e como app.js é injetado depois de um fetch
+// assíncrono, isso é o caso normal (não "às vezes"). onDomPronto(hydrate), mais abaixo no
+// arquivo, chamava hydrate() antes do parser sequer chegar na definição original de
+// WallaceFinanceService (que ficava textualmente DEPOIS dessa chamada) — ReferenceError
+// determinístico sempre que o timing batia assim, mascarado de "falha transiente" porque só
+// aparecia em parte dos carregamentos (dependia de o script ter sido injetado antes ou depois
+// do documento terminar de parsear). WallaceFinanceService não depende de VARS/REG/DOM — é
+// seguro definir aqui, bem antes de qualquer onDomPronto(...) rodar.
+//
+// NOVO 05/08/2026 (parte 104): auditoria cruzada V1 (VARS/REG, este arquivo) vs V2 (tabelas
+// relacionais no Supabase, Arquitetura V2). Só leitura, só console.warn - nunca altera nada na
+// tela, nunca bloqueia o carregamento (fetch assíncrono, fire-and-forget, falha silenciosa se
+// offline). Existe pra pegar cedo qualquer descasamento entre os dois sistemas rodando em
+// paralelo durante a migração da Fase 5 (mesmo raciocínio da auditoria SSOT acima, mas
+// comparando contra a fonte V2 em vez de comparando o V1 consigo mesmo).
+// NOVO 06/08/2026 (parte 118, "avance para a fase 5 nao adianta ficar protelando" - pedido explicito
+// do usuario). Comeca a consumir de verdade a camada /services (src/services/FinanceService.js) - MAS
+// app.js NAO e um ES module (carregado via <script src>, injetado dinamicamente, dezenas de onclick=
+// inline no HTML dependem de funcao GLOBAL) - converter pra type="module" quebraria TODOS esses onclick
+// de uma vez, risco alto demais pra fazer as cegas sem navegador real pra testar. Solucao: mesma API
+// publica do FinanceService.js (getDashboardResumo, getCaixas, getSaldoCaixa), reimplementada aqui como
+// objeto global plano (WallaceFinanceService) - comportamento identico, sem sintaxe de modulo. Isso
+// elimina a duplicacao real que existia (o fetch de rpc_dashboard_resumo abaixo era copiado a mao,
+// diferente do FinanceService.js que nunca era chamado por ninguem) - agora so existe 1 implementacao,
+// reusada. Primeiro passo real e seguro de Fase 5: consolidar antes de expandir.
+const WallaceFinanceService = {
+  _cache: new Map(),
+  _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
+  _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+  invalidarCache(){ this._cache.clear(); },
+  async getDashboardResumo(){
+    const chave = 'rpc:dashboard_resumo';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
+      method:'POST',
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
+      body:'{}'
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 08/08/2026 (Onda 1 da migração V2 → Painel): saldo por caixa via vw_saldo_v2_por_caixa —
+  // NÃO usar rpc_dashboard_resumo().caixas[].saldo pra isso (achado ao vivo: soma TODA transação
+  // da caixa sem filtro de ciclo/afeta_saldo_real, valor errado pra Boletos/Variável) nem
+  // saldo_real_ciclo_atual da mesma RPC (diverge pra PIX Vanessa, ~R$122 de diferença). Esta view
+  // é a mesma usada e validada a sessão inteira em PLANO_UNIFICACAO_V1_V2.md — v2_saldo_calculado
+  // bate exato com vw_reconciliacao_v1_v2 pras 4 caixas já sincronizadas.
+  async getSaldosPorCaixa(){
+    const chave = 'vw_saldo_v2_por_caixa';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
+  // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
+  // validada a sessão inteira, em vez de somar arrays na mão no cliente.
+  async getReconciliacaoPorCaixa(){
+    const chave = 'vw_reconciliacao_v1_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 08/08/2026 (Onda 3, Livro Razão): transações confirmadas de uma lista de caixas, numa
+  // única chamada (in.(id1,id2,...)) em vez de N requests separados.
+  async getTransacoesPorCaixaIds(caixaIds){
+    const chave = 'transacoes_por_caixa:' + caixaIds.join(',');
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const lista = caixaIds.join(',');
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes por caixa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getCaixas(){
+    const chave = 'caixas';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getSaldoCaixa(nomeCaixa){
+    const caixas = await this.getCaixas();
+    const caixa = caixas.find(c => c.nome === nomeCaixa);
+    if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes`);
+    const transacoes = await resp.json();
+    let saldo = 0;
+    for(const t of transacoes) saldo += t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor);
+    return Math.round(saldo*100)/100;
+  }
+};
+
 // V300 (Etapa 1.2): so cria o grafico quando o canvas entra na viewport (ou 200px antes, via
 // rootMargin, pra nao dar flash em branco no scroll rapido). Usado nos graficos mais pesados/mais
 // abaixo na pagina (secao solar, caixas/alivio) - reduz trabalho de canvas mesmo depois que a aba
@@ -836,6 +952,11 @@ onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado d
 onDomPronto(popularSeletorCiclo); // V145/V170: cria os botoes do seletor de ciclo
 onDomPronto(renderParcelamentos); // V155/V170: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
 onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados
+// ONDA 3 (08/08/2026): registrado DEPOIS de renderLivrosVariaveis() de propósito — precisa que a
+// tabela já tenha sido preenchida com V1 antes de tentar sobrescrever com V2 (senão a ordem
+// inverteria e V1 apagaria o V2 escrito antes). Fallback automático: só sobrescreve em caso de
+// sucesso do fetch. Rollback: comentar esta linha.
+onDomPronto(aplicarOnda3LivroRazao);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // V400 Etapas 2/3: rodam apos renderInboxFinanceira (mesma tabela que elas alimentam via inboxAdicionarItem).
 // Ate hoje (03/08/2026) essas 2 funcoes so tinham sido testadas em harness Node isolado, nunca ligadas
@@ -860,97 +981,9 @@ onDomPronto(atualizarContadoresAbasLR); // V162/V170: conta linhas reais das aba
 // abaixo continua igual. Nenhuma fórmula ou comportamento mudou.
 onDomPronto(auditoriaAutomatica); // V170: corrigido
 
-// NOVO 05/08/2026 (parte 104): auditoria cruzada V1 (VARS/REG, este arquivo) vs V2 (tabelas
-// relacionais no Supabase, Arquitetura V2). Só leitura, só console.warn - nunca altera nada na
-// tela, nunca bloqueia o carregamento (fetch assíncrono, fire-and-forget, falha silenciosa se
-// offline). Existe pra pegar cedo qualquer descasamento entre os dois sistemas rodando em
-// paralelo durante a migração da Fase 5 (mesmo raciocínio da auditoria SSOT acima, mas
-// comparando contra a fonte V2 em vez de comparando o V1 consigo mesmo).
-// NOVO 06/08/2026 (parte 118, "avance para a fase 5 nao adianta ficar protelando" - pedido explicito
-// do usuario). Comeca a consumir de verdade a camada /services (src/services/FinanceService.js) - MAS
-// app.js NAO e um ES module (carregado via <script src>, injetado dinamicamente, dezenas de onclick=
-// inline no HTML dependem de funcao GLOBAL) - converter pra type="module" quebraria TODOS esses onclick
-// de uma vez, risco alto demais pra fazer as cegas sem navegador real pra testar. Solucao: mesma API
-// publica do FinanceService.js (getDashboardResumo, getCaixas, getSaldoCaixa), reimplementada aqui como
-// objeto global plano (WallaceFinanceService) - comportamento identico, sem sintaxe de modulo. Isso
-// elimina a duplicacao real que existia (o fetch de rpc_dashboard_resumo abaixo era copiado a mao,
-// diferente do FinanceService.js que nunca era chamado por ninguem) - agora so existe 1 implementacao,
-// reusada. Primeiro passo real e seguro de Fase 5: consolidar antes de expandir.
-const WallaceFinanceService = {
-  _cache: new Map(),
-  _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
-  _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-  invalidarCache(){ this._cache.clear(); },
-  async getDashboardResumo(){
-    const chave = 'rpc:dashboard_resumo';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
-      method:'POST',
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
-      body:'{}'
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  // NOVO 08/08/2026 (Onda 1 da migração V2 → Painel): saldo por caixa via vw_saldo_v2_por_caixa —
-  // NÃO usar rpc_dashboard_resumo().caixas[].saldo pra isso (achado ao vivo: soma TODA transação
-  // da caixa sem filtro de ciclo/afeta_saldo_real, valor errado pra Boletos/Variável) nem
-  // saldo_real_ciclo_atual da mesma RPC (diverge pra PIX Vanessa, ~R$122 de diferença). Esta view
-  // é a mesma usada e validada a sessão inteira em PLANO_UNIFICACAO_V1_V2.md — v2_saldo_calculado
-  // bate exato com vw_reconciliacao_v1_v2 pras 4 caixas já sincronizadas.
-  async getSaldosPorCaixa(){
-    const chave = 'vw_saldo_v2_por_caixa';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
-  // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
-  // validada a sessão inteira, em vez de somar arrays na mão no cliente.
-  async getReconciliacaoPorCaixa(){
-    const chave = 'vw_reconciliacao_v1_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  async getCaixas(){
-    const chave = 'caixas';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
-  },
-  async getSaldoCaixa(nomeCaixa){
-    const caixas = await this.getCaixas();
-    const caixa = caixas.find(c => c.nome === nomeCaixa);
-    if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes`);
-    const transacoes = await resp.json();
-    let saldo = 0;
-    for(const t of transacoes) saldo += t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor);
-    return Math.round(saldo*100)/100;
-  }
-};
-
+// WallaceFinanceService foi MOVIDO pro topo do arquivo (08/08/2026, logo após onDomPronto) —
+// corrige bug real de ordem de execução (onDomPronto rodava hydrate() antes do parser chegar
+// aqui). Ver comentário completo lá em cima. Nada mais mudou nesta função.
 (async function auditoriaCruzadaV1V2(){
   try {
     const resumoV2 = await WallaceFinanceService.getDashboardResumo();

@@ -1036,3 +1036,25 @@ Console real, login real, confirmado: `window.WALLACE_ONDA2_V2_RELATORIO` (11 en
 **7. Resultado**: **10 caixas lendo V2 em produção** (4 da Onda 1 + 6 desta atualização), zero alteração de layout/IDs/CSS.
 
 **8. Rollback**: reverter `aceitarDivergenciaConhecida` pra `false` nos 4 itens, ou comentar `aplicarOnda2V2();` em `app.js` pra reverter tudo.
+
+---
+
+## 25. Onda 3, prioridade 1 — Livro Razão lendo V2 (08/08/2026)
+
+**1. Objetivo**: V2 como fonte principal das tabelas de Livro Razão, V1 só como fallback — primeira prioridade da Onda 3.
+
+**2. Escopo**: as 7 tabelas cuja caixa já tem o saldo migrado (coerência card↔tabela): Caixa Eventos, Caixa Seguro Emplacamento, Caixa Combustível, Caixa Churrasco, Caixa Mastercard/Infinite, Caixa Bens Duráveis, PIX Vanessa. Fora do escopo: caixas ainda em V1 no saldo (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio, Lance, Wärtsilä) — mesma caixa não pode ter card V2 + tabela V1 nem o contrário. LRW/LRV/LRC-limbo/LRCV e Boletos (sem aba própria) ficam fora, mesmo motivo de sempre.
+
+**3. Arquivos alterados**: `src/financeiro/caixas/hydrate-onda3-livro-razao.js` (novo), `src/app/app.js` (+`getTransacoesPorCaixaIds()`, +`onDomPronto(aplicarOnda3LivroRazao)` registrado depois de `renderLivrosVariaveis()` de propósito — precisa da V1 já ter preenchido a tabela antes de sobrescrever), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+**Achado e correção no caminho — bug real de ordem de execução**: `onDomPronto(fn)` roda `fn()` **de forma síncrona e imediata** sempre que o DOM já está pronto (não é fila assíncrona) — e como `app.js` é injetado depois de um `fetch()` assíncrono, isso é o caso normal, não exceção. `WallaceFinanceService` estava definido bem abaixo de `onDomPronto(hydrate)` no arquivo — dependendo do timing exato do carregamento, `hydrate()` podia rodar ANTES do parser sequer chegar na definição, causando `ReferenceError` determinístico (mascarado de "falha transiente" nas Ondas 1/2 porque só acontecia em parte dos carregamentos). Corrigido: `WallaceFinanceService` movido pro topo do arquivo, logo após a definição de `onDomPronto`, antes de qualquer chamada. Nenhuma duplicação deixada — conferido só 1 `const WallaceFinanceService` no arquivo depois da mudança.
+
+**4. Fonte antiga**: arrays `*_TRANSACOES` (V1) — `renderLivrosVariaveis()`, continua rodando primeiro, intocada.
+
+**5. Fonte nova**: `transacoes` (V2), filtrado por `caixa_id IN (...)` numa única chamada, `status=eq.confirmado`. Rodapé (soma/qtd) calculado a partir das mesmas linhas exibidas — **não** usa `vw_saldo_v2_por_caixa` pro rodapé, então pode não bater com o saldo do card (mesmo comportamento que o rodapé já tinha em V1: sempre foi só a soma da lista mostrada, nunca o saldo completo com saldo inicial — confirmado lendo `render-livros-variaveis.js`, `tfPV`/`tf_lrXxx` sempre foram `array.reduce(...)`, sem somar saldo inicial).
+
+**6. Validação**: navegador real, login real, após a correção de ordem — 0 erros, `window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO` com as 7 tabelas em `fonte:"V2"`. Achado registrado sem esconder: PIX Vanessa mostrou 8 linhas na V2 contra 6 que a `vw_reconciliacao_v1_v2` conta como "correspondentes" — a query desta tabela não aplica o mesmo filtro de correspondência tx_legado/ciclo da view de saldo, mostra tudo que está confirmado na caixa (inclui `RENDIMENTO-31-07`/`AJUSTE-06-08`, que a view de saldo trata à parte). Não investigado a fundo (fora do escopo desta entrega, por pedido explícito do usuário de não abrir novas rodadas de investigação) — registrado como diferença conhecida.
+
+**7. Resultado**: **7 tabelas de Livro Razão lendo V2 em produção**, zero alteração de layout/IDs/CSS. Bug de ordem de execução corrigido beneficia também as Ondas 1 e 2 (fallback não deve mais disparar por esse motivo).
+
+**8. Rollback**: comentar `onDomPronto(aplicarOnda3LivroRazao);` em `app.js` — as 7 tabelas voltam a mostrar só V1 (renderLivrosVariaveis já roda antes, nada mais muda).
