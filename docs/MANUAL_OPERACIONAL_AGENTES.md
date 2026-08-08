@@ -24,6 +24,34 @@ Se alguém pedir "atualiza a V2", **pergunte qual das duas** antes de agir — j
 
 ---
 
+## 1.1 V2 como sistema principal — modo de operação nativo (regra permanente, 08/08/2026)
+
+**Mudança de direção formal do usuário**: o projeto passou da fase de transição. Todo agente Claude (Web ou Mobile) aberto neste projeto deve partir da premissa **"a V2 é o sistema principal"** e **operar** nela — não apenas consultar. A V1 (`wallace_dados`) é legado: só usar quando não existir equivalente V2, ou quando houver exceção formal documentada (ver `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` e a lista da seção 2 abaixo).
+
+Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte que alimenta o painel hoje) — é a lente com que qualquer agente novo deve ler as duas: ao decidir onde escrever/ler um dado, **primeiro perguntar "existe RPC/tabela/view V2 pra isso?"**, e só cair pro V1 se a resposta for não.
+
+**Por domínio, o que já existe na V2 (operar direto, não só ler) — confirmar sempre contra a lista viva da seção 2, que é a fonte de verdade sobre o que está migrado**:
+
+| Domínio | Estruturas V2 | Observação |
+|---|---|---|
+| Compras / transações | `transacoes` (+ `cartao_id`, `usuario_id`, `afeta_saldo_real`) | Lançamento definitivo via `lancar_transacao_manual()` quando o domínio já for V2-exclusivo (seção 2) |
+| Caixas | `caixas`, `vw_saldo_v2_por_caixa` | Nunca editar saldo direto — sempre via array de transação (regra 2.4) |
+| Patrimônio | `patrimonio`, `financiamentos` | Exceção: Caixa Lance ainda V1 |
+| Cartões | `cartoes` | Mapa de titularidade (Mastercard Black/Visa) migrado Wave B1 |
+| Livros Razão | `transacoes` filtradas por caixa/pessoa; `vw_compromisso_cartao_por_pessoa` (LRW/LRV) | LRR/LRS/LRC ainda não têm array V1 migrado — não assumir que existe |
+| Parcelamentos | `parcelas` | — |
+| Energia solar | `energia_solar_leituras`, `energia_solar_geracao_diaria`, `ciclos_solares`, `vw_ciclo_solar_aberto`, `vw_ciclo_solar_historico` | Distinguir sempre geração diária × acumulada × crédito do ciclo × histórico de ciclos fechados |
+| Investimentos / ROC | `investimentos` | Schema ainda não comporta strike/prêmio/vencimento de opções — ROC continua calculado em V1 até esse gap fechar |
+| Reembolsos (cascata Wärtsilä) | `reembolso_wartsila_ciclo`, `reembolso_wartsila_recebimentos` | + `transacoes` da caixa "Provisionado Wärtsilä" |
+| Empréstimos internos (LREI) | `emprestimos_internos` | — |
+| Indicadores | `indicadores` | Preferir sempre a `indicadores` a constante hardcoded no frontend, quando o valor mudar com o tempo |
+
+**Critério de sucesso** (o que um agente novo, sem memória de sessões anteriores, precisa conseguir fazer só lendo este manual): registrar compra, registrar pagamento, atualizar caixa, atualizar patrimônio, atualizar cartão, atualizar livro razão, atualizar parcelamento, atualizar energia solar, atualizar investimento, atualizar reembolso, atualizar indicador — usando a estrutura V2 correspondente como primeira escolha, com a V1 tratada só como legado/exceção/domínio ainda não migrado.
+
+**Isso não muda nenhuma regra de segurança já existente**: usuário confirma antes de lançar (seção 2.1), nunca editar saldo/placeholder direto (seção 2.4), dry-run antes de `UPDATE`/`DELETE` real (seção 4), avisar antes de commit/push (seção 8) — a V2 ser "principal" é sobre **onde** o dado mora, não sobre relaxar **como** ele é alterado.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.

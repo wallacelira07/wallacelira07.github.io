@@ -2,6 +2,22 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 29 — Encerramento de sessão: manual atualizado (treinamento "V2 nativo") + estado consolidado (08/08/2026, continuação do Bloco 28)
+
+**Contexto**: a sessão anterior encerrou o Bloco 28 com "pendente: commit + push" ainda em aberto e bateu o limite de uso antes de escrever a passagem de turno. `git log` confirma que o commit **já havia sido feito** (`be5395f`, `origin/main` atualizado) — só a documentação de handoff ficou pra trás. Este bloco fecha isso e soma um pedido novo do usuário.
+
+**1. Confirmado via `git status`/`git log` (nunca assumir estado de sessão anterior sem checar)**: `be5395f` é HEAD, branch limpo em relação ao remoto — o Bloco 28 (migração de `consorcioCasaProximaAssembleia` + varredura completa do bloco Operacional) está de fato commitado e enviado, não pendente.
+
+**2. Pedido novo do usuário nesta sessão**: formalizar como regra permanente que todo agente Claude (Web e Mobile) aberto neste projeto deve **operar** a V2 como sistema principal (compras, pagamentos, caixas, patrimônio, cartões, livros razão, parcelamentos, energia solar, investimentos, reembolsos, indicadores) — não só consultar. V1 é legado, só usado onde não existe equivalente V2 ou há exceção formal documentada.
+
+**Implementado**: nova seção **1.1** em `docs/MANUAL_OPERACIONAL_AGENTES.md` ("V2 como sistema principal — modo de operação nativo"), com tabela domínio → estrutura V2 já existente (só estruturas confirmadas contra `docs/database/DER.md` e `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` — nenhum nome de tabela inventado) e critério de sucesso explícito. A seção deixa claro que isso não relaxa nenhuma regra de segurança já existente (confirmação antes de lançar, nunca editar saldo direto, dry-run, aviso antes de commit) — é só sobre onde o dado mora primeiro, não sobre como ele é alterado.
+
+**Pendente**: avisar o usuário do diff exato antes de commitar (regra permanente, seção 8 do manual) — ainda não commitado nesta sessão.
+
+**3. `docs/changelog/ESTADO_ATUAL.md` reescrito do zero** refletindo HEAD `be5395f`, a pendência do manual, e a decisão do usuário de **não abrir Pluggy/Mercado Pago/Ciclo Snapshots agora** (confirmada explicitamente nesta sessão — todos Classe C, sem ROI melhor que o resto do Operacional).
+
+**Próximo agente**: ler a seção 1.1 nova do manual antes de qualquer lançamento/consulta de dado. Candidatos abertos: `CARTAO_PLUGGY_MAPA` (bloqueado, esperando finais de cartão do usuário), `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES` (único remanescente do Operacional não totalmente investigado). Pluggy/Mercado Pago/Ciclo Snapshots ficam fechados até o usuário pedir explicitamente.
+
 ## Bloco 28 — Varredura completa do bloco Operacional (esgotamento de candidatos A/B, 1 migrado) (08/08/2026, continuação do Bloco 27)
 
 **Diretriz do usuário**: esgotar completamente candidatos A/B do bloco "Operacional" antes de investir em Pluggy/Mercado Pago/Ciclo Snapshots (todos já confirmados Classe C na rodada anterior).
@@ -16,9 +32,9 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
    - **C, modelagem real necessária**: `PIB_WALLACE_HISTORICO`/`PADROES_RUIDO_TRANSACAO`/`DEFICIT_ZERO_PISO_OVERRIDE` (RPCs gravam dentro do próprio `wallace_dados`, nunca criaram tabela V2), `ENERGISA_TARIFA_COMPOSICAO` (precisa tabela nova, já documentado desde a seção 41 do plano), `dataNascimentoWallace` (ROI~0, schema não comporta data em `indicadores.valor` numérico), `reservaRetiradaProgramada`/`aporteBTGProgramado` (baixo impacto, já majoritariamente derivado).
    - **Não totalmente investigado, único remanescente com potencial**: `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`/`EXTRAORDINARIO_BENS_DURAVEIS` — acoplados a uma lógica real de auto-crédito de boletos (`app.js:851-861`, cria transações novas comparando cronograma × já lançados) — mais complexo que um scalar, mereceria investigação própria numa rodada futura antes de classificar com segurança.
 
-**Conclusão**: candidatos A/B do bloco Operacional esgotados por ora. Métrica: 36 → 37 consumidores removidos (após push) / ~46 restantes.
+**Conclusão**: candidatos A/B do bloco Operacional esgotados por ora. Métrica: 36 → 37 consumidores removidos / ~46 restantes.
 
-**Pendente**: commit + push.
+**Commitado e enviado**: `be5395f` → `origin/main` (confirmado via `git log` no Bloco 29, próximo abaixo).
 
 ## Bloco 27 — BUG ESTRUTURAL RAIZ encontrado e corrigido: cache do WallaceFinanceService explicava PETRS368W5/frescor "crítica"/NaN P2P-Wärtsilä, tudo o mesmo bug (08/08/2026, continuação do Bloco 26)
 
