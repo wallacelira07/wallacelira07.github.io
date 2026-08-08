@@ -58,7 +58,25 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Métrica após os 6 achados desta rodada**: 37 → **55 consumidores removidos** / ~46 → **~28 restantes**.
 
-**Pendente**: commit + push.
+**Commitado e enviado**: `9e8c27a` → `origin/main`.
+
+**Usuário confirmou a estratégia funcionou melhor que atacar Pluggy/MP/Ciclo Snapshots direto — pediu para continuar.** Fiz uma segunda varredura nos módulos Onda 3/5 ainda não auditados (Suavização, LRW/LRV, Parcelamentos): Suavização e LRW/LRV já estavam completos, sem gap. Parcelamentos tinha um caso parecido (`livroLRP`/`totalOpProvMP`, calculados de forma síncrona antes da sobrescrita V2) mas os dois só alimentam compostos protegidos por exceção formal (headline totals de cartão) ou domínio sem V2 ainda (Necessidade) — **não toquei**, fora do critério A/B seguro.
+
+**Triagem de Pluggy/Mercado Pago/Ciclo Snapshots (pedido do usuário)**: confirmado que `atualizar_mercadopago_eventos` (a RPC que já existia) gravava dentro do próprio `wallace_dados` — nenhuma tabela relacional real por trás, mesma classe do `PIB_WALLACE_HISTORICO`. Comparei esforço: Mercado Pago (3 consumidores, 1 tabela simples) < Pluggy (5-6 consumidores, 3 tabelas relacionadas) << Ciclo Snapshots (15 consumidores, núcleo do `CycleEngine.js`). Como isso é "modelagem nova de grande porte" (uma das condições de parada do próprio usuário), apresentei o desenho antes de executar — aprovado.
+
+**Migração Mercado Pago executada**: nova tabela `mercadopago_eventos` (Supabase), RLS com leitura pública. Backfill dos 9 eventos existentes em `wallace_dados` — conferido 9/9, `status_triagem` preservado. RPC `atualizar_mercadopago_eventos` reescrita mantendo a mesma assinatura (`mercadopago_sync.py` não precisou mudar a chamada da RPC) — testada ao vivo via SQL direto: reenviar um evento existente preservou `status_triagem` custom ("aprovado"), evento novo entrou como "pendente" — comportamento correto confirmado antes de seguir. Único ponto do script Python alterado: `obter_checkpoint()` lê `max(atualizado_em)` da tabela nova em vez de `wallace_dados`.
+
+**JS**: `WallaceFinanceService.getMercadoPagoEventosV2()` novo (mesmo padrão dos outros métodos). `src/auditoria/classificacao/hydrate-onda6-mercadopago.js` novo — mesma estratégia "reescreve VARS.MERCADOPAGO_EVENTOS, reaproveita `sincronizarMercadoPagoParaInbox()`/`renderMercadoPagoDashboard()` (V1, inalteradas)" já usada em Wärtsilä/Investimentos/Parcelamentos/LREI. Cuidado extra replicado do encadeamento já existente pra Pluggy (`reconciliarTransacoesPluggy`, app.js parte 115): `classificarInboxPendentes()` re-chamada depois do fetch assíncrono resolver, senão os itens novos da Inbox nunca teriam a chance do classificador genérico.
+
+**Validado ao vivo, sem login** (mesmo método): 8 dos 9 eventos foram pra Inbox — o 9º (`MP172597269618`) corretamente excluído por já ter `status_triagem="rejeitado"` de uma triagem anterior, preservada intacta pela migração (prova de que o merge por `id` na RPC nova funciona igual ao antigo). Zero erro de console. `render-mercado-pago-dashboard.js`: elemento `#mpDashboardResumo` não existe no HTML atual (condição pré-existente, já tratada com `if(!el) return`, não é regressão desta mudança).
+
+**Achado colateral, fora de escopo desta rodada**: `pluggy_conexoes`/`pluggy_contas`/`pluggy_transacoes` (Pluggy) e o núcleo do `CycleEngine.js` (Ciclo Snapshots) continuam Classe C — próximos candidatos se o usuário quiser continuar investindo em modelagem nova.
+
+**Segurança, fora do escopo desta sessão, sinalizado pelo advisor do Supabase**: `public.v1_v2_caixa_mapa` está com RLS desabilitado (exposta a leitura/escrita por qualquer chave anon). Não corrigido automaticamente (mudar RLS sem policy nova bloquearia todo acesso) — reportado ao usuário, decisão de política de acesso é dele.
+
+**Métrica final desta rodada de aceleração**: 37 → **56 consumidores removidos** / ~46 → **~27 restantes**.
+
+**Pendente**: commit + push (código; migração de banco já aplicada e validada em produção).
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
 

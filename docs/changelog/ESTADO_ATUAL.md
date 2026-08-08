@@ -6,9 +6,11 @@
 
 ## Métrica
 
-✅ 55 consumidores removidos: +1 Boletos, +4 caixas (Reservas), +5 Patrimônio, +1 Caixa Variável, +5 barras/badges de meta, +2 LREI (`balLreiAtivos` + alerta "N empréstimo(s) interno(s) ativo(s)" em `hydrateQualidade()`, ambos calculados antes de `VARS.LREI_ATIVAS` ser sobrescrito pelo Onda 4) — 6 achados da mesma classe de bug nesta rodada
+✅ 56 consumidores removidos: 6 achados da classe "id de DOM duplicado" (55) + `MERCADOPAGO_EVENTOS` migrado pra tabela relacional própria (modelagem nova real, primeira desta sessão)
 ✅ ~16 exceções formais
-✅ ~28 consumidores restantes
+✅ ~27 consumidores restantes
+
+**Mercado Pago migrado (08/08/2026)**: nova tabela `mercadopago_eventos` no Supabase (id, origem, tipo, descricao, valor, data, status, status_triagem, metadata, criado_em, atualizado_em), RLS com policy de leitura pública. Backfill dos 9 eventos que existiam em `wallace_dados.MERCADOPAGO_EVENTOS` — 100% migrados, `status_triagem` preservado linha a linha. RPC `atualizar_mercadopago_eventos` reescrita (mesma assinatura, `mercadopago_sync.py` não precisou mudar a chamada) — agora faz UPSERT na tabela nova em vez de `jsonb_set` em `wallace_dados`, preservando `status_triagem` em conflito de `id`. Único ponto do script Python que mudou: `obter_checkpoint()` agora lê `max(atualizado_em)` da tabela nova em vez de `wallace_dados.MERCADOPAGO_ATUALIZADO_EM`. JS: `WallaceFinanceService.getMercadoPagoEventosV2()` novo + `src/auditoria/classificacao/hydrate-onda6-mercadopago.js` novo (mesmo padrão "reescreve VARS, reaproveita função V1 de sincronização/render" já usado em Wärtsilä/Investimentos/Parcelamentos/LREI). Validado ao vivo: 8/9 eventos foram pra Inbox (o 9º foi corretamente excluído — já tinha `status_triagem="rejeitado"` de uma triagem anterior, preservada intacta pela migração). Zero erro de console.
 
 **Achado sistêmico** (3 ocorrências do mesmo padrão nesta rodada): quando uma caixa/valor patrimonial aparece em 2 pontos de exibição diferentes (card + linha do Balanço, ou card "Meta do Milhão" + seção "Balanço Patrimonial"), as Ondas anteriores só migraram 1 dos 2 ids. Boletos e as 4 caixas de Reservas: auditados por completo, não sobra mais nenhum caso — os `balRes*`/`balOp*` restantes em V1 (`balOpPixVanessa`/PGV, `balResLance`) são intencionais (divergência real não resolvida, já documentada). Patrimônio: os 5 ids duplicados corrigidos; os TOTAIS compostos da seção Balanço (`balFinanceiroTotal`, `balAtivosTotal`, `balPatrimonioLiquido`/`TotalGeral`) ficam de propósito em V1 — misturam componentes sem V2 ainda (físico: casa/apartamento/jazigo/solar/carro; PGBL; FGTS; consórcio casa pelo valor pago), não é o mesmo padrão simples de duplicata.
 

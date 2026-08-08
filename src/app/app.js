@@ -297,6 +297,20 @@ const WallaceFinanceService = {
     const resultado = dado[0] || null;
     this._cache.set(chave, resultado);
     return resultado;
+  },
+  // NOVO 08/08/2026 (migração wallace_dados.MERCADOPAGO_EVENTOS -> tabela mercadopago_eventos):
+  // mesmo shape de VARS.MERCADOPAGO_EVENTOS (id/origem/tipo/descricao/valor/data/status/metadata),
+  // + status_triagem. Ver hydrate-onda6-mercadopago.js.
+  async getMercadoPagoEventosV2(){
+    const chave = 'mercadopago_eventos';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/mercadopago_eventos?select=id,origem,tipo,descricao,valor,data,status,status_triagem,metadata&order=data.desc`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar mercadopago_eventos`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 
@@ -1362,7 +1376,10 @@ onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Fina
 // window.WALLACE_DADOS_REMOTOS no topo do arquivo), entao e seguro rodar no mesmo onDomPronto.
 onDomPronto(reconciliarPluggy);
 onDomPronto(() => { reconciliarTransacoesPluggy().then(() => classificarInboxPendentes()); }); // CORRIGIDO 06/08/2026 (parte 115): reconciliarTransacoesPluggy virou async (parte 114, chamadas V2) - os itens novos so existem DEPOIS do await resolver, entao o classificarInboxPendentes() que ja rodava synchronous logo abaixo (linha ~4792) corria ANTES desses itens existirem e nunca os via. Re-chama aqui, encadeado, garantindo que V1 (classificarInboxPendentes, fallback) rode DEPOIS que a V2 (classificarViaV2, dentro do reconciliar) ja teve a chance - V2 tem prioridade (mais especifica, curada no Supabase), V1 so preenche o que sobrar (categoriaSugerida ja setado nunca e sobrescrito, confirmado no proprio classificarInboxPendentes).
-onDomPronto(sincronizarMercadoPagoParaInbox); // V450 Etapas 4+5+6: FinancialEvent -> Inbox (com classificacao e checagem de duplicidade)
+// MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
+// wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
+// e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.
+onDomPronto(aplicarOnda6MercadoPago); // V450 Etapas 4+5+6, agora V2: FinancialEvent -> Inbox (com classificacao e checagem de duplicidade)
 onDomPronto(classificarInboxPendentes); // V400 Etapa 10: roda por último, classifica o que as etapas acima adicionaram nesta mesma carga
 onDomPronto(renderMercadoPagoDashboard); // V450 Etapa 9: so leitura/exibicao, roda depois da Inbox estar populada
 onDomPronto(atualizarContadoresAbasLR); // V162/V170: conta linhas reais das abas de Livros Razao

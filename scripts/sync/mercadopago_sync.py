@@ -12,14 +12,15 @@ O QUE ESTE SCRIPT NUNCA FAZ (proibicao explicita do brief V450):
   - Nunca lanca TX. So grava eventos normalizados numa tabela propria (ver abaixo).
   - Nunca guarda o payload bruto da API — so o FinancialEvent normalizado.
 
-DESTINO NO SUPABASE — decisao de nomenclatura (documentada, nao e a literal do brief):
-  O brief pede uma colecao generica "financial_events". Este projeto ja usa o padrao
-  "<INTEGRACAO>_CONTAS"/"<INTEGRACAO>_EVENTOS" pro que a Pluggy grava (VARS.PLUGGY_CONTAS) — pra manter
-  consistencia com o app.js existente (reconciliarPluggy le VARS.PLUGGY_CONTAS, nao "financial_events"),
-  este script grava em uma unica linha/coluna VARS chamada MERCADOPAGO_EVENTOS (RPC
-  'atualizar_mercadopago_eventos', ja criada no Supabase — mesmo padrao das 3 RPCs ja existentes citadas
-  na Passagem de Turno: atualizar_geracao_solar / atualizar_cotacoes_acoes / atualizar_pluggy_contas).
-  app.js consome VARS.MERCADOPAGO_EVENTOS do mesmo jeito que ja consome VARS.PLUGGY_CONTAS.
+DESTINO NO SUPABASE (ATUALIZADO 08/08/2026 — migracao V1 wallace_dados -> V2 relacional):
+  Este script continua chamando a mesma RPC 'atualizar_mercadopago_eventos' com o mesmo payload
+  ({"eventos": [...]})- nenhuma mudanca de interface aqui. O que mudou foi DENTRO da RPC: ela deixou
+  de gravar um array dentro de wallace_dados.MERCADOPAGO_EVENTOS (V1) e passou a fazer INSERT/UPSERT
+  na tabela propria `mercadopago_eventos` (V2), preservando `status_triagem` por linha em conflito de
+  `id` (mesmo comportamento de merge de antes, so que agora e UPSERT relacional em vez de jsonb_set).
+  app.js le a tabela nova via WallaceFinanceService.getMercadoPagoEventosV2() (Supabase direto), nao
+  mais VARS.MERCADOPAGO_EVENTOS. Ver docs/changelog/PASSAGEM_DE_TURNO.md (08/08/2026) para o registro
+  completo desta migracao.
 
 CORRIGIDO 04/08/2026 (parte 39) — bug real achado no 1o teste em produção: o 1o sync trouxe os
 500 pagamentos mais recentes (05/01/2026 a 02/08/2026, TODO o histórico da conta, sem filtro de
@@ -135,9 +136,11 @@ class MercadoPagoSyncService:
         self.supabase_key = supabase_key
 
     def obter_checkpoint(self):
-        """Le VARS.MERCADOPAGO_ATUALIZADO_EM direto do Supabase (mesmo service_role key da escrita) pra
-        saber a partir de quando buscar pagamentos novos. Retorna None se nunca sincronizou (1o run)."""
-        url = f"{self.supabase_url}/rest/v1/wallace_dados?id=eq.1&select=dados"
+        """CORRIGIDO 08/08/2026: le o maior atualizado_em direto da tabela mercadopago_eventos (V2) em vez
+        de VARS.MERCADOPAGO_ATUALIZADO_EM em wallace_dados (V1, aposentado nesta migracao - ver
+        docs/decisions/ e o novo destino da RPC atualizar_mercadopago_eventos, que agora grava na tabela
+        propria em vez de wallace_dados). Retorna None se a tabela ainda esta vazia (1o run)."""
+        url = f"{self.supabase_url}/rest/v1/mercadopago_eventos?select=atualizado_em&order=atualizado_em.desc&limit=1"
         req = urllib.request.Request(url, headers={
             "apikey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
@@ -147,7 +150,7 @@ class MercadoPagoSyncService:
                 linhas = json.loads(resp.read().decode("utf-8"))
             if not linhas:
                 return None
-            return linhas[0].get("dados", {}).get("MERCADOPAGO_ATUALIZADO_EM")
+            return linhas[0].get("atualizado_em")
         except Exception as e:
             print(f"mercadopago_sync: nao consegui ler checkpoint (seguindo sem filtro de data): {e}", file=sys.stderr)
             return None
