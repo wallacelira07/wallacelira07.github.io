@@ -12,17 +12,27 @@
 // antes desta Onda.
 //
 // Rollback: comentar a chamada aplicarOnda4Lrei() em app.js.
+//
+// NOVO 08/08/2026: LREI é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso de falha, a
+// tabela mostra aviso explícito em vez de deixar silenciosamente as linhas V1 (síncronas) na tela.
+function onda4LreiMarcarIndisponivel(motivo){
+  const tbody = $('lreiTbody');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-danger);padding:1.2rem 0">⚠ Indisponível (V2) — '+(motivo||'falha ao buscar dado')+'</td></tr>';
+}
 
 async function aplicarOnda4Lrei(){
   let lreiV2;
   try {
     lreiV2 = await WallaceFinanceService.getEmprestimosInternosV2();
   } catch(err){
-    console.error('Onda4Lrei: falha ao buscar vw_emprestimos_internos_v2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda4Lrei: falha ao buscar vw_emprestimos_internos_v2 — sem fallback V1 (LREI é V2-exclusivo).', err);
+    onda4LreiMarcarIndisponivel('falha ao buscar vw_emprestimos_internos_v2');
+    window.WALLACE_ONDA4_LREI_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(lreiV2)){
-    console.warn('Onda4Lrei: resposta inesperada — mantendo V1.');
+    console.warn('Onda4Lrei: resposta inesperada.');
+    onda4LreiMarcarIndisponivel('resposta inesperada da V2');
     window.WALLACE_ONDA4_LREI_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }

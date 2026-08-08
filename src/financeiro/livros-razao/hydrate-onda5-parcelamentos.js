@@ -15,17 +15,28 @@
 // (não é afetado por este módulo, só a parte LRP/LRMP é sobrescrita).
 //
 // Rollback: comentar a chamada aplicarOnda5Parcelamentos() em app.js.
+//
+// NOVO 08/08/2026: Parcelamentos é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso de
+// falha, as tabelas mostram aviso explícito em vez de deixar silenciosamente as linhas V1
+// (síncronas) na tela.
+function onda5ParcelamentosMarcarIndisponivel(motivo){
+  const msg = '<tr><td colspan="4" style="text-align:center;color:var(--text-danger);padding:1.2rem 0">⚠ Indisponível (V2) — '+(motivo||'falha ao buscar dado')+'</td></tr>';
+  ['lrpTbody','lrmpTbody'].forEach(id => { const el = $(id); if(el) el.innerHTML = msg; });
+}
 
 async function aplicarOnda5Parcelamentos(){
   let parcelasV2;
   try {
     parcelasV2 = await WallaceFinanceService.getParcelamentosV2();
   } catch(err){
-    console.error('Onda5Parcelamentos: falha ao buscar vw_parcelamentos_v2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda5Parcelamentos: falha ao buscar vw_parcelamentos_v2 — sem fallback V1 (domínio é V2-exclusivo).', err);
+    onda5ParcelamentosMarcarIndisponivel('falha ao buscar vw_parcelamentos_v2');
+    window.WALLACE_ONDA5_PARCELAMENTOS_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(parcelasV2) || !parcelasV2.length){
-    console.warn('Onda5Parcelamentos: resposta vazia/inesperada — mantendo V1.');
+    console.warn('Onda5Parcelamentos: resposta vazia/inesperada.');
+    onda5ParcelamentosMarcarIndisponivel('resposta vazia/inesperada da V2');
     window.WALLACE_ONDA5_PARCELAMENTOS_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }

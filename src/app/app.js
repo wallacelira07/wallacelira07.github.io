@@ -240,6 +240,20 @@ const WallaceFinanceService = {
   }
 };
 
+// NOVO 08/08/2026 (diretriz arquitetural: "V2 é a fonte real, V1 é legado" — não perpetuar
+// convivência silenciosa): usada pelos módulos Onda 4/5 já migrados quando a busca na V2 falha.
+// ANTES: catch só logava e retornava, deixando o valor V1 (síncrono, já renderizado) na tela sem
+// nenhum aviso — o usuário via um número plausível sem saber que não veio da fonte oficial.
+// AGORA: marca visivelmente os ids afetados, pra nunca mais existir fallback silencioso tratado
+// como "informação válida igual à V2". Não apaga o valor calculado (mantém rastreável no
+// console/WALLACE_ONDA*_RELATORIO), só deixa claro na tela que a fonte oficial falhou agora.
+function marcarIndisponivelV2(ids, motivo){
+  ids.forEach(id => {
+    const el = $(id);
+    if(el) el.innerHTML = '<span style="color:var(--text-danger)" title="'+(motivo||'Falha ao buscar dado na V2 (Supabase)').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</span>';
+  });
+}
+
 // V300 (Etapa 1.2): so cria o grafico quando o canvas entra na viewport (ou 200px antes, via
 // rootMargin, pra nao dar flash em branco no scroll rapido). Usado nos graficos mais pesados/mais
 // abaixo na pagina (secao solar, caixas/alivio) - reduz trabalho de canvas mesmo depois que a aba

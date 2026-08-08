@@ -8,17 +8,24 @@
 // recalcularP2P() + hydrateResumoP2P() (V1, INALTERADAS) — zero lógica duplicada.
 //
 // Rollback: comentar a chamada aplicarOnda5P2P() em app.js.
+//
+// NOVO 08/08/2026: P2P é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso de falha, os
+// ids marcam "⚠ Indisponível (V2)" em vez de deixar silenciosamente o número V1 (síncrono) na tela.
+const ONDA5_P2P_IDS = ['p2pCapitalTotal', 'p2pCreditosRestantes', 'p2pSaldoInvestido', 'p2pLucroRealizado'];
 
 async function aplicarOnda5P2P(){
   let p2pV2;
   try {
     p2pV2 = await WallaceFinanceService.getP2PV2();
   } catch(err){
-    console.error('Onda5P2P: falha ao buscar vw_p2p_v2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda5P2P: falha ao buscar vw_p2p_v2 — sem fallback V1 (P2P é V2-exclusivo).', err);
+    marcarIndisponivelV2(ONDA5_P2P_IDS, 'Falha ao buscar vw_p2p_v2');
+    window.WALLACE_ONDA5_P2P_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!p2pV2 || p2pV2.capital_total === null){
-    console.warn('Onda5P2P: vw_p2p_v2 vazia/incompleta — mantendo V1.');
+    console.warn('Onda5P2P: vw_p2p_v2 vazia/incompleta.');
+    marcarIndisponivelV2(ONDA5_P2P_IDS, 'vw_p2p_v2 vazia/incompleta');
     window.WALLACE_ONDA5_P2P_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }

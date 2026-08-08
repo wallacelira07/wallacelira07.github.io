@@ -26,8 +26,12 @@ Se alguém pedir "atualiza a V2", **pergunte qual das duas** antes de agir — j
 
 ## 2. Fluxo de lançamento de transações
 
+**REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.
+
+**Domínios já V2-exclusivos (não escrever mais em `wallace_dados` para eles)**: Patrimônio (exceto Caixa Lance) → tabelas `patrimonio`/`financiamentos`; Investimentos/ROC → `investimentos`; LREI → `emprestimos_internos`; Cascata Wärtsilä → `reembolso_wartsila_ciclo`/`reembolso_wartsila_recebimentos` (+ `transacoes` da caixa "Provisionado Wärtsilä"); Parcelamentos → `parcelas`; P2P → `indicadores` (chaves `P2P - *`); Caixas já reconciliadas (10 de 18) + Livro Razão dessas mesmas caixas + LRW/LRV (totais) → `transacoes` direto.
+
 1. **Usuário confirma antes de lançar.** Regra permanente, sem exceção — nunca aplicar dado financeiro sem confirmação explícita.
-2. **Aplicar nos 2 lugares do V1, na mesma operação:**
+2. **Domínio ainda V1** (ver seção 1 e lista acima): aplicar nos 2 lugares, na mesma operação:
    - Arquivo `.js` local relevante (`src/financeiro/**/vars-*.js`).
    - A linha `wallace_dados` no Supabase (`UPDATE ... SET dados = dados || jsonb_build_object(...)` ou `jsonb_set(...)`).
 3. **Antes de editar uma chave no Supabase, confirmar que ela existe** (`SELECT jsonb_object_keys(dados) FROM wallace_dados WHERE id=1`) — nem toda chave do `VARS` está espelhada lá; se não existir, criar como chave nova em vez de assumir.

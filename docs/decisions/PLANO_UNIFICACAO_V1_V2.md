@@ -1539,3 +1539,57 @@ INSERT INTO public.indicadores (nome, valor, data_calculo) VALUES
 **7. Resultado**: domínio Solar passa a seguir a mesma estratégia dos demais domínios da Onda 4/5 — V1 e V2 recebendo o mesmo dado, sem risco pro que já funciona (fallback automático em caso de falha da escrita V2).
 
 **8. Rollback**: remover a chamada a `atualizar_v2_geracao_diaria()` (bloco `# 5) NOVO 08/08/2026`) em `atualizar_supabase()` — a escrita em V1 continua exatamente como antes, intocada.
+
+---
+
+# MUDANÇA DE DIREÇÃO ARQUITETURAL (08/08/2026) — "V2 é o sistema real, V1 é legado"
+
+**Decisão do usuário**: a partir daqui, V2 deixa de ser tratada como espelho/transição permanente. Convivência V1↔V2 deixa de ser o padrão — passa a exigir justificativa. A pergunta do projeto muda de "como manter V1 e V2 funcionando juntas" para **"o que ainda impede desligar a V1"**. `wallace_dados` passa a ser só histórico/legado/contingência temporária enquanto existir consumidor remanescente — nunca mais fonte operacional por padrão.
+
+## 41. Inventário completo de consumidores/escritores de `wallace_dados` (08/08/2026)
+
+**Método**: `SELECT jsonb_object_keys(dados) FROM wallace_dados WHERE id=1` (evidência real, não suposição) — 95 chaves de topo hoje. Cruzado contra os módulos Onda 1-5 já implementados.
+
+**Escritores identificados** (quem grava em `wallace_dados`):
+1. `scripts/sync/mercadopago_sync.py` — `MERCADOPAGO_EVENTOS`, `MERCADOPAGO_ATUALIZADO_EM` (agendado, GitHub Actions).
+2. `scripts/sync/sincronizar_pluggy.py` — `PLUGGY_CONTAS`, `PLUGGY_ATUALIZADO_EM` (agendado).
+3. `scripts/sync/atualizar_geracao_saj.py` — `SOLAR_LEITURAS`/`SOLAR_GERACAO_DIARIA` (agendado; **desde a seção 40, também grava em V2 em paralelo**).
+4. `scripts/database/sincronizar_erp_supabase.py` — só `HISTORICO_ERP_TODOS_CICLOS` (manual, sob demanda, não agendado).
+5. **Fluxo manual do agente** (`MANUAL_OPERACIONAL_AGENTES.md`, seção 2, até esta sessão): toda vez que um lançamento financeiro real era aplicado, ia pro arquivo `.js` local **e** pra `wallace_dados` — cobre a maioria das ~90 chaves restantes (saldos de caixa, `opcoesVendidasDetalhe`, `LREI_ATIVAS`, `PARCELAMENTOS_*`, etc). **Não é mais um script — era decisão humana/agente, repetida sessão a sessão.** Corrigido nesta rodada (ver seção 2 do manual): domínios já V2-exclusivos não recebem mais essa escrita.
+
+**Classificação por domínio** (chave real de `wallace_dados` entre parênteses):
+
+| Domínio | Classificação | Chaves envolvidas |
+|---|---|---|
+| Patrimônio (exceto Caixa Lance) | ✅ Migrável — **executado nesta rodada** | `reserva`,`btgNecton`,`nectonContaCorrente`,`patPgbl`,`patFgts`,`passivoFinanciamentoCasa`,`mesesRestantesFinanciamentoCasa`,`parcelaConsorcioAuto`,`consorcioCasaProximaAssembleia` |
+| Investimentos/ROC | ✅ Migrável — **executado** | `opcoesVendidasDetalhe`,`opcoesVendidasValorMercado` |
+| LREI | ✅ Migrável — **executado** | `LREI_ATIVAS` |
+| Cascata Wärtsilä | ✅ Migrável — **executado** | `faturaWartsila`,`reembolsoCicloTotal`,`provisionadoWartsila`,`WARTSILA_CAIXA_TRANSACOES` |
+| Parcelamentos | ✅ Migrável — **executado** | `PARCELAMENTOS_MP`,`PARCELAMENTOS_VISA` |
+| P2P | ✅ Migrável — **executado** | (nenhuma chave viva em `wallace_dados` — já era só arquivo local) |
+| Caixa Lance + 4 caixas causa indeterminada | 🟡 Depende de decisão pendente (não reabrir, ordem do usuário) | `caixaLance`,`caixaManutencao`,`caixaSaudeFamilia`,`pixGeralVanessaSaldo`,`caixaAniversarioJulio` |
+| Solar (crédito/rateio) | 🟡 Depende de evidência externa (seção 38, não reabrir) | `SOLAR_LEITURAS` (persistência já sincroniza V1→V2 desde a seção 40; leitura do frontend continua V1 até a dúvida 301×361 fechar) |
+| Mastercard Black/Visa (totais) | 🔴 Depende de modelagem — acoplado a reconciliação bancária manual (seção 36) | `cartaoInfiniteTotal`,`cartaoMBTotal`,`mercadoPagoFatura`,`mbLRWConfirmado`,`mbLRVConfirmado`,`mbLRSConfirmado`,`mbLRCConfirmado`,`visaLRVHistorico`,`livroLRC`,`faturaMPCorporativoPendente` |
+| LRW/LRV/LRC-limbo/LRCV (item-a-item) | 🔴 Depende de dado inexistente (gap de classificação, seção 35) | `LRW_TRANSACOES`,`LRV_TRANSACOES`,`LRC_LIMBO_TRANSACOES`,`LRCV_TRANSACOES` |
+| Ciclo Snapshots | 🔴 Depende de modelagem (histórico por ciclo, domínio nunca investigado) | `CICLO_SNAPSHOTS`,`cicloAtualOverrides` |
+| Operacional (parâmetros diversos) | 🔴 Depende de modelagem (~30 chaves heterogêneas, sem domínio único) | `ACOES_COTACOES`,`aporteBTGProgramado`,`BOLETOS_TRANSACOES`,`CARTAO_PLUGGY_MAPA`,`coberturaGarantidaConfirmada`,`creditoKmvIpiranga`,`creditoShellBox`,`creditoUberBalance`,`CRONOGRAMA_BOLETOS_FIXOS`,`dataNascimentoWallace`,`DEFICIT_ZERO_PISO_OVERRIDE`,`EXTRAORDINARIO_BENS_DURAVEIS`,`FGTS`,`HISTORICO_ERP_TODOS_CICLOS`,`LRPV_TRANSACOES`,`PADROES_RUIDO_TRANSACAO`,`PIB_WALLACE_HISTORICO`,`proLaboreFixo`,`reservaRetiradaProgramada` |
+| Pluggy/reconciliação | 🔴 Depende de modelagem (integração externa, fora do escopo desta rodada) | `PLUGGY_CONTAS`,`PLUGGY_TRIAGEM`,`PLUGGY_ATUALIZADO_EM` |
+| Mercado Pago (eventos brutos) | 🔴 Depende de modelagem (fonte da Inbox Financeira, fora do escopo) | `MERCADOPAGO_EVENTOS`,`MERCADOPAGO_ATUALIZADO_EM` |
+| Caixas já reconciliadas (10/18) + Livro Razão + LRW/LRV totais | ✅ Já V2 desde a Onda 1-3 (não precisou desta rodada) | `caixaBoletos`,`caixaMastercardInfinite`,`caixaPixVanessa`,`caixaChurrasco`,`caixaCombustivel`,`caixaEventos`,`caixaSeguroEmplacamento`,`escolaJulioSaldo`,+ 7 arrays `*_TRANSACOES` das mesmas caixas |
+
+## 42. Execução — 6 domínios viram V2-exclusivos, sem fallback silencioso pra V1 (08/08/2026)
+
+**O que mudou** nos 6 módulos já migrados (Patrimônio exceto Caixa Lance, Investimentos/ROC, LREI, Cascata Wärtsilä, Parcelamentos, P2P): antes, uma falha na busca à V2 (`catch`) só logava um aviso no console e retornava — o valor V1 (já renderizado de forma síncrona, antes do módulo assíncrono rodar) continuava na tela, indistinguível de um dado real da V2. Isso é exatamente o "caminho redundante mantido por segurança psicológica" que o usuário pediu pra eliminar.
+
+**Correção**: nova função global `marcarIndisponivelV2(ids, motivo)` (`app.js`) — em caso de falha ou dado incompleto da V2, os ids afetados passam a mostrar `⚠ Indisponível (V2)` em vermelho (com `title` explicando o motivo), em vez de exibir silenciosamente um número que parece atual mas não é. O relatório de diagnóstico (`window.WALLACE_ONDA*_RELATORIO`) passa a registrar `status: 'erro_v2'` com o erro real.
+
+**Deliberadamente não alterado nesta rodada** (risco desproporcional sem validação em navegador):
+- Os literais V1 em `vars-*.js` continuam existindo (não deletados) — são a semente síncrona que renderiza por ~1s antes do módulo assíncrono rodar; removê-los exigiria reordenar o boot síncrono (`opcoes-roc.js`/`recalcularP2P()` etc já leem VARS antes do DOM existir) e não há como validar visualmente nesta sessão.
+- Os 4 scripts Python escritores não foram alterados (exceto o já feito na seção 40, Solar) — parar de escrever chaves específicas em `wallace_dados` exige confirmar que nenhum outro consumidor ainda depende delas; fica classificado, não executado.
+- Caixa Lance e as 4 caixas de causa indeterminada continuam V1 — decisão explícita do usuário de não reabrir.
+
+**Arquivos alterados**: `src/app/app.js` (+`marcarIndisponivelV2()`), `hydrate-onda4-patrimonio.js`, `hydrate-onda4-investimentos.js`, `hydrate-onda4-lrei.js`, `hydrate-onda4-wartsila.js`, `hydrate-onda5-parcelamentos.js`, `hydrate-onda5-p2p.js`, `docs/MANUAL_OPERACIONAL_AGENTES.md` (seção 2 — domínios V2-exclusivos não recebem mais escrita em `wallace_dados`).
+
+**Validação**: técnica (ids conferidos contra o HTML, nomes únicos, `marcarIndisponivelV2` definida em escopo global antes de qualquer chamada real). **Validação do estado de erro em navegador real pendente** (exigiria simular falha de rede/Supabase, não feito nesta sessão).
+
+**Próximo passo (fila de remoção, não executado ainda)**: Mastercard Black/Visa, Ciclo Snapshots e Operacional são os maiores blocos restantes — todos classificados 🔴 "depende de modelagem", nenhum tem caminho seguro de migração imediata sem investigação adicional (que o usuário já pediu pra não fazer sem necessidade). Próxima sessão: escolher 1 desses pra desenhar o schema, mesmo processo já validado nesta sessão (regra de negócio primeiro, Política Interna, depois schema).

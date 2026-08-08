@@ -20,29 +20,33 @@
 
 ---
 
-## 0. INVENTÁRIO EXECUTIVO — dependência de `wallace_dados` (08/08/2026, pós-Onda 5 domínio 1)
+## 0. INVENTÁRIO EXECUTIVO — dependência de `wallace_dados` (08/08/2026, pós mudança de direção arquitetural)
 
-**Regra operacional vigente**: domínio modelado no Supabase + reconciliado + consumível pelo frontend → V2 vira fonte oficial, VARS vira só compatibilidade/fallback temporário. Sem gate de divergência a partir da Onda 4.
+**MUDANÇA DE DIREÇÃO ARQUITETURAL (08/08/2026, decisão explícita do usuário)**: V2 deixa de ser espelho/transição — passa a ser a arquitetura oficial. Convivência V1↔V2 permanente deixa de ser o padrão, agora exige justificativa. `wallace_dados` passa a ser só histórico/legado/contingência, nunca mais fonte operacional por padrão. Pergunta do projeto: não mais "como manter as duas juntas", e sim **"o que ainda impede desligar a V1"**. Ver seções 41-42 do plano pro inventário completo (95 chaves de `wallace_dados`, escritores, classificação).
+
+**Os 6 domínios já migrados viraram V2-EXCLUSIVOS nesta rodada** (antes: fallback silencioso pra V1 em caso de erro; agora: `⚠ Indisponível (V2)` visível, nunca mais um número V1 parecendo atual): Patrimônio (exceto Caixa Lance), Investimentos/ROC, LREI, Cascata Wärtsilä, Parcelamentos, P2P.
 
 | Domínio | Status | Fonte oficial | Observação |
 |---|---|---|---|
-| Patrimônio | ✅ Migrado | V2 (`patrimonio`+`financiamentos`) | Exceto Caixa Lance (ver linha própria) |
-| Investimentos/ROC/Opções | ✅ Migrado | V2 (`investimentos`+`indicadores`) | — |
-| LREI (empréstimos internos) | ✅ Migrado | V2 (`emprestimos_internos`) | — |
-| Cascata Reembolso Wärtsilä | ✅ Migrado | V2 (`reembolso_wartsila_ciclo`) | Perna 4 (MP pessoal) fora do escopo |
-| Parcelamentos (LRP/LRMP) | ✅ Migrado | V2 (`parcelas`) | `TRANSACOES_CORPORATIVAS_MP` continua V1 |
-| Caixas — saldo (10 de 18) | ✅ Migrado | V2 (`vw_saldo_v2_por_caixa`) | Boletos, PIX Vanessa, Variável, Mastercard/Infinite, Bens Duráveis, Eventos, Seguro, Escola Júlio, Churrasco, Combustível |
-| Livro Razão — 7 tabelas de lançamento | ✅ Migrado | V2 (`transacoes`) | Mesmas 7 caixas acima (exceto Boletos/Variável, sem aba) |
+| Patrimônio | ✅ V2-exclusivo | `patrimonio`+`financiamentos` | Exceto Caixa Lance (ver linha própria); falha na V2 = aviso visível, sem fallback V1 |
+| Investimentos/ROC/Opções | ✅ V2-exclusivo | `investimentos`+`indicadores` | idem |
+| LREI (empréstimos internos) | ✅ V2-exclusivo | `emprestimos_internos` | idem |
+| Cascata Reembolso Wärtsilä | ✅ V2-exclusivo | `reembolso_wartsila_ciclo` | Perna 4 (MP pessoal) fora do escopo; idem |
+| Parcelamentos (LRP/LRMP) | ✅ V2-exclusivo | `parcelas` | `TRANSACOES_CORPORATIVAS_MP` continua V1; idem |
+| P2P | ✅ V2-exclusivo | `indicadores` (`P2P - *`) | idem |
+| Caixas — saldo (10 de 18) | ✅ Migrado (Onda 1-3, overlay condicional) | V2 (`vw_saldo_v2_por_caixa`) | Boletos, PIX Vanessa, Variável, Mastercard/Infinite, Bens Duráveis, Eventos, Seguro, Escola Júlio, Churrasco, Combustível |
+| Livro Razão — 7 tabelas de lançamento | ✅ Migrado | V2 (`transacoes`) | Mesmas 7 caixas acima |
 | LRW/LRV — totais confirmados | ✅ Migrado | V2 (`vw_compromisso_cartao_por_pessoa`) | Só os totais; tabela item-a-item ainda V1 |
+| Solar — persistência | ✅ Sincronizada (seção 40) | Grava em V1+V2 em paralelo | Leitura do frontend continua V1 (crédito/rateio pendente, seção 38, não reabrir) |
 | **Caixa Lance** | 🟡 Híbrido | V1 (log-only V2) | Divergência R$4,37 não confirmada — **não reabrir**, decisão do usuário |
-| Caixas — 4 restantes (Manutenção/Saúde Família/PIX Geral Vanessa/Aniversário Júlio) | 🟡 Híbrido | V1 | Divergência R$107-346, causa indeterminada — mesma categoria da Caixa Lance |
-| LRW/LRV/LRC-limbo/LRCV — tabela item-a-item | ❌ V1 | V1 | 147 candidatas em `transacoes` vs 43 itens V1, sem coluna de classificação — precisaria de critério novo, não perseguido |
-| Mastercard Black/Visa — totais (`cartaoMBTotal` etc) | ❌ V1 | V1 | Ainda sobrescrito por `wallace_dados` (JSON blob), não por tabela relacional |
-| Operacional (salário/orçamento/créditos/legendas/Inbox Financeira) | ❌ V1 | V1 | Sem estrutura V2 dedicada pra maior parte; `indicadores` já usado só pro CDI/ROC/PIB |
-| Ciclo Snapshots (histórico por ciclo) | ❌ V1 | V1 | Sem estrutura V2 |
-| P2P | ❌ V1 (não investigado a fundo) | V1 | Módulo pequeno (20 linhas) |
+| Caixas — 4 restantes (Manutenção/Saúde Família/PIX Geral Vanessa/Aniversário Júlio) | 🟡 Híbrido | V1 | Divergência R$107-346, causa indeterminada |
+| LRW/LRV/LRC-limbo/LRCV — tabela item-a-item | ❌ V1 | V1 | Sem coluna de classificação — depende de dado inexistente |
+| Mastercard Black/Visa — totais (`cartaoMBTotal` etc) | ❌ V1 | V1 | Acoplado a reconciliação bancária manual (seção 36) — depende de modelagem |
+| Operacional (salário/orçamento/créditos/legendas/Inbox Financeira) | ❌ V1 | V1 | ~30 chaves heterogêneas, sem domínio único — depende de modelagem |
+| Ciclo Snapshots (histórico por ciclo) | ❌ V1 | V1 | Sem estrutura V2 — depende de modelagem |
+| Pluggy / Mercado Pago (eventos brutos) | ❌ V1 | V1 | Integrações externas, fora do escopo desta rodada |
 
-**Percentual aproximado de dependência restante de `wallace_dados`**: ~80-85% dos módulos VARS ainda são fonte ativa (proxy por linha de código nos 8 arquivos `vars-*.js`: ~175 de ~1.190 linhas totais já retiradas de uso ativo, families Patrimônio+ROC+Reembolsos+parte de Caixas/Parcelamentos). Number é aproximado — reflete módulos "aposentáveis" mais do que uso real por card individual do painel.
+**Deliberadamente não executado nesta rodada** (risco desproporcional sem validação em navegador, toda a sessão): remover os literais V1 dos arquivos `vars-*.js` dos 6 domínios V2-exclusivos (continuam existindo como semente síncrona do primeiro segundo de render); parar os 4 scripts Python de escrever em `wallace_dados` (exceto Solar, que já passou a gravar em paralelo). Ambos ficam classificados/documentados, não executados — próxima ação segura antes de tocar neles é uma sessão com login real pra confirmar visualmente que nada quebra.
 
 **Próximo domínio de maior impacto ainda não perseguido**: Mastercard Black/Visa (totais `cartaoMBTotal`/`livroLR*`) — grande, mas precisa investigação de como os totais V1 (sobrescritos por `wallace_dados`) se relacionam com `transacoes`/`parcelas` já migrados, sem cair em nova reconciliação.
 

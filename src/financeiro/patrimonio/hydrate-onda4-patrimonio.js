@@ -13,6 +13,12 @@
 //
 // Rollback: comentar a chamada aplicarOnda4Patrimonio() em app.js — os ids voltam a mostrar só o
 // que hydratePatrimonio() (V1) já escreveu antes.
+//
+// NOVO 08/08/2026: Patrimônio (exceto Caixa Lance, exceção deliberada acima) é fonte V2 EXCLUSIVA
+// (diretriz "V2 é a fonte real") — em caso de falha, os ids mostram aviso explícito em vez de
+// deixar silenciosamente os números V1 (síncronos) na tela. `patLance` fica de fora desta lista de
+// propósito — continua sempre V1, não é afetado por sucesso nem falha deste módulo.
+const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela'];
 
 async function aplicarOnda4Patrimonio(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
@@ -20,11 +26,14 @@ async function aplicarOnda4Patrimonio(){
   try {
     p = await WallaceFinanceService.getPatrimonioV2();
   } catch(err){
-    console.error('Onda4Patrimonio: falha ao buscar vw_patrimonio_v2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda4Patrimonio: falha ao buscar vw_patrimonio_v2 — sem fallback V1 (domínio é V2-exclusivo, exceto Caixa Lance).', err);
+    marcarIndisponivelV2(ONDA4_PATRIMONIO_IDS, 'falha ao buscar vw_patrimonio_v2');
+    window.WALLACE_ONDA4_PATRIMONIO_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!p){
-    console.warn('Onda4Patrimonio: vw_patrimonio_v2 retornou vazio — mantendo V1.');
+    console.warn('Onda4Patrimonio: vw_patrimonio_v2 retornou vazio.');
+    marcarIndisponivelV2(ONDA4_PATRIMONIO_IDS, 'vw_patrimonio_v2 vazia');
     window.WALLACE_ONDA4_PATRIMONIO_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }

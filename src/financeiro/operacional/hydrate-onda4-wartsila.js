@@ -15,6 +15,11 @@
 // módulo NÃO sobrescreve esse campo, deixa como o V1 já calculou.
 //
 // Rollback: comentar a chamada aplicarOnda4Wartsila() em app.js.
+//
+// NOVO 08/08/2026: Cascata Wärtsilä é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso
+// de falha, os cards mostram aviso explícito em vez de deixar silenciosamente os números V1
+// (síncronos) na tela.
+const ONDA4_WARTSILA_IDS = ['reembRecebidos','reembAReceber','reembCicloTotal','reembPagaWartsila','reembPagaMP','reembPagaCartao','reembSobraPessoal'];
 
 async function aplicarOnda4Wartsila(){
   let ciclo, saldosV2;
@@ -24,12 +29,15 @@ async function aplicarOnda4Wartsila(){
       WallaceFinanceService.getSaldosPorCaixa(),
     ]);
   } catch(err){
-    console.error('Onda4Wartsila: falha ao buscar dados da V2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda4Wartsila: falha ao buscar dados da V2 — sem fallback V1 (domínio é V2-exclusivo).', err);
+    marcarIndisponivelV2(ONDA4_WARTSILA_IDS, 'falha ao buscar dados da V2');
+    window.WALLACE_ONDA4_WARTSILA_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   const caixaWartsila = Array.isArray(saldosV2) ? saldosV2.find(c => c.caixa_nome === 'Provisionado Wärtsilä') : null;
   if(!ciclo || !caixaWartsila || caixaWartsila.v2_saldo_calculado === null || caixaWartsila.v2_saldo_calculado === undefined){
-    console.warn('Onda4Wartsila: dado incompleto na V2 — mantendo V1.');
+    console.warn('Onda4Wartsila: dado incompleto na V2.');
+    marcarIndisponivelV2(ONDA4_WARTSILA_IDS, 'dado incompleto na V2');
     window.WALLACE_ONDA4_WARTSILA_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }

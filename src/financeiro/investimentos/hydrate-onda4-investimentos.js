@@ -10,6 +10,16 @@
 //
 // Rollback: comentar a chamada aplicarOnda4Investimentos() em app.js — VARS.opcoesVendidasDetalhe
 // continua com os literais V1 (nunca sobrescritos se este módulo não rodar).
+//
+// NOVO 08/08/2026: Investimentos/ROC é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso
+// de falha, os cards-resumo e a tabela mostram aviso explícito em vez de deixar silenciosamente os
+// números V1 (síncronos) na tela.
+const ONDA4_INVESTIMENTOS_IDS_RESUMO = ['opcoesValorMercado','opcoesPremioTotal','opcoesPremioBrutoTotal','opcoesCustosTotal','rocCapitalTravado','rocPremioLiquido'];
+function onda4InvestimentosMarcarIndisponivel(motivo){
+  marcarIndisponivelV2(ONDA4_INVESTIMENTOS_IDS_RESUMO, motivo);
+  const tbody = $('opcoesTbody');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-danger);padding:1.2rem 0">⚠ Indisponível (V2) — '+(motivo||'falha ao buscar dado')+'</td></tr>';
+}
 
 async function aplicarOnda4Investimentos(){
   let opcoesV2, cdiInd, limiteBoaInd, limiteMuitoBoaInd;
@@ -21,11 +31,14 @@ async function aplicarOnda4Investimentos(){
       WallaceFinanceService.getIndicador('ROC_STATUS_LIMITES - muitoBoaAte'),
     ]);
   } catch(err){
-    console.error('Onda4Investimentos: falha ao buscar dados da V2 — mantendo V1 (fallback automático).', err);
+    console.error('Onda4Investimentos: falha ao buscar dados da V2 — sem fallback V1 (domínio é V2-exclusivo).', err);
+    onda4InvestimentosMarcarIndisponivel('falha ao buscar dados da V2');
+    window.WALLACE_ONDA4_INVESTIMENTOS_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(opcoesV2) || !opcoesV2.length || !cdiInd || !limiteBoaInd || !limiteMuitoBoaInd){
-    console.warn('Onda4Investimentos: resposta incompleta da V2 — mantendo V1.');
+    console.warn('Onda4Investimentos: resposta incompleta da V2.');
+    onda4InvestimentosMarcarIndisponivel('resposta incompleta da V2');
     window.WALLACE_ONDA4_INVESTIMENTOS_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }
