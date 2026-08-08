@@ -21,7 +21,17 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **6. Continuação sob a mesma diretriz, sem pausa**: triado e migrado também `creditoUberBalance`/`creditoShellBox`/`creditoKmvIpiranga` (créditos externos de apps — Uber/Shell/Ipiranga, "verdade externa" atualizada manualmente, mesmo padrão do `CDI_MENSAL_ATUAL`). Único consumidor: `hydrate-roc.js` (3 linhas de exibição direta, sem cálculo). 3 registros novos em `indicadores`, fetch único (`nome=in.(...)`) + override em `app.js`, mesmo padrão fallback-silencioso. Testado via REST real, preview sem erro novo.
 
-**Métrica**: 32 consumidores commitados + 4 prontos (`HISTORICO_ERP_TODOS_CICLOS` + 3 créditos) = ~48 restantes após push.
+**Métrica**: 35 consumidores commitados (`d5843e1`) = ~48 restantes.
+
+**7. Continuação, triagem rápida do resto de "Operacional"**: `proLaboreFixo` (R$11.600,00, salário-base fixo do usuário) migrado no mesmo lote — múltiplos consumidores (`hydrate-qualidade.js`, `hydrate-caixas.js`, `hydrate-onda3-suavizacao.js`, `recalcular-necessidade.js`, `reg-operacional.js`), mas todos leem `VARS.proLaboreFixo` direto, nenhuma reconciliação. **Cuidado de sequência necessário e resolvido**: `reg-operacional.js` (`Object.assign(REG, criarRegOperacional())`, linha ~1034) copia `VARS.proLaboreFixo` pra dentro de `REG.operacional.proLaboreFixo` uma única vez — a sobrescrita V2 precisa rodar ANTES disso (colocada na linha ~683, junto dos outros overrides), senão `REG` e `VARS` divergiriam silenciosamente. Confirmado seguro porque todo fetch V2 já resolveu antes do `app.js` carregar (mesmo padrão de sempre).
+
+**Outros candidatos triados e descartados por ora** (não são quick-wins, não executados):
+   - `dataNascimentoWallace` — constante permanente (nunca muda), baixíssimo ROI, `indicadores.valor` é numérico (não comporta data) — precisaria de acomodação de schema pra um ganho quase nulo. Adiado.
+   - `PIB_WALLACE_HISTORICO`/`PADROES_RUIDO_TRANSACAO`/`DEFICIT_ZERO_PISO_OVERRIDE` — já são gravados via RPC (`registrar_pib_mensal` etc.), mas a RPC escreve DENTRO do próprio `wallace_dados` (chave jsonb), não numa tabela V2 real — migrar de verdade exige modelagem (tabela de série histórica por ciclo), não é view/RPC simples. Classificação C.
+   - `coberturaGarantidaConfirmada` — por definição só é preenchido por confirmação manual explícita do usuário ("nunca calculado por fórmula automática") — depende de decisão humana por natureza, não é candidato a automação.
+   - `aporteBTGProgramado` — já é majoritariamente DERIVADO em runtime (`VARS.aporteBTGProgramado.total` recalculado em `app.js`), o valor de `wallace_dados` é quase todo sobrescrito na hora — baixo impacto migrar, não investigado a fundo ainda.
+
+**Métrica final do bloco**: 35 → **36 consumidores removidos** após o próximo push.
 
 ## Bloco 25 — ACOES_COTACOES commitado + bugs reais reportados pelo usuário (data invertida, geração de ontem errada) + infraestrutura de frescor/legendas dinâmicas (08/08/2026, continuação do Bloco 24)
 

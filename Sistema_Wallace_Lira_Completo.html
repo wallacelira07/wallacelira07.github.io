@@ -1851,11 +1851,11 @@ var __promiseHistoricoErpV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/re
 });
 
 // NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
-// creditoKmvIpiranga - creditos externos, "verdade externa" atualizada manualmente, mesmo padrao
-// do CDI_MENSAL_ATUAL): busca os 3 de uma vez em `indicadores`. Fallback silencioso permitido -
-// dominio informativo, nao critico.
+// creditoKmvIpiranga/proLaboreFixo - "verdade externa" atualizada manualmente, mesmo padrao
+// do CDI_MENSAL_ATUAL): busca de uma vez em `indicadores`. Fallback silencioso permitido -
+// se falhar, os literais V1 continuam valendo (nunca quebra calculo nenhum).
 window.WALLACE_CREDITOS_EXTERNOS_V2 = null;
-var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga)', {
+var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga,proLaboreFixo)', {
   headers: {
     'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
     'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'

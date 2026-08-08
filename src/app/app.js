@@ -671,14 +671,21 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_HISTORICO_ERP_V
 }
 
 // NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
-// creditoKmvIpiranga, mesmo padrao de cartoes/cotacoes_acoes - fallback silencioso permitido):
-// window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, indicadores) vence o literal V1 se a V2
-// respondeu com dado.
+// creditoKmvIpiranga/proLaboreFixo, mesmo padrao de cartoes/cotacoes_acoes - fallback silencioso
+// permitido): window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, indicadores) vence o literal
+// V1 se a V2 respondeu com dado. CRITICO: proLaboreFixo precisa ser sobrescrito AQUI, bem no topo
+// do arquivo - reg-operacional.js (criarRegOperacional(), Object.assign(REG,...) mais abaixo) copia
+// VARS.proLaboreFixo pra dentro de REG.operacional.proLaboreFixo UMA VEZ; se essa sobrescrita
+// rodasse depois desse Object.assign, REG ficaria com o valor V1 antigo enquanto VARS.proLaboreFixo
+// (lido direto em hydrate-caixas.js/hydrate-qualidade.js) mostraria o valor V2 novo - dessincronia
+// real entre dois lugares que deveriam sempre bater. Todo o fetch V2 ja resolveu antes do app.js
+// carregar (Promise.all no HTML), entao esta leitura e sempre sincrona e segura.
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CREDITOS_EXTERNOS_V2) && window.WALLACE_CREDITOS_EXTERNOS_V2.length){
   window.WALLACE_CREDITOS_EXTERNOS_V2.forEach(r => {
     if(r.nome === 'creditoUberBalance') VARS.creditoUberBalance = Number(r.valor);
     else if(r.nome === 'creditoShellBox') VARS.creditoShellBox = Number(r.valor);
     else if(r.nome === 'creditoKmvIpiranga') VARS.creditoKmvIpiranga = Number(r.valor);
+    else if(r.nome === 'proLaboreFixo') VARS.proLaboreFixo = Number(r.valor);
   });
 }
 
