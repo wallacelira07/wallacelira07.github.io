@@ -930,6 +930,8 @@ function hydrate(){
   // — mesma sequência, nenhum id/fórmula alterado.
   hydrateCaixas();
 
+  aplicarOnda3Suavizacao(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
+
   hydrateVisaMB(); // MODULARIZAÇÃO 07/08/2026: breakdown Visa Infinite + Mastercard Black extraído pra src/modules/hydrate-visa-mb.js — mesma sequência, nenhum id/fórmula alterado.
 
   aplicarOnda3LrwLrv(); // NOVO 08/08/2026 (Onda 3, Prioridade 2): sobrescreve mbLRW/mbLRV com V2 (vw_compromisso_cartao_por_pessoa) — roda depois de hydrateVisaMB() (V1) de propósito, só sobrescreve em caso de sucesso.

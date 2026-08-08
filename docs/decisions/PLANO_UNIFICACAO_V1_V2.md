@@ -1093,3 +1093,54 @@ GROUP BY u.nome, u.id;
 **7. Resultado**: **LRW/LRV lendo V2 em produção**, zero alteração de layout/IDs/CSS. Percentual atualizado de dependência da V1: 10 caixas (saldo) + 7 tabelas de Livro Razão + LRW/LRV agora lêem V2; restam em V1: 4 caixas de causa indeterminada (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio), Caixa Lance, Provisionado Wärtsilä, e os domínios ainda não migrados da Onda 3 (Patrimônio, Metas, Investimentos).
 
 **8. Rollback**: comentar `aplicarOnda3LrwLrv();` em `app.js` — `mbLRW`/`mbLRV` voltam a mostrar só V1 (`hydrateVisaMB()` já roda antes, nada mais muda).
+
+---
+
+## 27. Onda 3, prioridade 3 — Patrimônio: BLOQUEADO por ausência real de estrutura V2 (08/08/2026)
+
+**1. Objetivo**: migrar `patTotal`/`patrimonioDetalhe`/`passivosPatrimoniais` (seções Patrimônio + Passivos Patrimoniais) pra V2 — 3ª prioridade da Onda 3.
+
+**2. Investigação**: a tabela `patrimonio` (V2) existe (11 linhas), colunas `id, tipo, valor, data_snapshot, created_at, natureza` — **sem nenhum campo de rótulo/descrição**. Achados que travam a migração:
+- **Ambiguidade estrutural real**: 2 linhas com `tipo='investimento'` (R$14.779,62 = BTG Necton, R$429,75 = Necton conta corrente) são **indistinguíveis por qualquer coluna** — só por coincidência de valor batem com `VARS.btgNecton`/`VARS.nectonContaCorrente`. Escrever código que casa por valor seria inventar lógica nova (proibido pela restrição desta rodada) e frágil (quebra na próxima atualização de saldo).
+- **Campos inexistentes**: `passivosPatrimoniais` precisa de `prestacaoFinanciamentoCasa`, `mesesRestantesFinanciamentoCasa`, `consorcioAutoPct`, `parcelaConsorcioAuto` — nenhum desses tem coluna equivalente na tabela `patrimonio` (só `tipo`/`valor`/`natureza`, sem metadados de parcela/prestação/percentual).
+- `patrimonio.total` (V1) também depende do saldo da **Caixa Lance**, que nunca foi classificada em nenhuma Onda anterior (nem incluída no `ONDA2_V2_MAPA`) — divergência V1×V2 sem causa raiz confirmada.
+
+**3. Decisão**: **não migrado**. Isto é o caso previsto na regra do usuário ("ausência real de estrutura na V2" = bloqueador real, diferente de divergência documentada) — não uma investigação nova, é a constatação de que a V2 relacional ainda não modela patrimônio físico/financeiro no nível de detalhe que o painel exibe hoje. Nenhum arquivo de frontend alterado nesta seção.
+
+**Caminho pra desbloquear (registrado, não executado)**: adicionar colunas `descricao`/`subtipo` na tabela `patrimonio` pra desambiguar linhas do mesmo `tipo`, e uma tabela (ou colunas) pra metadados de financiamento/consórcio (prestação, parcela, % pago, meses restantes) — modelagem de domínio nova, fora do escopo desta rodada ("apenas reproduzir dados já existentes").
+
+---
+
+## 28. Onda 3, prioridade 4 — Metas: parcial (Fundo de Suavização migrado; Meta do Milhão bloqueada) (08/08/2026)
+
+**1. Objetivo**: migrar os 2 itens da tabela `metas` (V2) — Fundo de Suavização Salarial (CC-304) e Meta do Milhão — 4ª prioridade da Onda 3.
+
+**2. Escopo**: card "Fundo de Suavização Salarial" (`cxSuavizSaldo`/`cxSuavizTxt`/`cxSuavizBar`, `hydrate-caixas.js`). Meta do Milhão (`patPctBadge`/`patPctBar`, `hydrate-patrimonio.js`) **fica fora** — depende de `patrimonio.total`, mesma pendência que bloqueou a Prioridade 3 (seção 27), incluindo a saldo não-classificada da Caixa Lance.
+
+**3. Arquivos alterados**: `src/financeiro/caixas/hydrate-onda3-suavizacao.js` (novo), `src/app/app.js` (+chamada `aplicarOnda3Suavizacao()` logo depois de `hydrateCaixas()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+**4. Fonte antiga**: `VARS.contaSuavizacao` (derivado de `SUAVIZACAO_TRANSACOES`, V1).
+
+**5. Fonte nova**: `vw_saldo_v2_por_caixa`, linha "Conta Suavização (CC-304)". A meta fixa (R$12.000, `VARS.metaSuavizacao`) continua vindo do código — não é um valor rastreado em `transacoes`/tabela própria na V2, mesmo caso do gap D (Provisionado Wärtsilä) já documentado.
+
+**Evidência V1 × V2**: `V1=R$0,00 × V2=R$0,00` — zero divergência (conta zerada desde a ativação, V90). Reproduz também os textos derivados ("Zerada"/"Zerada · excedente...") e a largura da barra, com a mesma fórmula do V1, só trocando a fonte do saldo.
+
+**6. Validação**: navegador real, login real — `window.WALLACE_ONDA3_SUAVIZACAO_RELATORIO` = `{v1:0, v2:0, diverge:false, exibindo:"V2"}`. Zero erros no console.
+
+**7. Resultado**: **1 de 2 itens de Metas lendo V2** (Fundo de Suavização). Meta do Milhão permanece em V1, bloqueada pela mesma ausência de estrutura da Prioridade 3.
+
+**8. Rollback**: comentar `aplicarOnda3Suavizacao();` em `app.js` — o card volta a vir só de `hydrateCaixas()` (V1).
+
+---
+
+## Status da Onda 3 após Prioridades 1-4 (08/08/2026)
+
+| Prioridade | Item | Status |
+|---|---|---|
+| 1 | Livro Razão (7 tabelas) | ✅ Migrado |
+| 2 | LRW/LRV (compromisso por pessoa) | ✅ Migrado |
+| 3 | Patrimônio | ⛔ Bloqueado — ausência real de estrutura V2 (ambiguidade de linhas + metadados inexistentes) |
+| 4 | Metas | 🟡 Parcial — Fundo de Suavização migrado; Meta do Milhão bloqueada (mesma causa da P3) |
+| 5 | Investimentos | Não iniciado |
+
+Pendência transversal que bloqueia P3 e parte da P4: **saldo da Caixa Lance sem causa raiz classificada** (nunca entrou em nenhum `*_V2_MAPA` de Onda anterior). Resolver isso destravaria parte da Prioridade 3 e a Meta do Milhão inteira.
