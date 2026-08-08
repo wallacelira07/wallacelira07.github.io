@@ -670,6 +670,18 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_HISTORICO_ERP_V
   }));
 }
 
+// NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
+// creditoKmvIpiranga, mesmo padrao de cartoes/cotacoes_acoes - fallback silencioso permitido):
+// window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, indicadores) vence o literal V1 se a V2
+// respondeu com dado.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CREDITOS_EXTERNOS_V2) && window.WALLACE_CREDITOS_EXTERNOS_V2.length){
+  window.WALLACE_CREDITOS_EXTERNOS_V2.forEach(r => {
+    if(r.nome === 'creditoUberBalance') VARS.creditoUberBalance = Number(r.valor);
+    else if(r.nome === 'creditoShellBox') VARS.creditoShellBox = Number(r.valor);
+    else if(r.nome === 'creditoKmvIpiranga') VARS.creditoKmvIpiranga = Number(r.valor);
+  });
+}
+
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
 // de deploy pra mudar"): completa o que o comentario da V218 (legInboxVazia) ja prometia mas nunca
 // foi de fato ligado - mescla VARS.LEGENDAS local (fallback, sempre funciona mesmo offline/banco

@@ -19,7 +19,9 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **5. Verificação**: view testada via REST real com a chave pública (retornou dado real), preview local sem erro novo de console.
 
-**Métrica**: 31 consumidores commitados + 1 pronto (`HISTORICO_ERP_TODOS_CICLOS`) = ~52 restantes após push.
+**6. Continuação sob a mesma diretriz, sem pausa**: triado e migrado também `creditoUberBalance`/`creditoShellBox`/`creditoKmvIpiranga` (créditos externos de apps — Uber/Shell/Ipiranga, "verdade externa" atualizada manualmente, mesmo padrão do `CDI_MENSAL_ATUAL`). Único consumidor: `hydrate-roc.js` (3 linhas de exibição direta, sem cálculo). 3 registros novos em `indicadores`, fetch único (`nome=in.(...)`) + override em `app.js`, mesmo padrão fallback-silencioso. Testado via REST real, preview sem erro novo.
+
+**Métrica**: 32 consumidores commitados + 4 prontos (`HISTORICO_ERP_TODOS_CICLOS` + 3 créditos) = ~48 restantes após push.
 
 ## Bloco 25 — ACOES_COTACOES commitado + bugs reais reportados pelo usuário (data invertida, geração de ontem errada) + infraestrutura de frescor/legendas dinâmicas (08/08/2026, continuação do Bloco 24)
 

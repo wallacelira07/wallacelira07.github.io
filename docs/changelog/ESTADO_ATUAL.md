@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, continuação da sessão do dia, HEAD `7267d00` + trabalho descrito abaixo (`HISTORICO_ERP_TODOS_CICLOS`, aguardando commit).
+Última reescrita: 08/08/2026, continuação da sessão do dia, HEAD `5f36f38` + trabalho descrito abaixo (créditos externos Uber/Shell/Ipiranga, aguardando commit).
 
 ## NOVA DIRETRIZ DO USUÁRIO (válida daqui pra frente, todas as sessões)
 
@@ -15,7 +15,7 @@ Critério de execução autônoma: **"Isso reduz dependência da V1 sem criar ri
 3. `1a1867d` — infraestrutura de frescor (badge relativo, 4 faixas, `indicadores.SOLAR_FRESCOR_LIMITES`) + infraestrutura de legendas dinâmicas (`formatarLegenda`/`formatarFrescor`/`montarBadgeFrescor`, placeholders `{chave}`, 100% retrocompatível) + migração Fase 1 (Solar + Cotações).
 4. `7267d00` — bugfix real: soma dos Livros Razão (LRW/LRV) errada por dois escritores concorrentes (um stale desde 25/07) — removida a duplicação. Blindagem NaN no frescor.
 
-## Em andamento, NÃO commitado — `HISTORICO_ERP_TODOS_CICLOS` migrado pra V2
+## Commitado (`5f36f38`) — `HISTORICO_ERP_TODOS_CICLOS` migrado pra V2
 
 **Triagem completa feita** (3 consumidores reais: `pluggy-reconciliacao.js`, `classificacao-inbox.js`, `dashboard-navegacao.js` — todos só leem `tx`/`valor`/`nome`/`data`; campo `livro` por registro confirmado morto). Cobertura verificada **por completo, não por amostragem**: 230 registros do array V1 comparados 1:1 contra `transacoes.tx_legado` — 224 batem 100%, 6 com ressalva documentada:
 
@@ -28,22 +28,28 @@ Critério de execução autônoma: **"Isso reduz dependência da V1 sem criar ri
 - Frontend: `Sistema_Wallace_Lira_Completo.html` (fetch paralelo `WALLACE_HISTORICO_ERP_V2`) + `src/app/app.js` (override de `VARS.HISTORICO_ERP_TODOS_CICLOS` se a V2 respondeu — fallback silencioso permitido, mesmo padrão `cartoes`/`cotacoes_acoes`, domínio auxiliar não crítico). **Zero mudança nos 3 arquivos consumidores** — todos continuam lendo `VARS.HISTORICO_ERP_TODOS_CICLOS` normalmente, só a origem do dado mudou (mesmo padrão já usado em todo o resto da sessão).
 - Verificado: view testada via REST real (anon key), preview local sem erro novo de console.
 
+## Em andamento, NÃO commitado — `creditoUberBalance`/`creditoShellBox`/`creditoKmvIpiranga` migrados pra V2
+
+Continuação direta sob a nova diretriz (sem pausa pra autorização). 3 créditos externos de apps (Uber/Shell/Ipiranga), "verdade externa" atualizada manualmente — mesmo padrão do `CDI_MENSAL_ATUAL`. Único consumidor real: `hydrate-roc.js` (3 linhas de exibição direta via `t('credUberTotal', fmt(...))` etc, nenhum cálculo em cima).
+
+**Executado**: 3 registros novos em `indicadores` (mesmo padrão `SOLAR_FRESCOR_LIMITES`/CDI), fetch único (`nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga)`) no bootstrap do HTML + override em `app.js` (fallback silencioso, mesmo padrão de sempre). Testado via REST real, preview sem erro novo.
+
 **Pendente**: commit + push.
 
 ## Métrica de consumidores de `wallace_dados`
 
 | Grupo | Quantidade |
 |---|---|
-| Já removidos (V2-exclusivo) | 31 commitados; +1 (`HISTORICO_ERP_TODOS_CICLOS`) pronto, aguardando push |
-| Exceções formais (fora da métrica) | ~10 — `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` + 2 novas (TXCON000001/002, ver acima) |
-| Restantes | ~52 após o push |
+| Já removidos (V2-exclusivo) | 32 commitados; +3 (créditos externos) pronto, aguardando push |
+| Exceções formais (fora da métrica) | ~10 — `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` + 2 novas (TXCON000001/002) |
+| Restantes | ~48 após o push |
 
 **Fora do escopo, por instrução explícita do usuário**: 301×361 (Solar), Caixa Lance, 4 caixas de causa indeterminada, TX000203-208, headline totals Mastercard/Visa.
 
 ## Próximos candidatos (impacto/esforço/independência de decisão)
 
 1. `CARTAO_PLUGGY_MAPA` — bloqueado, aguardando o usuário passar os finais de cartão do Itaú (achado: campo `banco` em `cartoes` é genérico demais, "Itaú/Bradesco/Personnalité conforme apelido", não distingue banco real por cartão — problema de qualidade de cadastro, não de código).
-2. "Operacional" (~30 chaves restantes) — nenhuma triada ainda, candidatas a repetir o mesmo processo (`HISTORICO_ERP_TODOS_CICLOS`/`ACOES_COTACOES`).
+2. Resto de "Operacional" (~27 chaves restantes, ex: `dataNascimentoWallace`, `proLaboreFixo`, `aporteBTGProgramado`, `coberturaGarantidaConfirmada`, `FGTS`, `PADROES_RUIDO_TRANSACAO`, `CRONOGRAMA_BOLETOS_FIXOS`, `DEFICIT_ZERO_PISO_OVERRIDE`, `reservaRetiradaProgramada`, `PIB_WALLACE_HISTORICO`) — nenhuma triada ainda, candidatas a repetir o mesmo processo (baixo esforço se forem escalares de 1 consumidor, como os 2 já migrados).
 3. Pluggy/reconciliação, Mercado Pago eventos brutos, Ciclo Snapshots — não investigados, provavelmente C (modelagem/integração externa).
 4. LRW/LRV/LRC-limbo/LRCV item-a-item — D, bloqueado por gap de dado (`usuario_id`/`categoria_id` ausente em ~34 transações).
 
