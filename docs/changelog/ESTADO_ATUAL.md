@@ -6,13 +6,15 @@
 
 ## Métrica
 
-✅ 38 consumidores removidos (+1 nesta rodada: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos`)
+✅ 42 consumidores removidos (+1 Boletos: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos` + 4 caixas: linha "Reservas" do Balanço de Bens Duráveis/Eventos/Seguro Emplacamento/Escola de Júlio, mesmo padrão de gap)
 ✅ ~16 exceções formais
-✅ ~45 consumidores restantes
+✅ ~41 consumidores restantes
+
+**Achado sistêmico**: as duas correções desta rodada são a MESMA classe de bug — caixa com 2 pontos de exibição (card na seção 05 + linha na seção "Reservas"/"Operacional" do Balanço), só um dos dois migrado nas ondas anteriores. Já auditei os `balRes*`/`balOp*` restantes em `hydrate-balanco.js` contra os mapas de todas as ondas (1 a 5) — os que sobraram (`balOpPixVanessa`/PGV, `balResLance`) são intencionalmente V1 por divergência real não resolvida (Onda2V2/Onda3CaixaLance já cobrem e documentam isso, não é gap de wiring). Não sobrou mais nenhum caso desse padrão específico.
 
 **Nota**: `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`/`aplicarBoletosVencidosAutomaticamente()` continuam existindo em `app.js`/`vars-caixas.js` — o padrão desta migração (igual a todas as ondas anteriores) é sobrescrever só a exibição em DOM com V2, mantendo o cálculo V1 internamente vivo (usado por auditoria/validação runtime). "Consumidor removido" = ID de DOM que já não mostra mais valor derivado só de V1.
 
-**Próximo item da fila**: Pluggy/Mercado Pago/Ciclo Snapshots continuam Classe C, não abrir agora. Buscando próximo candidato A/B fora desses três.
+**Próximo item da fila**: Pluggy/Mercado Pago/Ciclo Snapshots continuam Classe C, não abrir agora. Buscando próximo candidato A/B fora desses três — próxima varredura: chaves ainda não triadas fora do bloco Operacional (já esgotado) e fora de Livro Razão (LRR/LRS/LRC, sem array V1 migrado, provavelmente Classe C/D).
 
 ## Endurecimento de governança dos agentes Claude (08/08/2026, mesma sessão)
 

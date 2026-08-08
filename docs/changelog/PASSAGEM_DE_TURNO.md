@@ -14,6 +14,16 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Validado em navegador real, sem login** — descoberta de ambiente: `Sistema_Wallace_Lira_Completo.html` roda standalone (busca Supabase real via anon key) independente do fluxo de login do `index.html`; usei isso pra validar sem precisar de credencial. Console zerado, `Onda1V2 [Caixa Boletos]: V1×V2 batem`. DOM real: `cxBoletosSaldo`="R$ 1.488,42", `cxBoletosPct`="57,2%", `cxBoletosBar.style.width`="57.2469%", `balResBoletos`="R$ 1.488,42" — todos consistentes.
 
+**Commitado e enviado**: `91fcf4e` → `origin/main`.
+
+**Auditoria de continuidade**: depois de fechar o caso Boletos, chequei se o mesmo padrão (card migrado, linha de Reservas/Balanço esquecida) se repetia em outra caixa — comparando todos os ids `balRes*`/`balOp*` de `hydrate-balanco.js` contra os mapas das Ondas 1-5. Achei 4 casos idênticos: Caixa Bens Duráveis (`balResBensDuraveis`), Caixa Eventos (`balResEventos`), Caixa Seguro Emplacamento (`balResSeguro`), Escola de Júlio (`balResEscola`) — todas `aceitarDivergenciaConhecida:true` no Onda2V2 (já exibem V2 no card), mas a linha de Reservas continuava em V1 puro por não estar na lista.
+
+**Implementado**: `src/financeiro/caixas/hydrate-onda2-v2.js` — campo `extraId` novo em cada uma das 4 entradas do `ONDA2_V2_MAPA`, reaproveitando o mesmo `valorV2` já resolvido (sem fetch novo) pra escrever também na linha de Reservas. `ONDA2_HARDEN_IDS` e o branch `sem_dado_v2` (falha de fetch) também passam a cobrir os `extraId`s — mesma blindagem "sem fallback silencioso" aplicada ao caso Boletos.
+
+**Validado ao vivo** (mesmo método, `Sistema_Wallace_Lira_Completo.html` standalone, sem login): os 4 pares batem exato — Bens Duráveis R$-355,00/R$-355,00, Eventos R$167,09/R$167,09, Seguro R$426,08/R$426,08, Escola R$1.009,80/R$1.009,80. Zero erro/warning novo no console.
+
+**Auditoria confirmou que não sobra mais nenhum caso desse padrão**: os únicos `balRes*`/`balOp*` ainda em V1 (`balOpPixVanessa`/PGV, `balResLance`) são intencionais — divergência real não resolvida, já documentada e coberta pelas Ondas 2/3 (não são gap de wiring, são bloqueio de dado).
+
 **Pendente**: commit + push.
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)

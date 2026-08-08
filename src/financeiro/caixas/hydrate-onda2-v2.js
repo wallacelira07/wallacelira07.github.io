@@ -20,11 +20,15 @@
 //
 // Rollback: comentar a chamada aplicarOnda2V2() em app.js — nada mais muda.
 
+// ACHADO (08/08/2026, mesma classe do caso Boletos/Onda 1): estas 4 caixas têm DOIS ids de
+// DOM pro mesmo saldo — o card da seção 05 (já migrado abaixo) e a linha delas na seção
+// "Reservas" do Balanço (hydrate-balanco.js, ids balRes*) — só o card estava na lista.
+// extraId reaproveita o mesmo valorV2 já resolvido, sem fetch novo.
 const ONDA2_V2_MAPA = [
-  { idHtml: 'cxBensDuraveisSaldo', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxEventosSaldo', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxSeguroSaldo', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxEscolaSaldo', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxBensDuraveisSaldo', extraId: 'balResBensDuraveis', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxEventosSaldo', extraId: 'balResEventos', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxSeguroSaldo', extraId: 'balResSeguro', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxEscolaSaldo', extraId: 'balResEscola', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'cxPgvSaldo', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: false },
@@ -43,7 +47,8 @@ const TOLERANCIA_CENTAVOS = 0.01;
 // Aniversário Júlio) e o Provisionado Wärtsilä (log-only) NÃO são tocados aqui: divergência
 // não confirmada, usuário proibiu reabrir essa investigação — continuam em V1 silencioso
 // até uma decisão explícita mudar o status deles na tabela acima.
-const ONDA2_HARDEN_IDS = ONDA2_V2_MAPA.filter(m => m.aceitarDivergenciaConhecida && m.idHtml).map(m => m.idHtml);
+const ONDA2_HARDEN_IDS = ONDA2_V2_MAPA.filter(m => m.aceitarDivergenciaConhecida && m.idHtml)
+  .flatMap(m => m.extraId ? [m.idHtml, m.extraId] : [m.idHtml]);
 
 async function aplicarOnda2V2(){
   let saldosV2;
@@ -62,12 +67,12 @@ async function aplicarOnda2V2(){
     return;
   }
   const relatorio = [];
-  ONDA2_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1, aceitarDivergenciaConhecida}) => {
+  ONDA2_V2_MAPA.forEach(({idHtml, extraId, caixaNome, getValorV1, aceitarDivergenciaConhecida}) => {
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
     if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
       console.warn(`Onda2V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
       if(aceitarDivergenciaConhecida && idHtml){
-        marcarIndisponivelV2([idHtml], `"${caixaNome}" ausente em vw_saldo_v2_por_caixa`);
+        marcarIndisponivelV2(extraId ? [idHtml, extraId] : [idHtml], `"${caixaNome}" ausente em vw_saldo_v2_por_caixa`);
       }
       relatorio.push({ caixa: caixaNome, status: 'sem_dado_v2' });
       return;
@@ -94,6 +99,11 @@ async function aplicarOnda2V2(){
     const el = $(idHtml);
     if(!el){ console.warn(`Onda2V2: id "${idHtml}" não encontrado no DOM, ignorado.`); return; }
     el.textContent = fmt(valorV2);
+    if(extraId){
+      const extraEl = $(extraId);
+      if(extraEl) extraEl.textContent = fmt(valorV2);
+      else console.warn(`Onda2V2: extraId "${extraId}" não encontrado no DOM, ignorado.`);
+    }
   });
   window.WALLACE_ONDA2_V2_RELATORIO = relatorio;
   console.log('Onda2V2: relatório completo em window.WALLACE_ONDA2_V2_RELATORIO', relatorio);
