@@ -1200,6 +1200,14 @@
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real é sempre o <strong>maior valor entre o Fio B calculado acima e a Taxa Mínima/Custo de Disponibilidade</strong> (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Iluminação Pública. Em casas com consumo já baixo (ex: Wellida), a Taxa Mínima pode ficar acima do valor calculado pela fórmula — nesse caso, o piso da concessionária prevalece, não a fórmula.</div>
     </div>
 
+    <!-- NOVO 08/08/2026 (pedido explícito do usuário): "07 — Simulador Regulatório" removido da
+         INTERFACE e da navegação da aba Solar — "não agrega valor operacional... é teórico e não
+         influencia minhas decisões do dia a dia". Código/markup mantidos intactos de propósito (não
+         apagar), só ocultos via display:none — reversível trocando 1 estilo, sem reescrever nada.
+         calcularSimulacaoRegulatoria() (energia-solar.js) continua rodando no boot sem erro (os
+         inputs #simConsumo etc. continuam existindo no DOM, só invisíveis) — nenhuma dependência
+         quebrada, é decisão de exibição, não de dado/cálculo. -->
+    <div style="display:none">
     <div class="section-num"><span class="n">07</span><h2>🧮 Simulador Regulatório (Lei 14.300)</h2></div>
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">
@@ -1250,6 +1258,7 @@
       <div class="legend-note" style="font-size:0.65rem;margin-top:0.7rem">
         Premissas ajustáveis no código (SolarConfig): reajuste tarifário 6%a.a., inflação 4,5%a.a., degradação do módulo 0,5%a.a., aumento de consumo 0%a.a. (padrão conservador). Tarifas base: Resolução Homologatória ANEEL 3518/2025, Grupo B1 Residencial. Fio B segue a curva de transição da Lei 14.300 (60% em 2026, sobe para 100% até 2029) — incide só sobre energia compensada, nunca sobre energia instantânea.
       </div>
+    </div>
     </div>
 
   </div>
@@ -1752,6 +1761,28 @@ var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
   console.warn('Nao consegui buscar energia_solar_leituras (V2) do Supabase, usando SOLAR_LEITURAS local/wallace_dados:', e);
 });
 
+// NOVO 08/08/2026 (Solar — domínio de primeira classe, desligamento da V1): busca a tabela
+// `energia_solar_geracao_diaria` (geração diária do robô SAJ, já sincronizada da V1 desde a Onda 4/5)
+// em paralelo. Domínio Solar é V2-exclusivo: se falhar/offline, window.WALLACE_SOLAR_GERACAO_DIARIA_V2
+// fica null e app.js NÃO cai pro SOLAR_GERACAO_DIARIA do wallace_dados (proibido fallback silencioso).
+window.WALLACE_SOLAR_GERACAO_DIARIA_V2 = null;
+var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_geracao_diaria?select=data,geracao_kwh,created_at&order=data.asc', {
+  headers: {
+    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+  },
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_SOLAR_GERACAO_DIARIA_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar energia_solar_geracao_diaria (V2) do Supabase:', e);
+});
+
 // NOVO 08/08/2026 (Wave B1 — desligamento da V1, tabela `cartoes` V2): busca a tabela `cartoes`
 // em paralelo, mesma segurança do padrão `legendas` acima (falha/offline -> window.WALLACE_CARTOES_V2
 // fica null, pluggy-reconciliacao.js usa o literal CARTAO_PLUGGY_MAPA_DEFAULT como fallback, nunca quebra).
@@ -1803,6 +1834,7 @@ Promise.all([
   __promiseLegendasRemotas,
   __promiseCartoesV2,
   __promiseSolarLeiturasV2,
+  __promiseSolarGeracaoDiariaV2,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){

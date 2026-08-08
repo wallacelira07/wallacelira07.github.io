@@ -613,6 +613,27 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_LEITURAS_
   VARS.SOLAR_LEITURAS = [];
 }
 
+// NOVO 08/08/2026 (Solar — domínio de primeira classe, desligamento da V1): mesmo padrão do bloco
+// SOLAR_LEITURAS acima — window.WALLACE_SOLAR_GERACAO_DIARIA_V2 (bootstrap do HTML, tabela
+// energia_solar_geracao_diaria) sempre vence tanto o literal local quanto o wallace_dados.
+// SOLAR_GERACAO_DIARIA aplicado pelo Object.assign lá em cima. Sem fallback silencioso: se a V2 não
+// respondeu, vira array vazio — hydrate-onda5-qualidade-geracao.js já trata isso ("Sem histórico de
+// geração diária ainda"), e os 2 outros consumidores (graficos-cenarios-lazy.js) já toleram array
+// vazio/incompleto (checam .length e usam Map por data, nunca assumem posição fixa).
+// ACHADO 08/08/2026: a V2 está com um gap real de sincronização — faltam os dias 06/08 e 07/08 (existem
+// no wallace_dados, não existem ainda em energia_solar_geracao_diaria). Não preenchido aqui (proibido
+// fabricar dado, P1) — os campos dependentes mostram o resultado real com esse gap.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_GERACAO_DIARIA_V2) && window.WALLACE_SOLAR_GERACAO_DIARIA_V2.length){
+  VARS.SOLAR_GERACAO_DIARIA = window.WALLACE_SOLAR_GERACAO_DIARIA_V2.map(r => ({
+    data: r.data,
+    kwh: Number(r.geracao_kwh),
+    capturadoEm: r.created_at || null,
+  }));
+} else {
+  console.error('Solar V2: window.WALLACE_SOLAR_GERACAO_DIARIA_V2 indisponível — domínio é V2-exclusivo, sem fallback silencioso pro SOLAR_GERACAO_DIARIA do wallace_dados.');
+  VARS.SOLAR_GERACAO_DIARIA = [];
+}
+
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
 // de deploy pra mudar"): completa o que o comentario da V218 (legInboxVazia) ja prometia mas nunca
 // foi de fato ligado - mescla VARS.LEGENDAS local (fallback, sempre funciona mesmo offline/banco

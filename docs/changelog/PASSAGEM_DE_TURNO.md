@@ -2,6 +2,14 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 21 — SOLAR_GERACAO_DIARIA religado na V2 + achado de gap de sincronização (08/08/2026, mesma sessão, continuação do Bloco 20)
+
+Mesmo padrão exato de `SOLAR_LEITURAS`/`cartoes`: fetch paralelo de `energia_solar_geracao_diaria` no bootstrap do HTML (`window.WALLACE_SOLAR_GERACAO_DIARIA_V2`), override de `VARS.SOLAR_GERACAO_DIARIA` em `app.js` depois do `Object.assign(VARS, dr)` (vence tanto o literal quanto wallace_dados), sem fallback silencioso (falha/vazio vira array vazio). 3 consumidores afetados: `hydrate-onda5-qualidade-geracao.js` (Qualidade da Geração), 2 pontos em `graficos-cenarios-lazy.js` (projeção da Previsão + gráfico "Geração por dia").
+
+**Achado real, não esperado**: comparando V1×V2 antes de religar, a V2 está com 2 dias faltando (06/08 e 07/08 existem no wallace_dados, não existem em `energia_solar_geracao_diaria`) — gap de sincronização do robô Python, não um erro meu. Não preenchi (proibido fabricar dado, P1). Efeito real e visível: o card "Como a usina está indo" (que compara o ÚLTIMO DIA COMPLETO) passa a comparar contra 05/08 em vez de 07/08, porque 07/08 não existe na V2 ainda. Registrado em `ESTADO_ATUAL.md` como pendência de sincronização, fora do escopo (não mexi no script `atualizar_geracao_saj.py`).
+
+---
+
 ## Bloco 20 — Mastercard/Visa fechado + Solar entra na V2 (modelo de ciclos de crédito) (08/08/2026, mesma sessão, continuação do Bloco 19)
 
 **1. Mastercard Black/Visa — inventário final e fechamento formal**: levantei consumidores exatos de `cartaoMBTotal`/`cartaoInfiniteTotal`/`visaDetalhe`/`mbDetalhe`/`CARTAO_MAPA`. Achado principal: o lado Visa (LRW/LRR/LRS/LRV) está inteiramente ZERADO — usuário já confirmou em sessões anteriores (25-30/07) migração completa pro Mastercard Black, nada a fazer aí. O que resta (Assinaturas MB, Recorrências/Corp, Consórcios) está 100% bloqueado por falta de `cartao_id`/`categoria_id` em `transacoes` (32 transações), não por engenharia. Usuário decretou o domínio "fechado até onde é tecnicamente possível sem inventar dados" — registrado em `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`, junto com as outras 4 exceções permanentes já conhecidas (headline totals, Solar 301×361, Caixa Lance, 4 caixas indeterminadas, TX000203-208). **Achado colateral, não corrigido** (fora do escopo, Parcelamentos está fechado): `VARS.livroLRP` nunca é recalculado depois que `aplicarOnda5Parcelamentos()` sobrescreve `PARCELAMENTOS_VISA` com dado V2 — fica com o valor de boot.
