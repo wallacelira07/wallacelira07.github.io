@@ -15,8 +15,14 @@ function criarRegBalanco(){
       // converter). LRP/LRCON ja liam do VARS desde V135. LRB/LRCV/LRPV nao tem como derivar de outro dado
       // ja presente no site (sao fonte primaria) - leem do VARS agora, unica copia editavel. LRMP le do
       // VARS.mercadoPagoFatura (fecha a mesma divergencia corrigida no card Cartoes/Balanco).
-      LRW:   { total:56.99, qtd:1 }, // FILTRO POR CICLO (V152/V155): painel de Livros Razao (secao 15) mostra o limbo (TX000132, Google SunSurveyorApp, R$56,99, 22/07 pos-fechamento) + ciclo atual - nenhuma compra pessoal do Wallace no MB neste ciclo ainda (Outback foi reclassificado como corporativo). Valor HARDCODED aqui (nao deriva de mbLRWConfirmado/visaLRWHistorico, que sao o TOTAL REAL usado em auditoria/cartaoMBTotal).
-      LRV:   { total:35.95, qtd:3 }, // FILTRO POR CICLO (V152/V155): painel mostra limbo (TX000154, R$30,97, 24/07) + ciclo atual (TX000156/157, R$2,49x2) = R$35,95, 3 lancamentos. Valor HARDCODED (mesma logica do LRW acima).
+      // MORTO 08/08/2026 (bug real corrigido - ver hydrate-livros-razao.js): LRW/LRV.total abaixo
+      // NUNCA MAIS sao lidos por nenhum modulo - hydrate-livros-razao.js parou de escrever tfLRW/
+      // tfLRV a partir daqui (competia com renderLivrosVariaveis(), que soma o array real e sempre
+      // esta em dia). Valores hardcoded desde V152 (25/07/2026), nunca atualizados - mantidos so
+      // por retrocompatibilidade de forma do objeto (nenhum outro codigo le REG.livrosRazaoTotais.
+      // LRW/LRV), nao usar como referencia de nada.
+      LRW:   { total:56.99, qtd:1 },
+      LRV:   { total:35.95, qtd:3 },
       LRB:   { total:VARS.livroLRB, qtd:10 },
       LRP:   { total:VARS.livroLRP, qtd:16 },
       LRS:   { total:0, qtd:12 },

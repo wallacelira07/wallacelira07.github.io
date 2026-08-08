@@ -699,7 +699,13 @@ function formatarFrescor(timestampISO, limites){
   if(!timestampISO) return { faixa:'semDado', emoji:'—', tempo:null, cor:'var(--text-dim)' };
   const minutos = Math.round((Date.now() - new Date(timestampISO).getTime()) / 60000);
   const tempo = formatarTempoRelativo(timestampISO);
-  const { minutosVerde=15, minutosAmarelo=120, minutosLaranja=1440 } = limites || {};
+  let { minutosVerde=15, minutosAmarelo=120, minutosLaranja=1440 } = limites || {};
+  // Blindagem 08/08/2026: se algum limite vier NaN/inválido (indicadores fora do ar, resposta
+  // malformada etc), nunca deixar a comparação com NaN empurrar tudo pra "vermelho" por padrão
+  // (NaN <= qualquer coisa é sempre false) — cai pro default são/salvo em vez de alarme falso.
+  if(!Number.isFinite(minutosVerde)) minutosVerde = 15;
+  if(!Number.isFinite(minutosAmarelo)) minutosAmarelo = 120;
+  if(!Number.isFinite(minutosLaranja)) minutosLaranja = 1440;
   if(minutos <= minutosVerde) return { faixa:'verde', emoji:'✅', tempo, cor:'#34c98a' };
   if(minutos <= minutosAmarelo) return { faixa:'amarelo', emoji:'🟡', tempo, cor:'#e8a63a' };
   if(minutos <= minutosLaranja) return { faixa:'laranja', emoji:'⚠️', tempo, cor:'#e2884f' };

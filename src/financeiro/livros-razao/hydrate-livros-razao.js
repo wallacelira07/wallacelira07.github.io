@@ -10,8 +10,15 @@ function hydrateLivrosRazao(){
   // Fase 3 - totais dos livros razao (tfoot de cada tabela)
   const fmtSinal = v => (v<0?'− ':'')+fmt(Math.abs(v));
   const L = R.livrosRazaoTotais;
-  t('tfLRW', fmt(L.LRW.total));
-  t('tfLRV', fmt(L.LRV.total));
+  // CORRIGIDO 08/08/2026 (bug real reportado pelo usuário — "as somas dos LRs estão erradas"):
+  // tfLRW/tfLRV NÃO são mais escritos aqui. Causa raiz: L.LRW.total/L.LRV.total (reg-balanco.js)
+  // são valores HARDCODED desde 25/07/2026 (V152, "filtro por ciclo" — só limbo+ciclo atual, 1 e 3
+  // lançamentos respectivamente), nunca atualizados enquanto VARS.LRW_TRANSACOES/LRV_TRANSACOES
+  // cresceram pra 19 e 16 itens. Escrever aqui competia com renderLivrosVariaveis() (que soma o
+  // array real, sempre em dia) pelo MESMO id de DOM — dependendo da ordem, o rodapé mostrava um
+  // total de semanas atrás (ex: R$35,95) junto de uma contagem atual (16 lançamentos), inconsistente
+  // entre si. renderLivrosVariaveis() (render-livros-variaveis.js) já escreve tfLRW/tfLRV
+  // corretamente a partir do array real — nunca duplicar a mesma soma em 2 lugares.
   t('tfLRB', fmt(L.LRB.total));
   t('tfLRP', fmt(L.LRP.total));
   t('tfLRS', fmt(L.LRS.total));
