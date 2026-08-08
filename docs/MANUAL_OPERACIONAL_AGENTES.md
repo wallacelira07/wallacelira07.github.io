@@ -92,12 +92,61 @@ A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v
 | `transacoes.afeta_saldo_real IS NULL` | V2 | Transação sem classificação de impacto em saldo — P1, nunca deixar acumular |
 | Duplicidade `(tx_legado, caixa_id)` | V2 | Bloqueada pela constraint desde a Fase 4B-2 — se aparecer erro `23505` numa sincronização, é isso |
 | `avisos` em `rpc_dashboard_resumo()`/`v2_rpc_avisos_negocio` | V2 | Lista de alertas de negócio já computados pelo próprio banco — sempre ler antes de dar sessão por "tudo ok" |
-| PIX Geral Vanessa (PGV) com saldo ≤ R$100,00 | Card PGV no painel (`VARS.pixGeralVanessaSaldo`) | **Regra nova 08/08/2026** (pedido explícito do usuário): gatilho formal de reposição é R$50,00 (Política Interna §7), mas R$100 já é "praticamente no limite" na prática — emitir alerta preventivo no resumo de abertura da sessão (ver seção 9), formato: `⚠ PIX Geral Vanessa em R$X,XX. Gatilho de reposição: R$50,00. Preparar transferência de R$300 da PIX Vanessa caso ocorra qualquer nova saída.` **Só alerta — nunca executar a transferência, criar lançamento ou alterar saldo automaticamente.** |
+| PIX Geral Vanessa (PGV) com saldo ≤ R$100,00 | Card PGV no painel (`VARS.pixGeralVanessaSaldo`) | Alerta preventivo obrigatório no resumo de abertura de sessão — ver regra completa na seção 6.1. |
+| Caixa Variável citada em qualquer alerta/resumo | Card Caixa Variável no painel | Nunca citar sem dizer qual dos 2 conceitos (TEM NA CAIXA × DISPONÍVEL REAL) — ver regra completa na seção 6.1. |
 
-**Atenção ao citar valores da Caixa Variável em qualquer alerta** (esclarecimento 08/08/2026, Política Interna §13 — não confundir os dois conceitos):
-- **TEM NA CAIXA** = saldo real existente (bruto, antes de descontar compromissos).
-- **DISPONÍVEL REAL** = saldo real **menos** o comprometido (o que sobra de fato pra gastar).
-- Exemplo real da sessão: R$1.886,65 na Caixa (TEM NA CAIXA) − R$1.572,81 comprometidos = R$313,84 disponíveis (DISPONÍVEL REAL). **Nunca** tratar o disponível como se fosse o saldo bruto, nem o bruto como se fosse livre pra gastar — todo alerta/resumo que citar um valor da Caixa Variável precisa dizer explicitamente qual dos dois conceitos está usando.
+---
+
+## 6.1 Regras obrigatórias para TODOS os agentes (Claude Chat, Claude Code, Copilot, futuros agentes)
+
+**Registrado formalmente em 08/08/2026, pedido explícito do usuário — não são sugestões, são regras permanentes de operação deste sistema, aplicáveis em qualquer sessão, qualquer agente.**
+
+### Regra Operacional — Caixa Variável
+
+Nunca confundir:
+
+- **TEM NA CAIXA** = saldo bruto existente na Caixa Variável.
+- **DISPONÍVEL REAL** = saldo bruto − comprometido.
+
+**Exemplo real** (Política Interna §13):
+
+```
+Tem na Caixa:     R$ 1.886,65
+Comprometido:     R$ 1.572,81
+Disponível Real:  R$   313,84   (= 1.886,65 − 1.572,81)
+```
+
+Portanto:
+- R$1.886,65 é o dinheiro existente.
+- R$313,84 é o dinheiro ainda disponível para novas despesas.
+- **Nunca** dizer que a Caixa Variável "tem R$313,84".
+- **Sempre** informar explicitamente qual conceito está sendo usado — qualquer alerta operacional deve indicar claramente "Tem na Caixa" ou "Disponível Real".
+
+**É proibido usar "saldo da Caixa Variável" de forma ambígua.**
+
+### Regra Operacional — PIX Geral Vanessa (PGV)
+
+Além do gatilho formal da Política Interna §7:
+- **Gatilho oficial** = R$50,00.
+- **Reposição padrão** = R$300,00, vindos da PIX Vanessa.
+
+**Alerta preventivo obrigatório**: sempre que a PGV estiver ≤ R$100,00, incluir aviso no resumo inicial da sessão. Formato:
+
+```
+⚠ PIX Geral Vanessa em R$50,69.
+Gatilho formal: R$50,00.
+Reposição padrão: R$300,00.
+Preparar reposição da PIX Vanessa caso ocorra nova saída.
+```
+
+**Importante**: apenas alertar; nunca executar transferência automaticamente; nunca criar lançamento automaticamente; decisão continua humana.
+
+### Diretriz permanente — antes de comentar situação da Caixa Variável
+
+1. Ler saldo bruto.
+2. Ler comprometido.
+3. Calcular disponível real (bruto − comprometido).
+4. Informar explicitamente qual valor está sendo citado.
 
 ---
 
