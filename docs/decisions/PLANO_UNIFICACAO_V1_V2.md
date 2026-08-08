@@ -424,6 +424,44 @@ Reversível a qualquer momento, sem perda de dado — puramente estrutural.
 
 ---
 
+## 15. Decisão arquitetural — destino de LRW_TRANSACOES/LRV_TRANSACOES no V2 (08/08/2026)
+
+**Investigação completa** (finalidade original, tipos de transação, forma de impacto no saldo, relação com cartões/caixas/usuários, frequência, volume histórico) conduzida antes desta decisão — ver histórico da sessão. Resumo dos achados que sustentam a conclusão:
+
+- `LRW_TRANSACOES`/`LRV_TRANSACOES` são o ledger de compras avulsas no cartão Mastercard Black compartilhado, atribuídas por pessoa (Wallace/Vanessa) — um dos 7 componentes que decompõem `cartaoMBTotal` (junto de LRR/LRS/LRC/LRP/LRCON), não um "pote de dinheiro".
+- Alimentam `caixaVariavelComprometido` (passivo futuro — vira saída de caixa só quando a fatura é paga), nunca debitam saldo real de nenhuma caixa diretamente.
+- Volume recorrente e não desprezível: 19 (LRW) + 16 (LRV) lançamentos no ciclo vivo (R$1.318,19 + R$376,64), ~35 por ciclo de ~30 dias — não é caso isolado, é fluxo permanente.
+- Nenhuma das 18 caixas atuais do V2 representa essa natureza de dado sem quebrar uma invariante já documentada: "Caixa Mastercard/Infinite" já está `sincronizado` 1:1 com um array V1 diferente (`MASTERCARD_INFINITE_TRANSACOES`); "Caixa Variável" exclui explicitamente "comprometido de cartão" do seu array V1 por desenho (`v1_v2_caixa_mapa.observacao`).
+- O schema de `transacoes` já reserva colunas para exatamente este conceito (`usuario_id`, `cartao_id`, `afeta_saldo_real`), hoje 0% preenchidas — achado original da Fase 3.
+
+### DECISÃO ARQUITETURAL (aprovada)
+- `LRW_TRANSACOES` e `LRV_TRANSACOES` **não representam caixas**.
+- `LRW_TRANSACOES` e `LRV_TRANSACOES` representam **gastos de cartão atribuídos por pessoa**.
+- O destino correto no V2 é o modelo baseado em **`usuario_id` + `cartao_id` + `afeta_saldo_real=false`**, reaproveitando `resolver_usuario_por_cartao()` (já existe) e o mapeamento final-4→cartão já correto na tabela `cartoes` (11 cartões, conferido).
+- Essas estruturas ficam **fora da reconciliação por caixa** — nunca ganham entrada em `v1_v2_caixa_mapa`, o que já as torna estruturalmente invisíveis a `vw_reconciliacao_v1_v2`/`vw_saldo_v2_por_caixa`/`vw_transacoes_so_no_v1`/`vw_ajustes_manuais_v1` (confirmado lendo as definições reais das views — todas iteram só sobre `v1_v2_caixa_mapa`).
+- Essas estruturas ficam **fora do escopo da Fase 4B-1 atual** — a sincronização segue restrita às 10 transações das 6 caixas já mapeadas (ver seção 12); as 5 de LRW/LRV aguardam a decisão de implementação abaixo.
+
+### DECISÃO AINDA EM ABERTO — 3a vs. 3b (sem urgência técnica, não bloqueia a 4B-1 parcial)
+
+**Opção 3a** — sem alteração de schema:
+- manter `caixa_id NOT NULL` como está hoje;
+- gravar essas linhas com um `caixa_id` técnico (placeholder, candidato natural: "Caixa Mastercard/Infinite");
+- `afeta_saldo_real=false` obrigatório — é a proteção que garante zero efeito no saldo calculado de qualquer caixa (`vw_saldo_v2_por_caixa` exclui via `COALESCE(t.afeta_saldo_real, true)`).
+- Trade-off: dado bruto tecnicamente "mente" no campo `caixa_id` (aponta pra algo que não é a origem real), sem efeito numérico.
+
+**Opção 3b** — com alteração de schema (futura, não decidida, não executada):
+- `ALTER TABLE transacoes ALTER COLUMN caixa_id DROP NOT NULL`;
+- `caixa_id = NULL` de verdade para essas linhas — representação estruturalmente correta.
+- Trade-off: é uma migration de schema, precisa ser avaliada e aprovada como ação própria antes de rodar.
+
+### STATUS
+- **Alternativa 3**: ✅ aprovada como direção conceitual.
+- **Escolha entre 3a e 3b**: ⏳ pendente — decisão de implementação, não de arquitetura.
+- **Impacto nas fases já concluídas (4A, 4C, 4B-2)**: nenhum.
+- **Impacto na Fase 4B-1 parcial (10 transações, 6 caixas mapeadas)**: nenhum — segue desbloqueada independentemente desta decisão.
+
+---
+
 ## Próximo passo
 
-Fase 3 encerrada. **Fase 4A, 4C e 4B-2 concluídas e validadas** (seções 11, 13, 14). Fase 4D sem proposta técnica ainda. Pendência real para a Fase 4B-1: decidir o mapeamento de caixa para `LRW_TRANSACOES`/`LRV_TRANSACOES` (5 das 15 transações pendentes) antes de implementar `sincronizar_v1_v2()`. Próximo agente: leia a seção 12 (contexto da 4B-1), seção 13 (execução 4C) e seção 14 (execução 4B-2) antes de qualquer ação nova.
+Fase 3 encerrada. **Fase 4A, 4C e 4B-2 concluídas e validadas** (seções 11, 13, 14). **Destino de LRW/LRV decidido na direção conceitual (seção 15, Alternativa 3) — implementação (3a vs. 3b) ainda pendente, sem urgência.** Fase 4D sem proposta técnica ainda. Ordem combinada: (1) esta atualização do plano; (2) executar 4B-1 restrita às 10 transações das 6 caixas já mapeadas; (3) revalidar reconciliação; (4) só depois retomar 3a vs. 3b. Próximo agente: leia a seção 12 (contexto da 4B-1), seção 13 (execução 4C), seção 14 (execução 4B-2) e seção 15 (decisão LRW/LRV) antes de qualquer ação nova.
