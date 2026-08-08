@@ -34,9 +34,17 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Quarta ocorrência do mesmo padrão**: `balOpCaixaVariavel` (seção "Balanço Patrimonial" → Operacional) duplicava o mesmo saldo real da Caixa Variável que `cvSaldoReal` (Onda 1) já mostrava via V2 — nunca tinha sido ligado. Fix idêntico aos anteriores: `extra()` no item "Caixa Variável" do `ONDA1_V2_MAPA`, reaproveitando `valorV2`, sem fetch novo. Validado ao vivo: `cvSaldoReal`=`balOpCaixaVariavel`=R$1.886,65, zero erro novo.
 
-**Métrica após os 4 achados desta rodada**: 37 → **48 consumidores removidos** / ~46 → **~35 restantes**.
+**Commitado e enviado**: `6485f0d` → `origin/main`.
 
-**Auditoria final desta classe de bug**: reli `hydrate-balanco.js` inteiro linha a linha depois deste 4º achado. Restam sem V2: `balObr*`/`balObrTotal` (headline totals de cartão, exceção arquitetural formal, nunca serão só-V2 — `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`), `balFluxo*`/`bal4q*` (Necessidade/Modo Operacional, sem V2 relacional ainda, domínio 5/6 do `MAPA_MIGRACAO_V2.md`), `patPrevidencia`/`patFgts` (PGBL/FGTS, sem tabela V2, baixo ROI por definição de negócio), `balLreiAtivos` (já lê array real, não é gap), totais compostos do Patrimônio (já documentado no achado anterior). **Não há mais nenhum caso do padrão "mesmo valor, id duplicado, só 1 migrado" nesta tela.**
+**Quinto achado, mesma classe**: revisitei `hydrate-caixas.js` (não só `hydrate-balanco.js`) e achei que Escola de Júlio tem MAIS 2 duplicatas além do `balResEscola` já corrigido — a barra de meta (`cxEscolaPct`/`cxEscolaBar`) e o badge do Resumo Executivo (`r21EscolaJulio`, em `hydrate-metas.js`), ambos ainda lendo `pctOf(V1, meta)`. Ao revisar as 3 outras caixas com `aceitarDivergenciaConhecida:true` (Bens Duráveis, Eventos, Seguro Emplacamento), achei que elas também tinham barra de meta em V1 puro (`cxBensDuraveisBar`, `cxEventosPct`/`cxEventosBar`, `cxSeguroBar`) — mesmo padrão do Boletos original, só que dentro da própria seção 05 (card com saldo migrado, barra de %/meta esquecida).
+
+**Implementado**: `src/financeiro/caixas/hydrate-onda2-v2.js` — mecanismo `extra()` (mesmo já usado no Onda 1 pra Boletos) adicionado às 4 entradas do mapa (Escola, Bens Duráveis, Eventos, Seguro), reaproveitando `pctOf()` (declarado globalmente em `hydrate-onda1-v2.js`, carregado antes — sem redeclarar) e o `valorV2` já resolvido. Bens Duráveis mantém o mesmo tratamento de saldo negativo (`Math.max(0,...)`) que `hydrateCaixas()` já tinha.
+
+**Validado ao vivo**: Escola `cxEscolaPct`=`r21EscolaJulio`="11,0%" (batendo com R$1.009,80/R$9.200), Eventos `cxEventosPct`="8,4%" (R$167,09/R$2.000), Seguro barra "8.35%" (R$426,08/R$5.100), Bens Duráveis barra "0%" (saldo negativo, clamp correto). Zero erro novo.
+
+**Métrica após os 5 achados desta rodada**: 37 → **53 consumidores removidos** / ~46 → **~30 restantes**.
+
+**Auditoria final desta classe de bug** (revisitada depois do 5º achado, agora cobrindo `hydrate-caixas.js` + `hydrate-metas.js` + `hydrate-balanco.js` inteiros): não sobra mais nenhum id lendo `pctOf`/saldo puro V1 para as 8 caixas com V2 disponível (Boletos, Bens Duráveis, Eventos, Seguro, Escola, Caixa Variável, Mastercard/Infinite, PIX Vanessa) em qualquer das 3 seções onde aparecem (card seção 05, Reservas/Operacional do Balanço, Resumo Executivo). O que resta em V1 é por motivo diferente e documentado: `balObr*` (exceção arquitetural formal), `balFluxo*`/`bal4q*` (sem V2 relacional ainda), `patPrevidencia`/`patFgts` (sem tabela V2), 4 caixas com divergência não confirmada (Manutenção/Saúde/PGV/Aniversário — decisão explícita do usuário de não reabrir), Caixa Lance (mesma classe, também não reabrir), Provisionado Wärtsilä (falta estrutura V2 pro campo fatura).
 
 **Pendente**: commit + push.
 

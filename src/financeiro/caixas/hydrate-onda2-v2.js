@@ -25,10 +25,45 @@
 // "Reservas" do Balanço (hydrate-balanco.js, ids balRes*) — só o card estava na lista.
 // extraId reaproveita o mesmo valorV2 já resolvido, sem fetch novo.
 const ONDA2_V2_MAPA = [
-  { idHtml: 'cxBensDuraveisSaldo', extraId: 'balResBensDuraveis', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxEventosSaldo', extraId: 'balResEventos', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxSeguroSaldo', extraId: 'balResSeguro', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxEscolaSaldo', extraId: 'balResEscola', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo, aceitarDivergenciaConhecida: true },
+  {
+    idHtml: 'cxBensDuraveisSaldo', extraId: 'balResBensDuraveis', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true,
+    // Bens Duráveis pode ficar negativo (compra sem reserva prévia) — barra fixa em 0% nesse caso,
+    // mesmo tratamento que hydrateCaixas() já dava (Math.max(0,...)).
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.bensDuraveis.meta;
+      const barEl = $('cxBensDuraveisBar'); if(barEl) barEl.style.width = Math.max(0, pctOf(valorV2, meta))+'%';
+    },
+  },
+  {
+    idHtml: 'cxEventosSaldo', extraId: 'balResEventos', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo, aceitarDivergenciaConhecida: true,
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.eventos.meta;
+      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctEl = $('cxEventosPct'); if(pctEl) pctEl.textContent = pctTxt;
+      const barEl = $('cxEventosBar'); if(barEl) barEl.style.width = pctOf(valorV2, meta)+'%';
+    },
+  },
+  {
+    idHtml: 'cxSeguroSaldo', extraId: 'balResSeguro', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo, aceitarDivergenciaConhecida: true,
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.seguroEmplacamento.meta;
+      const barEl = $('cxSeguroBar'); if(barEl) barEl.style.width = pctOf(valorV2, meta)+'%';
+    },
+  },
+  {
+    // ACHADO adicional: Escola de Júlio também tem barra de meta (cxEscolaPct/cxEscolaBar,
+    // mesmo padrão do caso Boletos) + badge no Resumo Executivo (r21EscolaJulio) — os 3 ainda
+    // liam pctOf(V1, meta). Meta (REG.patrimonio.metaEscolaJulio) é constante, não vem de
+    // wallace_dados.
+    idHtml: 'cxEscolaSaldo', extraId: 'balResEscola', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo, aceitarDivergenciaConhecida: true,
+    extra: (valorV2) => {
+      const meta = REG.patrimonio.metaEscolaJulio;
+      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctEl = $('cxEscolaPct'); if(pctEl) pctEl.textContent = pctTxt;
+      const barEl = $('cxEscolaBar'); if(barEl) barEl.style.width = pctOf(valorV2, meta)+'%';
+      const r21El = $('r21EscolaJulio'); if(r21El) r21El.textContent = pctTxt;
+    },
+  },
   { idHtml: 'cxPgvSaldo', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: false },
@@ -67,7 +102,7 @@ async function aplicarOnda2V2(){
     return;
   }
   const relatorio = [];
-  ONDA2_V2_MAPA.forEach(({idHtml, extraId, caixaNome, getValorV1, aceitarDivergenciaConhecida}) => {
+  ONDA2_V2_MAPA.forEach(({idHtml, extraId, extra, caixaNome, getValorV1, aceitarDivergenciaConhecida}) => {
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
     if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
       console.warn(`Onda2V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
@@ -103,6 +138,10 @@ async function aplicarOnda2V2(){
       const extraEl = $(extraId);
       if(extraEl) extraEl.textContent = fmt(valorV2);
       else console.warn(`Onda2V2: extraId "${extraId}" não encontrado no DOM, ignorado.`);
+    }
+    if(typeof extra === 'function'){
+      try { extra(valorV2); }
+      catch(err){ console.warn(`Onda2V2 [${caixaNome}]: falha ao aplicar overrides extras (meta/barra).`, err); }
     }
   });
   window.WALLACE_ONDA2_V2_RELATORIO = relatorio;
