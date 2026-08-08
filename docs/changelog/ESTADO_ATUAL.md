@@ -6,150 +6,92 @@
 
 ## PRODUÇÃO: domínio oficial é `wallacelira.com.br`
 
-`https://wallacelira.com.br/` (GitHub Pages por baixo) é o ambiente real. **Fim desta sessão: `git status` limpo, mas HEAD está 2 commits À FRENTE de `origin/main` (`eff2805`, `4d2e6e2`) — NÃO enviados ainda (`git push` pendente, usuário não pediu deploy nesta rodada).** Confirmar com o usuário antes de dar push.
+`https://wallacelira.com.br/` (GitHub Pages por baixo) é o ambiente real. **Fim desta sessão: `git status` limpo, mas HEAD está 14 commits À FRENTE de `origin/main` — NENHUM push feito ainda nesta sessão nem nas anteriores desde `eff2805`.** Confirmar com o usuário antes de dar push (lista completa dos 14 commits no Bloco 18 da Passagem de Turno).
 
 **Pendente de verificação manual (não dá pra checar por código)**: confirmar em Firebase Console → Authentication → Settings → Authorized domains que `wallacelira.com.br` está cadastrado.
+
+**Validação em navegador real de TODA a sessão está pendente** — usuário recusou login manual em todas as rodadas desta sessão. Toda validação foi técnica/estática (schema, referências, nomes globais) + conferência SQL direta contra valores documentados. Primeira prioridade da próxima sessão com login disponível: rodar `WALLACE_VALIDACAO_RUNTIME`, `#healthBadge`, e os `window.WALLACE_ONDA*_RELATORIO` de todos os módulos novos.
 
 ## Protocolo de sessão nova (leia nesta ordem)
 
 1. Este arquivo (`ESTADO_ATUAL.md`)
-2. `PASSAGEM_DE_TURNO.md` — Bloco 17 tem o histórico mais recente (sessão de 08/08/2026, Onda 3 do plano de unificação V1→V2 relacional)
-3. `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` — seções 22-28, é a frente de trabalho ATIVA agora (ver seção 1 abaixo)
-4. `docs/architecture/ARCHITECTURE.md` + `docs/architecture/PROJECT_STRUCTURE.md`
-5. **Sempre conferir o estado real do código** (`git status`, `git log --oneline -10`) **antes de assumir qualquer coisa como pendente ou concluído.**
+2. `PASSAGEM_DE_TURNO.md` — Bloco 18 tem o histórico completo desta sessão (08/08/2026)
+3. `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` — seções 30-42 são a frente de trabalho ATIVA (mudança de direção arquitetural, ver seção 0 abaixo)
+4. `docs/MANUAL_OPERACIONAL_AGENTES.md` — seção 2 mudou nesta sessão (domínios V2-exclusivos não recebem mais escrita em `wallace_dados`); seção 6.1 é nova (regras obrigatórias PGV/Caixa Variável)
+5. **Sempre conferir o estado real do código** (`git status`, `git log --oneline -20`) **antes de assumir qualquer coisa como pendente ou concluído.**
 
 ---
 
-## 0. INVENTÁRIO EXECUTIVO — dependência de `wallace_dados` (08/08/2026, pós mudança de direção arquitetural)
+## 0. MUDANÇA DE DIREÇÃO ARQUITETURAL (08/08/2026, decisão explícita do usuário) — LER PRIMEIRO
 
-**MUDANÇA DE DIREÇÃO ARQUITETURAL (08/08/2026, decisão explícita do usuário)**: V2 deixa de ser espelho/transição — passa a ser a arquitetura oficial. Convivência V1↔V2 permanente deixa de ser o padrão, agora exige justificativa. `wallace_dados` passa a ser só histórico/legado/contingência, nunca mais fonte operacional por padrão. Pergunta do projeto: não mais "como manter as duas juntas", e sim **"o que ainda impede desligar a V1"**. Ver seções 41-42 do plano pro inventário completo (95 chaves de `wallace_dados`, escritores, classificação).
+**A V2 deixou de ser tratada como espelho/transição.** Passa a ser a arquitetura oficial do sistema. Convivência V1↔V2 permanente deixa de ser o padrão — agora exige justificativa. `wallace_dados` passa a ser só histórico/legado/contingência temporária, nunca mais fonte operacional por padrão.
 
-**Os 6 domínios já migrados viraram V2-EXCLUSIVOS nesta rodada** (antes: fallback silencioso pra V1 em caso de erro; agora: `⚠ Indisponível (V2)` visível, nunca mais um número V1 parecendo atual): Patrimônio (exceto Caixa Lance), Investimentos/ROC, LREI, Cascata Wärtsilä, Parcelamentos, P2P.
+**A pergunta do projeto mudou**: não é mais "como manter V1 e V2 funcionando juntas", e sim **"o que ainda impede desligar a V1?"**
+
+**Regra nova permanente** (`MANUAL_OPERACIONAL_AGENTES.md` seção 2): antes de qualquer lançamento financeiro, checar se o domínio já é V2-exclusivo (tabela abaixo) — se for, o lançamento vai direto na tabela V2, **não** mais em `wallace_dados`.
+
+## 1. Inventário executivo — dependência de `wallace_dados`
+
+Evidência real (`SELECT jsonb_object_keys(dados) FROM wallace_dados WHERE id=1`): 95 chaves de topo. Inventário completo, com escritores identificados (4 scripts Python + o fluxo manual do agente) e classificação por domínio: `docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 41-42.
 
 | Domínio | Status | Fonte oficial | Observação |
 |---|---|---|---|
-| Patrimônio | ✅ V2-exclusivo | `patrimonio`+`financiamentos` | Exceto Caixa Lance (ver linha própria); falha na V2 = aviso visível, sem fallback V1 |
-| Investimentos/ROC/Opções | ✅ V2-exclusivo | `investimentos`+`indicadores` | idem |
-| LREI (empréstimos internos) | ✅ V2-exclusivo | `emprestimos_internos` | idem |
-| Cascata Reembolso Wärtsilä | ✅ V2-exclusivo | `reembolso_wartsila_ciclo` | Perna 4 (MP pessoal) fora do escopo; idem |
-| Parcelamentos (LRP/LRMP) | ✅ V2-exclusivo | `parcelas` | `TRANSACOES_CORPORATIVAS_MP` continua V1; idem |
-| P2P | ✅ V2-exclusivo | `indicadores` (`P2P - *`) | idem |
-| Caixas — saldo (10 de 18) | ✅ Migrado (Onda 1-3, overlay condicional) | V2 (`vw_saldo_v2_por_caixa`) | Boletos, PIX Vanessa, Variável, Mastercard/Infinite, Bens Duráveis, Eventos, Seguro, Escola Júlio, Churrasco, Combustível |
-| Livro Razão — 7 tabelas de lançamento | ✅ Migrado | V2 (`transacoes`) | Mesmas 7 caixas acima |
-| LRW/LRV — totais confirmados | ✅ Migrado | V2 (`vw_compromisso_cartao_por_pessoa`) | Só os totais; tabela item-a-item ainda V1 |
-| Solar — persistência | ✅ Sincronizada (seção 40) | Grava em V1+V2 em paralelo | Leitura do frontend continua V1 (crédito/rateio pendente, seção 38, não reabrir) |
+| Patrimônio | ✅ **V2-exclusivo** | `patrimonio`+`financiamentos` | Exceto Caixa Lance (linha própria abaixo). Falha na V2 = `⚠ Indisponível (V2)` visível, sem fallback silencioso |
+| Investimentos/ROC/Opções | ✅ **V2-exclusivo** | `investimentos`+`indicadores` | idem |
+| LREI (empréstimos internos) | ✅ **V2-exclusivo** | `emprestimos_internos` | idem |
+| Cascata Reembolso Wärtsilä | ✅ **V2-exclusivo** | `reembolso_wartsila_ciclo` | Perna 4 (MP pessoal) fora do escopo; idem |
+| Parcelamentos (LRP/LRMP) | ✅ **V2-exclusivo** | `parcelas` | `TRANSACOES_CORPORATIVAS_MP` continua V1; idem |
+| P2P | ✅ **V2-exclusivo** | `indicadores` (`P2P - *`) | idem |
+| Caixas — saldo (10 de 18) | ✅ Migrado (overlay condicional, Onda 1-3) | `vw_saldo_v2_por_caixa` | Boletos, PIX Vanessa, Variável, Mastercard/Infinite, Bens Duráveis, Eventos, Seguro, Escola Júlio, Churrasco, Combustível |
+| Livro Razão — 7 tabelas | ✅ Migrado | `transacoes` | Mesmas 7 caixas acima |
+| LRW/LRV — totais confirmados | ✅ Migrado | `vw_compromisso_cartao_por_pessoa` | Só totais; tabela item-a-item ainda V1 |
+| Solar — persistência | ✅ Sincronizada | Grava V1+V2 em paralelo | Leitura do frontend continua V1 (crédito/rateio pendente — ver seção 3) |
+| Qualidade da Geração (solar) | ✅ Novo, V2 | `energia_solar_geracao_diaria` (blob V1) + `indicadores` (limites) | Indicador operacional, não financeiro — separado do crédito/rateio |
 | **Caixa Lance** | 🟡 Híbrido | V1 (log-only V2) | Divergência R$4,37 não confirmada — **não reabrir**, decisão do usuário |
 | Caixas — 4 restantes (Manutenção/Saúde Família/PIX Geral Vanessa/Aniversário Júlio) | 🟡 Híbrido | V1 | Divergência R$107-346, causa indeterminada |
-| LRW/LRV/LRC-limbo/LRCV — tabela item-a-item | ❌ V1 | V1 | Sem coluna de classificação — depende de dado inexistente |
-| Mastercard Black/Visa — totais (`cartaoMBTotal` etc) | ❌ V1 | V1 | Acoplado a reconciliação bancária manual (seção 36) — depende de modelagem |
-| Operacional (salário/orçamento/créditos/legendas/Inbox Financeira) | ❌ V1 | V1 | ~30 chaves heterogêneas, sem domínio único — depende de modelagem |
-| Ciclo Snapshots (histórico por ciclo) | ❌ V1 | V1 | Sem estrutura V2 — depende de modelagem |
-| Pluggy / Mercado Pago (eventos brutos) | ❌ V1 | V1 | Integrações externas, fora do escopo desta rodada |
+| **Mastercard Black/Visa** | 🟡 Parcial (achado nesta sessão) | Misto | CARTAO_MAPA/titularidade/parcelamentos já ✅ na V2 (`cartoes`/`parcelas`). Headline totals (`cartaoMBTotal` etc.) ❌ bloqueados por design (verdade externa, "fatura sempre vence"). Assinaturas 🟡 (categoria já existe, falta view). Recorrências/Corporativo ❌ (34 transações sem categoria). Ver seção 43 do plano |
+| LRW/LRV/LRC-limbo/LRCV — item-a-item | ❌ V1 | V1 | Mesmo gap de classificação do Mastercard/Visa acima |
+| Operacional (salário/orçamento/créditos/legendas/Inbox) | ❌ V1 | V1 | ~30 chaves heterogêneas, sem domínio único |
+| Ciclo Snapshots | ❌ V1 | V1 | Sem estrutura V2, nunca investigado |
+| Pluggy / Mercado Pago (eventos brutos) | ❌ V1 | V1 | Integrações externas, fora do escopo |
 
-**Deliberadamente não executado nesta rodada** (risco desproporcional sem validação em navegador, toda a sessão): remover os literais V1 dos arquivos `vars-*.js` dos 6 domínios V2-exclusivos (continuam existindo como semente síncrona do primeiro segundo de render); parar os 4 scripts Python de escrever em `wallace_dados` (exceto Solar, que já passou a gravar em paralelo). Ambos ficam classificados/documentados, não executados — próxima ação segura antes de tocar neles é uma sessão com login real pra confirmar visualmente que nada quebra.
+**Deliberadamente não executado** (risco desproporcional sem validação em navegador, sessão inteira sem login): remover os literais V1 dos 6 domínios V2-exclusivos (`vars-*.js`, continuam como semente síncrona do 1º segundo de render); parar os scripts Python de escrever em `wallace_dados` (exceto Solar).
 
-**Próximo domínio de maior impacto ainda não perseguido**: Mastercard Black/Visa (totais `cartaoMBTotal`/`livroLR*`) — grande, mas precisa investigação de como os totais V1 (sobrescritos por `wallace_dados`) se relacionam com `transacoes`/`parcelas` já migrados, sem cair em nova reconciliação.
+## 2. Bug de usabilidade corrigido — Inbox Financeira
 
----
+Itens sem descrição do Mercado Pago (`tipo:'account_money'`) pareciam duplicados — só se distinguiam pelo `idExterno`, que existia no dado mas nunca era exibido. Corrigido: `idExterno`/`payer` (metadata) agora aparecem na listagem; descrição vazia gera texto automático a partir do `tipo` do evento. Hora/minuto do evento não está disponível na fonte (script Python só grava data) — documentado, não fabricado.
 
-## 1. FRENTE ATIVA: Onda 5 — continuação da aposentadoria do `wallace_dados` (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seção 35+)
+## 3. Investigação Solar — 301×361 kWh (NÃO decidido, aguardando evidência externa)
 
-**Domínio 1 (Parcelamentos) CONCLUÍDO**: `parcelas` (V2) já tinha as 22 linhas sincronizadas 1:1 com `VARS.PARCELAMENTOS_VISA`/`MP` — só faltava a view (`vw_parcelamentos_v2`) e o módulo de ligação (`hydrate-onda5-parcelamentos.js`, reaproveita `renderParcelamentos()` V1 inalterada). Nenhuma migração de dado necessária. Seção 35 do plano.
+Fórmula do rateio (`saldoLiquido = exportado − importado`) provada como o que está implementado e validado contra o documento original do usuário (`Base_Calculo_Rateio_Solar.md`) numa sessão passada — mas esse documento **não existe** neste repositório/backup, e o "Fluxo de energia" do próprio painel contradiz a fórmula (sugere que só a exportação vira crédito). **Nenhuma fórmula alterada** — decisão explícita do usuário de não trocar 301 por 361 sem prova externa (documento original ou fatura Energisa real com a linha de crédito). Ver seção 38 do plano.
 
-**Candidato descartado no levantamento**: tabela item-a-item de LRW/LRV/LRC-limbo/LRCV — 147 transações candidatas em V2 vs 43 itens V1, sem coluna de classificação existente pra separar os 4 grupos sem inventar critério novo. Não perseguido (evita virar investigação de divergência, proibida pela diretriz atual).
+**Achado colateral, mais importante que a dúvida original**: o robô SAJ nunca parou — grava em `wallace_dados.dados.SOLAR_GERACAO_DIARIA` (o que o frontend lê), confirmado real até o próprio dia desta sessão via GitHub Actions. A tabela V2 relacional estava só desatualizada (gap comum de sincronização) — corrigido (seção 40 do plano, script agora grava nas duas).
 
-**Domínio 2 (P2P) CONCLUÍDO**: 7 escalares migrados pra `indicadores` (mesmo padrão do CDI). Módulo `hydrate-onda5-p2p.js` reaproveita `recalcularP2P()`/`hydrateResumoP2P()` (V1, inalteradas). Seção 37 do plano.
+**Novo indicador implementado**: "Qualidade da Geração" (card "☀️ Como a usina está indo", seção 10) — 100% separado do crédito/rateio, compara o último dia FECHADO contra a média de dias anteriores (nunca compara "hoje parcial", evita falso alarme). Limites parametrizados em `indicadores`.
 
-**Domínio 3 (Mastercard Black/Visa) — BLOQUEADO, avaliado e documentado, não perseguido**: headline totals (`cartaoInfiniteTotal`/`cartaoMBTotal`) são reconciliados manualmente contra fatura real do banco (resíduo R$49,81 "naoReconciliado" já documentado, política "fatura sempre vence") — migrar exigiria reabrir reconciliação, proibido. 4 dos 8 sub-componentes dependem da mesma classificação de transações já bloqueada no domínio 1. Ver seção 36 do plano.
+## 4. Regras operacionais formalizadas (obrigatórias para todos os agentes)
 
-**Achado técnico registrado, não corrigido (impacto zero hoje)**: `VARS.livroLRP`/`totalOpProvMP` recalculam de forma síncrona no boot, antes do módulo assíncrono de Parcelamentos trocar os arrays — fiação downstream ainda reflete o valor do momento do boot, não "ao vivo" da V2 (zero divergência visível porque V1=V2 por migração). Corrigir exigiria re-disparar parte de `recalcularAgregadosDerivados()`, fora do escopo desta rodada.
+`MANUAL_OPERACIONAL_AGENTES.md`, seção 6.1:
+- **Caixa Variável**: nunca confundir TEM NA CAIXA (bruto) × DISPONÍVEL REAL (bruto − comprometido). Rótulos do painel já ajustados (3 pontos) pra deixar isso explícito, sem alterar nenhum id/fórmula/valor.
+- **PGV**: alerta preventivo obrigatório no resumo de abertura de sessão sempre que o saldo estiver ≤ R$100 (gatilho formal R$50, Política §7). Só alerta, nunca executa transferência/lançamento.
 
-**Regra operacional nova (08/08/2026, pedido explícito do usuário, ver `docs/MANUAL_OPERACIONAL_AGENTES.md` seções 6 e 9)**: alerta preventivo de PIX Geral Vanessa (PGV) sempre que o saldo estiver ≤ R$100,00 (gatilho formal R$50,00, Política Interna §7) — deve aparecer na resposta de boas-vindas/resumo operacional de abertura de toda sessão nova, a partir de agora. Só alerta, nunca executa transferência/lançamento.
+## 5. Próximo domínio em auditoria conceitual — Mastercard Black/Visa
 
----
+Auditoria feita nesta sessão (conceito → V2 → VARS remanescentes → menor modelagem), Política Interna §3 como referência obrigatória. Achado principal: CARTAO_MAPA/titularidade/parcelamentos **já estão na V2** (a tabela `cartoes` está inclusive mais atualizada que a própria Política nesse ponto — cartão 1371 já substituiu o 2244, refletido na V2 mas não no documento). O que resta bloqueado: headline totals (verdade externa, não migrável sem reabrir reconciliação) e um gap de 34 transações sem categoria (mesmo gap já documentado pro LRW/LRV item-a-item). Nenhum código alterado — só auditoria. Ver seção 43 do plano.
 
-## 1.1 HISTÓRICO (ENCERRADO, NÃO REABRIR): Onda 3 — V2 relacional virando fonte de leitura do frontend (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 22-28)
+## 6. Ambiente de teste local
 
-**Mudança de direção estratégica desta sessão** (pedido explícito do usuário): "Pare de tratar a V2 como sistema auxiliar" — objetivo passou a ser trocar a LEITURA do frontend de V1 (`wallace_dados`) pra V2 relacional (`caixas`/`transacoes`), caixa por caixa, mantendo fallback V1 automático em caso de falha e **zero mudança de layout/IDs/CSS**. Política vigente (mudou no meio da sessão, por decisão explícita do usuário): **"divergência conhecida e documentada não bloqueia migração — só ausência real de estrutura na V2 bloqueia."**
+- `.claude/launch.json` + `.claude/serve.ps1`: servidor HTTP estático local (`autoPort` habilitado).
+- Login usa Firebase real — **a IA nunca digita senha**. `VARS`/`REG`/`WallaceFinanceService` são bindings léxicos de topo, não aparecem como propriedade de `window` — usar `contentWindow.eval('VARS.algumaCoisa')` dentro do iframe.
+- `window.WALLACE_VALIDACAO_RUNTIME` (18 fases), `#healthBadge` (12 checagens), e agora `window.WALLACE_ONDA{1,2,3,4,5}*_RELATORIO` (um por módulo migrado) são os testes de regressão padrão — **nenhum rodado em navegador real nesta sessão**, só checagem estática + SQL direto.
 
-**Progresso, Onda a Onda:**
-- **Onda 1** (4 caixas, zero divergência): Caixa Boletos, PIX Vanessa, Caixa Variável, Mastercard/Infinite — saldo lendo V2 via `vw_saldo_v2_por_caixa`.
-- **Onda 2** (+6 caixas, divergência documentada aceita): Caixa Bens Duráveis, Caixa Eventos, Caixa Seguro Emplacamento, Escola de Júlio, Caixa Churrasco, Caixa Combustível — mesma view, causa `AJUSTE-06-08` (Política Interna §31, rendimento real de cofrinho MP sem comprovante diário). **4 caixas ficaram de fora por decisão explícita do usuário** (causa indeterminada, baixa confiança): Caixa Manutenção, Caixa Saúde Família, PIX Geral Vanessa, Caixa Aniversário Júlio. Provisionado Wärtsilä é log-only (não tem card de número simples).
-- **Onda 3, prioridade 1 — Livro Razão**: as 7 tabelas de lançamentos das caixas já migradas (Eventos, Seguro, Combustível, Churrasco, Mastercard/Infinite, Bens Duráveis, PIX Vanessa) passaram a ler `transacoes` direto. **Bug real encontrado e corrigido no caminho**: `onDomPronto(fn)` roda `fn()` de forma SÍNCRONA quando o DOM já está pronto (não é fila assíncrona) — como `app.js` é injetado depois de um `fetch()` assíncrono, isso é o caso normal. `WallaceFinanceService` estava definido DEPOIS de `onDomPronto(hydrate)` no arquivo, causando `ReferenceError` determinístico em parte dos carregamentos. Corrigido: `WallaceFinanceService` movido pro topo de `app.js`, logo após a definição de `onDomPronto`.
-- **Onda 3, prioridade 2 — LRW/LRV**: view nova `vw_compromisso_cartao_por_pessoa` (agregação pura de `transacoes`, Caixa Variável + `afeta_saldo_real=false`, por pessoa) substitui `VARS.mbLRWConfirmado`/`mbLRVConfirmado`. Divergência (Wallace R$435,08, Vanessa R$146,41) 100% explicada por 5 linhas já conhecidas (`TX000200/203/204/205/206`, colisão de `tx_legado`, Parte B) sem `usuario_id` — aceita.
-- **Onda 3, prioridade 3 — Patrimônio: BLOQUEADA, ausência real de estrutura.** A tabela `patrimonio` (V2) só tem `id/tipo/valor/data_snapshot/natureza`, sem rótulo — 2 linhas `tipo='investimento'` (BTG R$14.779,62 e Necton R$429,75) são indistinguíveis exceto pelo valor, e não existe nenhuma coluna pros metadados de financiamento/consórcio (prestação, parcela, % pago, meses restantes). Não migrado. Caminho de desbloqueio (schema novo) registrado, não executado.
-- **Onda 3, prioridade 4 — Metas: PARCIAL.** Card "Fundo de Suavização Salarial" migrado (zero divergência, R$0,00 nos dois). "Meta do Milhão" continua em V1 — depende do `patrimonio.total` bloqueado na prioridade 3.
-- **Onda 3, prioridade 5 — Investimentos: BLOQUEADA, ausência real de estrutura (achado nesta sessão).** A tabela `investimentos` (V2, 4 linhas) só tem `id/tipo/quantidade/valor_atual/data_atualizacao/ticker` — o card ROC/Opções (`VARS.opcoesVendidasDetalhe`) usa ~14 campos por operação que não existem na V2 (`precoExercicio`, `vencimento`, `premioBruto`, `custoOperacional`, `premioRecebido`, `precoMedio`, `cotacaoAtual`, `resultadoDiario`, `resultadoHistorico`, `precoBlackScholes`, `notaCorretagem`, `exercida`, `statusPosicao`). Não migrado, nenhum código escrito. **Onda 3 esgotada** — as 5 prioridades foram percorridas na ordem definida pelo usuário; 2 migradas, 1 parcial, 2 bloqueadas por ausência real de estrutura.
+## 7. Pendências abertas (não reabrir como problema novo sem confirmar com o usuário)
 
-**Pendência transversal investigada nesta sessão (não mais "nunca classificada")**: saldo da Caixa Lance — divergência V1×V2 de R$4,37 (0,10%). Investigação (views já existentes `vw_reconciliacao_v1_v2`/`vw_transacoes_so_no_v1`/`vw_ajustes_manuais_v1`, sem SQL novo): `AJUSTE-06-08` (-R$65,76) existe só no V1 (nunca sincronizado como transação real na V2), mas isso sozinho não fecha a conta — resíduo de R$4,37 continua com causa indeterminada/baixa confiança. Módulo `hydrate-onda3-caixalance.js` criado e ligado (mesmo padrão da Onda 2), comparando/logando a cada carregamento, mas com `aceitarDivergenciaConhecida: false` — continua exibindo V1 até a causa ser confirmada. Validação em navegador real **pendente** (usuário recusou login manual nesta sessão; só validação técnica/estática foi feita — ver seção 30 do plano).
-
-**Padrão de código estabelecido** (repetir em qualquer migração nova): módulo dedicado em `src/financeiro/**/hydrate-onda*.js`, método novo em `WallaceFinanceService` (`src/app/app.js`, perto do topo), fetch/compare/log/overlay condicional, `window.WALLACE_ONDAX_..._RELATORIO` pra inspeção via console, chamada registrada em `app.js` DEPOIS da função V1 equivalente (pra sobrescrever, nunca competir por ordem), entrada nova no array de módulos do `Sistema_Wallace_Lira_Completo.html`, documentação no formato de 8 pontos (Objetivo/Escopo/Arquivos/Fonte antiga/Fonte nova/Validação/Resultado/Rollback) em `PLANO_UNIFICACAO_V1_V2.md`, validação ao vivo no navegador antes de considerar pronto, commit avisado antes.
-
-**Views V2 validadas e confiáveis pra saldo/reconciliação** (não reinventar): `vw_saldo_v2_por_caixa` (saldo por caixa — `rpc_dashboard_resumo().caixas[].saldo` é NÃO confiável, soma tudo sem filtro de ciclo), `vw_reconciliacao_v1_v2` (V1×V2 lado a lado, qtd de transações, causa provável), `vw_compromisso_cartao_por_pessoa` (nova nesta sessão, LRW/LRV).
-
-## 1.5. FRENTE SEPARADA, EM PAUSA: reconciliação/sincronização V1×V2 clássica
-
-**Se for pedido pra continuar reconciliação/correção de saldo, sincronização em massa (`sincronizar_v1_v2`), ou duplicidade de `tx_legado`** — isso é a frente ANTIGA (pré-pivô estratégico), documentada em `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` seções 1-21. Ficou em pausa quando o usuário decretou "o programa V1→V2 está encerrado do ponto de vista de dados" e mudou o foco pra Onda 3 (seção 1 acima). Não é a mesma coisa que "V2 arquitetural" (VARS/REG modularizados, ver seção 2 abaixo) — ver `CLAUDE.md` na raiz do repo pra não confundir os 3 sentidos de "V2" que já coexistiram neste projeto.
-
-**Estado no corte**: Fase 1 parcial (`cartao_id`/`usuario_id`), Fase 2 concluída (`audit_log`), Fase 3 (diagnóstico/reconciliação) fechada formalmente, Fase 4A (correção das 5 âncoras `saldo_inicial_ciclo`) executada. Fase 4B (sincronização) e 4C (limpeza Caixa Boletos) detalhadas mas não implementadas — não é mais prioridade a menos que o usuário peça explicitamente pra retomar.
-
-## 2. MODULARIZAÇÃO V2 ARQUITETURAL + REORGANIZAÇÃO FÍSICA — ✅ CONCLUÍDAS (sem mudança nesta sessão)
-
-`app.js` → `src/app/app.js`, `VARS`/`REG` modularizados em fábricas por domínio, projeto reorganizado em pastas por domínio de negócio. Sem novidade aqui nesta sessão — ver `PASSAGEM_DE_TURNO.md` Blocos 9-14 pro histórico completo, não repetir.
-
-## 3. Lançamentos financeiros reais aplicados (07-08/08/2026) — todos no V1 (arquivo local + Supabase `wallace_dados`)
-
-Sem lançamento financeiro novo nesta sessão (o trabalho foi 100% migração de leitura V1→V2, não alteração de dado). Ver `PASSAGEM_DE_TURNO.md` Bloco 16 pra lista completa dos lançamentos das sessões anteriores. Resumo do que já está aplicado: reembolso Bradesco R$312, cortinas R$450 + empréstimo LREI0004, reembolso Wärtsilä R$340, R$107,50 bolo de Júlio, Hortifruti R$46,97, correção de IOF (TX000200/TX000205), compra Dr.Pizza R$207,02 (portada pro V1, commit `1f1a69a`).
-
-## 4. Bugs reais encontrados e corrigidos
-
-**Nesta sessão**: bug de ordem de execução `onDomPronto`/`WallaceFinanceService` (ver seção 1 acima — determinístico, não intermitente, corrigido na raiz, beneficia todas as Ondas).
-
-**Bug de usabilidade corrigido (08/08/2026, pedido explícito do usuário)**: itens da Inbox Financeira com mesma origem/valor/data pareciam duplicados quando o Mercado Pago não manda descrição (evento `tipo:'account_money'`, `descricao:''`) — confirmado com dado real do Supabase (2 eventos reais, R$107,50, 07/08/2026, descrição vazia, mesmo `payer`, únicos campos que os distinguem são `id` e o timestamp completo perdido na sincronização). **Auditoria de campos** (pedida pelo usuário): `idExterno` (`MP...`) e `metadata.payer`/`metadata.payment_method` já existiam no dado bruto e no item da Inbox, mas nunca eram renderizados na tabela — `metadata` nem sequer era repassado de `sincronizarMercadoPagoParaInbox()` pra `inboxAdicionarItem()`. Hora/minuto do evento **não está disponível**: `mercadopago_sync.py` trunca `date_approved`/`date_created` pra `[:10]` (só data) na origem — corrigir isso exige alterar o script Python (roda como GitHub Action agendado), fora do escopo desta correção visual, não executado.
-
-**Correção aplicada** (só camada visual, aprovação/rejeição intocadas): `inbox-financeira.js` — `inboxAdicionarItem()` agora aceita e guarda `metadata`; `renderInboxFinanceira()` mostra uma linha de identificação (Pagador + ID externo) abaixo da descrição, só quando o dado existir. `classificacao-inbox.js` — `sincronizarMercadoPagoParaInbox()` repassa `ev.metadata`; quando `ev.descricao` vem vazia, gera descrição automática a partir de `ev.tipo` (mapa fechado: account_money/pix/bank_transfer/credit_card/debit_card/ticket, nunca inventa texto pra tipo desconhecido — mostra o tipo cru nesse caso) em vez do antigo `"(sem descrição)"` genérico.
-
-**Investigação Solar 301×361 kWh (08/08/2026) — fórmula NÃO alterada, aguardando evidência externa**: usuário pediu prova de qual conceito é correto pro rateio (Exportado=361 vs Saldo Líquido=301). Busca exaustiva não achou `Base_Calculo_Rateio_Solar.md` (documento original citado como fonte da fórmula) em nenhum lugar do repositório/backup — 2 auditorias independentes anteriores já tinham marcado essa área como "não confirmado" (`MAPA_MIGRACAO_V2.md`, `MAPA_CAMPOS_SUPABASE_VS_CODIGO.md`). **Sem alteração de código no rateio/crédito** — decisão explícita do usuário de não trocar sem prova. Ver seção 38 do plano.
-
-**Achado colateral mais importante que a dúvida original**: a coleta do robô SAJ **nunca parou** — o script escreve em `wallace_dados.dados.SOLAR_GERACAO_DIARIA` (blob V1, o que o frontend realmente lê), não na tabela V2 `energia_solar_geracao_diaria` (que sim está desatualizada desde 05/08 — mesmo gap V1×V2 de sempre, não é bug novo). Confirmado via GitHub Actions: dado real até 08/08 11h40 (horário de Brasília), mesmo dia desta sessão.
-
-**Domínio Solar entra na Onda 4/5 (08/08/2026)** — sincroniza persistência V1→V2: `scripts/sync/atualizar_geracao_saj.py` agora grava o mesmo valor também em `energia_solar_geracao_diaria` (V2), além do blob V1 de sempre. Zero mudança de frontend/indicadores/cálculo — só passa a existir também na V2. Falha na escrita V2 vira aviso, nunca derruba o script. Validação de execução real pendente (só confirma no próximo disparo do robô). Ver seção 40 do plano.
-
-**"Qualidade da geração" implementado (08/08/2026)** — indicador operacional novo, 100% separado do crédito/rateio (que continua pendente): card "☀️ Como a usina está indo" (seção 10), sem termo técnico, comparando o último dia FECHADO contra a média dos dias anteriores (nunca compara "hoje parcial" — achado de design corrigido antes de subir, evitava falso alarme toda manhã). Limites parametrizados em `indicadores` (mesmo padrão do CDI/ROC). Produção horária e previsão intradiária ficam bloqueadas — não existe esse dado, não fabricado (P1). Ver seção 39 do plano.
-
-**Ajuste de clareza visual — Caixa Variável (08/08/2026, pedido explícito do usuário)**: R$313,84 (Disponível Real) aparecia destacado em verde em 3 lugares do painel com rótulo genérico "Caixa variável", risco de ser lido como o saldo total (que é R$1.886,65). **Só texto de rótulo alterado — nenhum id, fórmula ou valor mudou**: cover-metrics (`coverCaixaVar`) e KPI do Resumo Executivo (`kpiCaixaVarDisp`) agora rotulados "Caixa Var. — Disponível Real"/"Caixa Variável — Disponível Real"; bloco de 3 métricas (seção 06) renomeado "Saldo real"→"Tem na Caixa", "Disponível"→"(=) Disponível Real", "Comprometido"→"(−) Comprometido", com legenda nova explicando a fórmula em texto (`Disponível Real = Tem na Caixa − Comprometido`). Mesma terminologia agora oficial no `MANUAL_OPERACIONAL_AGENTES.md` seção 6.1.
-
-**Sessões anteriores** (não repetir como novo): performance de carregamento (módulos paralelizados), bug de parser HTML (`</script>` literal dentro de comentário truncando o `<script>`), card FGTS com placeholder hardcoded, card Caixa Wärtsilä (número/barra/legenda), IOF ausente em 2 compras Mastercard Black, cache stale da API REST do Supabase (não investigado a fundo, só documentado).
-
-## 5. Como aplicar dado financeiro real (fluxo consolidado, sem mudança nesta sessão)
-
-1. Usuário confirma o lançamento (nunca aplicar sem confirmação explícita — regra permanente).
-2. Aplicar nos 2 lugares do V1: arquivo `.js` local relevante (`src/financeiro/**/vars-*.js`) **e** a linha `wallace_dados` no Supabase — checar antes se a chave existe lá (`select jsonb_object_keys(dados) from wallace_dados where id=1`).
-3. **Autorização de commit**: usuário autorizou "comitar sozinho, só avisar antes" — `git push` também já autorizado quando pedido. Nesta sessão: 2 commits feitos (`eff2805`, `4d2e6e2`), **push NÃO feito ainda** (avisar antes).
-
-## 6. Pendente / em aberto (atualizado 08/08/2026)
-
-**Resolvidas — não reabrir como bug novo:** redesign dos botões flutuantes, compra Dr.Pizza R$207,02, Caixa Lance reconciliada do lado V1, `AJUSTE-06-08` revisado, bug de ordem `onDomPronto`.
-
-1. **Onda 3 encerrada** (5/5 prioridades percorridas) — estado aceito pelo usuário, não reabrir.
-2. **Onda 4 EM ANDAMENTO — "Supabase como fonte única de verdade"** (mudança de prioridade máxima do projeto, 08/08/2026): desenhar e implementar as estruturas que faltavam na V2, sem gate de divergência (V2 vira fonte assim que a estrutura existir). Ordem autorizada: Patrimônio → Investimentos/ROC → LREI → Cascata Wärtsilä.
-   - **Domínio 1 (Patrimônio) CONCLUÍDO** — schema criado (`patrimonio.rotulo/subtipo` + tabela `financiamentos` + view `vw_patrimonio_v2`), dados migrados, módulo `hydrate-onda4-patrimonio.js` ligado, V2 é a fonte primária (exceto Caixa Lance, exceção deliberada). Seção 31 do plano.
-   - **Domínio 2 (Investimentos/ROC) CONCLUÍDO** — `investimentos` ganhou 10 colunas novas (strike/vencimento/prêmios/custos/nota/exercida/data_operacao), 3 parâmetros globais em `indicadores` (CDI/ROC_STATUS_LIMITES). Módulo `hydrate-onda4-investimentos.js` reaproveita 100% do cálculo/renderização V1 (`aplicarStatusVencidoEValorMercadoOpcoes`/`calcularROCOpcoes`/`hydrateROC`, inalteradas) sobre dado da V2 — zero lógica duplicada. Seção 32 do plano.
-   - **Domínio 3 (LREI) CONCLUÍDO** — tabela nova `emprestimos_internos` (ausência real de estrutura confirmada, não existia nada equivalente). Módulo `hydrate-onda4-lrei.js` reaproveita `renderLivrosVariaveis()` (V1, inalterada). Seção 33 do plano.
-   - **Domínio 4 (Cascata Wärtsilá) CONCLUÍDO — Onda 4 esgotada (4/4)**. Tabelas novas `reembolso_wartsila_ciclo`/`reembolso_wartsila_recebimentos`. Achado colateral: caixa "Provisionado Wärtsilä" tinha 0 transações sincronizadas na V2 (saldo travado no inicial) — corrigido, agora R$339,00 (bate com V1). Módulo `hydrate-onda4-wartsila.js` reaproveita `recalcularReembolsos()`/`hydrateReembolsos()` (V1, inalteradas). Seção 34 do plano. **Validação em navegador de toda a Onda 4 continua pendente** (login manual recusado pelo usuário em toda a Onda).
-4. **Caixa Lance — divergência de R$4,37 investigada, causa não confirmada** (ver seção 1). Módulo `hydrate-onda3-caixalance.js` criado, comparando/logando, mas exibindo V1 (não é mais ponto cego, mas não migrou). Se a causa for confirmada, virar `aceitarDivergenciaConhecida: true` no arquivo é a única mudança necessária.
-5. **Validação em navegador do módulo Caixa Lance PENDENTE** — usuário recusou login manual nesta sessão; só validação técnica/estática foi feita (script carregado, referências existem, sem duplicidade de nomes globais, fallback confirmado por leitura de código). Fazer a validação ao vivo (`window.WALLACE_ONDA3_CAIXALANCE_RELATORIO`) na próxima vez que alguém logar.
-6. **2 commits anteriores não enviados** (`eff2805`, `4d2e6e2`) + o commit desta sessão — avisar/confirmar push com o usuário.
-7. **R$652,00 sumiu da Inbox Financeira sozinho** (sessão anterior, motivo ainda desconhecido) — não confundir com o caso do Dr.Pizza (já resolvido).
-8. **Cache stale da API REST do Supabase** (sessão anterior) — não investigado a fundo, só documentado.
-9. **IDs da Inbox Financeira (`INBX000001` etc.) são posicionais, não estáveis** — perigoso se algum código guardar como referência persistente.
-10. **PIX Geral Vanessa**: `saldo_inicial_ciclo` duplicado no Supabase (dupla-contagem confirmada) — usuário recusou corrigir até ter mais clareza. Também é uma das 4 caixas fora da Onda 2 (causa indeterminada).
-11. **Caixa Boletos**: falta o saldo real de abertura do ciclo em 25/07 (`CICLO_ATUAL_INICIO` hardcoded). Ver Fase 4C da frente antiga (seção 1.5).
-12. **`AJUSTE-06-08`**: não remover nenhum `AJUSTE-*`/`RENDIMENTO-*` até o usuário revisar a interpretação nova (rendimento real, não ajuste artificial).
-13. **Firebase Console → Authorized domains**: confirmação manual pendente de que `wallacelira.com.br` está cadastrado.
-
-## 7. Ambiente de teste local
-
-- `.claude/launch.json` + `.claude/serve.ps1`: servidor HTTP estático local (`autoPort` habilitado nesta sessão anterior — evita conflito de porta entre sessões).
-- Login usa Firebase real — **a IA nunca digita senha**. Painel roda dentro de `<iframe id="mainIframe">` — inspecionar via `document.getElementById('mainIframe').contentWindow`. `VARS`/`REG`/`WallaceFinanceService` são bindings léxicos de topo (`const`), **não** aparecem como propriedade do `window` do iframe — usar `contentWindow.eval('VARS.algumaCoisa')` ou acessar via `document` do iframe pra IDs de DOM, não `contentWindow.VARS` direto.
-- `window.WALLACE_VALIDACAO_RUNTIME` (18 fases), `#healthBadge` (12 checagens do REG) e, agora, `window.WALLACE_ONDA{1,2,3}*_RELATORIO` (relatório de cada módulo de migração V2, com `v1`/`v2`/`diverge`/`exibindo` por item) são os testes de regressão padrão depois de qualquer mudança nas Ondas.
+1. 14 commits não enviados ao remoto (`git push` pendente).
+2. Validação em navegador real de tudo desde a Onda 3 (toda a sessão sem login).
+3. Caixa Lance (R$4,37) e as 4 caixas de causa indeterminada — **não reabrir**, decisão do usuário.
+4. Solar 301×361 kWh — **não reabrir**, aguardando documento original ou fatura real.
+5. Mastercard Black/Visa — auditoria conceitual feita, implementação ainda não iniciada (aguardando decisão sobre o que fazer com Assinaturas/Recorrências/34 transações órfãs).
+6. R$652,00 que sumiu da Inbox Financeira sozinho (sessão muito anterior, motivo nunca investigado a fundo).
+7. Firebase Console → Authorized domains: confirmação manual pendente.
+8. `AJUSTE-06-08`: não remover nenhum `AJUSTE-*`/`RENDIMENTO-*` até o usuário revisar.
