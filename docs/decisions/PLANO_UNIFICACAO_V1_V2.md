@@ -1058,3 +1058,38 @@ Console real, login real, confirmado: `window.WALLACE_ONDA2_V2_RELATORIO` (11 en
 **7. Resultado**: **7 tabelas de Livro Razão lendo V2 em produção**, zero alteração de layout/IDs/CSS. Bug de ordem de execução corrigido beneficia também as Ondas 1 e 2 (fallback não deve mais disparar por esse motivo).
 
 **8. Rollback**: comentar `onDomPronto(aplicarOnda3LivroRazao);` em `app.js` — as 7 tabelas voltam a mostrar só V1 (renderLivrosVariaveis já roda antes, nada mais muda).
+
+---
+
+## 26. Onda 3, prioridade 2 — LRW/LRV (compromisso de cartão por pessoa) lendo V2 (08/08/2026)
+
+**1. Objetivo**: reproduzir `VARS.mbLRWConfirmado`/`mbLRVConfirmado` (compromisso de cartão MB por pessoa, Política Interna §13) a partir de dados já existentes em `transacoes`, sem modelagem de domínio nova — 2ª prioridade da Onda 3 (ordem explícita do usuário: Livro Razão → LRW/LRV → Patrimônio → Metas → Investimentos).
+
+**2. Escopo**: os 2 valores exibidos em `mbLRW`/`mbLRV` (`src/financeiro/cartoes/hydrate-visa-mb.js:24-25`). Fora do escopo: o gráfico de pizza que usa `Object.values(REG.mbDetalhe)` (`graficos-painel-principal.js`) — Chart.js, não é um id de texto simples, mesma regra das Ondas anteriores de só sobrescrever cards/tabelas de texto.
+
+**SQL criado**: view `vw_compromisso_cartao_por_pessoa` — soma `transacoes.valor` agrupado por `usuario_id`/`usuario_nome`, filtrado por `caixa_id = Caixa Variável` e `afeta_saldo_real = false`, via `JOIN usuarios`. Nenhuma lógica nova: é a mesma agregação que já dá base ao LRW/LRV, só que lida direto da V2.
+
+```sql
+CREATE VIEW public.vw_compromisso_cartao_por_pessoa AS
+SELECT u.nome AS usuario_nome, u.id AS usuario_id,
+       round(sum(t.valor), 2) AS total_comprometido, count(*) AS qtd_transacoes
+FROM public.transacoes t
+JOIN public.caixas c ON c.id = t.caixa_id AND c.nome = 'Caixa Variável'
+JOIN public.usuarios u ON u.id = t.usuario_id
+WHERE t.afeta_saldo_real = false
+GROUP BY u.nome, u.id;
+```
+
+**3. Arquivos alterados**: `src/financeiro/cartoes/hydrate-onda3-lrwlrv.js` (novo), `src/app/app.js` (+`getCompromissoCartaoPorPessoa()`, +chamada `aplicarOnda3LrwLrv()` logo depois de `hydrateVisaMB()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+**4. Fonte antiga**: `VARS.mbLRWConfirmado` (1563,19) / `VARS.mbLRVConfirmado` (364,62) — literais hardcoded, mantidos manualmente a cada compra.
+
+**5. Fonte nova**: `vw_compromisso_cartao_por_pessoa` — Wallace R$1.128,11 (25 transações), Vanessa R$218,21 (5 transações).
+
+**Evidência V1 × V2**: divergência confirmada e **100% explicada** — as mesmas 5 linhas já documentadas na Parte B (`TX000200/203/204/205/206`, colisão de `tx_legado` com eventos históricos não relacionados) nunca tiveram `usuario_id` preenchido (corretamente — não são compras de cartão de ninguém) e por isso ficam fora da soma V2 pelo próprio `JOIN usuarios`, sem filtro extra necessário. Wallace: V1=1563,19 × V2=1128,11 (diferença R$435,08). Vanessa: V1=364,62 × V2=218,21 (diferença R$146,41). Divergência conhecida e documentada, aceita pela regra de 08/08/2026 — exibe V2 mesmo assim, sem esconder a diferença (logada em todo carregamento).
+
+**6. Validação**: navegador real, login real (Firebase, sessão já ativa) — `window.WALLACE_ONDA3_LRWLRV_RELATORIO` confirma `exibindo:"V2"` pros 2 usuários, valores no DOM (`#mbLRW`="R$ 1.128,11", `#mbLRV`="R$ 218,21") batendo exatamente com a view. Zero erros no console.
+
+**7. Resultado**: **LRW/LRV lendo V2 em produção**, zero alteração de layout/IDs/CSS. Percentual atualizado de dependência da V1: 10 caixas (saldo) + 7 tabelas de Livro Razão + LRW/LRV agora lêem V2; restam em V1: 4 caixas de causa indeterminada (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio), Caixa Lance, Provisionado Wärtsilä, e os domínios ainda não migrados da Onda 3 (Patrimônio, Metas, Investimentos).
+
+**8. Rollback**: comentar `aplicarOnda3LrwLrv();` em `app.js` — `mbLRW`/`mbLRV` voltam a mostrar só V1 (`hydrateVisaMB()` já roda antes, nada mais muda).

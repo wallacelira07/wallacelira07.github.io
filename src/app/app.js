@@ -107,6 +107,21 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado;
   },
+  // NOVO 08/08/2026 (Onda 3, Prioridade 2 — LRW/LRV): compromisso de cartão por pessoa
+  // (equivalente a VARS.mbLRWConfirmado/mbLRVConfirmado), via vw_compromisso_cartao_por_pessoa —
+  // agregação pura de `transacoes` já existentes (Caixa Variável, afeta_saldo_real=false), sem
+  // lógica de negócio nova.
+  async getCompromissoCartaoPorPessoa(){
+    const chave = 'vw_compromisso_cartao_por_pessoa';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_compromisso_cartao_por_pessoa?select=usuario_nome,total_comprometido,qtd_transacoes`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_compromisso_cartao_por_pessoa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   async getCaixas(){
     const chave = 'caixas';
     if(this._cache.has(chave)) return this._cache.get(chave);
@@ -916,6 +931,8 @@ function hydrate(){
   hydrateCaixas();
 
   hydrateVisaMB(); // MODULARIZAÇÃO 07/08/2026: breakdown Visa Infinite + Mastercard Black extraído pra src/modules/hydrate-visa-mb.js — mesma sequência, nenhum id/fórmula alterado.
+
+  aplicarOnda3LrwLrv(); // NOVO 08/08/2026 (Onda 3, Prioridade 2): sobrescreve mbLRW/mbLRV com V2 (vw_compromisso_cartao_por_pessoa) — roda depois de hydrateVisaMB() (V1) de propósito, só sobrescreve em caso de sucesso.
 
   hydrateMercadoPago(); // MODULARIZAÇÃO 07/08/2026: indicadores de Mercado Pago extraídos pra src/modules/hydrate-mercado-pago.js — só renderização, cálculo continua em recalcularAgregadosDerivados(), nenhum id/fórmula alterado.
 
