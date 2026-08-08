@@ -1,37 +1,38 @@
 // MÓDULO: Onda 2 da migração V2 → Painel (08/08/2026) — mesmo modelo da Onda 1
 // (hydrate-onda1-v2.js), estendido pras 11 caixas restantes + diagnóstico do Livro Razão.
 //
-// DIFERENÇA-CHAVE em relação à Onda 1: lá, os 4 alvos já estavam com diferença 0 confirmada
-// antes de escrever qualquer código, então o overlay era incondicional. Aqui, checagem ao
-// vivo (08/08/2026) mostrou que NENHUMA das 11 caixas está com V1×V2=0 hoje — 6 têm resíduo
-// de um item AJUSTE-06-08 (rendimento de cofrinho sem comprovante diário, excluído de
-// propósito de sincronizar_v1_v2() — Política Interna §31) e 5 têm causa indeterminada,
-// baixa confiança (mesma classe do caso Boletos/TX000140 antes de resolvido). Por isso o
-// overlay aqui é CONDICIONAL: só troca o texto pra V2 se |V1−V2|<=0,01; senão mantém V1 e
-// só loga a divergência (nunca esconde). Resultado esperado nesta rodada: 0 das 11 migram
-// de fato pra exibição V2 — mas o mecanismo fica pronto e promove sozinho, sem novo deploy
-// de lógica, assim que cada divergência real fechar (seja por sincronizar_v1_v2() futuro,
-// seja por investigação dedicada tipo TX000140).
+// REGRA ATUALIZADA (08/08/2026, mudança de critério pedida pelo usuário): "divergência
+// conhecida e documentada != bloqueador de migração; ausência de estrutura V2 = bloqueador
+// real". Cada item do mapa agora tem `aceitarDivergenciaConhecida`:
+//   true  -> causa raiz confirmada e documentada (ex: item AJUSTE-06-08 pendente de sync,
+//            Política Interna §31) -> exibe V2 mesmo com diferença, loga como "aceita".
+//   false -> causa indeterminada/baixa confiança (mesma classe do caso Boletos/TX000140
+//            antes de resolvido) -> continua bloqueado, mantém V1, loga divergência sem
+//            esconder. Decisão explícita do usuário (08/08/2026): Manutenção, Saúde
+//            Família, PIX Geral Vanessa e Aniversário Júlio ficam de fora por enquanto —
+//            diferenças grandes (R$107 a R$346) sem causa raiz confirmada, diferente do
+//            AJUSTE-06-08 que já tem explicação.
 //
-// Provisionado Wärtsilä fica de fora do overlay de propósito — card com 4 estados de texto
-// (não um número simples), e a V2 ainda não tem equivalente pro campo "fatura" (ver
-// PLANO_UNIFICACAO_V1_V2.md seção 22, gap D). Só compara e loga, nunca escreve no DOM dele.
+// Provisionado Wärtsilä fica de fora do overlay independente da causa — card com 4 estados
+// de texto (não um número simples), e a V2 ainda não tem equivalente pro campo "fatura"
+// (PLANO_UNIFICACAO_V1_V2.md seção 22, gap D — falta de ESTRUTURA, não só divergência). Só
+// compara e loga, nunca escreve no DOM dele.
 //
 // Rollback: comentar a chamada aplicarOnda2V2() em app.js — nada mais muda.
 
 const ONDA2_V2_MAPA = [
-  { idHtml: 'cxBensDuraveisSaldo', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo },
-  { idHtml: 'cxEventosSaldo', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo },
-  { idHtml: 'cxSeguroSaldo', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo },
-  { idHtml: 'cxEscolaSaldo', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo },
-  { idHtml: 'cxPgvSaldo', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo },
-  { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo },
-  { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo },
-  { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo },
-  { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco },
-  { idHtml: 'balResCombustivel', caixaNome: 'Caixa Combustível', getValorV1: () => REG.balanco.reservas.combustivel },
-  // log-only: sem idHtml -> nunca escreve no DOM, só compara e loga
-  { idHtml: null, caixaNome: 'Provisionado Wärtsilä', getValorV1: () => VARS.provisionadoWartsila },
+  { idHtml: 'cxBensDuraveisSaldo', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxEventosSaldo', caixaNome: 'Caixa Eventos', getValorV1: () => REG.caixasOperacionais.eventos.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxSeguroSaldo', caixaNome: 'Caixa Seguro Emplacamento', getValorV1: () => REG.caixasOperacionais.seguroEmplacamento.saldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxEscolaSaldo', caixaNome: 'Escola de Júlio', getValorV1: () => REG.escolaJulioSaldo, aceitarDivergenciaConhecida: true },
+  { idHtml: 'cxPgvSaldo', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo, aceitarDivergenciaConhecida: false },
+  { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
+  { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: false },
+  { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: false },
+  { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco, aceitarDivergenciaConhecida: true },
+  { idHtml: 'balResCombustivel', caixaNome: 'Caixa Combustível', getValorV1: () => REG.balanco.reservas.combustivel, aceitarDivergenciaConhecida: true },
+  // log-only: sem idHtml -> nunca escreve no DOM, mesmo com aceitarDivergenciaConhecida=true (falta ESTRUTURA, não só divergência)
+  { idHtml: null, caixaNome: 'Provisionado Wärtsilä', getValorV1: () => VARS.provisionadoWartsila, aceitarDivergenciaConhecida: false },
 ];
 
 const TOLERANCIA_CENTAVOS = 0.01;
@@ -49,7 +50,7 @@ async function aplicarOnda2V2(){
     return;
   }
   const relatorio = [];
-  ONDA2_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1}) => {
+  ONDA2_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1, aceitarDivergenciaConhecida}) => {
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
     if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
       console.warn(`Onda2V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
@@ -62,17 +63,19 @@ async function aplicarOnda2V2(){
     const valorV2 = Math.round(Number(caixaV2.v2_saldo_calculado) * 100) / 100;
     const diverge = valorV1 === null || Math.abs(valorV1 - valorV2) > TOLERANCIA_CENTAVOS;
     const diferenca = valorV1 !== null ? Math.round((valorV1 - valorV2)*100)/100 : null;
+    const podeExibirV2 = idHtml && (!diverge || aceitarDivergenciaConhecida) && valorV1 !== null;
 
     if(diverge){
-      console.warn(`Onda2V2 [${caixaNome}]: V1=${valorV1!==null?fmt(valorV1):'?'} × V2=${fmt(valorV2)} — DIVERGE${diferenca!==null?' R$'+Math.abs(diferenca).toFixed(2):''}. Mantendo V1 (fallback), nada exibido da V2 pra esta caixa ainda.`);
-      relatorio.push({ caixa: caixaNome, v1: valorV1, v2: valorV2, diverge: true, diferenca, exibindo: 'V1 (fallback)' });
-      return; // NUNCA sobrescreve o DOM quando diverge — regra central desta onda
+      const motivo = aceitarDivergenciaConhecida
+        ? 'divergência conhecida e documentada (aceita pela regra de 08/08/2026) — exibindo V2 mesmo assim.'
+        : 'causa indeterminada/baixa confiança — mantendo V1 (fallback), nada exibido da V2 pra esta caixa ainda.';
+      console.warn(`Onda2V2 [${caixaNome}]: V1=${valorV1!==null?fmt(valorV1):'?'} × V2=${fmt(valorV2)} — DIVERGE${diferenca!==null?' R$'+Math.abs(diferenca).toFixed(2):''}. ${motivo}`);
+    } else {
+      console.log(`Onda2V2 [${caixaNome}]: V1×V2 batem (${fmt(valorV2)}).`);
     }
+    relatorio.push({ caixa: caixaNome, v1: valorV1, v2: valorV2, diverge, diferenca, exibindo: podeExibirV2 ? 'V2' : (idHtml ? 'V1 (fallback)' : 'V1 (log-only, sem card simples)') });
 
-    console.log(`Onda2V2 [${caixaNome}]: V1×V2 batem (${fmt(valorV2)}).`);
-    relatorio.push({ caixa: caixaNome, v1: valorV1, v2: valorV2, diverge: false, diferenca: 0, exibindo: idHtml ? 'V2' : 'V1 (log-only, sem card simples)' });
-
-    if(!idHtml) return; // Wärtsilä: só loga, nunca escreve (card complexo, ver comentário do topo)
+    if(!podeExibirV2) return;
     const el = $(idHtml);
     if(!el){ console.warn(`Onda2V2: id "${idHtml}" não encontrado no DOM, ignorado.`); return; }
     el.textContent = fmt(valorV2);

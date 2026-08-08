@@ -1016,5 +1016,23 @@ Console real, login real, confirmado: `window.WALLACE_ONDA2_V2_RELATORIO` (11 en
 ### Arquivos alterados
 `src/financeiro/caixas/hydrate-onda2-v2.js` (novo), `src/app/app.js` (+`getReconciliacaoPorCaixa()`, +chamadas `aplicarOnda2V2()`/`diagnosticoLivroRazaoFase1()` no fim de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
 
-### Status
+### Status (original)
 **Migradas nesta onda**: Caixa Churrasco, Caixa Combustível (2). **Total acumulado lendo V2 (Ondas 1+2)**: 6 caixas. **Bloqueadas, aguardando resolução de divergência real**: 9 caixas + Livro Razão completo. Mecanismo pronto pra promover cada uma automaticamente assim que a divergência real fechar, sem novo código.
+
+### Atualização 08/08/2026 — mudança de critério: "divergência documentada não bloqueia mais"
+
+**1. Objetivo**: aplicar a nova regra do usuário — divergência conhecida e documentada deixa de ser bloqueador; só falta de estrutura V2 bloqueia.
+
+**2. Escopo**: reclassificar as 9 caixas bloqueadas da Onda 2 em 2 grupos e liberar exibição V2 pro grupo com causa confirmada.
+
+**3. Arquivos alterados**: `src/financeiro/caixas/hydrate-onda2-v2.js` (campo novo `aceitarDivergenciaConhecida` por item do mapa, lógica de exibição condicionada a ele).
+
+**4. Fonte antiga**: `VARS`/`REG` (V1) nas 9 caixas, sem exceção.
+
+**5. Fonte nova**: `vw_saldo_v2_por_caixa` (V2) pras 4 com causa confirmada, mesmo com diferença — Caixa Bens Duráveis, Caixa Eventos, Caixa Seguro Emplacamento, Escola de Júlio (todas com causa `AJUSTE-06-08` já identificada, Política Interna §31). As outras 4 — Caixa Manutenção, Caixa Saúde Família, PIX Geral Vanessa, Caixa Aniversário Júlio — **permanecem em V1**, por decisão explícita do usuário: causa "indeterminada, baixa confiança", diferenças grandes (R$107 a R$346) sem explicação confirmada, categoria diferente do `AJUSTE-06-08`. Provisionado Wärtsilä continua log-only (falta de estrutura, não só divergência).
+
+**6. Validação**: navegador real, login real — `window.WALLACE_ONDA2_V2_RELATORIO` conferido, 6 de 11 exibindo `"V2"`, 4 exibindo `"V1 (fallback)"` (as 4 de causa indeterminada), 1 `"V1 (log-only)"` (Wärtsilä).
+
+**7. Resultado**: **10 caixas lendo V2 em produção** (4 da Onda 1 + 6 desta atualização), zero alteração de layout/IDs/CSS.
+
+**8. Rollback**: reverter `aceitarDivergenciaConhecida` pra `false` nos 4 itens, ou comentar `aplicarOnda2V2();` em `app.js` pra reverter tudo.
