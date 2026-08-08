@@ -6,7 +6,7 @@
 
 ## PRODUÇÃO: domínio oficial é `wallacelira.com.br`
 
-`https://wallacelira.com.br/` (GitHub Pages por baixo) é o ambiente real. **Fim desta sessão: `git status` limpo, mas HEAD está 14 commits À FRENTE de `origin/main` — NENHUM push feito ainda nesta sessão nem nas anteriores desde `eff2805`.** Confirmar com o usuário antes de dar push (lista completa dos 14 commits no Bloco 18 da Passagem de Turno).
+`https://wallacelira.com.br/` (GitHub Pages por baixo) é o ambiente real. **Fim desta sessão: `git status` limpo, `main` sincronizado com `origin/main` (push feito a pedido explícito do usuário, `6bd54ab..61d54de`, 16 commits enviados — HEAD atual `61d54de`).** GitHub Pages deve republicar sozinho a partir daqui; confirmar o site ao vivo antes de considerar o deploy fechado (não verificado nesta sessão, sem navegador disponível).
 
 **Pendente de verificação manual (não dá pra checar por código)**: confirmar em Firebase Console → Authentication → Settings → Authorized domains que `wallacelira.com.br` está cadastrado.
 
@@ -88,7 +88,7 @@ Auditoria feita nesta sessão (conceito → V2 → VARS remanescentes → menor 
 
 ## 7. Pendências abertas (não reabrir como problema novo sem confirmar com o usuário)
 
-1. 14 commits não enviados ao remoto (`git push` pendente).
+1. ~~Commits não enviados~~ — **resolvido nesta sessão**: push feito (`61d54de`), `main` sincronizado com `origin/main`. Confirmar o site ao vivo (`wallacelira.com.br`) na próxima sessão com navegador disponível.
 2. Validação em navegador real de tudo desde a Onda 3 (toda a sessão sem login).
 3. Caixa Lance (R$4,37) e as 4 caixas de causa indeterminada — **não reabrir**, decisão do usuário.
 4. Solar 301×361 kWh — **não reabrir**, aguardando documento original ou fatura real.

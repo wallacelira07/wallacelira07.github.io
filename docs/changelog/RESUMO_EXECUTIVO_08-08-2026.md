@@ -44,7 +44,7 @@ Documento de passagem de turno pra troca de agente. Objetivo, sem prosa — para
 3. Fallback silencioso pra V1 eliminado nos 6 domínios V2-exclusivos — falha agora é visível (`⚠ Indisponível (V2)`).
 4. Regra nova: domínio V2-exclusivo não recebe mais escrita em `wallace_dados` no fluxo manual de lançamento.
 
-**Commits desta sessão** (15, nenhum push): `a3b3034`, `d144157`, `4429a43`, `0639e37`, `755b4ba`, `b6f7f31`, `5a40eae`, `a4e2cfd`, `7aef36b`, `13e4cbe`, `a470500`, `6227d94`, `1c515d7`, `5f2c05f`, `dc0bd47`.
+**Commits desta sessão** (16, **todos enviados** — `git push origin main` feito a pedido explícito do usuário, `6bd54ab..61d54de`): `a3b3034`, `d144157`, `4429a43`, `0639e37`, `755b4ba`, `b6f7f31`, `5a40eae`, `a4e2cfd`, `7aef36b`, `13e4cbe`, `a470500`, `6227d94`, `1c515d7`, `5f2c05f`, `dc0bd47`, `61d54de`.
 
 ---
 
@@ -98,7 +98,7 @@ Evidência real: 95 chaves em `wallace_dados.dados` (`SELECT jsonb_object_keys(d
 | Firebase Console → Authorized domains | Confirmação manual pendente (não checável por código) |
 | `AJUSTE-06-08` (12 caixas) | Não remover nenhum `AJUSTE-*`/`RENDIMENTO-*` até o usuário revisar a interpretação (rendimento real, não ajuste artificial) |
 | **Validação em navegador real** | **Pendente de TODA a sessão** — usuário recusou login manual em todas as rodadas; toda validação foi técnica/SQL, nunca visual |
-| `git push` | 15 commits acumulados, nenhum enviado ao remoto |
+| `git push` | ~~Pendente~~ **Resolvido** — 16 commits enviados a pedido do usuário (`61d54de`). Confirmar site ao vivo (`wallacelira.com.br`) na próxima sessão. |
 
 ---
 
