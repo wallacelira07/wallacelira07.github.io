@@ -1239,3 +1239,37 @@ CREATE VIEW public.vw_patrimonio_v2 AS SELECT
 **7. Resultado**: **Patrimônio (exceto Caixa Lance) migrado para V2 como fonte primária**, sem gate de divergência. `VARS.reserva/btgNecton/nectonContaCorrente/patCasa/.../consorcioCasa*` (~20 chaves) deixam de ser necessárias no frontend — continuam existindo em `wallace_dados` só como histórico/fallback, não como fonte ativa.
 
 **8. Rollback**: comentar `aplicarOnda4Patrimonio();` em `app.js` (dados na V2 não são revertidos — só a leitura volta a ser V1). Reversão de schema, se necessária: `DROP VIEW vw_patrimonio_v2; DROP TABLE financiamentos; ALTER TABLE patrimonio DROP COLUMN rotulo, DROP COLUMN subtipo;` (reverte a constraint de `natureza` antes de derrubar as 2 linhas informativas, se for o caso).
+
+## 32. Onda 4, domínio 2 — Investimentos/ROC/Opções: schema criado, V1 reaproveitado sobre dado V2 (08/08/2026)
+
+**1. Objetivo**: eliminar a ausência de estrutura que bloqueava a Onda 3/Prioridade 5 — adicionar à `investimentos` os ~9 campos que `opcoesVendidasDetalhe` usa por operação (strike, vencimento, prêmios, custos, nota de corretagem, exercício).
+
+**2. Escopo**: seção 17 inteira (Opções vendidas/ROC) — cards de resumo (`opcoesValorMercado`/`opcoesPremioTotal`/`opcoesPremioBrutoTotal`/`opcoesCustosTotal`/`rocCapitalTravado`/`rocPremioLiquido`/`rocRentabilidade*`/`rocComparacaoCDI`/`rocDiasMedios`/`rocStatusBadge`/`legRocCarteira`) + as 3 tabelas (posições ativas/vencidas/exercidas, `opcoesTbody`/`opcoesVencidasTbody`/`opcoesExercidasTbody`).
+
+**Estratégia diferente dos outros domínios**: em vez de reimplementar a renderização (~230 linhas em `hydrate-roc.js`, incluindo integração com cotações ao vivo brapi.dev, cores OTM/ITM, 3 tabelas), o módulo novo troca só a **origem do dado bruto** e **reaproveita as 3 funções V1 inalteradas**: `aplicarStatusVencidoEValorMercadoOpcoes()` + `calcularROCOpcoes()` (`opcoes-roc.js`) pro cálculo, `hydrateROC()` (`hydrate-roc.js`) pra renderização — chamadas de novo, agora operando sobre `VARS.opcoesVendidasDetalhe` sobrescrito com dado da V2. Zero lógica duplicada.
+
+**SQL criado**:
+```sql
+ALTER TABLE public.investimentos
+  ADD COLUMN ativo_subjacente text, ADD COLUMN preco_exercicio numeric, ADD COLUMN data_vencimento date,
+  ADD COLUMN premio_bruto numeric, ADD COLUMN custo_operacional numeric, ADD COLUMN premio_recebido numeric,
+  ADD COLUMN preco_medio numeric, ADD COLUMN nota_corretagem text, ADD COLUMN exercida boolean DEFAULT false,
+  ADD COLUMN data_operacao date; -- mesma data ja embutida como texto em nota_corretagem, estruturada
+```
+Parâmetros globais (CDI/ROC) reaproveitam `indicadores` (mesmo padrão já usado pro "PIB Wallace"): `CDI_MENSAL_ATUAL`, `ROC_STATUS_LIMITES - boaAte`, `ROC_STATUS_LIMITES - muitoBoaAte`.
+
+Também criadas `vw_opcoes_vendidas_v2` e `vw_roc_opcoes_v2`/`vw_roc_carteira_v2` (tradução SQL da mesma fórmula de `calcularROCOpcoes()`, pra consulta/auditoria direta via SQL) — **não usadas pelo frontend** (que reaproveita o cálculo JS original), mas documentadas e validadas como registro de que a fórmula bate nas 2 formas.
+
+**3. Arquivos alterados**: `src/financeiro/investimentos/hydrate-onda4-investimentos.js` (novo), `src/app/app.js` (+`getInvestimentosOpcoesV2()`/`getIndicador()` no `WallaceFinanceService`, +chamada `aplicarOnda4Investimentos()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada).
+
+**4. Fonte antiga**: `VARS.opcoesVendidasDetalhe` (3 posições, literal), `VARS.CDI_MENSAL_ATUAL`, `VARS.ROC_STATUS_LIMITES`.
+
+**5. Fonte nova**: `investimentos` (tipo=opcoes, via `getInvestimentosOpcoesV2()`) + `indicadores` (via `getIndicador()`).
+
+**Migração dos dados**: `UPDATE` nas 2 linhas já existentes (PETRT379/ITUBT424) com os mesmos valores de `vars-roc.js`, `INSERT` de 1 linha nova (PETRS368W5, posição encerrada, não existia na V2), 3 `INSERT`s em `indicadores`.
+
+**6. Validação**: `SELECT * FROM vw_roc_opcoes_v2`/`vw_roc_carteira_v2` confere exato com os cálculos documentados (capital travado R$7.372,00/R$8.364,00, prêmio líquido R$154,84/R$177,04, consolidado R$15.736,00 capital/R$331,88 prêmio, 1 item vencido excluído, 0 sem strike). Checagem estática do módulo: script carregado 1x, `aplicarStatusVencidoEValorMercadoOpcoes`/`calcularROCOpcoes`/`hydrateROC` existem e são globais (scripts clássicos, carregados antes de `app.js`), nomes novos (`aplicarOnda4Investimentos`, `WALLACE_ONDA4_INVESTIMENTOS_RELATORIO`, `getInvestimentosOpcoesV2`, `getIndicador`) únicos em `src/`. **Validação em navegador real pendente** (mesma situação dos domínios anteriores).
+
+**7. Resultado**: **seção 17 inteira migrada para V2 como fonte**, reaproveitando 100% do código de cálculo/renderização V1. `VARS.opcoesVendidasDetalhe`/`CDI_MENSAL_ATUAL`/`ROC_STATUS_LIMITES` deixam de ser necessários no frontend.
+
+**8. Rollback**: comentar `aplicarOnda4Investimentos();` em `app.js`.

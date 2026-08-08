@@ -159,6 +159,32 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado[0] || null;
+  },
+  // NOVO 08/08/2026 (Onda 4, domínio 2 — Investimentos/ROC): posições de opções direto de
+  // `investimentos` (tipo=opcoes) — campos crus, mesmo shape que VARS.opcoesVendidasDetalhe usava
+  // (ticker/ativo/strike/vencimento/prêmios/etc). O cálculo de ROC continua 100% em
+  // calcularROCOpcoes() (opcoes-roc.js, inalterado) — aqui só troca a origem do dado bruto.
+  async getInvestimentosOpcoesV2(){
+    const chave = 'investimentos_opcoes';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/investimentos?select=ticker,ativo_subjacente,quantidade,valor_atual,preco_exercicio,data_vencimento,premio_bruto,custo_operacional,premio_recebido,preco_medio,nota_corretagem,exercida&tipo=eq.opcoes`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar investimentos (opções)`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getIndicador(nome){
+    const chave = 'indicador:' + nome;
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/indicadores?select=valor,data_calculo&nome=eq.${encodeURIComponent(nome)}&order=data_calculo.desc&limit=1`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado[0] || null;
   }
 };
 
@@ -988,6 +1014,11 @@ function hydrate(){
   // Fallback pra V1 só em erro técnico. Domínio 1: Patrimônio (patrimonio + financiamentos, view
   // vw_patrimonio_v2). Exceção deliberada: caixaLance continua V1 (ver hydrate-onda4-patrimonio.js).
   aplicarOnda4Patrimonio();
+
+  // ONDA 4, domínio 2 (Investimentos/ROC): reaproveita aplicarStatusVencidoEValorMercadoOpcoes()/
+  // calcularROCOpcoes()/hydrateROC() (V1, inalteradas) sobre dado vindo de `investimentos` (V2) —
+  // ver hydrate-onda4-investimentos.js.
+  aplicarOnda4Investimentos();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
