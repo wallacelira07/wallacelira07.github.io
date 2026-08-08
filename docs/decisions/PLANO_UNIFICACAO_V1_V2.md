@@ -456,9 +456,27 @@ Reversível a qualquer momento, sem perda de dado — puramente estrutural.
 
 ### STATUS
 - **Alternativa 3**: ✅ aprovada como direção conceitual.
-- **Escolha entre 3a e 3b**: ⏳ pendente — decisão de implementação, não de arquitetura.
+- **Escolha entre 3a e 3b**: ✅ **decidida (08/08/2026) — 3a agora, 3b depois.**
 - **Impacto nas fases já concluídas (4A, 4C, 4B-2)**: nenhum.
-- **Impacto na Fase 4B-1 parcial (10 transações, 6 caixas mapeadas)**: nenhum — segue desbloqueada independentemente desta decisão.
+- **Impacto na Fase 4B-1 parcial (10 transações, 6 caixas mapeadas)**: nenhum — foi executada independentemente desta decisão.
+
+### DECISÃO: 3a agora, 3b depois (08/08/2026)
+
+**Decisão**: implementar **3a** (sem alteração de schema) para tirar `LRW_TRANSACOES`/`LRV_TRANSACOES` do limbo operacional agora. **3b** (schema permitindo `caixa_id NULL`) fica **explicitamente adiada** — só reavaliada se surgir mais de um caso legítimo além de LRW/LRV que precise de "transação sem caixa" (hoje é caso único).
+
+**Motivos**:
+1. Resolve o problema real imediatamente — ~35 transações/ciclo continuam nascendo fora da V2 a cada ciclo que passa, dívida crescente.
+2. Não exige migration — todo o mecanismo (`usuario_id`/`cartao_id`/`afeta_saldo_real`, `resolver_usuario_por_cartao()`, mapeamento de cartões) já existe.
+3. Não afeta reconciliação — confirmado na investigação da seção 15: LRW/LRV nunca entram em `v1_v2_caixa_mapa` (estruturalmente invisíveis às views de reconciliação) e `afeta_saldo_real=false` exclui essas linhas do cálculo de saldo de qualquer caixa (`vw_saldo_v2_por_caixa`, `COALESCE(t.afeta_saldo_real, true)`) — as 16 caixas já reconciliadas permanecem protegidas.
+4. Reduz dívida operacional recorrente, não só o histórico.
+5. Mantém caminho aberto pra 3b — nada no schema ou nos dados impede uma migration futura pra `caixa_id` nullable se essa direção continuar fazendo sentido depois de mais casos de uso aparecerem.
+
+**Ordem de execução combinada**:
+1. Decidir formalmente 3a — ✅ feito aqui.
+2. Implementar LRW/LRV na V2 usando a modelagem aprovada (migração histórica + candidato a `caixa_id` técnico a confirmar).
+3. Construir a versão definitiva de `sincronizar_v1_v2()` (cobrindo tanto as caixas mapeadas quanto LRW/LRV).
+4. Revalidar diagnósticos (`diagnostico_sync_v1_v2()`, `vw_reconciliacao_v1_v2`).
+5. Só então iniciar o levantamento da Fase 4D.
 
 ---
 
@@ -545,9 +563,9 @@ RETURNING id, tx_legado, caixa_id, valor, status;
 **`TX000208`** — status: **"Pendente de definição de rastreabilidade por colisão de `tx_legado`."** Não inserido na V2. Correção a avaliar futuramente (renumeração na origem V1, alias controlado, ou outro tratamento) — nenhuma ação tomada até decisão explícita.
 
 ### Confirmações permanentes
-- `LRW_TRANSACOES`/`LRV_TRANSACOES` permanecem **fora do escopo operacional** da sincronização.
+- `LRW_TRANSACOES`/`LRV_TRANSACOES` permanecem **fora do escopo operacional** da sincronização até a implementação da 3a (ver seção 15).
 - **Alternativa 3** (seção 15) continua sendo a direção arquitetural aprovada para o destino delas.
-- Escolha **3a vs. 3b** permanece **em aberto**, sem urgência técnica.
+- Escolha **3a vs. 3b**: **decidida em 08/08/2026 — 3a agora, 3b adiada** (ver seção 15, "DECISÃO: 3a agora, 3b depois").
 
 ---
 
