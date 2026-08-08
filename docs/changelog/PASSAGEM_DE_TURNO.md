@@ -2,6 +2,31 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 25 — ACOES_COTACOES commitado + bugs reais reportados pelo usuário (data invertida, geração de ontem errada) + infraestrutura de frescor/legendas dinâmicas (08/08/2026, continuação do Bloco 24)
+
+**1. `ACOES_COTACOES` fechado**: commit `22d6b2c` enviado (aprovação do usuário, "sim"). `wallace_dados`: 31 consumidores removidos.
+
+**2. Usuário reportou 2 problemas reais num screenshot do card "Qualidade da Geração"**: (a) data mostrada em formato americano ("08/05" pra 5 de agosto, deveria ser "05/08"); (b) "última geração completa" mostrando 26,67 kWh quando o valor real de ontem (07/08) era 31,5 kWh.
+
+**Causa raiz de (a)**: `hydrate-onda5-qualidade-geracao.js`, `const [dd,mm] = data.split('-').slice(1)` — nomes de variável invertidos (split de `YYYY-MM-DD` dá `[mes,dia]`, não `[dia,mes]`), o template `${dd}/${mm}` montava mês/dia sem perceber. Corrigido: `[mm,dd]`.
+
+**Causa raiz de (b)**: exatamente o gap de sincronização já documentado (06/08 e 07/08 faltando em `energia_solar_geracao_diaria`, porque o código que escreve lá só nasceu no dia da sessão). O dado real já existia em `wallace_dados.SOLAR_GERACAO_DIARIA` (V1): `07/08=31,54 kWh` (bate com o relato do usuário), `06/08=24,38 kWh`. Preenchidos na V2 com esses valores reais (não fabricados — cópia de dado já capturado), preservando `capturadoEm` original como `created_at`.
+
+**3. Nova diretriz do usuário, duas frentes**: (1) UX de frescor pro card Solar — "captado às 12:40" não é útil operacionalmente, quer relativo ("há 3 minutos" / cores por faixa); (2) atacar a pendência antiga de legendas dinâmicas — texto de negócio parametrizado/computado deve vir de `legendas` (Supabase), não hardcoded em JS.
+
+**4. Achado ao investigar a fonte do timestamp pro frescor**: `energia_solar_geracao_diaria.created_at` **não reflete atualização**, só a 1ª inserção do dia — upsert via PostgREST `Prefer: resolution=merge-duplicates` só sobrescreve as colunas do payload (`data`,`geracao_kwh`), nunca `created_at`. Provado ao vivo: `geracao_kwh` mudou 3x (`27.38`→`27.77`→`29.25`, robô rodando normal) enquanto `created_at` ficou congelado 155min. Corrigido antes de construir qualquer UX em cima: coluna `atualizado_em` + trigger `BEFORE INSERT OR UPDATE` (`marcar_atualizado_em()`, genérico, funciona com qualquer payload parcial) em `energia_solar_geracao_diaria` E `cotacoes_acoes`. Validado: o trigger já disparou num run real do robô durante a sessão (`atualizado_em` mudou, `created_at` não).
+
+**5. Proposta apresentada e aprovada integralmente** ("aprovo a implementação completa da Fase 1... quero executar tudo de uma vez"): usuário pediu 5 entregas específicas, todas executadas:
+   - **Frescor**: 4 faixas (✅<15min / 🟡<2h / ⚠️<24h / 🔴≥24h), limites em `indicadores` (`SOLAR_FRESCOR_LIMITES - minutosVerde/Amarelo/Laranja`, mesmo padrão ROC/Solar), badge recalcula sozinho a cada 60s (`setInterval`), baseado em `atualizado_em` (não `created_at`).
+   - **Infraestrutura de legendas dinâmicas**: `formatarLegenda(id, valores)` — placeholders `{chave}`, substituição simples, 100% retrocompatível (nenhum dos 28 registros antigos usa `{}`). `formatarFrescor(timestamp, limites)` retorna só dados (faixa/emoji/tempo/cor) — a frase fica em `legendas`, nunca hardcoded. `montarBadgeFrescor(idBase, timestamp, limites)` junta os dois, escolhendo `idBase+Faixa` (ex: `legFrescorSolarVerde`) com fallback genérico se a legenda não existir ainda.
+   - **Migração Fase 1**: Solar (`legQgHojeParcial` parametrizado com `{hora}`, `legQgSemLeituraHoje`, badge de frescor novo `#qgFrescor`) + Cotações (`legOpcoesCotacoes` trocou horário absoluto por `montarBadgeFrescor`, `legOpcoesOtmItm` migrada de brinde por estar no mesmo ponto de código). 13 legendas novas inseridas (28→41 registros em `legendas`).
+   - **Escopo contido**: só os pontos pedidos (Solar + Cotações), nenhuma varredura geral do resto do frontend.
+   - **Documentação**: este bloco + `ESTADO_ATUAL.md` reescrito.
+
+**6. Verificação**: preview local recarregado, console sem erro nos 4 arquivos tocados (`app.js`, `hydrate-onda5-qualidade-geracao.js`, `hydrate-roc.js`, `Sistema_Wallace_Lira_Completo.html`). **Achado avulso, fora do escopo, não corrigido**: erros de console pré-existentes em `hydrate-onda4-patrimonio.js`/`hydrate-onda4-investimentos.js` (`Cannot read properties of null/undefined`) — não relacionados a nenhuma mudança desta sessão, registrados pra investigação futura.
+
+**7. Pendente pro próximo passo desta mesma sessão**: commit + push (banco já ativo em produção — trigger, coluna, legendas — só falta o site consumir).
+
 ## Bloco 24 — Correção do gap SAJ validada com prova real + próximo consumidor (`ACOES_COTACOES`) executado (08/08/2026, continuação do Bloco 23)
 
 **1. Validação do commit `26315fc`**: usuário pediu prova objetiva, não inferência. Como o cron externo (~10min) ainda não tinha rodado com o código novo, usuário disparou o workflow manualmente pela UI do GitHub (`workflow_dispatch`). Confirmado via API: run `31270756547`, `head_sha=26315fc`, `conclusion:success`. `energia_solar_leituras` (leitura de 07/08, id `6fe3ba5d-ad12-423b-8fd4-cc943fb44e34`): `geracao_acumulada` saiu de `NULL` pra `446.07`. Investigação SAJ encerrada em definitivo.

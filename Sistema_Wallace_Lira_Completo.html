@@ -1062,6 +1062,7 @@
         <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Desempenho (vs. média)</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgPercentual">—</div></div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600" id="qgStatus">—</div>
+      <div style="font-size:0.72rem;font-weight:600;margin-top:0.4rem" id="qgFrescor">—</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
     </div>
 
@@ -1766,7 +1767,7 @@ var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // em paralelo. Domínio Solar é V2-exclusivo: se falhar/offline, window.WALLACE_SOLAR_GERACAO_DIARIA_V2
 // fica null e app.js NÃO cai pro SOLAR_GERACAO_DIARIA do wallace_dados (proibido fallback silencioso).
 window.WALLACE_SOLAR_GERACAO_DIARIA_V2 = null;
-var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_geracao_diaria?select=data,geracao_kwh,created_at&order=data.asc', {
+var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_geracao_diaria?select=data,geracao_kwh,created_at,atualizado_em&order=data.asc', {
   headers: {
     'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
     'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'

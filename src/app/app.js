@@ -628,6 +628,10 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_GERACAO_D
     data: r.data,
     kwh: Number(r.geracao_kwh),
     capturadoEm: r.created_at || null,
+    // NOVO 08/08/2026 (badge de frescor): atualizado_em (via trigger BEFORE INSERT OR UPDATE) —
+    // ao contrário de created_at (congela na 1a insercao do dia), reflete SEMPRE a ultima gravacao
+    // real do robo, mesmo em execucoes subsequentes no mesmo dia via upsert parcial.
+    atualizadoEm: r.atualizado_em || null,
   }));
 } else {
   console.error('Solar V2: window.WALLACE_SOLAR_GERACAO_DIARIA_V2 indisponível — domínio é V2-exclusivo, sem fallback silencioso pro SOLAR_GERACAO_DIARIA do wallace_dados.');
@@ -668,6 +672,68 @@ if(typeof window !== 'undefined' && window.WALLACE_LEGENDAS_REMOTAS){
   VARS.LEGENDAS = Object.assign({}, VARS.LEGENDAS, window.WALLACE_LEGENDAS_REMOTAS);
 }
 Object.freeze(VARS.LEGENDAS);
+
+// NOVO 08/08/2026 (infraestrutura de legendas dinâmicas + frescor, pedido do usuário): 3 helpers
+// globais, mesmo espírito de marcarIndisponivelV2 — reutilizáveis por qualquer módulo, sem duplicar
+// lógica de formatação de data/hora relativa.
+
+// "3 minutos" / "2 horas" / "1 dia" — nunca "3 minuto" nem "1 horas" (singular/plural corretos).
+function formatarTempoRelativo(timestampISO){
+  if(!timestampISO) return null;
+  const diffMs = Date.now() - new Date(timestampISO).getTime();
+  const minutos = Math.max(0, Math.round(diffMs / 60000));
+  if(minutos < 1) return 'agora mesmo';
+  if(minutos < 60) return `${minutos} minuto${minutos===1?'':'s'}`;
+  const horas = Math.round(minutos / 60);
+  if(horas < 24) return `${horas} hora${horas===1?'':'s'}`;
+  const dias = Math.round(horas / 24);
+  return `${dias} dia${dias===1?'':'s'}`;
+}
+
+// Classifica o frescor de um timestamp em 4 faixas — retorna só os DADOS (emoji/tempo/faixa/cor),
+// nunca a frase pronta: a frase é texto de negócio, vem de VARS.LEGENDAS via formatarLegenda()
+// (pedido explícito do usuário — nada de sentença hardcoded aqui). `limites` = {minutosVerde,
+// minutosAmarelo,minutosLaranja}, tipicamente vindo de `indicadores` (mesmo padrão de
+// ROC_STATUS_LIMITES/SOLAR_STATUS_LIMITES — editável sem redeploy). Sem limites, usa 15min/2h/24h.
+function formatarFrescor(timestampISO, limites){
+  if(!timestampISO) return { faixa:'semDado', emoji:'—', tempo:null, cor:'var(--text-dim)' };
+  const minutos = Math.round((Date.now() - new Date(timestampISO).getTime()) / 60000);
+  const tempo = formatarTempoRelativo(timestampISO);
+  const { minutosVerde=15, minutosAmarelo=120, minutosLaranja=1440 } = limites || {};
+  if(minutos <= minutosVerde) return { faixa:'verde', emoji:'✅', tempo, cor:'#34c98a' };
+  if(minutos <= minutosAmarelo) return { faixa:'amarelo', emoji:'🟡', tempo, cor:'#e8a63a' };
+  if(minutos <= minutosLaranja) return { faixa:'laranja', emoji:'⚠️', tempo, cor:'#e2884f' };
+  return { faixa:'vermelho', emoji:'🔴', tempo, cor:'#e2554f' };
+}
+
+// Junta formatarFrescor()+formatarLegenda(): escolhe a legenda certa pela faixa (ex: idBase
+// "legFrescorSolar" -> procura "legFrescorSolarVerde"/"...Amarelo"/"...Laranja"/"...Vermelho"/
+// "...SemDado" em VARS.LEGENDAS) e substitui {emoji}/{tempo}/{minutos}. Se a legenda daquela faixa
+// não existir no Supabase ainda, cai num texto genérico (nunca quebra a tela por falta de linha
+// na tabela `legendas`).
+function montarBadgeFrescor(idBase, timestampISO, limites){
+  const f = formatarFrescor(timestampISO, limites);
+  const sufixo = f.faixa.charAt(0).toUpperCase() + f.faixa.slice(1);
+  const idLegenda = idBase + sufixo;
+  const valores = { emoji: f.emoji, tempo: f.tempo, minutos: f.tempo };
+  const texto = formatarLegenda(idLegenda, valores)
+    || (f.faixa === 'semDado' ? 'Sem dado ainda' : `${f.emoji} Última atualização há ${f.tempo}`);
+  return { texto, cor: f.cor };
+}
+
+// Templating simples pra VARS.LEGENDAS: substitui {chave} por valor. Sem `valores`, ou se nenhum
+// placeholder existir no texto, comportamento é idêntico a VARS.LEGENDAS[id] direto — 100%
+// compatível com os registros existentes (nenhum usa chaves {} hoje).
+function formatarLegenda(id, valores){
+  let texto = VARS.LEGENDAS ? VARS.LEGENDAS[id] : null;
+  if(texto == null) return null;
+  if(valores){
+    for(const [chave, valor] of Object.entries(valores)){
+      texto = texto.replaceAll(`{${chave}}`, valor);
+    }
+  }
+  return texto;
+}
 
 const CICLO_LISTA = Object.keys(VARS.CICLO_SNAPSHOTS); // ordem de insercao = ordem cronologica
 

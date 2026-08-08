@@ -63,16 +63,26 @@ async function aplicarOnda5QualidadeGeracao(){
   const media = baseComparacao.length ? Math.round((baseComparacao.reduce((s,r)=>s+r.kwh,0) / baseComparacao.length) * 100) / 100 : null;
 
   let limiteBaixo, limiteAlto;
+  let limitesFrescor;
   try {
-    const [indBaixo, indAlto] = await Promise.all([
+    const [indBaixo, indAlto, indVerde, indAmarelo, indLaranja] = await Promise.all([
       WallaceFinanceService.getIndicador('SOLAR_STATUS_LIMITES - abaixoAte'),
       WallaceFinanceService.getIndicador('SOLAR_STATUS_LIMITES - acimaApartirDe'),
+      WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosVerde'),
+      WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosAmarelo'),
+      WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosLaranja'),
     ]);
     limiteBaixo = indBaixo ? Number(indBaixo.valor) : 85;
     limiteAlto = indAlto ? Number(indAlto.valor) : 115;
+    limitesFrescor = {
+      minutosVerde: indVerde ? Number(indVerde.valor) : 15,
+      minutosAmarelo: indAmarelo ? Number(indAmarelo.valor) : 120,
+      minutosLaranja: indLaranja ? Number(indLaranja.valor) : 1440,
+    };
   } catch(err){
-    console.warn('Onda5QualidadeGeracao: falha ao buscar limites em indicadores — usando padrão 85/115.', err);
+    console.warn('Onda5QualidadeGeracao: falha ao buscar limites em indicadores — usando padrão.', err);
     limiteBaixo = 85; limiteAlto = 115;
+    limitesFrescor = { minutosVerde: 15, minutosAmarelo: 120, minutosLaranja: 1440 };
   }
 
   let percentual = null, status = null;
@@ -89,12 +99,31 @@ async function aplicarOnda5QualidadeGeracao(){
     else { elStatus.textContent = '—'; elStatus.style.color = ''; }
   }
 
+  // NOVO 08/08/2026 (legendas dinâmicas, pedido do usuário): texto vem de VARS.LEGENDAS
+  // (legQgHojeParcial/legQgSemLeituraHoje), não mais hardcoded aqui — {hora} é o único placeholder
+  // necessário pra esse texto.
   if(elAviso){
     const capturado = registroHoje && registroHoje.capturadoEm ? new Date(registroHoje.capturadoEm) : null;
-    const horaTxt = capturado ? capturado.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}) : null;
+    const horaTxt = capturado ? capturado.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}) : '—';
     elAviso.textContent = registroHoje
-      ? `"Hoje até agora" é parcial${horaTxt?' (captado às '+horaTxt+', horário de Brasília)':''} — o dia ainda não terminou, por isso não recebe selo de status; o selo acima usa sempre o último dia JÁ FECHADO. Produção por hora e previsão intradiária ainda não existem no sistema (o robô só registra o total acumulado do dia).`
-      : 'Ainda sem leitura de hoje — o selo acima usa o último dia já fechado.';
+      ? formatarLegenda('legQgHojeParcial', { hora: horaTxt })
+      : formatarLegenda('legQgSemLeituraHoje');
+  }
+
+  // NOVO 08/08/2026 (badge de frescor, pedido do usuário): baseado em atualizado_em (não
+  // created_at — ver achado da sessão), reflete a última gravação real do robô, não a primeira do
+  // dia. Recalcula sozinho a cada 60s, senão "há 3 minutos" vira mentira sem o usuário recarregar.
+  const elFrescor = $('qgFrescor');
+  if(elFrescor){
+    const timestampFrescor = registroHoje ? registroHoje.atualizadoEm : (diaReferencia ? diaReferencia.atualizadoEm : null);
+    const renderizarFrescor = () => {
+      const badge = montarBadgeFrescor('legFrescorSolar', timestampFrescor, limitesFrescor);
+      elFrescor.textContent = badge.texto;
+      elFrescor.style.color = badge.cor;
+    };
+    renderizarFrescor();
+    if(window.__wallaceFrescorSolarInterval) clearInterval(window.__wallaceFrescorSolarInterval);
+    window.__wallaceFrescorSolarInterval = setInterval(renderizarFrescor, 60000);
   }
 
   window.WALLACE_ONDA5_QUALIDADE_GERACAO_RELATORIO = {

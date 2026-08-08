@@ -161,15 +161,38 @@ function hydrateROC(){
       const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
       return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
-    // Legenda com o horário da última atualização das cotações (transparência sobre a idade do dado)
+    // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
+    // absoluto fixo por frescor relativo (montarBadgeFrescor), recalculado a cada 60s. hydrateROC()
+    // não é async — os limites (indicadores) são buscados numa IIFE à parte, sem bloquear o resto
+    // do hydrate; a legenda fixa de OTM/ITM (legOpcoesOtmItm) permanece de VARS.LEGENDAS sem troca.
     const legCotacoesEl = $('legOpcoesCotacoes');
     if(legCotacoesEl){
-      if(VARS.ACOES_COTACOES_ATUALIZADO_EM){
-        const dt = new Date(VARS.ACOES_COTACOES_ATUALIZADO_EM);
-        legCotacoesEl.textContent = `Cotações via brapi.dev, atualizadas automaticamente às 15h em dias úteis · última atualização: ${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} · OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)`;
-      } else {
-        legCotacoesEl.textContent = 'OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)';
-      }
+      const otmItmTxt = formatarLegenda('legOpcoesOtmItm') || 'OTM = fora do dinheiro (put vira pó, bom pro vendedor) · ITM = dentro do dinheiro (risco de exercício)';
+      (async () => {
+        let limitesFrescor;
+        try {
+          const [indVerde, indAmarelo, indLaranja] = await Promise.all([
+            WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosVerde'),
+            WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosAmarelo'),
+            WallaceFinanceService.getIndicador('SOLAR_FRESCOR_LIMITES - minutosLaranja'),
+          ]);
+          limitesFrescor = {
+            minutosVerde: indVerde ? Number(indVerde.valor) : 15,
+            minutosAmarelo: indAmarelo ? Number(indAmarelo.valor) : 120,
+            minutosLaranja: indLaranja ? Number(indLaranja.valor) : 1440,
+          };
+        } catch(err){
+          console.warn('hydrateROC: falha ao buscar limites de frescor em indicadores — usando padrão.', err);
+          limitesFrescor = { minutosVerde: 15, minutosAmarelo: 120, minutosLaranja: 1440 };
+        }
+        const renderizarFrescorCotacoes = () => {
+          const badge = montarBadgeFrescor('legFrescorCotacoes', VARS.ACOES_COTACOES_ATUALIZADO_EM, limitesFrescor);
+          legCotacoesEl.textContent = `${badge.texto} · ${otmItmTxt}`;
+        };
+        renderizarFrescorCotacoes();
+        if(window.__wallaceFrescorCotacoesInterval) clearInterval(window.__wallaceFrescorCotacoesInterval);
+        window.__wallaceFrescorCotacoesInterval = setInterval(renderizarFrescorCotacoes, 60000);
+      })();
     }
     // CORRIGIDO 03/08/2026 (pedido do usuario - "a operação que venceu se move automaticamente pra
     // uma linha abaixo só de vencidas"): antes a posição vencida só era citada em texto solto
