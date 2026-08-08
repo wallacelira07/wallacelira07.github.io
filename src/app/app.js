@@ -812,6 +812,13 @@ function hydrate(){
   hydrateMetas(); // MODULARIZAÇÃO 07/08/2026: seções 12/13 (Consórcio Casa Nova / Projeto Casa Nova) + badges de metas do Resumo Executivo extraídos pra src/modules/hydrate-metas.js — mesma sequência (inclui a chamada hydrateROC() no meio), nenhum id/fórmula alterado.
 
   hydrateBalanco(); // MODULARIZAÇÃO 07/08/2026: Balanço Patrimonial completo (última seção do hydrate()) extraído pra src/modules/hydrate-balanco.js — inclui a chamada hydrateIndicadores() no meio, mesma sequência, nenhum id/fórmula alterado. hydrate() esgotado.
+
+  // ONDA 1 — MIGRAÇÃO V2 → PAINEL (08/08/2026): roda DEPOIS de todo o hydrate V1 acima já ter
+  // escrito seus valores (precisa deles como referência pra comparação). Assíncrona (fetch a
+  // vw_saldo_v2_por_caixa) — sobrescreve só 4 ids (Boletos/PIX Vanessa/Caixa Variável saldoReal/
+  // Mastercard-Infinite) quando a resposta chegar, com fallback automático pro valor V1 já
+  // escrito acima se o fetch falhar. Rollback: comentar esta linha. Ver hydrate-onda1-v2.js.
+  aplicarOnda1V2();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
@@ -876,6 +883,23 @@ const WallaceFinanceService = {
       body:'{}'
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 08/08/2026 (Onda 1 da migração V2 → Painel): saldo por caixa via vw_saldo_v2_por_caixa —
+  // NÃO usar rpc_dashboard_resumo().caixas[].saldo pra isso (achado ao vivo: soma TODA transação
+  // da caixa sem filtro de ciclo/afeta_saldo_real, valor errado pra Boletos/Variável) nem
+  // saldo_real_ciclo_atual da mesma RPC (diverge pra PIX Vanessa, ~R$122 de diferença). Esta view
+  // é a mesma usada e validada a sessão inteira em PLANO_UNIFICACAO_V1_V2.md — v2_saldo_calculado
+  // bate exato com vw_reconciliacao_v1_v2 pras 4 caixas já sincronizadas.
+  async getSaldosPorCaixa(){
+    const chave = 'vw_saldo_v2_por_caixa';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;

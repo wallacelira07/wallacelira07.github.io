@@ -1,0 +1,71 @@
+// MÓDULO: Onda 1 da migração V2 → Painel (08/08/2026) — leitura paralela V1×V2 para os
+// 4 cards já reconciliados (Caixa Mastercard/Infinite, Caixa Variável [saldo real],
+// PIX Vanessa, Caixa Boletos). NÃO remove nem altera a lógica V1 — hydrateCaixas()/
+// hydrateResumoP2P()/hydrateBalanco() continuam 100% intactas, calculando e escrevendo
+// o valor V1 normalmente. Esta função roda DEPOIS delas, dentro de hydrate() (app.js),
+// e SOBRESCREVE o texto desses 4 ids com o valor vindo de vw_saldo_v2_por_caixa (V2),
+// depois de comparar e logar qualquer divergência no console.
+//
+// Rollback imediato: comentar a chamada aplicarOnda1V2() em app.js (hydrate()) — o V1
+// volta a ser o único valor exibido, nenhum outro arquivo precisa mudar.
+//
+// Client único: usa WallaceFinanceService (definido em app.js) — já é a consolidação
+// da API pública de src/services/FinanceService.js feita numa sessão anterior (ver
+// comentário em app.js, bloco "WallaceFinanceService"). Não importa FinanceService.js
+// (ES module) diretamente porque app.js é script clássico com onclick= inline no HTML —
+// virar type="module" quebraria todos eles, risco fora do escopo desta onda.
+//
+// Fonte V1 pra comparação: lida direto de REG/VARS (mesma fonte que hydrateCaixas/
+// hydrateResumoP2P/hydrateBalanco já usaram pra escrever o valor original) — não faz
+// parsing de texto do DOM (frágil, formato "R$ 1.234,56").
+//
+// Fonte V2: vw_saldo_v2_por_caixa (via WallaceFinanceService.getSaldosPorCaixa()) — NÃO
+// rpc_dashboard_resumo(). Achado ao vivo (08/08/2026): o campo "saldo" da RPC soma toda
+// transação da caixa sem filtro de ciclo/afeta_saldo_real (dava -1.802,00 pra Boletos em
+// vez de 1.488,42); o campo "saldo_real_ciclo_atual" da mesma RPC diverge pra PIX Vanessa
+// (180,91 em vez de 302,88). A view usada aqui é a mesma validada a sessão inteira contra
+// vw_reconciliacao_v1_v2 — bate exato pras 4 caixas antes de qualquer código rodar.
+const ONDA1_V2_MAPA = [
+  { idHtml: 'cxBoletosSaldo', caixaNome: 'Caixa Boletos', getValorV1: () => REG.caixasOperacionais.boletos.saldo },
+  { idHtml: 'cxPixSaldo', caixaNome: 'PIX Vanessa', getValorV1: () => REG.caixasOperacionais.pixVanessa.saldo },
+  { idHtml: 'cvSaldoReal', caixaNome: 'Caixa Variável', getValorV1: () => REG.caixaVariavel.saldoReal },
+  { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
+];
+
+async function aplicarOnda1V2(){
+  let saldosV2;
+  try {
+    saldosV2 = await WallaceFinanceService.getSaldosPorCaixa();
+  } catch(err){
+    console.error('Onda1V2: falha ao buscar vw_saldo_v2_por_caixa — mantendo V1 nos 4 cards (fallback automático).', err);
+    return;
+  }
+  if(!Array.isArray(saldosV2)){
+    console.warn('Onda1V2: resposta inesperada de vw_saldo_v2_por_caixa — mantendo V1 nos 4 cards.');
+    return;
+  }
+  const relatorio = [];
+  ONDA1_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1}) => {
+    const el = $(idHtml);
+    if(!el){ console.warn(`Onda1V2: id "${idHtml}" não encontrado no DOM, ignorado.`); return; }
+    const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
+    if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
+      console.warn(`Onda1V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
+      return;
+    }
+    let valorV1;
+    try { valorV1 = Math.round(getValorV1() * 100) / 100; }
+    catch(err){ console.warn(`Onda1V2: falha ao ler valor V1 de referência pra "${caixaNome}", comparação pulada.`, err); valorV1 = null; }
+    const valorV2 = Math.round(Number(caixaV2.v2_saldo_calculado) * 100) / 100; // PostgREST serializa numeric como string
+    const diverge = valorV1 !== null && Math.abs(valorV1 - valorV2) > 0.01;
+    relatorio.push({ caixa: caixaNome, v1: valorV1, v2: valorV2, diverge, diferenca: valorV1 !== null ? Math.round((valorV1 - valorV2)*100)/100 : null });
+    if(diverge){
+      console.warn(`Onda1V2 [${caixaNome}]: V1=${fmt(valorV1)} × V2=${fmt(valorV2)} — DIVERGE R$${Math.abs(valorV1-valorV2).toFixed(2)}`);
+    } else {
+      console.log(`Onda1V2 [${caixaNome}]: V1×V2 batem (${fmt(valorV2)}) — exibindo V2.`);
+    }
+    el.textContent = fmt(valorV2);
+  });
+  window.WALLACE_ONDA1_V2_RELATORIO = relatorio; // inspecionável no console: WALLACE_ONDA1_V2_RELATORIO
+  console.log('Onda1V2: relatório completo em window.WALLACE_ONDA1_V2_RELATORIO', relatorio);
+}

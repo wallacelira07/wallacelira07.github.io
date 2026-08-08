@@ -1,8 +1,9 @@
 $root = (Resolve-Path "$PSScriptRoot\..").Path
+$port = if ($env:PORT) { $env:PORT } else { 8081 }
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://localhost:8081/")
+$listener.Prefixes.Add("http://localhost:$port/")
 $listener.Start()
-Write-Host "Serving $root on http://localhost:8081/"
+Write-Host "Serving $root on http://localhost:$port/"
 
 $mime = @{
   ".html" = "text/html"; ".js" = "application/javascript"; ".css" = "text/css";

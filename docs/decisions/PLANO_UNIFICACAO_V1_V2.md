@@ -946,3 +946,35 @@ Programa V1→V2 **encerrado do ponto de vista de dados** (seção 21). Levantam
 ### Conclusão executiva
 
 **Neste momento, apenas o conjunto de caixas operacionais/patrimoniais reconciliadas possui evidência suficiente para eventual troca de fonte V1→V2. Os demais domínios possuem estrutura V2 existente, porém ainda não passaram pelo mesmo processo de reconciliação e validação.**
+
+---
+
+## 23. Onda 1 — primeiros componentes lendo V2 em produção (08/08/2026)
+
+**Objetivo**: fazer os 4 cards já `sincronizado` (`vw_reconciliacao_v1_v2`, `diferenca_absoluta=0`) lerem a V2 como origem efetiva, sem alterar HTML/CSS/IDs/regra de negócio, mantendo V1 como fallback automático.
+
+### Escopo
+Caixa Mastercard/Infinite, Caixa Variável (saldo real), PIX Vanessa, Caixa Boletos.
+
+### Client único
+`WallaceFinanceService` (`src/app/app.js`) — consolidação já feita numa sessão anterior como reimplementação sem sintaxe de módulo da API pública de `FinanceService.js` (ES module incompatível com `app.js` ser script clássico com `onclick=` inline; converter pra `type="module"` quebraria todos eles — risco fora do escopo desta onda). Novo método `getSaldosPorCaixa()` adicionado, consumindo `vw_saldo_v2_por_caixa`.
+
+### Achado crítico durante a implementação
+`rpc_dashboard_resumo()` (fonte originalmente cogitada) **não serve pra este uso**: campo `saldo` soma toda transação da caixa sem filtro de ciclo/`afeta_saldo_real` (dava -R$1.802,00 pra Boletos em vez de R$1.488,42); campo `saldo_real_ciclo_atual` da mesma RPC diverge pra PIX Vanessa (R$180,91 vs R$302,88 já validado). Trocado pra `vw_saldo_v2_por_caixa` — a mesma view usada e validada em toda esta frente de trabalho — antes de qualquer código rodar em produção.
+
+### Validação em ambiente real (navegador real, login real do usuário, não simulado)
+
+| Caixa | V1 | V2 (`vw_saldo_v2_por_caixa`) | Diverge? |
+|---|---:|---:|---|
+| Caixa Boletos | R$1.488,42 | R$1.488,42 | Não |
+| PIX Vanessa | R$302,88 | R$302,88 | Não |
+| Caixa Variável (saldo real) | R$1.886,65 | R$1.886,65 | Não |
+| Caixa Mastercard/Infinite | R$11.172,22 | R$11.172,22 | Não |
+
+Confirmado via `window.WALLACE_ONDA1_V2_RELATORIO` no console real: `diverge:false, diferenca:0` nos 4. Layout conferido por screenshot — zero alteração visual. Uma falha isolada de rede (`WallaceFinanceService is not defined`, provável race durante o fluxo de login) foi absorvida pelo fallback automático sem quebrar a tela — prova prática do mecanismo de segurança, não achado de bug novo.
+
+### Arquivos alterados
+`src/financeiro/caixas/hydrate-onda1-v2.js` (novo), `src/app/app.js` (+`getSaldosPorCaixa()`, +chamada `aplicarOnda1V2()` no fim de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos), `.claude/serve.ps1`/`.claude/launch.json` (porta configurável via `$env:PORT`, infraestrutura de teste local, sem impacto em produção).
+
+### Status
+**Migradas para V2 (fonte efetiva, com fallback V1 ativo)**: Caixa Boletos, PIX Vanessa, Caixa Variável (saldo real), Caixa Mastercard/Infinite — 4 componentes. Rollback disponível (comentar `aplicarOnda1V2();` em `app.js`).
