@@ -1061,6 +1061,21 @@
 
     <div class="section-num"><span class="n">10</span><h2>☀️ Unidade Geradora (Casa da Mãe)</h2></div>
 
+    <!-- NOVO 08/08/2026: "Qualidade da geração" - card separado do crédito/rateio (que continua
+    pendente de validação conceitual, ver PLANO_UNIFICACAO_V1_V2.md). Objetivo único: responder "hoje
+    a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL,
+    rateio). Ver hydrate-onda5-qualidade-geracao.js. -->
+    <div class="card" style="border-left:3px solid var(--amber);margin-bottom:1rem">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.6rem">☀️ Como a usina está indo</div>
+      <div class="grid-3">
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Hoje até agora</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgProducaoHoje">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)" id="qgLabelReferencia">Último dia completo</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgMediaHistorica">—</div></div>
+        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Desempenho (vs. média)</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgPercentual">—</div></div>
+      </div>
+      <div style="margin-top:0.6rem;font-weight:600" id="qgStatus">—</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
+    </div>
+
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
 
@@ -1593,6 +1608,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/operacional/hydrate-onda4-wartsila.js',
   'src/financeiro/livros-razao/hydrate-onda5-parcelamentos.js',
   'src/financeiro/investimentos/hydrate-onda5-p2p.js',
+  'src/solar/hydrate-onda5-qualidade-geracao.js',
   'src/financeiro/patrimonio/hydrate-patrimonio.js',
   'src/financeiro/indicadores/hydrate-indicadores.js',
   'src/financeiro/operacional/hydrate-metas.js',

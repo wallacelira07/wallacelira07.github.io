@@ -1479,14 +1479,43 @@ FROM public.indicadores WHERE nome LIKE 'P2P - %';
 
 **8. Rollback**: comentar `aplicarOnda5P2P();` em `app.js`.
 
+**Achado técnico registrado, não corrigido** (baixo impacto, zero divergência visível hoje): `VARS.livroLRP`/`totalOpProvMP` são recalculados de forma síncrona no boot, antes do módulo assíncrono de Parcelamentos trocar os arrays por V2 — a fiação downstream ainda reflete o valor do momento do boot, não literalmente "ao vivo" da V2. Corrigir exigiria re-disparar parte da cadeia de `recalcularAgregadosDerivados()`, fora do escopo desta rodada.
+
 ---
 
-## Status da Onda 5 (08/08/2026)
+## 38. Investigação Solar — 301×361 kWh: fórmula validada mas origem não localizável; achado real na saúde da coleta (08/08/2026)
 
-| Domínio | Status |
-|---|---|
-| 1. Parcelamentos (LRP/LRMP) | ✅ Migrado |
-| 2. P2P | ✅ Migrado |
-| 3. Mastercard Black/Visa | ⛔ Bloqueado — acoplado a reconciliação bancária manual + gap de classificação já documentado (seção 35) |
+**Contexto**: usuário pediu prova (não opinião) de qual conceito é correto pro rateio solar — Exportado (361 kWh) ou Saldo Líquido/Exportado−Importado (301 kWh). Regra: não alterar `saldoLiquidoAcum`/`creditoWallace`/`creditoIrma`/rateio até ter evidência externa (documento original ou fatura real).
 
-**Achado técnico registrado, não corrigido** (baixo impacto, zero divergência visível hoje): `VARS.livroLRP`/`totalOpProvMP` são recalculados de forma síncrona no boot, antes do módulo assíncrono de Parcelamentos trocar os arrays por V2 — a fiação downstream ainda reflete o valor do momento do boot, não literalmente "ao vivo" da V2. Corrigir exigiria re-disparar parte da cadeia de `recalcularAgregadosDerivados()`, fora do escopo desta rodada.
+**1. Fórmula atual** (inalterada): `saldoLiquido = leitura103 − leitura03` (`graficos-cenarios-lazy.js:985`, espelha `FinanceEngine.js:594-602`), é o que hoje alimenta o rateio Wallace 71%/Wellida 29% (confirmado em `ugResumo`, linha 1091 do HTML: *"é esse saldo que alimenta o rateio da seção 11"*).
+
+**2. Fluxo do painel**: o diagrama "Fluxo de energia" (HTML linhas 1088-1105) descreve narrativamente que **só a exportação vira crédito** (361), com a importação como evento posterior e separado ("à noite") — **contradiz** a fórmula realmente implementada (301).
+
+**3. Origem da fórmula, busca exaustiva**: `Base_Calculo_Rateio_Solar.md` (documento citado como fonte da fórmula, "seção 3") **não existe como arquivo** neste repositório nem na pasta de backup — foi colado direto numa sessão de chat antiga, nunca salvo em disco. Achado 2 corroborações independentes de que essa área nunca foi totalmente validada: `docs/decisions/MAPA_MIGRACAO_V2.md:95` já classificava esse rateio como 🔴 *"não extrair sem confirmar a fórmula real primeiro"*; `MAPA_CAMPOS_SUPABASE_VS_CODIGO.md:67` já marcava até o percentual do rateio (71/29) como *"não confirmado"*.
+
+**4. Conclusão**: **não alterado nenhum código de crédito/rateio.** Sem o documento original ou uma fatura Energisa real com a linha "crédito gerado no período", a dúvida 301×361 permanece formalmente em aberto — usuário concordou explicitamente em não autorizar a troca sem essa evidência.
+
+**Achado colateral, MAIS importante que a dúvida original**: ao investigar por que `energia_solar_geracao_diaria` (tabela V2 relacional) não tinha registro desde 05/08, descobri que **a coleta nunca parou** — o script `atualizar_geracao_saj.py` escreve em `wallace_dados.dados.SOLAR_GERACAO_DIARIA` (blob V1, é o que o frontend realmente lê via `VARS`), não na tabela V2. Confirmado via API pública do GitHub Actions: 9 execuções do orquestrador `executar_tudo.yml`, todas `success`, a mais recente coincidindo com dado real no blob até **08/08 14:40 UTC (11:40 BRT), mesmo dia desta sessão**. A tabela V2 simplesmente nunca foi mantida em sincronia — mesmo padrão de gap V1×V2 já documentado repetidas vezes neste plano (não é um problema novo, é o mesmo de sempre, desta vez no domínio solar).
+
+## 39. "Qualidade da geração" — indicador operacional novo, sem tocar em crédito/rateio (08/08/2026)
+
+**1. Objetivo**: responder "a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL, rateio) — domínio deliberadamente separado do crédito/rateio (seção 38, ainda pendente).
+
+**2. Dado usado — só o que existe de verdade (P1)**: `VARS.SOLAR_GERACAO_DIARIA` (já local, vem de `wallace_dados` via `Object.assign`, nenhum fetch novo). **Bloqueados, não fabricados**: produção por hora (robô só grava total do dia) e previsão intradiária (exigiria curva-modelo do formato do dia, inexistente).
+
+**Achado de design, corrigido antes de subir**: a primeira versão comparava a leitura de **hoje** (sempre parcial — robô roda 2x/dia) contra a média de dias inteiros, o que classificaria "abaixo do esperado" quase toda manhã mesmo em dia bom (falso alarme, testado mentalmente com o dado real: 12,26 kWh às 11h40 vs média de 24,77 → 49%, vermelho, enganoso). **Corrigido**: "hoje" é só exibido, nunca recebe selo de status; o selo (🔴/🟡/🟢) usa sempre o **último dia já fechado**, comparado à média dos dias completos anteriores a ele.
+
+**SQL criado**: 2 linhas em `indicadores` (mesmo padrão do `ROC_STATUS_LIMITES`, editável sem redeploy):
+```sql
+INSERT INTO public.indicadores (nome, valor, data_calculo) VALUES
+  ('SOLAR_STATUS_LIMITES - abaixoAte', 85, '2026-08-08'),
+  ('SOLAR_STATUS_LIMITES - acimaApartirDe', 115, '2026-08-08');
+```
+
+**3. Arquivos alterados**: `src/solar/hydrate-onda5-qualidade-geracao.js` (novo), `Sistema_Wallace_Lira_Completo.html` (+card novo "☀️ Como a usina está indo", topo da seção 10, antes de qualquer termo técnico), `src/app/app.js` (+chamada `aplicarOnda5QualidadeGeracao()`).
+
+**4-5. Validação com dado real (08/08/2026)**: referência = 07/08 (31,54 kWh, último dia fechado), base de comparação = 6 dias anteriores (23,39/24,42/21,96/21,01/26,67/24,38 → média 23,64 kWh/dia) → **133,4% → 🟢 Acima do esperado**. "Hoje até agora": 12,26 kWh, exibido sem selo, com aviso explícito de que é parcial.
+
+**6. Resultado**: card novo, aditivo, não altera nenhuma fórmula de crédito/rateio/financeira. Limites parametrizados em `indicadores`, prontos pra calibração futura.
+
+**7. Rollback**: comentar `aplicarOnda5QualidadeGeracao();` em `app.js`.

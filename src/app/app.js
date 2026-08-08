@@ -1080,6 +1080,11 @@ function hydrate(){
   // ONDA 5, domínio 2 — P2P: reaproveita recalcularP2P()/hydrateResumoP2P() (V1, inalteradas)
   // sobre dado vindo de `indicadores` (mesmo padrão do CDI). Ver hydrate-onda5-p2p.js.
   aplicarOnda5P2P();
+
+  // "Qualidade da geração" (08/08/2026) — card novo, SEPARADO do domínio de crédito/rateio solar
+  // (que continua pendente de validação, não tocado). Só responde "a usina está indo bem ou mal
+  // hoje", sem jargão técnico. Ver hydrate-onda5-qualidade-geracao.js.
+  aplicarOnda5QualidadeGeracao();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
