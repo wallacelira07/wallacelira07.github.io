@@ -2,6 +2,32 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 23 — Commit aprovado (SOLAR_GERACAO_DIARIA + ocultação Simulador) + investigação SAJ concluída com evidência completa (08/08/2026, continuação do Bloco 22)
+
+**1. Commit `e5f1348`**: usuário aprovou explicitamente os dois itens pendentes do corte anterior — religação de `SOLAR_GERACAO_DIARIA` na V2 e ocultação da seção 07 "Simulador Regulatório". Sem mudança de comportamento além do que já estava documentado no Bloco 22. `wallace_dados`: 30 consumidores removidos, ~54 restantes.
+
+**2. Investigação do gap SAJ, resposta às 6 perguntas do usuário, com evidência de código+banco+GitHub Actions API**: são dois problemas sem relação causal entre si.
+
+- **`energia_solar_leituras.geracao_acumulada` (V2) nunca teve escrita automática.** Lendo `atualizar_geracao_saj.py` inteiro: o robô só grava em `wallace_dados.SOLAR_LEITURAS[-1]` (V1) e, desde hoje, em `energia_solar_geracao_diaria` (tabela DIFERENTE, campo `geracao_kwh`). Nunca existiu, em nenhuma versão do script, uma escrita em `energia_solar_leituras`. Prova no banco (`execute_sql`): as 4 leituras com valor preenchido (31/07-04/08) têm `created_at` idêntico, `2026-08-05 20:54:33` — o instante exato do bootstrap da migração de ciclos solares (Bloco 20), valor copiado manualmente da V1 naquele momento, não por sincronização contínua. A leitura de 07/08 foi criada depois (`2026-08-08 04:20:37`, inserção manual dos códigos 03/103 novos) sem `geracao_acumulada`, porque não existe pipeline que preencheria esse campo automaticamente — nem existia antes, nem passou a existir agora.
+
+- **`energia_solar_geracao_diaria` (V2) tem gap real em 06/08 e 07/08, mas não por falha de execução.** GitHub Actions API (`api.github.com/.../actions/workflows/325176785/runs`, 239 execuções totais) mostra o workflow `atualizar_geracao_saj.yml` rodando A CADA ~10 MINUTOS, sem interrupção, durante 06/08 e 07/08 inteiros, 100% `conclusion: success`. O código que escreve em `energia_solar_geracao_diaria` (função `atualizar_v2_geracao_diaria()`) só nasceu no commit `1c515d7`, feito HOJE às 12:05 (horário de Brasília). Toda execução em 06-07/08 rodou o `actions/checkout` no HEAD daquele momento — uma versão do script anterior ao commit, sem esse código. Confirmado cruzando o `head_commit` de uma execução específica (`91bf9de`, "Create CNAME", 07/08) contra a data do commit `1c515d7` — a run é ~29h mais antiga que o código que faltou. Não é bug de sincronização, é ausência de funcionalidade nos dias anteriores à criação dela. Já sanado sozinho: a run de 08/08 15:40 UTC (minutos após o commit) gravou o dia corretamente.
+
+- **Achado colateral, não pedido, reportado sem correção**: o workflow standalone está disparando a cada ~10min (~144x/dia), não 2x/dia como o próprio comentário do script ainda afirma. Não investigada a origem (provavelmente configuração do cron-job.org) — fora do escopo desta pergunta, fica registrado pra decisão futura.
+
+**Nada corrigido** — só investigação, por instrução explícita do usuário (proibiu workaround/fallback/cópia manual antes de entender a causa).
+
+## Bloco 22 — Corte por troca de agente (créditos no fim) — investigação concluída, não reportada; commit pendente (08/08/2026, mesma sessão, continuação do Bloco 21)
+
+**Contexto do corte**: usuário pediu passagem de turno no meio de duas tarefas simultâneas — (1) remover seção 07 "Simulador Regulatório" da interface da aba Solar (feito, código intacto, só `display:none`) e (2) investigar por que a aba Solar mostra "Dados insuficientes para calcular consumo direto/autoconsumo/dependência".
+
+**Investigação concluída com evidência real, NÃO reportada ao usuário ainda** (próxima sessão deve entregar isso primeiro): consultei `energia_solar_leituras` direto no Supabase — a leitura mais recente (`data='2026-08-07'`) tem `geracao_acumulada = NULL` na V2, enquanto a mesma leitura em `wallace_dados.SOLAR_LEITURAS` (V1) tem `geracaoAcumulada: 437.83`. Leituras anteriores (08-04, 08-02) estão corretas na V2. Causa raiz: gap de sincronização do robô Python pra leitura mais recente — mesma classe do gap já achado em `energia_solar_geracao_diaria` (dias 06-07/08 faltando). Frontend/query/mapeamento estão TODOS corretos — não é bug de código, é dado ausente na origem V2. Não corrigido (usuário pediu causa raiz antes de qualquer correção, e proibiu fallback/workaround/mascaramento).
+
+**Trabalho de código feito, NÃO commitado**: `SOLAR_GERACAO_DIARIA` religado na V2 (mesmo padrão de `SOLAR_LEITURAS`/`cartoes` — fetch paralelo no HTML + override em `app.js`) e seção 07 "Simulador Regulatório" ocultada da aba Solar (`display:none`, código/markup intactos, pedido explícito — "não agrega valor operacional, é teórico"). `git status` no corte: `Sistema_Wallace_Lira_Completo.html` (modificado 2x, staged+unstaged), `app.js`, + os 2 arquivos de changelog. **Usuário não deu "pode commitar" pra este pacote** — a religação de `SOLAR_GERACAO_DIARIA` tinha uma pergunta em aberto (o gap de sync 06-07/08) que o usuário quis investigar antes de aprovar o commit; a investigação terminou mas a resposta nunca chegou a ele por causa do corte.
+
+**Próxima sessão, em ordem**: (1) reportar a investigação acima ao usuário nestes termos exatos; (2) mostrar o diff de `SOLAR_GERACAO_DIARIA` + ocultação do Simulador; (3) só commitar com aprovação explícita nova, não assumir a aprovação anterior da religação como válida pra esse pacote específico (o usuário pediu a investigação ANTES de aprovar).
+
+---
+
 ## Bloco 21 — SOLAR_GERACAO_DIARIA religado na V2 + achado de gap de sincronização (08/08/2026, mesma sessão, continuação do Bloco 20)
 
 Mesmo padrão exato de `SOLAR_LEITURAS`/`cartoes`: fetch paralelo de `energia_solar_geracao_diaria` no bootstrap do HTML (`window.WALLACE_SOLAR_GERACAO_DIARIA_V2`), override de `VARS.SOLAR_GERACAO_DIARIA` em `app.js` depois do `Object.assign(VARS, dr)` (vence tanto o literal quanto wallace_dados), sem fallback silencioso (falha/vazio vira array vazio). 3 consumidores afetados: `hydrate-onda5-qualidade-geracao.js` (Qualidade da Geração), 2 pontos em `graficos-cenarios-lazy.js` (projeção da Previsão + gráfico "Geração por dia").

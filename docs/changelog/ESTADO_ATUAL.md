@@ -2,64 +2,69 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (mesma sessão longa do dia, HEAD de entrada `a44be02`).
+Última reescrita: 08/08/2026, continuação da sessão do dia, HEAD `e5f1348`.
 
-## PRODUÇÃO: domínio oficial é `wallacelira.com.br`
+## Commitado nesta rodada
 
-Commit sendo preparado agora (autorizado pelo usuário) — ver hash no bloco mais recente de `PASSAGEM_DE_TURNO.md` assim que sair. Push **não** foi pedido ainda nesta sessão.
+`e5f1348` — religação de `SOLAR_GERACAO_DIARIA` na V2 (fetch + override, mesmo padrão de `SOLAR_LEITURAS`/`cartoes`) + ocultação da seção 07 "Simulador Regulatório" na aba Solar (`display:none`, código intacto). Usuário aprovou explicitamente antes do commit. `wallace_dados`: 30 consumidores já removidos (V2-exclusivo), ~54 restantes.
 
-**Validação em navegador com login real continua pendente.** Confirmado só que o HTML/JS carrega sem erro de console até o gate de login (preview local, `.claude/launch.json`). `WALLACE_VALIDACAO_RUNTIME`/`#healthBadge` não rodados.
+## Investigação do gap de sincronização SAJ — CONCLUÍDA, evidência completa (código + banco + logs GitHub Actions)
+
+Pergunta original: por que `energia_solar_leituras.geracao_acumulada` está `NULL` na leitura de 07/08 (V2), enquanto V1 tem `437.83`? Usuário pediu 6 respostas específicas, com evidência de código/logs/banco, proibiu correção antes da causa raiz.
+
+**São DOIS problemas diferentes, sem relação de causa entre si:**
+
+1. **`energia_solar_leituras.geracao_acumulada` (V2) — nunca foi escrito por nenhum processo automático.** Lendo `scripts/sync/atualizar_geracao_saj.py` linha a linha: o robô só escreve em (a) `wallace_dados.SOLAR_LEITURAS[-1].geracaoAcumulada` (V1) e (b) desde hoje, na tabela `energia_solar_geracao_diaria` (campo `geracao_kwh`, tabela DIFERENTE). Não existe, em lugar nenhum do script, uma chamada que escreva em `energia_solar_leituras.geracao_acumulada`. Confirmado no banco: as 4 leituras que TÊM o valor (31/07 a 04/08) foram todas criadas no mesmo instante — `2026-08-05 20:54:33` — o momento exato do bootstrap da migração de ciclos de crédito solar (Bloco 20). A leitura de 07/08 foi criada depois, em `2026-08-08 04:20:37` (inserção manual dos códigos 03/103 novos, `leitura_03=60.00`, `leitura_103=361.00`), sem `geracao_acumulada` porque quem inseriu não tinha de onde puxar esse valor automaticamente — não existe pipeline pra isso.
+
+2. **`energia_solar_geracao_diaria` (V2) — gap real de 06/08 e 07/08, mas não é falha de execução.** Confirmado via API do GitHub Actions: o workflow `atualizar_geracao_saj.yml` rodou (via cron-job.org, `workflow_dispatch`) A CADA ~10 MINUTOS, ininterruptamente, durante 06/08 e 07/08 inteiros — dezenas de execuções, todas `conclusion: success`, nenhuma falha. Mas o código que escreve em `energia_solar_geracao_diaria` (`atualizar_v2_geracao_diaria()`) só foi criado no commit `1c515d7`, feito hoje **08/08 às 12:05 (horário de Brasília)**. Toda execução do robô em 06/08 e 07/08 rodou uma versão do script anterior a esse commit (`actions/checkout` sempre pega o HEAD do momento) — literalmente não existia código pra escrever ali. Não é um bug de execução, é ausência de funcionalidade nos dois dias anteriores à sua criação. A partir de `1c515d7`, o robô já escreveu corretamente (linha de 08/08 existe, criada 15:40 UTC, minutos depois do commit).
+
+**Achado colateral, fora do escopo pedido mas relevante**: o workflow standalone `atualizar_geracao_saj.yml` está sendo disparado a cada ~10 minutos (não 2x/dia como o comentário do próprio script ainda diz) — ~144 disparos/dia batendo login na API da SAJ. Não investigado a fundo (não fazia parte da pergunta), possivelmente configuração do cron-job.org desalinhada com a documentação. Reportado, não corrigido.
+
+**Nada corrigido ainda** — só investigação, por instrução explícita do usuário.
 
 ## Protocolo de sessão nova (leia nesta ordem)
 
-1. Este arquivo (`ESTADO_ATUAL.md`)
-2. `PASSAGEM_DE_TURNO.md` — Bloco 19 (mesmo dia, sessão longa: Wave A/B, Mastercard/Visa fechado, Solar V2 completo)
-3. `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` — **novo**, consolida as 5 exceções permanentes (headline totals, Solar 301×361, Caixa Lance, 4 caixas indeterminadas, TX000203-208) — não são mais pendência
-4. `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — detalhe da exceção de cartão
-5. `docs/MANUAL_OPERACIONAL_AGENTES.md` — seção 2 atualizada
-6. **Sempre conferir `git status`/`git log` antes de assumir pendente ou concluído.**
+1. Este arquivo
+2. `PASSAGEM_DE_TURNO.md` — Bloco 22 (mais recente) tem o corte exato de onde parou
+3. `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` — 5 exceções permanentes, não reabrir
+4. `docs/MANUAL_OPERACIONAL_AGENTES.md`
+5. **Sempre `git status`/`git log` antes de assumir pendente ou concluído.**
 
 ---
 
-## 0. MÉTRICA DO PROJETO: consumidores de `wallace_dados`, não "domínios migrados"
+## 0. Investigação em aberto — ENTREGAR PRA USUÁRIO NA PRÓXIMA RESPOSTA (causa raiz já encontrada, não reportada ainda)
 
-Critério de sucesso do usuário: **quanto da V1 ainda está vivo**, medido por chave de `wallace_dados` (95 chaves de topo) com consumidor real no frontend.
+Usuário pediu causa raiz de por que a aba Solar mostra "Dados insuficientes para calcular consumo direto/autoconsumo/dependência". **Já investigado e resolvido — só falta comunicar**:
 
-| Grupo | Descrição | Quantidade |
-|---|---|---|
-| **1 — Já removidos** (V2-exclusivo, sem consumidor real) | Caixas/Livro Razão/LRW-MB (Wave A), titularidade de cartão (Wave B1), Patrimônio/ROC/LREI/Parcelamentos (sessões anteriores), **`SOLAR_LEITURAS`** (religado hoje) | **28** |
-| **2 — Exceções formais** (fora da métrica a partir de hoje) | Headline totals cartão, Solar 301×361, Caixa Lance, 4 caixas indeterminadas, TX000203-208 | **~10** |
-| **3 — Consumidores reais restantes** | Assinaturas/Recorrências/Corp/Consórcios (bloqueado por dado), Ciclo Snapshots, Operacional (~25 chaves heterogêneas), Pluggy/MP brutos, LRC/LRCV item-a-item | **~55** |
+1. `geracao_acumulada` existe em `energia_solar_leituras`? **Sim** (numeric, nullable).
+2. A sincronização V1→V2 levou o campo corretamente? **Não, pra leitura mais recente.** Evidência real (`execute_sql`): a linha de `data='2026-08-07'` em `energia_solar_leituras` tem `geracao_acumulada = NULL`. A mesma leitura em `wallace_dados.SOLAR_LEITURAS` (V1) tem `geracaoAcumulada: 437.83`. Leituras anteriores (08-04: 362.78, 08-02: 336.11) **estão corretas na V2** — o gap é só na linha mais recente.
+3. O frontend está lendo o campo? **Sim, corretamente** — `app.js` mapeia `geracaoAcumulada: r.geracao_acumulada != null ? Number(r.geracao_acumulada) : null`, consistente com o dado.
+4. O campo está chegando vazio? **Sim, mas porque já está NULL na origem (V2)**, não é perda no caminho.
+5. A consulta não usa o campo? **Usa** — `select=leitura_03,leitura_103,geracao_acumulada,data` inclui o campo.
 
-**Nenhum item de baixo esforço/alto impacto continua disponível** — o único que havia (religar Solar) foi executado nesta sessão. O que resta do Grupo 3 exige decisão de dado (não código) ou investigação nova do zero.
+**Causa raiz**: gap de sincronização do robô Python (`atualizar_geracao_saj.py`) especificamente na leitura mais recente de `energia_solar_leituras` — mesma classe de problema já achado em `energia_solar_geracao_diaria` (dias 06/08 e 07/08 faltando lá também). Padrão: os dados mais recentes (últimos 1-2 dias) não estão chegando completos na V2, embora estejam completos na V1. **Não corrigido** — usuário pediu causa raiz antes de qualquer correção, e disse explicitamente "não quero fallback, não quero workaround, não quero mascarar". Decisão de como corrigir (rodar o robô de novo? script tem bug? corrigir a linha manualmente com evidência do V1?) fica pra próxima sessão, com o usuário.
 
-## 1. Mastercard Black/Visa — domínio fechado até onde é tecnicamente possível
+## 1. O que foi concluído e commitado nesta sessão (3 commits)
 
-Registrado formalmente (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`): titularidade, `CARTAO_MAPA`, LRW/LRV e estrutura geral de cartões estão resolvidos e V2-exclusivos. Assinaturas/Recorrências/Corp/Consórcios bloqueados por falta de `cartao_id`/`categoria_id` em `transacoes` — decisão de dado do usuário, não engenharia pendente. **Não entra mais em rodadas de trabalho pesado.**
+- `d0c0c65` — Wave A (Caixas/Livro Razão/LRW-MB endurecidos), Wave B1 (titularidade de cartão via `cartoes`), Wave B3 (exceção headline totals), Mastercard/Visa fechado, Solar ciclos de crédito (schema + RPC `fechar_ciclo_solar` + frontend religado seções 10/11/12).
+- `be78388` — Aba própria "☀️ Energia Solar" extraída de Gráficos (7 seções, lazy loading isolado, Busca Global corrigida).
 
-## 2. Solar — modelo de ciclos de crédito implementado na V2
+Ver `docs/changelog/PASSAGEM_DE_TURNO.md` Blocos 19-21 pra narrativa completa.
 
-**Schema novo** (Supabase, aplicado via `apply_migration`): tabela `ciclos_solares` (ciclo aberto/fechado, congelamento de crédito, snapshot de rateio), colunas novas em `energia_solar_leituras` (`ciclo_id`, `eh_leitura_oficial_energisa`, `evidencia` — evidência obrigatória pra fechar ciclo, nunca por inferência de data), RPC `fechar_ciclo_solar()` (SECURITY DEFINER, matching o padrão de RLS do projeto), views `vw_ciclo_solar_aberto`/`vw_ciclo_solar_historico`. Bootstrap: ciclo 1 aberto desde 21/07/2026, baseline zero (mesma premissa que já valia implicitamente), 5 leituras existentes já linkadas.
+## 2. Métrica do projeto: consumidores de `wallace_dados`
 
-**Frontend religado**: seções 10 (Unidade Geradora — crédito do ciclo atual principal + acumulado desde ativação secundário), 11 (Rateio Solar — ganhou bloco de histórico de ciclos fechados, hoje vazio pois nenhum ciclo fechou ainda) e 12 (Previsão — agora baseada no ciclo aberto, não mais no acumulado desde ativação) leem `energia_solar_leituras`/`vw_ciclo_solar_aberto`/`vw_ciclo_solar_historico` (V2), não mais `wallace_dados.SOLAR_LEITURAS`. Nenhuma fórmula financeira/rateio/301×361 alterada — só a origem do dado bruto e a separação conceitual ciclo-atual × acumulado.
+| Grupo | Quantidade |
+|---|---|
+| Já removidos (V2-exclusivo) | 30 (`SOLAR_LEITURAS` + `SOLAR_GERACAO_DIARIA`, ambos commitados em `e5f1348`) |
+| Exceções formais (fora da métrica) | ~10 — `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` |
+| Restantes | ~54 |
 
-**`SOLAR_GERACAO_DIARIA` religado na V2** (mesmo dia, commit seguinte): Qualidade da Geração e os 2 outros consumidores (`graficos-cenarios-lazy.js`) leem `energia_solar_geracao_diaria` (V2), não mais `wallace_dados`. **Achado real durante a religação**: a V2 tem um gap de sincronização — faltam os dias 06/08 e 07/08 (existem no V1, não na V2) — não preenchido (proibido fabricar dado). Efeito visível: a Qualidade da Geração passa a comparar contra 05/08 (último dia completo disponível na V2) em vez de 07/08. Fica registrado como pendência de sincronização do robô Python, fora do escopo desta sessão (não mexo em script Python).
+**Próximo item recomendado** (ranking por impacto/esforço/decisão): `ENERGISA_TARIFA_COMPOSICAO` + consumos diários (seção 06 da aba Solar) — precisa de tabela V2 nova (não existe ainda), mas não depende de decisão humana.
 
-**O que continua em V1 no domínio Solar**: `ENERGISA_TARIFA_COMPOSICAO`/consumos diários (seção 06 "Economia antes×depois", residual pós-solar), heurística de gráfico mensal por mês-calendário (mantida por decisão de não reescrever, convive com o histórico real novo).
+## 3. Pendências abertas
 
-**Aba própria "☀️ Energia Solar" implementada** (mesmo dia, commit seguinte): domínio inteiro extraído da aba Gráficos — pane `#solar` nova (7 seções renumeradas: Qualidade da Geração, Unidade Geradora, Rateio+Histórico, Previsão, Geração diária, Economia antes×depois, Simulador), lazy loading isolado (`initSolarLazy()`, não carrega mais junto com Gráficos/Cenários), Busca Global corrigida (apontava pro título antigo da seção, achado durante a implementação). Nenhum id de DOM, cálculo ou fórmula alterado — só reorganização de HTML + divisão de uma função JS em duas.
-
-## 3. Verificação desta sessão
-
-- Preview local: HTML/JS carrega sem erro de console até o gate de login (index.html correto, não `Sistema_Wallace_Lira_Completo.html` direto — ver memória `feedback_preview_entry_point`).
-- **Validação funcional completa (WALLACE_VALIDACAO_RUNTIME, healthBadge, valores renderizados na tela) não foi feita — precisa de login real.**
-- Nenhuma migração SQL fora do já reportado (ciclos_solares). `get_advisors` rodado, achado próprio corrigido (RLS + SECURITY DEFINER de `ciclos_solares`/`fechar_ciclo_solar`).
-
-## 4. Pendências abertas
-
-1. Validação em navegador real com login — segue pendente desde sessões anteriores.
-2. Proposta da aba "☀️ Energia Solar" — a ser entregue nesta mesma sessão, sem implementar ainda.
-3. `v1_v2_caixa_mapa` sem RLS — backlog, não misturar com modelagem de domínio.
-4. Assinaturas/Recorrências/Corp/Consórcios (32 transações sem `cartao_id`/`categoria_id`) — decisão do usuário pendente, não código.
-5. As 5 exceções formais (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`) — **não reabrir**.
-6. Ciclo Snapshots, Operacional, Pluggy/MP brutos — fora de escopo até esgotar itens de baixo esforço (não há nenhum disponível agora).
+1. **Decisão do usuário sobre como corrigir os 2 problemas achados na investigação SAJ** (seção acima): (a) criar pipeline pra `energia_solar_leituras.geracao_acumulada` ser escrito automaticamente (hoje só existe bootstrap manual de migração); (b) nada a corrigir no gap 06-07/08 de `energia_solar_geracao_diaria` — já resolvido sozinho a partir do commit `1c515d7` (08/08), é histórico morto, não dá pra reconstruir sem inventar dado.
+2. Achado colateral não investigado: workflow `atualizar_geracao_saj.yml` disparando a cada ~10min (não 2x/dia como documentado) — confirmar se é intencional (cron-job.org) antes de mexer.
+3. As 5 exceções formais — não reabrir.
+4. Validação em navegador real com login — segue pendente.
+5. `v1_v2_caixa_mapa` sem RLS — backlog, não misturar com Solar.
