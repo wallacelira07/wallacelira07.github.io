@@ -781,12 +781,6 @@ As 6 ignoradas: `TX000208` (governança) + as 5 transações de `LRW_TRANSACOES`
 
 ---
 
-## Próximo passo
-
-**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). **Decisão 3a/3b encerrada formalmente — 3a implementada, Parte A concluída, `caixa_id=Caixa Variável` confirmado por regra de negócio (Política Interna §13), não só por pragmatismo técnico** (seção 18 + correção de narrativa na seção 15). `sincronizar_v1_v2()` construída e validada em dry-run, aguardando primeiro candidato real pra validar escrita (seção 19). **Parte B investigada e encerrada — 1 divergência de valor real (`TX000200`) + 4 colisões de `tx_legado` reclassificadas como governança (seção 20).** Pendências reais: governança — 5 colisões de `tx_legado` (`TX000208`, `TX000203`, `TX000204`, `TX000205`, `TX000206`) + 1 correção de valor pontual candidata (`TX000200`); sincronização recorrente/agendada (sem mecanismo automático de disparo, só execução manual da função). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-20 antes de qualquer ação nova.
-
----
-
 ## 20. Investigação Parte B — reclassificação das 5 divergências de valor (08/08/2026)
 
 **Objetivo**: determinar se as 5 divergências de valor entre V1 (atual) e V2 (snapshot de 05/08/2026), em `TX000200`/`203`/`204`/`205`/`206`, representam erro real pendente na V2 ou correções legítimas do V1 posteriores à migração.
@@ -843,3 +837,57 @@ Nenhuma correção de valor foi executada em nenhum dos 5 casos.
 - **Nenhuma evidência de erro de migração** — ambas as migrations leram fielmente o que existia em `wallace_dados` no momento em que rodaram.
 - **Nenhuma evidência de alteração manual na V2** — `audit_log` não tem nenhum registro pras 5 linhas desde que a tabela de auditoria existe.
 - **Nenhuma ação corretiva executada** — só diagnóstico, como combinado.
+
+---
+
+## 21. Correção de `TX000200` e encerramento do programa V1→V2 do ponto de vista de dados (08/08/2026)
+
+### Correção executada
+```sql
+SELECT set_config('audit.origem','ajuste_manual', true);
+UPDATE transacoes SET valor = 113.72
+WHERE tx_legado = 'TX000200' AND caixa_id = '8522e256-2039-4c11-bd28-69738bfcf5b8';
+```
+Causa raiz já comprovada na Parte B (seção 20): mesma transação nos dois lados ("ANTHROPIC*CLAUDE SUB", 04/08/2026), diferença de R$3,72 explicada pelo IOF corrigido no V1 em 07/08/2026, dois dias após o snapshot da migração. Não é colisão de `tx_legado`, não é problema de modelagem, não é problema de reconciliação — correção isolada de alta confiança.
+
+**Validações**:
+
+| Métrica | Antes | Depois |
+|---|---:|---:|
+| `valor(TX000200)` | 110,00 | **113,72** |
+| `transacoes` | 289 | **289** |
+| `audit_log` | 28 | **29** |
+| Soma de `diferenca_absoluta` nas 16 caixas (`vw_reconciliacao_v1_v2`) | -417,24 | **-417,24** (inalterada) |
+
+Registro gerado: `audit_log`, `campo='valor'`, `valor_anterior=110.00` → `valor_novo=113.72`, `origem='ajuste_manual'`. Impacto zero em `vw_reconciliacao_v1_v2`/`vw_saldo_v2_por_caixa`/saldos de qualquer caixa — garantido por `afeta_saldo_real=false` (a linha já é excluída de todo cálculo de saldo, independente do valor). Nenhuma outra linha tocada.
+
+### Backlog de governança final (5 itens, todos "Colisão de `tx_legado` entre eventos distintos")
+
+| tx_legado | Classificação | Ação |
+|---|---|---|
+| `TX000208` | Colisão de `tx_legado` entre eventos distintos | Não corrigido — decisão de rastreabilidade pendente |
+| `TX000203` | Colisão de `tx_legado` entre eventos distintos | Não corrigido — decisão de rastreabilidade pendente |
+| `TX000204` | Colisão de `tx_legado` entre eventos distintos | Não corrigido — decisão de rastreabilidade pendente |
+| `TX000205` | Colisão de `tx_legado` entre eventos distintos | Não corrigido — decisão de rastreabilidade pendente |
+| `TX000206` | Colisão de `tx_legado` entre eventos distintos | Não corrigido — decisão de rastreabilidade pendente |
+
+### Encerramento formal — programa V1→V2, do ponto de vista de dados
+
+- ✅ Estrutura V2 validada
+- ✅ Migração executada
+- ✅ Reconciliação financeira concluída
+- ✅ Auditoria implantada (`audit_log`)
+- ✅ Duplicidades eliminadas (Fase 4C)
+- ✅ `UNIQUE(tx_legado, caixa_id)` implantada (Fase 4B-2)
+- ✅ `sincronizar_v1_v2()` criada e validada em dry-run (seção 19)
+- ✅ Modelagem LRW/LRV concluída, fundamentada na Política Interna §13 (seção 15/18)
+- ✅ Parte A concluída (metadados)
+- ✅ Parte B investigada, classificada e a única divergência de valor real (`TX000200`) corrigida (seções 20-21)
+
+**Não existe mais nenhuma divergência de dado sem causa raiz conhecida.** O que resta é governança (5 colisões de `tx_legado`, documentadas, sem ação até decisão explícita), automação (`sincronizar_v1_v2()` sem gatilho automático) e produto (Fase 4D, sem requisitos levantados) — não mais investigação de dados.
+
+---
+
+## Próximo passo
+
+Programa V1→V2 **encerrado do ponto de vista de dados** (seção 21). Próxima frente: levantamento de requisitos da Fase 4D. Próximo agente: leia as seções 12-21 antes de qualquer ação nova; a seção 21 é o estado consolidado final desta frente de trabalho.
