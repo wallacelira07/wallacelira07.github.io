@@ -657,6 +657,19 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_COTACOES_ACOES_
   VARS.ACOES_COTACOES_ATUALIZADO_EM = atualizadoEmMaisRecente;
 }
 
+// NOVO 08/08/2026 (fecha consumidor de wallace_dados: HISTORICO_ERP_TODOS_CICLOS, mesmo padrao de
+// cartoes/cotacoes_acoes - dominio auxiliar de reconciliacao/busca, nao critico, fallback
+// silencioso permitido): window.WALLACE_HISTORICO_ERP_V2 (bootstrap do HTML, view
+// vw_historico_erp_completo) vence o literal V1 se a V2 respondeu com dado. Mesmo shape (tx/data/
+// nome/valor) - campo `livro` nao existe mais (confirmado morto, nenhum consumidor le). Se falhar/
+// offline, VARS.HISTORICO_ERP_TODOS_CICLOS continua com o literal V1 (menos completo, nunca quebra
+// reconciliacao Pluggy/Inbox nem a Busca Global).
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_HISTORICO_ERP_V2) && window.WALLACE_HISTORICO_ERP_V2.length){
+  VARS.HISTORICO_ERP_TODOS_CICLOS = window.WALLACE_HISTORICO_ERP_V2.map(r => ({
+    tx: r.tx, data: r.data, nome: r.nome, valor: Number(r.valor),
+  }));
+}
+
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
 // de deploy pra mudar"): completa o que o comentario da V218 (legInboxVazia) ja prometia mas nunca
 // foi de fato ligado - mescla VARS.LEGENDAS local (fallback, sempre funciona mesmo offline/banco

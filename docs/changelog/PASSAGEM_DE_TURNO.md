@@ -2,6 +2,25 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 26 — NOVA DIRETRIZ permanente (execução autônoma) + bug real da soma dos LRs + HISTORICO_ERP_TODOS_CICLOS migrado (08/08/2026, continuação do Bloco 25)
+
+**1. Nova diretriz de operação, válida pra todas as sessões futuras**: o usuário identificou que eu estava parando pra pedir autorização demais em pontos onde já havia evidência suficiente. Critério novo, permanente: **"Isso reduz dependência da V1 sem criar risco?"** — se sim (sem decisão de negócio pendente, sem risco financeiro, sem risco de perda de dado, sem bloqueio explícito, caminho técnico claro), executar direto até commit, sem parar pra perguntar em cada passo. Só interromper se: perda potencial de informação, decisão de negócio real, conflito com regra já definida, ou risco financeiro real.
+
+**2. Bug real reportado pelo usuário via screenshot — "as somas dos LRs estão erradas"**: investigado e corrigido, commit `7267d00`. Causa raiz: `hydrate-livros-razao.js` escrevia `REG.livrosRazaoTotais.LRW/LRV.total` — valores **hardcoded desde 25/07/2026** (V152, "filtro por ciclo", 1 e 3 lançamentos) — no MESMO id de DOM (`#tfLRW`/`#tfLRV`) que `render-livros-variaveis.js` já preenchia corretamente com a soma real do array completo (hoje 19 e 16 lançamentos). R$35,95 (o valor errado que apareceu na tela) bate exatamente com a soma dos 3 primeiros lançamentos de semanas atrás — prova de que era resíduo esquecido, não intencional. Removida a escrita duplicada.
+
+**3. Outros achados no mesmo lote de screenshots, investigados**: (a) badge de frescor mostrando "crítica" pra dado de poucos minutos e (b) PETRS368W5 (opção vencida 31/07) aparecendo como ativa — testei ambos isoladamente (função pura + fetch real + timestamp/dado reais do banco) e o resultado correto saiu nos dois casos; não achei bug reprodutível no código/banco. Suspeita forte: cache do `WallaceFinanceService` sem TTL numa aba aberta há muito tempo, capturando estado de antes das correções de hoje. Blindagem defensiva aplicada mesmo assim (`Number.isFinite` no `formatarFrescor`) + bump do `__V` (cache-buster). Usuário vai confirmar com hard-refresh. (c) Campo "opções vencidas" explicado — não é bug, fica oculto de propósito quando não há posição vencida.
+
+**4. `HISTORICO_ERP_TODOS_CICLOS` migrado pra V2** — primeira execução sob a nova diretriz (investigação → conclusão → implementação → validação → commit, sem pausa intermediária). Triagem: 3 consumidores reais (`pluggy-reconciliacao.js`, `classificacao-inbox.js` — Set de valores conhecidos pra evitar falso "sem registro"/"duplicidade"; `dashboard-navegacao.js` — índice da Busca Global), campo `livro` por registro confirmado morto. Cobertura verificada **completa** (230 registros, não amostragem): 224 batem 100% contra `transacoes.tx_legado`, 6 com ressalva:
+   - `TXCON000001`/`TXCON000002` (Consórcio Casa/Carro, R$1.950,77 juntos) — ausentes da V2 (LRCON nunca migrado). Usuário aceitou como exceção documentada.
+   - `TXRR000005` — coberto sob outro código (`TXR_FACULDADE_MB_JUL26`, mesmo dado).
+   - `TXB000001`/`TXB000008`/`TXB000009` — código de boleto recorrente reaproveitado entre ciclos consecutivos (achado ao investigar a hipótese do usuário de "estimativa→oficial" — na verdade são 2 meses/valores reais diferentes sob o mesmo código, não uma correção da mesma conta). V2 guarda só a versão mais recente; risco baixo, aceito.
+
+   Implementado: view `vw_historico_erp_completo` (Supabase, `transacoes.tx_legado` como fonte, 292 linhas, superset do array V1) + fetch paralelo no HTML + override de `VARS.HISTORICO_ERP_TODOS_CICLOS` em `app.js` (fallback silencioso permitido, mesmo padrão `cartoes`/`cotacoes_acoes`). **Zero mudança nos 3 arquivos consumidores** — só trocou a origem do dado, mesmo padrão de toda a sessão.
+
+**5. Verificação**: view testada via REST real com a chave pública (retornou dado real), preview local sem erro novo de console.
+
+**Métrica**: 31 consumidores commitados + 1 pronto (`HISTORICO_ERP_TODOS_CICLOS`) = ~52 restantes após push.
+
 ## Bloco 25 — ACOES_COTACOES commitado + bugs reais reportados pelo usuário (data invertida, geração de ontem errada) + infraestrutura de frescor/legendas dinâmicas (08/08/2026, continuação do Bloco 24)
 
 **1. `ACOES_COTACOES` fechado**: commit `22d6b2c` enviado (aprovação do usuário, "sim"). `wallace_dados`: 31 consumidores removidos.
