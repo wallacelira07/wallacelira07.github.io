@@ -890,4 +890,59 @@ Registro gerado: `audit_log`, `campo='valor'`, `valor_anterior=110.00` → `valo
 
 ## Próximo passo
 
-Programa V1→V2 **encerrado do ponto de vista de dados** (seção 21). Próxima frente: levantamento de requisitos da Fase 4D. Próximo agente: leia as seções 12-21 antes de qualquer ação nova; a seção 21 é o estado consolidado final desta frente de trabalho.
+Programa V1→V2 **encerrado do ponto de vista de dados** (seção 21). Levantamento técnico da Fase 4D registrado (seção 22), sem nenhuma implementação. Próximo agente: leia as seções 12-22 antes de qualquer ação nova.
+
+---
+
+## 22. Fase 4D — levantamento técnico da transição V1→V2 (08/08/2026)
+
+**Natureza deste registro: é um levantamento técnico, não uma decisão de implementação.** Nenhuma alteração funcional ou de interface foi realizada como parte desta atividade — só diagnóstico e mapeamento. Diretriz explícita do usuário: o painel atual permanece exatamente como está, nenhum card muda de posição, nenhuma seção nova aparece pro usuário, a V2 continua como infraestrutura de apoio nos bastidores. A decisão de expor qualquer informação da V2 pro usuário fica para uma etapa futura e explícita, fora do escopo deste registro.
+
+### Mapeamento por domínio: fonte V1 hoje × equivalente V2
+
+| Domínio do painel | Fonte V1 (hoje) | Equivalente V2 | Prontidão V2 |
+|---|---|---|---|
+| Caixas operacionais/patrimoniais (16 confiáveis) | `wallace_dados.<CAIXA>_TRANSACOES` + `<CAIXA>_SALDO_INICIAL` | `caixas` + `transacoes` + `vw_saldo_v2_por_caixa` | ✅ Pronto — reconciliado, `vw_reconciliacao_v1_v2` já valida caixa a caixa |
+| Caixa Mastercard/Infinite | `cartaoMBTotal`, `cartaoInfiniteTotal` | `caixas`/`transacoes` (caixa própria) | ✅ Pronto — `sincronizado`, alta confiança |
+| Cartão MB — Wallace/Vanessa (LRW/LRV) | `LRW_TRANSACOES`/`LRV_TRANSACOES`, `mbLRWConfirmado`/`mbLRVConfirmado` | `transacoes` (`caixa_id=Caixa Variável`, `usuario_id`, `afeta_saldo_real=false`) | ✅ Pronto conceitualmente (Política §13, Parte A) — mas **não existe hoje nenhuma agregação V2 equivalente a `mbLRWConfirmado`/`mbLRVConfirmado`** (soma por pessoa), só a linha crua |
+| Recorrências/Assinaturas/Corporativo (LRR/LRS/LRC) | `mbLRRConfirmado`/`mbLRSConfirmado`/`livroLRC` | Nenhum array V1 correspondente foi migrado (fora do escopo desta frente) | ❌ Não iniciado |
+| Boletos fixos recorrentes | `CRONOGRAMA_BOLETOS_FIXOS` | Sem tabela V2 dedicada | ❌ Não iniciado |
+| Patrimônio (Reserva, BTG/Necton, imóveis) | `reserva`, `btgNecton`, `patFgts` etc | `patrimonio` (tabela existe, populada) | 🟡 Parcial — tabela existe, não auditada linha a linha nesta frente |
+| Investimentos/Opções | `opcoesVendidasDetalhe`, `ACOES_COTACOES` | `investimentos` (tabela existe) | 🟡 Parcial — mesma ressalva |
+| Metas | `metaSuavizacao` etc | `metas` (tabela existe) | 🟡 Parcial |
+| Reembolsos (Wärtsilä) | `reembolsoCicloTotal`, cascata | `reembolsos` (tabela existe, 1 linha hoje) | 🟡 Parcial — não é a mesma granularidade da cascata V1 |
+| Solar | `SOLAR_GERACAO_DIARIA`/`SOLAR_LEITURAS` | `energia_solar_geracao_diaria`/`energia_solar_leituras` (tabelas existem) | 🟡 Parcial, não auditado |
+| Inbox Financeira / Pluggy / Mercado Pago | `INBOX_FINANCEIRA` (efêmero, nunca persiste) | Sem equivalente — é fluxo de triagem, não dado de saldo | N/A — natureza diferente, não é candidato a "trocar fonte" |
+
+### Classificação explícita por grau de prontidão
+
+**✅ Prontos** (reconciliados, evidência suficiente pra eventual troca de fonte):
+- As 16 caixas operacionais/patrimoniais mapeadas em `v1_v2_caixa_mapa`.
+- Dentro delas, 4 já batem exato hoje (`sincronizado`, alta confiança): Caixa Mastercard/Infinite, Caixa Variável, PIX Vanessa, Caixa Boletos (desde a correção da seção 17).
+- Cartão MB por pessoa (LRW/LRV) — pronto conceitualmente e na V2 (Parte A), mas falta a agregação equivalente a `mbLRWConfirmado`/`mbLRVConfirmado` antes de qualquer card específico poder trocar.
+
+**🟡 Parcialmente validados** (tabela V2 existe e está populada, mas nunca foi auditada linha a linha nesta frente):
+- Patrimônio, Investimentos/Opções, Metas, Reembolsos, Solar.
+
+**❌ Não auditados / não iniciados**:
+- Recorrências/Assinaturas/Corporativo (LRR/LRS/LRC) — nenhum array migrado.
+- Boletos fixos recorrentes — sem tabela V2 dedicada.
+- Inbox Financeira — natureza diferente (triagem efêmera), não é candidata a troca de fonte.
+
+### Estratégia de transição gradual (proposta, não decidida, não agendada)
+
+1. **Caixas já `sincronizado`** (Mastercard/Infinite, Variável, PIX Vanessa, Boletos) — candidatas naturais a serem as primeiras, se um dia decidirem trocar fonte de 1 card por vez. Risco mínimo: número já bate.
+2. **Caixas com causa residual conhecida e alta confiança** (`vw_reconciliacao_v1_v2` classifica como `transacao_ausente_na_v2`, `grau_confianca=alta`) — precisam só de um `sincronizar_v1_v2()` rodado antes de trocar.
+3. **Caixas com `causa_provavel = saldo_inicial_ausente...`, baixa confiança** — não trocar antes de investigar (mesmo tratamento rigoroso já usado no caso Boletos/`TX000140`, seção 17).
+4. **Domínios nunca auditados** (patrimônio, investimentos, solar, reembolsos, metas) — precisam de uma rodada de reconciliação própria (mesmo método da Fase 3) antes de qualquer troca ser cogitada.
+5. **LRW/LRV, LRR/LRS/LRC, boletos fixos** — não têm "saldo" pra trocar (são detalhamento/agregado), ficam de fora dessa lógica de troca por caixa.
+
+### Achados de frontend (impacto técnico de uma eventual troca de fonte)
+
+- **Não existe client Supabase único** — 3 implementações paralelas fazem fetch direto ao Supabase, cada uma com URL/chave duplicada: `WallaceFinanceService` (`src/app/app.js`), `FinanceService` (`src/services/FinanceService.js`, documentado como "camada oficial da Fase 5"), e fetch ad hoc em `src/integrations/pluggy/pluggy-reconciliacao.js`. Trocar a fonte de qualquer card exigiria decidir qual client consolidar primeiro — recomendação: `FinanceService.js`, antes de trocar o primeiro card, não depois.
+- **Ausência de feature flags / registro dinâmico de abas** — o sistema de navegação (`showMaster()`) usa 4 `master-pane` fixos numa lista fechada, sem infraestrutura pra alternar fonte de dado de um card isoladamente nem pra expor/ocultar algo condicionalmente. Qualquer transição gradual real precisaria dessa infraestrutura construída antes.
+- **Inexistência atual de agregação equivalente a `mbLRWConfirmado`/`mbLRVConfirmado`** — a V2 tem a linha crua de cada compra (`transacoes` com `afeta_saldo_real=false`), mas nenhuma view/RPC soma isso por pessoa hoje. Um card futuro de "cartão por pessoa" precisaria dessa agregação nova antes de poder trocar de fonte.
+
+### Conclusão executiva
+
+**Neste momento, apenas o conjunto de caixas operacionais/patrimoniais reconciliadas possui evidência suficiente para eventual troca de fonte V1→V2. Os demais domínios possuem estrutura V2 existente, porém ainda não passaram pelo mesmo processo de reconciliação e validação.**
