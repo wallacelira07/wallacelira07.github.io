@@ -211,6 +211,19 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado[0] || null;
+  },
+  // NOVO 08/08/2026 (Onda 5, domínio 1 — Parcelamentos): vw_parcelamentos_v2 — `parcelas` já tinha
+  // as 22 linhas (16 Visa + 6 MP) sincronizadas 1:1 com VARS.PARCELAMENTOS_VISA/MP, só faltava a view.
+  async getParcelamentosV2(){
+    const chave = 'vw_parcelamentos_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_parcelamentos_v2?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_parcelamentos_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 
@@ -1059,6 +1072,10 @@ onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado d
 // onload depois do app.js, não mais aqui.
 onDomPronto(popularSeletorCiclo); // V145/V170: cria os botoes do seletor de ciclo
 onDomPronto(renderParcelamentos); // V155/V170: gera as tabelas de parcelamento (LRP/LRMP) a partir dos arrays estruturados
+// ONDA 5, domínio 1 (08/08/2026) — Parcelamentos: registrado DEPOIS de renderParcelamentos() de
+// propósito, mesmo motivo das Ondas anteriores. Reaproveita a própria função pra redesenhar, agora
+// com VARS.PARCELAMENTOS_VISA/MP vindo da V2. Ver hydrate-onda5-parcelamentos.js.
+onDomPronto(aplicarOnda5Parcelamentos);
 onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados
 // ONDA 3 (08/08/2026): registrado DEPOIS de renderLivrosVariaveis() de propósito — precisa que a
 // tabela já tenha sido preenchida com V1 antes de tentar sobrescrever com V2 (senão a ordem

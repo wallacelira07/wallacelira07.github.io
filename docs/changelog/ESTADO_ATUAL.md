@@ -20,7 +20,43 @@
 
 ---
 
-## 1. FRENTE ATIVA: Onda 3 — V2 relacional virando fonte de leitura do frontend (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 22-28)
+## 0. INVENTÁRIO EXECUTIVO — dependência de `wallace_dados` (08/08/2026, pós-Onda 5 domínio 1)
+
+**Regra operacional vigente**: domínio modelado no Supabase + reconciliado + consumível pelo frontend → V2 vira fonte oficial, VARS vira só compatibilidade/fallback temporário. Sem gate de divergência a partir da Onda 4.
+
+| Domínio | Status | Fonte oficial | Observação |
+|---|---|---|---|
+| Patrimônio | ✅ Migrado | V2 (`patrimonio`+`financiamentos`) | Exceto Caixa Lance (ver linha própria) |
+| Investimentos/ROC/Opções | ✅ Migrado | V2 (`investimentos`+`indicadores`) | — |
+| LREI (empréstimos internos) | ✅ Migrado | V2 (`emprestimos_internos`) | — |
+| Cascata Reembolso Wärtsilä | ✅ Migrado | V2 (`reembolso_wartsila_ciclo`) | Perna 4 (MP pessoal) fora do escopo |
+| Parcelamentos (LRP/LRMP) | ✅ Migrado | V2 (`parcelas`) | `TRANSACOES_CORPORATIVAS_MP` continua V1 |
+| Caixas — saldo (10 de 18) | ✅ Migrado | V2 (`vw_saldo_v2_por_caixa`) | Boletos, PIX Vanessa, Variável, Mastercard/Infinite, Bens Duráveis, Eventos, Seguro, Escola Júlio, Churrasco, Combustível |
+| Livro Razão — 7 tabelas de lançamento | ✅ Migrado | V2 (`transacoes`) | Mesmas 7 caixas acima (exceto Boletos/Variável, sem aba) |
+| LRW/LRV — totais confirmados | ✅ Migrado | V2 (`vw_compromisso_cartao_por_pessoa`) | Só os totais; tabela item-a-item ainda V1 |
+| **Caixa Lance** | 🟡 Híbrido | V1 (log-only V2) | Divergência R$4,37 não confirmada — **não reabrir**, decisão do usuário |
+| Caixas — 4 restantes (Manutenção/Saúde Família/PIX Geral Vanessa/Aniversário Júlio) | 🟡 Híbrido | V1 | Divergência R$107-346, causa indeterminada — mesma categoria da Caixa Lance |
+| LRW/LRV/LRC-limbo/LRCV — tabela item-a-item | ❌ V1 | V1 | 147 candidatas em `transacoes` vs 43 itens V1, sem coluna de classificação — precisaria de critério novo, não perseguido |
+| Mastercard Black/Visa — totais (`cartaoMBTotal` etc) | ❌ V1 | V1 | Ainda sobrescrito por `wallace_dados` (JSON blob), não por tabela relacional |
+| Operacional (salário/orçamento/créditos/legendas/Inbox Financeira) | ❌ V1 | V1 | Sem estrutura V2 dedicada pra maior parte; `indicadores` já usado só pro CDI/ROC/PIB |
+| Ciclo Snapshots (histórico por ciclo) | ❌ V1 | V1 | Sem estrutura V2 |
+| P2P | ❌ V1 (não investigado a fundo) | V1 | Módulo pequeno (20 linhas) |
+
+**Percentual aproximado de dependência restante de `wallace_dados`**: ~80-85% dos módulos VARS ainda são fonte ativa (proxy por linha de código nos 8 arquivos `vars-*.js`: ~175 de ~1.190 linhas totais já retiradas de uso ativo, families Patrimônio+ROC+Reembolsos+parte de Caixas/Parcelamentos). Number é aproximado — reflete módulos "aposentáveis" mais do que uso real por card individual do painel.
+
+**Próximo domínio de maior impacto ainda não perseguido**: Mastercard Black/Visa (totais `cartaoMBTotal`/`livroLR*`) — grande, mas precisa investigação de como os totais V1 (sobrescritos por `wallace_dados`) se relacionam com `transacoes`/`parcelas` já migrados, sem cair em nova reconciliação.
+
+---
+
+## 1. FRENTE ATIVA: Onda 5 — continuação da aposentadoria do `wallace_dados` (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seção 35+)
+
+**Domínio 1 (Parcelamentos) CONCLUÍDO**: `parcelas` (V2) já tinha as 22 linhas sincronizadas 1:1 com `VARS.PARCELAMENTOS_VISA`/`MP` — só faltava a view (`vw_parcelamentos_v2`) e o módulo de ligação (`hydrate-onda5-parcelamentos.js`, reaproveita `renderParcelamentos()` V1 inalterada). Nenhuma migração de dado necessária. Seção 35 do plano.
+
+**Candidato descartado no levantamento**: tabela item-a-item de LRW/LRV/LRC-limbo/LRCV — 147 transações candidatas em V2 vs 43 itens V1, sem coluna de classificação existente pra separar os 4 grupos sem inventar critério novo. Não perseguido (evita virar investigação de divergência, proibida pela diretriz atual).
+
+---
+
+## 1.1 HISTÓRICO (ENCERRADO, NÃO REABRIR): Onda 3 — V2 relacional virando fonte de leitura do frontend (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 22-28)
 
 **Mudança de direção estratégica desta sessão** (pedido explícito do usuário): "Pare de tratar a V2 como sistema auxiliar" — objetivo passou a ser trocar a LEITURA do frontend de V1 (`wallace_dados`) pra V2 relacional (`caixas`/`transacoes`), caixa por caixa, mantendo fallback V1 automático em caso de falha e **zero mudança de layout/IDs/CSS**. Política vigente (mudou no meio da sessão, por decisão explícita do usuário): **"divergência conhecida e documentada não bloqueia migração — só ausência real de estrutura na V2 bloqueia."**
 

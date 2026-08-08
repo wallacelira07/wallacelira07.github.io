@@ -1386,3 +1386,48 @@ CREATE TABLE public.reembolso_wartsila_recebimentos (
 **Pendência transversal, não resolvida por decisão explícita do usuário**: divergência de R$4,37 da Caixa Lance (seção 30) — não reaberta nesta Onda.
 
 **Validação em navegador real de TODOS os 4 domínios continua pendente** — usuário recusou login manual em toda a Onda 4; toda validação foi técnica/estática + conferência SQL direta contra os valores documentados do V1.
+
+---
+
+# ONDA 5 — continuação da aposentadoria do `wallace_dados` (08/08/2026)
+
+**Diretriz do usuário**: Onda 4 aprovada e encerrada, não reabrir. A partir daqui, regra operacional permanente: sempre que um domínio estiver modelado no Supabase + reconciliado + consumível pelo frontend, ele deixa de ter VARS como fonte oficial (VARS vira só compatibilidade/fallback). Seguir direto pro próximo domínio de maior impacto, sem nova rodada de levantamento/estratégia — só corrigir bugs reais achados em validação.
+
+## 35. Onda 5, domínio 1 — Parcelamentos (LRP/LRMP): view criada sobre tabela já sincronizada, V1 reaproveitado (08/08/2026)
+
+**1. Objetivo**: identificar e migrar o próximo domínio de maior impacto sem precisar de nova investigação de divergência (regra explícita do usuário: não reabrir reconciliação).
+
+**2. Achado ao levantar candidatos**: `parcelas` (V2) **já tinha as 22 linhas** (16 `PARCELAMENTOS_VISA` + 6 `PARCELAMENTOS_MP`) sincronizadas 1:1 com os arrays do VARS — mesmo `tx_legado`, `numero_parcela`/`total_parcelas`, `valor_parcela`, `status` (conferido linha a linha) — provavelmente já preparada por uma sessão/sincronização anterior. Só faltava a view de consumo e o módulo de ligação, nenhuma migração de dado necessária. **Candidato descartado no mesmo levantamento**: as 4 tabelas de compras variáveis remanescentes (LRW/LRV/LRC-limbo/LRCV, domínio Mercado Pago/Mastercard Black) — investigação preliminar achou 147 transações candidatas em `transacoes` (Caixa Variável, `afeta_saldo_real=false`) contra só 43 itens nos 4 arrays V1, sem coluna existente pra separar os 4 grupos sem inventar critério novo — ficaria classificado como "ausência real de estrutura de categorização", não perseguido agora pra não virar investigação de divergência (proibida pela diretriz atual).
+
+**2.1 Escopo**: seção 15 (LRP — Visa Infinite, LRMP — Mercado Pago), tabelas `lrpTbody`/`lrmpTbody`.
+
+**SQL criado**:
+```sql
+CREATE VIEW public.vw_parcelamentos_v2 AS
+SELECT p.tx_legado AS tx, COALESCE(t.descricao, p.tx_legado) AS nome,
+  p.numero_parcela AS parcela_atual, p.total_parcelas, p.valor_parcela AS valor,
+  CASE WHEN p.status='ativa' THEN 'ATIVO' ELSE 'QUITADO' END AS status,
+  p.origem_array, to_char(p.data_prevista,'DD/MM') AS data
+FROM public.parcelas p
+LEFT JOIN public.transacoes t ON t.id = p.transacao_origem_id
+WHERE p.origem_array IN ('PARCELAMENTOS_VISA','PARCELAMENTOS_MP')
+ORDER BY p.origem_array, p.tx_legado;
+```
+
+**3. Arquivos alterados**: `src/financeiro/livros-razao/hydrate-onda5-parcelamentos.js` (novo), `src/app/app.js` (+`getParcelamentosV2()`, +`onDomPronto(aplicarOnda5Parcelamentos)` logo depois de `renderParcelamentos`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada).
+
+**Estratégia**: mesma dos domínios 2-4 da Onda 4 — troca a origem de `VARS.PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` e reaproveita `renderParcelamentos()` (`render-parcelamentos.js`, inalterada) — zero lógica de renderização duplicada.
+
+**4. Fonte antiga**: `VARS.PARCELAMENTOS_VISA` (16 itens)/`PARCELAMENTOS_MP` (6 itens).
+
+**5. Fonte nova**: `parcelas` via `vw_parcelamentos_v2`.
+
+**Migração dos dados**: **nenhuma** — os dados já existiam, só a view foi criada.
+
+**Diferença cosmética conhecida, não financeira, não bloqueia**: o "nome" vem de `transacoes.descricao` (ex: `"TEACHER_MATIAS"`) em vez do texto V1 mais legível (`"Teacher Matias"`) — mesma informação, formatação diferente na origem. Não reformatado (evitaria inventar lógica de texto nova). 1 item (`TXP000025`, RBM Relógios, já quitado) não tem `transacao_origem_id` ligado — usa o próprio `tx_legado` como nome de fallback, documentado, não inventado.
+
+**6. Validação**: `SELECT * FROM vw_parcelamentos_v2 WHERE status='ATIVO'` confere exato com os 15 itens ativos documentados (quantidades, parcela atual/total, valores — todos batendo). Checagem estática: script carregado 1x, `renderParcelamentos`/`fmt` existem e são globais, nomes novos (`aplicarOnda5Parcelamentos`, `WALLACE_ONDA5_PARCELAMENTOS_RELATORIO`, `getParcelamentosV2`) únicos em `src/`. **Validação em navegador real pendente** (mesma situação de toda a Onda 4).
+
+**7. Resultado**: **Parcelamentos migrado para V2 como fonte**. `VARS.PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` deixam de ser necessários no frontend. `VARS.TRANSACOES_CORPORATIVAS_MP` (itens corporativos/avulsos, sem equivalente em `parcelas`) continua V1 — fora do escopo desta migração, não afetado.
+
+**8. Rollback**: comentar `onDomPronto(aplicarOnda5Parcelamentos);` em `app.js`.
