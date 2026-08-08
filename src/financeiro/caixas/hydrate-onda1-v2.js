@@ -6,6 +6,10 @@
 // e SOBRESCREVE o texto desses 4 ids com o valor vindo de vw_saldo_v2_por_caixa (V2),
 // depois de comparar e logar qualquer divergência no console.
 //
+// ENDURECIDO (08/08/2026, Wave A): domínio agora é V2-exclusivo, mesmo padrão dos 6
+// domínios Onda 4/5 — falha de fetch/estrutura ausente já não deixa o V1 "por baixo"
+// silenciosamente; usa marcarIndisponivelV2() pra virar "⚠ Indisponível (V2)" visível.
+//
 // Rollback imediato: comentar a chamada aplicarOnda1V2() em app.js (hydrate()) — o V1
 // volta a ser o único valor exibido, nenhum outro arquivo precisa mudar.
 //
@@ -32,16 +36,22 @@ const ONDA1_V2_MAPA = [
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];
 
+const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml);
+
 async function aplicarOnda1V2(){
   let saldosV2;
   try {
     saldosV2 = await WallaceFinanceService.getSaldosPorCaixa();
   } catch(err){
-    console.error('Onda1V2: falha ao buscar vw_saldo_v2_por_caixa — mantendo V1 nos 4 cards (fallback automático).', err);
+    console.error('Onda1V2: falha ao buscar vw_saldo_v2_por_caixa — domínio V2-exclusivo, sem fallback silencioso pro V1.', err);
+    marcarIndisponivelV2(ONDA1_V2_IDS, 'Falha ao buscar vw_saldo_v2_por_caixa (Onda 1)');
+    window.WALLACE_ONDA1_V2_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(saldosV2)){
-    console.warn('Onda1V2: resposta inesperada de vw_saldo_v2_por_caixa — mantendo V1 nos 4 cards.');
+    console.warn('Onda1V2: resposta inesperada de vw_saldo_v2_por_caixa — domínio V2-exclusivo, sem fallback silencioso pro V1.');
+    marcarIndisponivelV2(ONDA1_V2_IDS, 'Resposta inesperada de vw_saldo_v2_por_caixa (Onda 1)');
+    window.WALLACE_ONDA1_V2_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }
   const relatorio = [];
@@ -50,7 +60,9 @@ async function aplicarOnda1V2(){
     if(!el){ console.warn(`Onda1V2: id "${idHtml}" não encontrado no DOM, ignorado.`); return; }
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
     if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
-      console.warn(`Onda1V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
+      console.warn(`Onda1V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — domínio V2-exclusivo, sem fallback silencioso.`);
+      marcarIndisponivelV2([idHtml], `"${caixaNome}" ausente em vw_saldo_v2_por_caixa`);
+      relatorio.push({ caixa: caixaNome, status: 'sem_dado_v2' });
       return;
     }
     let valorV1;

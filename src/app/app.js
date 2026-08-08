@@ -160,6 +160,31 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado[0] || null;
   },
+  // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): ciclo aberto atual
+  // (vw_ciclo_solar_aberto, sempre 0 ou 1 linha) e histórico de ciclos já fechados
+  // (vw_ciclo_solar_historico) — ver docs/decisions para o desenho completo do domínio.
+  async getCicloSolarAbertoV2(){
+    const chave = 'vw_ciclo_solar_aberto';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_aberto?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_aberto`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado[0] || null;
+  },
+  async getCiclosSolarHistoricoV2(){
+    const chave = 'vw_ciclo_solar_historico';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_historico?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_historico`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   // NOVO 08/08/2026 (Onda 4, domínio 2 — Investimentos/ROC): posições de opções direto de
   // `investimentos` (tipo=opcoes) — campos crus, mesmo shape que VARS.opcoesVendidasDetalhe usava
   // (ticker/ativo/strike/vencimento/prêmios/etc). O cálculo de ROC continua 100% em
@@ -561,6 +586,31 @@ if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
       });
     }
   }
+}
+
+// NOVO 08/08/2026 (Solar entra na V2 — desligamento da V1): mesmo padrão do bloco LEGENDAS abaixo —
+// window.WALLACE_SOLAR_LEITURAS_V2 (buscado no bootstrap do HTML, tabela energia_solar_leituras)
+// sempre tem a última palavra sobre VARS.SOLAR_LEITURAS, sobrescrevendo tanto o literal local
+// (criarVarsEnergiaSolar) quanto o wallace_dados.SOLAR_LEITURAS aplicado pelo Object.assign acima.
+// Domínio Solar é V2-exclusivo a partir de hoje: se a V2 não respondeu, NÃO cai pro SOLAR_LEITURAS
+// do wallace_dados (proibido fallback silencioso) — vira array vazio; graficos-cenarios-lazy.js já
+// trata "sem leitura" com "Dados insuficientes para cálculo" em vez de mostrar número desatualizado.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_LEITURAS_V2) && window.WALLACE_SOLAR_LEITURAS_V2.length){
+  const ativacaoSolar = new Date(VARS.solarDataAtivacao);
+  VARS.SOLAR_LEITURAS = window.WALLACE_SOLAR_LEITURAS_V2.map(r => {
+    const dataLeitura = new Date(r.data);
+    const dias = Math.round((dataLeitura - ativacaoSolar) / 86400000);
+    return {
+      data: r.data, dias,
+      leitura03: Number(r.leitura_03), leitura103: Number(r.leitura_103),
+      geracaoAcumulada: r.geracao_acumulada != null ? Number(r.geracao_acumulada) : null,
+      geracaoAcumuladaData: null, // não existe em energia_solar_leituras (V2) — nunca fabricado (P1)
+      fonte: 'real',
+    };
+  });
+} else {
+  console.error('Solar V2: window.WALLACE_SOLAR_LEITURAS_V2 indisponível — domínio é V2-exclusivo, sem fallback silencioso pro SOLAR_LEITURAS do wallace_dados.');
+  VARS.SOLAR_LEITURAS = [];
 }
 
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
@@ -973,7 +1023,11 @@ recalcularAgregadosDerivados(); // chamada inicial, na carga da pagina
 // reconciliarPluggy extraídas pra src/modules/pluggy-reconciliacao.js — funções globais, carregam
 // ANTES do app.js. A linha abaixo FICA AQUI de propósito (avaliação síncrona que precisa de VARS já
 // populado — ver nota completa no topo do módulo). Nenhuma fórmula ou comportamento mudou.
-const CARTAO_PLUGGY_MAPA = VARS.CARTAO_PLUGGY_MAPA || CARTAO_PLUGGY_MAPA_DEFAULT;
+// ATUALIZADO 08/08/2026 (Wave B1): VARS.CARTAO_PLUGGY_MAPA (override manual via wallace_dados, V1)
+// continua tendo prioridade se alguém setar explicitamente; senão usa construirCartaoPluggyMapa()
+// (tabela `cartoes`, V2 — já buscada em paralelo no bootstrap do HTML, disponível em
+// window.WALLACE_CARTOES_V2 antes deste ponto), com fallback pro literal local se a V2 não respondeu.
+const CARTAO_PLUGGY_MAPA = VARS.CARTAO_PLUGGY_MAPA || construirCartaoPluggyMapa();
 
 // MODULARIZAÇÃO 07/08/2026: classificarViaV2()/reconciliarTransacoesPluggy() extraídas pra
 // src/modules/pluggy-reconciliacao.js — funções globais, carregam ANTES do app.js. Chamadas por

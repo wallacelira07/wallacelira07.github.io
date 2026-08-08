@@ -452,7 +452,11 @@ function _lazyRenderCenariosSuperavit(){
 }
 
 // ===== Operação Déficit Zero e Energia Solar (Cenarios, secoes 06/07) =====
-function _lazyRenderCenariosDeficitEGraficosSolar(){
+// ASSINCRONA desde 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): precisa de um
+// await pro ciclo aberto (vw_ciclo_solar_aberto) antes de escrever nas seções 10/12. Chamada em
+// initGraficosECenariosLazy() já era uma instrução solta, sem await (mesmo padrão fire-and-forget
+// dos módulos hydrate-onda*.js) — virar async não muda nenhum call site.
+async function _lazyRenderCenariosDeficitEGraficosSolar(){
   const grid2 = '#2a2d31';
     function fmt0(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const legendStd2 = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
@@ -782,6 +786,25 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     if(m > 12) m = 1;
     return m; // 1-12, mes em que o ciclo de leitura FECHA (mes que a fatura reflete)
   }
+  // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): busca o ciclo aberto atual
+  // (baseline_kwh = ponto de partida do ciclo, 0 até o 1º fechamento real) e o histórico de ciclos já
+  // fechados. SOLAR_LEITURAS/SOLAR_LEITURAS_CALC continuam vindo de VARS (já V2-sourced desde o boot,
+  // ver app.js) — aqui só busca o que falta pra separar "ciclo atual" de "acumulado desde ativação".
+  // Falha aqui NUNCA cai pro cálculo antigo (proibido fallback silencioso pro V1): baselineKwh fica
+  // null e os elementos dependentes mostram "⚠ Indisponível (V2)" em vez de reexibir o acumulado como
+  // se fosse o ciclo atual (os dois só coincidem numericamente enquanto nenhum ciclo fechou ainda).
+  let cicloSolarAberto = null, ciclosSolarFechados = [];
+  try {
+    [cicloSolarAberto, ciclosSolarFechados] = await Promise.all([
+      WallaceFinanceService.getCicloSolarAbertoV2(),
+      WallaceFinanceService.getCiclosSolarHistoricoV2(),
+    ]);
+  } catch(err){
+    console.error('CicloSolar: falha ao buscar vw_ciclo_solar_aberto/vw_ciclo_solar_historico — domínio V2-exclusivo, sem fallback silencioso.', err);
+  }
+  const baselineKwh = cicloSolarAberto ? Number(cicloSolarAberto.baseline_kwh) : null;
+  window.WALLACE_CICLO_SOLAR_RELATORIO = { cicloAberto: cicloSolarAberto, ciclosFechados: ciclosSolarFechados, status: baselineKwh!=null ? 'ok' : 'erro_v2' };
+
   const solarL = VARS.SOLAR_LEITURAS_CALC;
   const ultimaSolar = solarL[solarL.length-1];
   // CORRIGIDO 03/08/2026 (2ª rodada - achado do usuário com print real, "continua errado"): a v1 desta
@@ -1006,9 +1029,41 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
 
     setUG('ugImportado', importadoAcum+' kWh');
     setUG('ugExportado', exportadoAcum+' kWh');
-    setUG('ugSaldoLiquido', (saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
+    // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos): ugSaldoLiquido vira o PRINCIPAL —
+    // crédito do CICLO ATUAL (acumulado desde ativação MENOS o baseline do ciclo aberto), não mais
+    // o acumulado puro. baselineKwh vem de vw_ciclo_solar_aberto (fetch no topo desta função); se a
+    // V2 não respondeu, mostra "⚠ Indisponível (V2)" em vez de reexibir o acumulado disfarçado de
+    // ciclo atual — os dois só coincidem numericamente enquanto nenhum ciclo fechou ainda.
     const ugSaldoEl = $('ugSaldoLiquido');
-    if(ugSaldoEl) ugSaldoEl.style.color = saldoLiquidoAcum>=0 ? '#34c98a' : '#e2554f';
+    if(baselineKwh != null){
+      const creditoCicloAtual = Math.round((saldoLiquidoAcum - baselineKwh)*100)/100;
+      setUG('ugSaldoLiquido', (creditoCicloAtual>=0?'+':'')+creditoCicloAtual+' kWh');
+      if(ugSaldoEl) ugSaldoEl.style.color = creditoCicloAtual>=0 ? '#34c98a' : '#e2554f';
+    } else {
+      setUG('ugSaldoLiquido', '⚠ Indisponível (V2)');
+      if(ugSaldoEl) ugSaldoEl.style.color = '#e2554f';
+    }
+    // Secundário — acumulado desde a ativação (21/07), a mesma métrica que era o número principal
+    // antes de hoje. Continua 100% real, só deixou de ser o número em destaque.
+    setUG('ugAcumuladoDesdeAtivacao', 'Acumulado desde 21/07: '+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
+
+    // Histórico de ciclos fechados (seção 11) — dado gravado em ciclos_solares, nunca recalculado.
+    const historicoEl = $('historicoCiclosSolares');
+    if(historicoEl){
+      if(!Array.isArray(ciclosSolarFechados)){
+        historicoEl.innerHTML = '<span style="color:var(--text-danger)">⚠ Indisponível (V2)</span>';
+      } else if(ciclosSolarFechados.length === 0){
+        historicoEl.innerHTML = '<span style="color:var(--text-dim);font-style:italic">Nenhum ciclo fechado ainda — o ciclo atual está aberto desde '+(cicloSolarAberto ? new Date(cicloSolarAberto.data_inicio).toLocaleDateString('pt-BR') : '21/07/2026')+'.</span>';
+      } else {
+        historicoEl.innerHTML = '<table style="width:100%;font-size:0.78rem"><thead><tr><th style="text-align:left">Período</th><th class="r">Crédito líquido</th><th class="r">Wallace</th><th class="r">Wellida</th></tr></thead><tbody>'
+          + ciclosSolarFechados.map(c => {
+              const ini = new Date(c.data_inicio).toLocaleDateString('pt-BR');
+              const fim = new Date(c.data_fim).toLocaleDateString('pt-BR');
+              return '<tr><td>'+ini+' – '+fim+'</td><td class="r">'+fmt(Number(c.credito_liquido_kwh))+' kWh</td><td class="r">'+fmt(Number(c.credito_wallace_kwh))+' kWh</td><td class="r">'+fmt(Number(c.credito_irma_kwh))+' kWh</td></tr>';
+            }).join('')
+          + '</tbody></table>';
+      }
+    }
 
     // NOVO 02/08/2026 (pedido EXPLICITO do usuario, reversao PONTUAL da regra "SEM ESTIMATIVAS" de
     // V250 - só pra este campo, com autorizacao clara, documentada, mesma logica ja aceita pra
@@ -1282,7 +1337,7 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
         + (diasProjetadosSolar>0 ? diasProjetadosSolar+' dia(s) por média histórica (robô ainda sem dado nesses dias)' : '')
         + ' — por isso pode diferir um pouco da Seção 12/13 (Previsão), que mostra só a última leitura manual, sem projetar nenhum dia à frente.'
       : '';
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 11 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 12 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
@@ -1362,11 +1417,24 @@ function _lazyRenderCenariosDeficitEGraficosSolar(){
     // _creditoLiquidoProjetadoHoje, calculada mais acima), pra nao mostrar 2 numeros diferentes pro
     // mesmo conceito de "credito atual". Cai pro valor parado só se a projecao nao pode ser calculada
     // (ex: sem geracaoAcumulada real ainda).
-    const creditoLiquidoPrevisao = VARS._creditoLiquidoProjetadoHoje != null ? VARS._creditoLiquidoProjetadoHoje : ultimaSolar.creditoLiquido;
-    const creditoWallacePrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioWallace * 100) / 100;
-    const creditoIrmaPrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioIrma * 100) / 100;
-    renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, ultimaSolar.dias, '#34c98a');
-    renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, ultimaSolar.dias, '#e8a63a');
+    // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos): Previsão passa a ser baseada
+    // EXCLUSIVAMENTE no ciclo aberto — creditoLiquidoPrevisao (projeção desde-ativação, calculada
+    // acima) menos o baseline do ciclo aberto, e diasDecorridos contado desde o início do ciclo
+    // aberto (cicloSolarAberto.data_inicio), não mais desde a ativação. Sem fallback silencioso: se
+    // baselineKwh não veio da V2, marca "Indisponível" em vez de mostrar a projeção desde-ativação
+    // como se já fosse o ciclo atual.
+    if(baselineKwh != null && cicloSolarAberto){
+      const creditoLiquidoDesdeAtivacaoPrevisao = VARS._creditoLiquidoProjetadoHoje != null ? VARS._creditoLiquidoProjetadoHoje : ultimaSolar.creditoLiquido;
+      const creditoLiquidoPrevisao = Math.round((creditoLiquidoDesdeAtivacaoPrevisao - baselineKwh) * 100) / 100;
+      const creditoWallacePrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioWallace * 100) / 100;
+      const creditoIrmaPrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioIrma * 100) / 100;
+      const diasDesdeInicioCiclo = Math.max(0, Math.round((new Date(ultimaSolar.data) - new Date(cicloSolarAberto.data_inicio)) / 86400000));
+      renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a');
+      renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, diasDesdeInicioCiclo, '#e8a63a');
+    } else {
+      ['prevWallaceStatus','prevWellidaStatus'].forEach(id => { const el=$(id); if(el){ el.textContent='⚠ Indisponível (V2)'; el.style.color='#e2554f'; } });
+      console.error('CicloSolar: Previsão (seção 12) sem baselineKwh/cicloSolarAberto — não calculada, sem fallback silencioso.');
+    }
   }
 }
 

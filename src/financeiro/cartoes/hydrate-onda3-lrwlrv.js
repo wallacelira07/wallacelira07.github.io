@@ -17,24 +17,31 @@ const ONDA3_LRWLRV_MAPA = [
   { idHtml: 'mbLRV', usuarioNome: 'Vanessa', getValorV1: () => VARS.mbLRVConfirmado },
 ];
 
+const ONDA3_LRWLRV_IDS = ONDA3_LRWLRV_MAPA.map(m => m.idHtml);
+
 async function aplicarOnda3LrwLrv(){
   let compromissos;
   try {
     compromissos = await WallaceFinanceService.getCompromissoCartaoPorPessoa();
   } catch(err){
-    console.error('Onda3LrwLrv: falha ao buscar vw_compromisso_cartao_por_pessoa — mantendo V1 (fallback automático).', err);
+    console.error('Onda3LrwLrv: falha ao buscar vw_compromisso_cartao_por_pessoa — domínio V2-exclusivo, sem fallback silencioso pro V1.', err);
+    marcarIndisponivelV2(ONDA3_LRWLRV_IDS, 'Falha ao buscar vw_compromisso_cartao_por_pessoa (Onda 3 LRW/LRV): ' + String(err));
+    window.WALLACE_ONDA3_LRWLRV_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(compromissos)){
-    console.warn('Onda3LrwLrv: resposta inesperada — mantendo V1.');
+    console.warn('Onda3LrwLrv: resposta inesperada — domínio V2-exclusivo, sem fallback silencioso pro V1.');
+    marcarIndisponivelV2(ONDA3_LRWLRV_IDS, 'Resposta inesperada de vw_compromisso_cartao_por_pessoa (Onda 3 LRW/LRV)');
+    window.WALLACE_ONDA3_LRWLRV_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }
   const relatorio = [];
   ONDA3_LRWLRV_MAPA.forEach(({idHtml, usuarioNome, getValorV1}) => {
     const linha = compromissos.find(c => c.usuario_nome === usuarioNome);
     if(!linha){
-      console.warn(`Onda3LrwLrv: "${usuarioNome}" ausente em vw_compromisso_cartao_por_pessoa — mantendo V1.`);
-      relatorio.push({ usuario: usuarioNome, status: 'sem_dado_v2', fonte: 'V1 (fallback)' });
+      console.warn(`Onda3LrwLrv: "${usuarioNome}" ausente em vw_compromisso_cartao_por_pessoa — domínio V2-exclusivo, sem fallback silencioso.`);
+      marcarIndisponivelV2([idHtml], `"${usuarioNome}" ausente em vw_compromisso_cartao_por_pessoa`);
+      relatorio.push({ usuario: usuarioNome, status: 'sem_dado_v2' });
       return;
     }
     let valorV1;

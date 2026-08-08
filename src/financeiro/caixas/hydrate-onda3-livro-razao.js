@@ -40,17 +40,32 @@ function onda3LinhaTransacao(t){
   return `<tr><td class="mono">${tx}</td><td class="mono">${onda3FormatarDataV2(t.data)}</td><td>${t.descricao||''}</td><td style="color:${cor}">${tipo}</td><td class="r">${fmt(Number(t.valor))}</td></tr>`;
 }
 
+// ENDURECIDO (08/08/2026, Wave A): alvo é tbody (não id simples), então usa wrapper local
+// no mesmo padrão de hydrate-onda5-parcelamentos.js — só cobre falha de fetch/estrutura
+// (V2 inalcançável), nunca o caso "0 transações" por caixa (pode ser caixa genuinamente
+// zerada no ciclo, não é erro — continua mantendo V1 nesse caso pontual).
+function onda3LivroRazaoMarcarIndisponivel(motivo){
+  ONDA3_LR_MAPA.forEach(({tbodyId}) => {
+    const tbody = $(tbodyId);
+    if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-danger)" title="'+(motivo||'').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</td></tr>';
+  });
+}
+
 async function aplicarOnda3LivroRazao(){
   const caixaIds = ONDA3_LR_MAPA.map(m => m.caixaId);
   let transacoes;
   try {
     transacoes = await WallaceFinanceService.getTransacoesPorCaixaIds(caixaIds);
   } catch(err){
-    console.error('Onda3LivroRazao: falha ao buscar transacoes — mantendo renderização V1 em todas as tabelas (fallback automático).', err);
+    console.error('Onda3LivroRazao: falha ao buscar transacoes — domínio V2-exclusivo, sem fallback silencioso pro V1.', err);
+    onda3LivroRazaoMarcarIndisponivel('Falha ao buscar transacoes (Onda 3 Livro Razão): ' + String(err));
+    window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(transacoes)){
-    console.warn('Onda3LivroRazao: resposta inesperada — mantendo V1 em todas as tabelas.');
+    console.warn('Onda3LivroRazao: resposta inesperada — domínio V2-exclusivo, sem fallback silencioso pro V1.');
+    onda3LivroRazaoMarcarIndisponivel('Resposta inesperada ao buscar transacoes (Onda 3 Livro Razão)');
+    window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }
   const relatorio = [];

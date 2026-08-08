@@ -604,6 +604,11 @@ function registrarValidacaoFase(fase, aprovado, motivo){
 //
 // Leitura Solar Derivada é caso à parte: tem saída real no boot (VARS.SOLAR_LEITURAS_CALC), então
 // segue o padrão de promoção por campo, igual às fases anteriores.
+// VERIFICADO 08/08/2026 (Solar entra na V2): VARS.SOLAR_LEITURAS agora vem de `energia_solar_leituras`
+// (V2, ver app.js) em vez de wallace_dados — mas a comparação abaixo (v1Existente vs
+// calcularLeituraSolarDerivada) continua válida sem alteração, porque os dois lados leem o MESMO
+// VARS.SOLAR_LEITURAS já trocado na origem (nenhum dos dois ainda lê wallace_dados diretamente).
+// Não há divergência nova esperada aqui.
 // CORRIGIDO 07/08/2026: originalmente rodava como IIFE dentro do app.js, num ponto anterior à
 // declaração de `const SolarConfig` (TDZ, `ReferenceError` confirmado em runtime). Virou função
 // declarada com chamada explícita. Depois da modularização (mesmo dia): este arquivo agora carrega

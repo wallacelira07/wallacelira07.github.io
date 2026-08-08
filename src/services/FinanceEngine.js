@@ -590,6 +590,15 @@ function calcularSaldoAbertoReembolsos(itens) {
  * seção 3, cópia fiel de VARS.SOLAR_LEITURAS_CALC (app.js:2301-2312).
  * NÃO cobre a casa da mãe (rateio separado, medidor próprio — fora do escopo
  * desta função, que segue exatamente o que o app.js já calcula aqui).
+ *
+ * VERIFICADO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): esta fórmula
+ * (creditoLiquido = leitura103 − leitura03) NÃO mudou — só a origem de VARS.SOLAR_LEITURAS
+ * mudou (agora vem de `energia_solar_leituras`/V2 via app.js, antes vinha de wallace_dados).
+ * O comparador em promocoes-financeengine.js (seção "Leitura Solar Derivada") continua batendo
+ * porque os dois lados (esta função e VARS.SOLAR_LEITURAS_CALC) leem o MESMO array já trocado na
+ * origem — nenhuma divergência nova esperada em WALLACE_VALIDACAO_RUNTIME. O conceito novo de
+ * "ciclo atual" (subtrai o baseline do ciclo aberto) vive só em graficos-cenarios-lazy.js
+ * (seções 10-12), não nesta função — que continua representando o acumulado desde a leitura=0.
  */
 function calcularLeituraSolarDerivada({ leitura03, leitura103, dias, rateioWallace, rateioIrma, consumoDiarioWallace, consumoDiarioIrma }) {
   const creditoLiquido = r2(leitura103 - leitura03);

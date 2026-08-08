@@ -63,6 +63,49 @@ const CARTAO_PLUGGY_MAPA_DEFAULT = {
   '9187': {titular:null, apelido:'AZUL ITAU VISA INFINITE (bloqueado, sem uso)', totalVar:null, bloqueado:true}
 };
 
+// NOVO 08/08/2026 (Wave B1 — desligamento da V1): titular/apelido/status agora vêm da tabela
+// `cartoes` (V2, já mais atualizada que o literal acima — tem o cartão 1371 que substituiu o 2244,
+// coisa que o literal nunca chegou a receber). `totalVar` (qual agregado do ERP cada cartão soma) e
+// `conexaoDesatualizada` continuam como regra local — são fato da integração Pluggy em si (qual
+// conta bate com qual total), não dado de identidade do cartão, e não têm coluna correspondente em
+// `cartoes` hoje. window.WALLACE_CARTOES_V2 é buscado em paralelo no bootstrap (mesmo padrão de
+// window.WALLACE_LEGENDAS_REMOTAS); se vier null (offline/falha), cai 100% no literal
+// CARTAO_PLUGGY_MAPA_DEFAULT acima, sem quebrar nada.
+const CARTAO_PLUGGY_TOTALVAR_POR_NUMERO = {
+  '2244':'cartaoMBTotal', '1371':'cartaoMBTotal', '4628':'cartaoMBTotal', '6351':'cartaoMBTotal', '2250':'cartaoMBTotal',
+  '4845':'cartaoInfiniteTotal',
+};
+const CARTAO_PLUGGY_NOME_USUARIO = {
+  'f70b0f48-9d73-44fd-a05b-6f3248bbea21': 'Wallace',
+  '77496938-c875-4578-b6d1-06ffbde3f247': 'Vanessa',
+  '89f205ad-2381-4149-b10f-7170aa13f5d5': 'Júlio',
+  '3bb93c24-8353-4a4b-91cb-ef055809cc04': 'Gabriela',
+};
+function construirCartaoPluggyMapa(){
+  const cartoesV2 = (typeof window !== 'undefined') ? window.WALLACE_CARTOES_V2 : null;
+  if(!Array.isArray(cartoesV2) || !cartoesV2.length){
+    console.warn('construirCartaoPluggyMapa: window.WALLACE_CARTOES_V2 indisponível — usando CARTAO_PLUGGY_MAPA_DEFAULT (literal local).');
+    return CARTAO_PLUGGY_MAPA_DEFAULT;
+  }
+  const mapa = {};
+  cartoesV2.forEach(c => {
+    const numero = c.numero_final;
+    if(!numero) return;
+    let titular = c.usuario_id ? (CARTAO_PLUGGY_NOME_USUARIO[c.usuario_id] || null) : null;
+    if(!titular && c.dono_real_id){
+      titular = `Compartilhada (titular real: ${CARTAO_PLUGGY_NOME_USUARIO[c.dono_real_id] || c.dono_real_id})`;
+    }
+    mapa[numero] = {
+      titular,
+      apelido: c.apelido || numero,
+      totalVar: CARTAO_PLUGGY_TOTALVAR_POR_NUMERO[numero] || null,
+      bloqueado: c.status === 'bloqueado',
+    };
+  });
+  console.log(`construirCartaoPluggyMapa: mapa construído a partir de "cartoes" (V2), ${Object.keys(mapa).length} cartão(ões) — substitui CARTAO_PLUGGY_MAPA_DEFAULT.`);
+  return mapa;
+}
+
 // id sintetico e deterministico por item da Pluggy, usado pra persistir a triagem (PLUGGY_TRIAGEM) e
 // pra nao re-adicionar na Inbox um item que o usuario ja aprovou/rejeitou - sem isso, toda carga da
 // pagina recriava o item do zero (reconciliarPluggy roda em todo onDomPronto) e o clique em

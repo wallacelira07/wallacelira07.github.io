@@ -37,16 +37,28 @@ const ONDA2_V2_MAPA = [
 
 const TOLERANCIA_CENTAVOS = 0.01;
 
+// ENDURECIDO (08/08/2026, Wave A): só os itens com aceitarDivergenciaConhecida=true (já
+// exibem V2 hoje) viram "⚠ Indisponível (V2)" em caso de falha — são domínio V2-exclusivo
+// de fato. Os 4 com aceitarDivergenciaConhecida=false (PGV, Saúde Família, Manutenção,
+// Aniversário Júlio) e o Provisionado Wärtsilä (log-only) NÃO são tocados aqui: divergência
+// não confirmada, usuário proibiu reabrir essa investigação — continuam em V1 silencioso
+// até uma decisão explícita mudar o status deles na tabela acima.
+const ONDA2_HARDEN_IDS = ONDA2_V2_MAPA.filter(m => m.aceitarDivergenciaConhecida && m.idHtml).map(m => m.idHtml);
+
 async function aplicarOnda2V2(){
   let saldosV2;
   try {
     saldosV2 = await WallaceFinanceService.getSaldosPorCaixa();
   } catch(err){
-    console.error('Onda2V2: falha ao buscar vw_saldo_v2_por_caixa — mantendo V1 em todas as 11 caixas (fallback automático).', err);
+    console.error('Onda2V2: falha ao buscar vw_saldo_v2_por_caixa — caixas V2-exclusivas ficam "Indisponível (V2)"; as 4 protegidas (divergência não confirmada) mantêm V1 silencioso.', err);
+    marcarIndisponivelV2(ONDA2_HARDEN_IDS, 'Falha ao buscar vw_saldo_v2_por_caixa (Onda 2)');
+    window.WALLACE_ONDA2_V2_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
   if(!Array.isArray(saldosV2)){
-    console.warn('Onda2V2: resposta inesperada de vw_saldo_v2_por_caixa — mantendo V1 em todas.');
+    console.warn('Onda2V2: resposta inesperada de vw_saldo_v2_por_caixa.');
+    marcarIndisponivelV2(ONDA2_HARDEN_IDS, 'Resposta inesperada de vw_saldo_v2_por_caixa (Onda 2)');
+    window.WALLACE_ONDA2_V2_RELATORIO = { status: 'sem_dado_v2' };
     return;
   }
   const relatorio = [];
@@ -54,6 +66,9 @@ async function aplicarOnda2V2(){
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
     if(!caixaV2 || caixaV2.v2_saldo_calculado === null || caixaV2.v2_saldo_calculado === undefined){
       console.warn(`Onda2V2: "${caixaNome}" ausente/sem saldo em vw_saldo_v2_por_caixa — mantendo V1.`);
+      if(aceitarDivergenciaConhecida && idHtml){
+        marcarIndisponivelV2([idHtml], `"${caixaNome}" ausente em vw_saldo_v2_por_caixa`);
+      }
       relatorio.push({ caixa: caixaNome, status: 'sem_dado_v2' });
       return;
     }
