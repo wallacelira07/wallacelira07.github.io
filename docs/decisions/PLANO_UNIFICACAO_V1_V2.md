@@ -551,6 +551,73 @@ RETURNING id, tx_legado, caixa_id, valor, status;
 
 ---
 
+## 17. Caso TX000140 / Caixa Boletos — investigação, rejeição da correção na view, correção pontual da âncora (08/08/2026)
+
+**Contexto**: último resíduo de reconciliação com hipótese forte pendente desde a Fase 3/4C (`vw_reconciliacao_v1_v2` mostrava `diferenca_absoluta = -1.986,21` pra Caixa Boletos, valor idêntico ao de `TX000140/TXB000010`).
+
+### Hipótese inicial (rejeitada): corrigir `vw_saldo_v2_por_caixa`
+Primeira leitura: a cláusula de match por `tx_legado` na view não filtra por data de início de ciclo (`>= 2026-07-25`), enquanto a cláusula de match por ausência de `tx_legado` filtra. Proposta original: aplicar o mesmo corte de data também ao ramo com `tx_legado`.
+
+### Dry-run da correção na view — evidência de regressão em 8 caixas
+Simulei a view proposta (CTE, sem `CREATE OR REPLACE`) contra as 16 caixas confiáveis. Resultado: Caixa Boletos de fato zerava (`diferenca_absoluta: -1.986,21 → 0,00`), **mas 8 outras caixas, hoje sincronizadas, passavam a divergir**: Churrasco (+100,00), Combustível (+200,00), Eventos (+166,67), Manutenção (+166,67), Saúde Família (+135,00), Seguro Emplacamento (+425,00), Escola de Júlio (+500,00), PIX Geral Vanessa (+78,04), PIX Vanessa (+900,00). Causa: essas 8 caixas também têm, no próprio array V1, uma transação de aporte-mensal (24/07) com `tx_legado` batendo — o mesmo padrão de Boletos — mas ali o match **é necessário** pra bater com o V1 (que soma o item do lado dele também), então remover o match quebra a simetria que hoje as mantém corretas.
+
+### Rejeição formal da alteração da view
+**A proposta de alterar `vw_saldo_v2_por_caixa` foi testada e rejeitada** por falhar no critério de não-regressão (P1/governança do projeto: nenhuma correção pode introduzir erro novo pra corrigir outro). A view permanece com a definição atual, sem alteração.
+
+### Causa raiz real, com demonstração matemática do duplo efeito
+A migration `v2_calibrar_saldo_inicial_todas_caixas` (06/08/2026) calibrou `saldo_inicial_ciclo` de 13 caixas com a fórmula `observado − soma(movimentos com data ≥ 2026-07-25)`. `TX000140/TXB000010` (aporte mensal Wärtsilä, R$1.986,21, **24/07/2026** — um dia antes do corte) ficou de fora da subtração, ou seja, seu efeito já estava embutido no valor "observado" usado pra Boletos. A view (criada depois, mesma sessão) soma esse mesmo valor de novo no delta, via match por `tx_legado`, sem checar data — dupla contagem, só em Boletos, porque só o array V1 de Boletos lista esse `tx_legado` como item rastreado (as outras 12 caixas calibradas não têm essa transação no próprio array).
+
+**Prova algébrica**:
+```
+saldo_inicial_ciclo(2.439,25) − v1_fallback_local(613,17) = 1.826,08
+TX000140(1.986,21) − AJUSTE-06-08(160,13) = 1.826,08   ← idêntico, ao centavo
+```
+Confirma que a calibração incorporou `TX000140` líquido de `AJUSTE-06-08` (presente na soma de movimentos no momento exato da calibração, removido depois por outra migration).
+
+### Correção pontual da âncora (mesmo padrão da Fase 4A)
+
+**SQL executado**:
+```sql
+SELECT set_config('audit.origem','ajuste_manual', true);
+UPDATE caixas SET saldo_inicial_ciclo = 453.04
+WHERE id = '7751575a-6339-4bf2-bda4-60817778551c'; -- Caixa Boletos
+```
+
+**Validações pré-execução**: `saldo_inicial_ciclo` atual = 2.439,25; `audit_log` = 23; `transacoes` = 289; `vw_reconciliacao_v1_v2` das 16 caixas capturada como baseline.
+
+**Validações pós-execução**: `RETURNING` confirmou `saldo_inicial_ciclo = 453.04`; `audit_log` = **24** (Δ+1, registro abaixo); `transacoes` = **289** (inalterado); `vw_reconciliacao_v1_v2` recontada — as outras 15 caixas idênticas ao baseline, nenhuma mudou; `pg_get_viewdef('vw_saldo_v2_por_caixa')` conferida — texto idêntico ao original, **nenhuma view foi alterada**.
+
+**Registro gerado em `audit_log`**:
+```
+tabela=caixas | registro_id=7751575a-6339-4bf2-bda4-60817778551c | operação=UPDATE
+campo=saldo_inicial_ciclo | valor_anterior=2439.25 | valor_novo=453.04
+origem=ajuste_manual | alterado_em=2026-08-08 03:18:48 UTC
+```
+
+**Plano de rollback**:
+```sql
+UPDATE caixas SET saldo_inicial_ciclo = 2439.25
+WHERE id = '7751575a-6339-4bf2-bda4-60817778551c';
+```
+
+### Números finais
+
+| Métrica | Antes | Depois |
+|---|---:|---:|
+| `saldo_inicial_ciclo` (Boletos) | 2.439,25 | **453,04** |
+| `v2_saldo` (Boletos) | 3.474,63 | **1.488,42** |
+| `diferenca_absoluta` (Boletos) | -1.986,21 | **0,00** |
+| `audit_log` | 23 | **24** |
+| `transacoes` | 289 | **289** |
+
+### Conclusão formal
+- **A divergência da Caixa Boletos foi encerrada** — `diferenca_absoluta = 0,00`, `causa_provavel = 'sincronizado'`, `grau_confianca = 'alta'`.
+- **`TX000140` está totalmente explicado** — causa raiz comprovada algebricamente, não é resíduo desconhecido.
+- **A view atual (`vw_saldo_v2_por_caixa`) permanece correta** — a hipótese de alterá-la foi testada e **rejeitada** por causar regressão comprovada em 8 caixas.
+- **A correção aplicada ocorreu exclusivamente em `caixas.saldo_inicial_ciclo`** — nenhuma linha de `transacoes` foi tocada, nenhuma view foi alterada.
+
+---
+
 ## Próximo passo
 
-**Fase 4A, 4B-2, 4C e 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Destino de LRW/LRV decidido na direção conceitual (seção 15) — implementação (3a vs. 3b) pendente. Fase 4D sem proposta técnica ainda. Próximo agente: leia a seção 12 (contexto original da 4B-1), seção 13 (execução 4C), seção 14 (execução 4B-2), seção 15 (decisão LRW/LRV) e seção 16 (execução 4B-1 parcial, inclui pendência `TX000208`) antes de qualquer ação nova.
+**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). Destino de LRW/LRV decidido na direção conceitual (seção 15) — implementação (3a vs. 3b) segue como única decisão de modelagem pendente. Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-17 antes de qualquer ação nova.
