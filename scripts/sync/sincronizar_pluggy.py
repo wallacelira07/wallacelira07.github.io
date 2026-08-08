@@ -27,6 +27,17 @@ Variaveis de ambiente necessarias:
   PLUGGY_CLIENT_SECRET  - idem
   SUPABASE_URL          - https://bakdgacmwlopvrrppwdm.supabase.co
   SUPABASE_KEY          - chave do Supabase (mesma dos outros scripts)
+
+DESTINO NO SUPABASE (ATUALIZADO 08/08/2026 - migracao V1 wallace_dados -> V2 relacional):
+  Este script continua chamando a mesma RPC 'atualizar_pluggy_contas' com o mesmo payload
+  ({"contas": resultado}) - nenhuma mudanca de interface aqui. O que mudou foi DENTRO da RPC: ela
+  deixou de gravar o blob inteiro em wallace_dados.PLUGGY_CONTAS (V1) e passou a fazer substituicao
+  total (delete + insert) nas 3 tabelas relacionais pluggy_conexoes/pluggy_contas/pluggy_transacoes
+  (V2), mesmo comportamento de "snapshot completo a cada rodada" de antes. app.js le as tabelas
+  novas via WallaceFinanceService.getPluggyContasV2(), nao mais VARS.PLUGGY_CONTAS. VARS.PLUGGY_TRIAGEM
+  (decisoes de aprovar/rejeitar da Inbox) fica FORA desta migracao por enquanto - continua em
+  wallace_dados, tratada como etapa posterior separada. Ver docs/changelog/PASSAGEM_DE_TURNO.md
+  (08/08/2026) para o registro completo desta migracao.
 """
 import json
 import os
@@ -185,6 +196,12 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
             contas = listar_contas(api_key, item_id)
             for c in contas:
                 conta_info = {
+                    # CORRIGIDO 08/08/2026 (migracao V1 wallace_dados -> V2 relacional): id real da
+                    # conta na API Pluggy, nunca capturado antes. "numero" (mascarado) NAO e unico por
+                    # conexao - achado real durante a migracao: duas contas do mesmo item BTG
+                    # compartilham numero identico (produtos diferentes, "BTG Investimentos" e
+                    # "BTG Banking"). A tabela pluggy_contas usa este id como chave primaria.
+                    "id": c.get("id"),
                     "tipo": c.get("type"),
                     "subtipo": c.get("subtype"),
                     "nome": c.get("name"),

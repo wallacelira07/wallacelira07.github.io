@@ -311,6 +311,60 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 08/08/2026 (migração wallace_dados.PLUGGY_CONTAS -> tabelas pluggy_conexoes/pluggy_contas/
+  // pluggy_transacoes): busca as 3 tabelas e reconstrói localmente o MESMO shape aninhado que
+  // VARS.PLUGGY_CONTAS já tinha ({conexoes:[{item_id,banco,status,atualizado_em,contas:[{numero,tipo,
+  // ...,fatura_mes_atual:{...},transacoes_recentes:[...]}]}]}) — reconciliarPluggy()/
+  // reconciliarTransacoesPluggy() (V1, inalteradas) continuam lendo esse shape sem saber que a fonte
+  // mudou. Ver hydrate-onda7-pluggy.js.
+  async getPluggyContasV2(){
+    const chave = 'pluggy_contas_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const [respConexoes, respContas, respTransacoes] = await Promise.all([
+      fetch(`${this._url}/rest/v1/pluggy_conexoes?select=item_id,banco,status,atualizado_em`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
+      fetch(`${this._url}/rest/v1/pluggy_contas?select=id,conexao_id,numero,tipo,subtipo,nome,saldo,moeda,limite_total,limite_disponivel,fatura_vencimento_atual,fatura_valor_total,fatura_pagamento_minimo,qtd_transacoes_sincronizadas`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
+      fetch(`${this._url}/rest/v1/pluggy_transacoes?select=id,conta_id,data,descricao,valor,categoria,status`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
+    ]);
+    if(!respConexoes.ok) throw new Error(`WallaceFinanceService: erro ${respConexoes.status} ao buscar pluggy_conexoes`);
+    if(!respContas.ok) throw new Error(`WallaceFinanceService: erro ${respContas.status} ao buscar pluggy_contas`);
+    if(!respTransacoes.ok) throw new Error(`WallaceFinanceService: erro ${respTransacoes.status} ao buscar pluggy_transacoes`);
+    const [conexoesRaw, contasRaw, transacoesRaw] = await Promise.all([respConexoes.json(), respContas.json(), respTransacoes.json()]);
+
+    const transacoesPorConta = new Map();
+    transacoesRaw.forEach(t => {
+      if(!transacoesPorConta.has(t.conta_id)) transacoesPorConta.set(t.conta_id, []);
+      transacoesPorConta.get(t.conta_id).push({
+        id: t.id, data: t.data, descricao: t.descricao,
+        valor: t.valor !== null ? Number(t.valor) : null, categoria: t.categoria, status: t.status,
+      });
+    });
+    const contasPorConexao = new Map();
+    contasRaw.forEach(a => {
+      if(!contasPorConexao.has(a.conexao_id)) contasPorConexao.set(a.conexao_id, []);
+      contasPorConexao.get(a.conexao_id).push({
+        numero: a.numero, tipo: a.tipo, subtipo: a.subtipo, nome: a.nome,
+        saldo: a.saldo !== null ? Number(a.saldo) : null, moeda: a.moeda,
+        limite_total: a.limite_total !== null ? Number(a.limite_total) : null,
+        limite_disponivel: a.limite_disponivel !== null ? Number(a.limite_disponivel) : null,
+        fatura_vencimento_atual: a.fatura_vencimento_atual,
+        fatura_mes_atual: (a.fatura_valor_total !== null) ? {
+          valor_total: Number(a.fatura_valor_total),
+          vencimento: a.fatura_vencimento_atual,
+          pagamento_minimo: a.fatura_pagamento_minimo !== null ? Number(a.fatura_pagamento_minimo) : null,
+        } : null,
+        qtd_transacoes: a.qtd_transacoes_sincronizadas,
+        transacoes_recentes: transacoesPorConta.get(a.id) || [],
+      });
+    });
+    const dado = {
+      conexoes: conexoesRaw.map(c => ({
+        item_id: c.item_id, banco: c.banco, status: c.status, atualizado_em: c.atualizado_em,
+        contas: contasPorConexao.get(c.item_id) || [],
+      })),
+    };
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 
@@ -1370,12 +1424,12 @@ onDomPronto(aplicarOnda3LivroRazao);
 // com VARS.LREI_ATIVAS vindo da V2. Ver hydrate-onda4-lrei.js.
 onDomPronto(aplicarOnda4Lrei);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
-// V400 Etapas 2/3: rodam apos renderInboxFinanceira (mesma tabela que elas alimentam via inboxAdicionarItem).
-// Ate hoje (03/08/2026) essas 2 funcoes so tinham sido testadas em harness Node isolado, nunca ligadas
-// ao carregamento real da pagina - VARS.PLUGGY_CONTAS ja chega pronto antes daqui (aplicado de
-// window.WALLACE_DADOS_REMOTOS no topo do arquivo), entao e seguro rodar no mesmo onDomPronto.
-onDomPronto(reconciliarPluggy);
-onDomPronto(() => { reconciliarTransacoesPluggy().then(() => classificarInboxPendentes()); }); // CORRIGIDO 06/08/2026 (parte 115): reconciliarTransacoesPluggy virou async (parte 114, chamadas V2) - os itens novos so existem DEPOIS do await resolver, entao o classificarInboxPendentes() que ja rodava synchronous logo abaixo (linha ~4792) corria ANTES desses itens existirem e nunca os via. Re-chama aqui, encadeado, garantindo que V1 (classificarInboxPendentes, fallback) rode DEPOIS que a V2 (classificarViaV2, dentro do reconciliar) ja teve a chance - V2 tem prioridade (mais especifica, curada no Supabase), V1 so preenche o que sobrar (categoriaSugerida ja setado nunca e sobrescrito, confirmado no proprio classificarInboxPendentes).
+// MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
+// VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas
+// pluggy_conexoes/pluggy_contas/pluggy_transacoes (V2) e reaproveita as mesmas funções de
+// reconciliação inalteradas, só com dado novo. Ver hydrate-onda7-pluggy.js. classificarInboxPendentes()
+// já é re-chamada de dentro de aplicarOnda7Pluggy() (mesmo cuidado da parte 115 abaixo).
+onDomPronto(aplicarOnda7Pluggy);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.

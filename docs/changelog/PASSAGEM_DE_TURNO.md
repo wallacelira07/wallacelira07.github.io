@@ -76,7 +76,41 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Métrica final desta rodada de aceleração**: 37 → **56 consumidores removidos** / ~46 → **~27 restantes**.
 
-**Pendente**: commit + push (código; migração de banco já aplicada e validada em produção).
+**Commitado e enviado**: `b24c275` → `origin/main`.
+
+**Usuário confirmou explicitamente que a estratégia funcionou melhor que atacar Pluggy/MP/Ciclo Snapshots direto e pediu para continuar** — encerrada a frente de "id de DOM duplicado" (6 achados, 55 removidos), pivotei pra modelagem nova real conforme aprovado.
+
+## Pluggy migrado — schema, contagens e validação
+
+**Investigação**: `VARS.PLUGGY_CONTAS` é uma árvore aninhada (conexões → contas → transações, incluindo dados de fatura de cartão), sincronizada por `sincronizar_pluggy.py` via RPC que substitui o blob inteiro a cada rodada (não faz merge). Separado disso, `VARS.PLUGGY_TRIAGEM` guarda decisões de aprovar/rejeitar da Inbox, com ids sintéticos de granularidade mista (conta e transação). Escopo aprovado pelo usuário: migrar só `PLUGGY_CONTAS` (as 3 entidades), deixar `PLUGGY_TRIAGEM` de fora.
+
+**Schema final**:
+- `pluggy_conexoes` (item_id PK, banco, status, atualizado_em)
+- `pluggy_contas` (id PK, conexao_id FK, numero, tipo, subtipo, nome, saldo, moeda, limite_total, limite_disponivel, fatura_vencimento_atual, fatura_valor_total, fatura_pagamento_minimo, qtd_transacoes_sincronizadas)
+- `pluggy_transacoes` (id PK, conta_id FK, data, descricao, valor, categoria, status)
+- RLS habilitado nas 3, policy de leitura pública (anon/authenticated), mesmo padrão das tabelas V2 já existentes.
+
+**Achado real durante a modelagem, corrigido antes de perder dado**: a 1ª tentativa usou `(conexao_id, numero)` como chave primária de `pluggy_contas`. O backfill de teste voltou 9 contas em vez das 11 esperadas — investigado e confirmado: `numero` (o número mascarado da conta) **não é único por conexão**. Duas contas reais do mesmo item BTG ("BTG Investimentos" e "BTG Banking") compartilham o mesmo número mascarado. Além disso, o script Python nunca capturava o `id` real da conta na API Pluggy (só usava `id` pra chamar `/bills` e `/v2/transactions`, nunca guardava no payload). Corrigido: schema recriado usando `id` como chave primária real — o id verdadeiro da Pluggy quando disponível, ou um hash estável (`item_id+numero+nome`) para as linhas do backfill (onde o id real nunca existiu na origem). `sincronizar_pluggy.py` corrigido pra capturar `c.get("id")` daqui pra frente, garantindo id real em todas as sincronizações futuras.
+
+**Backfill**: chamado direto contra a RPC nova usando o snapshot atual de `wallace_dados.PLUGGY_CONTAS` como entrada — exercita exatamente o mesmo caminho de código que roda em produção. Resultado: 5 conexões, 10 contas distintas (11 linhas brutas na origem — 1 era uma duplicata literal real, mesmo item_id+numero+nome, corretamente descartada; confirmado que não é perda de dado, é a mesma conta representada duas vezes na origem), 371 transações — 100% preservadas.
+
+**RPC `atualizar_pluggy_contas` reescrita** — mesma assinatura (`sincronizar_pluggy.py` não precisou mudar a chamada de escrita). Substituição total (delete + insert) nas 3 tabelas por rodada, mesmo comportamento do `jsonb_set` anterior (o payload do Python já é sempre o snapshot completo, nunca incremental).
+
+**JS**: `WallaceFinanceService.getPluggyContasV2()` novo — busca as 3 tabelas em paralelo e reconstrói localmente o MESMO shape aninhado que `VARS.PLUGGY_CONTAS` sempre teve, pra que `reconciliarPluggy()`/`reconciliarTransacoesPluggy()` (V1, inalteradas — mapa de cartão, filtro de ruído, comparação de fatura por vencimento) continuem funcionando sem saber que a fonte mudou. `src/integrations/pluggy/hydrate-onda7-pluggy.js` novo, mesmo padrão dos módulos anteriores. Mesmo cuidado já aplicado a LREI/Mercado Pago: `classificarInboxPendentes()` e `hydrateQualidade()` (alerta ao vivo do saldo Mercado Pago, lê `VARS.PLUGGY_CONTAS` direto) re-chamadas depois do fetch assíncrono resolver.
+
+**Validado ao vivo, sem login**: relatório final — 5 conexões, 10 contas, 371 transações (todos batendo exato com o banco), 0 divergência de fatura, 2 transações suspeitas corretamente detectadas e levadas pra Inbox. `VARS.PLUGGY_TRIAGEM` (3 triagens antigas, incluindo uma transação e uma conexão desatualizada) confirmado intacto — as 2 transações que apareceram na Inbox são exatamente as que ainda não tinham triagem, nenhuma triagem antiga foi re-perguntada. Zero erro de console.
+
+**Entrega final pedida pelo usuário**:
+- Schema final: 3 tabelas (ver acima).
+- Conexões migradas: 5/5.
+- Contas migradas: 10/10 (distintas; 11 linhas brutas na origem, 1 duplicata real descartada corretamente).
+- Transações migradas: 371/371.
+- Consumidores removidos da V1 nesta rodada: `PLUGGY_CONTAS` (1 domínio, 3 arquivos JS deixaram de ler `wallace_dados` para isso).
+- `PLUGGY_TRIAGEM`: documentado, deixado fora desta rodada por decisão explícita do usuário — candidato a etapa futura separada.
+
+**Métrica final da sessão de aceleração completa**: 37 → **57 consumidores removidos** / ~46 → **~26 restantes**.
+
+**Pendente**: commit + push.
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
 
