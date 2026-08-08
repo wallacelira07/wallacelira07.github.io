@@ -6,9 +6,9 @@
 
 ## Métrica
 
-✅ 47 consumidores removidos: +1 Boletos (`cxBoletosPct`/`cxBoletosBar`/`balResBoletos`), +4 caixas (linha "Reservas" de Bens Duráveis/Eventos/Seguro Emplacamento/Escola de Júlio), +5 Patrimônio (`bfinReserva`/`bfinBTG`/`bfinNectonCC`/`bpFinanciamentoCasa`/`bpConsorcioAuto`, seção "Balanço Patrimonial") — mesma classe de bug nos 3 casos
+✅ 48 consumidores removidos: +1 Boletos (`cxBoletosPct`/`cxBoletosBar`/`balResBoletos`), +4 caixas (linha "Reservas" de Bens Duráveis/Eventos/Seguro Emplacamento/Escola de Júlio), +5 Patrimônio (`bfinReserva`/`bfinBTG`/`bfinNectonCC`/`bpFinanciamentoCasa`/`bpConsorcioAuto`), +1 Caixa Variável (`balOpCaixaVariavel`) — mesma classe de bug em 4 achados
 ✅ ~16 exceções formais
-✅ ~36 consumidores restantes
+✅ ~35 consumidores restantes
 
 **Achado sistêmico** (3 ocorrências do mesmo padrão nesta rodada): quando uma caixa/valor patrimonial aparece em 2 pontos de exibição diferentes (card + linha do Balanço, ou card "Meta do Milhão" + seção "Balanço Patrimonial"), as Ondas anteriores só migraram 1 dos 2 ids. Boletos e as 4 caixas de Reservas: auditados por completo, não sobra mais nenhum caso — os `balRes*`/`balOp*` restantes em V1 (`balOpPixVanessa`/PGV, `balResLance`) são intencionais (divergência real não resolvida, já documentada). Patrimônio: os 5 ids duplicados corrigidos; os TOTAIS compostos da seção Balanço (`balFinanceiroTotal`, `balAtivosTotal`, `balPatrimonioLiquido`/`TotalGeral`) ficam de propósito em V1 — misturam componentes sem V2 ainda (físico: casa/apartamento/jazigo/solar/carro; PGBL; FGTS; consórcio casa pelo valor pago), não é o mesmo padrão simples de duplicata.
 

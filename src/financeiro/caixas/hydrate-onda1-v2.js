@@ -49,11 +49,16 @@ const ONDA1_V2_MAPA = [
     },
   },
   { idHtml: 'cxPixSaldo', caixaNome: 'PIX Vanessa', getValorV1: () => REG.caixasOperacionais.pixVanessa.saldo },
-  { idHtml: 'cvSaldoReal', caixaNome: 'Caixa Variável', getValorV1: () => REG.caixaVariavel.saldoReal },
+  {
+    // ACHADO (08/08/2026, mesma classe de bug): balOpCaixaVariavel (seção "Balanço Patrimonial" →
+    // Operacional) duplica o mesmo saldo real da Caixa Variável, nunca tinha sido ligado.
+    idHtml: 'cvSaldoReal', caixaNome: 'Caixa Variável', getValorV1: () => REG.caixaVariavel.saldoReal,
+    extra: (valorV2) => { const el = $('balOpCaixaVariavel'); if(el) el.textContent = fmt(valorV2); },
+  },
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];
 
-const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos']); // cxBoletosBar tem style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
+const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos', 'balOpCaixaVariavel']); // cxBoletosBar tem style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
 
 async function aplicarOnda1V2(){
   let saldosV2;

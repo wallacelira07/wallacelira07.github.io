@@ -30,7 +30,13 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Validado ao vivo**: os 5 pares batem exato (Reserva R$100.644,15, BTG R$14.779,62, Necton CC R$429,75, Financiamento Casa R$61.081,39, Consórcio Auto R$18.998,83). `Onda4Patrimonio` continua reportando V1×V2 batendo no total (R$120.375,65), sem regressão. Zero erro/warning novo.
 
-**Métrica após os 3 achados desta rodada**: 37 → **47 consumidores removidos** / ~46 → **~36 restantes**.
+**Commitado e enviado**: `db2b1be` → `origin/main`.
+
+**Quarta ocorrência do mesmo padrão**: `balOpCaixaVariavel` (seção "Balanço Patrimonial" → Operacional) duplicava o mesmo saldo real da Caixa Variável que `cvSaldoReal` (Onda 1) já mostrava via V2 — nunca tinha sido ligado. Fix idêntico aos anteriores: `extra()` no item "Caixa Variável" do `ONDA1_V2_MAPA`, reaproveitando `valorV2`, sem fetch novo. Validado ao vivo: `cvSaldoReal`=`balOpCaixaVariavel`=R$1.886,65, zero erro novo.
+
+**Métrica após os 4 achados desta rodada**: 37 → **48 consumidores removidos** / ~46 → **~35 restantes**.
+
+**Auditoria final desta classe de bug**: reli `hydrate-balanco.js` inteiro linha a linha depois deste 4º achado. Restam sem V2: `balObr*`/`balObrTotal` (headline totals de cartão, exceção arquitetural formal, nunca serão só-V2 — `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`), `balFluxo*`/`bal4q*` (Necessidade/Modo Operacional, sem V2 relacional ainda, domínio 5/6 do `MAPA_MIGRACAO_V2.md`), `patPrevidencia`/`patFgts` (PGBL/FGTS, sem tabela V2, baixo ROI por definição de negócio), `balLreiAtivos` (já lê array real, não é gap), totais compostos do Patrimônio (já documentado no achado anterior). **Não há mais nenhum caso do padrão "mesmo valor, id duplicado, só 1 migrado" nesta tela.**
 
 **Pendente**: commit + push.
 
