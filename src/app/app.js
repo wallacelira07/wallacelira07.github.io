@@ -157,8 +157,15 @@ const WallaceFinanceService = {
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_patrimonio_v2`);
     const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado[0] || null;
+    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
+    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
+    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
+    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
+    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
+    // e retorno agora sempre guardam/devolvem o MESMO valor.
+    const resultado = dado[0] || null;
+    this._cache.set(chave, resultado);
+    return resultado;
   },
   // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): ciclo aberto atual
   // (vw_ciclo_solar_aberto, sempre 0 ou 1 linha) e histórico de ciclos já fechados
@@ -171,8 +178,15 @@ const WallaceFinanceService = {
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_aberto`);
     const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado[0] || null;
+    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
+    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
+    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
+    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
+    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
+    // e retorno agora sempre guardam/devolvem o MESMO valor.
+    const resultado = dado[0] || null;
+    this._cache.set(chave, resultado);
+    return resultado;
   },
   async getCiclosSolarHistoricoV2(){
     const chave = 'vw_ciclo_solar_historico';
@@ -208,8 +222,15 @@ const WallaceFinanceService = {
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
     const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado[0] || null;
+    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
+    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
+    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
+    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
+    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
+    // e retorno agora sempre guardam/devolvem o MESMO valor.
+    const resultado = dado[0] || null;
+    this._cache.set(chave, resultado);
+    return resultado;
   },
   // NOVO 08/08/2026 (Onda 4, domínio 3 — LREI): vw_emprestimos_internos_v2 (mesmo shape de
   // VARS.LREI_ATIVAS — id/data/credora/devedora/valor/origem/status/quitadoEm/quitadoPor).
@@ -234,8 +255,15 @@ const WallaceFinanceService = {
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
     const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado[0] || null;
+    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
+    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
+    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
+    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
+    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
+    // e retorno agora sempre guardam/devolvem o MESMO valor.
+    const resultado = dado[0] || null;
+    this._cache.set(chave, resultado);
+    return resultado;
   },
   // NOVO 08/08/2026 (Onda 5, domínio 1 — Parcelamentos): vw_parcelamentos_v2 — `parcelas` já tinha
   // as 22 linhas (16 Visa + 6 MP) sincronizadas 1:1 com VARS.PARCELAMENTOS_VISA/MP, só faltava a view.
@@ -260,8 +288,15 @@ const WallaceFinanceService = {
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_p2p_v2`);
     const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado[0] || null;
+    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
+    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
+    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
+    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
+    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
+    // e retorno agora sempre guardam/devolvem o MESMO valor.
+    const resultado = dado[0] || null;
+    this._cache.set(chave, resultado);
+    return resultado;
   }
 };
 

@@ -66,7 +66,18 @@ async function aplicarOnda4Investimentos(){
 
   VARS.opcoesVendidasDetalhe = novoArray;
   VARS.CDI_MENSAL_ATUAL = Number(cdiInd.valor);
-  VARS.CDI_MENSAL_ATUAL_DATA_REF = formatarDataBR(cdiInd.data_calculo);
+  // CORRIGIDO 08/08/2026 (bug real reportado pelo usuario: PETRS368W5 vencida aparecendo como
+  // ativa, tabela de vencidas nao aparecia): formatarDataBR(cdiInd.data_calculo) podia lancar
+  // excecao nao tratada aqui, ANTES de aplicarStatusVencidoEValorMercadoOpcoes()/hydrateROC()
+  // rodarem (linhas abaixo) - isso deixava o.vencida undefined em todas as posicoes (nunca
+  // calculado), e o filtro `!o.vencida` da tabela ativa tratava undefined como "nao vencida",
+  // mostrando TUDO como ativo. Blindado: falha aqui vira aviso, nunca aborta o resto do fluxo.
+  try {
+    VARS.CDI_MENSAL_ATUAL_DATA_REF = formatarDataBR(cdiInd.data_calculo);
+  } catch(err){
+    console.warn('Onda4Investimentos: falha ao formatar data_calculo do CDI - CDI_MENSAL_ATUAL_DATA_REF fica sem data, resto do fluxo (inclusive classificacao de vencidas) continua normalmente.', err);
+    VARS.CDI_MENSAL_ATUAL_DATA_REF = null;
+  }
   VARS.ROC_STATUS_LIMITES = { boaAte: Number(limiteBoaInd.valor), muitoBoaAte: Number(limiteMuitoBoaInd.valor) };
 
   // Reaproveita as funções V1 inalteradas — mesmo cálculo, mesma renderização, só dado novo.

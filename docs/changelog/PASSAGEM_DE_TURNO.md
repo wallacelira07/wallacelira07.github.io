@@ -2,6 +2,32 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 27 — BUG ESTRUTURAL RAIZ encontrado e corrigido: cache do WallaceFinanceService explicava PETRS368W5/frescor "crítica"/NaN P2P-Wärtsilä, tudo o mesmo bug (08/08/2026, continuação do Bloco 26)
+
+**Contexto**: usuário reportou 2 problemas novos via screenshot da tabela de opções (PETR4/ITUB4 PUT) — coluna "Vencimento" por linha tinha sumido (só um texto fixo "21/08/2026" no topo, errado pra posições com vencimento diferente) e a separação "ativas vs vencidas" não estava acontecendo (PETRS368W5, vencida 31/07, ainda aparecia como ativa).
+
+**1. Descoberta crítica de ambiente**: até este bloco, eu vinha testando no preview local assumindo que o app nunca carregava sem login real (limitação documentada há sessões). **Isso estava errado nesta sessão específica** — o preview local (`.claude/launch.json`) na verdade faz login automático e injeta `Sistema_Wallace_Lira_Completo.html` num `#mainIframe` de verdade. Descobri isso ao investigar por que erros de console pareciam "só do ambiente local" — na real, eram bugs de produção genuínos, que eu vinha descartando incorretamente como artefato do preview. **Lição registrada**: sempre checar `document.getElementById('mainIframe')` antes de descartar um erro de console como "limitação de login" — `VARS`/funções do app não ficam em `window` direto (são `const`/`function` de escopo de módulo, não `var`), então pra inspecionar de fora é preciso `iframe.contentWindow.eval(...)`, nunca `iframe.contentWindow.VARS` direto.
+
+**2. Causa raiz real, rastreada até o fim**: `WallaceFinanceService` (app.js) tem 15 métodos de fetch com cache em memória (`this._cache`, um `Map`, sem TTL — a mesma suspeita registrada no Bloco 26, agora confirmada e localizada). **5 desses métodos** (`getPatrimonioV2`, `getCicloSolarAbertoV2`, `getIndicador`, `getReembolsoWartsilaCicloV2`, `getP2PV2`) tinham um bug de shape: a resposta da API vem como array (`dado`), a função CACHEIA o array bruto (`this._cache.set(chave, dado)`) mas RETORNA o primeiro elemento desembrulhado (`return dado[0] || null`). Na 1ª chamada funciona (retorna certo antes de cachear errado) — a partir da 2ª chamada pro mesmo dado (cache hit), o método devolve o ARRAY inteiro em vez do objeto esperado. Qualquer código que leia `.campo` desse "objeto" (na real um array) recebe `undefined` — `Number(undefined)` vira `NaN`, `undefined.toLocaleString()`/`undefined.split()` lança exceção não tratada.
+
+**Isso explica, com uma causa única, TODOS os sintomas misteriosos que vinham sendo reportados e que eu não conseguia reproduzir em teste isolado**:
+   - `hydrate-onda4-investimentos.js:69` (`cdiInd.data_calculo.split` undefined) — 2ª chamada de `getIndicador('CDI_MENSAL_ATUAL')` retornando array.
+   - PETRS368W5 aparecendo como ativa — a exceção acima abortava `aplicarOnda4Investimentos()` ANTES de chegar em `aplicarStatusVencidoEValorMercadoOpcoes()`, deixando `o.vencida` sempre `undefined` (`!undefined` = true = "não vencida" pra TODAS as posições).
+   - `hydrate-onda4-patrimonio.js:50` (`fmt(reserva)` com `reserva` undefined) — 2ª chamada de `getPatrimonioV2()`.
+   - **NaN em P2P e Wärtsilä (Bloco 26, nunca resolvido até agora)** — mesma causa em `getP2PV2()`/`getReembolsoWartsilaCicloV2()`.
+   - Frescor "crítica" pra dado de minutos — muito provavelmente a mesma causa via `getIndicador('SOLAR_FRESCOR_LIMITES - ...')` retornando array em vez de `{valor}`, fazendo os limites virarem `NaN` e a comparação `minutos <= NaN` sempre falhar (cai no `else` = vermelho). Não reconfirmado individualmente porque a correção estrutural já cobre a causa.
+
+**3. Correção aplicada**: nos 5 métodos, o cache agora guarda o MESMO valor retornado (`const resultado = dado[0] || null; this._cache.set(chave, resultado); return resultado;`) — cache e retorno nunca mais divergem em shape.
+
+**4. Correções adicionais no caminho**:
+   - `hydrate-onda4-investimentos.js`: `formatarDataBR(cdiInd.data_calculo)` envolvido em try/catch — mesmo que o campo venha ausente por algum outro motivo futuro, o resto do fluxo (inclusive classificação de vencidas) não trava mais.
+   - `hydrate-roc.js`: 3 ocorrências de `o.roc.comparacaoCDI.toLocaleString(...)` sem checar `null` (tabela ativa, tabela de vencidas, tabela de exercidas) — `comparacaoCDI` pode ser `null` legitimamente (quando `cdiMensalFracao` não é `> 0`), e a chamada direta quebrava a renderização INTEIRA da tabela (`Array.map` lança, nenhuma linha aparece), não só a célula. Blindado com fallback `'—'`.
+   - Coluna "Vencimento" por linha devolvida à tabela de posições ativas (tinha sumido, restava só um texto fixo desatualizado no topo) — `Sistema_Wallace_Lira_Completo.html` (novo `<th>`) + `hydrate-roc.js` (nova `<td>${o.vencimento}</td>`).
+
+**5. Validação com prova real, dentro do app de verdade (não teste isolado)**: chamei `WallaceFinanceService.getPatrimonioV2()` duas vezes seguidas (força cache-hit) via `iframe.contentWindow.eval()` — 1ª e 2ª chamada agora retornam objeto idêntico (antes, a 2ª virava array). `hydrateROC()` chamado direto: tabela ativa com 2 linhas (PETRT379, ITUBT424, cada uma com sua data), tabela de vencidas visível com PETRS368W5 (31/07/2026). DOM real conferido: `p2pCapitalTotal`="R$ 110,00", `p2pCreditosRestantes`="6 / 10", `reembRecebidos`="R$ 5.254,98", `patTotal`="R$ 120.375,65" — **todos os valores que antes mostravam NaN agora corretos**. Console geral: zero erros.
+
+**Pendente**: commit + push.
+
 ## Bloco 26 — NOVA DIRETRIZ permanente (execução autônoma) + bug real da soma dos LRs + HISTORICO_ERP_TODOS_CICLOS migrado (08/08/2026, continuação do Bloco 25)
 
 **1. Nova diretriz de operação, válida pra todas as sessões futuras**: o usuário identificou que eu estava parando pra pedir autorização demais em pontos onde já havia evidência suficiente. Critério novo, permanente: **"Isso reduz dependência da V1 sem criar risco?"** — se sim (sem decisão de negócio pendente, sem risco financeiro, sem risco de perda de dado, sem bloqueio explícito, caminho técnico claro), executar direto até commit, sem parar pra perguntar em cada passo. Só interromper se: perda potencial de informação, decisão de negócio real, conflito com regra já definida, ou risco financeiro real.

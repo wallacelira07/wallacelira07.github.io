@@ -156,10 +156,15 @@ function hydrateROC(){
       if(o.roc && o.roc.rentabilidadeMensal !== null){
         const pctMensal = o.roc.rentabilidadeMensal * 100;
         rocLinha1 = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
-        rocLinha2 = `<span style="color:var(--text-dim);font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+        // CORRIGIDO 08/08/2026 (bug real, achado ao investigar a tabela de opcoes travando):
+        // comparacaoCDI pode ser null legitimamente (opcoes-roc.js so calcula quando cdiMensalFracao
+        // > 0 E diasOperacao existe) - chamar toLocaleString() direto quebrava a renderizacao
+        // INTEIRA da tabela (Array.map lanca e nenhuma linha aparece), nao so a celula.
+        const comparacaoCDITxt = o.roc.comparacaoCDI !== null ? `${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI` : '—';
+        rocLinha2 = `<span style="color:var(--text-dim);font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxt}</span>`;
       }
       const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
     // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
     // absoluto fixo por frescor relativo (montarBadgeFrescor), recalculado a cada 60s. hydrateROC()
@@ -216,7 +221,10 @@ function hydrateROC(){
         if(o.roc && o.roc.rentabilidadeMensal !== null){
           const pctMensalV = o.roc.rentabilidadeMensal * 100;
           rocLinha1v = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensalV.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
-          rocLinha2v = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+          // CORRIGIDO 08/08/2026 (mesmo bug da tabela ativa, ver comentario acima): comparacaoCDI
+          // pode ser null legitimamente.
+          const comparacaoCDITxtV = o.roc.comparacaoCDI !== null ? `${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI` : '—';
+          rocLinha2v = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxtV}</span>`;
         }
         const rocHtmlV = `<div>${rocLinha1v}</div><div style="min-height:1em">${rocLinha2v}</div>`;
         return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlV}</td></tr>`;
@@ -248,7 +256,10 @@ function hydrateROC(){
         if(o.roc && o.roc.rentabilidadeMensal !== null){
           const pctMensalE = o.roc.rentabilidadeMensal * 100;
           rocLinha1e = `<span style="font-weight:600">${o.roc.statusROC.emoji} ${pctMensalE.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%/mês</span>`;
-          rocLinha2e = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI</span>`;
+          // CORRIGIDO 08/08/2026 (mesmo bug das outras 2 tabelas, ver comentario acima): comparacaoCDI
+          // pode ser null legitimamente.
+          const comparacaoCDITxtE = o.roc.comparacaoCDI !== null ? `${o.roc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}x CDI` : '—';
+          rocLinha2e = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxtE}</span>`;
         }
         const rocHtmlE = `<div>${rocLinha1e}</div><div style="min-height:1em">${rocLinha2e}</div>`;
         return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlE}</td></tr>`;
