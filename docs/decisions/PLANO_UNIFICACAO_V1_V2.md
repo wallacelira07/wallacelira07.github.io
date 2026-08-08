@@ -586,7 +586,7 @@ RETURNING id, tx_legado, caixa_id, valor, status;
 | Efeitos colaterais identificados | — | **0** |
 
 ### Pendência formal de governança registrada
-**`TX000208`** — status: **"Pendente de definição de rastreabilidade por colisão de `tx_legado`."** Não inserido na V2. Correção a avaliar futuramente (renumeração na origem V1, alias controlado, ou outro tratamento) — nenhuma ação tomada até decisão explícita.
+**`TX000208`** — status: **"Pendente de definição de rastreabilidade por colisão de `tx_legado`."** Não inserido na V2. Correção a avaliar futuramente (renumeração na origem V1, alias controlado, ou outro tratamento) — nenhuma ação tomada até decisão explícita. **Atualização 08/08/2026: esta pendência foi ampliada para incluir mais 4 casos da mesma família, achados na investigação da Parte B — ver seção 20 para a lista consolidada e o registro completo.**
 
 ### Confirmações permanentes
 - `LRW_TRANSACOES`/`LRV_TRANSACOES` permanecem **fora do escopo operacional** da sincronização até a implementação da 3a (ver seção 15).
@@ -783,4 +783,63 @@ As 6 ignoradas: `TX000208` (governança) + as 5 transações de `LRW_TRANSACOES`
 
 ## Próximo passo
 
-**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). **Decisão 3a/3b encerrada formalmente — 3a implementada, Parte A concluída, `caixa_id=Caixa Variável` confirmado por regra de negócio (Política Interna §13), não só por pragmatismo técnico** (seção 18 + correção de narrativa na seção 15). `sincronizar_v1_v2()` construída e validada em dry-run, aguardando primeiro candidato real pra validar escrita (seção 19). Pendências reais: `TX000208` (governança, seção 16), Parte B — 5 divergências de valor (seção 18, não investigada), sincronização recorrente/agendada (sem mecanismo automático de disparo, só execução manual da função). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-19 antes de qualquer ação nova.
+**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). **Decisão 3a/3b encerrada formalmente — 3a implementada, Parte A concluída, `caixa_id=Caixa Variável` confirmado por regra de negócio (Política Interna §13), não só por pragmatismo técnico** (seção 18 + correção de narrativa na seção 15). `sincronizar_v1_v2()` construída e validada em dry-run, aguardando primeiro candidato real pra validar escrita (seção 19). **Parte B investigada e encerrada — 1 divergência de valor real (`TX000200`) + 4 colisões de `tx_legado` reclassificadas como governança (seção 20).** Pendências reais: governança — 5 colisões de `tx_legado` (`TX000208`, `TX000203`, `TX000204`, `TX000205`, `TX000206`) + 1 correção de valor pontual candidata (`TX000200`); sincronização recorrente/agendada (sem mecanismo automático de disparo, só execução manual da função). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-20 antes de qualquer ação nova.
+
+---
+
+## 20. Investigação Parte B — reclassificação das 5 divergências de valor (08/08/2026)
+
+**Objetivo**: determinar se as 5 divergências de valor entre V1 (atual) e V2 (snapshot de 05/08/2026), em `TX000200`/`203`/`204`/`205`/`206`, representam erro real pendente na V2 ou correções legítimas do V1 posteriores à migração.
+
+**Método**: reconstrução direta a partir das migrations originais de importação (`v2_fase2_migrar_transacoes_ciclo_atual` e `v2_fase2_migrar_historico_parte1`), que fazem `INSERT ... SELECT` direto do `wallace_dados` — permitindo identificar exatamente de qual array e em qual momento cada valor foi lido, sem inferência.
+
+### Achado central: 4 dos 5 casos não são divergência de valor — são colisão de `tx_legado`
+
+`TX000203`/`204`/`205`/`206` vieram da migração `v2_fase2_migrar_historico_parte1` (lote 05/08/2026 20:59:48), que lê `HISTORICO_ERP_TODOS_CICLOS` (arquivo de ciclos já fechados) — um array **completamente diferente** de `LRW_TRANSACOES`/`LRV_TRANSACOES` (ciclo vivo). Localizado o elemento original em `HISTORICO_ERP_TODOS_CICLOS` para cada um: são **4 transações reais de junho/julho de 2026, sem nenhuma relação** com as transações de agosto que hoje ocupam os mesmos códigos no array vivo do V1:
+
+| tx_legado | Na V2 hoje (= arquivo histórico) | No V1 vivo hoje (LRW/LRV) |
+|---|---|---|
+| `TX000203` | "BRISANET", R$114,99, 26/06/2026 | "Sorveteria Papa Açaí", R$61,15, 05/08/2026 |
+| `TX000204` | "CONTA_VIVO", R$469,00, 30/06/2026 | "H57Store", R$22,97, 05/08/2026 |
+| `TX000205` | "CONTA_VIVO", R$54,00, 01/07/2026 | "ANTHROPIC*CLAUDE SUB", R$113,72, 06/08/2026 |
+| `TX000206` | "DRYCLEAN_USA", R$132,00, 15/07/2026 | "H57Store", R$36,95, 06/08/2026 |
+
+Mesma família de bug já documentada em `POLITICAS_INTERNAS_SISTEMA_WALLACE.md` seção 23 (colisão `TXR000001-006` entre LRV e LRR, corrigida por renumeração) e já registrada nesta frente de trabalho pra `TX000208` (seção 16).
+
+`TX000200` é o único caso diferente: veio da migração do ciclo vivo (`v2_fase2_migrar_transacoes_ciclo_atual`, lote 20:44:51), é **a mesma transação nos dois lados** ("ANTHROPIC*CLAUDE SUB", 04/08/2026) — diferença de R$3,72 = IOF que faltava, corrigido no V1 em 07/08/2026, dois dias depois do snapshot da migração.
+
+### Registro individual
+
+**`TX000200`**
+- Mesmo evento nos dois lados (mesma descrição, mesma data).
+- Correção legítima do V1, posterior ao snapshot da migração.
+- Diferença: R$3,72 (IOF de 3,38% adicionado depois).
+- Confiança: **alta**.
+- Status: candidata a correção futura de valor na V2 (mesmo padrão já usado no Dr.Pizza/`TX000222`) — **não corrigido nesta etapa**.
+
+**`TX000203`, `TX000204`, `TX000205`, `TX000206`**
+- Não representam divergência de valor.
+- Representam colisão de `tx_legado`: eventos históricos reais e distintos (arquivados em `HISTORICO_ERP_TODOS_CICLOS`) reutilizaram o mesmo identificador sequencial de eventos completamente diferentes do ciclo vivo atual.
+- Mesma família do problema já documentado para `TX000208`.
+- Confiança: **alta** (evidência direta — elemento original localizado e comparado, não inferência).
+- Status: **não corrigir valores** — são dois registros legítimos cada um, o problema é de numeração/rastreabilidade, não de dado errado.
+
+### Pendências de governança consolidadas (atualização da seção 16)
+
+| tx_legado | Classificação |
+|---|---|
+| `TX000208` | Colisão de `tx_legado` entre eventos distintos |
+| `TX000203` | Colisão de `tx_legado` entre eventos distintos |
+| `TX000204` | Colisão de `tx_legado` entre eventos distintos |
+| `TX000205` | Colisão de `tx_legado` entre eventos distintos |
+| `TX000206` | Colisão de `tx_legado` entre eventos distintos |
+
+Nenhuma correção de valor foi executada em nenhum dos 5 casos.
+
+### Conclusão formal
+- **Investigação da Parte B encerrada.**
+- **1 divergência de valor real identificada** (`TX000200`) — candidata a correção futura, causa raiz alta confiança.
+- **4 casos reclassificados como problema de rastreabilidade** (`TX000203`/`204`/`205`/`206`) — somam-se ao `TX000208`, total de **5 colisões de `tx_legado`** registradas como pendência de governança.
+- **Nenhuma evidência de erro de migração** — ambas as migrations leram fielmente o que existia em `wallace_dados` no momento em que rodaram.
+- **Nenhuma evidência de alteração manual na V2** — `audit_log` não tem nenhum registro pras 5 linhas desde que a tabela de auditoria existe.
+- **Nenhuma ação corretiva executada** — só diagnóstico, como combinado.
