@@ -961,6 +961,12 @@ function hydrate(){
   // nenhuma renderização de tabela). Rollback: comentar as 2 linhas abaixo.
   aplicarOnda2V2();
   diagnosticoLivroRazaoFase1();
+
+  // ONDA 3 — pendência transversal "Caixa Lance nunca classificada" (08/08/2026): mesmo padrão
+  // da Onda 2, reaproveitando vw_saldo_v2_por_caixa. Divergência de R$4,37 (0,10%) tem causa
+  // indeterminada/baixa confiança (não "documentada" no sentido da regra) — continua exibindo V1,
+  // só passa a logar a divergência em vez de nunca ter sido comparada. Ver hydrate-onda3-caixalance.js.
+  aplicarOnda3CaixaLance();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o

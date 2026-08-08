@@ -1133,7 +1133,45 @@ GROUP BY u.nome, u.id;
 
 ---
 
-## Status da Onda 3 após Prioridades 1-4 (08/08/2026)
+## 29. Onda 3, prioridade 5 — Investimentos: BLOQUEADO por ausência real de estrutura V2 (08/08/2026)
+
+**1. Objetivo**: reproduzir `VARS.opcoesVendidasDetalhe` (card ROC/Opções, seção 17, `hydrate-roc.js`) a partir da tabela `investimentos` (V2) — 5ª e última prioridade da Onda 3.
+
+**2. Achado que bloqueia**: `investimentos` (V2, 4 linhas) só tem `id/tipo/quantidade/valor_atual/data_atualizacao/ticker`. O V1 usa ~14 campos por operação que não existem na V2: `precoExercicio`, `vencimento`, `premioBruto`, `custoOperacional`, `premioRecebido`, `precoMedio`, `cotacaoAtual`, `resultadoDiario`, `resultadoHistorico`, `precoBlackScholes`, `notaCorretagem`, `exercida`, `statusPosicao` — usados na tabela de opções e no cálculo de ROC (capital travado). Reproduzir isso exigiria schema novo, não é modelagem existente a reaproveitar. Mesma categoria de bloqueio da Prioridade 3 (seção 27) — **não escrito nenhum código**.
+
+**3. Arquivos alterados**: nenhum.
+
+**4-8**: não aplicável — bloqueado antes de qualquer implementação.
+
+---
+
+## 30. Pendência transversal — Caixa Lance: causa raiz investigada, divergência pequena mas não confirmada (08/08/2026)
+
+**1. Objetivo**: classificar a divergência V1×V2 da Caixa Lance (nunca entrou em nenhum `*_V2_MAPA` de Onda anterior), que trava parte da Prioridade 3 e a Meta do Milhão inteira.
+
+**2. Escopo**: 2 ids que exibem `VARS.caixaLance` — `balResLance` (Balanço, `hydrate-balanco.js`) e `patLance` (Patrimônio, `hydrate-patrimonio.js`).
+
+**SQL usado (nenhum criado — 100% views já existentes)**: `vw_reconciliacao_v1_v2`, `vw_transacoes_so_no_v1`, `vw_ajustes_manuais_v1`, filtradas por `caixa_nome ILIKE '%lance%'`.
+
+**3. Arquivos alterados**: `src/financeiro/caixas/hydrate-onda3-caixalance.js` (novo), `src/app/app.js` (+chamada `aplicarOnda3CaixaLance()` logo depois de `hydrateBalanco()`/Onda 2), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+**4. Fonte antiga**: `VARS.caixaLance` (`calcularSaldoCaixa(CAIXA_LANCE_SALDO_INICIAL_CICLO, CAIXA_LANCE_TRANSACOES)`).
+
+**5. Fonte nova**: `vw_saldo_v2_por_caixa`, linha "Caixa Lance" (reaproveita `WallaceFinanceService.getSaldosPorCaixa()`, já em produção desde a Onda 1 — nenhum SQL novo).
+
+**Evidência V1 × V2**: V1=R$4.522,13 × V2=R$4.526,50, diferença R$4,37 (0,10%). Investigação (views já existentes, sem SQL novo): `AJUSTE-06-08` (-R$65,76, "saldo real confirmado pelo usuário via print Mercado Pago") existe só no V1 — foi escrito direto em `wallace_dados` numa sessão anterior e nunca sincronizado como transação real na V2 (`vw_transacoes_so_no_v1`). Isso sozinho não fecha a conta inteira (R$65,76 ≠ R$4,37) — resíduo de R$4,37 continua com `causa_provavel = saldo_inicial_ausente_no_supabase_causa_indeterminada`, confiança **baixa** pela própria view. Mesma classe de caso das 4 caixas já excluídas na Onda 2 (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio): divergência pequena, mas sem causa raiz *confirmada* — não é "documentada" no sentido da regra de 08/08 (que exige causa conhecida, não só resíduo pequeno).
+
+**Decisão**: `aceitarDivergenciaConhecida: false` para os 2 ids — módulo registrado e ligado (Caixa Lance deixa de estar "nunca classificada"), mas continua exibindo V1 até a causa dos R$4,37 ser confirmada (ou o `AJUSTE-06-08` ser sincronizado como transação real na V2). Na prática, hoje o módulo é 100% log-only (não escreve no DOM).
+
+**6. Validação**: técnica/estática apenas — usuário recusou login manual nesta sessão (regra permanente: IA nunca digita senha). Verificado objetivamente: script carregado 1x no HTML, todas as referências (`REG.balanco.reservas.caixaLance`, `REG.patrimonioDetalhe.caixaLance`, `$`, `fmt`, `WallaceFinanceService`) existem no código real, nomes globais (`ONDA3_CAIXALANCE_MAPA`, `aplicarOnda3CaixaLance`, `WALLACE_ONDA3_CAIXALANCE_RELATORIO`) únicos em `src/`, fallback automático em caso de erro de fetch (try/catch retorna sem tocar DOM), escrita no DOM restrita aos 2 ids previstos. **Validação em navegador real (console, `WALLACE_ONDA3_CAIXALANCE_RELATORIO`) continua pendente** — fazer na próxima vez que alguém logar.
+
+**7. Resultado**: Caixa Lance passa a ser **comparada e logada** a cada carregamento (não mais "nunca classificada"), mas continua exibindo V1 — nem migração completa nem mais bloqueio invisível. Se a causa dos R$4,37 for confirmada (ou o ajuste sincronizado), virar `aceitarDivergenciaConhecida: true` é a única mudança necessária no arquivo.
+
+**8. Rollback**: comentar `aplicarOnda3CaixaLance();` em `app.js`.
+
+---
+
+## Status da Onda 3 após Prioridades 1-5 (08/08/2026)
 
 | Prioridade | Item | Status |
 |---|---|---|
@@ -1141,6 +1179,8 @@ GROUP BY u.nome, u.id;
 | 2 | LRW/LRV (compromisso por pessoa) | ✅ Migrado |
 | 3 | Patrimônio | ⛔ Bloqueado — ausência real de estrutura V2 (ambiguidade de linhas + metadados inexistentes) |
 | 4 | Metas | 🟡 Parcial — Fundo de Suavização migrado; Meta do Milhão bloqueada (mesma causa da P3) |
-| 5 | Investimentos | Não iniciado |
+| 5 | Investimentos | ⛔ Bloqueado — ausência real de estrutura V2 (`investimentos` sem os ~14 campos que `opcoesVendidasDetalhe` usa) |
 
-Pendência transversal que bloqueia P3 e parte da P4: **saldo da Caixa Lance sem causa raiz classificada** (nunca entrou em nenhum `*_V2_MAPA` de Onda anterior). Resolver isso destravaria parte da Prioridade 3 e a Meta do Milhão inteira.
+Onda 3 esgotada: as 5 prioridades foram percorridas na ordem — 2 migradas, 1 parcial, 2 bloqueadas por ausência real de estrutura (critério de parada explícito do usuário).
+
+**Pendência transversal investigada (não mais em aberto como "nunca classificada")**: Caixa Lance agora comparada/logada a cada carregamento (seção 30), continua em V1 por divergência de baixa confiança (R$4,37, causa não confirmada) — não migrada, mas não é mais um ponto cego.

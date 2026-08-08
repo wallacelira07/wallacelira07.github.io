@@ -31,9 +31,9 @@
 - **Onda 3, prioridade 2 — LRW/LRV**: view nova `vw_compromisso_cartao_por_pessoa` (agregação pura de `transacoes`, Caixa Variável + `afeta_saldo_real=false`, por pessoa) substitui `VARS.mbLRWConfirmado`/`mbLRVConfirmado`. Divergência (Wallace R$435,08, Vanessa R$146,41) 100% explicada por 5 linhas já conhecidas (`TX000200/203/204/205/206`, colisão de `tx_legado`, Parte B) sem `usuario_id` — aceita.
 - **Onda 3, prioridade 3 — Patrimônio: BLOQUEADA, ausência real de estrutura.** A tabela `patrimonio` (V2) só tem `id/tipo/valor/data_snapshot/natureza`, sem rótulo — 2 linhas `tipo='investimento'` (BTG R$14.779,62 e Necton R$429,75) são indistinguíveis exceto pelo valor, e não existe nenhuma coluna pros metadados de financiamento/consórcio (prestação, parcela, % pago, meses restantes). Não migrado. Caminho de desbloqueio (schema novo) registrado, não executado.
 - **Onda 3, prioridade 4 — Metas: PARCIAL.** Card "Fundo de Suavização Salarial" migrado (zero divergência, R$0,00 nos dois). "Meta do Milhão" continua em V1 — depende do `patrimonio.total` bloqueado na prioridade 3.
-- **Onda 3, prioridade 5 — Investimentos: NÃO INICIADA.**
+- **Onda 3, prioridade 5 — Investimentos: BLOQUEADA, ausência real de estrutura (achado nesta sessão).** A tabela `investimentos` (V2, 4 linhas) só tem `id/tipo/quantidade/valor_atual/data_atualizacao/ticker` — o card ROC/Opções (`VARS.opcoesVendidasDetalhe`) usa ~14 campos por operação que não existem na V2 (`precoExercicio`, `vencimento`, `premioBruto`, `custoOperacional`, `premioRecebido`, `precoMedio`, `cotacaoAtual`, `resultadoDiario`, `resultadoHistorico`, `precoBlackScholes`, `notaCorretagem`, `exercida`, `statusPosicao`). Não migrado, nenhum código escrito. **Onda 3 esgotada** — as 5 prioridades foram percorridas na ordem definida pelo usuário; 2 migradas, 1 parcial, 2 bloqueadas por ausência real de estrutura.
 
-**Pendência transversal nova, achada nesta sessão**: **saldo da Caixa Lance nunca foi classificado em nenhuma Onda** (não está em nenhum `*_V2_MAPA`) — é o que trava parte da Prioridade 3 e a Meta do Milhão inteira. Investigar causa raiz da divergência V1×V2 da Caixa Lance destravaria as duas.
+**Pendência transversal investigada nesta sessão (não mais "nunca classificada")**: saldo da Caixa Lance — divergência V1×V2 de R$4,37 (0,10%). Investigação (views já existentes `vw_reconciliacao_v1_v2`/`vw_transacoes_so_no_v1`/`vw_ajustes_manuais_v1`, sem SQL novo): `AJUSTE-06-08` (-R$65,76) existe só no V1 (nunca sincronizado como transação real na V2), mas isso sozinho não fecha a conta — resíduo de R$4,37 continua com causa indeterminada/baixa confiança. Módulo `hydrate-onda3-caixalance.js` criado e ligado (mesmo padrão da Onda 2), comparando/logando a cada carregamento, mas com `aceitarDivergenciaConhecida: false` — continua exibindo V1 até a causa ser confirmada. Validação em navegador real **pendente** (usuário recusou login manual nesta sessão; só validação técnica/estática foi feita — ver seção 30 do plano).
 
 **Padrão de código estabelecido** (repetir em qualquer migração nova): módulo dedicado em `src/financeiro/**/hydrate-onda*.js`, método novo em `WallaceFinanceService` (`src/app/app.js`, perto do topo), fetch/compare/log/overlay condicional, `window.WALLACE_ONDAX_..._RELATORIO` pra inspeção via console, chamada registrada em `app.js` DEPOIS da função V1 equivalente (pra sobrescrever, nunca competir por ordem), entrada nova no array de módulos do `Sistema_Wallace_Lira_Completo.html`, documentação no formato de 8 pontos (Objetivo/Escopo/Arquivos/Fonte antiga/Fonte nova/Validação/Resultado/Rollback) em `PLANO_UNIFICACAO_V1_V2.md`, validação ao vivo no navegador antes de considerar pronto, commit avisado antes.
 
@@ -69,17 +69,19 @@ Sem lançamento financeiro novo nesta sessão (o trabalho foi 100% migração de
 
 **Resolvidas — não reabrir como bug novo:** redesign dos botões flutuantes, compra Dr.Pizza R$207,02, Caixa Lance reconciliada do lado V1, `AJUSTE-06-08` revisado, bug de ordem `onDomPronto`.
 
-1. **Caixa Lance — saldo V2 sem causa raiz classificada** (achado nesta sessão, ver seção 1). Bloqueia parte da Onda 3 Prioridade 3 e toda a Meta do Milhão.
+1. **Onda 3 esgotada (5/5 prioridades percorridas)**: 1-2 migradas, 4 parcial, 3 e 5 bloqueadas por ausência real de estrutura V2. Não há próxima prioridade "livre" sem decisão de schema novo do usuário.
 2. **Onda 3, Prioridade 3 (Patrimônio) — bloqueada por ausência real de estrutura V2** (ver seção 1). Precisa de schema novo (`descricao`/`subtipo` na tabela `patrimonio` + metadados de financiamento/consórcio) — decisão do usuário, fora do escopo de "só reproduzir dado existente".
-3. **Onda 3, Prioridade 5 (Investimentos) — não iniciada.**
-4. **2 commits não enviados** (`eff2805`, `4d2e6e2`) — avisar/confirmar push com o usuário.
-5. **R$652,00 sumiu da Inbox Financeira sozinho** (sessão anterior, motivo ainda desconhecido) — não confundir com o caso do Dr.Pizza (já resolvido).
-6. **Cache stale da API REST do Supabase** (sessão anterior) — não investigado a fundo, só documentado.
-7. **IDs da Inbox Financeira (`INBX000001` etc.) são posicionais, não estáveis** — perigoso se algum código guardar como referência persistente.
-8. **PIX Geral Vanessa**: `saldo_inicial_ciclo` duplicado no Supabase (dupla-contagem confirmada) — usuário recusou corrigir até ter mais clareza. Também é uma das 4 caixas fora da Onda 2 (causa indeterminada).
-9. **Caixa Boletos**: falta o saldo real de abertura do ciclo em 25/07 (`CICLO_ATUAL_INICIO` hardcoded). Ver Fase 4C da frente antiga (seção 1.5).
-10. **`AJUSTE-06-08`**: não remover nenhum `AJUSTE-*`/`RENDIMENTO-*` até o usuário revisar a interpretação nova (rendimento real, não ajuste artificial).
-11. **Firebase Console → Authorized domains**: confirmação manual pendente de que `wallacelira.com.br` está cadastrado.
+3. **Onda 3, Prioridade 5 (Investimentos) — bloqueada por ausência real de estrutura V2** (achado nesta sessão, ver seção 1). Tabela `investimentos` não tem os campos ricos que `opcoesVendidasDetalhe` usa (strike, vencimento, prêmio bruto/líquido/custos, ROC, nota de corretagem).
+4. **Caixa Lance — divergência de R$4,37 investigada, causa não confirmada** (ver seção 1). Módulo `hydrate-onda3-caixalance.js` criado, comparando/logando, mas exibindo V1 (não é mais ponto cego, mas não migrou). Se a causa for confirmada, virar `aceitarDivergenciaConhecida: true` no arquivo é a única mudança necessária.
+5. **Validação em navegador do módulo Caixa Lance PENDENTE** — usuário recusou login manual nesta sessão; só validação técnica/estática foi feita (script carregado, referências existem, sem duplicidade de nomes globais, fallback confirmado por leitura de código). Fazer a validação ao vivo (`window.WALLACE_ONDA3_CAIXALANCE_RELATORIO`) na próxima vez que alguém logar.
+6. **2 commits anteriores não enviados** (`eff2805`, `4d2e6e2`) + o commit desta sessão — avisar/confirmar push com o usuário.
+7. **R$652,00 sumiu da Inbox Financeira sozinho** (sessão anterior, motivo ainda desconhecido) — não confundir com o caso do Dr.Pizza (já resolvido).
+8. **Cache stale da API REST do Supabase** (sessão anterior) — não investigado a fundo, só documentado.
+9. **IDs da Inbox Financeira (`INBX000001` etc.) são posicionais, não estáveis** — perigoso se algum código guardar como referência persistente.
+10. **PIX Geral Vanessa**: `saldo_inicial_ciclo` duplicado no Supabase (dupla-contagem confirmada) — usuário recusou corrigir até ter mais clareza. Também é uma das 4 caixas fora da Onda 2 (causa indeterminada).
+11. **Caixa Boletos**: falta o saldo real de abertura do ciclo em 25/07 (`CICLO_ATUAL_INICIO` hardcoded). Ver Fase 4C da frente antiga (seção 1.5).
+12. **`AJUSTE-06-08`**: não remover nenhum `AJUSTE-*`/`RENDIMENTO-*` até o usuário revisar a interpretação nova (rendimento real, não ajuste artificial).
+13. **Firebase Console → Authorized domains**: confirmação manual pendente de que `wallacelira.com.br` está cadastrado.
 
 ## 7. Ambiente de teste local
 
