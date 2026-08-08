@@ -2,7 +2,25 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, fechamento da sessão. HEAD `be5395f` (todo o trabalho da sessão já commitado e enviado). `docs/MANUAL_OPERACIONAL_AGENTES.md` tem 1 alteração local não commitada (seção 1.1 nova, ver abaixo) — aguardando aviso ao usuário antes do commit, conforme regra permanente.
+Última reescrita: 08/08/2026, continuação da sessão (governança dos agentes). HEAD `3f256d3` (seção 1.1 do manual + reescrita do `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` já commitados/salvos). Trabalho novo desta rodada (endurecimento de governança) **ainda não commitado** — ver "Trabalho desta rodada, pendente de commit" abaixo, aguardando aviso ao usuário conforme regra permanente.
+
+## Endurecimento de governança dos agentes Claude (08/08/2026, mesma sessão)
+
+Pedido explícito do usuário, tratado como etapa obrigatória da conclusão da V2 — não é atualização cosmética de documento, é sobre garantir que qualquer Claude novo (qualquer conta, qualquer dispositivo) comece alinhado à V2.
+
+**Confirmado pelo usuário**: só `wallace.termica@gmail.com` interage com Claude Chat. As outras 2 contas (`wallace.servidor@wartsila.com`, `wallace.lira@wartsila.com`) não usam Claude Chat para este sistema — isso eliminou a maior parte da complexidade de sincronização multi-conta originalmente levantada.
+
+**Implementado**:
+- `docs/MANUAL_OPERACIONAL_AGENTES.md` — nova seção 0 (Nível de Confiança da Informação: A=Supabase verificado, B=repositório verificado, C=usuário informou, D=hipótese; regra A>B>C>D, nunca apresentar D como fato) e nova seção 11 (Governança Multi-Conta e Bootstrap de Novos Chats: declara este manual como documento mestre, `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` como derivado/entrada do Claude Chat, tabela Claude Chat × Claude Code, fluxo de manutenção pra evitar divergência futura).
+- `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` — novo, respostas objetivas às 10 perguntas do usuário sobre governança (Custom Instructions vs Project Knowledge vs repositório, fonte canônica, bootstrap, etc.), já corrigido para refletir a conta única.
+- `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (Google Doc, salvo direto, sem passar por `git`) — seções 15 (Nível de Confiança) e 16 (Documento Mestre e Governança) adicionadas. **Nota técnica**: a inserção via automação de navegador caiu logo após a introdução em vez do fim do documento (limitação da ferramenta de automação, não do conteúdo) — conteúdo íntegro e completo, só com ordem de seção não-sequencial (15/16 aparecem antes da seção 1). Cosmético, não afeta a leitura.
+
+**Pendente do usuário** (fora do alcance de qualquer agente — exige login em `wallace.termica@gmail.com`): criar um Project "Sistema Wallace Lira", anexar o Google Doc como Project Knowledge, definir Custom Instructions curto apontando pro Project. Sem isso, um chat novo não recebe o documento automaticamente. Texto sugerido e detalhe completo em `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` seção 10.
+
+## Trabalho desta rodada, pendente de commit
+
+- `docs/MANUAL_OPERACIONAL_AGENTES.md` (seções 0 e 11 novas + correção de "3 contas" → "conta única" na seção 11.1/11.5).
+- `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` (novo arquivo).
 
 ## NOVA DIRETRIZ DO USUÁRIO (válida daqui pra frente, todas as sessões)
 

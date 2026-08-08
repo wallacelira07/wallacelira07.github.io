@@ -2,6 +2,26 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
+
+**Pedido do usuário**: "endurecimento final da governança dos agentes Claude", tratado como etapa obrigatória da conclusão da V2 — garantir que qualquer Claude novo, em qualquer conta/dispositivo, comece o mais alinhado possível à arquitetura V2 atual. Pedido cobria 10 frentes: nível de confiança da informação, V2 como regra global, treinamento por domínio, governança das 3 contas, sincronização Web/Mobile, bootstrap de chats novos, Claude Chat × Claude Code, fonte canônica, processo de manutenção, resultado esperado.
+
+**1. Nível de Confiança da Informação — implementado**: escala A (Supabase verificado) > B (repositório verificado) > C (usuário informou) > D (hipótese/inferência), regra "nunca apresentar D como fato". Nova seção 0 do `MANUAL_OPERACIONAL_AGENTES.md`, replicada como seção 15 do `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`.
+
+**2. Fonte canônica declarada formalmente**: `docs/MANUAL_OPERACIONAL_AGENTES.md` é o documento mestre (motivo: lido automaticamente por qualquer Claude Code, qualquer conta, sem configuração) — `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (Google Doc) é derivado, existe só porque o Claude Chat não lê o repositório. Nova seção 11 do manual + `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` novo (respostas às 10 perguntas do usuário).
+
+**3. Correção importante no meio do trabalho**: a primeira versão assumiu as 3 contas do usuário (`wallace.termica@gmail.com`, `wallace.servidor@wartsila.com`, `wallace.lira@wartsila.com`) todas interagindo com Claude Chat, propondo replicar Project/Custom Instructions/Project Knowledge 3x. **O usuário corrigiu**: só `wallace.termica@gmail.com` usa Claude Chat para este sistema — as outras 2 são só Claude Code (que já lê o manual automaticamente, sem depender de conta). Revisado no manual (seção 11.1/11.5) e no `GOVERNANCA_MULTI_CONTA_AGENTES.md` para refletir conta única — reduziu drasticamente a complexidade real do problema.
+
+**4. Claude Chat × Claude Code documentado explicitamente**: tabela na seção 11.4 do manual (papel, nível de confiança padrão, o que fazer quando falta evidência) + replicada na seção 16 do Google Doc.
+
+**5. Google Doc atualizado (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`) — limitação de automação encontrada**: ao tentar inserir as seções novas no final do documento, a automação de navegador (clique + `Ctrl+End`) posicionou o cursor errado e a inserção caiu logo após a introdução em vez do fim. Tentativa de corrigir via `Ctrl+Z` falhou porque a página tinha sido recarregada entre as duas ações (histórico de desfazer não sobrevive à navegação). **Conteúdo confirmado íntegro e completo** via leitura página a página da pré-visualização do Drive (7 páginas, sem duplicação, sem corte) — só a ordem das seções ficou não-sequencial (15/16 aparecem antes da seção 1), efeito cosmético, não substantivo. Decisão: não arriscar mais edições automatizadas para corrigir só a numeração.
+
+**Lição de ferramenta, registrada pra sessões futuras**: dentro do editor do Google Docs via automação de navegador, `Delete`/`BackSpace` sobre uma seleção **não é confiável** (testado 2x, seleção visível mas texto não removido) — só inserção de texto (`type`) funciona de forma confiável. Para reescrever um documento inteiro, pedir ao usuário para selecionar-tudo-e-apagar manualmente primeiro (ele confirmou que o teclado real funciona normal), e só então a automação digita o conteúdo novo. Para apender ao final, sempre confirmar a posição do cursor com uma leitura pós-inserção antes de considerar concluído — não assumir que `Ctrl+End` funcionou só porque não deu erro.
+
+**6. Pendente, fora do alcance de qualquer agente** (exige login em `wallace.termica@gmail.com`): criar Project "Sistema Wallace Lira", anexar o Google Doc como Project Knowledge, definir Custom Instructions curto. Texto pronto em `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` seção 10.
+
+**Pendente**: commit + push de `MANUAL_OPERACIONAL_AGENTES.md` e `GOVERNANCA_MULTI_CONTA_AGENTES.md` — aguardando confirmação do usuário (avisado do conteúdo antes de commitar, regra permanente).
+
 ## Bloco 29 — Encerramento de sessão: manual atualizado (treinamento "V2 nativo") + estado consolidado (08/08/2026, continuação do Bloco 28)
 
 **Contexto**: a sessão anterior encerrou o Bloco 28 com "pendente: commit + push" ainda em aberto e bateu o limite de uso antes de escrever a passagem de turno. `git log` confirma que o commit **já havia sido feito** (`be5395f`, `origin/main` atualizado) — só a documentação de handoff ficou pra trás. Este bloco fecha isso e soma um pedido novo do usuário.

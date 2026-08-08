@@ -4,6 +4,29 @@ Procedimento único, obrigatório para qualquer agente (Claude Chat, Claude Code
 
 Este documento define **como agir**. Regras de negócio (cascata de reembolso, caixas, ciclo financeiro) estão em `POLITICAS_INTERNAS_SISTEMA_WALLACE.md` — leia os dois, não se sobrepõem.
 
+**Este é o documento mestre.** `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (Google Doc, entrada do Claude Chat — sem acesso a este repositório) deriva deste manual e deve ser mantido em sincronia com ele; nunca o contrário. Ver seção 11.
+
+---
+
+## 0. Nível de Confiança da Informação
+
+**Registrado formalmente em 08/08/2026, pedido explícito do usuário — obrigatório para qualquer resposta que cite dado do Sistema Wallace, em qualquer agente.**
+
+Toda afirmação sobre o sistema carrega um nível de confiança. Classificar mentalmente antes de responder, e deixar o nível explícito sempre que não for óbvio pelo contexto:
+
+| Nível | O que é | Exemplo |
+|---|---|---|
+| **A** | Supabase verificado — consulta direta ao banco, view verificada, RPC verificada nesta sessão | `SELECT saldo FROM vw_saldo_v2_por_caixa WHERE caixa='Variável'` executado agora |
+| **B** | Repositório verificado — código lido, workflow lido, commit/`git log` conferido nesta sessão | "`hydrate-roc.js` blinda `comparacaoCDI` contra `null`, linha 43" |
+| **C** | Informação fornecida pelo usuário — print, extrato, valor dito na conversa, sem verificação cruzada | "Você disse que a fatura fechou em R$435,00" |
+| **D** | Inferência, hipótese, suposição — dedução, memória de sessão anterior não reconferida, extrapolação | "Provavelmente ainda está assim, mas não confirmei agora" |
+
+**Regra obrigatória**: A > B > C > D. Ao decidir o que responder, preferir sempre o nível mais alto disponível — nunca aceitar D quando A é alcançável na mesma sessão (rodar a query, ler o arquivo).
+
+**Nunca apresentar D como fato.** Frases como "o saldo é X" sem verificação são proibidas quando a informação é hipótese — usar "acho que", "não confirmei, mas", "seria preciso checar para confirmar".
+
+**Aplicação específica ao Claude Chat** (sem acesso a Supabase/repositório): por padrão, qualquer afirmação sobre dado ao vivo do sistema começa no Nível C (se o usuário forneceu) ou D (se não) — nunca C/D disfarçado de A. Se a pergunta exige Nível A/B para responder com segurança, dizer isso explicitamente e encaminhar para uma sessão do Claude Code (ver seção 11.4).
+
 ---
 
 ## 1. Fonte única da verdade
@@ -235,6 +258,67 @@ Preparar reposição da PIX Vanessa caso ocorra nova saída.
 - [ ] Toda decisão/investigação nova registrada em `docs/decisions/` com evidência, não só narrada no chat.
 - [ ] Usuário avisado do que foi commitado/enviado nesta sessão.
 - [ ] Nenhuma correção de dado ficou "no escuro" — toda causa raiz documentada, mesmo quando a decisão foi não corrigir ainda.
+
+---
+
+## 11. Governança Multi-Conta e Bootstrap de Novos Chats
+
+**Registrado formalmente em 08/08/2026, pedido explícito do usuário — endurecimento final de governança dos agentes Claude, parte obrigatória da conclusão da V2.**
+
+### 11.1 Contexto: 3 contas, uma só interage com Claude Chat
+
+O usuário opera em 3 contas Anthropic/Google separadas — `wallace.termica@gmail.com`, `wallace.servidor@wartsila.com`, `wallace.lira@wartsila.com`. **Confirmado pelo usuário (08/08/2026): só `wallace.termica@gmail.com` interage com Claude Chat** (Web/Android/iOS). As outras 2 contas (`wartsila.com`) não usam Claude Chat para este sistema — se aparecerem em alguma sessão, é via Claude Code (que lê este repositório diretamente, independente de conta) ou fora do escopo deste sistema.
+
+Isso elimina o problema de sincronização multi-conta para o Claude Chat: não há 3 cópias de Custom Instructions/Project Knowledge para manter alinhadas, só uma. Custom Instructions e Projects (incluindo Project Knowledge) sincronizam automaticamente entre Web/Android/iOS **dentro dessa única conta** — isso é conhecimento de produto Nível D/C (comportamento geral do Claude.ai, não verificado ao vivo nesta sessão); se divergir na prática, o usuário deve confirmar e este documento deve ser corrigido.
+
+Se essa premissa mudar no futuro (outra conta passar a usar Claude Chat para o Sistema Wallace), a seção 11.5 precisa ser reaberta — hoje ela assume conta única.
+
+### 11.2 Fonte canônica — uma verdade, dois pontos de entrada
+
+**Este arquivo (`docs/MANUAL_OPERACIONAL_AGENTES.md`) é o documento mestre.** Motivo: é lido automaticamente por qualquer Claude Code aberto neste repositório, em qualquer conta, sem nenhuma configuração manual — é o único ponto que já resolve "qualquer conta, qualquer dispositivo" hoje, porque depende do repositório Git, não de conta.
+
+**`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`** (Google Doc) é o ponto de entrada do **Claude Chat** (Web/Android/iOS — sem acesso ao repositório) e **deriva** deste manual: sempre que este manual mudar de forma que afete o que o Claude Chat precisa saber, o Google Doc deve ser atualizado na mesma sessão (ver 11.6). Nunca editar o Google Doc com uma regra nova sem que ela também exista aqui — o inverso (regra só aqui, ainda não propagada) é aceitável temporariamente, com pendência registrada no handoff.
+
+Nenhum outro documento (Custom Instructions colado à mão em cada conta, anotação solta, memória de conversa) deve conter regra operacional própria — sempre apontar para os dois documentos acima.
+
+### 11.3 V2 como regra global (reforço)
+
+Vale para os dois documentos, sem exceção: a V2 é o sistema principal. Sempre que existir tabela/view/RPC/indicador V2 para um domínio, o agente usa a estrutura V2. A V1 (`wallace_dados`) só é usada quando não existir equivalente V2, ou quando houver exceção formal documentada (`docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`). Ver tabela de domínios completa na seção 1.1.
+
+### 11.4 Claude Chat × Claude Code — divisão operacional
+
+| | Claude Chat (Web/Android/iOS, só `wallace.termica@gmail.com`) | Claude Code (este repositório, qualquer conta) |
+|---|---|---|
+| Acesso | Nenhum a Supabase/repositório — só o que está em Project Knowledge/Custom Instructions e o que o usuário cola na conversa | Supabase (MCP) + arquivos do repositório + git |
+| Papel | Orienta, interpreta, explica, analisa, tira dúvida sobre regra de negócio | Consulta dado real, valida, cria commits, executa mudança |
+| Nível de confiança padrão | C (usuário forneceu) ou D (hipótese) — nunca A/B por conta própria | A/B disponíveis via consulta direta |
+| Quando não tem evidência suficiente | **Dizer isso explicitamente** e encaminhar a alteração/dúvida para uma sessão do Claude Code | N/A — já tem acesso; se faltar dado, perguntar ao usuário (Nível C) antes de assumir |
+
+Frase padrão para o Claude Chat encaminhar: *"Não tenho acesso ao Supabase/repositório para confirmar isso agora (Nível C/D) — para uma resposta Nível A, abra uma sessão do Claude Code."*
+
+### 11.5 Bootstrap de novos chats — minimizar risco de assumir V1/Excel
+
+Todo chat novo (qualquer conta, qualquer dispositivo) deve começar assumindo, sem precisar que o usuário repita:
+
+- ✅ V2 (Supabase relacional) como sistema principal.
+- ✅ `wallace_dados` como legado, não fonte primária.
+- ✅ Exceções formais documentadas existem e devem ser checadas antes de tratar algo como bug.
+- ✅ O Excel (`ERP_WALLACE_LIRA_V10_preenchido.xlsx`) não é mais consultado por padrão — parou de ser atualizado antes da migração para Supabase/Claude Code (08/08/2026).
+
+Mecanismo: o `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` já foi reescrito (08/08/2026) para abrir com essa premissa. **Ação recomendada ao usuário** (fora do alcance de qualquer agente sem login na conta) — uma única vez, só em `wallace.termica@gmail.com`: criar um Project dedicado (ex.: "Sistema Wallace Lira"), anexar o Google Doc como Project Knowledge (preferir o link vivo do Drive a colar o texto — evita uma cópia divergente do original), e manter o Custom Instructions da conta curto, só apontando para o Project ("Para qualquer assunto do Sistema Wallace Lira, leia primeiro o documento anexado neste Project"). Feito uma vez, propaga automaticamente para Web/Android/iOS dessa conta — não precisa repetir por dispositivo.
+
+### 11.6 Processo de manutenção — evitar divergência futura
+
+Toda vez que uma migração V2 for concluída ou uma regra operacional mudar:
+
+1. Atualizar este manual (`docs/MANUAL_OPERACIONAL_AGENTES.md`) — documento mestre.
+2. Se a mudança afeta o que o Claude Chat precisa saber (novo domínio V2, nova regra de negócio, nova exceção formal): atualizar `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` na mesma sessão.
+3. Atualizar `docs/changelog/ESTADO_ATUAL.md` (reescrito do zero).
+4. Anexar bloco novo em `docs/changelog/PASSAGEM_DE_TURNO.md`.
+5. Se a mudança criou uma decisão/exceção nova, registrar em `docs/decisions/`.
+6. Avisar o usuário do que foi alterado nos dois documentos (manual + Google Doc) antes de considerar a sessão encerrada — o aviso de commit (seção 8) cobre o manual; o Google Doc não passa por `git`, mas merece o mesmo aviso explícito.
+
+Este fluxo é o mesmo independente de qual conta/dispositivo iniciou a sessão — não existe versão "web" ou "mobile" dele.
 
 ---
 
