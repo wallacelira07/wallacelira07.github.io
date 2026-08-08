@@ -83,6 +83,24 @@ function classificarItemMercadoPago(descricao){
 // descricao em vez de lancar/pular sozinho (o brief pede deteccao, nao decisao automatica).
 // Dedupe entre cargas: usa o campo idExterno guardado no InboxItem (id do FinancialEvent, "MP<id>") -
 // um mesmo evento nunca gera 2 itens de Inbox, mesmo rodando de novo em cargas futuras.
+// NOVO 08/08/2026 (correção de usabilidade — Inbox mostrava "(sem descrição)" genérico, fazendo
+// eventos distintos parecerem a mesma transação repetida): quando o Mercado Pago não manda
+// "description"/"statement_descriptor", o evento ainda tem "tipo" (payment_type_id/operation_type,
+// já normalizado por mercadopago_sync.py) — usa isso pra gerar um texto real em vez de placeholder
+// vazio. Mapa fechado, só valores que o próprio brief/API já usa (P1: nunca chuta texto que não
+// venha do dado); tipo desconhecido ainda mostra o valor cru, nunca esconde a informação.
+function inboxDescricaoAutomaticaMP(tipo){
+  const MAPA_TIPO_MP = {
+    account_money: 'Movimentação de saldo (conta Mercado Pago)',
+    pix: 'PIX recebido (Mercado Pago)',
+    bank_transfer: 'Transferência bancária (Mercado Pago)',
+    credit_card: 'Pagamento com cartão de crédito (Mercado Pago)',
+    debit_card: 'Pagamento com cartão de débito (Mercado Pago)',
+    ticket: 'Pagamento via boleto (Mercado Pago)',
+  };
+  return MAPA_TIPO_MP[tipo] || `Evento Mercado Pago (tipo: ${tipo || 'desconhecido'})`;
+}
+
 function sincronizarMercadoPagoParaInbox(){
   const eventos = VARS.MERCADOPAGO_EVENTOS;
   if(!Array.isArray(eventos) || !eventos.length){
@@ -120,12 +138,12 @@ function sincronizarMercadoPagoParaInbox(){
     // renderInboxFinanceira). silencioso:true pelo mesmo motivo: 1 render no final, nao 1 por evento.
     inboxAdicionarItem({
       origem: 'Mercado Pago',
-      descricao: (ev.descricao||'(sem descrição)') + (possivelDuplicata ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)' : ''),
+      descricao: (ev.descricao || inboxDescricaoAutomaticaMP(ev.tipo)) + (possivelDuplicata ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)' : ''),
       valor: ev.valor, data: ev.data,
       categoriaSugerida: sugestao.categoriaSugerida || null,
       livroSugerido: sugestao.livroSugerido || null,
       confianca: sugestao.confianca != null ? sugestao.confianca : null,
-      idExterno: ev.id, silencioso:true
+      idExterno: ev.id, metadata: ev.metadata || null, silencioso:true
     });
     novos++;
   });

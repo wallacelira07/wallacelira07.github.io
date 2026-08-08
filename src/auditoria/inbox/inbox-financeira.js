@@ -30,7 +30,12 @@ function gerarProximoInboxId(){
 // em lote (reconciliarPluggy/reconciliarTransacoesPluggy/sincronizarMercadoPagoParaInbox) passa true e
 // renderiza 1 única vez no final (evita O(n²) com volume real da Pluggy). Comportamento padrão
 // (chamada manual/avulsa) continua igual: renderiza na hora.
-function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, categoriaSugerida, livroSugerido, confianca, idExterno, silencioso}){
+// NOVO 08/08/2026 (correção de usabilidade: itens com mesma origem/valor/data pareciam duplicados
+// quando não havia descrição real nem metadata visível). metadata: objeto livre já existente no dado
+// bruto de origem (ex: {payer, payment_method} do Mercado Pago) — antes capturado só implicitamente e
+// nunca repassado nem exibido; agora guardado no item e mostrado em renderInboxFinanceira() como linha
+// de identificação. Não afeta aprovação/rejeição nem nenhuma lógica existente, só rastreio/exibição.
+function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, categoriaSugerida, livroSugerido, confianca, idExterno, metadata, silencioso}){
   const item = {
     id: gerarProximoInboxId(),
     origem: origem || 'Manual',
@@ -42,6 +47,7 @@ function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, 
     livroSugerido: livroSugerido || null,
     confianca: (typeof confianca === 'number') ? confianca : null,
     idExterno: idExterno || null,
+    metadata: metadata || null,
     status: 'PENDENTE',
     criadoEm: new Date().toISOString()
   };
@@ -154,7 +160,15 @@ function renderInboxFinanceira(){
         ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
         : '—';
       const descTitle = String(it.descricaoCompleta||it.descricao||'').replace(/"/g,'&quot;');
-      return `<tr><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
+      // NOVO 08/08/2026 (correção de usabilidade — itens com mesma origem/valor/data pareciam
+      // duplicados): linha de identificação abaixo da descrição, prioridade pagador > ID externo
+      // (hora/minuto do evento não está disponível na fonte — mercadopago_sync.py só grava a data,
+      // ver auditoria em PLANO_UNIFICACAO_V1_V2.md). Só exibe o que existir, nunca inventa campo.
+      const identPartes = [];
+      if(it.metadata && it.metadata.payer) identPartes.push(`Pagador: ${it.metadata.payer}`);
+      if(it.idExterno) identPartes.push(`ID: ${it.idExterno}`);
+      const identLinha = identPartes.length ? `<div class="inbox-ident-txt" style="color:var(--text-dim);font-size:0.65rem">${identPartes.join(' · ')}</div>` : '';
+      return `<tr><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}${identLinha}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
     }).join('');
   }
   const pendentes = itens.filter(i=>i.status==='PENDENTE').length;
