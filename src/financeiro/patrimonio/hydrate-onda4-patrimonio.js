@@ -55,6 +55,24 @@ async function aplicarOnda4Patrimonio(){
   t('patPctBadge', metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   { const el=$('patPctBar'); if(el) el.style.width = metaMilhaoPct+'%'; }
 
+  // NOVO 08/08/2026 (fecha consumidor de wallace_dados: consorcioCasaProximaAssembleia): mesmo dado
+  // ja vem em `p` (vw_patrimonio_v2.consorcio_casa_proxima_assembleia), so nunca tinha sido ligado -
+  // hydrateMetas() (V1) roda ANTES desta funcao no hydrate(), entao sobrescrever so VARS aqui seria
+  // tarde demais pro DOM que ela ja escreveu; atualiza o elemento #consorcioAssembleia direto,
+  // replicando a mesma logica de alerta "ja passou" que hydrateMetas() ja usava.
+  if(p.consorcio_casa_proxima_assembleia){
+    const [ano,mes,dia] = p.consorcio_casa_proxima_assembleia.split('-');
+    const dataBR = `${dia}/${mes}/${ano}`;
+    VARS.consorcioCasaProximaAssembleia = dataBR;
+    const elAssembleia = $('consorcioAssembleia');
+    if(elAssembleia){
+      const dataAssembleia = new Date(Number(ano), Number(mes)-1, Number(dia));
+      elAssembleia.innerHTML = dataAssembleia < new Date()
+        ? dataBR + ' <span style="color:var(--red)">⚠️ já passou — data desatualizada, confirmar com a administradora</span>'
+        : dataBR;
+    }
+  }
+
   const finCasa = num(p.passivo_financiamento_casa), prestacao = num(p.prestacao_financiamento_casa), meses = p.meses_restantes_financiamento_casa;
   const consorcioAuto = num(p.passivo_consorcio_auto), consorcioAutoPct = num(p.consorcio_auto_pago_pct), parcelaAuto = num(p.parcela_consorcio_auto);
   t('ppFinanciamentoCasa', fmt(finCasa));

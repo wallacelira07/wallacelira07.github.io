@@ -2,6 +2,24 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 28 — Varredura completa do bloco Operacional (esgotamento de candidatos A/B, 1 migrado) (08/08/2026, continuação do Bloco 27)
+
+**Diretriz do usuário**: esgotar completamente candidatos A/B do bloco "Operacional" antes de investir em Pluggy/Mercado Pago/Ciclo Snapshots (todos já confirmados Classe C na rodada anterior).
+
+**Migrado**: `consorcioCasaProximaAssembleia` — achado que o dado já vinha na MESMA fetch que `getPatrimonioV2()` já fazia (`vw_patrimonio_v2.consorcio_casa_proxima_assembleia`), só nunca tinha sido ligado ao elemento `#consorcioAssembleia`. Zero fetch novo, zero requisição extra. Cuidado de ordem: `hydrateMetas()` (V1) roda ANTES de `aplicarOnda4Patrimonio()` no `hydrate()`, então sobrescrever só `VARS` seria tarde demais — a correção atualiza o elemento DOM diretamente dentro de `hydrate-onda4-patrimonio.js`, replicando a mesma lógica de alerta "já passou" que `hydrateMetas()` já tinha. Validado: `#consorcioAssembleia` mostra "21/08/2026" corretamente após reload real, zero erro de console.
+
+**Demais ~25 chaves triadas, nenhuma outra migrável agora** — resumo (detalhe completo em `ESTADO_ATUAL.md`):
+   - **Já resolvidas sem ação** (a V1 é lida mas sempre sobrescrita antes de aparecer na tela): `mesesRestantesFinanciamentoCasa`/`passivoFinanciamentoCasa`/`parcelaConsorcioAuto` (Onda 4 Patrimônio já escreve o DOM direto), `opcoesVendidasValorMercado` (recalculado sobre dado 100% V2), `reembolsoCicloTotal`/`provisionadoWartsila`/`faturaWartsila` (Onda 4 Wärtsilä).
+   - **Mortas** (zero consumidor real): `FGTS` (chave de topo, distinta de `patFgts` já migrado) — grep não achou nenhuma leitura.
+   - **D, exceção formal**: `mbLRCConfirmado`/`mbLRSConfirmado`/`mbLRVConfirmado`/`mbLRWConfirmado` — alimentam headline totals (`cartaoMBTotal`), mesma exceção já documentada (`EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`). `mbLRWConfirmado`/`mbLRVConfirmado` (as versões usadas fora do headline) já migradas via Onda 3.
+   - **D, decisão humana por definição**: `coberturaGarantidaConfirmada` — só preenchido por confirmação manual explícita do usuário, nunca fórmula.
+   - **C, modelagem real necessária**: `PIB_WALLACE_HISTORICO`/`PADROES_RUIDO_TRANSACAO`/`DEFICIT_ZERO_PISO_OVERRIDE` (RPCs gravam dentro do próprio `wallace_dados`, nunca criaram tabela V2), `ENERGISA_TARIFA_COMPOSICAO` (precisa tabela nova, já documentado desde a seção 41 do plano), `dataNascimentoWallace` (ROI~0, schema não comporta data em `indicadores.valor` numérico), `reservaRetiradaProgramada`/`aporteBTGProgramado` (baixo impacto, já majoritariamente derivado).
+   - **Não totalmente investigado, único remanescente com potencial**: `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`/`EXTRAORDINARIO_BENS_DURAVEIS` — acoplados a uma lógica real de auto-crédito de boletos (`app.js:851-861`, cria transações novas comparando cronograma × já lançados) — mais complexo que um scalar, mereceria investigação própria numa rodada futura antes de classificar com segurança.
+
+**Conclusão**: candidatos A/B do bloco Operacional esgotados por ora. Métrica: 36 → 37 consumidores removidos (após push) / ~46 restantes.
+
+**Pendente**: commit + push.
+
 ## Bloco 27 — BUG ESTRUTURAL RAIZ encontrado e corrigido: cache do WallaceFinanceService explicava PETRS368W5/frescor "crítica"/NaN P2P-Wärtsilä, tudo o mesmo bug (08/08/2026, continuação do Bloco 26)
 
 **Contexto**: usuário reportou 2 problemas novos via screenshot da tabela de opções (PETR4/ITUB4 PUT) — coluna "Vencimento" por linha tinha sumido (só um texto fixo "21/08/2026" no topo, errado pra posições com vencimento diferente) e a separação "ativas vs vencidas" não estava acontecendo (PETRS368W5, vencida 31/07, ainda aparecia como ativa).
