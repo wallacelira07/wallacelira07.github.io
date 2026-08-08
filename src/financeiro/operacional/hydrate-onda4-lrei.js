@@ -49,6 +49,28 @@ async function aplicarOnda4Lrei(){
   // Reaproveita renderLivrosVariaveis() inalterada (também redesenha LRW/LRV, idempotente).
   renderLivrosVariaveis();
 
+  // ACHADO (08/08/2026): 2 outras exibições de VARS.LREI_ATIVAS já tinham rodado de forma síncrona,
+  // ANTES deste módulo (async) sobrescrever o array — ficavam mostrando a contagem/lista V1 antiga
+  // mesmo depois da V2 assumir. REG.qualidade.lreiAtivos precisa ser resincronizado (mesma fórmula de
+  // app.js:1109) antes de re-chamar hydrateQualidade() (idempotente, só reconstrói innerHTML a partir
+  // de REG/VARS atuais). balLreiAtivos (resumo do Balanço) é reescrito direto, mesma lógica já usada
+  // em hydrate-balanco.js. (Terceira exibição, hydrate-simulador-ciclo.js linha ~94-101, é código já
+  // morto em V1 — .map() ali não inclui `id`, então `$(l.id)` nunca encontra elemento; não é regressão
+  // desta migração, fora de escopo corrigir agora.)
+  if(REG.qualidade){
+    REG.qualidade.lreiAtivos = VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO').length;
+    if(typeof hydrateQualidade === 'function') hydrateQualidade();
+  }
+  {
+    const lreiAtivosNow = VARS.LREI_ATIVAS.filter(l=>l.status==='ATIVO');
+    const balLreiEl = $('balLreiAtivos');
+    if(balLreiEl){
+      balLreiEl.textContent = lreiAtivosNow.length === 0
+        ? 'Nenhum'
+        : lreiAtivosNow.length + ' ativo(s): ' + lreiAtivosNow.map(l=>l.id+' ('+fmt(l.valor)+')').join(', ');
+    }
+  }
+
   const v2Total = Math.round(VARS.LREI_ATIVAS.reduce((s,l)=>s+l.valor,0)*100)/100;
   const diverge = v1Qtd !== VARS.LREI_ATIVAS.length || Math.abs(v1Total - v2Total) > 0.01;
   if(diverge) console.warn(`Onda4Lrei: V1 (${v1Qtd} itens, ${fmt(v1Total)}) × V2 (${VARS.LREI_ATIVAS.length} itens, ${fmt(v2Total)}) — DIVERGE (inesperado, investigar).`);

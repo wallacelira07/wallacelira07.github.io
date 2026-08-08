@@ -46,6 +46,18 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Auditoria final desta classe de bug** (revisitada depois do 5º achado, agora cobrindo `hydrate-caixas.js` + `hydrate-metas.js` + `hydrate-balanco.js` inteiros): não sobra mais nenhum id lendo `pctOf`/saldo puro V1 para as 8 caixas com V2 disponível (Boletos, Bens Duráveis, Eventos, Seguro, Escola, Caixa Variável, Mastercard/Infinite, PIX Vanessa) em qualquer das 3 seções onde aparecem (card seção 05, Reservas/Operacional do Balanço, Resumo Executivo). O que resta em V1 é por motivo diferente e documentado: `balObr*` (exceção arquitetural formal), `balFluxo*`/`bal4q*` (sem V2 relacional ainda), `patPrevidencia`/`patFgts` (sem tabela V2), 4 caixas com divergência não confirmada (Manutenção/Saúde/PGV/Aniversário — decisão explícita do usuário de não reabrir), Caixa Lance (mesma classe, também não reabrir), Provisionado Wärtsilä (falta estrutura V2 pro campo fatura).
 
+**Commitado e enviado**: `8c6c2b5` → `origin/main`.
+
+**Sexto achado, variante mais sutil da mesma classe**: `aplicarOnda4Lrei()` sobrescreve `VARS.LREI_ATIVAS` de forma assíncrona, mas 2 renderizações já tinham rodado de forma síncrona (boot) com o array V1 ANTES dessa sobrescrita — `REG.qualidade.lreiAtivos` (alimenta o alerta "N empréstimo(s) interno(s) ativo(s)" em `hydrateQualidade()`) e `balLreiAtivos` (resumo do Balanço). Diferente dos achados anteriores (só reescrever um id de DOM), aqui era preciso resincronizar o valor derivado (`REG.qualidade.lreiAtivos`) e re-chamar a função de render (idempotente, confirmado lendo o código antes de reusar).
+
+**Achado colateral, fora de escopo**: uma 3ª exibição (`hydrate-simulador-ciclo.js`, aging por LREI) já está com bug em V1 puro, sem relação com a migração — `.map()` na linha ~52 não inclui o campo `id`, então `$(l.id)` nunca encontra elemento e o `forEach` não faz nada. Não é regressão desta rodada, documentado mas não corrigido (fora do escopo de "reduzir consumidor V1", é um bug de renderização pré-existente).
+
+**Implementado**: `src/financeiro/operacional/hydrate-onda4-lrei.js` — depois de `renderLivrosVariaveis()`, resincroniza `REG.qualidade.lreiAtivos` (mesma fórmula de `app.js:1109`) e re-chama `hydrateQualidade()`; reescreve `balLreiAtivos` direto (mesma lógica já usada em `hydrate-balanco.js`).
+
+**Validado ao vivo**: `balLreiAtivos`="2 ativo(s): LREI0003 (R$266,23), LREI0004 (R$103,55)", alerta="2 empréstimo(s) interno(s) ativo(s) — mais antigo com 16 dias" — ambos batendo com `VARS.LREI_ATIVAS` real (LREI0002 quitado, LREI0003/0004 ativos). Zero erro novo.
+
+**Métrica após os 6 achados desta rodada**: 37 → **55 consumidores removidos** / ~46 → **~28 restantes**.
+
 **Pendente**: commit + push.
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
