@@ -83,6 +83,9 @@ function criarVarsCaixas(){
   // dia de vencimento, confirmada pelo usuario. Base para o auto-credito por data (ver funcao
   // aplicarBoletosVencidosAutomaticamente() logo apos o VARS fechar) - elimina a necessidade de
   // perguntar manualmente "isso ja foi pago?" toda sessao. O TX de cada um casa com o TXB do livro LRB.
+  // MIGRADO 08/08/2026 (Onda 8): este literal agora e so o fallback sincrono do boot - a fonte real
+  // e a tabela cronograma_boletos_fixos (V2), sobrescrita aqui logo depois via
+  // aplicarOnda8CronogramaBoletos() (app.js). Editar valor/vencimento direto no Supabase, nao aqui.
   CRONOGRAMA_BOLETOS_FIXOS: [
     { tx:'TXB000001', nome:'Prestação da casa (Caixa Econômica)', diaVencimento:27, valor:588.66 },
     { tx:'TXB000002', nome:'Condomínio Bellagio', diaVencimento:10, valor:210.00 },

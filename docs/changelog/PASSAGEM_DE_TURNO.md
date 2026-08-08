@@ -110,6 +110,22 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Métrica final da sessão de aceleração completa**: 37 → **57 consumidores removidos** / ~46 → **~26 restantes**.
 
+**Commitado e enviado**: `7637354` → `origin/main`.
+
+## Priorizar impacto, não facilidade — classificação e Cronograma de Boletos
+
+**Diretriz nova do usuário**: encerrar a caça a candidatos A/B fáceis, classificar os ~26 restantes por (1) impacto operacional, (2) número de consumidores, (3) esforço, e escolher pelo impacto — não pela facilidade. Regra de execução: se modelagem clara + sem risco de perda de dado + sem decisão de negócio pendente → executar direto, sem parar pra autorização.
+
+**Classificação entregue**: Ciclo Snapshots tem o maior número de consumidores (15) e maior impacto potencial (núcleo do `CycleEngine.js`), mas foi **descartado como próximo passo** — falha o próprio critério de execução direta do usuário, é a estrutura mais complexa/menos mapeada do sistema (já triado em rodada anterior como pior candidato que Pluggy). `PLUGGY_TRIAGEM`: baixo impacto (3 registros, só estado de decisão), não prioritário. Mercado Pago: já migrado nesta sessão, não é mais candidato. Escolhido `CRONOGRAMA_BOLETOS_FIXOS` — menos consumidores que Ciclo Snapshots, mas modelagem clara e risco baixo confirmado, com impacto real (lógica financeira ativa, não só cosmética).
+
+**`CRONOGRAMA_BOLETOS_FIXOS` migrado**: nova tabela `cronograma_boletos_fixos` (tx PK, nome, dia_vencimento, valor, ativo). Backfill dos 9 boletos fixos, soma conferida (R$2.642,95, bate exato com a soma manual). **Escopo deliberadamente contido**: só o schedule migrou, não `BOLETOS_TRANSACOES` (lista de dedupe interna do auto-crédito) — o saldo real da Caixa Boletos já vinha 100% da V2 desde a Onda 1 desta mesma sessão, então não havia valor visível adicional em migrar esse segundo array agora.
+
+`src/financeiro/caixas/hydrate-onda8-cronograma-boletos.js` novo — sobrescreve `VARS.CRONOGRAMA_BOLETOS_FIXOS` (que continua existindo em `vars-caixas.js` como fallback síncrono do boot, comentado como tal) e re-roda `aplicarBoletosVencidosAutomaticamente()` (V1, inalterada — idempotente por construção, `txJaLancados` evita duplicar o que a 1ª passada síncrona já tiver creditado). Efeito prático real: o schedule dos boletos fixos passa a ser editável direto no Supabase, sem deploy de código — mesmo padrão já validado pela tabela `legendas`.
+
+**Validado ao vivo**: V1×V2 batem exato (9 itens, R$2.642,95), `cxBoletosSaldo`/`balResBoletos` inalterados (R$1.488,42, consistentes com antes — auto-crédito idempotente, sem duplicação). Zero erro de console.
+
+**Métrica atualizada**: 37 → **58 consumidores removidos** / ~46 → **~25 restantes**.
+
 **Pendente**: commit + push.
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)

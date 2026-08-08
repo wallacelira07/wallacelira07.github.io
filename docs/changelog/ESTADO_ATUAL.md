@@ -6,9 +6,13 @@
 
 ## Métrica
 
-✅ 57 consumidores removidos: 6 achados da classe "id de DOM duplicado" (55) + `MERCADOPAGO_EVENTOS` + `PLUGGY_CONTAS` migrados pra tabelas relacionais próprias (2 modelagens novas reais nesta rodada)
+✅ 58 consumidores removidos: 6 achados da classe "id de DOM duplicado" (55) + `MERCADOPAGO_EVENTOS` + `PLUGGY_CONTAS` + `CRONOGRAMA_BOLETOS_FIXOS` migrados pra tabelas relacionais próprias (3 modelagens novas reais nesta rodada)
 ✅ ~16 exceções formais (+ `PLUGGY_TRIAGEM`, deixado fora de propósito, ver abaixo)
-✅ ~26 consumidores restantes
+✅ ~25 consumidores restantes
+
+**`CRONOGRAMA_BOLETOS_FIXOS` migrado (08/08/2026)**: nova tabela `cronograma_boletos_fixos` (tx PK, nome, dia_vencimento, valor, ativo, criado_em, atualizado_em), RLS com leitura pública. Backfill dos 9 boletos fixos — 100% migrados, soma conferida (R$2.642,95). Escopo deliberadamente contido: só o schedule migrou; `BOLETOS_TRANSACOES` (lista de dedupe do auto-crédito) ficou de fora — o saldo real da Caixa Boletos já vinha 100% da V2 desde a Onda 1, sem valor visível adicional em migrar esse array também. `src/financeiro/caixas/hydrate-onda8-cronograma-boletos.js` novo — sobrescreve `VARS.CRONOGRAMA_BOLETOS_FIXOS` (que continua existindo como fallback síncrono do boot em `vars-caixas.js`) e re-roda `aplicarBoletosVencidosAutomaticamente()` (V1, inalterada, idempotente). Efeito prático: o schedule agora é editável direto no Supabase, sem deploy de código (mesmo padrão da tabela `legendas`). Validado ao vivo: V1×V2 batem exato (9 itens, R$2.642,95), saldo da Caixa Boletos inalterado. Zero erro de console.
+
+**Classificação feita a pedido do usuário (impacto > facilidade)**: Ciclo Snapshots (15 consumidores, maior de todos) foi avaliado e **descartado como próximo passo** — falha o critério de execução direta do próprio usuário ("modelagem clara, sem risco") por ser a estrutura mais complexa e menos mapeada do sistema (núcleo do `CycleEngine.js`). Escolhido `CRONOGRAMA_BOLETOS_FIXOS` em vez disso: menos consumidores, mas modelagem clara e risco baixo confirmado.
 
 **Mercado Pago migrado (08/08/2026)**: nova tabela `mercadopago_eventos` no Supabase (id, origem, tipo, descricao, valor, data, status, status_triagem, metadata, criado_em, atualizado_em), RLS com policy de leitura pública. Backfill dos 9 eventos que existiam em `wallace_dados.MERCADOPAGO_EVENTOS` — 100% migrados, `status_triagem` preservado linha a linha. RPC `atualizar_mercadopago_eventos` reescrita (mesma assinatura, `mercadopago_sync.py` não precisou mudar a chamada) — agora faz UPSERT na tabela nova em vez de `jsonb_set` em `wallace_dados`, preservando `status_triagem` em conflito de `id`. Único ponto do script Python que mudou: `obter_checkpoint()` agora lê `max(atualizado_em)` da tabela nova em vez de `wallace_dados.MERCADOPAGO_ATUALIZADO_EM`. JS: `WallaceFinanceService.getMercadoPagoEventosV2()` novo + `src/auditoria/classificacao/hydrate-onda6-mercadopago.js` novo. Validado ao vivo: 8/9 eventos foram pra Inbox (9º corretamente excluído — já tinha `status_triagem="rejeitado"` preservado). Zero erro de console.
 

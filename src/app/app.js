@@ -365,6 +365,20 @@ const WallaceFinanceService = {
     };
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 08/08/2026 (migração wallace_dados/vars-caixas.js.CRONOGRAMA_BOLETOS_FIXOS -> tabela
+  // cronograma_boletos_fixos): schedule dos 9 boletos fixos recorrentes, editável sem deploy de
+  // código (mesmo padrão já usado pela tabela `legendas`). Ver hydrate-onda8-cronograma-boletos.js.
+  async getCronogramaBoletosV2(){
+    const chave = 'cronograma_boletos_fixos';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=tx,nome,dia_vencimento,valor&ativo=eq.true&order=dia_vencimento.asc`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_boletos_fixos`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 
@@ -1430,6 +1444,9 @@ onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Fina
 // reconciliação inalteradas, só com dado novo. Ver hydrate-onda7-pluggy.js. classificarInboxPendentes()
 // já é re-chamada de dentro de aplicarOnda7Pluggy() (mesmo cuidado da parte 115 abaixo).
 onDomPronto(aplicarOnda7Pluggy);
+// NOVO 08/08/2026 (Onda 8): CRONOGRAMA_BOLETOS_FIXOS (literal em vars-caixas.js) migrado pra tabela
+// cronograma_boletos_fixos — editável sem deploy de código a partir de agora. Ver hydrate-onda8-cronograma-boletos.js.
+onDomPronto(aplicarOnda8CronogramaBoletos);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.
