@@ -2,6 +2,20 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 31 — Modo aceleração: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos` migrados (08/08/2026, continuação do Bloco 30)
+
+**Diretriz do usuário**: governança encerrada (commit `7f8c910`), fila contínua sem checkpoints — investigar → implementar → validar → commit → push → próximo, só parar em bloqueador real.
+
+**Investigação de `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`**: o saldo da Caixa Boletos (`cxBoletosSaldo`) já estava em V2 desde a Onda 1 (`vw_saldo_v2_por_caixa`). Achado: 3 outros IDs de DOM que exibem o mesmo saldo em contextos diferentes (`cxBoletosPct`/`cxBoletosBar` — barra de meta da seção 05; `balResBoletos` — linha do Balanço Operacional) não estavam na lista de override do Onda 1 e continuavam mostrando o valor V1 puro (computado por `aplicarBoletosVencidosAutomaticamente()` a partir de `CRONOGRAMA_BOLETOS_FIXOS`).
+
+**Classificação**: A — infraestrutura V2 já existente (mesma `vw_saldo_v2_por_caixa`, já buscada), só faltava ligar 3 IDs que ficaram de fora da Onda 1 original.
+
+**Implementado**: `src/financeiro/caixas/hydrate-onda1-v2.js` — adicionado callback `extra()` no item "Caixa Boletos" do `ONDA1_V2_MAPA`, reaproveitando o `valorV2` já resolvido (sem fetch novo) pra recalcular % (contra a meta fixa 2600) e sobrescrever a barra e `balResBoletos`. Também adicionados `cxBoletosPct`/`balResBoletos` à lista `ONDA1_V2_IDS` usada por `marcarIndisponivelV2()` — sem isso, uma falha de fetch V2 deixaria esses 2 IDs mostrando V1 silenciosamente, quebrando a promessa "sem fallback silencioso" (achado e corrigido antes de validar).
+
+**Validado em navegador real, sem login** — descoberta de ambiente: `Sistema_Wallace_Lira_Completo.html` roda standalone (busca Supabase real via anon key) independente do fluxo de login do `index.html`; usei isso pra validar sem precisar de credencial. Console zerado, `Onda1V2 [Caixa Boletos]: V1×V2 batem`. DOM real: `cxBoletosSaldo`="R$ 1.488,42", `cxBoletosPct`="57,2%", `cxBoletosBar.style.width`="57.2469%", `balResBoletos`="R$ 1.488,42" — todos consistentes.
+
+**Pendente**: commit + push.
+
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
 
 **Pedido do usuário**: "endurecimento final da governança dos agentes Claude", tratado como etapa obrigatória da conclusão da V2 — garantir que qualquer Claude novo, em qualquer conta/dispositivo, comece o mais alinhado possível à arquitetura V2 atual. Pedido cobria 10 frentes: nível de confiança da informação, V2 como regra global, treinamento por domínio, governança das 3 contas, sincronização Web/Mobile, bootstrap de chats novos, Claude Chat × Claude Code, fonte canônica, processo de manutenção, resultado esperado.

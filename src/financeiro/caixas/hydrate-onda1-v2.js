@@ -29,14 +29,31 @@
 // vez de 1.488,42); o campo "saldo_real_ciclo_atual" da mesma RPC diverge pra PIX Vanessa
 // (180,91 em vez de 302,88). A view usada aqui é a mesma validada a sessão inteira contra
 // vw_reconciliacao_v1_v2 — bate exato pras 4 caixas antes de qualquer código rodar.
+// ACHADO (08/08/2026, investigação CRONOGRAMA_BOLETOS_FIXOS/BOLETOS_TRANSACOES): 3 outros ids
+// além de cxBoletosSaldo continuavam mostrando o valor V1 puro da Caixa Boletos (simulado por
+// aplicarBoletosVencidosAutomaticamente() em app.js, a partir de CRONOGRAMA_BOLETOS_FIXOS) —
+// a barra de meta (cxBoletosPct/cxBoletosBar, seção 05) e a linha do Balanço Operacional
+// (balResBoletos). A meta (REG.caixasOperacionais.boletos.meta) é uma constante fixa (2600), não
+// vem de wallace_dados — só o saldo usado no cálculo do % precisava virar V2. Sem fetch novo:
+// reaproveita o mesmo saldosV2 já buscado abaixo para os outros 4 ids.
+const pctOf = (s,m) => m>0 ? Math.min(100, s/m*100) : 0;
 const ONDA1_V2_MAPA = [
-  { idHtml: 'cxBoletosSaldo', caixaNome: 'Caixa Boletos', getValorV1: () => REG.caixasOperacionais.boletos.saldo },
+  {
+    idHtml: 'cxBoletosSaldo', caixaNome: 'Caixa Boletos', getValorV1: () => REG.caixasOperacionais.boletos.saldo,
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.boletos.meta;
+      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctEl = $('cxBoletosPct'); if(pctEl) pctEl.textContent = pctTxt;
+      const barEl = $('cxBoletosBar'); if(barEl) barEl.style.width = pctOf(valorV2, meta)+'%';
+      const balEl = $('balResBoletos'); if(balEl) balEl.textContent = fmt(valorV2);
+    },
+  },
   { idHtml: 'cxPixSaldo', caixaNome: 'PIX Vanessa', getValorV1: () => REG.caixasOperacionais.pixVanessa.saldo },
   { idHtml: 'cvSaldoReal', caixaNome: 'Caixa Variável', getValorV1: () => REG.caixaVariavel.saldoReal },
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];
 
-const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml);
+const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos']); // cxBoletosBar tem style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
 
 async function aplicarOnda1V2(){
   let saldosV2;
@@ -55,7 +72,7 @@ async function aplicarOnda1V2(){
     return;
   }
   const relatorio = [];
-  ONDA1_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1}) => {
+  ONDA1_V2_MAPA.forEach(({idHtml, caixaNome, getValorV1, extra}) => {
     const el = $(idHtml);
     if(!el){ console.warn(`Onda1V2: id "${idHtml}" não encontrado no DOM, ignorado.`); return; }
     const caixaV2 = saldosV2.find(c => c.caixa_nome === caixaNome);
@@ -77,6 +94,10 @@ async function aplicarOnda1V2(){
       console.log(`Onda1V2 [${caixaNome}]: V1×V2 batem (${fmt(valorV2)}) — exibindo V2.`);
     }
     el.textContent = fmt(valorV2);
+    if(typeof extra === 'function'){
+      try { extra(valorV2); }
+      catch(err){ console.warn(`Onda1V2 [${caixaNome}]: falha ao aplicar overrides extras (meta/balanço).`, err); }
+    }
   });
   window.WALLACE_ONDA1_V2_RELATORIO = relatorio; // inspecionável no console: WALLACE_ONDA1_V2_RELATORIO
   console.log('Onda1V2: relatório completo em window.WALLACE_ONDA1_V2_RELATORIO', relatorio);

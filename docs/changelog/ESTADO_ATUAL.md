@@ -2,7 +2,17 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, continuação da sessão (governança dos agentes). HEAD `3f256d3` (seção 1.1 do manual + reescrita do `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` já commitados/salvos). Trabalho novo desta rodada (endurecimento de governança) **ainda não commitado** — ver "Trabalho desta rodada, pendente de commit" abaixo, aguardando aviso ao usuário conforme regra permanente.
+Última reescrita: 08/08/2026, modo aceleração (governança encerrada em `7f8c910`, usuário autorizou fila contínua sem checkpoints). HEAD após este bloco: `caixaBoletos` — 3 IDs de DOM que ainda mostravam V1 puro (`cxBoletosPct`/`cxBoletosBar`/`balResBoletos`) migrados para V2, reaproveitando o fetch já existente do Onda 1 (sem tabela/RPC nova). Validado ao vivo (Supabase real, sem login — `Sistema_Wallace_Lira_Completo.html` roda standalone): R$1.488,42 / 57,2% / mesma largura de barra / R$1.488,42, zero erro de console.
+
+## Métrica
+
+✅ 38 consumidores removidos (+1 nesta rodada: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos`)
+✅ ~16 exceções formais
+✅ ~45 consumidores restantes
+
+**Nota**: `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`/`aplicarBoletosVencidosAutomaticamente()` continuam existindo em `app.js`/`vars-caixas.js` — o padrão desta migração (igual a todas as ondas anteriores) é sobrescrever só a exibição em DOM com V2, mantendo o cálculo V1 internamente vivo (usado por auditoria/validação runtime). "Consumidor removido" = ID de DOM que já não mostra mais valor derivado só de V1.
+
+**Próximo item da fila**: Pluggy/Mercado Pago/Ciclo Snapshots continuam Classe C, não abrir agora. Buscando próximo candidato A/B fora desses três.
 
 ## Endurecimento de governança dos agentes Claude (08/08/2026, mesma sessão)
 
