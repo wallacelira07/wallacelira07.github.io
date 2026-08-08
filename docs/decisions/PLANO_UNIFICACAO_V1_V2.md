@@ -85,7 +85,10 @@ Relatórios / gráficos
 | **1** (parcial, 08/08/2026) | Preencher `cartao_id`/`usuario_id` retroativo nas transações | 🟡 34 `cartao_id` + 49 `usuario_id` preenchidos com evidência real (regex no texto original do V1 cruzado com `tx_legado`). O resto (Caixa Variável majoritariamente) ficou **intencionalmente null** — usuário confirmou que essa caixa é da família, não só do Wallace, então não dá pra assumir um dono padrão sem evidência. Critério de "100%" do plano original foi revisado: nem toda transação tem um usuário/cartão atribuível de verdade, então a meta agora é "100% do que é resolvível com evidência", não 100% bruto. |
 | **2** (concluída, 08/08/2026) | Trilha de auditoria (`audit_log`) + triggers | ✅ Tabela `audit_log` (granularidade por campo em UPDATE, linha inteira em INSERT/DELETE) + trigger genérico (`fn_audit_log_generic`) em `transacoes` e `caixas`. Origem da escrita (`importacao`/`sistema`/`ajuste_manual`/`formulario`/`sincronizacao`) é declarada pela RPC quando possível (`lancar_transacao_manual` → `formulario`) ou **inferida automaticamente** da própria coluna `transacoes.origem` quando a escrita vem de fora de uma RPC (scripts Python de Pluggy/Mercado Pago, que gravam via REST direto e não conseguem declarar sessão). Testado de ponta a ponta (INSERT/UPDATE/DELETE, inferência de origem, revogação de EXECUTE público na função de trigger — pego pelo advisor de segurança do Supabase e corrigido na hora). |
 | **3** (concluída, 08/08/2026) | Diagnóstico de reconciliação V1×V2 por caixa (views comparativas, sem correção de dados) | ✅ 16/16 caixas confiáveis analisadas, 0 divergência material sem causa raiz identificada. Detalhamento completo na seção 10. |
-| **4** | Frontend passa a ler a RPC de saldo calculado **em paralelo** com V1 (mostra os dois, não troca ainda) | Usuário aprova visualmente por 1 ciclo |
+| **4A** (concluída, 08/08/2026) | Corrigir as 5 âncoras `saldo_inicial_ciclo` com causa raiz comprovada na Fase 3 | ✅ 5/5 caixas corrigidas, 0 desvio do previsto. Detalhamento completo na seção 11. |
+| **4B** (planejada, não implementada) | Proteger `tx_legado` contra reinserção + sincronizar V1→V2 (Alternativa A: função sob demanda) | Proposta técnica na seção 11 — aguardando autorização de implementação |
+| **4C** (planejada, não detalhada) | Limpar duplicidades confirmadas (Caixa Boletos: `TXB000001`/`008`/`009`, `TX000069`) | Aguardando priorização |
+| **4D** (planejada, não detalhada) | Frontend passa a ler a RPC de saldo calculado **em paralelo** com V1 (mostra os dois, não troca ainda) | Usuário aprova visualmente por 1 ciclo — só depois de 4A-4C concluídas |
 | **5** | Frontend troca a fonte principal pra V2, V1 vira só fallback/histórico | Sem regressão visual em nenhum card, 1 ciclo de observação |
 | **6** | Descontinuar `wallace_dados`/arquivos locais como fonte ativa (viram só arquivo morto/histórico) | Autorização explícita do usuário |
 
@@ -222,6 +225,38 @@ A Fase 3 comprovou, com evidência reproduzível e sem alterar um único registr
 3. **Correções de modelagem identificadas**: Caixa Mastercard/Infinite (sinal invertido em `saldo_inicial_ciclo`); Caixa Boletos (duplicidade de importação — linhas com mesmo `tx_legado` inseridas duas vezes — e inconsistência de escopo entre a migration de calibração original e a view de reconciliação atual).
 4. **Diferenças de classificação sem impacto financeiro**: `TXMP000009` (Caixa Lance) com descrição/natureza de negócio diferente em V1 e V2, mesmo valor.
 5. **Diferenças de escopo/cobertura sem impacto financeiro**: 16 transações de PIX Geral Vanessa e 181 transações de Caixa Variável presentes só na V2, sem correspondente no array V1 dessas caixas.
+
+---
+
+## 11. Fase 4A — execução e Fase 4B — proposta técnica (08/08/2026)
+
+### Fase 4A — Correção das 5 âncoras de saldo inicial (executada)
+
+**Protocolo seguido, caixa por caixa**: (1) snapshot da linha em `caixas` antes; (2) snapshot da `vw_reconciliacao_v1_v2` antes; (3) `UPDATE caixas SET saldo_inicial_ciclo = <valor>` com `set_config('audit.origem','ajuste_manual', true)` na mesma transação; (4) nova consulta à `vw_reconciliacao_v1_v2`; (5) conferência do resíduo observado contra o resíduo previsto pela decomposição algébrica da Fase 3. Regra: qualquer desvio interromperia a sequência antes da próxima caixa — não houve nenhum desvio.
+
+| Caixa | `saldo_inicial_ciclo` antes | `saldo_inicial_ciclo` depois | Diferença V1-V2 antes | Diferença V1-V2 depois | Resíduo previsto (Fase 3) | Resultado |
+|---|---:|---:|---:|---:|---:|---|
+| Caixa Mastercard/Infinite | −11.172,22 | 0,00 | 11.172,22 | 0,00 | 0,00 | ✅ conforme |
+| PIX Vanessa | 900,76 | 0,00 | −900,76 | 0,00 | 0,00 | ✅ conforme |
+| Provisionado Wärtsilä | 0,00 | 683,04 | 339,00 | −344,04 | −344,04 | ✅ conforme |
+| Caixa Lance | 3.489,75 | 3.748,74 | 254,62 | −4,37 | −4,37 | ✅ conforme |
+| PIX Geral Vanessa | 78,04 | 0,00 | −200,01 | −121,97 | −121,97 | ✅ conforme |
+
+Todas as 5 alterações estão registradas em `audit_log` (tabela=`caixas`, campo=`saldo_inicial_ciclo`, `valor_anterior`/`valor_novo`, `origem='ajuste_manual'`, timestamp `alterado_em`). Nenhuma linha de `transacoes` foi tocada nesta fase. Os resíduos remanescentes de Wärtsilä/Lance/PIX Geral Vanessa são o componente de sincronização pendente já quantificado na Fase 3 — ficam explicitamente para a Fase 4B, não são um erro desta correção.
+
+### Fase 4B — Proposta técnica de sincronização V1→V2 (não implementada)
+
+**Origem dos lançamentos que ainda nascem só no V1**: `diagnostico_sync_v1_v2()` (função já existente, só leitura) mostra 15 transações em 8 caixas presentes apenas na V1, todas datadas entre 04/08 e 07/08/2026 — divergência viva, recorrente, não resíduo histórico. Cruzando com `transacoes.origem`: 280 linhas vieram de migrações em lote (`reconciliacao`), 3 de `lancar_transacao_manual` (`manual`), **0 de `pluggy`/`mercado_pago`** apesar das RPCs existirem. Não existe hoje nenhum caminho de código que grave na V2 no momento em que um lançamento nasce no V1.
+
+**Risco identificado**: `transacoes` não tem nenhuma constraint de unicidade em `tx_legado` — foi exatamente essa lacuna que permitiu a duplicidade de importação da Caixa Boletos (achado da Fase 4C). Qualquer mecanismo de sincronização precisa de proteção contra reinserção antes de rodar de forma recorrente.
+
+**Mecanismo recomendado (Alternativa A, sem implementação ainda)**:
+1. Adicionar índice único parcial em `transacoes(tx_legado) WHERE tx_legado IS NOT NULL`, para impedir reinserção do mesmo `tx_legado`.
+2. Criar `sincronizar_v1_v2()`, companion de leitura de `diagnostico_sync_v1_v2()`, que insere as transações pendentes com `ON CONFLICT (tx_legado) DO NOTHING`, `origem='reconciliacao'` (reaproveita o valor já usado nas 280 linhas existentes, sem alterar o CHECK constraint existente) e `set_config('audit.origem','sincronizacao', true)` (valor já aceito pelo CHECK de `audit_log`).
+3. Rodar sob demanda (início de sessão/fechamento do dia), sempre com relatório "dry-run" antes de confirmar.
+4. Casos onde `caixa_id`/`categoria_id`/`usuario_id`/`cartao_id` não puderem ser resolvidos com confiança ficam com o campo `NULL` e `status='pendente_classificacao'` — nunca inferidos por padrão (mesma regra já usada na Fase 1 para a Caixa Variável).
+
+**Alternativa B** (sincronização automática no momento da escrita, maior esforço): instrumentar os pontos de código que criam lançamentos no V1 para chamar a RPC de escrita da V2 na mesma operação — descartada como primeiro passo por exigir inventário completo dos pontos de escrita (incluindo edições manuais de sessão) e garantias de atomicidade ainda não desenhadas.
 
 ---
 
