@@ -1569,7 +1569,7 @@
   </div>
 
   <footer>
-    <span>Sistema Wallace Lira · ERP V11 · v06/08/2026 (parte 140)</span>
+    <span id="rodapeVersao">Sistema Wallace Lira · ERP V11</span>
   </footer>
 
 </div>
@@ -1597,7 +1597,16 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260808-11';
+var __V = '20260808-12';
+// CORRIGIDO 08/08/2026 (usuario apontou: rodape mostrava "v06/08/2026 (parte 140)", travado ha dias -
+// era texto FIXO no HTML, nunca ligado a nada, enquanto __V (o cache-buster real) seguia sendo
+// bumpado normalmente a cada deploy. Corrigido na raiz: o rodape agora deriva do proprio __V (formato
+// 'AAAAMMDD-N'), nunca mais pode ficar dessincronizado do valor real de versao/deploy.
+(function(){
+  var m = __V.match(/^(\d{4})(\d{2})(\d{2})-(\d+)$/);
+  var el = document.getElementById('rodapeVersao');
+  if(m && el) el.textContent = 'Sistema Wallace Lira · ERP V11 · v' + m[3] + '/' + m[2] + '/' + m[1] + ' (build ' + m[4] + ')';
+})();
 
 function __carregarScriptsParalelo(caminhos){
   return Promise.all(caminhos.map(function(src){
