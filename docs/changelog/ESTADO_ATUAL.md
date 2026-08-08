@@ -14,6 +14,7 @@
 
 ## Protocolo de sessão nova (leia nesta ordem)
 
+0. **`docs/changelog/RESUMO_EXECUTIVO_08-08-2026.md`** — resumo executivo objetivo/acionável pra troca de agente (7 blocos: pronto / migrado nesta sessão / ainda em V1 / o que falta pra desligar V1 / governança / diretriz oficial / próximo passo recomendado). Ler primeiro se o objetivo for só entender o estado do projeto rápido.
 1. Este arquivo (`ESTADO_ATUAL.md`)
 2. `PASSAGEM_DE_TURNO.md` — Bloco 18 tem o histórico completo desta sessão (08/08/2026)
 3. `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` — seções 30-42 são a frente de trabalho ATIVA (mudança de direção arquitetural, ver seção 0 abaixo)
