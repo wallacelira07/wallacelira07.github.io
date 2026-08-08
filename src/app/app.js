@@ -819,6 +819,13 @@ function hydrate(){
   // Mastercard-Infinite) quando a resposta chegar, com fallback automático pro valor V1 já
   // escrito acima se o fetch falhar. Rollback: comentar esta linha. Ver hydrate-onda1-v2.js.
   aplicarOnda1V2();
+
+  // ONDA 2 — MIGRAÇÃO V2 → PAINEL (08/08/2026): mesmo padrão da Onda 1, agora pras 11 caixas
+  // restantes (overlay CONDICIONAL — só troca pra V2 se não houver divergência; ver
+  // hydrate-onda2-v2.js) + diagnóstico Fase 1 do Livro Razão (só compara e loga, não muda
+  // nenhuma renderização de tabela). Rollback: comentar as 2 linhas abaixo.
+  aplicarOnda2V2();
+  diagnosticoLivroRazaoFase1();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
@@ -900,6 +907,20 @@ const WallaceFinanceService = {
       headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
+  // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
+  // validada a sessão inteira, em vez de somar arrays na mão no cliente.
+  async getReconciliacaoPorCaixa(){
+    const chave = 'vw_reconciliacao_v1_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;

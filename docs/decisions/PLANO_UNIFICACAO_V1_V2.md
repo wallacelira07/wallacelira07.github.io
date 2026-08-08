@@ -978,3 +978,43 @@ Confirmado via `window.WALLACE_ONDA1_V2_RELATORIO` no console real: `diverge:fal
 
 ### Status
 **Migradas para V2 (fonte efetiva, com fallback V1 ativo)**: Caixa Boletos, PIX Vanessa, Caixa Variável (saldo real), Caixa Mastercard/Infinite — 4 componentes. Rollback disponível (comentar `aplicarOnda1V2();` em `app.js`).
+
+---
+
+## 24. Onda 2 — overlay condicional pras 11 caixas restantes + diagnóstico Livro Razão Fase 1 (08/08/2026)
+
+**Objetivo**: estender o modelo da Onda 1 pras 11 caixas restantes e iniciar o desligamento de `*_TRANSACOES` como fonte do Livro Razão — sem sincronização contínua V1→V2, sem nova investigação de dado antes de implementar (só a checagem pré-migração por caixa que a própria diretriz desta onda exige).
+
+### Diferença de desenho em relação à Onda 1
+Checagem ao vivo mostrou que **nenhuma das 11 caixas está com V1×V2=0 hoje** (6 têm resíduo de um item `AJUSTE-06-08`, deliberadamente excluído de `sincronizar_v1_v2()` por já ser governança conhecida — Política Interna §31 — rodei o dry-run pra confirmar, 0 candidatos inseríveis; 5 têm causa indeterminada, baixa confiança, mesma classe do caso Boletos antes de resolvido). Por isso o overlay aqui é **condicional**: só troca o texto pra V2 se `|V1−V2|≤R$0,01`; caso contrário mantém V1 e só loga a divergência — nunca esconde, nunca força V2 errado pra tela.
+
+### Caixas efetivamente migradas nesta rodada (V1×V2 bateram, exibindo V2)
+**Caixa Churrasco** (R$100,24) e **Caixa Combustível** (R$200,50) — 2 de 11.
+
+### Caixas bloqueadas (divergência real, mantendo V1, logado)
+
+| Caixa | V1 | V2 | Diferença | Causa |
+|---|---:|---:|---:|---|
+| Caixa Bens Duráveis | R$0,00 | -R$355,00 | R$355,00 | `AJUSTE-06-08` não sincronizado |
+| Caixa Eventos | R$167,43 | R$167,09 | R$0,34 | idem |
+| Caixa Seguro Emplacamento | R$426,96 | R$426,08 | R$0,88 | idem |
+| Escola de Júlio | R$1.011,86 | R$1.009,80 | R$2,06 | idem |
+| PIX Geral Vanessa | R$50,69 | R$172,70 | R$122,01 | causa indeterminada, baixa confiança |
+| Caixa Saúde Família | R$147,06 | -R$0,06 | R$147,12 | idem |
+| Caixa Manutenção | R$0,72 | R$346,45 | R$345,73 | idem |
+| Caixa Aniversário Júlio | R$93,70 | R$200,80 | R$107,10 | idem |
+| Provisionado Wärtsilä | R$339,00 | R$683,04 | R$344,04 | causa indeterminada + gap estrutural (campo "fatura" sem equivalente V2) — **log-only, nunca escreve no DOM** (card de 4 estados, fora do escopo desta onda) |
+
+Nenhuma dessas 9 foi corrigida nesta onda — correção de dado é decisão separada (mesmo protocolo da Parte B/TX000140), fora do escopo de "leitura V2".
+
+### Livro Razão — Fase 1 (diagnóstico apenas, renderização V1 100% inalterada)
+Reaproveitou `vw_reconciliacao_v1_v2` (qtd de transações + valor das diferenças por caixa) em vez de somar arrays no cliente. Resultado ao vivo: **13 das 15 caixas verificadas têm quantidade de transações V1≠V2** (Caixa Lance, Manutenção, Aniversário Júlio, Eventos, Saúde Família, Seguro Emplacamento, Combustível, Churrasco, PIX Geral Vanessa, Bens Duráveis, Boletos, Variável, Escola de Júlio) — só Mastercard/Infinite e PIX Vanessa batem em quantidade. Confirma que o Livro Razão precisa da mesma investigação por caixa antes de qualquer Fase 2 (exibição). Relatório completo em `window.WALLACE_LIVRO_RAZAO_DIAGNOSTICO`.
+
+### Validação em ambiente real
+Console real, login real, confirmado: `window.WALLACE_ONDA2_V2_RELATORIO` (11 entradas) e `window.WALLACE_LIVRO_RAZAO_DIAGNOSTICO` (15 entradas) batendo com a tabela acima. Mesma falha transiente de carregamento já vista na Onda 1 (`WallaceFinanceService` não inicializado na primeira passada de `hydrate()`) ocorreu de novo, absorvida pelo fallback nas 3 funções sem nenhum impacto visível — padrão conhecido, não regressão nova, candidato a investigação de causa raiz numa sessão futura (não bloqueante).
+
+### Arquivos alterados
+`src/financeiro/caixas/hydrate-onda2-v2.js` (novo), `src/app/app.js` (+`getReconciliacaoPorCaixa()`, +chamadas `aplicarOnda2V2()`/`diagnosticoLivroRazaoFase1()` no fim de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+### Status
+**Migradas nesta onda**: Caixa Churrasco, Caixa Combustível (2). **Total acumulado lendo V2 (Ondas 1+2)**: 6 caixas. **Bloqueadas, aguardando resolução de divergência real**: 9 caixas + Livro Razão completo. Mecanismo pronto pra promover cada uma automaticamente assim que a divergência real fechar, sem novo código.
