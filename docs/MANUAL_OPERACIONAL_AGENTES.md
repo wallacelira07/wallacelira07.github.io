@@ -92,6 +92,12 @@ A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v
 | `transacoes.afeta_saldo_real IS NULL` | V2 | Transação sem classificação de impacto em saldo — P1, nunca deixar acumular |
 | Duplicidade `(tx_legado, caixa_id)` | V2 | Bloqueada pela constraint desde a Fase 4B-2 — se aparecer erro `23505` numa sincronização, é isso |
 | `avisos` em `rpc_dashboard_resumo()`/`v2_rpc_avisos_negocio` | V2 | Lista de alertas de negócio já computados pelo próprio banco — sempre ler antes de dar sessão por "tudo ok" |
+| PIX Geral Vanessa (PGV) com saldo ≤ R$100,00 | Card PGV no painel (`VARS.pixGeralVanessaSaldo`) | **Regra nova 08/08/2026** (pedido explícito do usuário): gatilho formal de reposição é R$50,00 (Política Interna §7), mas R$100 já é "praticamente no limite" na prática — emitir alerta preventivo no resumo de abertura da sessão (ver seção 9), formato: `⚠ PIX Geral Vanessa em R$X,XX. Gatilho de reposição: R$50,00. Preparar transferência de R$300 da PIX Vanessa caso ocorra qualquer nova saída.` **Só alerta — nunca executar a transferência, criar lançamento ou alterar saldo automaticamente.** |
+
+**Atenção ao citar valores da Caixa Variável em qualquer alerta** (esclarecimento 08/08/2026, Política Interna §13 — não confundir os dois conceitos):
+- **TEM NA CAIXA** = saldo real existente (bruto, antes de descontar compromissos).
+- **DISPONÍVEL REAL** = saldo real **menos** o comprometido (o que sobra de fato pra gastar).
+- Exemplo real da sessão: R$1.886,65 na Caixa (TEM NA CAIXA) − R$1.572,81 comprometidos = R$313,84 disponíveis (DISPONÍVEL REAL). **Nunca** tratar o disponível como se fosse o saldo bruto, nem o bruto como se fosse livre pra gastar — todo alerta/resumo que citar um valor da Caixa Variável precisa dizer explicitamente qual dos dois conceitos está usando.
 
 ---
 
@@ -134,6 +140,7 @@ A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v
 - [ ] Se a tarefa envolver `caixas`/`transacoes`/qualquer tabela relacional, ler `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` seção mais recente antes de agir.
 - [ ] Se for mexer em dado financeiro, checar `POLITICAS_INTERNAS_SISTEMA_WALLACE.md` pra regra de negócio aplicável (cascata, caixa correta, exceção conhecida).
 - [ ] Confirmar com o usuário qualquer coisa que pareça pendência de outra sessão antes de reabrir como problema novo.
+- [ ] **Checar saldo atual da PIX Geral Vanessa (PGV)** — se ≤ R$100,00 (gatilho formal R$50,00, Política Interna §7), incluir alerta preventivo já na resposta de boas-vindas/resumo operacional de abertura: `⚠ PIX Geral Vanessa em R$X,XX. Gatilho de reposição: R$50,00. Preparar transferência de R$300 da PIX Vanessa caso ocorra qualquer nova saída.` Só alerta — não executar transferência, não lançar, não alterar saldo (regra nova 08/08/2026, ver seção 6).
 
 ## 10. Checklist de Encerramento de Sessão
 
