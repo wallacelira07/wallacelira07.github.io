@@ -185,6 +185,19 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado[0] || null;
+  },
+  // NOVO 08/08/2026 (Onda 4, domínio 3 — LREI): vw_emprestimos_internos_v2 (mesmo shape de
+  // VARS.LREI_ATIVAS — id/data/credora/devedora/valor/origem/status/quitadoEm/quitadoPor).
+  async getEmprestimosInternosV2(){
+    const chave = 'vw_emprestimos_internos_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_emprestimos_internos_v2?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_emprestimos_internos_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 
@@ -1034,6 +1047,10 @@ onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-li
 // inverteria e V1 apagaria o V2 escrito antes). Fallback automático: só sobrescreve em caso de
 // sucesso do fetch. Rollback: comentar esta linha.
 onDomPronto(aplicarOnda3LivroRazao);
+// ONDA 4, domínio 3 — LREI (08/08/2026): mesmo motivo de ordem do comentário acima — precisa que
+// renderLivrosVariaveis() (V1) já tenha rodado. Reaproveita a própria função pra redesenhar, agora
+// com VARS.LREI_ATIVAS vindo da V2. Ver hydrate-onda4-lrei.js.
+onDomPronto(aplicarOnda4Lrei);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // V400 Etapas 2/3: rodam apos renderInboxFinanceira (mesma tabela que elas alimentam via inboxAdicionarItem).
 // Ate hoje (03/08/2026) essas 2 funcoes so tinham sido testadas em harness Node isolado, nunca ligadas

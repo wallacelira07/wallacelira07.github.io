@@ -1273,3 +1273,54 @@ Também criadas `vw_opcoes_vendidas_v2` e `vw_roc_opcoes_v2`/`vw_roc_carteira_v2
 **7. Resultado**: **seção 17 inteira migrada para V2 como fonte**, reaproveitando 100% do código de cálculo/renderização V1. `VARS.opcoesVendidasDetalhe`/`CDI_MENSAL_ATUAL`/`ROC_STATUS_LIMITES` deixam de ser necessários no frontend.
 
 **8. Rollback**: comentar `aplicarOnda4Investimentos();` em `app.js`.
+
+## 33. Onda 4, domínio 3 — LREI (Empréstimos Internos): tabela nova criada, V1 reaproveitado (08/08/2026)
+
+**1. Objetivo**: eliminar a ausência real de estrutura confirmada na proposta — nenhuma tabela da V2 rastreava empréstimos internos entre caixas.
+
+**2. Escopo**: aba "LREI - Empréstimos" do Livro Razão (`lreiTbody`, `lrTabBtn_lrei`, dentro de `renderLivrosVariaveis()`).
+
+**Mesma estratégia do domínio 2**: troca a origem de `VARS.LREI_ATIVAS` e re-chama `renderLivrosVariaveis()` (`render-livros-variaveis.js`, inalterada) — zero lógica de renderização duplicada.
+
+**SQL criado**:
+```sql
+CREATE TABLE public.emprestimos_internos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  codigo_legado text UNIQUE NOT NULL,
+  data_emprestimo date NOT NULL,
+  caixa_credora_id uuid NOT NULL REFERENCES public.caixas(id),
+  caixa_devedora_id uuid REFERENCES public.caixas(id),  -- NULL quando devedora nao e uma caixa
+  devedora_texto text,                                   -- fallback ('Fatura Cartão Mercado Pago')
+  valor numeric NOT NULL, origem text,
+  status text NOT NULL DEFAULT 'ATIVO' CHECK (status = ANY (ARRAY['ATIVO','QUITADO'])),
+  data_quitacao date, quitado_por text,
+  transacao_quitacao_id uuid REFERENCES public.transacoes(id),
+  created_at timestamptz DEFAULT now()
+);
+-- RLS: mesma policy de leitura publica das outras tabelas
+
+CREATE VIEW public.vw_emprestimos_internos_v2 AS
+SELECT e.codigo_legado AS id, to_char(e.data_emprestimo,'DD/MM') AS data, cc.nome AS credora,
+  COALESCE(cd.nome, e.devedora_texto) AS devedora, e.valor, e.origem, e.status,
+  to_char(e.data_quitacao,'DD/MM') AS quitado_em, e.quitado_por
+FROM public.emprestimos_internos e
+JOIN public.caixas cc ON cc.id = e.caixa_credora_id
+LEFT JOIN public.caixas cd ON cd.id = e.caixa_devedora_id
+ORDER BY e.codigo_legado;
+```
+
+**3. Arquivos alterados**: `src/financeiro/operacional/hydrate-onda4-lrei.js` (novo), `src/app/app.js` (+`getEmprestimosInternosV2()`, +`onDomPronto(aplicarOnda4Lrei)` logo depois de `aplicarOnda3LivroRazao`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada).
+
+**4. Fonte antiga**: `VARS.LREI_ATIVAS` (3 itens, literal em `vars-reembolsos.js`).
+
+**5. Fonte nova**: `emprestimos_internos` via `vw_emprestimos_internos_v2`.
+
+**Migração dos dados**: 3 `INSERT`s (LREI0002 quitado — com `transacao_quitacao_id` apontando pra `TX000212` de verdade —, LREI0003 e LREI0004 ativos), `caixa_credora_id`/`caixa_devedora_id` resolvidos via nome (`Caixa Lance`/`Caixa Saúde Família`/`Caixa Manutenção`), `devedora_texto='Fatura Cartão Mercado Pago'` pro LREI0003 (não é caixa). Mesmos valores já em `VARS`, nenhum dado novo.
+
+**6. Validação**: `SELECT * FROM vw_emprestimos_internos_v2` confere exato (3 itens, mesmos id/data/credora/devedora/valor/origem/status/quitadoEm/quitadoPor). Checagem estática: script carregado 1x, `renderLivrosVariaveis`/`fmt` existem e são globais, nomes novos únicos. **Validação em navegador real pendente.**
+
+**Nota de escopo**: outros consumidores de `VARS.LREI_ATIVAS` que rodam ANTES deste módulo no boot síncrono (`REG.qualidade.lreiAtivos`, `aporteBTGProgramado.caixaLanceCompleta`, simulador de ciclo) não foram re-executados — mesmo padrão aceito no domínio 2, valores idênticos por migração, sem divergência visual.
+
+**7. Resultado**: **LREI migrado para V2 como fonte**. `VARS.LREI_ATIVAS` deixa de ser necessário no frontend.
+
+**8. Rollback**: comentar `onDomPronto(aplicarOnda4Lrei);` em `app.js`.
