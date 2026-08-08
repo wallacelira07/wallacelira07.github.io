@@ -285,7 +285,7 @@ Depois da Fase 4A, o usuário decidiu dividir a Fase 4B em duas partes (4B-1 sin
 - A chave correta é **`UNIQUE(tx_legado, caixa_id)`** — mas essa constraint **falha ao ser criada hoje**, porque `TXB000001`/`TXB000008`/`TXB000009` (Caixa Boletos) são os únicos casos de mesmo `tx_legado` **repetido na mesma caixa** — exatamente as 3 duplicidades reais identificadas na Fase 4C.
 - **Só pode ser aplicada depois que a Fase 4C remover essas 3 linhas.**
 
-#### Fase 4C — Limpeza de duplicidades da Caixa Boletos (proposta técnica, nada excluído)
+#### Fase 4C — Limpeza de duplicidades da Caixa Boletos (proposta original — **EXECUTADA em 08/08/2026, ver seção 13 para o registro completo**)
 - **Grupo 1 — duplicidade confirmada por `tx_legado`** (mesma caixa, mesmo `tx_legado`, 2 linhas cada, evidência: timestamps de criação idênticos ao microssegundo em lotes diferentes, 15 min de intervalo, 05/08/2026 20:44:51 vs 20:59:48 UTC):
   | tx_legado | Manter (id) | Excluir (id) | Data mantida/excluída | Valor |
   |---|---|---|---|---|
@@ -298,14 +298,14 @@ Depois da Fase 4A, o usuário decidiu dividir a Fase 4B em duas partes (4B-1 sin
 - **Efeito contraintuitivo confirmado por cálculo**: excluir o Grupo 1 **piora** a diferença numérica da `vw_reconciliacao_v1_v2` para Caixa Boletos, de −R$911,32 para **−R$1.986,21** (as duplicidades estavam compensando por acaso parte do erro de escopo já descrito na Fase 3 — a inclusão indevida de `TX000140`, R$1.986,21, pela regra de matching da view que não filtra por data de início de ciclo). Isso **confirma** o diagnóstico da Fase 3 de forma independente, mas significa que **a 4C sozinha não fecha a Caixa Boletos** — precisa de uma correção separada na regra de escopo da view (ou decisão consciente sobre `TX000140`), fora do escopo da 4C.
 - **Não depende da Fase 4B-1** (nenhuma sobreposição de caixas).
 
-### Decisão pendente no momento do corte
+### Decisão pendente no momento do corte (histórico — ver seção 13 para o estado atual)
 O usuário pediu a documentação de handoff antes de decidir a ordem final entre:
 1. Executar 4B-1 (sincronização).
 2. Executar 4C (limpeza).
 3. Executar 4B-2 (constraint `UNIQUE(tx_legado, caixa_id)`) — só possível depois de (2).
 4. Só então partir para a 4D (frontend paralelo).
 
-**Nada de 4B ou 4C foi executado.** Nenhuma exclusão, nenhum INSERT de sincronização, nenhuma constraint criada. A única coisa executada nesta sessão foi a Fase 4A (seção 11).
+**Atualização 08/08/2026: a Fase 4C (item 2) foi executada e validada — ver seção 13.** 4B-1 e 4B-2 continuam não implementadas. Nenhuma constraint foi criada ainda.
 
 ### Regras de governança que continuam valendo (não são específicas desta fase, são do projeto)
 - Nenhuma fase/subfase avança sem autorização explícita do usuário para aquela etapa específica.
@@ -314,8 +314,60 @@ O usuário pediu a documentação de handoff antes de decidir a ordem final entr
 
 ---
 
+## 13. Fase 4C — execução e validação (08/08/2026)
+
+**Objetivo da fase**: remover as únicas duplicidades reais de `(tx_legado, caixa_id)` na tabela `transacoes` (Caixa Boletos), pré-condição obrigatória para a Fase 4B-2 (`UNIQUE(tx_legado, caixa_id)`), que falha ao ser criada enquanto elas existirem.
+
+### Escopo executado — Grupo 1 (duplicidade objetiva por `tx_legado`)
+
+| tx_legado | id excluído | data excluída | valor excluído |
+|---|---|---:|---:|
+| TXB000001 | `22a4c47b-51c9-452f-9f9a-24186f8df922` | 25/06/2026 | R$588,66 |
+| TXB000008 | `1cc59070-14d1-45e3-91e5-10d840db7e95` | 30/06/2026 | R$163,24 |
+| TXB000009 | `a9d24f41-734a-4b99-8967-fb92356fd400` | 26/06/2026 | R$322,99 |
+
+**3 linhas removidas, R$1.074,89 no total.**
+
+**Evidência da duplicidade**: mesmo `tx_legado` + mesma `caixa_id` (Caixa Boletos, `7751575a-6339-4bf2-bda4-60817778551c`) em duas linhas cada, criadas em dois lotes de importação com 15 minutos de diferença (`2026-08-05 20:44:51` vs `20:59:48` UTC) — padrão clássico de reprocessamento duplicado do mesmo lote. Em `TXB000009` a linha duplicada também trazia o valor errado (322,99 em vez de 367,36), reforçando que era resíduo de importação malformada, não um 2º evento real.
+
+**Fora do escopo, por decisão explícita** (mantidos intocados, confirmado antes e depois do DELETE):
+- `TX000069` (id `741a146d-04b7-4b9b-a662-3ee9e71ff069`, R$1.313,69) — duplicidade **semântica** (soma exata de `TXB000002+003+004+005+007`), não duplicidade de `tx_legado`; decisão de modelagem separada, não decidida.
+- `TXB000006` (Anderson Ramos, R$210,00) — sem par identificado, caso ambíguo, sem ação.
+
+### Validações pré-execução
+- Snapshot das 3 linhas candidatas confirmado igual à proposta original (id, `tx_legado`, `caixa_id`, data, valor, tipo, origem, `created_at`, descrição).
+- Snapshot completo da `vw_reconciliacao_v1_v2` (17 caixas) capturado antes do DELETE — Caixa Boletos: `v1_saldo=1.488,42`, `v2_saldo=2.399,74`, `diferenca_absoluta=-911,32`.
+- Checagem de FK: `parcelas.transacao_origem_id` e `reembolsos.transacao_origem_id` consultados para as 3 linhas — **zero referências**, sem risco de quebra.
+- Contagem de linhas em `transacoes` antes: 283.
+
+### Execução
+`DELETE FROM transacoes WHERE id IN (...)` com `RETURNING`, confirmando exatamente as 3 linhas autorizadas removidas — nenhuma linha extra.
+
+### Validações pós-execução
+- Contagem de linhas em `transacoes` depois: **280** (Δ = -3, exato).
+- `audit_log`: 3 registros `DELETE` gerados automaticamente (tabela `transacoes`), mesmo timestamp `2026-08-08 02:41:55.208857+00`, cada um com o snapshot JSON completo da linha removida em `valor_anterior` (recuperável se necessário).
+- Nova consulta à `vw_reconciliacao_v1_v2` (17 caixas) comparada linha a linha com o snapshot pré-DELETE: **as outras 16 caixas ficaram numericamente idênticas** (Aniversário Júlio, Bens Duráveis, Churrasco, Combustível, Eventos, Caixa Lance, Manutenção, Mastercard/Infinite, Saúde Família, Seguro Emplacamento, Caixa Variável, Escola de Júlio, PIX Geral Vanessa, PIX Vanessa, Provisionado Wärtsilä) — **confirmado que só Caixa Boletos foi afetada**.
+- `TX000069` e `TXB000006` confirmados presentes e intocados após o DELETE.
+- Reexecução de `SELECT tx_legado, caixa_id, count(*) FROM transacoes WHERE tx_legado IS NOT NULL GROUP BY tx_legado, caixa_id HAVING count(*) > 1` → **0 linhas retornadas**. Não resta nenhuma duplicidade de `(tx_legado, caixa_id)` em toda a tabela.
+
+### Impacto observado na `vw_reconciliacao_v1_v2` (Caixa Boletos)
+
+| | Antes | Depois |
+|---|---:|---:|
+| `v2_saldo` | 2.399,74 | 3.474,63 |
+| `diferenca_absoluta` (v1−v2) | **-911,32** | **-1.986,21** |
+
+Bate exato com o previsto na proposta original (-911,32 − 1.074,89 = -1.986,21). O agravamento é **esperado, não é regressão**: as duplicidades compensavam por acaso parte de um erro de escopo já diagnosticado na Fase 3 (inclusão indevida de `TX000140`, R$1.986,21, por falha de filtro por data de início de ciclo na própria view). Fechar Caixa Boletos por completo exige tratar esse item separadamente — fora do escopo da 4C.
+
+### Condição de saída — atingida
+- [x] 3 duplicidades objetivas removidas, com evidência reproduzível.
+- [x] Nenhuma FK impactada.
+- [x] `TX000069` e `TXB000006` fora do escopo, confirmados intocados.
+- [x] Zero duplicidades remanescentes de `(tx_legado, caixa_id)` na tabela inteira.
+- [x] `UNIQUE(tx_legado, caixa_id)` **pronta para ser criada sem violação** — pré-condição da Fase 4B-2 satisfeita.
+
+---
+
 ## Próximo passo
 
-Fase 3 encerrada, Fase 4A concluída. Decisão pendente do usuário: ordem de execução entre 4B-1, 4C e 4B-2 (ver seção 12). Próximo agente: comece lendo a seção 12 inteira antes de qualquer ação.
-
-Este documento é o plano. Meu único quick win que executaria sem esperar mais aprovação, por ser reversível e de risco desprezível, é o **índice em `transacoes`** (item 1 do checklist) — mas mesmo esse só entra depois de você confirmar. Qual fase quer autorizar primeiro?
+Fase 3 encerrada, Fase 4A concluída, **Fase 4C concluída e validada (seção 13)**. Decisão pendente do usuário: ordem de execução entre 4B-1 (sincronização) e 4B-2 (constraint `UNIQUE(tx_legado, caixa_id)`, agora liberada). Próximo agente: leia a seção 12 (contexto) e a seção 13 (execução da 4C) antes de qualquer ação nova.
