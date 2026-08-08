@@ -260,8 +260,62 @@ Todas as 5 alterações estão registradas em `audit_log` (tabela=`caixas`, camp
 
 ---
 
+## 12. Handoff para o próximo agente (08/08/2026) — Fase 4 em andamento, decisão pendente
+
+**Leia esta seção antes de qualquer coisa se você está retomando este trabalho.** Este arquivo (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`) é a fonte única desta frente de trabalho — **não confundir com `ESTADO_ATUAL.md`/`PASSAGEM_DE_TURNO.md`**, que documentam uma frente diferente (modularização `app.js`/migração `FinanceEngine`, também chamada "V2" em sessões antigas, mas é a V1 clássica virando módulos — arquitetura completamente separada do que este documento trata, que é V1 clássica (`wallace_dados`) × V2 relacional (tabelas `caixas`/`transacoes` no Supabase)).
+
+### O que já está concluído e não precisa ser refeito
+- **Fase 1** (parcial, intencional): `cartao_id`/`usuario_id` preenchidos onde havia evidência.
+- **Fase 2**: `audit_log` + triggers, funcionando, testado.
+- **Fase 3**: reconciliação diagnóstica das 16 caixas confiáveis, 0 divergência sem causa raiz. Ver seção 10.
+- **Fase 4A**: as 5 âncoras de saldo inicial com causa comprovada foram corrigidas via `UPDATE caixas`, todas com resultado exatamente conforme previsto, tudo em `audit_log`. Ver seção 11. **Não reexecutar — já está feito.**
+
+### Onde a sessão parou exatamente
+Depois da Fase 4A, o usuário decidiu dividir a Fase 4B em duas partes (4B-1 sincronização / 4B-2 constraint de unicidade) e pediu o detalhamento técnico completo de 4B e depois de 4C — **ambos foram entregues em chat nesta sessão, mas nunca chegaram a ser escritos neste arquivo**. Estão reproduzidos abaixo, na íntegra, para não se perder.
+
+#### Fase 4B-1 — Sincronização (proposta técnica, não implementada)
+- **Origem do problema**: `diagnostico_sync_v1_v2()` (função já existente, só leitura) mostra **15 transações em 8 caixas** presentes só na V1, todas datadas entre 04/08 e 07/08/2026 — divergência viva e recorrente, não resíduo histórico. Hoje não existe nenhum código que grave na V2 no momento em que um lançamento nasce na V1 (`transacoes.origem` só tem `reconciliacao` de migrações em lote e 3 `manual`; zero `pluggy`/`mercado_pago` apesar das RPCs existirem).
+- **Função proposta**: `sincronizar_v1_v2(modo: 'dry_run' | 'aplicar')` — usa `diagnostico_sync_v1_v2()` como base, resolve `caixa_id` via `v1_v2_caixa_mapa`, tenta resolver `categoria_id`/`subcategoria_id` via `regras_classificacao` e `usuario_id`/`cartao_id` via `regras_resolver_caixa`; campos não resolvidos ficam `NULL` com `status='pendente_classificacao'` (nunca inferidos por padrão). Insere com `origem='reconciliacao'`, checagem `NOT EXISTS(tx_legado, caixa_id)` antes de cada INSERT (idempotência), retorna a lista de ids inseridos via `RETURNING` (permite rollback determinístico por `DELETE ... WHERE id = ANY(lista)`).
+- **Mapeamento de caixa incompleto**: 2 dos 8 "livros" pendentes (`LRW_TRANSACOES`, `LRV_TRANSACOES` — juntos 5 das 15 transações) **não têm entrada em `v1_v2_caixa_mapa`** — a função não deve inserir esses casos até decidirmos o mapeamento (provavelmente `LRW_TRANSACOES` → caixa `Mercado Pago`, hoje `confiavel=false`).
+- **Resultado esperado de uma primeira rodada**: 10 das 15 pendentes entrariam automaticamente, a maioria com `status='pendente_classificacao'` por falta de regra de categoria (testado: descrição "Cortinas" não bate com nenhuma regra existente); as 5 de `LRW_TRANSACOES`/`LRV_TRANSACOES` ficariam de fora até resolver o mapeamento de caixa.
+- **Não depende da Fase 4C** — nenhuma das 15 pendentes é da Caixa Boletos.
+
+#### Fase 4B-2 — Constraint de unicidade (proposta técnica, bloqueada até a 4C)
+- Testei: `tx_legado` sozinho **não pode** virar `UNIQUE` — quebraria 8 padrões legítimos já em produção (`RENDIMENTO-31-07` aparece 11x, uma vez por caixa; `TX000150`/`TX000178`/`TX000187` aparecem 2x cada, contrapartida P2P entre PIX Vanessa/PIX Geral Vanessa; `TXMP000009` aparece 2x, empréstimo espelhado na fatura).
+- A chave correta é **`UNIQUE(tx_legado, caixa_id)`** — mas essa constraint **falha ao ser criada hoje**, porque `TXB000001`/`TXB000008`/`TXB000009` (Caixa Boletos) são os únicos casos de mesmo `tx_legado` **repetido na mesma caixa** — exatamente as 3 duplicidades reais identificadas na Fase 4C.
+- **Só pode ser aplicada depois que a Fase 4C remover essas 3 linhas.**
+
+#### Fase 4C — Limpeza de duplicidades da Caixa Boletos (proposta técnica, nada excluído)
+- **Grupo 1 — duplicidade confirmada por `tx_legado`** (mesma caixa, mesmo `tx_legado`, 2 linhas cada, evidência: timestamps de criação idênticos ao microssegundo em lotes diferentes, 15 min de intervalo, 05/08/2026 20:44:51 vs 20:59:48 UTC):
+  | tx_legado | Manter (id) | Excluir (id) | Data mantida/excluída | Valor |
+  |---|---|---|---|---|
+  | `TXB000001` | `533a992a-0cd7-4e07-b0de-583ec0b8fc3b` | `22a4c47b-51c9-452f-9f9a-24186f8df922` | 27/07 / 25/06 | 588,66 |
+  | `TXB000008` | `12ca0197-28cb-4c34-9a0d-549ebb8d4e9d` | `1cc59070-14d1-45e3-91e5-10d840db7e95` | 31/07 / 30/06 | 163,24 |
+  | `TXB000009` | `66c5ed81-ad64-487c-99f2-a1fa93101fed` | `a9d24f41-734a-4b99-8967-fb92356fd400` | 26/07 / 26/06 | 367,36 / 322,99 (valor também errado) |
+- **Grupo 2 — duplicidade semântica** (mesmo evento, `tx_legado` diferentes): `TX000069` (R$1.313,69, lançamento consolidado, id `741a146d-04b7-4b9b-a662-3ee9e71ff069`) é a soma exata de `TXB000002+003+004+005+007` (210+695+133,41+30,28+245 = R$1.313,69) — mesmo evento lançado duas vezes, uma consolidada, outra itemizada. Recomendação (não decidida): manter as 5 itemizadas, excluir só `TX000069`.
+- **Caso ambíguo, não excluir**: `TXB000006` (Anderson Ramos, R$210,00, 22/07) — nenhum par identificado, fica pendente à parte.
+- **Zero risco de FK**: confirmado que nenhuma das 13 linhas envolvidas é referenciada por `parcelas.transacao_origem_id` nem `reembolsos.transacao_origem_id`.
+- **Efeito contraintuitivo confirmado por cálculo**: excluir o Grupo 1 **piora** a diferença numérica da `vw_reconciliacao_v1_v2` para Caixa Boletos, de −R$911,32 para **−R$1.986,21** (as duplicidades estavam compensando por acaso parte do erro de escopo já descrito na Fase 3 — a inclusão indevida de `TX000140`, R$1.986,21, pela regra de matching da view que não filtra por data de início de ciclo). Isso **confirma** o diagnóstico da Fase 3 de forma independente, mas significa que **a 4C sozinha não fecha a Caixa Boletos** — precisa de uma correção separada na regra de escopo da view (ou decisão consciente sobre `TX000140`), fora do escopo da 4C.
+- **Não depende da Fase 4B-1** (nenhuma sobreposição de caixas).
+
+### Decisão pendente no momento do corte
+O usuário pediu a documentação de handoff antes de decidir a ordem final entre:
+1. Executar 4B-1 (sincronização).
+2. Executar 4C (limpeza).
+3. Executar 4B-2 (constraint `UNIQUE(tx_legado, caixa_id)`) — só possível depois de (2).
+4. Só então partir para a 4D (frontend paralelo).
+
+**Nada de 4B ou 4C foi executado.** Nenhuma exclusão, nenhum INSERT de sincronização, nenhuma constraint criada. A única coisa executada nesta sessão foi a Fase 4A (seção 11).
+
+### Regras de governança que continuam valendo (não são específicas desta fase, são do projeto)
+- Nenhuma fase/subfase avança sem autorização explícita do usuário para aquela etapa específica.
+- Nunca corrigir dado "no escuro" — toda correção precisa de causa raiz comprovada com evidência reproduzível (mesmo padrão usado do início ao fim desta frente de trabalho).
+- Sempre conferir o estado real do Supabase antes de assumir qualquer número como atual — os valores registrados aqui são um snapshot de 08/08/2026, não confiar cegamente se a data atual for muito posterior.
+
+---
+
 ## Próximo passo
 
-Fase 3 encerrada. Próxima decisão do usuário: autorizar a Fase 4 (proposta detalhada em separado no chat) ou revisar este fechamento antes.
+Fase 3 encerrada, Fase 4A concluída. Decisão pendente do usuário: ordem de execução entre 4B-1, 4C e 4B-2 (ver seção 12). Próximo agente: comece lendo a seção 12 inteira antes de qualquer ação.
 
 Este documento é o plano. Meu único quick win que executaria sem esperar mais aprovação, por ser reversível e de risco desprezível, é o **índice em `transacoes`** (item 1 do checklist) — mas mesmo esse só entra depois de você confirmar. Qual fase quer autorizar primeiro?

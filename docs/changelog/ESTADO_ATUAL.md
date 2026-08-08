@@ -25,6 +25,10 @@
 
 `app.js` → `src/app/app.js`, `VARS`/`REG` modularizados em fábricas por domínio, projeto reorganizado em pastas por domínio de negócio. Sem novidade aqui nesta sessão — ver `PASSAGEM_DE_TURNO.md` Blocos 9-14 pro histórico completo, não repetir.
 
+## 1.5. FRENTE SEPARADA EM ANDAMENTO: unificação V1×V2 relacional (não confundir com a modularização abaixo)
+
+**Se você está sendo pedido pra continuar reconciliação/correção V1×V2, saldo inicial de caixa, sincronização, duplicidade de `tx_legado` ou qualquer coisa envolvendo as tabelas `caixas`/`transacoes` do Supabase — pare aqui e vá direto para `docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seção 12 ("Handoff para o próximo agente").** Essa é uma frente de trabalho **completamente separada** desta migração de modularização do `app.js` (que também usa o termo "V2" em blocos antigos deste arquivo, mas se refere à V1 clássica virando módulos — não tem nada a ver com o Supabase relacional). Estado no corte (08/08/2026): Fase 3 (diagnóstico) concluída, Fase 4A (correção das 5 âncoras de saldo inicial) concluída, Fases 4B/4C detalhadas mas **não executadas**, decisão de ordem pendente do usuário.
+
 ## 2. ATENÇÃO: DUAS ARQUITETURAS DE DADOS PARALELAS (V1 "clássica" e V2 "relacional") — fonte comum de confusão
 
 Descoberto/confirmado nesta sessão (07/08/2026) que existem **DOIS sistemas de dados completamente separados**, e é fácil (já aconteceu nesta sessão) confundir um com o outro:
