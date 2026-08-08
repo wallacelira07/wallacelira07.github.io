@@ -168,6 +168,37 @@ def atualizar_v2_geracao_diaria(supabase_url: str, supabase_key: str, data_str: 
         resp.read()
 
 
+def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str, geracao_total: float) -> None:
+    """NOVO 08/08/2026 (fecha o gap achado na investigação do mesmo dia — energia_solar_leituras.
+    geracao_acumulada nunca tinha escrita automática, só o bootstrap manual da migração de ciclos
+    solares): mesma semântica já usada em wallace_dados.SOLAR_LEITURAS[-1] acima — atualiza a
+    geracao_acumulada da leitura MAIS RECENTE (maior `data`) em energia_solar_leituras, com o
+    energy1Total que a API da SAJ acabou de devolver. Não cria linha nova, não mexe em ciclo_id/
+    eh_leitura_oficial_energisa/evidencia, não recalcula nada em ciclos_solares. Falha aqui é
+    tratada como aviso, mesma tolerância de atualizar_v2_geracao_diaria (a escrita em V1 acima já
+    está garantida antes de chegar aqui)."""
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+    }
+    # 1) Acha o id da leitura mais recente (maior `data`) — nunca por posição, sempre por data real.
+    get_url = f"{supabase_url}/rest/v1/energia_solar_leituras?select=id,data&order=data.desc&limit=1"
+    req = Request(get_url, headers=headers, method="GET")
+    with urlopen(req, timeout=20) as resp:
+        linhas = json.loads(resp.read().decode("utf-8"))
+    if not linhas:
+        raise RuntimeError("energia_solar_leituras está vazia — nada para atualizar.")
+    leitura_id = linhas[0]["id"]
+
+    # 2) Atualiza só o campo geracao_acumulada dessa linha, mesmo valor gravado em V1.
+    patch_url = f"{supabase_url}/rest/v1/energia_solar_leituras?id=eq.{leitura_id}"
+    body = json.dumps({"geracao_acumulada": round(geracao_total, 2)}).encode("utf-8")
+    req_patch = Request(patch_url, data=body, headers=headers, method="PATCH")
+    with urlopen(req_patch, timeout=20) as resp_patch:
+        resp_patch.read()
+
+
 def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float, geracao_hoje: float | None) -> None:
     """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da ÚLTIMA leitura, grava de volta.
     NOVO 05/08/2026 (pedido do usuário: "não vai conseguir me dar dados de vários dias?"): também
@@ -231,6 +262,15 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
             print(f"Supabase V2 (energia_solar_geracao_diaria) sincronizado: {hoje_str}={round(geracao_hoje,2)} kWh")
         except Exception as e:
             print(f"AVISO: falha ao sincronizar energia_solar_geracao_diaria (V2) — V1 já gravado normalmente, não é um erro fatal: {e}", file=sys.stderr)
+
+    # 6) NOVO 08/08/2026: fecha o gap achado na investigação do mesmo dia — energia_solar_leituras.
+    # geracao_acumulada (V2) nunca tinha escrita automática. Mesma tolerância a falha dos outros
+    # passos V2 (aviso, não derruba o script).
+    try:
+        atualizar_v2_leitura_geracao_acumulada(supabase_url, supabase_key, geracao_total)
+        print(f"Supabase V2 (energia_solar_leituras.geracao_acumulada) sincronizado: {geracao_total} kWh")
+    except Exception as e:
+        print(f"AVISO: falha ao sincronizar energia_solar_leituras.geracao_acumulada (V2) — V1 já gravado normalmente, não é um erro fatal: {e}", file=sys.stderr)
 
 
 def main() -> int:
