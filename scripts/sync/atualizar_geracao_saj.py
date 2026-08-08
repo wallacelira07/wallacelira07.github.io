@@ -147,6 +147,27 @@ def buscar_geracao_acumulada(auth_header: str, plant_uid: str) -> dict:
     return {"energy_hoje": pv.get("energy1Today"), "energy_total": pv.get("energy1Total")}
 
 
+def atualizar_v2_geracao_diaria(supabase_url: str, supabase_key: str, data_str: str, geracao_hoje: float) -> None:
+    """NOVO 08/08/2026 (Onda 4/5, domínio Solar - sincronizar persistência V1->V2, mesma estratégia
+    já usada nos outros domínios): grava o MESMO valor que acabou de ir pra
+    wallace_dados.dados.SOLAR_GERACAO_DIARIA também na tabela relacional
+    energia_solar_geracao_diaria (colunas: data, geracao_kwh) - upsert por `data` (UNIQUE), mesma
+    semântica de "sobrescreve o mesmo dia" já usada no V1. Não é um dado novo, não é recalculado,
+    não altera frontend/indicadores/cálculos - só passa a existir também na V2. Falha aqui é
+    tratada como aviso, não derruba o script (a escrita em V1, já lida pelo site, é a crítica)."""
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    url = f"{supabase_url}/rest/v1/energia_solar_geracao_diaria?on_conflict=data"
+    body = json.dumps({"data": data_str, "geracao_kwh": round(geracao_hoje, 2)}).encode("utf-8")
+    req = Request(url, data=body, headers=headers, method="POST")
+    with urlopen(req, timeout=20) as resp:
+        resp.read()
+
+
 def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float, geracao_hoje: float | None) -> None:
     """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da ÚLTIMA leitura, grava de volta.
     NOVO 05/08/2026 (pedido do usuário: "não vai conseguir me dar dados de vários dias?"): também
@@ -200,6 +221,16 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
         resp_patch.read()
     print(f"Supabase atualizado: geracaoAcumulada={geracao_total} kWh na última leitura"
           + (f", SOLAR_GERACAO_DIARIA[{hoje_str}]={geracao_hoje} kWh" if geracao_hoje is not None else " (sem valor de hoje pra registrar)"))
+
+    # 5) NOVO 08/08/2026: mesmo valor, também na tabela relacional V2 (energia_solar_geracao_diaria)
+    # — sincroniza persistência, mesma estratégia já usada nos outros domínios (Onda 4/5). Falha aqui
+    # não derruba o script: a escrita em V1 acima (o que o site realmente lê) já está garantida.
+    if geracao_hoje is not None:
+        try:
+            atualizar_v2_geracao_diaria(supabase_url, supabase_key, hoje_str, geracao_hoje)
+            print(f"Supabase V2 (energia_solar_geracao_diaria) sincronizado: {hoje_str}={round(geracao_hoje,2)} kWh")
+        except Exception as e:
+            print(f"AVISO: falha ao sincronizar energia_solar_geracao_diaria (V2) — V1 já gravado normalmente, não é um erro fatal: {e}", file=sys.stderr)
 
 
 def main() -> int:

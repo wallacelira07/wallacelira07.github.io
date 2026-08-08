@@ -1519,3 +1519,23 @@ INSERT INTO public.indicadores (nome, valor, data_calculo) VALUES
 **6. Resultado**: card novo, aditivo, não altera nenhuma fórmula de crédito/rateio/financeira. Limites parametrizados em `indicadores`, prontos pra calibração futura.
 
 **7. Rollback**: comentar `aplicarOnda5QualidadeGeracao();` em `app.js`.
+
+## 40. Domínio Solar entra na Onda 4/5 — sincroniza persistência V1→V2 (`energia_solar_geracao_diaria`), zero mudança de frontend/cálculo (08/08/2026)
+
+**1. Objetivo**: eliminar a dependência de `wallace_dados` pra geração solar — a mesma escrita que já vai pro blob V1 (`SOLAR_GERACAO_DIARIA`) passa a alimentar também a tabela relacional V2 (`energia_solar_geracao_diaria`), parada desde 05/08 (achado da seção 38).
+
+**2. Escopo — deliberadamente mínimo**: só o script `scripts/sync/atualizar_geracao_saj.py` (roda via GitHub Actions, `atualizar_geracao_saj.yml`). **Frontend, `indicadores` e qualquer fórmula/cálculo não foram tocados** — pedido explícito do usuário, e não havia necessidade: o frontend já lê `VARS.SOLAR_GERACAO_DIARIA` (blob V1), que continua sendo escrito exatamente como antes.
+
+**SQL**: nenhum novo — a tabela e a constraint `UNIQUE(data)` já existiam.
+
+**3. Arquivo alterado**: `scripts/sync/atualizar_geracao_saj.py` — nova função `atualizar_v2_geracao_diaria()` (upsert por `data`, via `Prefer: resolution=merge-duplicates` do PostgREST), chamada logo depois do PATCH em `wallace_dados` já existente, só quando `geracao_hoje` existe (mesma condição já usada pro V1). **Falha na escrita V2 vira aviso no log (`AVISO: ...`), nunca derruba o script** — a escrita em V1 (o que o site lê de verdade) continua sendo a crítica, mesmo tratamento de resiliência já usado no orquestrador (`if: always()`).
+
+**4. Fonte antiga**: só `wallace_dados.dados.SOLAR_GERACAO_DIARIA`.
+
+**5. Fonte nova (em paralelo, não substitui)**: `energia_solar_geracao_diaria` (V2) recebe o mesmo valor, mesma chave (`data`), mesmo upsert.
+
+**6. Validação**: sintaxe do script revisada manualmente linha a linha (sem Node/Python neste ambiente pra rodar automaticamente) — indentação, parênteses e chamada de função conferidos. **Validação de execução real pendente** — só se confirma no próximo disparo do robô (2x/dia, ou execução manual via `workflow_dispatch`); like esperado, log vai mostrar `"Supabase V2 (energia_solar_geracao_diaria) sincronizado: ..."` em caso de sucesso.
+
+**7. Resultado**: domínio Solar passa a seguir a mesma estratégia dos demais domínios da Onda 4/5 — V1 e V2 recebendo o mesmo dado, sem risco pro que já funciona (fallback automático em caso de falha da escrita V2).
+
+**8. Rollback**: remover a chamada a `atualizar_v2_geracao_diaria()` (bloco `# 5) NOVO 08/08/2026`) em `atualizar_supabase()` — a escrita em V1 continua exatamente como antes, intocada.
