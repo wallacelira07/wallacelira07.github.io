@@ -6,11 +6,11 @@
 
 ## Métrica
 
-✅ 42 consumidores removidos (+1 Boletos: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos` + 4 caixas: linha "Reservas" do Balanço de Bens Duráveis/Eventos/Seguro Emplacamento/Escola de Júlio, mesmo padrão de gap)
+✅ 47 consumidores removidos: +1 Boletos (`cxBoletosPct`/`cxBoletosBar`/`balResBoletos`), +4 caixas (linha "Reservas" de Bens Duráveis/Eventos/Seguro Emplacamento/Escola de Júlio), +5 Patrimônio (`bfinReserva`/`bfinBTG`/`bfinNectonCC`/`bpFinanciamentoCasa`/`bpConsorcioAuto`, seção "Balanço Patrimonial") — mesma classe de bug nos 3 casos
 ✅ ~16 exceções formais
-✅ ~41 consumidores restantes
+✅ ~36 consumidores restantes
 
-**Achado sistêmico**: as duas correções desta rodada são a MESMA classe de bug — caixa com 2 pontos de exibição (card na seção 05 + linha na seção "Reservas"/"Operacional" do Balanço), só um dos dois migrado nas ondas anteriores. Já auditei os `balRes*`/`balOp*` restantes em `hydrate-balanco.js` contra os mapas de todas as ondas (1 a 5) — os que sobraram (`balOpPixVanessa`/PGV, `balResLance`) são intencionalmente V1 por divergência real não resolvida (Onda2V2/Onda3CaixaLance já cobrem e documentam isso, não é gap de wiring). Não sobrou mais nenhum caso desse padrão específico.
+**Achado sistêmico** (3 ocorrências do mesmo padrão nesta rodada): quando uma caixa/valor patrimonial aparece em 2 pontos de exibição diferentes (card + linha do Balanço, ou card "Meta do Milhão" + seção "Balanço Patrimonial"), as Ondas anteriores só migraram 1 dos 2 ids. Boletos e as 4 caixas de Reservas: auditados por completo, não sobra mais nenhum caso — os `balRes*`/`balOp*` restantes em V1 (`balOpPixVanessa`/PGV, `balResLance`) são intencionais (divergência real não resolvida, já documentada). Patrimônio: os 5 ids duplicados corrigidos; os TOTAIS compostos da seção Balanço (`balFinanceiroTotal`, `balAtivosTotal`, `balPatrimonioLiquido`/`TotalGeral`) ficam de propósito em V1 — misturam componentes sem V2 ainda (físico: casa/apartamento/jazigo/solar/carro; PGBL; FGTS; consórcio casa pelo valor pago), não é o mesmo padrão simples de duplicata.
 
 **Nota**: `CRONOGRAMA_BOLETOS_FIXOS`/`BOLETOS_TRANSACOES`/`aplicarBoletosVencidosAutomaticamente()` continuam existindo em `app.js`/`vars-caixas.js` — o padrão desta migração (igual a todas as ondas anteriores) é sobrescrever só a exibição em DOM com V2, mantendo o cálculo V1 internamente vivo (usado por auditoria/validação runtime). "Consumidor removido" = ID de DOM que já não mostra mais valor derivado só de V1.
 

@@ -18,7 +18,14 @@
 // (diretriz "V2 é a fonte real") — em caso de falha, os ids mostram aviso explícito em vez de
 // deixar silenciosamente os números V1 (síncronos) na tela. `patLance` fica de fora desta lista de
 // propósito — continua sempre V1, não é afetado por sucesso nem falha deste módulo.
-const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela'];
+// ACHADO (08/08/2026, mesma classe do caso Boletos/4-caixas-Reservas): a seção "Balanço
+// Patrimonial" (hydrate-balanco.js) tem 5 ids que duplicam valores já buscados aqui
+// (reserva/btg/nectonCC/financiamentoCasa/consorcioAuto), só que nunca foram ligados —
+// bfinReserva/bfinBTG/bfinNectonCC/bpFinanciamentoCasa/bpConsorcioAuto. Os TOTAIS compostos
+// dessa mesma seção (balFinanceiroTotal, balAtivosTotal, balPatrimonioLiquido/TotalGeral) ficam
+// de fora de propósito — misturam componentes sem V2 ainda (físico, PGBL, FGTS, consórcio casa
+// pelo valor pago), não são um "mesmo valor, id duplicado" simples como os 5 abaixo.
+const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto'];
 
 async function aplicarOnda4Patrimonio(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
@@ -52,6 +59,10 @@ async function aplicarOnda4Patrimonio(){
   t('patEscola', fmt(nectonCC));
   t('patAcumulado', fmt(total));
   t('patFalta', fmt(metaMilhao - total));
+  // Duplicatas na seção "Balanço Patrimonial" (mesmo achado documentado acima, no topo do arquivo)
+  t('bfinReserva', fmt(reserva));
+  t('bfinBTG', fmt(btg));
+  t('bfinNectonCC', fmt(nectonCC));
   t('patPctBadge', metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   { const el=$('patPctBar'); if(el) el.style.width = metaMilhaoPct+'%'; }
 
@@ -81,6 +92,9 @@ async function aplicarOnda4Patrimonio(){
   { const el=$('ppConsorcioAutoBar'); if(el) el.style.width = consorcioAutoPct+'%'; }
   t('ppConsorcioAutoPct', consorcioAutoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'% pago');
   t('ppConsorcioAutoParcela', 'Parcela '+fmt(parcelaAuto));
+  // Duplicatas na seção "Balanço Patrimonial" (mesmo achado documentado acima, no topo do arquivo)
+  t('bpFinanciamentoCasa', fmt(finCasa));
+  t('bpConsorcioAuto', fmt(consorcioAuto));
 
   // Auditoria: confere contra o que hydratePatrimonio() (V1) já tinha escrito antes desta função rodar
   const v1Total = Math.round(REG.patrimonio.total * 100) / 100;

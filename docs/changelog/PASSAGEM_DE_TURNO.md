@@ -24,6 +24,14 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Auditoria confirmou que não sobra mais nenhum caso desse padrão**: os únicos `balRes*`/`balOp*` ainda em V1 (`balOpPixVanessa`/PGV, `balResLance`) são intencionais — divergência real não resolvida, já documentada e coberta pelas Ondas 2/3 (não são gap de wiring, são bloqueio de dado).
 
+**Commitado e enviado**: `bf638fa` → `origin/main`.
+
+**Terceira ocorrência do mesmo padrão, domínio Patrimônio**: `bfinReserva`/`bfinBTG`/`bfinNectonCC`/`bpFinanciamentoCasa`/`bpConsorcioAuto` (seção "Balanço Patrimonial") duplicavam os mesmos valores que `patReserva`/`patBtg`/`patEscola`/`ppFinanciamentoCasa`/`ppConsorcioAuto` (card "Meta do Milhão") já mostravam via V2 (`aplicarOnda4Patrimonio()`) — só a 2ª seção nunca foi ligada. Implementado reaproveitando os mesmos valores já resolvidos na mesma função, sem fetch novo. **Escopo deliberadamente limitado**: os totais compostos da mesma seção (`balFinanceiroTotal`, `balAtivosTotal`, `balPatrimonioLiquido`/`TotalGeral`) ficaram de fora — misturam componentes que ainda não têm V2 (físico: casa/apartamento/jazigo/solar/carro; PGBL; FGTS; consórcio casa pago), não são uma duplicata simples como os 5 ids corrigidos.
+
+**Validado ao vivo**: os 5 pares batem exato (Reserva R$100.644,15, BTG R$14.779,62, Necton CC R$429,75, Financiamento Casa R$61.081,39, Consórcio Auto R$18.998,83). `Onda4Patrimonio` continua reportando V1×V2 batendo no total (R$120.375,65), sem regressão. Zero erro/warning novo.
+
+**Métrica após os 3 achados desta rodada**: 37 → **47 consumidores removidos** / ~46 → **~36 restantes**.
+
 **Pendente**: commit + push.
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
