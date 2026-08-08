@@ -198,6 +198,19 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 08/08/2026 (Onda 4, domínio 4 — Cascata Wärtsilá): quebra por perna do ciclo mais recente
+  // (reembolso_wartsila_ciclo) — não existia tabela nenhuma com essa granularidade antes.
+  async getReembolsoWartsilaCicloV2(){
+    const chave = 'reembolso_wartsila_ciclo';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&order=ciclo_referencia.desc&limit=1`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado[0] || null;
   }
 };
 
@@ -1032,6 +1045,11 @@ function hydrate(){
   // calcularROCOpcoes()/hydrateROC() (V1, inalteradas) sobre dado vindo de `investimentos` (V2) —
   // ver hydrate-onda4-investimentos.js.
   aplicarOnda4Investimentos();
+
+  // ONDA 4, domínio 4 (último dos 4 autorizados) — Cascata Wärtsilä: reaproveita
+  // recalcularReembolsos()/hydrateReembolsos() (V1, inalteradas) sobre dado vindo de
+  // reembolso_wartsila_ciclo + vw_saldo_v2_por_caixa. Ver hydrate-onda4-wartsila.js.
+  aplicarOnda4Wartsila();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o

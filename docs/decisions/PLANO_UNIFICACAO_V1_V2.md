@@ -1324,3 +1324,65 @@ ORDER BY e.codigo_legado;
 **7. Resultado**: **LREI migrado para V2 como fonte**. `VARS.LREI_ATIVAS` deixa de ser necessário no frontend.
 
 **8. Rollback**: comentar `onDomPronto(aplicarOnda4Lrei);` em `app.js`.
+
+## 34. Onda 4, domínio 4 — Cascata de Reembolso Wärtsilä: schema criado, gap de sincronização da caixa corrigido (08/08/2026)
+
+**1. Objetivo**: eliminar a ausência de estrutura por perna/ciclo (a tabela `reembolsos` é um total corrido, sem quebra) — último dos 4 domínios autorizados.
+
+**2. Escopo**: seção "Reembolso Wärtsilä" (`reembRecebidos`/`reembAReceber`/`reembCicloTotal`/`reembPagaWartsila`/`reembPagaMP`/`reembPagaCartao`/`reembSobraPessoal`/`reembMPPessoal`/`metaInv*`).
+
+**Achado durante a implementação (fora do plano original, descoberto ao investigar)**: a caixa "Provisionado Wärtsilä" já existia na V2 (`caixas`, saldo inicial R$683,04) mas com **0 transações sincronizadas** — `vw_saldo_v2_por_caixa` mostrava o saldo travado no inicial, nunca refletindo as 3 movimentações já documentadas em `VARS.WARTSILA_CAIXA_TRANSACOES`. Corrigido via `INSERT` aditivo em `transacoes` (3 linhas, mesmos valores/datas já documentados) — saldo V2 agora R$339,00, batendo exato com o cálculo V1 (683,04-656,67-27,37+340,00).
+
+**SQL criado**:
+```sql
+CREATE TABLE public.reembolso_wartsila_ciclo (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ciclo_referencia text NOT NULL UNIQUE,
+  valor_total_bruto numeric NOT NULL, valor_a_receber numeric NOT NULL DEFAULT 0,
+  perna_fatura_wartsila numeric DEFAULT 0, perna_mp_corporativo numeric DEFAULT 0,
+  perna_cartao_corporativo_pessoal numeric DEFAULT 0,
+  perna_mp_pessoal_provisionado numeric, -- NULL: fora do escopo (dominio parcelamentos MP)
+  created_at timestamptz DEFAULT now()
+);
+CREATE TABLE public.reembolso_wartsila_recebimentos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ciclo_id uuid NOT NULL REFERENCES public.reembolso_wartsila_ciclo(id),
+  data date NOT NULL, valor numeric NOT NULL, descricao text,
+  transacao_id uuid REFERENCES public.transacoes(id)
+);
+```
+
+**Decisão de não-alteração**: `reembolsos` (tabela pré-existente, 1 linha `origem='wartsila', valor_a_receber=7022.76, valor_recebido=0`) **não foi tocada** — mesma disciplina "nenhum dado existente alterado" das 3 migrations anteriores. A quebra por perna/ciclo é aditiva, em tabela nova.
+
+**3. Arquivos alterados**: `src/financeiro/operacional/hydrate-onda4-wartsila.js` (novo), `src/app/app.js` (+`getReembolsoWartsilaCicloV2()`, +chamada `aplicarOnda4Wartsila()` no final de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada).
+
+**Estratégia**: mesma dos domínios 2/3 — sobrescreve só os campos de entrada (`VARS.faturaWartsila`, `REG.faturaWartsila`, `REG.wartsilaCaixa.fatura/provisionado`, `REG.operacional.reembolsoPaga*/reembolsoCicloTotal/reembolsosAReceber`) e reaproveita `recalcularReembolsos()`+`hydrateReembolsos()` (V1, inalteradas). `REG.totalOpDetalhe.provMP` (perna 4, domínio de parcelamentos MP) **não é tocado** — fora do escopo autorizado.
+
+**4. Fonte antiga**: `VARS.faturaWartsila`/`reembolsoPagaCartaoCorporativo`/`reembolsoPagaMPCorporativo`/`reembolsoCicloTotal`/`__reembolsosAReceber`, `VARS.WARTSILA_CAIXA_SALDO_INICIAL`+`WARTSILA_CAIXA_TRANSACOES`.
+
+**5. Fonte nova**: `reembolso_wartsila_ciclo` (pernas 1-3 + total + a receber) + `vw_saldo_v2_por_caixa` (Provisionado Wärtsilä, já madura desde a Onda 1/2).
+
+**Migração dos dados**: 1 `INSERT` no ciclo 2026-07 (total bruto R$5.254,98, a receber R$0, perna fatura R$0 — paga —, perna MP corporativo R$1.277,88, perna cartão corporativo R$483,83), 1 `INSERT` em recebimentos (TX000220, R$340,00, linkado à transação real), + as 3 transações da caixa (achado acima). Mesmos valores já em `VARS`, nenhum dado novo inventado.
+
+**6. Validação**: `SELECT * FROM reembolso_wartsila_ciclo`/`reembolso_wartsila_recebimentos` confere exato. `vw_saldo_v2_por_caixa` pra "Provisionado Wärtsilä" = R$339,00 (batia com o cálculo manual V1 antes mesmo de rodar o módulo). Checagem estática: script carregado 1x, `recalcularReembolsos`/`hydrateReembolsos`/`REG.wartsilaCaixa`/`REG.operacional`/`REG.totalOpDetalhe` existem no código real, nomes novos únicos. **Validação em navegador real pendente** (mesma situação dos 3 domínios anteriores).
+
+**7. Resultado**: **Cascata Wärtsilä migrada para V2 como fonte** (exceto perna 4/MP pessoal, fora do escopo). `VARS.faturaWartsila`/`reembolsoPaga*`/`reembolsoCicloTotal`/`WARTSILA_CAIXA_*` deixam de ser necessários no frontend. **Fim dos 4 domínios autorizados pela Onda 4.**
+
+**8. Rollback**: comentar `aplicarOnda4Wartsila();` em `app.js`. As 3 transações inseridas em `transacoes` (achado à parte, não fazem parte do rollback da leitura) permanecem — são dado real sincronizado, não lógica de exibição.
+
+---
+
+## Status da Onda 4 (08/08/2026) — 4/4 domínios autorizados implementados
+
+| # | Domínio | Status | Estratégia |
+|---|---|---|---|
+| 1 | Patrimônio | ✅ Migrado | Overlay novo (`hydrate-onda4-patrimonio.js`) |
+| 2 | Investimentos/ROC | ✅ Migrado | Reaproveita cálculo/render V1 (`opcoes-roc.js`/`hydrate-roc.js`) |
+| 3 | LREI | ✅ Migrado | Reaproveita render V1 (`renderLivrosVariaveis()`) |
+| 4 | Cascata Wärtsilá | ✅ Migrado | Reaproveita cálculo/render V1 (`recalcularReembolsos()`/`hydrateReembolsos()`) |
+
+**Achado colateral fora do plano original**: caixa "Provisionado Wärtsilä" tinha gap de sincronização (0 transações na V2 apesar de já ter saldo inicial) — corrigido no caminho do domínio 4.
+
+**Pendência transversal, não resolvida por decisão explícita do usuário**: divergência de R$4,37 da Caixa Lance (seção 30) — não reaberta nesta Onda.
+
+**Validação em navegador real de TODOS os 4 domínios continua pendente** — usuário recusou login manual em toda a Onda 4; toda validação foi técnica/estática + conferência SQL direta contra os valores documentados do V1.
