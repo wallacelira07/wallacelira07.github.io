@@ -462,6 +462,95 @@ Reversível a qualquer momento, sem perda de dado — puramente estrutural.
 
 ---
 
+## 16. Fase 4B-1 — execução parcial e controlada (08/08/2026)
+
+**Objetivo da fase**: sincronizar da V1 pra V2 as transações do ciclo vivo já presentes nas 6 caixas com mapeamento `confiavel=true` em `v1_v2_caixa_mapa`, reduzindo o gap recorrente reportado por `diagnostico_sync_v1_v2()`.
+
+### Escopo aprovado: 9 das 10 transações candidatas
+
+As 10 candidatas vinham de `diagnostico_sync_v1_v2()`, restritas às 6 caixas mapeadas (excluindo `LRW_TRANSACOES`/`LRV_TRANSACOES` por decisão da seção 15). Das 10, **9 foram sincronizadas**; `TX000208` foi **deliberadamente excluído**.
+
+### Exclusão de `TX000208` — motivo
+
+Colisão comprovada de `tx_legado`: já existia em `transacoes` (id `c2c82b28-1a20-45d9-84e2-0b52ef574b39`) referente a "RBM Relógios (Dia das Mães)", R$80,97, 07/07/2026, Caixa Variável — um evento real completamente diferente do `TX000208` pendente ("Reembolso à Caixa Variável", R$107,50, 06/08/2026, Caixa Aniversário Júlio). A constraint `UNIQUE(tx_legado, caixa_id)` da Fase 4B-2 **não bloqueia** essa inserção (caixas diferentes), mas inserir criaria dois eventos reais distintos compartilhando o mesmo identificador lógico — mesma classe de bug já documentada e corrigida uma vez em `POLITICAS_INTERNAS_SISTEMA_WALLACE.md` seção 23 (colisão `TXR000001-006`, resolvida por renumeração pra `TXRR`). Decisão: não conviver com a ambiguidade, registrar como pendência formal (ver abaixo) em vez de inserir no escuro.
+
+### Validações pré-execução
+- `transacoes`: 280 linhas.
+- Duplicidades `(tx_legado, caixa_id)`: 0.
+- Nenhuma das 9 `tx_legado` candidatas existia em `transacoes`, sob nenhuma caixa.
+- Os 6 `caixa_id` do mapeamento manual conferidos contra `caixas` (existência e `caixa_tipo`).
+- `audit_log`: 14 registros.
+
+### SQL utilizado
+```sql
+WITH mapa(livro, caixa_id) AS (
+  VALUES
+    ('CAIXA_LANCE_TRANSACOES',        'ff0cd9af-c5a9-4a9b-8cdd-c379e167275e'::uuid),
+    ('CAIXA_VARIAVEL_TRANSACOES_SALDO_REAL', '8522e256-2039-4c11-bd28-69738bfcf5b8'::uuid),
+    ('LRPV_TRANSACOES',                '6c6546fa-5b83-4db6-aa33-ac1bf35370d9'::uuid),
+    ('MANUTENCAO_TRANSACOES',          'df4c44af-3e30-4592-b0b5-5b863ca91591'::uuid),
+    ('SAUDE_FAMILIA_TRANSACOES',       'd15e8cbe-4443-4ee4-9631-06d8d49058fe'::uuid)
+),
+itens AS (
+  SELECT m.caixa_id, t.value->>'tx' AS tx_legado,
+         fn_parse_data_v1(t.value->>'data') AS data,
+         (t.value->>'valor')::numeric AS valor,
+         lower(t.value->>'tipo') AS tipo_raw,
+         COALESCE(t.value->>'nome', t.value->>'obs', '') AS descricao
+  FROM mapa m, wallace_dados w, jsonb_array_elements(w.dados->m.livro) t
+  WHERE w.id = 1
+    AND t.value->>'tx' IN ('TX000216','TX000212','TX000217','TX000218',
+                            'TX000219','TX000221','TX000215','TX000214','TX000213')
+)
+INSERT INTO transacoes
+  (tx_legado, caixa_id, data, valor, tipo, descricao, origem, status, afeta_saldo_real,
+   categoria_id, usuario_id, cartao_id)
+SELECT
+  i.tx_legado, i.caixa_id, i.data, i.valor,
+  CASE WHEN i.tipo_raw = 'entrada' THEN 'entrada' ELSE 'saida' END,
+  i.descricao, 'reconciliacao',
+  CASE WHEN r.categoria_id IS NOT NULL THEN 'confirmado' ELSE 'pendente_classificacao' END,
+  true, r.categoria_id, NULL, NULL
+FROM itens i
+LEFT JOIN LATERAL (
+  SELECT categoria_id FROM regras_classificacao
+  WHERE ativo AND estabelecimento_contem IS NOT NULL
+    AND upper(i.descricao) LIKE '%'||upper(estabelecimento_contem)||'%'
+  ORDER BY prioridade ASC LIMIT 1
+) r ON true
+ON CONFLICT (tx_legado, caixa_id) DO NOTHING
+RETURNING id, tx_legado, caixa_id, valor, status;
+```
+`categoria_id` resolvido via `regras_classificacao` (match por substring em `estabelecimento_contem`) — só as 2 transações de Hortifruti (`TX000219`/`TX000221`) bateram regra, entraram `status='confirmado'`; as outras 7 entraram `status='pendente_classificacao'`, `categoria_id`/`usuario_id`/`cartao_id` todos `NULL` (não inferidos, mesma disciplina P1). `afeta_saldo_real=true` em todas as 9 — são movimentos reais de caixa (PIX/reembolso/empréstimo interno), não compra de cartão.
+
+### Validações pós-execução
+- `RETURNING` confirmou exatamente as 9 linhas esperadas, nenhuma a mais.
+- `transacoes`: **289** (Δ +9, exato).
+- Duplicidades `(tx_legado, caixa_id)`: **0** (inalterado).
+- `audit_log`: **23** (Δ +9, um `INSERT` por linha, timestamps consistentes).
+- `vw_reconciliacao_v1_v2` recontada para as 5 caixas afetadas: `qtd_transacoes_so_no_v1` caiu em cada uma (Caixa Lance 3→1, Caixa Manutenção 3→1, Caixa Saúde Família 2→1, Caixa Variável 2→0, PIX Vanessa inalterada em 0) — nenhum efeito colateral nas demais 13 caixas do sistema.
+- **`diagnostico_sync_v1_v2()` reexecutado**: retornou exatamente **6 linhas** — `TX000208` (único item restante entre as caixas mapeadas, como esperado) + as 5 de `LRW_TRANSACOES`/`LRV_TRANSACOES` (pendência estrutural fora de escopo, seção 15). **Nenhuma pendência nova ou inesperada apareceu.**
+
+### Números finais
+| Métrica | Antes | Depois |
+|---|---:|---:|
+| `transacoes` | 280 | **289** |
+| `audit_log` | 14 | **23** |
+| Duplicidades `(tx_legado, caixa_id)` | 0 | **0** |
+| Inserções executadas | — | **9** |
+| Erros | — | **0** |
+| Efeitos colaterais identificados | — | **0** |
+
+### Pendência formal de governança registrada
+**`TX000208`** — status: **"Pendente de definição de rastreabilidade por colisão de `tx_legado`."** Não inserido na V2. Correção a avaliar futuramente (renumeração na origem V1, alias controlado, ou outro tratamento) — nenhuma ação tomada até decisão explícita.
+
+### Confirmações permanentes
+- `LRW_TRANSACOES`/`LRV_TRANSACOES` permanecem **fora do escopo operacional** da sincronização.
+- **Alternativa 3** (seção 15) continua sendo a direção arquitetural aprovada para o destino delas.
+- Escolha **3a vs. 3b** permanece **em aberto**, sem urgência técnica.
+
+---
+
 ## Próximo passo
 
-Fase 3 encerrada. **Fase 4A, 4C e 4B-2 concluídas e validadas** (seções 11, 13, 14). **Destino de LRW/LRV decidido na direção conceitual (seção 15, Alternativa 3) — implementação (3a vs. 3b) ainda pendente, sem urgência.** Fase 4D sem proposta técnica ainda. Ordem combinada: (1) esta atualização do plano; (2) executar 4B-1 restrita às 10 transações das 6 caixas já mapeadas; (3) revalidar reconciliação; (4) só depois retomar 3a vs. 3b. Próximo agente: leia a seção 12 (contexto da 4B-1), seção 13 (execução 4C), seção 14 (execução 4B-2) e seção 15 (decisão LRW/LRV) antes de qualquer ação nova.
+**Fase 4A, 4B-2, 4C e 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Destino de LRW/LRV decidido na direção conceitual (seção 15) — implementação (3a vs. 3b) pendente. Fase 4D sem proposta técnica ainda. Próximo agente: leia a seção 12 (contexto original da 4B-1), seção 13 (execução 4C), seção 14 (execução 4B-2), seção 15 (decisão LRW/LRV) e seção 16 (execução 4B-1 parcial, inclui pendência `TX000208`) antes de qualquer ação nova.
