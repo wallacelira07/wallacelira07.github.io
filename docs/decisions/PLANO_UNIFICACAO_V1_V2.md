@@ -368,6 +368,62 @@ Bate exato com o previsto na proposta original (-911,32 − 1.074,89 = -1.986,21
 
 ---
 
+## 14. Fase 4B-2 — execução e validação (08/08/2026)
+
+**Objetivo da fase**: criar a proteção estrutural `UNIQUE(tx_legado, caixa_id)` na tabela `transacoes`, fechando a vulnerabilidade que permitiu a duplicidade de importação da Caixa Boletos (achado da Fase 3, removido na Fase 4C) e habilitando `ON CONFLICT (tx_legado, caixa_id)` para a futura Fase 4B-1.
+
+### SQL executado
+```sql
+ALTER TABLE public.transacoes
+  ADD CONSTRAINT uq_transacoes_tx_legado_caixa_id
+  UNIQUE (tx_legado, caixa_id);
+```
+Aplicado via migration `add_unique_constraint_tx_legado_caixa_id`, **criada com sucesso na primeira tentativa** (nenhuma violação encontrada, nenhum retrabalho).
+
+### Validações pré-execução
+- `pg_constraint` de `transacoes`: 9 constraints existentes (1 PK, 5 FK, 3 CHECK) — nenhuma cobrindo `tx_legado`/`caixa_id`.
+- `SELECT tx_legado, caixa_id, COUNT(*) ... HAVING COUNT(*)>1` → **0 linhas** (duplicidades zeradas pela 4C, reconfirmado ao vivo antes de criar a constraint).
+- Total de `transacoes`: **280**.
+- `audit_log`: **14** registros.
+
+### Validações pós-execução
+- `pg_constraint` de `transacoes`: **10 constraints** — `uq_transacoes_tx_legado_caixa_id` (`contype='u'`) presente, definição confirmada via `pg_get_constraintdef`: `UNIQUE (tx_legado, caixa_id)`.
+- Total de `transacoes`: **280** (inalterado — Δ 0).
+- Duplicidades `(tx_legado, caixa_id)`: **0** (inalterado).
+- `audit_log`: **14** (inalterado — DDL de constraint não gera linha de auditoria, só DML em `caixas`/`transacoes` gera).
+- **0 linhas alteradas, 0 linhas removidas, 0 alterações de dado de qualquer tipo.**
+
+### Evidência da criação
+```
+conname: uq_transacoes_tx_legado_caixa_id
+contype: u
+def: UNIQUE (tx_legado, caixa_id)
+```
+
+### Resultado dos 5 testes (cada um em bloco `DO $$ ... $$` com `RAISE EXCEPTION` forçado no final — garante `ROLLBACK` automático, nada persistido; confirmado depois por `residuo_de_teste=0` e `total_transacoes=280`)
+
+| # | Teste | Cenário | Resultado |
+|---|---|---|---|
+| A | Positivo | Par novo (`TESTE-4B2-POSITIVO`, Caixa Boletos) | ✅ Inseriu sem erro |
+| B | Negativo | Reinserção do par já existente `TXB000002`/Boletos | ✅ Bloqueado (`unique_violation`) |
+| C | `NULL` em `tx_legado` | 2 linhas `tx_legado=NULL` na mesma caixa | ✅ Ambas aceitas (NULLs distintos, comportamento padrão do Postgres) |
+| D | `tx_legado` repetido em caixa diferente | `RENDIMENTO-31-07` numa 12ª caixa (Saúde Família) onde ainda não existia | ✅ Aceito — padrão legítimo preservado |
+| E | Reinserção na mesma caixa | `TXB000001`/Boletos — a exata duplicidade removida na 4C | ✅ Bloqueado (`unique_violation`) |
+
+### Compatibilidade com `ON CONFLICT (tx_legado, caixa_id)`
+Confirmada pelos Testes A e D: a constraint está ativa exatamente sobre esse par de colunas, satisfazendo o requisito do Postgres para `ON CONFLICT (tx_legado, caixa_id) DO NOTHING/UPDATE` apontar a ela diretamente sem índice adicional. Pronta para uso pela função `sincronizar_v1_v2()` da Fase 4B-1.
+
+### Estratégia de rollback
+```sql
+ALTER TABLE public.transacoes DROP CONSTRAINT uq_transacoes_tx_legado_caixa_id;
+```
+Reversível a qualquer momento, sem perda de dado — puramente estrutural.
+
+### Conclusão da fase
+**Fase 4B-2 concluída com sucesso.** A vulnerabilidade estrutural identificada na Fase 3 e removida na Fase 4C agora está protegida no nível do banco, não só por disciplina de código. Pré-condição técnica da Fase 4B-1 (proteção contra reinserção) satisfeita. Pendência real da 4B-1 é outra: mapeamento de caixa para `LRW_TRANSACOES`/`LRV_TRANSACOES` (ver seção 12, ainda em aberto).
+
+---
+
 ## Próximo passo
 
-Fase 3 encerrada, Fase 4A concluída, **Fase 4C concluída e validada (seção 13)**. Decisão pendente do usuário: ordem de execução entre 4B-1 (sincronização) e 4B-2 (constraint `UNIQUE(tx_legado, caixa_id)`, agora liberada). Próximo agente: leia a seção 12 (contexto) e a seção 13 (execução da 4C) antes de qualquer ação nova.
+Fase 3 encerrada. **Fase 4A, 4C e 4B-2 concluídas e validadas** (seções 11, 13, 14). Fase 4D sem proposta técnica ainda. Pendência real para a Fase 4B-1: decidir o mapeamento de caixa para `LRW_TRANSACOES`/`LRV_TRANSACOES` (5 das 15 transações pendentes) antes de implementar `sincronizar_v1_v2()`. Próximo agente: leia a seção 12 (contexto da 4B-1), seção 13 (execução 4C) e seção 14 (execução 4B-2) antes de qualquer ação nova.
