@@ -163,7 +163,7 @@
       <div class="cm-card cm-c1"><div class="cm-ico">💰</div><div class="cm-body"><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div></div>
       <div class="cm-card cm-c2"><div class="cm-ico">🎯</div><div class="cm-body"><div class="cm-lbl">Meta do milhão</div><div class="cm-val p" id="coverMetaPct">—</div></div></div>
       <div class="cm-card cm-c3"><div class="cm-ico">⚙️</div><div class="cm-body"><div class="cm-lbl">Modo operacional</div><div class="cm-val g" id="coverModoOp">—</div></div></div>
-      <div class="cm-card cm-c4"><div class="cm-ico">💳</div><div class="cm-body"><div class="cm-lbl">Caixa variável</div><div class="cm-val g" id="coverCaixaVar">—</div></div></div>
+      <div class="cm-card cm-c4"><div class="cm-ico">💳</div><div class="cm-body"><div class="cm-lbl">Caixa Var. — Disponível Real</div><div class="cm-val g" id="coverCaixaVar">—</div></div></div>
     </div>
   </div>
 
@@ -237,7 +237,7 @@
       <div class="sub">Necessidade bruta R$ <span class="v" id="kpiNecBruta">—</span> · líquida R$ <span class="v" id="kpiNecLiquida">—</span></div>
     </div>
     <div class="kpi">
-      <div class="lbl">Caixa variável</div>
+      <div class="lbl">Caixa Variável — Disponível Real</div>
       <div class="val g" id="kpiCaixaVarDisp">—</div>
       <div class="sub">ECC zerado · disponível/dia R$ <span class="v" id="dispDia">—</span></div>
     </div>
@@ -367,11 +367,12 @@
   <!-- 6 -->
   <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
-    <div class="cv-legend-row" style="margin-bottom:0.7rem">
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Saldo real</div><div class="v" style="font-weight:600" id="cvSaldoReal">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Comprometido</div><div class="v" style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Disponível</div><div class="v" style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
+    <div class="cv-legend-row" style="margin-bottom:0.3rem">
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">Tem na Caixa</div><div class="v" style="font-weight:600" id="cvSaldoReal">—</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">(−) Comprometido</div><div class="v" style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
+      <div><div style="font-size:0.7rem;color:var(--text-dim)">(=) Disponível Real</div><div class="v" style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
     </div>
+    <div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.7rem">Disponível Real = Tem na Caixa − Comprometido. "Tem na Caixa" é o dinheiro existente; "Disponível Real" é o que ainda sobra pra novas despesas.</div>
     <div class="chart-box" style="height:150px"><canvas id="cVariavel"></canvas></div>
     <!-- V146 (25/07/2026): callouts ECC (16/07 e 14/07) removidos - historico do ciclo fechado 2026-06, sem relevancia no ciclo atual. Preservados integralmente no changelog do ERP (V39/V116). -->
   </div>
