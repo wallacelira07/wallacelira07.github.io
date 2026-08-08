@@ -636,6 +636,76 @@ WHERE id = '7751575a-6339-4bf2-bda4-60817778551c';
 
 ---
 
+## 18. Implementação 3a — Parte A: metadados de LRW/LRV (08/08/2026)
+
+**Objetivo**: dar o primeiro passo concreto da decisão 3a (seção 15) — completar metadados objetivamente resolvíveis das 35 transações de `LRW_TRANSACOES`/`LRV_TRANSACOES`, sem tocar em valor nem em `caixa_id`.
+
+### Descoberta que corrigiu a premissa original: LRW/LRV já existiam na V2
+Antes de propor qualquer `INSERT`, investigação revelou que **as 35 transações já estavam em `transacoes`** (migradas em lote em 05/08/2026, sob `caixa_id = Caixa Variável`) — não era uma migração de dado ausente, era uma reclassificação de dado já presente e majoritariamente correto: 35/35 já com `usuario_id` e `afeta_saldo_real=false`, 31/35 já com `cartao_id`, 29/35 já com `categoria_id`, 30/35 com valor batendo exato com o array V1 atual. A tarefa foi replanejada de "migração histórica" para "reclassificação pontual" com base nesse estado real, não na suposição inicial.
+
+### Por que `caixa_id` permanece inalterado
+`Caixa Variável` já funciona, de fato, como caixa técnica pras 35 linhas: nenhum dos 35 `tx_legado` existe no array V1 dela (`CAIXA_VARIAVEL_TRANSACOES_SALDO_REAL`), então elas já são estruturalmente excluídas do delta calculado (via `EXISTS` falho + `afeta_saldo_real=false`), fazendo parte do ruído já documentado e aceito (`qtd_transacoes_so_na_v2=181` na `vw_reconciliacao_v1_v2` de Caixa Variável). Mover pra outra caixa (ex.: Mastercard/Infinite) não traria ganho de reconciliação e poluiria uma caixa hoje com match exato 3-pra-3. Decisão: manter, sem custo de oportunidade real em adiar.
+
+### Por que valores não foram tocados
+5 das 35 transações (`TX000200`, `TX000203`, `TX000204`, `TX000205`, `TX000206`) têm valor divergente entre o V1 atual e a cópia migrada em 05/08/2026. Investigação (sem correção) indicou origem provável em atualização posterior do V1 nunca repropagada pra V2 (confirmado pra `TX000200`, R$3,72 = IOF corrigido em 07/08; hipótese consistente mas não confirmada individualmente pras outras 4) — descartadas as hipóteses de erro de migração e de alteração manual em V2 (`audit_log` sem nenhum registro nessas linhas). Corrigir valor exige causa raiz individual por transação, igual à 4C/TX000140 — decisão explícita de **não misturar** isso com a reclassificação de metadados desta etapa. Fica registrado como **Parte B**, pendente, não iniciada.
+
+### Metadados corrigidos — 4 campos, 4 linhas
+
+| tx_legado | Campo | Antes | Depois |
+|---|---|---|---|
+| `TX000200` | `cartao_id` | `NULL` | `7b981bf6-80eb-473b-8cf5-91a75c4d0cd3` (MB físico 1371, Wallace) |
+| `TX000203` | `cartao_id` | `NULL` | `7b981bf6-80eb-473b-8cf5-91a75c4d0cd3` (MB físico 1371, Wallace) |
+| `TX000205` | `cartao_id` | `NULL` | `5774ffd5-fa19-47af-affc-761d6b880a88` (MB virtual 4628, Wallace) |
+| `TX000206` | `categoria_id` | `NULL` | `533eef0f-0591-4c23-a248-566b95da7ffd` (Alimentação, regra H57STORE) |
+
+As outras 31 linhas ficaram intocadas — não tinham gap resolvível com evidência objetiva (`TX000204`/`TX000206`-cartão ficam `NULL` por ambiguidade real no `obs`, `TX000159`/`TX000132`/`TX000191`/`TX000202` sem regra de categoria aplicável).
+
+### SQL executado
+```sql
+SELECT set_config('audit.origem','ajuste_manual', true);
+
+UPDATE transacoes SET cartao_id = '7b981bf6-80eb-473b-8cf5-91a75c4d0cd3'
+WHERE tx_legado IN ('TX000200', 'TX000203');
+
+UPDATE transacoes SET cartao_id = '5774ffd5-fa19-47af-affc-761d6b880a88'
+WHERE tx_legado = 'TX000205';
+
+UPDATE transacoes SET categoria_id = '533eef0f-0591-4c23-a248-566b95da7ffd'
+WHERE tx_legado = 'TX000206';
+```
+
+### Validações pré-execução
+`transacoes`=289, `audit_log`=24, duplicidades `(tx_legado, caixa_id)`=0, os 4 campos-alvo confirmados `NULL`, cartões e categoria de destino conferidos existentes.
+
+### Validações pós-execução
+`RETURNING`/reconsulta confirmou os 4 valores exatos da tabela acima. `transacoes`=**289** (inalterado — é `UPDATE`, não `INSERT`). Duplicidades `(tx_legado, caixa_id)`=**0** (inalterado). `vw_reconciliacao_v1_v2`: soma de `diferenca_absoluta` das 16 caixas recalculada = **-417,24**, idêntica à soma pré-execução — nenhuma linha mudou.
+
+### Auditoria gerada
+4 registros em `audit_log`, mesmo timestamp (`2026-08-08 03:32:38`), `origem='ajuste_manual'`, cada um com `valor_anterior=null` → `valor_novo=<id resolvido>`, um por campo/linha alterada.
+
+### Confirmação de impacto zero em saldos e reconciliação
+Garantia estrutural, não só testada: `vw_saldo_v2_por_caixa` e `vw_reconciliacao_v1_v2` não referenciam `cartao_id` nem `categoria_id` em nenhuma cláusula — impossível essas colunas afetarem saldo ou reconciliação, por construção das views.
+
+### Números finais
+| Métrica | Antes | Depois |
+|---|---:|---:|
+| `transacoes` | 289 | **289** |
+| `audit_log` | 24 | **28** |
+| Duplicidades `(tx_legado, caixa_id)` | 0 | **0** |
+| Campos corrigidos | — | **4** |
+| Valores alterados | — | **0** |
+| Caixas alteradas | — | **0** |
+| Impacto financeiro | — | **0** |
+
+### Conclusão formal
+- **Parte A concluída ✅.**
+- **Modelagem LRW/LRV operacionalmente estabilizada sob a estratégia 3a** — as 35 transações já residem corretamente na V2 (atribuição por pessoa via `usuario_id`, `afeta_saldo_real=false`), com metadados objetivamente resolvíveis completos.
+- `caixa_id` permanece inalterado (Caixa Variável, sem custo de reconciliação).
+- `afeta_saldo_real=false` permanece inalterado.
+- **Divergências de valor (Parte B, 5 transações) permanecem fora do escopo desta fase** — investigação dedicada ainda não autorizada.
+
+---
+
 ## Próximo passo
 
-**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). Destino de LRW/LRV decidido na direção conceitual (seção 15) — implementação (3a vs. 3b) segue como única decisão de modelagem pendente. Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-17 antes de qualquer ação nova.
+**Fase 4A, 4B-2, 4C, 4B-1 (parcial) concluídas e validadas** (seções 11, 13, 14, 16). Caso `TX000140`/Caixa Boletos encerrado (seção 17). Decisão 3a/3b tomada — **3a implementada, Parte A concluída** (seção 18). Pendências reais: `TX000208` (governança, seção 16), Parte B — 5 divergências de valor (seção 18, não investigada), `sincronizar_v1_v2()` permanente (não construída), sincronização recorrente (sem mecanismo automático). Fase 4D sem proposta técnica ainda. Próximo agente: leia as seções 12-18 antes de qualquer ação nova.
