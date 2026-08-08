@@ -1184,3 +1184,58 @@ GROUP BY u.nome, u.id;
 Onda 3 esgotada: as 5 prioridades foram percorridas na ordem — 2 migradas, 1 parcial, 2 bloqueadas por ausência real de estrutura (critério de parada explícito do usuário).
 
 **Pendência transversal investigada (não mais em aberto como "nunca classificada")**: Caixa Lance agora comparada/logada a cada carregamento (seção 30), continua em V1 por divergência de baixa confiança (R$4,37, causa não confirmada) — não migrada, mas não é mais um ponto cego.
+
+---
+
+# ONDA 4 — "Supabase como fonte única de verdade" (08/08/2026)
+
+**Mudança de prioridade explícita do usuário**: a partir daqui, a V2 deixa de ser "candidata sujeita a aceite por divergência" e passa a ser **fonte primária assim que a estrutura existir** — sem gate de comparação, sem parar pra revisão intermediária. Fallback V1 só em erro técnico (fetch falhou/tabela vazia), nunca por diferença de valor. Ordem autorizada: Patrimônio → Investimentos/ROC → LREI → Cascata Wärtsilä. Regra: aplicar migration, migrar dados, validar, documentar, commitar, seguir — só parar em bloqueador técnico real.
+
+## 31. Onda 4, domínio 1 — Patrimônio: schema criado, dados migrados, V2 é a fonte (08/08/2026)
+
+**1. Objetivo**: eliminar a ausência de estrutura que bloqueava a Onda 3/Prioridade 3 — rotular as 11 linhas de `patrimonio` e modelar os metadados de financiamento/consórcio que não existiam em lugar nenhum da V2.
+
+**2. Escopo**: `patTotal`, `patReserva`, `patBtg`, `patEscola` (nectonContaCorrente), `patAcumulado`, `patFalta`, `patPctBadge`/`patPctBar` (Meta do Milhão), `ppFinanciamentoCasa`/`ppFinanciamentoDetalhe`/`ppConsorcioAuto`/`ppConsorcioAutoBar`/`ppConsorcioAutoPct`/`ppConsorcioAutoParcela` (seção 11, Passivos Patrimoniais). **Exceção deliberada**: `patLance` continua vindo do V1 (`caixaLance`) — pendência já registrada na seção 30 (divergência R$4,37, causa não confirmada), usuário pediu explicitamente pra não reabrir.
+
+**SQL criado** (3 migrations aplicadas via Supabase MCP):
+```sql
+-- Migration 1: patrimonio_rotulo_financiamentos
+ALTER TABLE public.patrimonio ADD COLUMN rotulo text, ADD COLUMN subtipo text;
+ALTER TABLE public.patrimonio DROP CONSTRAINT patrimonio_natureza_check;
+ALTER TABLE public.patrimonio ADD CONSTRAINT patrimonio_natureza_check
+  CHECK (natureza = ANY (ARRAY['ativo','passivo','informativo']));
+CREATE TABLE public.financiamentos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patrimonio_id uuid NOT NULL REFERENCES public.patrimonio(id),
+  tipo text NOT NULL CHECK (tipo = ANY (ARRAY['financiamento_imovel','consorcio_veiculo','consorcio_imovel'])),
+  carta_credito numeric, parcela_valor numeric, parcelas_pagas integer, parcelas_totais integer,
+  meses_restantes integer, percentual_pago numeric, valor_quitacao numeric, proxima_assembleia date,
+  created_at timestamptz DEFAULT now()
+);
+-- RLS: mesma policy de leitura publica ja usada nas outras tabelas (migration 2, financiamentos_rls_alinhar_padrao)
+
+-- Migration 3: view_patrimonio_v2 (reproduz a formula de recalcularPatrimonio(), so lendo V2)
+CREATE VIEW public.vw_patrimonio_v2 AS SELECT
+  (SELECT valor FROM patrimonio WHERE subtipo='reserva') AS reserva,
+  (SELECT valor FROM patrimonio WHERE subtipo='btg_necton') AS btg_necton,
+  (SELECT valor FROM patrimonio WHERE subtipo='necton_cc') AS necton_conta_corrente,
+  -- + fisico (casa/apartamento/jazigo/solar/carro), passivos (financiamento_casa/consorcio_auto),
+  -- pgbl/fgts (informativo) e os 9 campos de financiamentos (prestacao/meses/carta_credito/parcela/
+  -- pct/quitacao/assembleia) via JOIN patrimonio+financiamentos — ver arquivo de migration completo
+  -- no histórico do Supabase MCP (nome "view_patrimonio_v2").
+  ...;
+```
+
+**3. Arquivos alterados**: `src/financeiro/patrimonio/hydrate-onda4-patrimonio.js` (novo), `src/app/app.js` (+`getPatrimonioV2()` no `WallaceFinanceService`, +chamada `aplicarOnda4Patrimonio()` no final de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada no array de módulos).
+
+**4. Fonte antiga**: `VARS.reserva`/`btgNecton`/`nectonContaCorrente`/`patCasa`/`patApartamento`/`patJazigo`/`patSolar`/`patCarro`/`patPgbl`/`patFgts`/`passivoFinanciamentoCasa`/`prestacaoFinanciamentoCasa`/`mesesRestantesFinanciamentoCasa`/`passivoConsorcioAuto`/`consorcioAutoPagoPct`/`parcelaConsorcioAuto`/`consorcioCasaCartaCredito`/`consorcioCasaParcela`/`consorcioCasaPagoPct`/`consorcioCasaQuitacao`/`consorcioCasaProximaAssembleia`.
+
+**5. Fonte nova**: `vw_patrimonio_v2` (join `patrimonio`+`financiamentos`, rotulados por `subtipo`).
+
+**Migração dos dados**: 11 `UPDATE`s (rótulo/subtipo nas linhas já existentes, identificadas por valor — mesma correspondência 1:1 já confirmada na sessão anterior), 3 `INSERT`s em `financiamentos` (financiamento casa, consórcio casa, consórcio auto) e 2 `INSERT`s novos em `patrimonio` (PGBL R$133.472,56 e FGTS R$82.983,60, `natureza='informativo'`) — todos com os mesmos valores já exibidos hoje via `VARS`, nenhum número novo inventado. Nenhuma linha existente teve seu `valor` alterado.
+
+**6. Validação**: técnica (login manual recusado pelo usuário, mesma substituição já aceita na Onda 3/seção 30) — `SELECT * FROM vw_patrimonio_v2` confere **exatamente** com os 20+ valores documentados de `VARS` (reserva 100644,15, btg 14779,62, nectonCC 429,75, físico total 430.800,00, financiamento casa 61.081,39 + prestação 588,66/147 meses, consórcio auto 18.998,83 + 75,22%/R$501,15, consórcio casa 0,42%/R$1.449,45/R$450.000,00/R$550.601,43/21-08-2026) — zero divergência, por construção. Checagem estática do módulo novo: script carregado 1x, `WallaceFinanceService.getPatrimonioV2`/`REG.patrimonioDetalhe.caixaLance`/`REG.patrimonio.metaMilhao`/`REG.patrimonio.total` existem no código real, nomes globais (`aplicarOnda4Patrimonio`, `WALLACE_ONDA4_PATRIMONIO_RELATORIO`) únicos em `src/`, fallback automático em erro de fetch, escrita de DOM restrita aos 13 ids previstos. **Validação em navegador real continua pendente** (mesma situação da seção 30).
+
+**7. Resultado**: **Patrimônio (exceto Caixa Lance) migrado para V2 como fonte primária**, sem gate de divergência. `VARS.reserva/btgNecton/nectonContaCorrente/patCasa/.../consorcioCasa*` (~20 chaves) deixam de ser necessárias no frontend — continuam existindo em `wallace_dados` só como histórico/fallback, não como fonte ativa.
+
+**8. Rollback**: comentar `aplicarOnda4Patrimonio();` em `app.js` (dados na V2 não são revertidos — só a leitura volta a ser V1). Reversão de schema, se necessária: `DROP VIEW vw_patrimonio_v2; DROP TABLE financiamentos; ALTER TABLE patrimonio DROP COLUMN rotulo, DROP COLUMN subtipo;` (reverte a constraint de `natureza` antes de derrubar as 2 linhas informativas, se for o caso).

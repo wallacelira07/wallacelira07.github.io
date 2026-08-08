@@ -145,6 +145,20 @@ const WallaceFinanceService = {
     let saldo = 0;
     for(const t of transacoes) saldo += t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor);
     return Math.round(saldo*100)/100;
+  },
+  // NOVO 08/08/2026 (Onda 4 — "Supabase como fonte única de verdade", domínio Patrimônio):
+  // vw_patrimonio_v2 (patrimonio + financiamentos, rotulados) — mesma agregação que
+  // recalcularPatrimonio() já fazia em VARS, só lendo da V2 estruturada.
+  async getPatrimonioV2(){
+    const chave = 'vw_patrimonio_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_patrimonio_v2?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_patrimonio_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado[0] || null;
   }
 };
 
@@ -967,6 +981,13 @@ function hydrate(){
   // indeterminada/baixa confiança (não "documentada" no sentido da regra) — continua exibindo V1,
   // só passa a logar a divergência em vez de nunca ter sido comparada. Ver hydrate-onda3-caixalance.js.
   aplicarOnda3CaixaLance();
+
+  // ONDA 4 — "SUPABASE COMO FONTE ÚNICA DE VERDADE" (08/08/2026): diferente das Ondas 1-3, aqui a
+  // V2 já É a fonte primária assim que os dados existem (sem gate de divergência) — os valores
+  // foram migrados diretamente dos mesmos literais do V1, zero divergência por construção.
+  // Fallback pra V1 só em erro técnico. Domínio 1: Patrimônio (patrimonio + financiamentos, view
+  // vw_patrimonio_v2). Exceção deliberada: caixaLance continua V1 (ver hydrate-onda4-patrimonio.js).
+  aplicarOnda4Patrimonio();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
