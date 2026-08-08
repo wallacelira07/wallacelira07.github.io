@@ -51,7 +51,11 @@ async function aplicarOnda5QualidadeGeracao(){
     return;
   }
 
-  const [dd,mm] = diaReferencia.data.split('-').slice(1);
+  // CORRIGIDO 08/08/2026 (achado pelo usuário: card mostrava "08/05" pra 5 de agosto — mês/dia
+  // invertidos): data vem como "YYYY-MM-DD", split('-') dá [ano,mes,dia] — os nomes das variáveis
+  // aqui precisam bater com essa ordem, senão o template `${dd}/${mm}` monta MM/DD (americano) em
+  // vez de DD/MM (padrão do site).
+  const [mm,dd] = diaReferencia.data.split('-').slice(1);
   const elLabelRef = $('qgLabelReferencia');
   if(elLabelRef) elLabelRef.textContent = `Último dia completo (${dd}/${mm})`;
   t('qgMediaHistorica', fmtKwh(diaReferencia.kwh));

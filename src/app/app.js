@@ -634,6 +634,25 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_GERACAO_D
   VARS.SOLAR_GERACAO_DIARIA = [];
 }
 
+// NOVO 08/08/2026 (fecha consumidor de wallace_dados: ACOES_COTACOES/ACOES_COTACOES_ATUALIZADO_EM,
+// mesmo padrao de cartoes/Wave B1 - dominio informativo, nao critico, fallback silencioso permitido):
+// window.WALLACE_COTACOES_ACOES_V2 (bootstrap do HTML, tabela cotacoes_acoes) vence o que veio de
+// wallace_dados via Object.assign acima, se a V2 respondeu com dado. Se falhar/offline, VARS.
+// ACOES_COTACOES/ACOES_COTACOES_ATUALIZADO_EM continuam com o valor que ja veio de wallace_dados -
+// hydrate-roc.js nao muda, so troca a origem do dado.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_COTACOES_ACOES_V2) && window.WALLACE_COTACOES_ACOES_V2.length){
+  const cotacoesV2 = {};
+  let atualizadoEmMaisRecente = null;
+  window.WALLACE_COTACOES_ACOES_V2.forEach(r => {
+    cotacoesV2[r.ticker] = { preco: Number(r.preco), variacao: Number(r.variacao) };
+    if(!atualizadoEmMaisRecente || new Date(r.atualizado_em) > new Date(atualizadoEmMaisRecente)){
+      atualizadoEmMaisRecente = r.atualizado_em;
+    }
+  });
+  VARS.ACOES_COTACOES = cotacoesV2;
+  VARS.ACOES_COTACOES_ATUALIZADO_EM = atualizadoEmMaisRecente;
+}
+
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
 // de deploy pra mudar"): completa o que o comentario da V218 (legInboxVazia) ja prometia mas nunca
 // foi de fato ligado - mescla VARS.LEGENDAS local (fallback, sempre funciona mesmo offline/banco

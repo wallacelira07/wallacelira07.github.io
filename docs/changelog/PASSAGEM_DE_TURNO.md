@@ -2,6 +2,25 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 24 — Correção do gap SAJ validada com prova real + próximo consumidor (`ACOES_COTACOES`) executado (08/08/2026, continuação do Bloco 23)
+
+**1. Validação do commit `26315fc`**: usuário pediu prova objetiva, não inferência. Como o cron externo (~10min) ainda não tinha rodado com o código novo, usuário disparou o workflow manualmente pela UI do GitHub (`workflow_dispatch`). Confirmado via API: run `31270756547`, `head_sha=26315fc`, `conclusion:success`. `energia_solar_leituras` (leitura de 07/08, id `6fe3ba5d-ad12-423b-8fd4-cc943fb44e34`): `geracao_acumulada` saiu de `NULL` pra `446.07`. Investigação SAJ encerrada em definitivo.
+
+**2. Mudança de diretriz do usuário**: parar de focar em documentação/investigação, executar reduções reais de consumidores de `wallace_dados`, escolhendo o próximo item sozinho, com critério explícito (maior impacto, menor esforço, menor dependência de decisão humana), sem tocar nas exceções já fechadas.
+
+**3. Escolhido e executado: `ACOES_COTACOES`/`ACOES_COTACOES_ATUALIZADO_EM`** (cotações de ações brapi.dev, único consumidor `hydrate-roc.js`, tabela de opções ROC). Critério de escolha: escrita já centralizada numa RPC única `SECURITY DEFINER` (`atualizar_cotacoes_acoes`), schema do dado trivial (ticker→{preço,variação}), zero ambiguidade, zero reconciliação, zero decisão de negócio — o oposto do bloco Mastercard/Visa ou Ciclo Snapshots.
+
+**Executado** (2 migrations Supabase + frontend, nada commitado ainda):
+- Tabela nova `cotacoes_acoes` (ticker PK, preco, variacao, atualizado_em), RLS com policy de leitura pública — mesmo padrão de `indicadores`/`energia_solar_geracao_diaria`.
+- RPC `atualizar_cotacoes_acoes` (já existente, já `SECURITY DEFINER`) estendida: continua gravando em `wallace_dados` (V1, inalterado) e agora também faz upsert por ticker em `cotacoes_acoes` (V2), num loop `FOR ticker_atual IN SELECT jsonb_object_keys(cotacoes)`. Como é lógica dentro da função SQL (não no script Python), o efeito é imediato — não depende de nenhum deploy/push de código pro robô, só da RPC já estar ativa (já está).
+- Frontend (`Sistema_Wallace_Lira_Completo.html` + `src/app/app.js`): fetch paralelo de `cotacoes_acoes` (`window.WALLACE_COTACOES_ACOES_V2`) + override de `VARS.ACOES_COTACOES`/`ACOES_COTACOES_ATUALIZADO_EM` se a V2 respondeu com dado. Fallback silencioso permitido aqui (diferente do padrão "V2-exclusivo" usado pra Solar/Caixas) — é domínio informativo (cotação de mercado pra contexto visual da tabela de opções), não afeta cálculo financeiro nem saldo, mesmo tratamento já usado pra `cartoes` na Wave B1.
+
+**Verificação parcial feita**: preview local (`.claude/launch.json`) recarregado, sem erro novo de console até o gate de login (mesma limitação de sempre — validação de dado renderizado exige login real).
+
+**Pendente pra fechar**: aprovação de commit+push do frontend (a RPC/tabela V2 já estão ativas em produção, só falta o site consumir de lá) + disparo manual do workflow `atualizar_cotacoes_acoes.yml` pra provar que `cotacoes_acoes` populada com dado real, mesmo processo de validação já usado pro SAJ (antes/depois, commit usado, status da execução).
+
+**Métrica**: 30 consumidores commitados/removidos + 1 pronto aguardando push (`ACOES_COTACOES`) = ~53 restantes após o push. Próximos candidatos triados (não executados): `CARTAO_PLUGGY_MAPA` (checar se sobrou consumidor real), `HISTORICO_ERP_TODOS_CICLOS` (escritor manual, candidato a tabela V2), resto de "Operacional" (~30 chaves, sem triagem item a item ainda).
+
 ## Bloco 23 — Commit aprovado (SOLAR_GERACAO_DIARIA + ocultação Simulador) + investigação SAJ concluída com evidência completa (08/08/2026, continuação do Bloco 22)
 
 **1. Commit `e5f1348`**: usuário aprovou explicitamente os dois itens pendentes do corte anterior — religação de `SOLAR_GERACAO_DIARIA` na V2 e ocultação da seção 07 "Simulador Regulatório". Sem mudança de comportamento além do que já estava documentado no Bloco 22. `wallace_dados`: 30 consumidores removidos, ~54 restantes.

@@ -1804,6 +1804,28 @@ var __promiseCartoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1
   console.warn('Nao consegui buscar cartoes (V2) do Supabase, usando mapa local publicado:', e);
 });
 
+// NOVO 08/08/2026 (fecha consumidor de wallace_dados: ACOES_COTACOES/ACOES_COTACOES_ATUALIZADO_EM):
+// busca a tabela `cotacoes_acoes` em paralelo, mesma segurança do padrão `cartoes` acima (falha/offline
+// -> window.WALLACE_COTACOES_ACOES_V2 fica null, hydrate-roc.js usa VARS.ACOES_COTACOES local/
+// wallace_dados como fallback, nunca quebra a tabela de opções).
+window.WALLACE_COTACOES_ACOES_V2 = null;
+var __promiseCotacoesAcoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/cotacoes_acoes?select=ticker,preco,variacao,atualizado_em', {
+  headers: {
+    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+  },
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_COTACOES_ACOES_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar cotacoes_acoes (V2) do Supabase, usando ACOES_COTACOES local/wallace_dados:', e);
+});
+
 // FASE 2D (06/08/2026, experimental, autorizado - escopo unico Caixa Variavel) — CORRIGIDO na mesma
 // rodada (regressao real encontrada e confirmada: carregar FinanceEngine.js como <script src> classico
 // colocava as declaracoes top-level dele no MESMO escopo global do app.js - `const SolarConfig` existe
@@ -1835,6 +1857,7 @@ Promise.all([
   __promiseCartoesV2,
   __promiseSolarLeiturasV2,
   __promiseSolarGeracaoDiariaV2,
+  __promiseCotacoesAcoesV2,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){
