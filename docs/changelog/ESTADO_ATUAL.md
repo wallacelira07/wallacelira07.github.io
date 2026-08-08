@@ -54,6 +54,14 @@
 
 **Candidato descartado no levantamento**: tabela item-a-item de LRW/LRV/LRC-limbo/LRCV — 147 transações candidatas em V2 vs 43 itens V1, sem coluna de classificação existente pra separar os 4 grupos sem inventar critério novo. Não perseguido (evita virar investigação de divergência, proibida pela diretriz atual).
 
+**Domínio 2 (P2P) CONCLUÍDO**: 7 escalares migrados pra `indicadores` (mesmo padrão do CDI). Módulo `hydrate-onda5-p2p.js` reaproveita `recalcularP2P()`/`hydrateResumoP2P()` (V1, inalteradas). Seção 37 do plano.
+
+**Domínio 3 (Mastercard Black/Visa) — BLOQUEADO, avaliado e documentado, não perseguido**: headline totals (`cartaoInfiniteTotal`/`cartaoMBTotal`) são reconciliados manualmente contra fatura real do banco (resíduo R$49,81 "naoReconciliado" já documentado, política "fatura sempre vence") — migrar exigiria reabrir reconciliação, proibido. 4 dos 8 sub-componentes dependem da mesma classificação de transações já bloqueada no domínio 1. Ver seção 36 do plano.
+
+**Achado técnico registrado, não corrigido (impacto zero hoje)**: `VARS.livroLRP`/`totalOpProvMP` recalculam de forma síncrona no boot, antes do módulo assíncrono de Parcelamentos trocar os arrays — fiação downstream ainda reflete o valor do momento do boot, não "ao vivo" da V2 (zero divergência visível porque V1=V2 por migração). Corrigir exigiria re-disparar parte de `recalcularAgregadosDerivados()`, fora do escopo desta rodada.
+
+**Regra operacional nova (08/08/2026, pedido explícito do usuário, ver `docs/MANUAL_OPERACIONAL_AGENTES.md` seções 6 e 9)**: alerta preventivo de PIX Geral Vanessa (PGV) sempre que o saldo estiver ≤ R$100,00 (gatilho formal R$50,00, Política Interna §7) — deve aparecer na resposta de boas-vindas/resumo operacional de abertura de toda sessão nova, a partir de agora. Só alerta, nunca executa transferência/lançamento.
+
 ---
 
 ## 1.1 HISTÓRICO (ENCERRADO, NÃO REABRIR): Onda 3 — V2 relacional virando fonte de leitura do frontend (`docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 22-28)

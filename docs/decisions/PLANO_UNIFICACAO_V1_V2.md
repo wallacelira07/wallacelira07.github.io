@@ -1431,3 +1431,62 @@ ORDER BY p.origem_array, p.tx_legado;
 **7. Resultado**: **Parcelamentos migrado para V2 como fonte**. `VARS.PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` deixam de ser necessários no frontend. `VARS.TRANSACOES_CORPORATIVAS_MP` (itens corporativos/avulsos, sem equivalente em `parcelas`) continua V1 — fora do escopo desta migração, não afetado.
 
 **8. Rollback**: comentar `onDomPronto(aplicarOnda5Parcelamentos);` em `app.js`.
+
+## 36. Onda 5, domínio 3 — avaliação Mastercard Black/Visa (BLOQUEADO para migração completa) + domínio 2 executado (P2P) (08/08/2026)
+
+**Avaliação rápida Mastercard Black/Visa (pedida pelo usuário, sem nova rodada de levantamento)**:
+- **Totais que ainda dependem de VARS**: `cartaoInfiniteTotal`/`cartaoMBTotal` (headline, seções 01/02/03), `mercadoPagoFatura`, `mastercardBlackCongelado`, `livroLRCON`/`livroLRB`/`livroLRCV`, e os 3 sub-detalhamentos `visaDetalhe`/`mbDetalhe` (parcelas/consórcios/wallace/recorrências/corp/assinaturas/vanessa/nãoReconciliado).
+- **O que já é calculável a partir da V2 sem nova estrutura**: `visaDetalhe.parcelas`/`mbDetalhe.parcelas` (via `livroLRP`, que deriva de `PARCELAMENTOS_VISA` — já migrado na Onda 5 domínio 1) e o equivalente MP (`totalOpProvMP`, de `PARCELAMENTOS_MP`) — **mas o recálculo desses 2 totais roda 1x, de forma síncrona, ANTES do módulo de Parcelamentos (assíncrono) sobrescrever os arrays** — achado nesta avaliação: a fórmula ficou "presa" no valor V1 do momento do boot, mesmo com o array já vindo da V2. Não é bug visível hoje (V1=V2 por migração, zero divergência), mas a fiação downstream não é de fato V2 ainda. Registrado como nota técnica, não corrigido agora (impacto visual zero, fora do escopo desta rodada).
+- **O que está genuinamente bloqueado**: os headline totals (`cartaoInfiniteTotal`/`cartaoMBTotal`) são **números de fatura real do banco, reconciliados manualmente linha a linha contra o extrato** (auditoria SSOT V135/V111, com um resíduo documentado de R$49,81 "naoReconciliado" — o próprio V1 admite que nem toda fatura bate exato com a soma dos itens, por política "fatura sempre vence"). Derivar isso 100% da V2 exigiria re-itemizar a fatura transação a transação — **isso é reconciliação, explicitamente proibida nesta rodada**. Além disso, 4 dos 8 componentes do detalhamento (`wallace`/`vanessa` de LRW/LRV, `corp` de LRC-limbo) dependem da mesma classificação de 147 transações candidatas sem coluna discriminadora, já documentada como bloqueada na seção 35.
+- **Caminho incremental seguro que existe, mas não foi executado agora**: migrar os headline totals pra `indicadores` como "verdade externa" (mesmo padrão do CDI) — tecnicamente seguro, mas de baixo valor real (não reduz a necessidade de reconciliação manual, só move onde o número mora) e exigiria tocar `recalcularMercadoPago()` em conjunto com o gap de fiação já achado acima. Avaliado como esforço/risco desproporcional ao ganho nesta rodada — **não executado, domínio permanece V1**.
+
+**Decisão**: Mastercard Black/Visa fica **documentado como bloqueado por acoplamento a reconciliação bancária manual + mesma ausência de classificação já registrada** — não perseguido. Seguindo pro próximo domínio de maior impacto sem esse acoplamento: **P2P** (seção 18), isolado (`recalcularP2P()` só depende de `VARS.p2p*`, sem dependência cruzada de nenhum outro domínio).
+
+---
+
+## 37. Onda 5, domínio 2 — P2P: migrado para V2 (`indicadores`), V1 reaproveitado (08/08/2026)
+
+**1. Objetivo**: reduzir dependência de `wallace_dados` num domínio pequeno e isolado, sem reabrir reconciliação.
+
+**2. Escopo**: seção 18 (Operações P2P) — `p2pCapitalTotal`/`p2pCreditosRestantes`/`p2pSaldoInvestido`/`p2pLucroRealizado`/`p2pDetalhe`.
+
+**SQL criado**: 7 linhas em `indicadores` (mesmo padrão do CDI — "verdade externa", plataforma P2P, não derivável de `transacoes`/`parcelas`) + view:
+```sql
+INSERT INTO public.indicadores (nome, valor, data_calculo) VALUES
+  ('P2P - capitalTotal', 110, '2026-08-08'), ('P2P - creditosTotal', 10, '2026-08-08'),
+  ('P2P - creditosRestantes', 6, '2026-08-08'), ('P2P - creditosVendidos', 3, '2026-08-08'),
+  ('P2P - precoCompra', 11, '2026-08-08'), ('P2P - precoVenda', 20, '2026-08-08'),
+  ('P2P - lucroRealizado', 27, '2026-08-08');
+
+CREATE VIEW public.vw_p2p_v2 AS SELECT
+  MAX(valor) FILTER (WHERE nome='P2P - capitalTotal') AS capital_total, ... -- 1 linha, 7 colunas
+FROM public.indicadores WHERE nome LIKE 'P2P - %';
+```
+
+**3. Arquivos alterados**: `src/financeiro/investimentos/hydrate-onda5-p2p.js` (novo), `src/app/app.js` (+`getP2PV2()`, +chamada `aplicarOnda5P2P()` no final de `hydrate()`), `Sistema_Wallace_Lira_Completo.html` (+1 entrada).
+
+**Estratégia**: mesma dos domínios anteriores — sobrescreve `VARS.p2p*`+`REG.p2p.*` (campos base) e reaproveita `recalcularP2P()`+`hydrateResumoP2P()` (V1, inalteradas) pro cálculo (`saldoInvestido`/`rentabilidadePct`)/renderização.
+
+**4. Fonte antiga**: `VARS.p2pCapitalTotal`/`p2pCreditosTotal`/`p2pCreditosRestantes`/`p2pCreditosVendidos`/`p2pPrecoCompra`/`p2pPrecoVenda`/`p2pLucroRealizado` (7 literais).
+
+**5. Fonte nova**: `indicadores` via `vw_p2p_v2`.
+
+**Migração dos dados**: 7 `INSERT`s, mesmos valores já em `vars-p2p.js`, nenhum dado novo.
+
+**6. Validação**: `SELECT * FROM vw_p2p_v2` confere exato (110/10/6/3/11/20/27). Checagem estática: script carregado 1x, `recalcularP2P`/`hydrateResumoP2P` existem e são globais, nomes novos únicos. **Validação em navegador real pendente** (mesma situação de toda a Onda 4/5).
+
+**7. Resultado**: **P2P migrado para V2 como fonte**. `VARS.p2p*` deixa de ser necessário no frontend.
+
+**8. Rollback**: comentar `aplicarOnda5P2P();` em `app.js`.
+
+---
+
+## Status da Onda 5 (08/08/2026)
+
+| Domínio | Status |
+|---|---|
+| 1. Parcelamentos (LRP/LRMP) | ✅ Migrado |
+| 2. P2P | ✅ Migrado |
+| 3. Mastercard Black/Visa | ⛔ Bloqueado — acoplado a reconciliação bancária manual + gap de classificação já documentado (seção 35) |
+
+**Achado técnico registrado, não corrigido** (baixo impacto, zero divergência visível hoje): `VARS.livroLRP`/`totalOpProvMP` são recalculados de forma síncrona no boot, antes do módulo assíncrono de Parcelamentos trocar os arrays por V2 — a fiação downstream ainda reflete o valor do momento do boot, não literalmente "ao vivo" da V2. Corrigir exigiria re-disparar parte da cadeia de `recalcularAgregadosDerivados()`, fora do escopo desta rodada.

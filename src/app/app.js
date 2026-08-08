@@ -224,6 +224,19 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 08/08/2026 (Onda 5, domínio 2 — P2P): vw_p2p_v2, 7 escalares "verdade externa" (mesmo
+  // padrão do CDI) agora em `indicadores`.
+  async getP2PV2(){
+    const chave = 'vw_p2p_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_p2p_v2?select=*`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_p2p_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado[0] || null;
   }
 };
 
@@ -1063,6 +1076,10 @@ function hydrate(){
   // recalcularReembolsos()/hydrateReembolsos() (V1, inalteradas) sobre dado vindo de
   // reembolso_wartsila_ciclo + vw_saldo_v2_por_caixa. Ver hydrate-onda4-wartsila.js.
   aplicarOnda4Wartsila();
+
+  // ONDA 5, domínio 2 — P2P: reaproveita recalcularP2P()/hydrateResumoP2P() (V1, inalteradas)
+  // sobre dado vindo de `indicadores` (mesmo padrão do CDI). Ver hydrate-onda5-p2p.js.
+  aplicarOnda5P2P();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
