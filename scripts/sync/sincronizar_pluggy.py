@@ -341,16 +341,15 @@ def enviar_email_suspeitas(suspeitas: list[dict], smtp_host: str, smtp_port: int
 
 
 def atualizar_supabase(supabase_url: str, supabase_key: str, resultado: dict) -> None:
-    headers = {
-        "apikey": supabase_key,
-        "Authorization": f"Bearer {supabase_key}",
-        "Content-Type": "application/json",
-    }
+    # CORRIGIDO 08/08/2026 (achado real: toda falha desta chamada só mostrava "HTTP Error 400: Bad
+    # Request" no log da Action, nunca o motivo) - esta função usava urlopen() direto, sem o
+    # try/except de _request() que lê e.read() no erro. Resultado: o corpo da resposta do
+    # PostgREST/Postgres (que traz a mensagem exata do erro) era descartado antes de qualquer log
+    # acontecer. Trocado para reusar _request() - mesmo comportamento em caso de sucesso, mas agora
+    # RuntimeError(...) carrega o corpo completo da resposta de erro.
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
     rpc_url = f"{supabase_url}/rest/v1/rpc/atualizar_pluggy_contas"
-    rpc_body = json.dumps({"contas": resultado}).encode("utf-8")
-    req = Request(rpc_url, data=rpc_body, headers=headers, method="POST")
-    with urlopen(req, timeout=20) as resp:
-        resposta = resp.read().decode("utf-8")
+    resposta = _request(rpc_url, method="POST", headers=headers, body={"contas": resultado})
     print(f"Supabase atualizado via RPC: {resposta}")
 
 
