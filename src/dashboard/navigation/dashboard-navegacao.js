@@ -89,10 +89,11 @@ function scrollParaSecaoComOffset(alvo){
   const offset = (tabs ? tabs.offsetHeight : 0) + 20; // +20 = folga visual, titulo nao cola na barra
   const y = alvo.getBoundingClientRect().top + window.pageYOffset - offset;
   window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
-  alvo.style.transition = 'background 0.3s';
-  const corOriginal = alvo.style.background;
-  alvo.style.background = 'rgba(57,135,229,0.15)';
-  setTimeout(()=>{ alvo.style.background = corOriginal; }, 1200);
+  // CORRIGIDO 09/08/2026 (pedido do usuario: "piscar em azul claro 2 ou 3 vezes") - trocado o
+  // destaque unico (1 fade via style inline) pela mesma classe .linha-destacada-busca usada no
+  // destaque de transacao (styles.css), agora com 3 piscadas azuis - efeito consistente nos 2 casos.
+  alvo.classList.add('linha-destacada-busca');
+  setTimeout(()=>{ alvo.classList.remove('linha-destacada-busca'); }, 1600);
 }
 
 // Mesma logica de irParaSecaoBusca (Etapa 6), generalizada pra aceitar {paneId, tituloSecao} direto
@@ -198,10 +199,20 @@ const LIVROS_BUSCAVEIS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOE
   'TRANSACOES_CORPORATIVAS_MP','PARCELAMENTOS_VISA','PARCELAMENTOS_MP'];
 let _buscaGlobalIndiceTransacoes = null;
 
+// CORRIGIDO 09/08/2026 (achado do usuário: buscar "LRPGV" dava "Nada encontrado" mesmo depois de
+// consertar o match por código de livro) - o array interno se chama LRPV_TRANSACOES (sem G), mas a
+// aba visível na tela mostra "LRPGV - PIX Geral Vanessa" (com G) - nomes de código e de exibição
+// DIVERGEM, "LRPGV" nunca seria substring de "lrpv_transacoes". Em vez de corrigir só esse caso
+// (remendo pontual), busca o texto REAL do botão da aba no DOM (via LIVRO_PARA_TAB_LR, já existe)
+// pra cada livro - resolve essa classe inteira de mismatch código-interno × rótulo-visível de uma vez,
+// pra qualquer livro que tenha essa mesma divergência, sem precisar descobrir um por um.
 function construirIndiceTransacoesBusca(){
   const indice = [];
   const vistos = new Set(); // evita duplicar a mesma TX se aparecer em 2 arrays (ex: ciclo atual + historico)
   LIVROS_BUSCAVEIS.forEach(nomeLivro=>{
+    const chaveTab = LIVRO_PARA_TAB_LR[nomeLivro];
+    const botaoTab = chaveTab ? document.getElementById('lrTabBtn_' + chaveTab) : null;
+    const livroLabel = botaoTab ? botaoTab.textContent.trim().toLowerCase() : '';
     (VARS[nomeLivro]||[]).forEach(t=>{
       if(typeof t.valor !== 'number' || !t.tx) return;
       const chave = t.tx + '|' + t.valor;
@@ -214,6 +225,7 @@ function construirIndiceTransacoesBusca(){
         valorNumStr: String(t.valor).replace('.',','),
         nome: (t.nome||'').toLowerCase(),
         livro: nomeLivro,
+        livroLabel,
         registro: t
       });
     });
@@ -396,6 +408,7 @@ function buscaGlobalDados(termo){
     if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;
     if(it.nome.includes(t)) return true;
     if(it.livro && it.livro.toLowerCase().includes(t)) return true;
+    if(it.livroLabel && it.livroLabel.includes(t)) return true;
     if(tSoDigitos && (it.valorTexto.includes(tSoDigitos.replace('.',',')) || it.valorNumStr.includes(tSoDigitos))) return true;
     return false;
   }).sort((a,b)=>{

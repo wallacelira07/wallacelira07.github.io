@@ -548,11 +548,14 @@
   .busca-resultado-sub{ display:block; font-size:0.7rem; color:var(--text-dim); margin-top:0.15rem; }
 
   /* NOVO 05/08/2026: destaque temporario da linha na tabela do Livro Razao, ao chegar via clique
-     num resultado de busca de transacao - pisca suave e desaparece sozinho depois de 2.5s. */
-  .linha-destacada-busca{ animation: destacarLinhaBusca 2.5s ease-out; }
+     num resultado de busca de transacao. CORRIGIDO 09/08/2026 (pedido do usuario: "piscar em azul
+     claro 2 ou 3 vezes" em vez de 1 fade unico verde) - troca pra 3 piscadas azuis, reaproveitada
+     tambem pelo destaque de secao (scrollParaSecaoComOffset, dashboard-navegacao.js) pra ficar
+     consistente nos 2 casos em vez de 2 efeitos diferentes. */
+  .linha-destacada-busca{ animation: destacarLinhaBusca 0.5s ease-in-out 3; }
   @keyframes destacarLinhaBusca{
-    0%{ background:rgba(52,201,138,0.35); }
-    100%{ background:transparent; }
+    0%, 100%{ background:transparent; }
+    50%{ background:rgba(57,135,229,0.4); }
   }
 
   /* NOVO 06/08/2026 (parte 111, pedido do usuário: "barras mais bonitas, clean e premium").

@@ -71,6 +71,14 @@ Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte qu
 
 **Critério de sucesso** (o que um agente novo, sem memória de sessões anteriores, precisa conseguir fazer só lendo este manual): registrar compra, registrar pagamento, atualizar caixa, atualizar patrimônio, atualizar cartão, atualizar livro razão, atualizar parcelamento, atualizar energia solar, atualizar investimento, atualizar reembolso, atualizar indicador — usando a estrutura V2 correspondente como primeira escolha, com a V1 tratada só como legado/exceção/domínio ainda não migrado.
 
+**Regra obrigatória — toda transação precisa nascer com referência visível, nunca "—" (achado real 09/08/2026)**: a RPC `lancar_transacao_manual()` **não tem parâmetro pra `tx_legado`** — o `INSERT` nem inclui essa coluna, então toda transação lançada por ela nasce com `tx_legado=NULL`. Sem correção manual, isso mostra "—" na coluna TX de qualquer tabela de Livro Razão (já aconteceu com 7 lançamentos reais em 08/08/2026, corrigidos só depois do usuário notar visualmente). **Todo agente (Claude Chat ou Claude Code) que lançar uma transação nova na V2 — via essa RPC ou via SQL direto — precisa, na mesma operação, terminar com um `tx_legado` preenchido**:
+1. Antes de lançar, checar o maior TX existente: `select max(tx_legado) from transacoes where tx_legado ~ '^TX[0-9]{6}$';`.
+2. Lançar normalmente (RPC ou INSERT direto) — guardar o `id` (uuid) retornado.
+3. Imediatamente depois, `update transacoes set tx_legado = 'TX0002XX' where id = '<uuid retornado>';`, usando o próximo número sequencial (nunca reutilizar, nunca pular).
+4. Se dois lançamentos forem um par espelhado (saída de uma caixa = entrada em outra, ex: transferência interna), os dois recebem o **mesmo** código — mesmo padrão já usado em `TX000150`/`TX000223`.
+
+Isso é procedimento manual deliberado, não solução definitiva — existe uma decisão de arquitetura registrada em `docs/changelog/ESTADO_ATUAL.md` (Backlog de Produto, prioridade baixa) pra substituir isso por uma sequência `V2-000001...` gerada automaticamente pelo banco. Até essa decisão ser implementada, este procedimento manual é obrigatório, não opcional.
+
 **Isso não muda nenhuma regra de segurança já existente**: usuário confirma antes de lançar (seção 2.1), nunca editar saldo/placeholder direto (seção 2.4), dry-run antes de `UPDATE`/`DELETE` real (seção 4), avisar antes de commit/push (seção 8) — a V2 ser "principal" é sobre **onde** o dado mora, não sobre relaxar **como** ele é alterado.
 
 ---
