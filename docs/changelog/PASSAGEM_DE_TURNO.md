@@ -2,6 +2,25 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 32 — Fechamento da sessão de aceleração V2 (08/08/2026, encerramento — ler antes de tudo abaixo)
+
+**Resumo executivo pro próximo agente**: esta foi a maior rodada de redução de dependência de `wallace_dados` até agora — 37 → ~59 consumidores/domínios removidos ou religados à V2, em 13 commits (`91fcf4e` até `f6e2a7d`). Detalhe completo de cada um está nos blocos sem numeração logo abaixo (Ciclo Snapshots/Pluggy/Cronograma de Boletos/classificação de prioridade/bugfix solar) — este bloco é só a síntese e o que fica pra próxima sessão.
+
+**Ordem de leitura recomendada pro próximo agente**: `ESTADO_ATUAL.md` primeiro (reescrito do zero, tem a métrica final e os achados técnicos reutilizáveis), depois este bloco, depois os 4 blocos sem numeração abaixo se precisar do detalhe passo a passo de algum commit específico.
+
+**Os 3 achados técnicos mais importantes desta sessão** (já em `ESTADO_ATUAL.md`, repetido aqui por importância):
+1. O padrão de pré-carregamento (`Promise.all` no HTML, antes de `app.js` existir) resolve qualquer domínio que pareça precisar de leitura síncrona no boot — não é um bloqueador de verdade, só não tinha sido usado ainda pra esse caso específico. Isso derrubou sozinho o maior domínio restante (Ciclo Snapshots, 15 consumidores) depois que uma primeira avaliação minha tinha (erradamente) classificado como bloqueador técnico real.
+2. `Object.assign(VARS, dr)` pode sobrescrever silenciosamente qualquer migração V2 que tenha uma chave homônima ainda viva em `wallace_dados` — sempre proteger com "guarda antes do merge, restaura depois" (padrão já usado 2x: `LEGENDAS` e `CICLO_SNAPSHOTS`).
+3. A classe de bug "card já migrado pra V2, uma segunda exibição do mesmo valor esquecida em V1" rendeu 6 achados reais nesta sessão (Boletos, 4 caixas de Reservas, Patrimônio, Caixa Variável, barras de meta, LREI) — vale auditar de novo em qualquer nova seção que apareça no painel.
+
+**O que NÃO foi feito, por decisão explícita do usuário ou por ainda não valer o esforço** (todos documentados em `ESTADO_ATUAL.md`): `PLUGGY_TRIAGEM` (baixo impacto, granularidade mista, decisão explícita de deixar fora), ~6 chaves Classe C de ROI~0 já triadas em sessões anteriores, `CARTAO_PLUGGY_MAPA` (bloqueado esperando dado do usuário), exceções formais de headline totals de cartão (nunca serão só-V2, por design).
+
+**Estado do repositório**: `git status` limpo, tudo commitado e enviado até `f6e2a7d` (mais este próprio commit de documentação). `WALLACE_VALIDACAO_RUNTIME` 17/18 (a única reprovação, FASE 2F, é um gap pré-existente não relacionado a nada desta sessão), `healthBadge` "✅ Sistema íntegro".
+
+**Pendência que só o usuário pode resolver** (não é um "próximo passo técnico", é configuração de conta): criar Project no Claude Chat (`wallace.termica@gmail.com`) e anexar `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` como Project Knowledge — sem isso, chats novos no Claude Chat não recebem a governança formalizada nesta sessão automaticamente. Ver `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` seção 10 pro passo a passo.
+
+---
+
 ## Bloco 31 — Modo aceleração: `cxBoletosPct`/`cxBoletosBar`/`balResBoletos` migrados (08/08/2026, continuação do Bloco 30)
 
 **Diretriz do usuário**: governança encerrada (commit `7f8c910`), fila contínua sem checkpoints — investigar → implementar → validar → commit → push → próximo, só parar em bloqueador real.
