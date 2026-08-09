@@ -1152,6 +1152,33 @@ async function _lazyRenderSolarSecao(){
     const ugStatusEl = $('ugStatus');
     if(ugStatusEl){ ugStatusEl.textContent = statusUG.emoji+' '+statusUG.texto; ugStatusEl.style.color = statusUG.cor; }
 
+    // NOVO 08/08/2026 (pedido explícito do usuário): contextualizar o primeiro ciclo de geração como
+    // um ciclo de TRANSIÇÃO, nunca como "inválido"/"não deve ser usado" — a usina entrou em operação
+    // (data_inicio, 21/07) DEPOIS do início do ciclo de faturamento da Energisa pra essa unidade
+    // (data_inicio_faturamento_energisa, 07/07), então parte do consumo do ciclo aconteceu antes de
+    // existir geração pra compensar. O crédito oficial (361−60=301 kWh) não muda — isso é só
+    // contexto/interpretação, nunca recálculo. Regra automática: qualquer ciclo futuro em que a
+    // geração comece depois do início do próprio ciclo de faturamento recebe o mesmo aviso sozinho,
+    // sem precisar editar código de novo (basta a coluna vir preenchida pela Energisa/leitura real).
+    const elCicloParcial = $('ugCicloParcial');
+    if(elCicloParcial){
+      const inicioFaturamento = cicloSolarAberto && cicloSolarAberto.data_inicio_faturamento_energisa;
+      const inicioGeracao = cicloSolarAberto && cicloSolarAberto.data_inicio;
+      const cicloParcial = !!(inicioFaturamento && inicioGeracao && new Date(inicioGeracao) > new Date(inicioFaturamento));
+      if(cicloParcial){
+        const fmtDataBR = d => new Date(d).toLocaleDateString('pt-BR', {timeZone:'UTC'});
+        elCicloParcial.style.display = 'block';
+        elCicloParcial.innerHTML =
+          '<div style="font-weight:600;color:#e8a63a">⚠ Primeiro ciclo parcial de geração</div>'
+          + '<div style="margin-top:0.5rem">A usina entrou em operação em <strong>'+fmtDataBR(inicioGeracao)+'</strong>, mas o ciclo da distribuidora já havia iniciado em <strong>'+fmtDataBR(inicioFaturamento)+'</strong>. Por isso, parte do consumo deste ciclo ocorreu antes do início da geração solar.</div>'
+          + '<div style="margin-top:0.5rem">O resultado oficial do ciclo continua sendo:</div>'
+          + '<div style="margin-top:0.2rem">— Exportação: <strong>'+exportadoAcum+' kWh</strong><br>— Importação: <strong>'+importadoAcum+' kWh</strong><br>— Crédito líquido: <strong style="color:#34c98a">'+saldoLiquidoAcum+' kWh</strong></div>'
+          + '<div style="margin-top:0.5rem">Entretanto, este ciclo representa uma fase de transição e tende a subestimar o desempenho normal da usina, pois a geração não esteve disponível durante todo o período de faturamento. A partir do primeiro ciclo completo de operação, as comparações de desempenho se tornam mais representativas.</div>';
+      } else {
+        elCicloParcial.style.display = 'none';
+      }
+    }
+
     const ugResumoEl = $('ugResumo');
     if(ugResumoEl){
       if(consumoDiretoConfiavel){

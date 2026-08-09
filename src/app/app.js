@@ -642,7 +642,15 @@ Object.freeze(VARS.ROC_STATUS_LIMITES);
 // o site nunca quebra, so mostra os dados de quando foi publicado por ultimo.
 if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
   const dr = window.WALLACE_DADOS_REMOTOS;
+  // CORRIGIDO 08/08/2026 (mesma classe de bug ja corrigida pra LEGENDAS, ver comentario mais abaixo):
+  // wallace_dados.CICLO_SNAPSHOTS (blob antigo, congelado desde a ultima vez que foi escrito a mao)
+  // seria aplicado por cima da V2 (ciclos_financeiros_snapshots, ja resolvida em VARS.CICLO_SNAPSHOTS
+  // por criarVarsCicloSnapshots() acima) pelo Object.assign abaixo, silenciosamente. Guarda a
+  // referencia ANTES do merge e restaura DEPOIS, so quando a V2 realmente respondeu.
+  const cicloSnapshotsV2Ok = Array.isArray(window.WALLACE_CICLO_SNAPSHOTS_V2) && window.WALLACE_CICLO_SNAPSHOTS_V2.length > 0;
+  const cicloSnapshotsAntesDoMerge = VARS.CICLO_SNAPSHOTS;
   Object.assign(VARS, dr); // campos de 1o nivel (LRW_TRANSACOES, cartaoMBTotal, etc)
+  if(cicloSnapshotsV2Ok) VARS.CICLO_SNAPSHOTS = cicloSnapshotsAntesDoMerge; // V2 vence, nunca cai de volta pro blob antigo
   // CORRIGIDO 05/08/2026 (parte 95, usuario apontou "o valor do Mercado Pago nao aparece"): mercadoPagoFatura
   // ficava travado no valor MANUAL do ultimo pagamento (27/07, gravado como 0 no Supabase) porque nada
   // atualizava esse campo depois disso. A funcao reconciliarPluggy() ja calculava o valor real da fatura

@@ -1081,6 +1081,7 @@
       </div>
 
       <div id="ugAvisosConsistencia" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:#e2554f"></div>
+      <div id="ugCicloParcial" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:var(--text)"></div>
       <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:8px;font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
 
       <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
@@ -1883,6 +1884,35 @@ var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.c
   console.warn('Nao consegui buscar creditos externos (V2) do Supabase, usando literais V1:', e);
 });
 
+// NOVO 08/08/2026 (fecha o maior consumidor de wallace_dados restante: CICLO_SNAPSHOTS, 15
+// consumidores): busca a tabela `ciclos_financeiros_snapshots` em paralelo, MESMO padrao ja usado
+// acima pra wallace_dados/legendas/solar/cartoes/cotacoes - pre-carregada ANTES de app.js ser criado
+// (Promise.all abaixo), entao do ponto de vista do boot sincrono de VARS isso e efetivamente
+// "sincrono": nao precisa reescrever nenhuma cadeia de calculo (aplicarCicloAoVARS/
+// recalcularNecessidade/auditoria-automatica/CycleEngine continuam lendo VARS.CICLO_SNAPSHOTS
+// normalmente, so a origem do dado muda). Fallback PERMITIDO (nao e dominio "V2-exclusivo sem
+// fallback" como Solar) - CICLO_SNAPSHOTS alimenta Total Operacional/Necessidade/Modo Operacional,
+// numeros financeiros criticos usados na decisao diaria do usuario; falha/offline mantem o literal
+// V1 publicado (vars-ciclo-snapshots.js), nunca quebra o boot. Transformacao das linhas pro shape
+// aninhado que o app.js sempre usou fica em vars-ciclo-snapshots.js (criarVarsCicloSnapshots()).
+window.WALLACE_CICLO_SNAPSHOTS_V2 = null;
+var __promiseCicloSnapshotsV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/ciclos_financeiros_snapshots?select=*', {
+  headers: {
+    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+  },
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_CICLO_SNAPSHOTS_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar ciclos_financeiros_snapshots (V2) do Supabase, usando CICLO_SNAPSHOTS local/wallace_dados:', e);
+});
+
 // FASE 2D (06/08/2026, experimental, autorizado - escopo unico Caixa Variavel) — CORRIGIDO na mesma
 // rodada (regressao real encontrada e confirmada: carregar FinanceEngine.js como <script src> classico
 // colocava as declaracoes top-level dele no MESMO escopo global do app.js - `const SolarConfig` existe
@@ -1917,6 +1947,7 @@ Promise.all([
   __promiseCotacoesAcoesV2,
   __promiseHistoricoErpV2,
   __promiseCreditosExternosV2,
+  __promiseCicloSnapshotsV2,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){

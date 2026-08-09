@@ -3,7 +3,67 @@
 // por intervalo de linha (nao retypado a mao). Vira uma FUNCAO porque alguns campos usam expressoes
 // runtime; carrega ANTES do app.js (script estatico), chamado depois que este proprio modulo ja
 // existe no escopo global - mesmo padrao de seguranca de ordem do REG/CARTAO_PLUGGY_MAPA_DEFAULT.
+// NOVO 08/08/2026 (fecha o maior consumidor restante de wallace_dados: CICLO_SNAPSHOTS, 15
+// consumidores): transforma as linhas de `ciclos_financeiros_snapshots` (V2, pré-carregada em
+// window.WALLACE_CICLO_SNAPSHOTS_V2 ANTES deste script rodar — ver Sistema_Wallace_Lira_Completo.html)
+// no MESMO shape aninhado por ciclo_key que o literal abaixo sempre teve. Nenhum consumidor
+// (aplicarCicloAoVARS/recalcularNecessidade/auditoria-automatica/CycleEngine/etc) precisa mudar —
+// todos continuam lendo VARS.CICLO_SNAPSHOTS[chave].<campo> normalmente.
+function transformarLinhasCicloSnapshotsV2(linhas){
+  const obj = {};
+  linhas.forEach(function(r){
+    const arquivo = r.livros_razao_arquivados || null;
+    obj[r.ciclo_key] = {
+      label: r.label, periodo: r.periodo, fechado: r.fechado,
+      salario: r.salario != null ? Number(r.salario) : null,
+      entradasTotais: r.entradas_totais != null ? Number(r.entradas_totais) : null,
+      caixaVariavelComprometido: r.caixa_variavel_comprometido != null ? Number(r.caixa_variavel_comprometido) : null,
+      caixaVariavelSaldoReal: r.caixa_variavel_saldo_real != null ? Number(r.caixa_variavel_saldo_real) : null,
+      caixaVariavelDisponivel: r.caixa_variavel_disponivel != null ? Number(r.caixa_variavel_disponivel) : null,
+      reembolsoRecebido: r.reembolso_recebido != null ? Number(r.reembolso_recebido) : null,
+      reembolsoAReceber: r.reembolso_a_receber != null ? Number(r.reembolso_a_receber) : null,
+      toleranciaTempValor: r.tolerancia_temp_valor != null ? Number(r.tolerancia_temp_valor) : 0,
+      toleranciaTempMotivo: r.tolerancia_temp_motivo,
+      tetoOficial: r.teto_oficial != null ? Number(r.teto_oficial) : null,
+      tetoEfetivo: r.teto_efetivo != null ? Number(r.teto_efetivo) : null,
+      cascata: r.cascata || null,
+      necessidadeTotalBruta: r.necessidade_total_bruta != null ? Number(r.necessidade_total_bruta) : null,
+      necessidadeTotalLiquida: r.necessidade_total_liquida != null ? Number(r.necessidade_total_liquida) : null,
+      modoOperacional: r.modo_operacional,
+      saldoCiclo: r.saldo_ciclo != null ? Number(r.saldo_ciclo) : null,
+      visaInfiniteComprometido: r.visa_infinite_comprometido != null ? Number(r.visa_infinite_comprometido) : undefined,
+      mastercardBlackComprometido: r.mastercard_black_comprometido != null ? Number(r.mastercard_black_comprometido) : undefined,
+      mastercardBlackPessoalCongelado: r.mastercard_black_pessoal_congelado != null ? Number(r.mastercard_black_pessoal_congelado) : undefined,
+      mercadoPagoFaturaCongelada: r.mercado_pago_fatura_congelada != null ? Number(r.mercado_pago_fatura_congelada) : undefined,
+      diasRestantes: r.dias_restantes,
+      observacoes: r.observacoes,
+    };
+    if(arquivo){
+      obj[r.ciclo_key].LRW_TRANSACOES = arquivo.LRW_TRANSACOES || [];
+      obj[r.ciclo_key].LRV_TRANSACOES = arquivo.LRV_TRANSACOES || [];
+      obj[r.ciclo_key].LRC_LIMBO_TRANSACOES = arquivo.LRC_LIMBO_TRANSACOES || [];
+      obj[r.ciclo_key].LRPV_TRANSACOES = arquivo.LRPV_TRANSACOES || [];
+    }
+  });
+  return obj;
+}
+
 function criarVarsCicloSnapshots(){
+  // V2 preferida quando o pré-carregamento (topo do HTML) teve sucesso; senão cai no literal abaixo
+  // (fallback intencional — CICLO_SNAPSHOTS alimenta cálculo financeiro crítico do boot, nunca deixado
+  // sem dado nenhum por causa de uma falha de rede pontual).
+  if(Array.isArray(window.WALLACE_CICLO_SNAPSHOTS_V2) && window.WALLACE_CICLO_SNAPSHOTS_V2.length){
+    try {
+      const cicloSnapshotsV2 = transformarLinhasCicloSnapshotsV2(window.WALLACE_CICLO_SNAPSHOTS_V2);
+      if(cicloSnapshotsV2['2026-07']){ // ciclo aberto precisa existir pro resto do boot funcionar
+        console.log('criarVarsCicloSnapshots: CICLO_SNAPSHOTS vindo da V2 (ciclos_financeiros_snapshots), '+Object.keys(cicloSnapshotsV2).length+' ciclo(s).');
+        return { cicloAtual: '2026-07', CICLO_SNAPSHOTS: cicloSnapshotsV2 };
+      }
+      console.warn('criarVarsCicloSnapshots: V2 respondeu mas sem o ciclo atual (2026-07) — usando literal V1.');
+    } catch(err){
+      console.warn('criarVarsCicloSnapshots: falha ao transformar CICLO_SNAPSHOTS da V2 — usando literal V1.', err);
+    }
+  }
   return {
   // ===== V145 (25/07/2026): DUAS VISOES DE CICLO SEPARADAS, SEM CRUZAMENTO =====
   // Pedido explicito do usuario: "quero ter duas visoes, a do ciclo anterior como ele fechou e a nova
