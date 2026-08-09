@@ -844,9 +844,14 @@ function formatarTempoRelativo(timestampISO){
 // (pedido explícito do usuário — nada de sentença hardcoded aqui). `limites` = {minutosVerde,
 // minutosAmarelo,minutosLaranja}, tipicamente vindo de `indicadores` (mesmo padrão de
 // ROC_STATUS_LIMITES/SOLAR_STATUS_LIMITES — editável sem redeploy). Sem limites, usa 15min/2h/24h.
-function formatarFrescor(timestampISO, limites){
+// `agoraParaFaixa` (opcional): instante usado só pra CLASSIFICAR a faixa (verde/amarelo/laranja/
+// vermelho) — default Date.now() real, comportamento idêntico ao de sempre pra quem não passar esse
+// argumento. `tempo` (o texto "há Xh") sempre usa o relógio real, nunca mente sobre quanto tempo
+// passou de verdade — só a faixa de alarme pode ser ajustada (ver aplicarOnda5QualidadeGeracao(),
+// que usa isso pra não disparar falso alarme durante a janela noturna sem leitura do robô solar).
+function formatarFrescor(timestampISO, limites, agoraParaFaixa){
   if(!timestampISO) return { faixa:'semDado', emoji:'—', tempo:null, cor:'var(--text-dim)' };
-  const minutos = Math.round((Date.now() - new Date(timestampISO).getTime()) / 60000);
+  const minutos = Math.round(((agoraParaFaixa instanceof Date ? agoraParaFaixa.getTime() : Date.now()) - new Date(timestampISO).getTime()) / 60000);
   const tempo = formatarTempoRelativo(timestampISO);
   let { minutosVerde=15, minutosAmarelo=120, minutosLaranja=1440 } = limites || {};
   // Blindagem 08/08/2026: se algum limite vier NaN/inválido (indicadores fora do ar, resposta
@@ -866,8 +871,8 @@ function formatarFrescor(timestampISO, limites){
 // "...SemDado" em VARS.LEGENDAS) e substitui {emoji}/{tempo}/{minutos}. Se a legenda daquela faixa
 // não existir no Supabase ainda, cai num texto genérico (nunca quebra a tela por falta de linha
 // na tabela `legendas`).
-function montarBadgeFrescor(idBase, timestampISO, limites){
-  const f = formatarFrescor(timestampISO, limites);
+function montarBadgeFrescor(idBase, timestampISO, limites, agoraParaFaixa){
+  const f = formatarFrescor(timestampISO, limites, agoraParaFaixa);
   const sufixo = f.faixa.charAt(0).toUpperCase() + f.faixa.slice(1);
   const idLegenda = idBase + sufixo;
   const valores = { emoji: f.emoji, tempo: f.tempo, minutos: f.tempo };

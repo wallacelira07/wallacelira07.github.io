@@ -21,6 +21,31 @@
 //
 // Rollback: comentar a chamada aplicarOnda5QualidadeGeracao() em app.js.
 
+// CORRIGIDO 08/08/2026 (achado pelo usuário: badge de frescor mostrava "atualização antiga, verifique
+// se o robô SAJ está rodando" toda noite, alarme falso — o robô só lê das 6h às 18h, horário de
+// Brasília, mesma janela do cron do workflow "*/10 6-18 * * *"; não faz sentido continuar lendo à
+// noite, sem geração nenhuma pra registrar). O relógio de frescor "congela" fora dessa janela — volta
+// a contar normalmente assim que a janela reabre às 6h. Horário de Brasília tratado como UTC-3 fixo
+// (Brasil não tem mais horário de verão desde 2019, então isso não precisa de biblioteca de fuso).
+const SOLAR_JANELA_LEITURA_INICIO_H = 6;
+const SOLAR_JANELA_LEITURA_FIM_H = 18;
+function agoraEfetivoFrescorSolar(){
+  const agora = new Date();
+  const TRES_HORAS_MS = 3*3600*1000;
+  // Trick padrão pra trabalhar em "horário de Brasília" sem lib de fuso: desloca o timestamp por
+  // -3h e usa os getters UTC do resultado — eles passam a refletir a hora de Brasília diretamente
+  // (evita o bug de misturar hora-SP com data-UTC quando a virada de dia UTC não bate com a de SP).
+  const spDeslocado = new Date(agora.getTime() - TRES_HORAS_MS);
+  const horaSP = spDeslocado.getUTCHours();
+  if(horaSP >= SOLAR_JANELA_LEITURA_INICIO_H && horaSP < SOLAR_JANELA_LEITURA_FIM_H) return agora; // dentro da janela, relógio normal
+  // Fora da janela (noite): congela no último fechamento (18h de Brasília) — se ainda for madrugada
+  // (antes da janela abrir hoje), o fechamento relevante foi ONTEM às 18h.
+  const efetivoDeslocado = new Date(spDeslocado);
+  efetivoDeslocado.setUTCHours(SOLAR_JANELA_LEITURA_FIM_H, 0, 0, 0);
+  if(horaSP < SOLAR_JANELA_LEITURA_INICIO_H) efetivoDeslocado.setUTCDate(efetivoDeslocado.getUTCDate() - 1);
+  return new Date(efetivoDeslocado.getTime() + TRES_HORAS_MS); // volta pro UTC real
+}
+
 async function aplicarOnda5QualidadeGeracao(){
   const registros = VARS.SOLAR_GERACAO_DIARIA;
   const elAviso = $('qgAviso');
@@ -117,7 +142,7 @@ async function aplicarOnda5QualidadeGeracao(){
   if(elFrescor){
     const timestampFrescor = registroHoje ? registroHoje.atualizadoEm : (diaReferencia ? diaReferencia.atualizadoEm : null);
     const renderizarFrescor = () => {
-      const badge = montarBadgeFrescor('legFrescorSolar', timestampFrescor, limitesFrescor);
+      const badge = montarBadgeFrescor('legFrescorSolar', timestampFrescor, limitesFrescor, agoraEfetivoFrescorSolar());
       elFrescor.textContent = badge.texto;
       elFrescor.style.color = badge.cor;
     };
