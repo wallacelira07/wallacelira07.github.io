@@ -2,7 +2,23 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 09/08/2026, continuação da sessão longa — auditoria de prontidão operacional executada com evidência ao vivo (advisors do Supabase, RLS real, grants reais, código-fonte das RPCs) seguida do fechamento imediato de todos os achados críticos, a pedido explícito do usuário ("corrija tudo o mais rápido possível"). `git status` limpo (fora dos `desktop.ini` inofensivos do Google Drive Desktop, nunca commitados) até este commit.
+Última reescrita: 09/08/2026, continuação da sessão longa — auditoria de prontidão operacional executada com evidência ao vivo (advisors do Supabase, RLS real, grants reais, código-fonte das RPCs) seguida do fechamento imediato de todos os achados críticos, a pedido explícito do usuário ("corrija tudo o mais rápido possível"), seguida de um levantamento completo pra "matar V1" (pedido explícito do usuário, escopo confirmado: tudo que ainda lê `wallace_dados`/`VARS` no painel). `git status` limpo (fora dos `desktop.ini` inofensivos do Google Drive Desktop, nunca commitados) até este commit.
+
+## 🗺️ Levantamento completo "matar V1" — resultado: menos trabalho pendente do que parecia, 2 blocos genuinamente bloqueados
+
+Usuário pediu pra migrar tudo que ainda depende de `wallace_dados`/`VARS` pra V2 relacional, sem parar pra perguntar. Antes de sair editando, mapeei o escopo real (Explore agent + grep dirigido + leitura de `docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, que já tinha boa parte dessa investigação registrada de sessões anteriores).
+
+**Achado bom: menos pendência do que a auditoria anterior sugeria.** `ACOES_COTACOES`, `creditoUberBalance`, `creditoShellBox`, `creditoKmvIpiranga`, `proLaboreFixo` e `CARTAO_PLUGGY_MAPA` **já são V2-primeiro** — sobrescritos direto em `app.js:858-905`/`app.js:1396` a partir de `indicadores`/`cotacoes_acoes`/`cartoes`, mesmo padrão de `CICLO_SNAPSHOTS`/`HISTORICO_ERP_TODOS_CICLOS`/`LEGENDAS` (que também já eram V2, só ninguém tinha juntado a lista num lugar só). Só não tinham nome de "onda" porque foram feitos inline no boot, não em módulo `hydrate-onda*.js` separado.
+
+**Os únicos 2 blocos grandes que sobraram sem cobertura V2 estão bloqueados por decisão técnica já registrada, não por falta de trabalho**:
+1. **Cartões Mastercard Black/Visa Infinite** (`cartaoInfiniteTotal`, `cartaoMBTotal`, `mercadoPagoFatura`, e o resto do bloco) — `PLANO_UNIFICACAO_V1_V2.md` linha 1572: "🔴 Depende de modelagem — acoplado a reconciliação bancária manual (seção 36)". Não é um `hydrate-onda` que falta escrever, é uma decisão de modelagem de dado que o próprio projeto ainda não fechou.
+2. **LRW/LRV/LRC-limbo/LRCV (tabelas item-a-item da Caixa Variável)** — mesmo documento, linha 1573: "🔴 Depende de dado inexistente (gap de classificação, seção 35)". A seção 15 do mesmo doc já aprovou uma modelagem pra LRW/LRV especificamente (`usuario_id`+`cartao_id`+`Caixa Variável`+`afeta_saldo_real=false`), mas LRC-limbo/LRCV continuam sem estrutura equivalente definida.
+
+**Por que não forcei essas duas migrações mesmo com "não parar pra perguntar"**: envolvem dinheiro atribuído a outra pessoa (Vanessa) e reconciliação bancária real. Migrar sem a modelagem estar de fato fechada arriscaria mostrar valor incompleto ou mal atribuído como se fosse definitivo — pior do que manter V1 mais um pouco. Isso é diferente do RLS aberto (onde a correção era mecânica e o risco era só técnico) — aqui o risco é de conteúdo financeiro errado sendo exibido como certo.
+
+**Continuam em V1 por decisão explícita do usuário já registrada, não reabertas nesta sessão**: as 4 caixas de exceção residual (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) + Provisionado Wärtsilá (`hydrate-onda2-v2.js`/`hydrate-onda3-caixalance.js`), `PLUGGY_TRIAGEM` (decisões de aprovar/rejeitar da Inbox, fora da Onda 7 de propósito), `BOLETOS_TRANSACOES` (só o cronograma migrou na Onda 8, a lista de já-lançados ficou de fora de propósito), Solar rateio/crédito (bloqueado pela investigação "301×361 kWh" ainda não fechada, seção 38).
+
+**Conclusão prática**: "matar V1 completamente" hoje não é uma tarefa de velocidade de código, é uma tarefa de decisão de negócio (reconciliação de cartão) e de resolução de uma dúvida factual (solar) que já estavam em aberto antes desta sessão. Não fica nada de fácil/rápido pendente — o que sobra exige o usuário (não um agente) fechar a modelagem de cartão ou a dúvida do medidor solar primeiro.
 
 ## 🔒 Passo 2 da segurança FECHADO — RLS travado, views corrigidas, RPCs revogadas (09/08/2026, mesma sessão, urgente)
 
