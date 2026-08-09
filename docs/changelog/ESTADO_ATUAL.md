@@ -2,56 +2,60 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, fechamento da sessão de aceleração V2. HEAD `f6e2a7d`, tudo commitado e enviado — `git status` limpo.
+Última reescrita: 08/08/2026, encerramento formal da **fase de migrações rápidas** V1→V2. HEAD `1aed7c6`, tudo commitado e enviado — `git status` limpo.
 
-## Métrica de consumidores de `wallace_dados`
+## Métrica final da fase de migrações rápidas
 
 | Grupo | Quantidade |
 |---|---|
-| Já removidos/religados à V2 | ~59 domínios/achados (37 no início da sessão + ~22 nesta rodada) |
-| Exceções formais (fora da métrica) | ~16 |
-| Restantes | ~10, todos Classe C de baixo ROI já documentados, ou bloqueados por decisão do usuário |
+| Já removidos/religados à V2 | **~61** domínios/achados (37 no início da sessão de aceleração + ~24 nesta fase) |
+| Exceções formais (fora da métrica, ver classificação D abaixo) | 5 |
+| Restantes classificados (A+B+C abaixo) | ~10-12 |
 
-**O que resta de fato** (nenhum tem ROI melhor que o que já foi feito):
-- `PLUGGY_TRIAGEM` — decisão persistente da Inbox (3 registros), deixada fora por decisão explícita do usuário nesta sessão. Granularidade mista (ids sintéticos por conta e por transação) — precisa de desenho próprio se algum dia for retomada.
-- `PIB_WALLACE_HISTORICO`, `PADROES_RUIDO_TRANSACAO`, `DEFICIT_ZERO_PISO_OVERRIDE`, `ENERGISA_TARIFA_COMPOSICAO` — RPCs que gravam dentro do próprio `wallace_dados` (`jsonb_set`), nunca criaram tabela V2 real. Baixo ROI documentado.
-- `dataNascimentoWallace` — constante permanente, ROI~0.
-- `reservaRetiradaProgramada`/`aporteBTGProgramado` — baixo impacto, já majoritariamente derivado.
-- `CARTAO_PLUGGY_MAPA` — bloqueado, esperando o usuário passar os finais de cartão do Itaú (pendência antiga, não nova desta sessão).
-- LRW/LRV/LRC-limbo/LRCV item-a-item — bloqueado por gap de dado (D), não reabrir.
-- Mercado Pago (headline totals `mercadoPagoFatura` etc.) — exceção arquitetural formal, nunca serão só-V2 (reconciliados à mão contra extrato).
+A fase de migrações rápidas está **encerrada por decisão do usuário** nesta sessão: a última auditoria sistemática do padrão que mais rendeu (ver seção seguinte) encontrou só 2 achados novos, contra 6 na rodada anterior — sinal de esgotamento real, não só de sorte. A próxima fase (ainda não iniciada) foca nos bloqueadores reais remanescentes, um a um, sem mais "varredura ampla".
 
-**Fora do escopo, por instrução explícita do usuário**: 301×361 kWh (Solar — ver nota abaixo, contextualizado mas não resolvido/recalculado), Caixa Lance, 4 caixas de causa indeterminada, TX000203-208, headline totals Mastercard/Visa.
+## Classificação final dos remanescentes
 
-## O que foi feito nesta sessão (37 → ~59 removidos)
+**A) Bloqueado por decisão humana** (decisão explícita do usuário de não avançar, mas não formalizada como exceção permanente — pode ser reaberta se o usuário pedir):
+- `PLUGGY_TRIAGEM` — decisão persistente da Inbox (3 registros), granularidade mista (ids sintéticos por conta e por transação), baixo impacto. Deixado fora por decisão explícita do usuário nesta sessão.
+- LRW/LRV/LRC-limbo/LRCV item-a-item — bloqueado por gap de dado (nível de confiança D), não reabrir sem pedido novo.
 
-**Bloco 1 — classe de bug "id de DOM duplicado"** (6 achados, mesmo padrão: card já migrado pra V2, uma segunda exibição do mesmo valor esquecida em V1): Caixa Boletos (barra de meta + linha do Balanço), 4 caixas de Reservas (Bens Duráveis/Eventos/Seguro/Escola), 5 duplicatas do Balanço Patrimonial, Caixa Variável (`balOpCaixaVariavel`), barras/badges de meta de Escola/Bens Duráveis/Eventos/Seguro, LREI (alerta de qualidade + resumo do Balanço não resincronizavam após V2). Auditoria final confirmou: não sobra mais nenhum caso desse padrão específico.
+**B) Bloqueado por cadastro** (dado que só o usuário pode fornecer — puramente operacional, sem decisão de negócio):
+- `CARTAO_PLUGGY_MAPA` — esperando o usuário passar os finais de cartão do Itaú. Assim que vier o dado, é uma migração trivial (classe A, infraestrutura já existente).
 
-**Bloco 2 — modelagem nova real** (3 domínios, cada um com tabela(s) relacional(is) nova(s), backfill 100% conferido, RPC reescrita mantendo assinatura pros scripts Python não precisarem mudar):
-- `MERCADOPAGO_EVENTOS` → tabela `mercadopago_eventos`.
-- `PLUGGY_CONTAS` → 3 tabelas (`pluggy_conexoes`/`pluggy_contas`/`pluggy_transacoes`) — achado real no caminho: número mascarado de conta não é único por conexão (BTG tinha 2 contas com o mesmo número), schema corrigido pra usar o id real da Pluggy antes do backfill.
-- `CRONOGRAMA_BOLETOS_FIXOS` → tabela `cronograma_boletos_fixos` (schedule editável sem deploy).
+**C) Bloqueado por modelagem** (exigiria estrutura V2 nova; hoje são RPCs que gravam de volta dentro do próprio `wallace_dados` via `jsonb_set`, nunca criaram tabela relacional real; ROI baixo demais pra justificar o esforço agora):
+- `PIB_WALLACE_HISTORICO`
+- `PADROES_RUIDO_TRANSACAO`
+- `DEFICIT_ZERO_PISO_OVERRIDE`
+- `ENERGISA_TARIFA_COMPOSICAO`
+- `reservaRetiradaProgramada` / `aporteBTGProgramado` — baixo impacto, já majoritariamente derivado
+- `dataNascimentoWallace` — constante permanente, ROI~0, não vale modelar
 
-**Bloco 3 — Ciclo Snapshots (o maior domínio, 15 consumidores)**: religado à V2 via `ciclos_financeiros_snapshots`, reaproveitando a infraestrutura de pré-carregamento já existente (`Promise.all` no HTML, mesmo padrão de `wallace_dados`/`legendas`/solar/cartões) — nenhuma cadeia de cálculo financeiro (`aplicarCicloAoVARS`, `recalcularNecessidade`, `auditoria-automatica.js`, `CycleEngine.js`) precisou mudar. Fallback pro literal V1 mantido de propósito (números financeiros críticos, nunca sem dado por falha de rede). Bug real corrigido no caminho: `Object.assign(VARS, dr)` sobrescreveria a V2 de volta pro blob antigo — mesma classe de bug já vista em `LEGENDAS`, corrigida do mesmo jeito.
+**D) Exceção formal** (ver `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` para o detalhe completo — permanentes, **não reabrir por iniciativa de agente**, fora da métrica de "restantes" desde 08/08/2026):
+1. Headline totals Mastercard Black/Visa/Mercado Pago (`cartaoMBTotal`, `cartaoInfiniteTotal`, `mercadoPagoFatura`) — regra de negócio "fatura sempre vence"
+2. Solar 301×361 kWh — fórmula de rateio sem prova externa
+3. Caixa Lance — divergência de R$4,37 não confirmada
+4. 4 caixas de causa indeterminada (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio) — divergência R$107-346, V2 desatualizado (não recebeu lançamentos/rendimento que só entraram no V1)
+5. TX000203-208 — colisão de `tx_legado` entre eventos distintos
 
-**Bugs reais corrigidos fora da fila** (reportados ao vivo pelo usuário):
-- Rodapé de versão travado ("v06/08/2026 (parte 140)") — agora deriva do `__V` real.
-- Alarme falso do frescor solar durante a janela noturna (robô só lê 6h-18h) — classificação de alarme agora ignora horas sem leitura por design; tempo real exibido continua honesto.
-- Badge "⚠ Primeiro ciclo parcial de geração" — contextualiza o primeiro ciclo solar (usina ativou 21/07, ciclo de faturamento da Energisa começou 07/07) sem dizer que é inválido; crédito oficial (301 kWh) não mudou, só ganhou contexto. Nova coluna `ciclos_solares.data_inicio_faturamento_energisa`.
+## Padrões descobertos nesta fase (reaplicáveis em qualquer sessão futura)
 
-**Governança dos agentes Claude** (início da sessão, commits `3f256d3`/`7f8c910`): seção 0 (Nível de Confiança da Informação, A/B/C/D) e seção 11 (Governança e Bootstrap) no `MANUAL_OPERACIONAL_AGENTES.md`, que passa a ser o documento mestre. `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (Google Doc, entrada do Claude Chat) reescrito por completo — antes descrevia um sistema em Excel que não existe mais. `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` novo.
+**1. "Card migrado para V2, exibição secundária esquecida em V1"** — de longe o padrão mais produtivo desta fase (~8 achados reais: Boletos, 4 caixas de Reservas, 5 duplicatas de Patrimônio, Caixa Variável, barras de meta de Escola/Bens Duráveis/Eventos/Seguro, LREI em 2 variantes, e nesta última rodada Caixa Wärtsilä + totais de Patrimônio no Resumo Executivo). **Causa raiz sempre a mesma**: `hydrate()` roda dezenas de funções de renderização de forma SÍNCRONA no boot, na ordem em que aparecem no HTML; os módulos `hydrate-onda*.js` (assíncronos, resolvidos bem depois) atualizam `VARS`/`REG` mas só re-chamam a função de renderização do card "principal" — qualquer OUTRA função que já tinha lido o mesmo campo mais cedo (Resumo Executivo, barra de meta, linha do Balanço, badge) fica com o valor V1 congelado pra sempre, mesmo depois do dado em `REG` já estar certo. **Correção sempre igual**: re-chamar (não reescrever) a(s) função(ões) de renderização afetada(s) no final do módulo `onda*`, depois de `REG`/`VARS` já atualizados — são idempotentes por leitura pura de estado, seguro re-chamar.
+   - Achado nesta última rodada: às vezes o próprio campo derivado (`REG.patrimonio.total`, `REG.qualidade.lreiAtivos`) nunca era resincronizado, só os campos "de entrada" — nesse caso a re-chamada de função sozinha não resolve, é preciso também atualizar o campo derivado ANTES de re-chamar a renderização.
+   - **Cuidado ao implementar o fix**: se uma auditoria de divergência V1×V2 já existia no fim da função (log `console.warn` comparando V1 antigo × V2 novo), capturar o valor V1 ORIGINAL antes de sobrescrever o campo em `REG` — inverter a ordem faz a auditoria comparar o valor contra ele mesmo (bug real cometido e corrigido na própria sessão, ver Patrimônio/Wärtsilä nesta rodada).
 
-## Achados técnicos importantes pra próxima sessão
+**2. Bug estrutural do cache do `WallaceFinanceService`** (Bloco 27, sessão anterior a esta) — 5 métodos (`getPatrimonioV2`, `getCicloSolarAbertoV2`, `getIndicador`, `getReembolsoWartsilaCicloV2`, `getP2PV2`) cacheavam o ARRAY bruto da resposta mas retornavam o item desembrulhado (`dado[0]`); a partir do 2º cache-hit o método passava a devolver o array inteiro em vez do objeto esperado, produzindo `NaN`/`undefined` em cascata (P2P, Wärtsilä, Patrimônio, Investimentos, frescor solar) — sintomas que pareciam desconectados até a causa raiz única ser encontrada. **Lição**: em qualquer método com cache manual, sempre cachear exatamente o mesmo valor que é retornado, nunca uma forma intermediária.
 
-1. **Padrão de pré-carregamento** (`Promise.all` no topo de `Sistema_Wallace_Lira_Completo.html`, antes de `app.js` ser criado) é a ferramenta certa pra migrar qualquer domínio que precise estar disponível de forma síncrona no boot — não presumir que "leitura síncrona no boot" é sempre um bloqueador sem checar esse mecanismo primeiro (erro cometido e corrigido nesta própria sessão, ver Bloco 3 acima).
-2. **`Object.assign(VARS, dr)`** (aplicação de `wallace_dados` por cima do VARS estático) roda tarde no boot e pode sobrescrever silenciosamente qualquer campo de 1º nível que uma migração V2 já tenha resolvido antes dele — sempre checar se o domínio migrado tem uma chave homônima ainda viva em `wallace_dados` e, se sim, proteger com o padrão "guarda antes do merge, restaura depois" (já usado em `LEGENDAS` e agora `CICLO_SNAPSHOTS`).
-3. **`WALLACE_VALIDACAO_RUNTIME`**: 17/18 aprovadas — a 1 reprovação (`FASE 2F`, "7/10 caixas aprovadas") é um gap **pré-existente**, não relacionado a nenhuma mudança desta sessão (3 caixas com divergência V1×V2 de causa indeterminada, já documentadas, fora de escopo por decisão do usuário).
+**3. Padrão de pré-carregamento** (`Promise.all` no topo de `Sistema_Wallace_Lira_Completo.html`, antes de `app.js` existir) — usado pra religar Ciclo Snapshots (15 consumidores, o maior domínio da sessão) sem reescrever nenhuma cadeia de cálculo síncrona (`aplicarCicloAoVARS`/`recalcularNecessidade`/`auditoria-automatica.js`/`CycleEngine.js`). **Não presumir que "leitura síncrona no boot" é sempre um bloqueador técnico real** sem checar esse mecanismo primeiro — uma primeira avaliação errada já classificou Ciclo Snapshots como bloqueador antes de este padrão ser aplicado.
+
+**4. Critério que permitiu remover dezenas de consumidores sem modelagem nova**: "o dado já existe em V2 — outro módulo já buscou essa mesma view/tabela — só falta ligar o ID de DOM que ficou de fora". Zero fetch novo, zero tabela nova, só reaproveitar o `valorV2` já resolvido em memória. Esse critério sozinho (classe A) respondeu pela maior parte dos ~61 achados; migrações reais com tabela nova (classe B, mais lentas e arriscadas) foram só 4: Mercado Pago, Pluggy, Cronograma de Boletos, e a armazenagem do Ciclo Snapshots.
 
 ## Protocolo de sessão nova
 
 1. Este arquivo.
-2. `PASSAGEM_DE_TURNO.md` — bloco mais recente (Bloco 32).
+2. `PASSAGEM_DE_TURNO.md` — bloco mais recente.
 3. `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` — exceções permanentes, não reabrir.
 4. `docs/MANUAL_OPERACIONAL_AGENTES.md` — documento mestre, seção 0 (Nível de Confiança) e seção 11 (Governança) são leitura obrigatória.
 5. Sempre `git status`/`git log` antes de assumir pendente ou concluído.
-6. Pendente do usuário (fora do alcance de qualquer agente): criar Project "Sistema Wallace Lira" em `wallace.termica@gmail.com`, anexar `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` como Project Knowledge — sem isso, um chat novo no Claude Chat não recebe o documento automaticamente (ver `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` seção 10).
+6. **Próxima fase**: não é mais "varredura ampla por padrão conhecido" — é bloqueador a bloqueador, seguindo a classificação A/B/C/D acima. Comece perguntando ao usuário se ele tem os finais de cartão do Itaú (item B, único puramente operacional).
+7. Pendente do usuário (fora do alcance de qualquer agente): criar Project "Sistema Wallace Lira" em `wallace.termica@gmail.com`, anexar `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` como Project Knowledge — sem isso, um chat novo no Claude Chat não recebe o documento automaticamente (ver `docs/decisions/GOVERNANCA_MULTI_CONTA_AGENTES.md` seção 10).
