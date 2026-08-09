@@ -71,7 +71,9 @@ const WallaceFinanceService = {
   async getSaldosPorCaixa(){
     const chave = 'vw_saldo_v2_por_caixa';
     if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado`, {
+    // NOVO 09/08/2026: caixa_tipo adicionado ao select (era so caixa_nome,v2_saldo_calculado) - precisa
+    // pra filtrar so caixas operacionais no calculo de deficit sem LREI (hydrate-deficit-caixas-sem-lrei.js).
+    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,caixa_tipo,v2_saldo_calculado`, {
       headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
@@ -1520,6 +1522,12 @@ onDomPronto(aplicarOnda3LivroRazao);
 // renderLivrosVariaveis() (V1) já tenha rodado. Reaproveita a própria função pra redesenhar, agora
 // com VARS.LREI_ATIVAS vindo da V2. Ver hydrate-onda4-lrei.js.
 onDomPronto(aplicarOnda4Lrei);
+// NOVO 09/08/2026 (politica nova, pedido do usuario): caixa operacional negativa sem LREI ATIVO
+// cobrindo o rombo soma a diferenca na Necessidade Total Bruta. Busca saldo (vw_saldo_v2_por_caixa)
+// e LREI (vw_emprestimos_internos_v2) por conta propria, via Promise.all - nao depende de nenhuma
+// onda ja ter rodado (mesma prevencao de bug de ordem que ja mordeu 2x nesta sessao). Ver
+// hydrate-deficit-caixas-sem-lrei.js.
+onDomPronto(aplicarDeficitCaixasSemLrei);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
 // VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas

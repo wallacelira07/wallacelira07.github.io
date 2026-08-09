@@ -873,10 +873,21 @@
         // (overflow-y:auto), nao o <html>/window - contentWindow.scrollTo() sozinho nao move a tela
         // visivel. Seta os 3 alvos possiveis (scrollTo do window + scrollTop de html e body) pra
         // cobrir qualquer um que seja o container real, sem depender de qual exatamente é.
+        // ATUALIZADO 09/08/2026 (pedido do usuario: home vira tela exclusiva, "pra voltar pode usar o
+        // ponto que ja tem hoje que retorna pro icone painel de controle"): antes so rolava a pagina
+        // pro topo (o conteudo da aba atual continuava visivel logo abaixo do resumo). Agora chama
+        // irParaPrimeiraSecao('home') dentro do iframe - mesma funcao que ja troca de aba pros outros
+        // 5 destinos (showMaster + scroll), reaproveitada aqui pra "voltar" tambem trocar de pane de
+        // verdade, escondendo o conteudo da aba anterior, nao so rolar por cima dele. Fallback pro
+        // scroll antigo se a funcao ainda nao existir (HTML em cache antigo, deploy no meio do caminho).
         function scrollPainelParaTopo(){
             const iframe = document.getElementById('mainIframe');
             if(!iframe || !iframe.contentWindow) return;
             const win = iframe.contentWindow;
+            if(typeof win.irParaPrimeiraSecao === 'function'){
+                win.irParaPrimeiraSecao('home');
+                return;
+            }
             const doc = win.document;
             if(doc && doc.body && doc.body.scrollTo){ doc.body.scrollTo({ top: 0, behavior: 'smooth' }); }
             if(doc && doc.body) doc.body.scrollTop = 0;

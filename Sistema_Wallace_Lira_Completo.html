@@ -40,6 +40,16 @@
 </script>
 <div class="wrap">
 
+  <!-- NOVO 09/08/2026 (pedido do usuario: "tornar essa parte a pagina inicial, e dela vamos indo pra
+       as outras") - .cover + Simulador Fim de Ciclo viram o master-pane "home", mesmo mecanismo de
+       .active/display que ja troca Painel/Graficos/Energia Solar/Cenarios/Balanco (showMaster() em
+       ui-navegacao-basica.js, CSS em styles.css:435). "home" comeca .active (era #painel antes) -
+       agora a 1a coisa que aparece ao entrar no site e SO o resumo + os 5 botoes abaixo, escondendo
+       o conteudo de qualquer aba ate o usuario clicar. O seletor de ciclo/banner de ciclo fechado
+       (logo abaixo) e as .master-tabs continuam FORA de qualquer pane de proposito - sao "sempre
+       visiveis em qualquer aba" (comentario V145 original), teriam quebrado esse contrato se
+       entrassem dentro do pane home. -->
+  <div id="home" class="master-pane active">
   <div class="cover">
     <div class="cover-top">
       <div class="cover-top-text">
@@ -191,6 +201,18 @@
     <div class="v" id="simMensagem" style="font-size:0.8rem;color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
 
+  <!-- NOVO 09/08/2026: botoes de navegacao da home - mesmos 5 destinos da .master-tabs (reaproveita
+       irParaPrimeiraSecao(), ja faz showMaster()+scroll ate a 1a secao), so que em formato de botao
+       grande clicavel em vez de aba fina no topo. -->
+  <div class="home-nav-grid">
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('painel')">📊<span>Painel</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('graficos')">📈<span>Gráficos</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('solar')">☀️<span>Energia Solar</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('cenarios')">🛡️<span>Cenários</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
+  </div>
+  </div>
+
   <!-- parte 51 (pedido do usuario: "tudo, os espacos entre linhas, o tamanho dele, parece que nao
        combina nessa posicao") - Verificacoes de Negocio movida daqui (topo, logo apos o Simulador,
        antes de qualquer secao numerada real) pro fim do Painel, depois da secao 22 (Inbox Financeira).
@@ -215,14 +237,14 @@
        antes ficavam la em cima, longe da area que muda ao clicar, dando a impressao de que o clique
        "nao fazia nada" (a mudança real só aparecia varias telas abaixo). -->
   <div class="master-tabs">
-    <button type="button" class="master-tab active" data-pane="painel" onclick="irParaPrimeiraSecao('painel')">📊 Painel</button>
+    <button type="button" class="master-tab" data-pane="painel" onclick="irParaPrimeiraSecao('painel')">📊 Painel</button>
     <button type="button" class="master-tab" data-pane="graficos" onclick="irParaPrimeiraSecao('graficos')">📈 Gráficos</button>
     <button type="button" class="master-tab" data-pane="solar" onclick="irParaPrimeiraSecao('solar')">☀️ Energia Solar</button>
     <button type="button" class="master-tab" data-pane="cenarios" onclick="irParaPrimeiraSecao('cenarios')">🛡️ Cenários</button>
     <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
   </div>
 
-  <div id="painel" class="master-pane active">
+  <div id="painel" class="master-pane">
 
 
     <div class="kpi-strip">
@@ -1601,7 +1623,12 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260809-8';
+var __V = '20260809-9';
+// NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
+// instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
+// tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
+// Ver console (window.WALLACE_BOOT_TIMING) apos o carregamento terminar.
+performance.mark('wallace-boot-start');
 // CORRIGIDO 08/08/2026 (usuario apontou: rodape mostrava "v06/08/2026 (parte 140)", travado ha dias -
 // era texto FIXO no HTML, nunca ligado a nada, enquanto __V (o cache-buster real) seguia sendo
 // bumpado normalmente a cada deploy. Corrigido na raiz: o rodape agora deriva do proprio __V (formato
@@ -1639,6 +1666,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/patrimonio/hydrate-onda4-patrimonio.js',
   'src/financeiro/investimentos/hydrate-onda4-investimentos.js',
   'src/financeiro/operacional/hydrate-onda4-lrei.js',
+  'src/financeiro/operacional/hydrate-deficit-caixas-sem-lrei.js',
   'src/financeiro/operacional/hydrate-onda4-wartsila.js',
   'src/financeiro/livros-razao/hydrate-onda5-parcelamentos.js',
   'src/financeiro/investimentos/hydrate-onda5-p2p.js',
@@ -1698,6 +1726,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/cenarios/vars-ciclo-snapshots.js',
   'src/financeiro/operacional/vars-operacional.js'
 ]);
+window.__promiseModulosBase.then(function(){ performance.mark('wallace-modulos-base-loaded'); });
 </script>
 <script>
 // V169 (26/07/2026): busca os dados MAIS RECENTES (compras, saldos) do Supabase antes de carregar
@@ -1954,18 +1983,21 @@ Promise.all([
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){
+  performance.mark('wallace-dados-remotos-loaded');
   const script = document.createElement('script');
   script.src = 'src/app/app.js?v=' + __V;
   // script criado dinamicamente é async=true por padrão - sem isso, o módulo abaixo poderia
   // carregar/executar ANTES do app.js terminar, quebrando a ordem (o módulo depende de
   // VARS/REG/hydrate/SolarConfig etc. já existirem). onload garante a ordem real de execução.
   script.onload = function(){
+    performance.mark('wallace-appjs-loaded');
     // energia-solar.js precisa carregar ANTES de promocoes-financeengine.js, que depende de
     // SolarConfig/calcularContaSemSolar/ComSolar já existirem (comparador V1↔V2 da FASE 2K) -
     // única dependência real de ordem que resta nesta cadeia, por isso continua sequencial.
     const scriptSolar = document.createElement('script');
     scriptSolar.src = 'src/solar/energia-solar.js?v=' + __V;
     scriptSolar.onload = function(){
+      performance.mark('wallace-solar-loaded');
       const scriptPromocoes = document.createElement('script');
       scriptPromocoes.src = 'src/app/promocoes-financeengine.js?v=' + __V;
       // OTIMIZAÇÃO 07/08/2026: os 6 módulos abaixo (dashboard-navegacao, ui-navegacao-basica,
@@ -1975,15 +2007,39 @@ Promise.all([
       // carregamento) - antes carregavam 1 de cada vez em cadeia onload (6 requisições sequenciais
       // sem necessidade nenhuma). Agora disparam todos juntos, em paralelo.
       scriptPromocoes.onload = function(){
-        ['src/dashboard/navigation/dashboard-navegacao.js',
+        performance.mark('wallace-promocoes-loaded');
+        // NOVO 09/08/2026 (instrumentacao): Promise.all no lugar de forEach solto, so pra saber
+        // quando os ultimos 6 modulos (100% independentes/lazy, nao bloqueiam nada) terminam de
+        // baixar - fecha o timing completo do boot. Nao muda a ordem/paralelismo ja existente.
+        Promise.all(['src/dashboard/navigation/dashboard-navegacao.js',
          'src/dashboard/navigation/ui-navegacao-basica.js',
          'src/dashboard/widgets/ui-componentes-visuais.js',
          'src/dashboard/charts/graficos-cenarios-lazy.js',
          'src/dashboard/navigation/filtro-livros-razao.js',
-         'src/dashboard/widgets/contagem-abas-livros-razao.js'].forEach(function(src){
-          const s = document.createElement('script');
-          s.src = src + '?v=' + __V;
-          document.body.appendChild(s);
+         'src/dashboard/widgets/contagem-abas-livros-razao.js'].map(function(src){
+          return new Promise(function(resolve){
+            const s = document.createElement('script');
+            s.src = src + '?v=' + __V;
+            s.onload = resolve;
+            s.onerror = resolve;
+            document.body.appendChild(s);
+          });
+        })).then(function(){
+          performance.mark('wallace-boot-complete');
+          try {
+            const marcas = ['wallace-boot-start','wallace-modulos-base-loaded','wallace-dados-remotos-loaded','wallace-appjs-loaded','wallace-solar-loaded','wallace-promocoes-loaded','wallace-boot-complete'];
+            const linhas = [];
+            for(let i=1;i<marcas.length;i++){
+              if(!performance.getEntriesByName(marcas[i]).length || !performance.getEntriesByName(marcas[i-1]).length) continue;
+              const nome = marcas[i-1] + ' → ' + marcas[i];
+              performance.measure(nome, marcas[i-1], marcas[i]);
+              linhas.push({ etapa: nome, ms: Math.round(performance.getEntriesByName(nome)[0].duration) });
+            }
+            performance.measure('wallace-boot-total', 'wallace-boot-start', 'wallace-boot-complete');
+            linhas.push({ etapa: 'TOTAL (boot-start → boot-complete)', ms: Math.round(performance.getEntriesByName('wallace-boot-total')[0].duration) });
+            window.WALLACE_BOOT_TIMING = linhas;
+            console.table(linhas);
+          } catch(e){ console.warn('Instrumentação de boot: falha ao calcular measures (não afeta o carregamento real).', e); }
         });
       };
       document.body.appendChild(scriptPromocoes);

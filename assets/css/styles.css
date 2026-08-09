@@ -435,6 +435,24 @@
   .master-pane{display:none}
   .master-pane.active{display:block; animation:v300FadeInPane 0.25s ease}
 
+  /* NOVO 09/08/2026: botoes de navegacao da home (pedido do usuario, "botoes clicaveis pra cada
+     aba"). Mesmo grid responsivo ja usado em .grid-3/.grid-4 acima, cards maiores/mais clicaveis
+     que os itens finos de .master-tabs. */
+  .home-nav-grid{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:0.8rem; margin:1.2rem 0 1.5rem;
+  }
+  .home-nav-btn{
+    display:flex; flex-direction:column; align-items:center; gap:0.4rem;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:1.1rem 0.6rem; font-size:1.6rem; cursor:pointer; color:var(--text);
+    transition:border-color 0.15s ease, transform 0.15s ease;
+  }
+  .home-nav-btn:hover{ border-color:var(--accent); transform:translateY(-2px); }
+  .home-nav-btn span{ font-size:0.72rem; font-weight:600; color:var(--text-mid); }
+  @media(max-width:820px){
+    .home-nav-grid{ grid-template-columns:repeat(2,1fr); }
+  }
+
   /* V300 Etapa 8 (UX Premium) — aditivo: so suaviza a troca de aba (antes era corte seco de
      display:none pra block, sem transicao). Nao muda estrutura/dado de nenhuma secao. */
   @keyframes v300FadeInPane{

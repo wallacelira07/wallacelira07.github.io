@@ -57,6 +57,9 @@ function criarVarsOperacional(){
     // Migrada pro sistema VARS.LEGENDAS (antes vivia hardcoded dentro de renderInboxFinanceira(),
     // por isso nao dava pra editar sem deploy) - agora edita direto no Supabase, igual as outras 28.
     legInboxVazia: `Nenhum item pendente no momento — a Inbox já recebe automaticamente via Pluggy e Mercado Pago. Captura por Email/Telegram/OCR ainda não implementada.`,
+    // NOVA 09/08/2026 (política nova, pedido do usuário): fallback local — a versão ao vivo desta
+    // legenda vem da tabela `legendas` (Supabase), mesmo padrão da PGV corrigida hoje.
+    legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa (ex: comprou algo no cartão pra um bolsão temático sem saldo suficiente) e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
   },
   // Salario (cenarios de emergencia) - RECALCULADO 22/07/2026 (V132) com 12 contracheques reais,
   // media/mediana/min usam os 10 meses POS-PROMOCAO (ago/25-mai/26, usuario foi promovido de
