@@ -19,7 +19,7 @@
 // NOVO 08/08/2026: Cascata Wärtsilä é fonte V2 EXCLUSIVA (diretriz "V2 é a fonte real") — em caso
 // de falha, os cards mostram aviso explícito em vez de deixar silenciosamente os números V1
 // (síncronos) na tela.
-const ONDA4_WARTSILA_IDS = ['reembRecebidos','reembAReceber','reembCicloTotal','reembPagaWartsila','reembPagaMP','reembPagaCartao','reembSobraPessoal'];
+const ONDA4_WARTSILA_IDS = ['reembRecebidos','reembAReceber','reembCicloTotal','reembPagaWartsila','reembPagaMP','reembPagaCartao','reembSobraPessoal','cxWartsila','cxWartsilaExcedente','cxWartsilaProvisionado','r21Wartsila'];
 
 async function aplicarOnda4Wartsila(){
   let ciclo, saldosV2;
@@ -58,6 +58,13 @@ async function aplicarOnda4Wartsila(){
   // Reaproveita recalcularReembolsos()/hydrateReembolsos() (V1, inalteradas) — mesmo cálculo, dado novo.
   recalcularReembolsos();
   hydrateReembolsos();
+  // ACHADO 08/08/2026 (mesma classe do caso Boletos/Reservas/Patrimônio/LREI): hydrateWartsilaCaixasTextos()
+  // (card "Caixa Wärtsilä" — saldo/barra/excedente) e hydrateResumoExecutivo() (badge r21Wartsila) rodam
+  // ANTES desta função no hydrate() síncrono do boot, então ficavam travados no valor V1 mesmo depois de
+  // REG.wartsilaCaixa/REG.faturaWartsila já terem sido sobrescritos acima. Re-chamadas aqui (idempotentes,
+  // só leem REG/VARS) pra resincronizar.
+  hydrateWartsilaCaixasTextos();
+  hydrateResumoExecutivo();
 
   const v2SobraPessoal = REG.operacional.reembolsoSobraPessoal;
   const diverge = Math.abs(v1SobraPessoalAntes - v2SobraPessoal) > 0.01;

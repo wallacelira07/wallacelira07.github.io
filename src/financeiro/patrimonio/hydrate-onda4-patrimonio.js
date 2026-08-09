@@ -48,10 +48,17 @@ async function aplicarOnda4Patrimonio(){
   const num = v => v === null || v === undefined ? null : Number(v);
   const reserva = num(p.reserva), btg = num(p.btg_necton), nectonCC = num(p.necton_conta_corrente);
   const caixaLance = REG.patrimonioDetalhe.caixaLance; // EXCEÇÃO DELIBERADA — ver comentário no topo do arquivo
+  const v1Total = Math.round(REG.patrimonio.total * 100) / 100; // capturado ANTES de sobrescrever REG.patrimonio.total abaixo
 
   const total = Math.round((reserva + btg + caixaLance + nectonCC) * 100) / 100;
   const metaMilhao = REG.patrimonio.metaMilhao; // 1.000.000, constante — mesmo valor do V1, não é dado a migrar
   const metaMilhaoPct = Math.round((total / metaMilhao * 100) * 100) / 100;
+  // ACHADO 08/08/2026 (mesma classe do caso Boletos/Reservas/LREI): REG.patrimonio.total/metaMilhaoPct
+  // nunca eram resincronizados aqui — hydrateResumoExecutivo() (kpiPatrimonio/r21Patrimonio/
+  // r21MetaMilhaoPct), chamada ANTES desta função no boot síncrono, ficava lendo o total V1 mesmo
+  // depois do card principal (patTotal) já mostrar V2.
+  REG.patrimonio.total = total;
+  REG.patrimonio.metaMilhaoPct = metaMilhaoPct;
 
   t('patTotal', fmt(total));
   t('patReserva', fmt(reserva));
@@ -96,8 +103,11 @@ async function aplicarOnda4Patrimonio(){
   t('bpFinanciamentoCasa', fmt(finCasa));
   t('bpConsorcioAuto', fmt(consorcioAuto));
 
+  // Resincroniza kpiPatrimonio/kpiPatrimonioPct/r21Patrimonio/r21MetaMilhaoPct (hydrateResumoExecutivo,
+  // chamada antes desta função no boot) agora que REG.patrimonio.total/metaMilhaoPct foram atualizados acima.
+  hydrateResumoExecutivo();
+
   // Auditoria: confere contra o que hydratePatrimonio() (V1) já tinha escrito antes desta função rodar
-  const v1Total = Math.round(REG.patrimonio.total * 100) / 100;
   const diverge = Math.abs(v1Total - total) > 0.01;
   if(diverge) console.warn(`Onda4Patrimonio: V1=${fmt(v1Total)} × V2=${fmt(total)} — DIVERGE (inesperado, investigar antes de confiar na V2 aqui).`);
   else console.log(`Onda4Patrimonio: V1×V2 batem (${fmt(total)}). V2 é a fonte exibida.`);
