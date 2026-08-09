@@ -2,6 +2,22 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🔴 Bloco de encerramento por limite de crédito (09/08/2026, sessão longa) — leia primeiro
+
+Sessão muito extensa, encerrada por limite de crédito, não por fim natural de tarefa. Ordem de leitura pro próximo agente: este bloco → blocos abaixo (mesmo dia) pro detalhe de cada item.
+
+### Entregue e commitado nesta sessão (tudo em `origin/main`, `git log` confirma)
+1. **PIX Geral Vanessa**: causa raiz da divergência de R$121,97 corrigida (TX000219/221 com `caixa_id` errado por confusão de sigla numa migration), hipótese do valor órfão R$338,00 encerrada, caixa promovida pra exibição V2 (painel = R$306,73, era R$50,69).
+2. **PIX Vanessa**: mesmo padrão (card já V2, Balanço/barra/alerta de negócio ainda em V1) — promovida também, todos os 3 pontos agora em R$2,88.
+3. **Governança do Claude Chat**: documentos migrados de `Sistema Wallace Lira - Claude Chat/` pra `Livro Razão/Agentes/`, com ponteiro fixo `ONDE_LER.md` — Chat passa a ler ao vivo via conector do Drive, não mais Project Knowledge estático.
+4. **Botão "💰 V2" (painel de debug) aposentado** — mostrava dado redundante ou pior que o painel principal (Reembolsos R$7.022,76 órfão). Removido com inventário prévio documentado.
+5. **Inbox Financeira**: causa raiz encontrada de por que compras Mastercard Black nunca apareciam (filtro `status!=='POSTED'`, e a conta consolidada "2250" nunca sai de `PENDING`, confirmado até a API da Pluggy, zero transformação nossa). Corrigido: `PENDING` com 10+ dias parado também vira elegível, mesmas proteções mantidas. Validado: 11→20 pendentes na Inbox real.
+
+### PENDENTE — decisão tomada, implementação NÃO iniciada (próximo passo imediato)
+**Trocar o modelo `DELETE`+`INSERT` de `pluggy_conexoes`/`pluggy_contas`/`pluggy_transacoes` por `UPSERT` com histórico real** (colunas novas em `pluggy_transacoes`: `primeiro_visto_em`, `status_anterior`, `status_mudou_em`, `qtd_sincronizacoes`, `ultima_sincronizacao_em`). Objetivo do usuário: saber se/quando uma transação Pluggy muda de `PENDING` pra `POSTED` de verdade, pra reavaliar com dado real (não suposição) se os 10 dias da correção acima continuam fazendo sentido, ou se dá pra reduzir. Plano completo (schema, risco de duplicidade, migração do conteúdo existente, por que não quebra Inbox/GitHub Actions) já apresentado ao usuário nesta sessão — **aguardando confirmação explícita antes de rodar a migration** (é DDL real em produção, via `apply_migration`). Efeito colateral bom dessa mudança: elimina de vez a necessidade do workaround `WHERE true` no `DELETE` (bug de segurança do Postgres já documentado no Bloco 35), porque não vai ter mais `DELETE` nenhum.
+
+**Próximo agente**: se o usuário confirmar "pode seguir", o SQL completo (upsert das 3 tabelas + colunas novas) já está desenhado na conversa desta sessão — não precisa reinvestigar do zero, só aplicar via `apply_migration` e validar com uma sincronização real (a Action roda de hora em hora).
+
 ## 📁 Reorganização da governança do Claude Chat — novo endereço fixo no Drive (09/08/2026)
 
 **Problema que motivou**: os documentos de governança do Claude Chat (`MANUAL_OPERACIONAL_AGENTES.md`/`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`) viviam como upload estático de Project Knowledge — toda atualização exigia reanexar o arquivo manualmente, e cada reanexo criava uma cópia nova no Drive (sem ferramenta de "editar existente" disponível nas sessões anteriores), acumulando versões desatualizadas.
