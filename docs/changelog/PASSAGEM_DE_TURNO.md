@@ -2,6 +2,34 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🔧 Primeiros 2 incidentes reais da Operação Assistida (09/08/2026, logo após o encerramento formal abaixo)
+
+**Reembolsos a receber R$0,00 (era pra ser R$6.700,61)**: usuário reportou via screenshot. Causa raiz — `reembolso_wartsila_ciclo` (V2) tinha snapshot de antes das correções de 05/08 e 07/08, nunca atualizado. Usuário exigiu explicitamente **reconstrução Nível A bottom-up antes de qualquer UPDATE** ("não quero atualizar a V2 usando a V1 como argumento de autoridade") — feita: `valor_a_receber` confirmado por print do sistema externo da Wärtsilä mostrado na sessão; `perna_cartao_corporativo_pessoal` (R$297,31) reconstruído somando 5 transações reais (`LRC_LIMBO_TRANSACOES`, todas confirmadas também na V2); `perna_mp_corporativo` (R$266,23) = `TXMP000011`; `perna_fatura_wartsila` (R$5.056,95) = confirmação direta do usuário 05/08. Todos batem. Corrigido via `UPDATE` direto no Supabase. **Achado lateral**: `TXMP000011` ainda não migrado pra V2 (só V1) — registrado, não corrigido agora. **Não validado no navegador** (5 slots de preview ocupados por outras sessões, 2 tentativas) — só evidência de banco (antes/depois via SELECT).
+
+**KMV Ipiranga R$600,00 (era pra ser R$400,00)**: usuário já tinha usado 1 cupom e já tinha reportado antes, correção nunca foi aplicada em lugar nenhum. Corrigido em `indicadores` (V2) e no literal `vars-operacional.js` (V1, mesma manutenção dupla já usada nesta sessão). Mesma limitação de validação em navegador.
+
+**Padrão confirmado nos dois incidentes**: cards "V2-exclusivos, sem fallback silencioso" protegem contra dado *ausente*, não contra dado *presente e desatualizado* — os dois casos são exatamente isso. Vale ficar de olho nos outros domínios "Onda 4" (mesma arquitetura) se aparecer mais algum número parado.
+
+## 🏁 ENCERRAMENTO DA FASE DE IMPLANTAÇÃO V2 (09/08/2026) — leia primeiro, antes do bloco abaixo
+
+**Pedido explícito do usuário**: encerrar formalmente a implantação da V2 e iniciar a fase de **Operação Assistida**. Sem novas frentes de migração, sem refatorações grandes, sem perseguir "100%" artificial — decisão que já vinha em vigor desde o Bloco 36, agora formalizada com uma revisão final de remanescentes.
+
+**Comunicado oficial adotado como posição do projeto**: *"Implantação V2 concluída (100%). O sistema entra agora em fase de Operação Assistida, com monitoramento de estabilidade, qualidade de dados e evolução contínua."* Confirmado explicitamente pelo usuário que "100%" aqui **não** significa sistema perfeito, backlog zerado ou dívida técnica inexistente — significa que não existem mais migrações estruturais obrigatórias para colocar a V2 em operação (balde "Implantação V2" vazio). ✅ Implantação V2 encerrada / ✅ Sistema Wallace operando em V2 / ✅ Operação Assistida iniciada.
+
+**Métrica nova**: parar de medir consumidores migrados/remanescentes V1; passar a medir incidentes operacionais, consistência financeira, disponibilidade das automações, qualidade dos dados, estabilidade da operação.
+
+**Revisão executada, depois refinada a pedido do usuário**: todos os itens pendentes registrados em `ESTADO_ATUAL.md`/`docs/decisions/` reclassificados na taxonomia final de 4 categorias — **1) Implantação V2, 2) Operação Assistida, 3) Backlog de produto, 4) Governança**. Resultado: **balde 1 (Implantação V2) vazio** — nenhum item pertence mais a "migração pendente". Detalhe completo em `ESTADO_ATUAL.md`. Regra explícita do usuário a partir de agora: **não chamar de "pendência da V2" nada que não seja literalmente balde 1** — os outros 3 baldes são vida normal de sistema em produção, existem depois de qualquer implantação bem-sucedida.
+
+**Correção de premissa feita ao usuário nesta sessão**: a "frente estrutural Pluggy (histórico via upsert)", que o usuário citou como ainda aberta, já tinha sido implementada, testada e commitada momentos antes, na mesma sessão (`c5572bd`) — não entrou na revisão como pendência.
+
+**Achado novo nesta revisão, não bloqueante, registrado pra ajuste futuro pontual (Governança)**: `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` (item 4) ainda lista PIX Geral Vanessa como "causa indeterminada" — desatualizado, já que a causa raiz foi encontrada e corrigida nesta mesma sessão (bloco abaixo). PIX Vanessa (também promovida) não consta lá. Documento não corrigido ainda, fora do escopo desta revisão.
+
+**Achado de segurança nunca formalizado antes** (via `get_advisors`, não é regressão desta sessão): 17 views `SECURITY DEFINER` (ERROR) e 6 funções `SECURITY DEFINER` executáveis por `anon`/`authenticated` sem restrição (WARN, provavelmente intencional). Balde Governança, registrado, sem ação — decisão de política do usuário.
+
+**Veredito**: V2 pronta para uso diário — sim. Pronta para produção — sim, já está em uso real. Concluída como fase de implantação — sim, é o que este bloco declara. Concluída como "100% da arquitetura migrada" — não, e deixou de ser a métrica perseguida por decisão do usuário. Bloqueador operacional real restante — nenhum identificado. **Percentual do comunicado de encerramento: 100%** (o balde "Implantação V2" está vazio — todo o resto pertence a operação/produto/governança, não a migração).
+
+**A partir de agora**: métrica principal = estabilidade + consistência financeira observadas no uso real. Próximas sessões: começar perguntando se houve incidente desde a última sessão; se não houve, não há trabalho a fazer, só monitorar (mesma instrução do Bloco 36, agora reafirmada com a revisão final completa e a taxonomia de 4 categorias).
+
 ## 🔴 Bloco de encerramento por limite de crédito (09/08/2026, sessão longa) — leia primeiro
 
 Sessão muito extensa, encerrada por limite de crédito, não por fim natural de tarefa. Ordem de leitura pro próximo agente: este bloco → blocos abaixo (mesmo dia) pro detalhe de cada item.

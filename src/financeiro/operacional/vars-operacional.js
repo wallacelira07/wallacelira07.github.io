@@ -65,7 +65,7 @@ function criarVarsOperacional(){
   // card separado, não soma no patrimônio.
   creditoUberBalance: 68.69, // ATUALIZADO 31/07/2026: print do app Uber confirmou saldo de R$86,67 ("Personal - Uber Credits") antes desta corrida - diverge levemente do valor estimado anterior (R$84,87, V220), print sempre vence. Corrida de R$17,98 (11:15) paga com este credito (nao cartao, sem impacto em nenhuma caixa/fatura) - saldo apos uso: R$86,67 - R$17,98 = R$68,69.
   creditoShellBox: 200.00,
-  creditoKmvIpiranga: 600, // CORRIGIDO 31/07/2026 (V220): usuario confirmou 3 cupons de 200 pontos = 600, nao 503 (numero que eu tinha lido errado do print "Voce tem 503 KMV" - esse era outro saldo, nao a soma dos cupons).
+  creditoKmvIpiranga: 400, // CORRIGIDO 09/08/2026: usuario usou 1 dos 3 cupons de 200 (ja reportado antes, nunca tinha sido aplicado aqui nem no Supabase - achado ao investigar card mostrando 600 na tela). Era 600 (31/07/2026, V220: 3 cupons de 200 = 600, nao 503).
   // V140 (23/07/2026, continuacao da varredura): valores primarios operacionais que ainda viviam como
   // literal solto dentro do REG. Nenhum destes e derivavel de outro dado ja no sistema - sao fatos de
   // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.
