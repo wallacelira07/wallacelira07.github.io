@@ -12,6 +12,16 @@
 
 **Texto "(parcial)" da produção solar de hoje**: condicionado ao horário real de operação da usina (05:30–18:00, informado pelo usuário) — fora dessa janela, a leitura do dia já é final, não "parcial".
 
+**Busca não achava "LRPV" / cobertura incompleta**: `LIVROS_BUSCAVEIS` cobria só 9 dos ~24 arrays de transação reais do sistema, e não comparava contra o código do livro em si (só TX/nome/valor de cada transação individual). Corrigido: lista expandida pra todos os arrays confirmados (Caixa Lance, Manutenção, Aniversário Júlio, Eventos, Seguro, Combustível, Churrasco, Escola, Mastercard/Infinite, Suavização, Saúde Família, Wärtsilä, Corporativo MP, Parcelamentos Visa/MP), e o match agora também compara contra `it.livro` (código do array). Navegação por clique (`LIVRO_PARA_TAB_LR`) expandida só pras abas confirmadas direto no HTML — sem mapeamento certo, cai no fallback seguro já existente (leva só até a seção, nunca risca trocar pra aba errada).
+
+**Busca externa presa em "Painel ainda carregando…" (achado do usuário: "não pesquisa mais nada")**: `dashboard-navegacao.js` é um dos últimos arquivos numa cadeia longa de scripts em sequência dentro do iframe — pode terminar de carregar segundos depois dos badges "SISTEMA ÍNTEGRO"/"V2 ATIVA" já aparecerem (vêm de uma parte bem mais cedo do boot). Antes, a busca externa desistia na primeira tentativa falha. Corrigido: agora tenta de novo sozinha (até 6s, a cada 400ms) e reexecuta a busca automaticamente assim que `buscaGlobalDados()` aparecer no iframe — autocura, sem exigir que o usuário digite de novo.
+
+## ✅ Referência visível em todos os lançamentos — "—" eliminado (09/08/2026)
+
+Usuário reportou (via prints da aba LRBD e LRPGV) que lançamentos nativos da V2 apareciam com "—" na coluna TX, sem nenhuma referência. Causa: 7 transações de 08/08 foram gravadas direto na V2 sem `tx_legado` (Abastecimento PGV — par PGV/PV, DL*UberRides, Fruta, Sabão Júlio, MERCADOLIVRE*CLAMPER, MERCADOLIVRE*MERCADOL). **Corrigido**: atribuídos códigos `TX000223` a `TX000228` (o par PGV/PV espelhado — entrada numa caixa, saída na outra — recebeu o mesmo código, `TX000223`, mesmo padrão já usado em `TX000150`), confirmado no banco após o `UPDATE`. Não sobra mais nenhum "—" nas tabelas de Livro Razão hoje.
+
+**Backlog de Produto registrado, prioridade baixa, não implementado agora** (pedido explícito do usuário — direção oficial da arquitetura, mas só quando decidido implementar): substituir a numeração manual `TX000xxx` por uma sequência própria gerada pelo banco pra lançamentos nativos da V2 — `V2-000001`, `V2-000002`, ... (Postgres `sequence`/`identity`, preenchido automaticamente pelas RPCs que inserem em `transacoes`, ex. `lancar_transacao_manual`). Histórico herdado (`TX000xxx`) permanece intocado — só transações novas da V2 passariam a usar o prefixo novo. Objetivo: eliminar sequenciamento manual, colisões de numeração (mesma família de problema já visto em `TX000203-208`), e a necessidade de decidir números em sessão, como aconteceu agora.
+
 **Não validado no navegador** — 5 slots de preview do projeto ocupados por outras sessões o dia inteiro; usuário confirmará visualmente na próxima vez que abrir o site.
 
 ## 📌 Apontamentos pendentes, não investigados a fundo (09/08/2026, Operação Assistida)

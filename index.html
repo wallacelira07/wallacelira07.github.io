@@ -611,15 +611,50 @@
             clearTimeout(_headerSearchDebounce);
             _headerSearchDebounce = setTimeout(() => headerSearchExecutar(valor), 200);
         }
+        // NOVO 09/08/2026 (achado do usuario: "nao pesquisa mais nada", ficava preso em "Painel ainda
+        // carregando..." mesmo com o painel ja de pe): dashboard-navegacao.js e um dos ULTIMOS arquivos
+        // numa cadeia longa de scripts em sequencia dentro do iframe (app.js -> energia-solar.js ->
+        // promocoes-financeengine.js -> so ENTAO os 6 modulos finais, dashboard-navegacao.js entre
+        // eles) - pode terminar de carregar segundos DEPOIS dos badges "SISTEMA INTEGRO"/"V2 ATIVA"
+        // aparecerem (esses vem de uma parte bem mais cedo do boot). Antes, um unico "nao esta pronto"
+        // desistia na hora. Agora tenta de novo sozinho (ate 6s, a cada 400ms) e reexecuta a busca com
+        // o que estiver no campo assim que a funcao aparecer - autocura, sem exigir que o usuario
+        // retype.
+        let _headerSearchAguardando = false;
+        function _headerSearchIframeProntO(){
+            const iframe = document.getElementById('mainIframe');
+            return iframe && iframe.contentWindow && typeof iframe.contentWindow.buscaGlobalDados === 'function' ? iframe : null;
+        }
+        function _headerSearchEsperarEReexecutar(tentativasRestantes){
+            const iframe = _headerSearchIframeProntO();
+            if(iframe){
+                _headerSearchAguardando = false;
+                const input = document.getElementById('headerSearchInput');
+                if(input && input.value.trim()) headerSearchExecutar(input.value);
+                return;
+            }
+            if(tentativasRestantes <= 0){
+                _headerSearchAguardando = false;
+                const wrap = document.getElementById('headerSearchResultados');
+                if(wrap) wrap.innerHTML = '<div class="header-search-vazio">Painel demorou demais pra carregar — tenta recarregar a página.</div>';
+                console.error('headerSearch: buscaGlobalDados nunca ficou disponível no iframe depois de 6s de espera.');
+                return;
+            }
+            setTimeout(() => _headerSearchEsperarEReexecutar(tentativasRestantes - 1), 400);
+        }
         function headerSearchExecutar(valor){
             const termo = (valor || '').trim();
             const wrap = document.getElementById('headerSearchResultados');
             if(!wrap) return;
             if(!termo){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
-            const iframe = document.getElementById('mainIframe');
-            if(!iframe || !iframe.contentWindow || typeof iframe.contentWindow.buscaGlobalDados !== 'function'){
+            const iframe = _headerSearchIframeProntO();
+            if(!iframe){
                 wrap.innerHTML = '<div class="header-search-vazio">Painel ainda carregando…</div>';
                 wrap.style.display = 'block';
+                if(!_headerSearchAguardando){
+                    _headerSearchAguardando = true;
+                    _headerSearchEsperarEReexecutar(15); // 15 x 400ms = ate 6s de espera
+                }
                 return;
             }
             let resultado;

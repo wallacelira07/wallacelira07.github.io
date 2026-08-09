@@ -186,8 +186,16 @@ function irParaSecaoBusca(item){
 // Constroi um segundo indice, direto do VARS (nao do DOM), varrendo todos os livros de transacao
 // conhecidos + o historico cross-ciclo (parte 57). Busca por: codigo TX (com ou sem "TX"), valor
 // (com vírgula/ponto, com ou sem "R$"), ou nome do estabelecimento/descricao.
+// EXPANDIDO 09/08/2026 (achado do usuário: buscar "LRPV" dava "Nada encontrado", "a lupa tem que
+// pegar tudo") — a lista cobria só 9 dos ~24 arrays de transação reais do sistema (grep por
+// `_TRANSACOES: [` em src/financeiro/**/vars-*.js + TRANSACOES_CORPORATIVAS_MP/PARCELAMENTOS_*, que
+// têm o mesmo formato tx/nome/valor). Agora cobre todos.
 const LIVROS_BUSCAVEIS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
-  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS','BENS_DURAVEIS_TRANSACOES'];
+  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS','BENS_DURAVEIS_TRANSACOES',
+  'CAIXA_LANCE_TRANSACOES','MANUTENCAO_TRANSACOES','ANIVERSARIO_JULIO_TRANSACOES','EVENTOS_TRANSACOES',
+  'SEGURO_EMPLACAMENTO_TRANSACOES','COMBUSTIVEL_TRANSACOES','CHURRASCO_TRANSACOES','ESCOLA_JULIO_TRANSACOES',
+  'MASTERCARD_INFINITE_TRANSACOES','SUAVIZACAO_TRANSACOES','SAUDE_FAMILIA_TRANSACOES','WARTSILA_CAIXA_TRANSACOES',
+  'TRANSACOES_CORPORATIVAS_MP','PARCELAMENTOS_VISA','PARCELAMENTOS_MP'];
 let _buscaGlobalIndiceTransacoes = null;
 
 function construirIndiceTransacoesBusca(){
@@ -218,14 +226,30 @@ function construirIndiceTransacoesBusca(){
 // (a aba dentro da secao 15 "Livros razao"). Nem todo livro buscavel tem uma aba 1-pra-1 (ex:
 // LRC_LIMBO_TRANSACOES e HISTORICO_ERP_TODOS_CICLOS nao tem aba propria - sao vistas cross-livro/
 // cross-ciclo) - nesses casos o clique so leva ate a secao, sem trocar de aba, em vez de acertar errado.
+// EXPANDIDO 09/08/2026: adicionadas só as abas confirmadas direto no HTML (id="lrTabBtn_X") - livros
+// sem aba própria confirmada (WARTSILA_CAIXA_TRANSACOES, SUAVIZACAO_TRANSACOES,
+// TRANSACOES_CORPORATIVAS_MP, HISTORICO_ERP_TODOS_CICLOS) ficam de fora de propósito, mesma regra de
+// sempre: sem mapeamento certo, o clique só leva até a seção, nunca arrisca trocar pra aba errada.
 const LIVRO_PARA_TAB_LR = {
   'LRW_TRANSACOES': 'lrw',
   'LRV_TRANSACOES': 'lrv',
+  'LRC_LIMBO_TRANSACOES': 'lrc',
   'LRCV_TRANSACOES': 'lrcv',
-  'BOLETOS_TRANSACOES': 'lrb',
   'PV_TRANSACOES': 'lrpvsaldo',
   'LRPV_TRANSACOES': 'lrpv',
-  'BENS_DURAVEIS_TRANSACOES': 'lrbd'
+  'BENS_DURAVEIS_TRANSACOES': 'lrbd',
+  'BOLETOS_TRANSACOES': 'lrb',
+  'CAIXA_LANCE_TRANSACOES': 'lrlance',
+  'MANUTENCAO_TRANSACOES': 'lrmanut',
+  'ANIVERSARIO_JULIO_TRANSACOES': 'lraniv',
+  'EVENTOS_TRANSACOES': 'lreventos',
+  'SEGURO_EMPLACAMENTO_TRANSACOES': 'lrseguro',
+  'COMBUSTIVEL_TRANSACOES': 'lrcomb',
+  'CHURRASCO_TRANSACOES': 'lrchurrasco',
+  'SAUDE_FAMILIA_TRANSACOES': 'lrsaude',
+  'MASTERCARD_INFINITE_TRANSACOES': 'lrmci',
+  'PARCELAMENTOS_VISA': 'lrp',
+  'PARCELAMENTOS_MP': 'lrmp'
 };
 
 function irParaTransacaoNoLivro(t, livro){
@@ -364,9 +388,14 @@ function buscaGlobalDados(termo){
     .filter(it => it.texto.includes(t))
     .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
     .slice(0, 5);
+  // NOVO 09/08/2026 (achado do usuário: buscar "LRPV" dava "Nada encontrado" mesmo com o livro
+  // existindo) - antes só comparava contra TX/nome/valor de CADA transação, nunca contra o código do
+  // livro em si. Agora também casa pelo nome do array (ex: "LRPV_TRANSACOES") - digitar o código do
+  // livro mostra as transações dele, mesmo sem saber nenhum nome/valor específico.
   const transacoesOriginais = t.length >= 2 ? _buscaGlobalIndiceTransacoes.filter(it=>{
     if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;
     if(it.nome.includes(t)) return true;
+    if(it.livro && it.livro.toLowerCase().includes(t)) return true;
     if(tSoDigitos && (it.valorTexto.includes(tSoDigitos.replace('.',',')) || it.valorNumStr.includes(tSoDigitos))) return true;
     return false;
   }).sort((a,b)=>{
