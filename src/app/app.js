@@ -1635,100 +1635,23 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       document.addEventListener('click', (ev) => {
         const dock = document.getElementById('wallaceFabDock');
         if(dock && dock.contains(ev.target)) return;
-        const painelV2 = document.getElementById('painelV2Caixas');
-        if(painelV2 && painelV2.style.display === 'block' && !painelV2.contains(ev.target)) painelV2.style.display = 'none';
         const formLancar = document.getElementById('formLancarTx');
         if(formLancar && formLancar.style.display === 'block' && !formLancar.contains(ev.target)) formLancar.style.display = 'none';
       });
     }
 
-    if(resumoV2.caixas && resumoV2.caixas.length && !document.getElementById('painelV2Caixas')){
-      const btn = document.createElement('button');
-      btn.id = 'painelV2Toggle';
-      btn.className = 'wallace-fab';
-      btn.title = 'Ver as 18 caixas calculadas pela Arquitetura V2 (Supabase), calibradas com saldo real em 05/08/2026';
-      const btnIconWrap = document.createElement('span');
-      btnIconWrap.className = 'wallace-fab-icon';
-      btnIconWrap.textContent = '💰';
-      const btnBadge = document.createElement('span');
-      btnBadge.className = 'wallace-fab-badge';
-      btnIconWrap.appendChild(btnBadge);
-      const btnLabel = document.createElement('span');
-      btnLabel.className = 'wallace-fab-label';
-      btnLabel.textContent = 'V2';
-      btn.appendChild(btnIconWrap);
-      btn.appendChild(btnLabel);
-
-      const painel = document.createElement('div');
-      painel.id = 'painelV2Caixas';
-      painel.className = 'wallace-panel';
-      const CAIXAS_CAMPO_SALDO_CUMULATIVO = new Set(['Caixa Mastercard/Infinite', 'PIX Vanessa']);
-      const campoCicloOuSaldo = c => CAIXAS_CAMPO_SALDO_CUMULATIVO.has(c.nome) ? c.saldo : c.saldo_real_ciclo_atual;
-      const linhas = resumoV2.caixas
-        .slice()
-        // CORRIGIDO 06/08/2026 (parte 130, print real mostrou 10/13 "divergencias" que eram erro meu,
-        // nao erro de dado): a suposicao da parte 129 ("saldo cumulativo bate com V1 pra todas exceto
-        // Caixa Variavel") tambem estava errada. Confirmado numero a numero contra o V1 real: SO
-        // Mastercard/Infinite e PIX Vanessa usam "saldo" (cumulativo) - todas as outras 11 (incluindo
-        // Caixa Variavel) usam saldo_real_ciclo_atual (resetam por ciclo/aporte mensal). Set explicito,
-        // nao mais um "todas menos 1" genérico - erro real de menos chance de acontecer de novo.
-        .sort((a,b) => campoCicloOuSaldo(b) - campoCicloOuSaldo(a))
-        .map(c => { const v = campoCicloOuSaldo(c);
-          return `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid #1c2836"><span>${c.nome}</span><span class="v" style="font-weight:600;color:${v < 0 ? '#e2554f' : '#c8d4e3'}">R$${v.toFixed(2)}</span></div>`;
-        })
-        .join('');
-
-      // NOVO parte 110: patrimônio líquido, metas e reembolsos - já vêm na mesma resposta da RPC
-      // (resumoV2.patrimonio_resumo/metas/reembolsos_resumo), zero chamada de rede extra.
-      const pat = resumoV2.patrimonio_resumo || {};
-      const blocoPatrimonio = pat.liquido != null ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Patrimônio Líquido</div>
-        <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Ativo</span><span class="v">R$${Number(pat.total_ativo).toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Passivo</span><span class="v" style="color:#e2554f">R$${Number(pat.total_passivo).toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-weight:700"><span>Líquido</span><span class="v">R$${Number(pat.liquido).toFixed(2)}</span></div>` : '';
-
-      const metas = resumoV2.metas || [];
-      const blocoMetas = metas.length ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Metas</div>
-        ${metas.map(m => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${m.nome}</span><span class="v">${m.pct}%</span></div>`).join('')}` : '';
-
-      const reemb = resumoV2.reembolsos_resumo || [];
-      const blocoReembolsos = reemb.length ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Reembolsos</div>
-        ${reemb.map(r => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${r.origem} (${r.status})</span><span class="v">R$${(Number(r.a_receber)-Number(r.recebido)).toFixed(2)}</span></div>`).join('')}` : '';
-
-      const investimentos = resumoV2.investimentos || [];
-      const blocoInvestimentos = investimentos.length ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">Investimentos</div>
-        ${investimentos.map(i => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${i.tipo}${i.quantidade!=null ? ' ('+i.quantidade+')' : ''}</span><span class="v" style="color:${i.valor_atual < 0 ? '#e2554f' : '#c8d4e3'}">R$${Number(i.valor_atual).toFixed(2)}</span></div>`).join('')}` : '';
-
-      const indic = resumoV2.indicadores_recentes || [];
-      const pib = indic.filter(i => i.nome.startsWith('PIB Wallace'));
-      const pibTotal = pib.find(i => i.nome === 'PIB Wallace - total');
-      const blocoIndicadores = pibTotal ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#8ab4f8">PIB Wallace (${pibTotal.data})</div>
-        ${pib.filter(i => i.nome !== 'PIB Wallace - total').map(i => `<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>${i.nome.replace('PIB Wallace - ','')}</span><span class="v">R$${Number(i.valor).toFixed(2)}</span></div>`).join('')}
-        <div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-weight:700"><span>Total</span><span class="v">R$${Number(pibTotal.valor).toFixed(2)}</span></div>` : '';
-
-      const avisos = resumoV2.avisos || [];
-      const blocoAvisos = avisos.length ? `
-        <div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#e2a53d">⚠ Avisos estruturais</div>
-        ${avisos.map(a => `<div style="padding:0.15rem 0;color:#e2a53d;font-size:0.72rem">${a}</div>`).join('')}` : '';
-
-      painel.innerHTML = `<div style="font-weight:700;margin-bottom:0.5rem;color:#8ab4f8">Caixas — Arquitetura V2</div>${linhas}${blocoPatrimonio}${blocoInvestimentos}${blocoMetas}${blocoReembolsos}${blocoIndicadores}${blocoAvisos}<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#6b7a8f">Fonte: rpc_dashboard_resumo() · calibrado com dado real 05/08/2026</div>`;
-
-      if(avisos.length){
-        atualizarBadgeV2(avisos.length, 'avisos estruturais da Arquitetura V2');
-      }
-      btn.onclick = () => {
-        const abrir = painel.style.display !== 'block';
-        painel.style.display = abrir ? 'block' : 'none';
-        const formEl = document.getElementById('formLancarTx');
-        if(abrir && formEl) formEl.style.display = 'none';
-      };
-      document.getElementById('wallaceFabDock').appendChild(btn);
-      document.body.appendChild(painel);
-    }
+    // APOSENTADO 09/08/2026 (pedido do usuário, inventário completo em PASSAGEM_DE_TURNO.md): o
+    // botão flutuante "💰 V2" e o painel que ele abria (18 caixas cruas, patrimônio, investimentos,
+    // metas, reembolsos, PIB Wallace, avisos estruturais, divergências V1↔V2) foram removidos —
+    // tudo que tinha valor real já existe no painel principal (e melhor: o bloco Reembolsos daqui
+    // mostrava R$7.022,76, valor órfão de uma linha morta na tabela `reembolsos` nunca usada por
+    // nenhum cálculo, enquanto a seção 19 do painel principal já mostra o valor certo, R$0,00).
+    // Fonte era rpc_dashboard_resumo(), calibrada uma única vez em 05/08/2026 e nunca mais
+    // atualizada. Rollback: reverter este commit — o bloco removido criava o botão `painelV2Toggle`
+    // e o painel `painelV2Caixas`, com innerHTML construído a partir de resumoV2 (patrimonio_resumo/
+    // investimentos/metas/reembolsos_resumo/indicadores_recentes/avisos). `resumoV2` continua sendo
+    // buscado normalmente aqui em cima — outros consumidores (catV2Badge, formulário "＋ Lançar",
+    // comparações V1↔V2 abaixo) não dependiam deste bloco e continuam intactos.
 
     // NOVO 05/08/2026 (parte 111, Fase 4 da Arquitetura V2 - "trocar a via de entrada, tela de
     // lançamento manual"): primeira versão real, minimalista - form flutuante que grava direto na
@@ -1778,10 +1701,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         <button id="ltxSalvar" style="width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600">Salvar</button>
         <div id="ltxMsg" style="margin-top:0.4rem;font-size:0.72rem"></div>`;
       btnLancar.onclick = () => {
-        const abrir = form.style.display !== 'block';
-        form.style.display = abrir ? 'block' : 'none';
-        const painelEl = document.getElementById('painelV2Caixas');
-        if(abrir && painelEl) painelEl.style.display = 'none';
+        form.style.display = form.style.display !== 'block' ? 'block' : 'none';
       };
       document.getElementById('wallaceFabDock').appendChild(btnLancar);
       document.body.appendChild(form);
@@ -1982,23 +1902,8 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // mensal/ciclo, resetam como a Caixa Variavel) - so Mastercard/Infinite e PIX Vanessa sao
     // realmente cumulativas (usam "saldo"). Mapa agora diz qual campo usar POR CAIXA, nao mais uma
     // regra unica pra todas.
-    // NOVO 07/08/2026: badge fixo (numero num circulo, canto do botao) em vez de mudar o texto do
-    // botao (`💰 V2 (N)` / `💰 V2 ⚠ N`) - a mudanca de texto era a causa raiz do bug de alinhamento
-    // com o botao "+ Lancar" ja corrigido antes (largura do botao mudava toda vez que N mudava de
-    // digito). Acumula avisos estruturais + divergencias reais no mesmo contador, chamada de 2 pontos
-    // diferentes deste bloco (nunca reseta a zero entre as chamadas, so soma).
-    function atualizarBadgeV2(qtd, motivo){
-      const b = document.getElementById('painelV2Toggle');
-      if(!b || !qtd) return;
-      let badge = b.querySelector('.wallace-fab-badge');
-      if(!badge){ badge = document.createElement('span'); badge.className = 'wallace-fab-badge'; b.appendChild(badge); }
-      const total = (parseInt(b.dataset.avisos || '0', 10)) + qtd;
-      b.dataset.avisos = String(total);
-      badge.textContent = total > 99 ? '99+' : String(total);
-      badge.style.display = 'flex';
-      b.classList.add('wallace-fab--warn');
-      b.title = `${total} aviso(s) na Arquitetura V2 — ${motivo}`;
-    }
+    // APOSENTADO 09/08/2026: atualizarBadgeV2() atualizava o contador do botão "💰 V2" (removido
+    // acima) — sem chamador restante, removida junto.
     const divergenciasV1V2 = [];
     // NOVO 07/08/2026: caixas com diferenca V1/V2 ja investigada e explicada por motivo de negocio
     // (nao e bug de sincronizacao) - saem da lista de "divergencia ativa" e vao pra um bloco proprio,
@@ -2100,30 +2005,10 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       if(nomeV2 === 'PIX Geral Vanessa' && d <= 0.05){ promoverCampoV2SeConfiavel('balOpPixVanessa', sV2, 0.06); promoverCampoV2SeConfiavel('cxPgvSaldo', sV2, 0.06); }
       if(nomeV2 === 'Caixa Lance' && d <= 0.05) promoverCampoV2SeConfiavel('patLance', sV2, 0.06);
     });
-    // NOVO 06/08/2026 (parte 124, achado da parte 123 - PIX Vanessa dessincronizada e ninguem tinha
-    // visto porque so ia pro console): divergencias agora aparecem tambem NO PAINEL (visivel sem abrir
-    // devtools), nao so no console.warn. Anexado direto no painel ja existente (nao recria do zero,
-    // idempotente - so atualiza o proprio bloco a cada carga).
-    const painelExistente = document.getElementById('painelV2Caixas');
-    if(painelExistente){
-      let blocoDiv = document.getElementById('painelV2Divergencias');
-      if(!blocoDiv){
-        blocoDiv = document.createElement('div');
-        blocoDiv.id = 'painelV2Divergencias';
-        painelExistente.appendChild(blocoDiv);
-      }
-      const blocoDivergentes = divergenciasV1V2.length
-        ? `<div style="font-weight:700;margin:0.7rem 0 0.4rem;color:#e2a53d">⚠ V1↔V2 dessincronizado (${divergenciasV1V2.length})</div>${divergenciasV1V2.map(t=>`<div style="padding:0.15rem 0;color:#e2a53d;font-size:0.7rem">${t}</div>`).join('')}`
-        : `<div style="margin-top:0.7rem;padding-top:0.4rem;border-top:1px solid #2d3b52;font-size:0.7rem;color:#34c98a">✓ V1↔V2 sincronizado (sem divergência ativa)</div>`;
-      // REMOVIDO 08/08/2026 (pedido do usuario: "nao vejo utilidade de ter isso ai, pode remover"):
-      // bloco "Diferenca explicada, nao e bug" nao aparece mais no painel visivel - continua sendo
-      // calculado e logado no console (console.info acima) pra quem quiser conferir via devtools,
-      // so nao polui mais a tela.
-      blocoDiv.innerHTML = blocoDivergentes;
-      if(divergenciasV1V2.length){
-        atualizarBadgeV2(divergenciasV1V2.length, 'divergências V1↔V2 ativas');
-      }
-    }
+    // APOSENTADO 09/08/2026 (mesma remoção do botão "💰 V2", ver comentário acima): este bloco
+    // anexava as divergências V1↔V2 dentro do painel de debug (`painelV2Caixas`, agora removido).
+    // A telemetria não se perdeu — `console.warn`/`console.info` (linhas acima, dentro do forEach)
+    // continuam logando cada divergência normalmente, só pararam de duplicar na UI.
 
     // NOVO 06/08/2026 (parte 120, prova de conceito real "V2 vira fonte exibida na tela", pedido do
     // usuario "avance"): primeiro valor onde a V2 aparece FORA do painel flutuante/console - direto
