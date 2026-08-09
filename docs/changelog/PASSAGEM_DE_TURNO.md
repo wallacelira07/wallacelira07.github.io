@@ -2,6 +2,31 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🔴 PRIORIDADE 0 (09/08/2026) — divergência real e crescente na PIX Geral Vanessa, não corrigir às cegas
+
+**Achado com evidência real (Nível A, consultado direto no Supabase)**: o Claude Chat da conta `wallace.termica@gmail.com` **tem conector Supabase ativo e persistente** (não é acesso de uma conversa específica — é configuração de conta, válida em qualquer chat novo, uso intencional e mantido pelo usuário). Ele já vem lançando transações reais direto na V2 (`lancar_transacao_manual`) sem passar pelo Claude Code — confirmado nesta sessão: "Sabão Júlio" (R$40, categoria `Higiene`), "Fruta — Bruno da Silva Santos" (R$4, categoria `Alimentação`), "Abastecimento PGV" (R$300, entrada), todos na caixa PIX Geral Vanessa (`fb779cdc-ab92-492d-a172-8d147d1380ea`).
+
+**O problema**: PIX Geral Vanessa é uma das 5 caixas em "exceção residual" (Caixa Lance, Manutenção, Saúde Família, **PIX Geral Vanessa**, Aniversário Júlio) — o painel visível continua mostrando o saldo V1 (`wallace_dados.pixGeralVanessaSaldo`) por causa de uma divergência antiga já documentada (R$78,04 de duplicidade no `saldo_inicial_ciclo` da V2, nunca resolvida). Como o Chat só grava na V2, e a V2 não aparece na tela pra essas 5 caixas, **cada lançamento novo feito pelo Chat abre mais a diferença, e o usuário não vê o saldo real no painel**.
+
+**Números reais, agora**:
+| | Valor |
+|---|---|
+| Painel (V1, `wallace_dados.pixGeralVanessaSaldo`) | R$338,00 |
+| Real na V2 (`vw_saldo_v2_por_caixa`, 14 transações) | **R$428,70** |
+| Diferença | **R$90,70** (crescendo a cada novo lançamento do Chat) |
+
+**Por que não apliquei uma correção agora**: a diferença de R$90,70 não é só os ~R$44 lançados hoje — tem embutido o erro histórico de R$78,04 (duplicidade no saldo inicial), nunca investigado a fundo. Escrever um número "de ajuste" em `wallace_dados` sem separar o que é lançamento novo legítimo do que é erro histórico seria corrigir no escuro (proibido pela seção 7 do manual) — o risco de esconder ou duplicar um erro é real.
+
+**O que o próximo agente precisa fazer, com prioridade sobre qualquer outra coisa**:
+1. Investigar a causa raiz do R$78,04 duplicado no `saldo_inicial_ciclo` de PIX Geral Vanessa (documentado em sessão anterior, nunca fechado) — reconstruir algebricamente, comparar contra extrato real.
+2. Depois de reconciliado, decidir: promover PIX Geral Vanessa pra exibição V2 (removendo da lista de exceção em `app.js`, `CAIXAS_EXPLICADAS_V1_V2`/`MAPA_CAIXAS_V1_V2`), OU manter V1 como fonte de exibição mas passar a fazer **dual-write** (gravar também em `wallace_dados` a cada lançamento novo) até a reconciliação ser possível.
+3. **Considerar isso urgente**: o Chat vai continuar lançando direto na V2 entre sessões — a cada dia que passa sem essa correção, a diferença cresce e fica mais difícil de reconciliar (mais lançamentos novos misturados com o erro antigo).
+4. Verificar se as outras 4 caixas da lista de exceção (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) têm o mesmo problema — se o Chat também lançar nelas, o mesmo "grava mas não aparece" vai se repetir.
+
+**Correção de governança necessária, menor prioridade que o acima mas real**: `MANUAL_OPERACIONAL_AGENTES.md` (seção 0 e 11.4) e `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` afirmam "Claude Chat = Nível C/D por padrão, sem acesso a Supabase" — **isso não é mais verdade para esta conta**, o Chat tem Nível A real e usa isso ativamente. Os dois documentos precisam ser corrigidos pra refletir que o fluxo de 2 passos (Chat interpreta → usuário confirma → sistema registra) descrito na seção 1.2 já não reflete 100% a prática real — o Chat às vezes já registra direto. Não corrigido nesta sessão por falta de tempo/orçamento — registrado aqui para não se perder.
+
+---
+
 ## Bloco 36 — Mudança de fase: de "migração V1→V2" para "operação diária controlada" (09/08/2026, encerramento — ler antes de tudo abaixo)
 
 **Decisão do usuário, fechando esta sessão de vez**: não perseguir "100% migrado" como métrica artificial. A V2 está apta para operação diária controlada — o usuário vai começar a usar de verdade, e o critério de "V2 concluída" deixou de ser "consumidores removidos = 0" e passou a ser **estabilidade observada num período real de uso**: compras/pagamentos reais sem incidente, caixas/patrimônio consistentes, Pluggy sincronizando, Solar consistente, zero divergência operacional nova. Isso não é uma tarefa que um agente completa — é tempo + observação. Detalhe completo do critério em `ESTADO_ATUAL.md`.
