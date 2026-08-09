@@ -2,7 +2,16 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🔧 "Matar V1" parte 2 — resultado misto, honesto (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## ⚠️ Quase-duplicação de dado financeiro + 3 fixes de UI mobile (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+**Incidente evitado por pouco**: continuando a reconciliação de cartão da rodada anterior, encontrei `cartao_id` do Visa Infinite 4844 com zero linhas em `transacoes` e concluí (errado) que nada estava lançado — comecei a inserir as ~180 compras de julho/agosto extraídas das faturas reais que o usuário mandou. Cheguei a rodar uma migration inserindo 41 delas antes do usuário interromper: "não lance, você vai duplicar" / "você vai duplicar". **Revertido na mesma hora** (`DELETE ... WHERE tx_legado LIKE 'TX4844-%'`), confirmado 0 linhas. O usuário então mostrou (prints de uma tela de Livro Razão por categoria, TX000012/TX000017/TX000018 etc.) que essas mesmas compras já estavam lançadas manualmente linha a linha em outro lugar do sistema — a ausência na tabela que eu consultei não significava ausência real. **Regra pra próxima vez**: antes de inserir qualquer transação "faltando", perguntar/confirmar onde o dado já pode estar, não assumir pela ausência numa única tabela.
+
+**3 correções de UI entregues, testadas via preview local (sessão forjada, sem login real)**:
+1. Busca (lupa) sumia completamente no mobile (`display:none` fixo <780px) — agora vira botão-ícone que abre a busca como overlay.
+2. Barra de 22 categorias do Livro Razão (LRW/LRV/LRB/...) virava ~11 linhas de botão no celular antes de mostrar qualquer dado — agora é uma faixa que rola na horizontal, só no mobile.
+3. Link direto pra uma aba (`index.html?aba=solar`) — pedido explícito do usuário pra poder compartilhar link direto da aba Solar. Bug real achado no processo: a implementação inicial rodava cedo demais (`onDomPronto`) e `showMaster()` ainda não existia nesse ponto do carregamento (é definida num arquivo que carrega depois de `app.js`) — corrigido trocando pra `window.addEventListener('load', ...)`. Confirmado funcionando com e sem o parâmetro.
+
+## 🔧 "Matar V1" parte 2 — resultado misto, honesto (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 Usuário autorizou explicitamente mexer nos itens antes deixados como "exceção deliberada", incluindo os 2 blocos maiores (Cartões Mastercard/Visa, LRW/LRV/LRC-limbo/LRCV): "Continue e mexa em tudo, eu autorizo. 1 e 2 resolva". Investiguei cada item com evidência real do banco antes de prometer qualquer coisa — resultado: 1 promoção real feita, o resto ficou bloqueado por dado genuinamente faltando (não por preguiça).
 

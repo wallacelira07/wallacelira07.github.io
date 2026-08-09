@@ -309,8 +309,36 @@
             font-size: 12px;
             color: #8b8a84;
         }
+        #dashboardScreen header .header-search-toggle-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #eceae4;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
         @media (max-width: 780px) {
             #dashboardScreen header .header-search-wrap { display: none; }
+            #dashboardScreen header .header-search-toggle-btn { display: flex; }
+            #dashboardScreen header .header-search-wrap.mobile-open {
+                display: flex;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                margin: 0;
+                padding: 8px 14px;
+                background: #15171c;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+                z-index: 60;
+                flex: none;
+            }
         }
 
         #dashboardScreen header .user-chip {
@@ -455,6 +483,16 @@
                  duplicada: buscaGlobalDados()/buscaGlobalNavegar() (expostas em dashboard-navegacao.js,
                  dentro do iframe) reaproveitam 100% do indice/match/ordenacao ja existentes - aqui so
                  desenha o dropdown e repassa o clique de volta pro iframe navegar. -->
+            <!-- CORRIGIDO 09/08/2026 (achado do usuário: "no mobile falta a lupa de pesquisa") - a
+                 busca inteira sumia abaixo de 780px (regra antiga só escondia, sem alternativa).
+                 Botão só-ícone abaixo, visível só no mobile (ver CSS), abre o mesmo campo/dropdown
+                 de sempre como um overlay - zero lógica de busca nova, só toggle de visibilidade. -->
+            <button type="button" id="headerSearchToggleBtn" class="header-search-toggle-btn" onclick="toggleHeaderSearchMobile()" aria-label="Buscar" title="Buscar">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </button>
             <div class="header-search-wrap" id="headerSearchWrap">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-search-icon" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"></circle>
@@ -686,13 +724,27 @@
             if(wrap) wrap.style.display = 'none';
             if(input) input.value = '';
         }
+        // CORRIGIDO 09/08/2026 (achado do usuário: "no mobile falta a lupa de pesquisa") - toggle
+        // do botão só-ícone que aparece <780px; abre o mesmo #headerSearchWrap como overlay.
+        function toggleHeaderSearchMobile(){
+            const wrap = document.getElementById('headerSearchWrap');
+            if(!wrap) return;
+            const abrindo = !wrap.classList.contains('mobile-open');
+            wrap.classList.toggle('mobile-open', abrindo);
+            if(abrindo){
+                const input = document.getElementById('headerSearchInput');
+                if(input) setTimeout(() => input.focus(), 0);
+            }
+        }
         onDomPronto2(function(){
             const input = document.getElementById('headerSearchInput');
             if(input) input.addEventListener('input', (e) => headerSearchInput(e.target.value));
             document.addEventListener('click', (e) => {
-                if(!e.target.closest('#headerSearchWrap')){
+                if(!e.target.closest('#headerSearchWrap') && !e.target.closest('#headerSearchToggleBtn')){
                     const wrap = document.getElementById('headerSearchResultados');
                     if(wrap) wrap.style.display = 'none';
+                    const searchWrap = document.getElementById('headerSearchWrap');
+                    if(searchWrap) searchWrap.classList.remove('mobile-open');
                 }
             });
         });
@@ -827,12 +879,18 @@
             content.innerHTML = '<p style="padding: 20px; text-align: center;">⏳ Carregando painel...</p>';
 
             const cacheBust = Date.now();
+            // NOVO 09/08/2026 (pedido do usuario: "compartilhar link de uma aba especifica, ex.
+            // solar"): repassa ?aba=... da URL externa (index.html) pro iframe interno, que le esse
+            // mesmo parametro no proprio boot e chama showMaster() - ver Sistema_Wallace_Lira_Completo.html.
+            const abaAlvo = new URLSearchParams(location.search).get('aba');
+            let iframeSrc = 'Sistema_Wallace_Lira_Completo.html?v=' + cacheBust;
+            if(abaAlvo) iframeSrc += '&aba=' + encodeURIComponent(abaAlvo);
             fetch('Sistema_Wallace_Lira_Completo.html?v=' + cacheBust, { method: 'HEAD', cache: 'no-store' })
                 .then(r => {
                     if (!r.ok) throw new Error('Arquivo não encontrado (status ' + r.status + ')');
                     const iframe = document.createElement('iframe');
                     iframe.id = 'mainIframe';
-                    iframe.src = 'Sistema_Wallace_Lira_Completo.html?v=' + cacheBust;
+                    iframe.src = iframeSrc;
                     iframe.title = 'Sistema Wallace Lira - Painel';
                     content.innerHTML = '';
                     content.appendChild(iframe);

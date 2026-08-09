@@ -2,6 +2,17 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
+## 🚨 Quase-duplicação evitada + 3 melhorias de mobile/UX entregues (09/08/2026, mesma sessão)
+
+**Quase-incidente, revertido a tempo**: durante a investigação de reconciliação de cartão (Visa Infinite 4844), assumi que "zero linhas em `transacoes` pra esse `cartao_id`" significava "nada rastreado" — errado. O usuário interrompeu no meio da migration ("não lance, você vai duplicar") depois de eu já ter inserido 41 transações de julho. **Revertido imediatamente** (`DELETE FROM transacoes WHERE tx_legado LIKE 'TX4844-%'`, confirmado 0 linhas depois). Causa raiz do meu erro: essas mesmas compras já estavam lançadas manualmente linha a linha em outro mecanismo do sistema (confirmado pelo usuário com prints de uma tela de Livro Razão por categoria — TX000012, TX000017, TX000018... os mesmos estabelecimentos que eu ia inserir de novo). **Lição registrada**: nunca mais assumir "ausente numa tabela = nunca lançado" sem confirmar onde o dado real mora primeiro.
+
+**3 correções de UI entregues e testadas** (Browser local, sem precisar de login real pra verificar DOM/CSS):
+1. **Busca sumia no mobile** — `.header-search-wrap` tinha `display:none` fixo abaixo de 780px, sem alternativa nenhuma. Adicionado botão só-ícone (`#headerSearchToggleBtn`, `index.html`) que abre o mesmo campo como overlay. Testado: toggle abre/fecha corretamente.
+2. **Barra de 22 categorias do Livro Razão ilegível no mobile** (achado via prints do usuário) — grade `auto-fill` quebrava em ~11 linhas antes de mostrar qualquer dado. Vira uma faixa rolável horizontal só abaixo de 640px (`assets/css/styles.css`), desktop inalterado.
+3. **Link direto pra uma aba específica** (pedido do usuário: "mandar o link e abrir só a aba, geralmente é a solar") — `index.html?aba=solar` agora repassa o parâmetro pro iframe, que troca de `master-pane` automaticamente no boot. **Bug real encontrado e corrigido durante o teste**: a primeira versão usava `onDomPronto()`, que roda cedo demais — `showMaster()` (definida em `ui-navegacao-basica.js`, carregado DEPOIS de `app.js`) ainda não existia nesse momento, então nada acontecia silenciosamente. Corrigido trocando pra `window.addEventListener('load', ...)`, que só dispara depois de todos os scripts carregarem. Testado com `?aba=solar` (abre em Solar) e sem parâmetro (continua abrindo em home) — os dois casos confirmados via DOM real no navegador.
+
+**Não validado com login real** — testes de UI feitos via preview local com sessão falsa (`sessionStorage` forjado só pra passar o guard de "sessão não encontrada"), suficiente pra confirmar DOM/CSS/JS mas não a experiência completa logada. Usuário deve conferir os 3 itens no celular/navegador real na próxima vez que abrir o site.
+
 ## 🔧 "Matar V1" parte 2 — Caixa Manutenção promovida, causa raiz real encontrada; resto continua bloqueado por dado genuíno faltando, não por falta de tentativa (09/08/2026)
 
 Usuário autorizou mexer nos itens antes marcados como "exceção deliberada" e nos 2 blocos maiores (Cartões, LRW/LRV/LRC-limbo/LRCV): "Continue e mexa em tudo, eu autorizo. 1 e 2 resolva". Investiguei caso a caso com evidência real (não só documentação) antes de tocar em qualquer saldo.

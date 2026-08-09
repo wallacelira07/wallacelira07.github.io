@@ -1571,6 +1571,23 @@ function hydrate(){
   aplicarOnda5QualidadeGeracao();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
+// NOVO 09/08/2026 (pedido do usuario: "compartilhar link de uma aba especifica, ex. solar") -
+// le ?aba=... da propria URL deste arquivo (index.html repassa o parametro pro src do iframe,
+// ver loadDashboard() em index.html) e troca de master-pane logo apos o boot sincrono, antes do
+// usuario ver "home" pra depois trocar. Lista de ids valida = os 5 master-pane que existem hoje;
+// qualquer outro valor (link errado/antigo) e ignorado silenciosamente, home continua padrao.
+// CORRIGIDO 09/08/2026 (achado ao testar): showMaster() só existe depois de
+// ui-navegacao-basica.js carregar, que vem DEPOIS de app.js no HTML — onDomPronto (roda no
+// DOMContentLoaded/imediato) disparava cedo demais, com showMaster ainda undefined, e o clique
+// silencioso não fazia nada. window.addEventListener('load', ...) só dispara depois de TODOS os
+// scripts terem terminado de carregar, garantindo showMaster já existir.
+window.addEventListener('load', function(){
+  const abaAlvo = new URLSearchParams(location.search).get('aba');
+  const ABAS_VALIDAS = ['home','painel','graficos','solar','cenarios','balancov2'];
+  if(abaAlvo && ABAS_VALIDAS.includes(abaAlvo) && typeof showMaster === 'function'){
+    showMaster(abaAlvo);
+  }
+});
 // MODULARIZAÇÃO 07/08/2026: initBuscaGlobal/renderCapaNav/toggleBtnVoltarCapa/renderPageStrip e o
 // listener de scroll foram extraídos junto com suas funções pra src/modules/dashboard-navegacao.js —
 // ver comentário perto de onde CAPA_DESTINOS estava (topo do arquivo). Continuam rodando via

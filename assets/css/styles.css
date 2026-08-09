@@ -339,6 +339,21 @@
     box-shadow:var(--shadow-focus-accent);
     font-weight:700;
   }
+  /* CORRIGIDO 09/08/2026 (pedido do usuário: ".tabs" do Livro Razão, 22 botões, ilegível no
+     celular — a grade auto-fill quebrava em ~11 linhas antes de mostrar qualquer dado). No
+     mobile vira uma faixa rolável na horizontal (1 linha só), padrão de chips de categoria já
+     comum em apps financeiros — desktop continua com a grade normal, nada mudou lá. */
+  @media (max-width:640px){
+    .tabs{
+      display:flex;flex-wrap:nowrap;overflow-x:auto;gap:0.4rem;
+      -webkit-overflow-scrolling:touch;scrollbar-width:thin;
+      padding-bottom:0.3rem;margin-bottom:0.8rem;
+    }
+    .tab{
+      flex:0 0 auto;white-space:nowrap;font-size:0.7rem;
+      padding:0.55rem 0.8rem;
+    }
+  }
   .pane{display:none}
   .pane.active{display:block; animation:v300FadeInPane 0.25s ease}
 
