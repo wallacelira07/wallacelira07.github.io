@@ -83,7 +83,9 @@ Até 08/08/2026, o formulário "＋ Lançar" (botão flutuante do painel) gravav
 
 **Limitação conhecida, deliberada**: Necessidade Total/Modo Operacional/Saldo do Ciclo (topo do Resumo Executivo) continuam vindo de `VARS.CICLO_SNAPSHOTS`/`ciclos_financeiros_snapshots`, não somam `transacoes` ao vivo — recalcular isso é modelagem nova significativa, fora de escopo até nova decisão do usuário.
 
-**Exceção residual**: 5 caixas (Caixa Lance + Manutenção + Saúde Família + PIX Geral Vanessa + Aniversário Júlio) continuam exibindo o valor V1 por divergência formal não resolvida — lançar nelas grava normal, mas o número na tela não se move até essa exceção ser revisitada por decisão do usuário.
+**Exceção residual**: 4 caixas (Caixa Lance + Manutenção + Saúde Família + Aniversário Júlio) continuam exibindo o valor V1 por divergência formal não resolvida — lançar nelas grava normal, mas o número na tela não se move até essa exceção ser revisitada por decisão do usuário.
+
+**PIX Geral Vanessa promovida pra V2 em 09/08/2026** (saiu da lista acima) — investigação Nível A completa fechou a causa raiz: `TX000219`/`TX000221` estavam sob `caixa_id` errado por confusão de sigla numa migration (corrigido, `UPDATE` + `audit_log`), e a hipótese de um saldo "R$338,00" foi encerrada (era valor órfão em `wallace_dados`, nunca chegava à tela — confirmado em navegador real). O painel agora exibe o saldo V2 diretamente (`hydrate-onda2-v2.js`, `aceitarDivergenciaConhecida:true`), incluindo a linha do Balanço e a barra/percentual de meta (que mostra o valor real sem capar em 100%, pedido explícito do usuário — a caixa pode aparecer acima da meta de propósito). O residual de ~R$256 entre V1 e V2 é aceito como consequência esperada da transição (lançamentos que nascem só na V2), não mais tratado como divergência a investigar — mas a telemetria de comparação continua ativa no console (`window.WALLACE_ONDA2_V2_RELATORIO`). Ver `docs/changelog/PASSAGEM_DE_TURNO.md` pro detalhe completo da investigação.
 
 **Cartões**: o formulário "＋ Lançar" da UI só expõe campo de CAIXA, não de cartão — mas a RPC `lancar_transacao_manual` já aceita `p_cartao_id`, então uma compra no cartão pode ser lançada via Claude Code (SQL direto) apontando `cartao_id` real, mesmo sem a UI ter esse campo ainda.
 
@@ -169,7 +171,7 @@ A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v
 | `transacoes.afeta_saldo_real IS NULL` | V2 | Transação sem classificação de impacto em saldo — P1, nunca deixar acumular |
 | Duplicidade `(tx_legado, caixa_id)` | V2 | Bloqueada pela constraint desde a Fase 4B-2 — se aparecer erro `23505` numa sincronização, é isso |
 | `avisos` em `rpc_dashboard_resumo()`/`v2_rpc_avisos_negocio` | V2 | Lista de alertas de negócio já computados pelo próprio banco — sempre ler antes de dar sessão por "tudo ok" |
-| PIX Geral Vanessa (PGV) com saldo ≤ R$100,00 | Card PGV no painel (`VARS.pixGeralVanessaSaldo`) | Alerta preventivo obrigatório no resumo de abertura de sessão — ver regra completa na seção 6.1. |
+| PIX Geral Vanessa (PGV) com saldo ≤ R$100,00 | Card PGV no painel — desde 09/08/2026, valor V2 (`vw_saldo_v2_por_caixa`), não mais `VARS.pixGeralVanessaSaldo` (V1) | Alerta preventivo obrigatório no resumo de abertura de sessão — ver regra completa na seção 6.1. |
 | Caixa Variável citada em qualquer alerta/resumo | Card Caixa Variável no painel | Nunca citar sem dizer qual dos 2 conceitos (TEM NA CAIXA × DISPONÍVEL REAL) — ver regra completa na seção 6.1. |
 
 ---
@@ -207,10 +209,12 @@ Além do gatilho formal da Política Interna §7:
 - **Gatilho oficial** = R$50,00.
 - **Reposição padrão** = R$300,00, vindos da PIX Vanessa.
 
+**Atualização 09/08/2026**: a PGV foi promovida pra exibição V2 (ver seção 1.2) — o valor que aparece no painel, e que deve ser usado pra checar o gatilho, agora é o saldo V2 (`vw_saldo_v2_por_caixa`, caixa "PIX Geral Vanessa"), não mais `VARS.pixGeralVanessaSaldo` (V1). Os dois valores divergem (~R$256 de diferença, residual aceito da transição) — usar sempre o que está na tela.
+
 **Alerta preventivo obrigatório**: sempre que a PGV estiver ≤ R$100,00, incluir aviso no resumo inicial da sessão. Formato:
 
 ```
-⚠ PIX Geral Vanessa em R$50,69.
+⚠ PIX Geral Vanessa em R$X,XX.
 Gatilho formal: R$50,00.
 Reposição padrão: R$300,00.
 Preparar reposição da PIX Vanessa caso ocorra nova saída.
