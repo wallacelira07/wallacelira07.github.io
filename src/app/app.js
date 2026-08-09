@@ -115,6 +115,28 @@ const WallaceFinanceService = {
     this._cache.set(chave, valores);
     return valores;
   },
+  // NOVO 09/08/2026 (achado do usuário: "Comprometido" da Caixa Variável estava inflado, misturando
+  // compras que JÁ têm caixa própria - ex: TX000228, carne pro Churrasco, entrou tanto no saldo da
+  // Caixa Churrasco quanto no comprometido da Variável, um double-count real). Regra correta
+  // (confirmada pelo usuário): "Comprometido" = só gasto genérico do dia a dia/supérfluo, cuja marca
+  // registrada é caixa_id='Caixa Variável' + afeta_saldo_real=false (padrão já usado em toda compra
+  // de cartão sem caixa própria, ex: H57Store/Uber/Anthropic) - qualquer compra com caixa própria
+  // (Bens Duráveis, Churrasco, Provisionado Wärtsilä etc) fica fora, ela já é tracked na sua caixa.
+  // Ver hydrate-comprometido-caixa-variavel-v2.js. Id fixo da Caixa Variável (singleton, estável -
+  // mesmo padrão de outros ids fixos já hardcoded no projeto, ex: CARTAO_PLUGGY_MAPA).
+  CAIXA_VARIAVEL_ID_V2: '8522e256-2039-4c11-bd28-69738bfcf5b8',
+  async getComprometidoCaixaVariavelV2(){
+    const chave = 'comprometido_caixa_variavel_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
+    const dado = await resp.json();
+    const total = Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
+    this._cache.set(chave, total);
+    return total;
+  },
   // NOVO 08/08/2026 (Onda 3, Livro Razão): transações confirmadas de uma lista de caixas, numa
   // única chamada (in.(id1,id2,...)) em vez de N requests separados.
   async getTransacoesPorCaixaIds(caixaIds){
@@ -1528,6 +1550,12 @@ onDomPronto(aplicarOnda4Lrei);
 // onda ja ter rodado (mesma prevencao de bug de ordem que ja mordeu 2x nesta sessao). Ver
 // hydrate-deficit-caixas-sem-lrei.js.
 onDomPronto(aplicarDeficitCaixasSemLrei);
+// NOVO 09/08/2026 (achado do usuário, correção real): "Comprometido" da Caixa Variável estava
+// contando compras de caixas próprias (Bens Duráveis, Churrasco etc) - double-count com a política
+// de deficit acima. Busca o valor correto ao vivo da V2. Independente da onda acima (não lê nem
+// escreve os mesmos campos de REG.operacional) - pode rodar em qualquer ordem relativa a ela. Ver
+// hydrate-comprometido-caixa-variavel-v2.js.
+onDomPronto(aplicarComprometidoCaixaVariavelV2);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
 // VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas
