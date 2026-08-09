@@ -75,6 +75,26 @@ Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte qu
 
 ---
 
+## 1.2 Fase 5 — fechamento do ciclo de gravação (registrado 08-09/08/2026, importante para qualquer agente novo)
+
+Até 08/08/2026, o formulário "＋ Lançar" (botão flutuante do painel) gravava a transação na V2 (tabela `transacoes`, via RPC `lancar_transacao_manual`) mas o painel visível **não refletia isso sozinho** — o dado ficava "gravado mas invisível" até alguém atualizar `wallace_dados` manualmente. Isso já causou perda real de visibilidade de uma transação (PIX de R$652, aprovado na Inbox e nunca lançado de fato).
+
+**Corrigido (commit `7139966`)**: o próprio clique em "Salvar" agora invalida o cache do `WallaceFinanceService` e re-executa os módulos V2 (Caixas, Patrimônio, Wärtsilä/Reembolsos, LREI, Livro Razão, P2P, Parcelamentos) automaticamente — saldo, Balanço e Resumo Executivo se atualizam na mesma ação. **Validado com evidência real de banco** (teste reversível) e **em uso real** desde 08/08/2026 (compras de cartão registradas via `lancar_transacao_manual` com `p_cartao_id` preenchido — ex: medidor solar R$79,79 e cabo/quadro R$149,20, ambos Caixa Bens Duráveis, cartão 4628).
+
+**Limitação conhecida, deliberada**: Necessidade Total/Modo Operacional/Saldo do Ciclo (topo do Resumo Executivo) continuam vindo de `VARS.CICLO_SNAPSHOTS`/`ciclos_financeiros_snapshots`, não somam `transacoes` ao vivo — recalcular isso é modelagem nova significativa, fora de escopo até nova decisão do usuário.
+
+**Exceção residual**: 5 caixas (Caixa Lance + Manutenção + Saúde Família + PIX Geral Vanessa + Aniversário Júlio) continuam exibindo o valor V1 por divergência formal não resolvida — lançar nelas grava normal, mas o número na tela não se move até essa exceção ser revisitada por decisão do usuário.
+
+**Cartões**: o formulário "＋ Lançar" da UI só expõe campo de CAIXA, não de cartão — mas a RPC `lancar_transacao_manual` já aceita `p_cartao_id`, então uma compra no cartão pode ser lançada via Claude Code (SQL direto) apontando `cartao_id` real, mesmo sem a UI ter esse campo ainda.
+
+**Fluxo operacional recomendado para registrar uma compra (decisão explícita do usuário, 09/08/2026)**: o Claude Chat (mobile/web) **não tem e não deve fingir ter** acesso de gravação ao Supabase — nunca simular um lançamento, nunca inventar um ID de transação, nunca descrever qualquer variação do fluxo Excel antigo (TX000xxx, SWP_INPUT, ERP V10/V11, `recalc.py` — esse fluxo está desativado desde 08/08/2026). Fluxo de 2 passos, deliberadamente sem escrita direta via Claude Chat por enquanto (decisão explícita: primeiro validar uso real e estabilidade, só depois avaliar conector de escrita):
+1. **Claude Chat interpreta**: lê a nota/print/texto da compra e devolve os dados prontos (data, valor, estabelecimento, caixa sugerida, cartão, classificação) usando as regras deste documento (nunca inventar campo sem evidência, seção 4).
+2. **Usuário confirma e o sistema registra**: usuário abre o site (funciona no navegador do celular normalmente) e usa "＋ Lançar" com os dados prontos — grava e reflete no painel na hora. Alternativa: usuário cola os dados prontos numa sessão do Claude Code, que lança via SQL/RPC direto (mesmo efeito, sem esperar suporte a cartão na UI).
+
+Se o Claude Chat perguntar se deve "criar" uma caixa que parece não existir (ex: "Caixa Bens Duráveis"), é sinal de que está usando conhecimento desatualizado (conversa antiga fora do Project, ou memória de sessão anterior) — a lista real de caixas está na tabela `caixas` do Supabase, não em nenhum "SWP_INPUT"/ERP. Orientar o usuário a abrir uma conversa nova dentro do Project.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.
