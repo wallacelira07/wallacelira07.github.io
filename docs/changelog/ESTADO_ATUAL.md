@@ -2,7 +2,18 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 09/08/2026 (mesmo dia, continuação — Prioridade 0 fechada + PIX Geral Vanessa promovida pra V2). HEAD `285d262`, `git status` limpo (fora dos `desktop.ini` inofensivos espalhados pelo disco pelo Google Drive Desktop, nunca commitados).
+Última reescrita: 09/08/2026 (mesmo dia, continuação — Prioridade 0 fechada + PIX Geral Vanessa promovida pra V2 + migration Pluggy upsert/histórico aplicada). HEAD `285d262` (esta sessão só mexeu no Supabase, nenhum commit novo no repositório ainda), `git status` limpo (fora dos `desktop.ini` inofensivos espalhados pelo disco pelo Google Drive Desktop, nunca commitados).
+
+## Migration aplicada nesta sessão: Pluggy DELETE+INSERT → UPSERT com histórico real (09/08/2026)
+
+Pendência registrada no bloco de encerramento anterior da Passagem de Turno, aplicada agora com confirmação explícita do usuário. **Via `apply_migration` no Supabase de produção (`bakdgacmwlopvrrppwdm`), sem migration correspondente no repositório** (mesmo padrão já usado pra RPC do Pluggy no Bloco 35).
+
+1. `pluggy_transacoes` ganhou 5 colunas novas: `primeiro_visto_em`, `status_anterior`, `status_mudou_em`, `qtd_sincronizacoes`, `ultima_sincronizacao_em`. Backfill aplicado nas 362 linhas existentes (`primeiro_visto_em=criado_em`, `qtd_sincronizacoes=1`, `status_anterior/status_mudou_em=NULL` — sem histórico real anterior a hoje, documentado como limite honesto).
+2. RPC `atualizar_pluggy_contas` reescrita: `DELETE...WHERE true` + `INSERT` nas 3 tabelas (`pluggy_conexoes`/`pluggy_contas`/`pluggy_transacoes`) trocado por `INSERT...ON CONFLICT DO UPDATE` nas 3, usando as PKs já existentes (`item_id`/`id`/`id`). Mesma assinatura, mesmo nome, mesma lógica de geração de `id`/hash — GitHub Action não precisa de nenhum ajuste. `status_anterior`/`status_mudou_em` só mudam quando o `status` real muda (`IS DISTINCT FROM`); `qtd_sincronizacoes` incrementa a cada rodada em que a transação reaparece.
+3. **Validado com teste controlado e reversível** (mesmo padrão do Bloco 34): chamei a RPC via `execute_sql` reusando dados reais de uma transação existente (`0f48aa77-...`, MP*MELIMAIS) — 1ª chamada confirmou upsert sem duplicar (`qtd_sincronizacoes` 1→2, sem mudança de status); 2ª chamada com `status` alterado pra `POSTED` confirmou captura correta (`status_anterior='PENDING'`, `status_mudou_em` preenchido, `qtd_sincronizacoes`→3). Linha revertida ao estado original depois do teste (`status='PENDING'`, `qtd_sincronizacoes=1`, campos de histórico zerados de volta) — zero resíduo do teste na tabela real.
+4. `get_advisors` (security) rodado depois da migration: nenhum advisory novo — só os já conhecidos (RLS de `v1_v2_caixa_mapa`, security-definer views pré-existentes).
+5. **Efeito colateral bom**: elimina de vez o `DELETE...WHERE true` (workaround do bug de segurança do Postgres documentado no Bloco 35) — não há mais `DELETE` nenhum na função.
+6. **Pendência real pra confirmar 100%**: a próxima sincronização real da Action (roda de hora em hora) precisa rodar pra começar a acumular histórico de verdade em produção — o teste acima prova que a lógica funciona, mas via chamada manual, não via o caminho real do Python/Action. Só depois de alguns dias de sincronizações acumuladas o histórico vira sinal útil pra reavaliar os 10 dias de `PENDING` da conta 2250 (objetivo original do usuário).
 
 ## A mudança de fase, em uma frase
 
