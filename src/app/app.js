@@ -1844,9 +1844,10 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         if(!catId){ sugEl.textContent = ''; return; }
         sugEl.textContent = 'Resolvendo caixa...';
         try {
+          const tokenResolver = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
           const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/resolver_caixa', {
             method:'POST',
-            headers: { 'Content-Type':'application/json', apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+            headers: { 'Content-Type':'application/json', apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer '+tokenResolver },
             body: JSON.stringify({ p_categoria_id:catId, p_usuario_id:usrId||null, p_origem:'manual' })
           });
           const caixaId = r.ok ? await r.json() : null;
@@ -1873,11 +1874,16 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         const nome = nomeEl.value.trim();
         const msg = document.getElementById('ltxMsg');
         if(!nome){ msg.textContent = 'Digite um nome pra categoria nova.'; msg.style.color = '#e2554f'; return; }
+        // CORRIGIDO 09/08/2026 (achado numa varredura pós-fix de segurança: este ponto ainda mandava
+        // a chave anônima crua pra criar_categoria, que já exige login - quebraria "Criar" mesmo
+        // com sessão válida, porque o servidor não recebia o token real).
+        const tokenNovaCategoria = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null);
+        if(!tokenNovaCategoria){ msg.textContent = 'Sessão expirada — recarregue a página e faça login de novo.'; msg.style.color = '#e2554f'; return; }
         msg.textContent = 'Criando categoria...'; msg.style.color = '#c8d4e3';
         try {
           const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/criar_categoria', {
             method: 'POST',
-            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer '+tokenNovaCategoria },
             body: JSON.stringify({ p_nome: nome, p_tipo: 'extraordinaria' })
           });
           if(!r.ok){ const err = await r.text(); msg.textContent = 'Erro ao criar categoria: '+err; msg.style.color = '#e2554f'; return; }

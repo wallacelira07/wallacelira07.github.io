@@ -1623,7 +1623,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260809-10';
+var __V = '20260809-11';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1735,6 +1735,22 @@ window.__promiseModulosBase.then(function(){ performance.mark('wallace-modulos-b
 // abertura, sem precisar de novo deploy. window.WALLACE_DADOS_REMOTOS fica disponivel para o app.js
 // aplicar por cima do VARS estatico. Se a busca falhar (offline, banco fora do ar), o site continua
 // funcionando normalmente com os dados publicados no ultimo deploy - nunca quebra.
+// NOVO 09/08/2026 (preparação pra fechar a leitura pública do banco - achado da auditoria de
+// segurança, mesma lógica de obterTokenAuthSupabase() em app.js, mas app.js ainda não existe
+// neste ponto do boot - versão inline autocontida). Sessão Firebase já foi validada pelo guard
+// de acesso no topo deste arquivo antes de qualquer coisa aqui rodar - sessionStorage['auth']
+// já está disponível. Cai pra chave anônima se não tiver sessão (comportamento de hoje).
+function __wallaceAuthHeader(){
+  var token = null;
+  try {
+    var auth = JSON.parse(sessionStorage.getItem('auth') || 'null');
+    token = (auth && auth.idToken) ? auth.idToken : null;
+  } catch(e){}
+  return {
+    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+    'Authorization': 'Bearer ' + (token || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg')
+  };
+}
 window.WALLACE_DADOS_REMOTOS = null;
 // OTIMIZAÇÃO DE PERFORMANCE 07/08/2026: as 3 buscas abaixo (Supabase wallace_dados, FinanceEngine.js,
 // Comparator.js) eram 3 `await` em sequência (uma esperando a outra terminar pra só então começar) -
@@ -1743,10 +1759,7 @@ window.WALLACE_DADOS_REMOTOS = null;
 // isso termina - mesma garantia de antes (nada falta quando app.js roda), só a espera deixou de ser
 // serializada. Nenhuma lógica de negócio, autenticação ou chamada ao Supabase foi alterada.
 var __promiseDadosRemotos = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/wallace_dados?select=dados&id=eq.1', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1765,10 +1778,7 @@ var __promiseDadosRemotos = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest
 // fica null e o app.js usa o texto local do VARS.LEGENDAS de sempre, o site nunca quebra por causa disso).
 window.WALLACE_LEGENDAS_REMOTAS = null;
 var __promiseLegendasRemotas = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/legendas?select=id,texto', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1791,10 +1801,7 @@ var __promiseLegendasRemotas = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // dependentes mostram "Dados insuficientes"/"Indisponível (V2)" em vez de número desatualizado do V1.
 window.WALLACE_SOLAR_LEITURAS_V2 = null;
 var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_leituras?select=leitura_03,leitura_103,geracao_acumulada,data&casa=eq.mae&order=data.asc', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1813,10 +1820,7 @@ var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // fica null e app.js NÃO cai pro SOLAR_GERACAO_DIARIA do wallace_dados (proibido fallback silencioso).
 window.WALLACE_SOLAR_GERACAO_DIARIA_V2 = null;
 var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_geracao_diaria?select=data,geracao_kwh,created_at,atualizado_em&order=data.asc', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1834,10 +1838,7 @@ var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase
 // fica null, pluggy-reconciliacao.js usa o literal CARTAO_PLUGGY_MAPA_DEFAULT como fallback, nunca quebra).
 window.WALLACE_CARTOES_V2 = null;
 var __promiseCartoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/cartoes?select=numero_final,apelido,status,usuario_id,dono_real_id', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1856,10 +1857,7 @@ var __promiseCartoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1
 // wallace_dados como fallback, nunca quebra a tabela de opções).
 window.WALLACE_COTACOES_ACOES_V2 = null;
 var __promiseCotacoesAcoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/cotacoes_acoes?select=ticker,preco,variacao,atualizado_em', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1879,10 +1877,7 @@ var __promiseCotacoesAcoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // (menos completo, mas nunca quebra reconciliacao/busca).
 window.WALLACE_HISTORICO_ERP_V2 = null;
 var __promiseHistoricoErpV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/vw_historico_erp_completo?select=tx,data,nome,valor', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1901,10 +1896,7 @@ var __promiseHistoricoErpV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/re
 // se falhar, os literais V1 continuam valendo (nunca quebra calculo nenhum).
 window.WALLACE_CREDITOS_EXTERNOS_V2 = null;
 var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga,proLaboreFixo)', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();
@@ -1930,10 +1922,7 @@ var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.c
 // aninhado que o app.js sempre usou fica em vars-ciclo-snapshots.js (criarVarsCicloSnapshots()).
 window.WALLACE_CICLO_SNAPSHOTS_V2 = null;
 var __promiseCicloSnapshotsV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/ciclos_financeiros_snapshots?select=*', {
-  headers: {
-    'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-    'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
-  },
+  headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
   if(resp.ok) return resp.json();

@@ -185,7 +185,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
 
     const nomesQuery = CAIXAS_PROMOCAO.map(c => encodeURIComponent(c.nomeV2)).join(',');
     const respCaixas = await fetch(`${_url}/rest/v1/caixas?select=id,nome,saldo_inicial_ciclo&nome=in.(${nomesQuery})`, {
-      headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+      headers: { apikey: _key, Authorization: `Bearer ${(typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || _key}` }
     });
     if (!respCaixas.ok) throw new Error(`erro ${respCaixas.status} ao buscar caixas`);
     const caixasV2 = await respCaixas.json();
@@ -196,7 +196,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); continue; }
 
       const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
-        headers: { apikey: _key, Authorization: `Bearer ${_key}` }
+        headers: { apikey: _key, Authorization: `Bearer ${(typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || _key}` }
       });
       if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); continue; }
       const transacoes = await respTx.json();
