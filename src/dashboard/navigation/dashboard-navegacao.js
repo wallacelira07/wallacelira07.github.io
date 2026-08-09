@@ -179,7 +179,12 @@ function construirIndiceBuscaGlobal(){
       // usado em ~112 rotulos de card no HTML inteiro, entao cobre a classe inteira do problema.
       conteudo.querySelectorAll('.card [style*="color:var(--text-mid)"]').forEach(labelEl => {
         const rotulo = labelEl.textContent.trim();
-        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: secEl});
+        // CORRIGIDO 09/08/2026 (pedido do usuario: "quero que a caixa especifica pisque") - o alvo
+        // aqui era secEl (a secao inteira), entao so rolava ate o topo da secao sem destacar o card
+        // certo. O .card mais proximo do rotulo (ou o proprio labelEl, se por algum motivo nao tiver
+        // um .card ancestral) passa a ser o alvo do scroll+piscar, igual ja acontece pra transacao.
+        const cardAlvo = labelEl.closest('.card') || labelEl;
+        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: cardAlvo});
       });
     }
   });
