@@ -13,6 +13,14 @@
 //            diferenças grandes (R$107 a R$346) sem causa raiz confirmada, diferente do
 //            AJUSTE-06-08 que já tem explicação.
 //
+// PIX Geral Vanessa PROMOVIDA pra V2 em 09/08/2026 (investigação Nível A completa, ver
+// docs/changelog/PASSAGEM_DE_TURNO.md): causa raiz dos R$121,97 corrigida (TX000219/221
+// tinham caixa_id errado, corrigido); hipótese do R$338,00 encerrada (era valor órfão em
+// wallace_dados, nunca chegava à tela — confirmado em navegador real, o site já mostrava
+// R$50,69, o valor V1 recalculado de verdade); resíduo de R$256,00 explicado e aceito como
+// consequência esperada da transição (lançamentos que só nascem na V2 hoje). Usuário decidiu
+// que a PGV não é mais exceção técnica — sai da lista `false`, entra na `true`.
+//
 // Provisionado Wärtsilä fica de fora do overlay independente da causa — card com 4 estados
 // de texto (não um número simples), e a V2 ainda não tem equivalente pro campo "fatura"
 // (PLANO_UNIFICACAO_V1_V2.md seção 22, gap D — falta de ESTRUTURA, não só divergência). Só
@@ -64,7 +72,18 @@ const ONDA2_V2_MAPA = [
       const r21El = $('r21EscolaJulio'); if(r21El) r21El.textContent = pctTxt;
     },
   },
-  { idHtml: 'cxPgvSaldo', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo, aceitarDivergenciaConhecida: false },
+  {
+    idHtml: 'cxPgvSaldo', extraId: 'balOpPixVanessa', caixaNome: 'PIX Geral Vanessa', getValorV1: () => VARS.pixGeralVanessaSaldo, aceitarDivergenciaConhecida: true,
+    // Achado ao promover (09/08/2026): cxPgvBar/cxPgvPct eram calculados só em hydrate-caixas.js
+    // (V1, meta fixa REG.caixasOperacionais.pixGeralVanessa.meta) e nunca reaproveitados aqui -
+    // ficariam mostrando a % antiga (baseada em V1) junto do saldo novo (V2), inconsistente.
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.pixGeralVanessa.meta;
+      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctEl = $('cxPgvPct'); if(pctEl) pctEl.textContent = pctTxt;
+      const barEl = $('cxPgvBar'); if(barEl) barEl.style.width = Math.min(100, pctOf(valorV2, meta))+'%';
+    },
+  },
   { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: false },

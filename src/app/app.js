@@ -2024,7 +2024,13 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       'Caixa Combustível': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
       'Caixa Churrasco': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
       'Escola de Júlio': 'V2 desatualizado - rendimento real do cofrinho (confirmado ao vivo no app MP) nunca chega no V2',
-      'PIX Geral Vanessa': 'saldo_inicial_ciclo duplicado no Supabase (R$78,04, dupla-contagem ja documentada) + V2 desatualizado'
+      // ATUALIZADO 09/08/2026: causa raiz antiga (R$78,04) foi corrigida na Fase 4A (08/08); a
+      // divergencia atual (~R$256) e o residuo de lancamentos que nascem so na V2 (Chat),
+      // aceito pelo usuario como consequencia esperada da transicao. A exibicao real da PGV ja
+      // foi promovida pra V2 na Onda 2 (hydrate-onda2-v2.js, aceitarDivergenciaConhecida:true) -
+      // este mapa legado continua so como log de diagnostico, nunca sobrescreve o que a Onda 2
+      // ja decidiu.
+      'PIX Geral Vanessa': 'V2 desatualizado - lancamentos que nascem so na V2 (Chat) ainda nao replicados pro V1, residuo aceito (ver PASSAGEM_DE_TURNO.md)'
     };
     const MAPA_CAIXAS_V1_V2 = {
       'Caixa Boletos':{campo:'caixaBoletos', tipo:'ciclo', domId:'balResBoletos'}, 'Caixa Lance':{campo:'caixaLance', tipo:'ciclo', domId:'balResLance'},

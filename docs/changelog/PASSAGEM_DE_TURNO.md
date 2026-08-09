@@ -2,7 +2,40 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🔴 PRIORIDADE 0 (09/08/2026) — divergência real e crescente na PIX Geral Vanessa, não corrigir às cegas
+## 📁 Reorganização da governança do Claude Chat — novo endereço fixo no Drive (09/08/2026)
+
+**Problema que motivou**: os documentos de governança do Claude Chat (`MANUAL_OPERACIONAL_AGENTES.md`/`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`) viviam como upload estático de Project Knowledge — toda atualização exigia reanexar o arquivo manualmente, e cada reanexo criava uma cópia nova no Drive (sem ferramenta de "editar existente" disponível nas sessões anteriores), acumulando versões desatualizadas.
+
+**Solução implementada**: usuário confirmou que o conector do Google Drive está ativo pra `wallace.termica@gmail.com`. Os documentos foram movidos pra um endereço fixo — `Livro Razão/Agentes/` — com um arquivo-ponteiro estável, `ONDE_LER.md`, que nunca muda de nome. A partir de agora, o Claude Chat deve buscar e ler os documentos ao vivo via conector, em vez de depender de Project Knowledge estático. Regra de manutenção registrada no próprio ponteiro: **sempre sobrescrever o arquivo existente, nunca criar cópia nova ao lado**.
+
+**Arquivos no novo endereço** (`Livro Razão/Agentes/`):
+- `ONDE_LER.md` — ponteiro, leia primeiro.
+- `MANUAL_OPERACIONAL_AGENTES.md` — cópia atualizada do manual mestre, com nota nova (seção 1.3) sobre a correção da PIX Geral Vanessa e o risco estrutural nas outras 4 caixas de exceção, e seção 11.7 nova descrevendo o modelo de leitura via conector.
+- `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` — cópia atualizada, com seção 0 nova explicando o fluxo de leitura ao vivo e nota na seção 1.1 sobre o risco das 5 caixas de exceção.
+
+**Cópias antigas removidas** da pasta anterior (`Livro Razão/Sistema Wallace Lira - Claude Chat/`) — só uma fonte agora, evitando o mesmo problema que gerou a confusão registrada no Bloco 35 (conversa lendo cópia desatualizada enquanto a mais recente coexistia na mesma pasta).
+
+**Achado lateral, resolvido no caminho**: o acesso a essa pasta do Drive estava travando de forma consistente (leitura, escrita, `stat`, listagem — todos falhando) por causa de **duas versões do Google Drive Desktop rodando ao mesmo tempo neste computador** (128.0.0.0 e 129.0.1.0). Encerrados os dois processos e reaberto só com a versão mais recente — resolveu o travamento. Lição registrada: se um caminho do Drive parecer "existir mas não responder" de forma consistente em múltiplas ferramentas, checar processos duplicados do Google Drive Desktop antes de qualquer outra hipótese.
+
+**Pendência do usuário, fora do alcance de qualquer agente**: no Project do Claude Chat, apagar o Project Knowledge antigo (upload estático, se ainda anexado) e colar nas Custom Instructions do Project uma linha apontando pro `ONDE_LER.md` novo, pra ativar de fato a leitura via conector.
+
+---
+
+## ✅ PRIORIDADE 0 — ENCERRADA (09/08/2026, mesma sessão): causa raiz dos R$121,97 corrigida, residual de R$256,00 explicado e aceito
+
+**Resultado final, investigação Nível A completa** (extrato bancário real da Vanessa no Mercado Pago + export JSON do app com campo `origem:"cofrinhos"` + confirmação histórica do usuário em chat, cruzados linha a linha):
+
+1. **R$78,04 (âncora de ciclo)**: confirmado como correto desde a Fase 4A (08/08) — não é duplicidade, é o saldo real do cofrinho em 24/07, batendo ao centavo com o extrato bancário real (`Pix enviado Dupomar Hortifruti -182,96` + `Pix enviado Cultivar -39,00` + aporte `+300,00` = `78,04`, evento único "Dinheiro reservado Caixa PIX Geral -78,04" na mesma data). Achado lateral: o favorecido real do PIX de R$39 é "Cultivar", não "Romário Nogueira Cunha" como está descrito no código (`TX000155`) — nome errado, valor/data certos, sem impacto financeiro.
+2. **R$121,97 (TX000219 R$46,97 + TX000221 R$75,00) — causa raiz encontrada e corrigida**: as duas transações eram reais (confirmadas pelo usuário em chat E pelo JSON do app com `origem:"cofrinhos"`), mas a migration de reconciliação de 08/08/2026 (`PLANO_UNIFICACAO_V1_V2.md` seção 16, SQL da linha 534) mapeou o livro `LRPV_TRANSACOES` pro `caixa_id` da caixa **"PIX Vanessa"** (`6c6546fa-...`) em vez de **"PIX Geral Vanessa"** (`fb779cdc-...`) — erro de mapeamento alimentado pela sigla ambígua "LRPV", confusão já documentada no próprio código (`vars-caixas.js:242`). **Corrigido**: `UPDATE transacoes SET caixa_id='fb779cdc-ab92-492d-a172-8d147d1380ea' WHERE tx_legado IN ('TX000219','TX000221')`, registrado em `audit_log` (`origem=ajuste_manual`, `2026-08-09 05:05:43 UTC`), sem efeito colateral em "PIX Vanessa" (as duas transações nunca tinham sido contadas lá, por não existirem no array V1 daquela caixa). PIX Geral Vanessa V2: R$428,70 → **R$306,73**. Rollback disponível (ver histórico de sessão se precisar).
+3. **R$256,00 residual (V1 R$50,73 vs V2 R$306,73) — decisão explícita do usuário: não é mais tratado como problema de dados.** É a soma exata dos 3 lançamentos que o Chat gravou direto na V2 em 08/08 (Sabão Júlio -40, Fruta -4, Abastecimento +300 = líquido +256,00), nunca replicados de volta pro array V1 (`wallace_dados.LRPV_TRANSACOES`). **Decisão do usuário**: essa diferença é consequência natural e esperada da transição (V2 recebe lançamentos novos, V1 não) — não uma divergência a investigar. **Sem sincronização automática V2→V1 solicitada neste momento.**
+
+**Estado da PIX Geral Vanessa hoje**: continua na lista de exceção residual (painel mostra V1). Duas rotas de fechamento definitivo seguem em aberto, ainda sem decisão: (a) promover a caixa pra exibição V2 (painel passaria a mostrar R$306,73 direto, já reconciliado, futuros lançamentos do Chat apareceriam automaticamente); (b) manter V1 como fonte de exibição com sincronização manual pontual dos 3 lançamentos pendentes. Nenhuma das duas foi executada nesta sessão, por pedido explícito do usuário.
+
+**Risco estrutural que permanece, não é mais exclusivo da PIX Geral Vanessa**: as outras 4 caixas da lista de exceção (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) têm exatamente a mesma exposição — se o Chat gravar direto na V2 delas, o mesmo padrão "cresce na V2, invisível no painel" vai se repetir. Verificado nesta sessão: nenhuma das 4 tem lançamento sem `tx_legado` até agora (`origem` diferente de `reconciliacao`) — dormant, não é incidente ativo, mas o bloqueador estrutural continua aberto. A correção de governança dos documentos do Claude Chat (`MANUAL_OPERACIONAL_AGENTES.md`/`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`, que ainda dizem "Chat = Nível C/D por padrão") também segue pendente, registrada abaixo sem alteração.
+
+---
+
+## 🔴 PRIORIDADE 0 original (09/08/2026) — mantida como registro histórico do achado, ver bloco de encerramento acima
 
 **Achado com evidência real (Nível A, consultado direto no Supabase)**: o Claude Chat da conta `wallace.termica@gmail.com` **tem conector Supabase ativo e persistente** (não é acesso de uma conversa específica — é configuração de conta, válida em qualquer chat novo, uso intencional e mantido pelo usuário). Ele já vem lançando transações reais direto na V2 (`lancar_transacao_manual`) sem passar pelo Claude Code — confirmado nesta sessão: "Sabão Júlio" (R$40, categoria `Higiene`), "Fruta — Bruno da Silva Santos" (R$4, categoria `Alimentação`), "Abastecimento PGV" (R$300, entrada), todos na caixa PIX Geral Vanessa (`fb779cdc-ab92-492d-a172-8d147d1380ea`).
 
