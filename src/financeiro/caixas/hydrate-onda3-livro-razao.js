@@ -5,10 +5,13 @@
 // de estrutura bloqueia. Por isso o escopo aqui é o MESMO conjunto de caixas cujo saldo já
 // foi migrado nas Ondas 1/2 (coerência: se o card já mostra saldo V2, a lista de lançamentos
 // da mesma caixa também mostra V2 — nunca card-V2 + tabela-V1 misturados na mesma caixa).
-// Caixas ainda em V1 no saldo (Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário
-// Júlio, Caixa Lance, Provisionado Wärtsilä) ficam de fora desta rodada pelo mesmo motivo —
-// não é falta de estrutura (a tabela `transacoes` tem os dados), é manter a mesma caixa
-// consistente entre card e tabela até a decisão de causa raiz de cada uma.
+// Caixas ainda em V1 no saldo (Manutenção, Saúde Família, Aniversário Júlio, Caixa Lance,
+// Provisionado Wärtsilä) ficam de fora desta rodada pelo mesmo motivo — não é falta de
+// estrutura (a tabela `transacoes` tem os dados), é manter a mesma caixa consistente entre
+// card e tabela até a decisão de causa raiz de cada uma. ATUALIZADO 09/08/2026: PIX Geral
+// Vanessa saiu desta lista — saldo promovido pra V2 mais cedo nesta sessão, mas o Livro
+// Razão (esta tabela) tinha ficado esquecido, gerando o mesmo tipo de inconsistência que
+// esta regra existe pra evitar (card V2 + tabela V1). Corrigido, ver linha da PGV abaixo.
 // LRW/LRV/LRC-limbo/LRCV (Caixa Variável) e Boletos (sem aba de Livro Razão) ficam de fora —
 // fora do escopo desta prioridade.
 //
@@ -24,6 +27,12 @@ const ONDA3_LR_MAPA = [
   { tbodyId: 'lrmciTbody', tfId: 'tf_lrmci', qtdId: 'qtd_lrmci', caixaId: '748b8612-b854-44e3-8834-542ec7f1ff7c', caixaNome: 'Caixa Mastercard/Infinite' },
   { tbodyId: 'lrbdTbody', tfId: 'tfBD', qtdId: 'qtdBD', caixaId: 'eeaf926e-07df-479c-b0bc-1071410a5298', caixaNome: 'Caixa Bens Duráveis' },
   { tbodyId: 'lrpvsaldoTbody', tfId: 'tfPV', qtdId: 'qtdPV', caixaId: '6c6546fa-5b83-4db6-aa33-ac1bf35370d9', caixaNome: 'PIX Vanessa' },
+  // NOVO 09/08/2026 (achado do usuário: 3 lançamentos gravados direto na V2 pelo Chat - Sabão Júlio,
+  // Fruta, Abastecimento PGV R$300 - nunca apareciam aqui porque esta aba ficou de fora da Onda 3
+  // original por engano: o saldo da PGV já lia V2 desde a promoção desta sessão, mas o Livro Razão
+  // (lançamento por lançamento) continuava preso em VARS.LRPV_TRANSACOES). Mesma arquitetura das
+  // demais caixas acima - corrige a origem do problema, não um remendo pontual nos 3 lançamentos.
+  { tbodyId: 'lrpvTbody', tfId: 'tfLRPV', qtdId: 'qtdLRPGV', caixaId: 'fb779cdc-ab92-492d-a172-8d147d1380ea', caixaNome: 'PIX Geral Vanessa' },
 ];
 
 function onda3FormatarDataV2(dataIso){

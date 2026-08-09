@@ -80,6 +80,17 @@
        cards de baixo) - essa regra zerava a margem de baixo (era "0.3rem 0 0") pra centralizar no
        cabecalho, mas a base de .busca-global-wrap (que tem 1.2rem embaixo) ficava sem efeito. Restaurado
        o espacamento embaixo tambem, nao so em cima. */
+    /* NOVO 09/08/2026 (pedido do usuario: "barra de pesquisa sempre visivel, nao so na capa") -
+       position:sticky em vez de mover pro index.html (fora do iframe) - evitaria complexidade de
+       comunicacao cross-frame (o painel roda dentro de #mainIframe, mesma origem mas contexto
+       separado). O dropdown de resultados ja usa position:fixed com coordenadas calculadas por JS
+       (posicionarResultadosBusca()), entao continua funcionando igual nao importa onde o campo esteja
+       fixado. Quem rola de verdade dentro do iframe e o <body> (ver scrollPainelParaTopo() no
+       index.html) - sticky gruda no topo desse scroll, logo abaixo da barra fixa externa (email/olho/
+       sair), sem precisar tocar nela. */
+    position:sticky; top:0.6rem; z-index:50;
+    background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg); padding:0.4rem; box-shadow:0 4px 14px rgba(0,0,0,0.3);
   }
   @media (max-width:640px){
     .cover-top .busca-global-wrap.cover-search-corner{max-width:100%;flex:1 1 100%;margin:1rem 0 1.2rem}
