@@ -2,13 +2,19 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🔧 Primeiros 2 incidentes reais da Operação Assistida (09/08/2026, logo após o encerramento formal abaixo)
+## 🔧 Primeiros incidentes reais da Operação Assistida (09/08/2026, logo após o encerramento formal abaixo)
 
 **Reembolsos a receber R$0,00 (era pra ser R$6.700,61)**: usuário reportou via screenshot. Causa raiz — `reembolso_wartsila_ciclo` (V2) tinha snapshot de antes das correções de 05/08 e 07/08, nunca atualizado. Usuário exigiu explicitamente **reconstrução Nível A bottom-up antes de qualquer UPDATE** ("não quero atualizar a V2 usando a V1 como argumento de autoridade") — feita: `valor_a_receber` confirmado por print do sistema externo da Wärtsilä mostrado na sessão; `perna_cartao_corporativo_pessoal` (R$297,31) reconstruído somando 5 transações reais (`LRC_LIMBO_TRANSACOES`, todas confirmadas também na V2); `perna_mp_corporativo` (R$266,23) = `TXMP000011`; `perna_fatura_wartsila` (R$5.056,95) = confirmação direta do usuário 05/08. Todos batem. Corrigido via `UPDATE` direto no Supabase. **Achado lateral**: `TXMP000011` ainda não migrado pra V2 (só V1) — registrado, não corrigido agora. **Não validado no navegador** (5 slots de preview ocupados por outras sessões, 2 tentativas) — só evidência de banco (antes/depois via SELECT).
 
 **KMV Ipiranga R$600,00 (era pra ser R$400,00)**: usuário já tinha usado 1 cupom e já tinha reportado antes, correção nunca foi aplicada em lugar nenhum. Corrigido em `indicadores` (V2) e no literal `vars-operacional.js` (V1, mesma manutenção dupla já usada nesta sessão). Mesma limitação de validação em navegador.
 
-**Padrão confirmado nos dois incidentes**: cards "V2-exclusivos, sem fallback silencioso" protegem contra dado *ausente*, não contra dado *presente e desatualizado* — os dois casos são exatamente isso. Vale ficar de olho nos outros domínios "Onda 4" (mesma arquitetura) se aparecer mais algum número parado.
+**Bens Duráveis negativo (R$-583,99) sem ficar vermelho**: mesma classe de bug dos dois casos acima — `hydrateCaixas()` já pintava a cor certa, mas roda antes da Onda 2 (V2) sobrescrever o número, então a cor ficava presa no valor do boot. Corrigido em `hydrate-onda2-v2.js`, reaplicando a regra de cor depois do valor V2 real.
+
+**Padrão confirmado nos 3 incidentes**: cards "V2-exclusivos, sem fallback silencioso" (ou qualquer card sobrescrito por uma Onda V2 assíncrona) protegem contra dado *ausente*, não contra dado *presente e desatualizado*, nem contra visual (cor/barra) que não é resincronizado junto com o número. Vale ficar de olho nos outros domínios "Onda 2/3/4" (mesma arquitetura) se aparecer mais algum caso parecido.
+
+**Apontamento registrado, decisão explícita de NÃO investigar agora**: card "Reembolso Wärtsilá pendente acumulado" (R$1.544,11, `VARS.faturaMPCorporativoPendente`, parado desde 27/07/2026) — usuário pediu pra checar se já está contido no "Amount Due Employee" (R$6.700,61) confirmado acima, mas decidiu não aprofundar por falta de evidência suficiente. Decisão explícita: não corrigir, não zerar, não recalcular, não aposentar. Só ganhou um aviso de texto no HTML avisando que precisa de confirmação futura. Classificado como Backlog de Produto → Aguardando validação manual, sem impacto operacional.
+
+**Achado registrado, não corrigido**: o gráfico "Cenário Salário" (`cCenarioSalario`, card "Ponto de empate") ainda mostra a Sobra Pessoal calculada com os valores ANTIGOS do reembolso Wärtsilá (R$3.090,16) — não está entre os elementos resincronizados por `hydrate-onda4-wartsila.js`. Com o dado corrigido hoje, o valor real seria R$1.017,01. Mesma classe de bug dos 3 incidentes acima, mas esse ainda não foi corrigido — fica pra próxima sessão.
 
 ## 🏁 ENCERRAMENTO DA FASE DE IMPLANTAÇÃO V2 (09/08/2026) — leia primeiro, antes do bloco abaixo
 

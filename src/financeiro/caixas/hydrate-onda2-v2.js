@@ -36,10 +36,14 @@ const ONDA2_V2_MAPA = [
   {
     idHtml: 'cxBensDuraveisSaldo', extraId: 'balResBensDuraveis', caixaNome: 'Caixa Bens Duráveis', getValorV1: () => REG.caixasOperacionais.bensDuraveis.saldo, aceitarDivergenciaConhecida: true,
     // Bens Duráveis pode ficar negativo (compra sem reserva prévia) — barra fixa em 0% nesse caso,
-    // mesmo tratamento que hydrateCaixas() já dava (Math.max(0,...)).
+    // mesmo tratamento que hydrateCaixas() já dava (Math.max(0,...)). CORRIGIDO 09/08/2026 (achado
+    // do usuário: card negativo aparecia sem vermelho): hydrateCaixas() já pinta a cor certa, mas
+    // roda ANTES desta Onda sobrescrever o número — sem re-sincronizar aqui, a cor fica presa no
+    // valor V1 do boot. Mesma classe de bug já corrigida em hydrate-onda4-wartsila.js/patrimonio.
     extra: (valorV2) => {
       const meta = REG.caixasOperacionais.bensDuraveis.meta;
       const barEl = $('cxBensDuraveisBar'); if(barEl) barEl.style.width = Math.max(0, pctOf(valorV2, meta))+'%';
+      const saldoEl = $('cxBensDuraveisSaldo'); if(saldoEl) saldoEl.style.color = valorV2 < 0 ? 'var(--red)' : 'var(--green)';
     },
   },
   {
