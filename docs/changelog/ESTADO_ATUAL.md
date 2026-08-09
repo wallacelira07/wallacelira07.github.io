@@ -2,7 +2,19 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026. **Fase 5 (fechar o ciclo de gravação) — status: IMPLEMENTADA, aguardando validação operacional da UI.** HEAD `9cb1ed2`, tudo commitado e enviado — `git status` limpo.
+Última reescrita: 09/08/2026. **Fase 5 (fechar o ciclo de gravação) — status: IMPLEMENTADA, validada.** **Sincronização Pluggy — status: CORRIGIDA, Action verde.** HEAD `9cb1ed2` + migração direta no Supabase (ver seção Pluggy abaixo), tudo commitado e enviado — `git status` limpo.
+
+## Pluggy — HTTP 400 corrigido (09/08/2026)
+
+**Causa raiz encontrada com evidência real (Nível A, correlação exata de timestamp entre log da API e log do Postgres)**: a RPC `atualizar_pluggy_contas` fazia `delete from public.pluggy_conexoes;` sem `WHERE` — uma proteção de segurança do Supabase bloqueia `DELETE`/`UPDATE` sem `WHERE` especificamente na role usada pelo PostgREST (chamada real via API), mesmo dentro de uma função `SECURITY DEFINER`. Essa proteção **não se aplica** à conexão usada por ferramentas de administração direta (SQL Editor/MCP) — por isso um teste anterior via SQL direto, dentro de uma transação com rollback, rodou sem erro nenhum, mascarando o problema por uma sessão inteira.
+
+**Corrigido**: RPC reescrita com `delete from public.pluggy_conexoes where true` — funcionalmente idêntico (apaga tudo, mesmo comportamento de substituição total a cada rodada), só satisfaz a proteção. Aplicado via `apply_migration` direto no Supabase (não existe arquivo de migração correspondente no repositório — essa RPC sempre viveu só no banco, criada em sessão anterior).
+
+**Achado colateral, corrigido antes desta causa raiz ser encontrada**: `scripts/sync/sincronizar_pluggy.py`, função `atualizar_supabase()`, usava `urlopen()` direto sem o tratamento de erro do resto do script (`_request()`) — toda falha real virava só `"HTTP Error 400: Bad Request"` no log da Action, sem o corpo da resposta. Corrigido primeiro (puramente observabilidade), o que permitiu capturar o erro real na tentativa seguinte e achar a causa raiz de verdade.
+
+**Validado pelo usuário**: Action "Sincronizar Pluggy" re-executada depois da correção — **verde**, sincronização completa sem erro.
+
+## Fase 5 — o que já foi fechado
 
 ## Mudança de prioridade nesta sessão
 
@@ -28,7 +40,7 @@ Reclassificação pedida pelo usuário depois da prova de banco: **nenhum item d
 
 1. **Validação visual da UI (não é bug, é confirmação pendente)** — a prova de banco (etapas 1-2) é forte evidência de que o resto funciona, mas o clique real na tela ainda não foi testado ao vivo nesta sessão (ambiente de preview bloqueado o tempo todo). Ação: usuário testar 1 lançamento real numa caixa normal (ex: Boletos) e conferir se o saldo muda sem reload.
 2. **5 caixas com exceção formal (Caixa Lance + Manutenção + Saúde Família + PIX Geral Vanessa + Aniversário Júlio)** — continuam exibindo o valor V1 por decisão já tomada (divergência não resolvida, não reabrir). Efeito prático: registrar uma compra/pagamento contra uma DESSAS 5 caixas específicas grava normalmente no banco, mas o número na tela não se move — mesma classe do problema antigo, só que agora restrita a essas 5, não a todas.
-3. **Cartões (Mastercard Black, Visa Infinite, Mercado Pago) não têm campo de lançamento manual no formulário "＋ Lançar"** — só entram por sincronização automática (Pluggy/Mercado Pago) ou triagem na Inbox. Coerente com a exceção formal já existente (headline total de cartão é sempre V1, regra de negócio "fatura sempre vence"), mas significa que "registrar uma compra no cartão" na hora, manualmente, não é uma ação suportada hoje — só caixas.
+3. **Cartões (Mastercard Black, Visa Infinite, Mercado Pago) não têm campo de lançamento manual no formulário "＋ Lançar"** — só entram por sincronização automática (Pluggy/Mercado Pago) ou triagem na Inbox. Coerente com a exceção formal já existente (headline total de cartão é sempre V1, regra de negócio "fatura sempre vence"), mas significa que "registrar uma compra no cartão" na hora, manualmente, não é uma ação suportada hoje — só caixas. Resolvido na prática via Claude Code: compra em cartão registrada diretamente via `lancar_transacao_manual()` com `cartao_id` preenchido (ex: medidor solar R$79,79, cartão 4628, 08/08/2026) — não é uma UI nova, é o mesmo RPC já usado pelo formulário, só chamado com um parâmetro que o formulário ainda não expõe.
 4. **Necessidade Total/Modo Operacional/Saldo do Ciclo não recalculam ao vivo** — aceito fora de escopo pelo usuário (modelagem própria de ciclo, não bug).
 
 **Nenhum destes impede o uso diário do fluxo principal** (registrar compras/pagamentos em qualquer uma das ~13 caixas normais, acompanhar saldos/caixas/patrimônio/solar) — são recortes específicos, não uma barreira geral como antes da Fase 5.
