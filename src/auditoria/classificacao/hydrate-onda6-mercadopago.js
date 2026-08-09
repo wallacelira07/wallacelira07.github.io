@@ -43,7 +43,7 @@ async function aplicarOnda6MercadoPago(){
   // mesma lógica de classificação/dedupe, dado novo. sincronizarMercadoPagoParaInbox() já chama
   // renderInboxFinanceira() no final; renderMercadoPagoDashboard() lê VARS.INBOX_FINANCEIRA (não
   // MERCADOPAGO_EVENTOS diretamente), então precisa ser re-chamada aqui pra refletir os itens novos.
-  const resultado = sincronizarMercadoPagoParaInbox();
+  const resultado = await sincronizarMercadoPagoParaInbox();
   // Mesmo cuidado já aplicado ao encadeamento reconciliarTransacoesPluggy() em app.js (parte 115):
   // classificarInboxPendentes() já rodou de forma síncrona ANTES deste fetch assíncrono resolver,
   // então os itens novos desta rodada nunca tiveram a chance do classificador genérico — re-chama

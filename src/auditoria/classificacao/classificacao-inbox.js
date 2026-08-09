@@ -101,23 +101,28 @@ function inboxDescricaoAutomaticaMP(tipo){
   return MAPA_TIPO_MP[tipo] || `Evento Mercado Pago (tipo: ${tipo || 'desconhecido'})`;
 }
 
-function sincronizarMercadoPagoParaInbox(){
+async function sincronizarMercadoPagoParaInbox(){
   const eventos = VARS.MERCADOPAGO_EVENTOS;
   if(!Array.isArray(eventos) || !eventos.length){
     console.warn('sincronizarMercadoPagoParaInbox: VARS.MERCADOPAGO_EVENTOS ainda nao chegou (offline, Supabase sem esse campo, ou mercadopago_sync.py ainda nao rodou nesta conta).');
     return {novos:0};
   }
-  const LIVROS_CONHECIDOS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
-    'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES'];
+  // CORRIGIDO 09/08/2026 (achado do usuario: INBX000001 "Medidor De Energia" R$79,79 ja existia
+  // como TX000226 em Bens Duraveis, mas apareceu como PENDENTE - quase virou lancamento duplicado).
+  // Causa raiz: a checagem de duplicidade so comparava contra uma LISTA HARDCODED de 7 dos ~24
+  // livros/caixas reais (LRW/LRV/LRC_LIMBO/LRCV/PV/LRPV/BOLETOS) - Bens Duraveis (e qualquer caixa
+  // fora dela) nunca entrava na comparacao. CORRIGIDO NA RAIZ 09/08/2026 (pedido explicito do
+  // usuario: "se existe dado hardcoded, mude isso, e proibido") - lista hardcoded removida por
+  // completo. Fonte unica agora e a V2 real (todo valor confirmado, todas as caixas, sem lista
+  // fixa pra manter atualizada na mao). Falha de rede nao trava a sincronizacao (item so fica sem
+  // o aviso de "possivel duplicidade" nesse caso raro, nunca escondido da Inbox) - log alto pra
+  // nao passar despercebido.
   const valoresConhecidos = new Set();
-  LIVROS_CONHECIDOS.forEach(nomeLivro=>{
-    (VARS[nomeLivro]||[]).forEach(t=>{ if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100); });
-  });
-  // parte 57: mesmo ajuste de reconciliarTransacoesPluggy() - historico completo (todos os ciclos),
-  // nao so o ciclo ao vivo, pra "possivel duplicidade" nao ignorar registro de ciclo ja fechado.
-  (VARS.HISTORICO_ERP_TODOS_CICLOS||[]).forEach(t=>{
-    if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
-  });
+  try {
+    (await WallaceFinanceService.getValoresConhecidosV2()).forEach(v => valoresConhecidos.add(v));
+  } catch(err){
+    console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).', err);
+  }
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
   let novos = 0;
   eventos.forEach(ev=>{

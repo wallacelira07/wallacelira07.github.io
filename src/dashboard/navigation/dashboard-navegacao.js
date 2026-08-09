@@ -188,11 +188,40 @@ function construirIndiceBuscaGlobal(){
       });
     }
   });
+  // NOVO 09/08/2026 (pedido do usuario: "coloque so as siglas tambem na pesquisa") - ate aqui, a
+  // sigla de uma aba do Livro Razao (ex: "LRB") so aparecia no indice via construirIndiceTransacoesBusca,
+  // e so quando o array daquele livro tinha pelo menos 1 transacao com tx+valor validos. Livro vazio ou
+  // sem esse formato = sigla invisivel pra busca. Agora cada aba mapeada em LIVRO_PARA_TAB_LR entra
+  // direto no indice de SECAO (independente de ter transacao), buscavel pela sigla sozinha ("lrb"), pelo
+  // nome sozinho ("boletos") ou pelos dois juntos ("lrb boletos") - mesmo helper buscaTermoBateTexto.
+  const secaoLivrosRazao = Array.from(document.querySelectorAll('.section-num'))
+    .find(s => s.querySelector('h2')?.textContent.trim() === 'Livros razão');
+  if(secaoLivrosRazao){
+    const paneLR = secaoLivrosRazao.closest('.master-pane');
+    if(paneLR){
+      Object.entries(LIVRO_PARA_TAB_LR).forEach(([, chaveTab]) => {
+        const btn = document.getElementById('lrTabBtn_' + chaveTab);
+        if(!btn) return;
+        const rotuloBtn = btn.textContent.trim();
+        if(!rotuloBtn) return;
+        indice.push({
+          texto: (chaveTab + ' ' + rotuloBtn).toLowerCase(),
+          rotulo: rotuloBtn + ' — Livros razão',
+          paneId: paneLR.id,
+          alvo: btn,
+          tabChave: chaveTab
+        });
+      });
+    }
+  }
   return indice;
 }
 
 function irParaSecaoBusca(item){
   showMaster(item.paneId);
+  // NOVO 09/08/2026: resultado de aba do Livro Razao (tabChave presente) troca pra aba certa antes de
+  // rolar/piscar - sem isso, o botao poderia estar la mas a TABELA visivel seria de outra aba.
+  if(item.tabChave) showLR(item.tabChave, item.alvo);
   setTimeout(()=>{ scrollParaSecaoComOffset(item.alvo); }, 30);
 }
 
@@ -341,6 +370,15 @@ function posicionarResultadosBusca(){
 window.addEventListener('scroll', posicionarResultadosBusca, {passive:true});
 window.addEventListener('resize', posicionarResultadosBusca);
 
+// NOVO 09/08/2026 (pedido do usuario: "quero que ache pela sigla" - buscar "LRB Boletos" dava "Nada
+// encontrado" mesmo com a aba "LRB - Boletos (9)" existindo) - o match antigo exigia a FRASE inteira
+// como substring literal ("lrb boletos" nao e substring de "lrb - boletos (9)", tem " - " no meio).
+// Agora compara por TOKEN: cada palavra digitada precisa aparecer em algum lugar do texto (AND entre
+// palavras, ordem livre) - "lrb boletos", "boletos lrb" ou so "lrb" batem todos na mesma aba.
+function buscaTermoBateTexto(texto, termo){
+  if(!texto || !termo) return false;
+  return termo.split(/\s+/).filter(Boolean).every(tok => texto.includes(tok));
+}
 function renderResultadosBusca(termo){
   const wrap = $('buscaGlobalResultados');
   if(!wrap) return;
@@ -353,7 +391,7 @@ function renderResultadosBusca(termo){
 
   const vistos = new Set();
   const resultadosSecao = _buscaGlobalIndice
-    .filter(it => it.texto.includes(t))
+    .filter(it => buscaTermoBateTexto(it.texto, t))
     .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
     .slice(0, 5);
 
@@ -413,7 +451,7 @@ function buscaGlobalDados(termo){
   const tSoDigitos = t.replace(/[^\d,.]/g, '');
   const vistos = new Set();
   const secoesOriginais = _buscaGlobalIndice
-    .filter(it => it.texto.includes(t))
+    .filter(it => buscaTermoBateTexto(it.texto, t))
     .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
     .slice(0, 5);
   // NOVO 09/08/2026 (achado do usuário: buscar "LRPV" dava "Nada encontrado" mesmo com o livro
@@ -424,7 +462,7 @@ function buscaGlobalDados(termo){
     if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;
     if(it.nome.includes(t)) return true;
     if(it.livro && it.livro.toLowerCase().includes(t)) return true;
-    if(it.livroLabel && it.livroLabel.includes(t)) return true;
+    if(it.livroLabel && buscaTermoBateTexto(it.livroLabel, t)) return true;
     if(tSoDigitos && (it.valorTexto.includes(tSoDigitos.replace('.',',')) || it.valorNumStr.includes(tSoDigitos))) return true;
     return false;
   }).sort((a,b)=>{

@@ -289,22 +289,20 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   const resultado = {suspeitas:[], semDados:true, ignoradasPorData:0};
   if(!pc || !pc.conexoes) return resultado;
 
-  // Mesmos 7 livros de transacao que o script Python le no Supabase - lista literal, nao inventada.
-  const LIVROS_CONHECIDOS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
-    'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES'];
+  // CORRIGIDO 09/08/2026 (mesmo achado/causa raiz do sincronizarMercadoPagoParaInbox em
+  // classificacao-inbox.js: INBX000001 R$79,79 ja existia como TX000226 em Bens Duraveis, mas essa
+  // lista hardcoded de "7 livros conhecidos" nunca cobria Bens Duraveis nem nenhuma caixa fora
+  // dela). Pedido explicito do usuario: "se existe dado hardcoded, mude isso, e proibido" - lista
+  // fixa removida. Fonte unica agora e a V2 real (todo valor confirmado, todas as caixas, sem
+  // precisar manter lista na mao) - ja cobre historico completo tambem, sem precisar somar
+  // HISTORICO_ERP_TODOS_CICLOS a parte. Falha de rede so desativa o aviso de duplicidade nesta
+  // rodada (nunca esconde a transacao da Inbox) - log alto pra nao passar despercebido.
   const valoresConhecidos = new Set();
-  LIVROS_CONHECIDOS.forEach(nomeLivro=>{
-    (VARS[nomeLivro]||[]).forEach(t=>{
-      if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
-    });
-  });
-  // NOVO 04/08/2026 (parte 57, pedido do usuario): tambem soma o historico COMPLETO do ERP
-  // (HISTORICO_ERP_TODOS_CICLOS, todos os ciclos, nao so o atual) - sem isso, transacao de um ciclo
-  // FECHADO batia como "sem registro" so porque os 7 livros acima so guardam o ciclo ao vivo. O
-  // registro existe, so nao estava no conjunto de comparacao.
-  (VARS.HISTORICO_ERP_TODOS_CICLOS||[]).forEach(t=>{
-    if(typeof t.valor === 'number') valoresConhecidos.add(Math.round(Math.abs(t.valor)*100)/100);
-  });
+  try {
+    (await WallaceFinanceService.getValoresConhecidosV2()).forEach(v => valoresConhecidos.add(v));
+  } catch(err){
+    console.error('reconciliarTransacoesPluggy: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada.', err);
+  }
 
   // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
   // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as

@@ -58,7 +58,7 @@ Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte qu
 | Domínio | Estruturas V2 | Observação |
 |---|---|---|
 | Compras / transações | `transacoes` (+ `cartao_id`, `usuario_id`, `afeta_saldo_real`) | Lançamento definitivo via `lancar_transacao_manual()` quando o domínio já for V2-exclusivo (seção 2) |
-| Caixas | `caixas`, `vw_saldo_v2_por_caixa` | Nunca editar saldo direto — sempre via array de transação (regra 2.4) |
+| Caixas | `caixas` (+ `ciclo_inicio_em`), `vw_saldo_v2_por_caixa` | Nunca editar saldo direto — sempre via `transacoes` (regra 2.4). Caixas operacionais somam só transações com `data >= caixas.ciclo_inicio_em` (NULL = caixa cumulativa, sem reset) — **atualizar essa coluna a cada virada de ciclo real** (quando o aporte mensal do novo ciclo é lançado), senão o ciclo novo some com o antigo. |
 | Patrimônio | `patrimonio`, `financiamentos` | Exceção: Caixa Lance ainda V1 |
 | Cartões | `cartoes` | Mapa de titularidade (Mastercard Black/Visa) migrado Wave B1 |
 | Livros Razão | `transacoes` filtradas por caixa/pessoa; `vw_compromisso_cartao_por_pessoa` (LRW/LRV) | LRR/LRS/LRC ainda não têm array V1 migrado — não assumir que existe |
@@ -71,13 +71,20 @@ Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte qu
 
 **Critério de sucesso** (o que um agente novo, sem memória de sessões anteriores, precisa conseguir fazer só lendo este manual): registrar compra, registrar pagamento, atualizar caixa, atualizar patrimônio, atualizar cartão, atualizar livro razão, atualizar parcelamento, atualizar energia solar, atualizar investimento, atualizar reembolso, atualizar indicador — usando a estrutura V2 correspondente como primeira escolha, com a V1 tratada só como legado/exceção/domínio ainda não migrado.
 
-**Regra obrigatória — toda transação precisa nascer com referência visível, nunca "—" (achado real 09/08/2026)**: a RPC `lancar_transacao_manual()` **não tem parâmetro pra `tx_legado`** — o `INSERT` nem inclui essa coluna, então toda transação lançada por ela nasce com `tx_legado=NULL`. Sem correção manual, isso mostra "—" na coluna TX de qualquer tabela de Livro Razão (já aconteceu com 7 lançamentos reais em 08/08/2026, corrigidos só depois do usuário notar visualmente). **Todo agente (Claude Chat ou Claude Code) que lançar uma transação nova na V2 — via essa RPC ou via SQL direto — precisa, na mesma operação, terminar com um `tx_legado` preenchido**:
-1. Antes de lançar, checar o maior TX existente: `select max(tx_legado) from transacoes where tx_legado ~ '^TX[0-9]{6}$';`.
-2. Lançar normalmente (RPC ou INSERT direto) — guardar o `id` (uuid) retornado.
-3. Imediatamente depois, `update transacoes set tx_legado = 'TX0002XX' where id = '<uuid retornado>';`, usando o próximo número sequencial (nunca reutilizar, nunca pular).
-4. Se dois lançamentos forem um par espelhado (saída de uma caixa = entrada em outra, ex: transferência interna), os dois recebem o **mesmo** código — mesmo padrão já usado em `TX000150`/`TX000223`.
+**Regra pra lançar uma transação nova, corrigida 09/08/2026 (versão anterior deste texto, de mais cedo no mesmo dia, exigia atribuir `tx_legado` manualmente como critério de existência — isso mudou, ver abaixo)**:
 
-Isso é procedimento manual deliberado, não solução definitiva — existe uma decisão de arquitetura registrada em `docs/changelog/ESTADO_ATUAL.md` (Backlog de Produto, prioridade baixa) pra substituir isso por uma sequência `V2-000001...` gerada automaticamente pelo banco. Até essa decisão ser implementada, este procedimento manual é obrigatório, não opcional.
+Pra uma transação **contar no saldo da caixa** (`vw_saldo_v2_por_caixa`), ela só precisa de 4 coisas, todas nativas da V2:
+- `caixa_id` correto;
+- `status = 'confirmado'`;
+- `afeta_saldo_real = true`;
+- `data` real da compra, dentro do ciclo da caixa (`>= caixas.ciclo_inicio_em`).
+
+`tx_legado` **não é mais critério de existência/visibilidade no saldo** — a view não checa mais essa coluna nem o array V1 (`wallace_dados`). Isso foi uma mudança de arquitetura deliberada em 09/08/2026 (`vw_saldo_v2_por_caixa` reescrita, ver `docs/decisions/` da data): antes, uma transação com `tx_legado` preenchido só contava se também existisse espelhada em `wallace_dados` — isso escondeu dinheiro real de 3 transações (PGV, PIX Vanessa, Bens Duráveis) por dias, sem erro nenhum no console.
+
+`tx_legado` continua **recomendado, não obrigatório**: sem ele, a transação aparece com "—" na coluna TX das tabelas de Livro Razão (cosmético, não afeta saldo). Se for atribuir um:
+1. Checar o maior TX existente: `select max(tx_legado) from transacoes where tx_legado ~ '^TX[0-9]{6}$';`.
+2. `update transacoes set tx_legado = 'TX0002XX' where id = '<uuid retornado>';`, próximo número sequencial (nunca reutilizar, nunca pular).
+3. Par espelhado (saída de uma caixa = entrada em outra) recebe o **mesmo** código nos dois lados — padrão já usado em `TX000150`/`TX000223`.
 
 **Isso não muda nenhuma regra de segurança já existente**: usuário confirma antes de lançar (seção 2.1), nunca editar saldo/placeholder direto (seção 2.4), dry-run antes de `UPDATE`/`DELETE` real (seção 4), avisar antes de commit/push (seção 8) — a V2 ser "principal" é sobre **onde** o dado mora, não sobre relaxar **como** ele é alterado.
 

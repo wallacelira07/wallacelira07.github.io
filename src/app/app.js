@@ -93,6 +93,26 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado;
   },
+  // NOVO 09/08/2026 (achado do usuário: INBX000001 "Medidor De Energia" R$79,79 apareceu como
+  // PENDENTE na Inbox, mas já existe lançado como TX000226 em Bens Duráveis - duplicata real que
+  // quase foi lançada de novo). Causa raiz: a checagem de duplicidade da Inbox (valoresConhecidos,
+  // classificacao-inbox.js/pluggy-reconciliacao.js) só comparava contra 7 arrays V1 hardcoded
+  // (LRW/LRV/LRC_LIMBO/LRCV/PV/LRPV/BOLETOS) - Bens Duráveis (e qualquer outra caixa fora dessa
+  // lista) nunca entrava na comparação, então um valor já lançado lá sempre parecia "novo". Esta
+  // função busca TODO valor confirmado da V2 (todas as caixas), pra somar à checagem existente -
+  // não substitui os arrays V1 (mantidos por resiliência offline), só fecha o buraco de cobertura.
+  async getValoresConhecidosV2(){
+    const chave = 'valores_v2_todos';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=eq.confirmado`, {
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
+    const dado = await resp.json();
+    const valores = dado.map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
+    this._cache.set(chave, valores);
+    return valores;
+  },
   // NOVO 08/08/2026 (Onda 3, Livro Razão): transações confirmadas de uma lista de caixas, numa
   // única chamada (in.(id1,id2,...)) em vez de N requests separados.
   async getTransacoesPorCaixaIds(caixaIds){
