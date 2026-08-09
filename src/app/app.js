@@ -2202,7 +2202,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       } else {
         console.log(`%c✅ Auditoria V1↔V2: Caixa Variável bate (R$${saldoV1}) entre app.js e Supabase relacional.`, 'color:#34c98a');
         if(badgeV2){
-          badgeV2.textContent = '✓ V2 sincronizado';
+          badgeV2.textContent = '✓ V2 ativa'; // ATUALIZADO 09/08/2026 (pedido do usuário): "sincronizado" sugeria 2 fontes em paridade - a V2 é a fonte principal hoje, não faz mais sentido descrever como "sincronia" entre iguais.
           badgeV2.style.color = '#34c98a';
           badgeV2.title = `Caixa Variável (saldo real do ciclo) bate entre app.js e Supabase V2: R$${saldoV1}.`;
         }
