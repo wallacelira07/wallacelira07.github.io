@@ -21,10 +21,12 @@
 // consequência esperada da transição (lançamentos que só nascem na V2 hoje). Usuário decidiu
 // que a PGV não é mais exceção técnica — sai da lista `false`, entra na `true`.
 //
-// Provisionado Wärtsilä fica de fora do overlay independente da causa — card com 4 estados
-// de texto (não um número simples), e a V2 ainda não tem equivalente pro campo "fatura"
-// (PLANO_UNIFICACAO_V1_V2.md seção 22, gap D — falta de ESTRUTURA, não só divergência). Só
-// compara e loga, nunca escreve no DOM dele.
+// Provisionado Wärtsilä fica de fora deste mapa, mas NÃO por falta de cobertura V2 — achado
+// 09/08/2026 (investigação "matar V1"): o comentário abaixo estava desatualizado. A caixa já
+// é 100% V2 desde a Onda 4 (hydrate-onda4-wartsila.js:50, `REG.wartsilaCaixa.provisionado =
+// caixaWartsila.v2_saldo_calculado`), que também resincroniza o card de 4 estados de texto
+// via hydrateWartsilaCaixasTextos(). O item log-only abaixo só existe pra comparação/log,
+// nunca escreveu no DOM mesmo antes — inofensivo, mas mantido só por rastreabilidade.
 //
 // Rollback: comentar a chamada aplicarOnda2V2() em app.js — nada mais muda.
 
@@ -94,7 +96,16 @@ const ONDA2_V2_MAPA = [
     },
   },
   { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
-  { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: false },
+  // PROMOVIDA 09/08/2026 (investigação "matar V1"): causa raiz da divergência de R$345,73
+  // encontrada e confirmada com alta confiança (vw_reconciliacao_v1_v2.causa_provavel) — 2
+  // transações reais (TX000214 "Cortinas" -R$450, TX000215 empréstimo LREI0004 +R$103,55),
+  // já mostradas ao usuário no V1 há dias, estavam presas em status='pendente_classificacao'
+  // na V2 (vw_saldo_v2_por_caixa só soma status='confirmado') — corrigido via UPDATE direto
+  // (mesmas 2 + o par espelhado TX000212/TX000216 da Caixa Lance, ver PASSAGEM_DE_TURNO.md).
+  // Resíduo de R$0,72 depois da correção: causa_provavel='transacao_ausente_na_v2', alta
+  // confiança, mesma classe de "divergência conhecida e documentada" já aceita nas outras
+  // caixas desta lista — não bloqueia mais.
+  { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: false },
   { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResCombustivel', caixaNome: 'Caixa Combustível', getValorV1: () => REG.balanco.reservas.combustivel, aceitarDivergenciaConhecida: true },

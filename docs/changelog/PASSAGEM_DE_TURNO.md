@@ -2,7 +2,24 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🔒 Auditoria de prontidão operacional + fechamento do Passo 2 da segurança (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## 🔧 "Matar V1" parte 2 — resultado misto, honesto (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+Usuário autorizou explicitamente mexer nos itens antes deixados como "exceção deliberada", incluindo os 2 blocos maiores (Cartões Mastercard/Visa, LRW/LRV/LRC-limbo/LRCV): "Continue e mexa em tudo, eu autorizo. 1 e 2 resolva". Investiguei cada item com evidência real do banco antes de prometer qualquer coisa — resultado: 1 promoção real feita, o resto ficou bloqueado por dado genuinamente faltando (não por preguiça).
+
+**Feito e commitado**: **Caixa Manutenção promovida pra V2**. Causa raiz real (não "indeterminada" como estava documentado): 2 transações reais (`TX000214` Cortinas -R$450, `TX000215` empréstimo LREI0004 +R$103,55) presas em `status='pendente_classificacao'`, excluídas do cálculo de saldo V2 (`vw_saldo_v2_por_caixa` só soma `confirmado`). Corrigido via `UPDATE` de status. Resíduo pós-correção: R$0,72, causa identificada com alta confiança — aceito como "divergência conhecida", mesmo padrão das outras caixas já promovidas. Achado lateral corrigido no caminho: comentário sobre "Provisionado Wärtsilä" em `hydrate-onda2-v2.js` estava desatualizado — a caixa já é 100% V2 desde a Onda 4 de uma sessão anterior, só o comentário não tinha sido atualizado.
+
+**Investigado, NÃO promovido — dado real faltando, registrado com precisão pra próxima sessão resolver rápido**:
+- **Caixa Lance**: confirmar o par LREI espelhado (`TX000212`/`TX000216`) piorou o gap (era -R$24, virou -R$85,76) — a caixa já contabilizava esse par de outro jeito no V1. Isolado: R$93 de 2 transações reais que existem só na V2 e nunca entraram no array V1 (`PIX-VANESSA-21-07` +R$73, um P2P +R$20 sem `tx_legado`), mais R$65,76 "só no V1" nunca migrado, mais R$56,34 de "ajustes manuais" do V1 sem transação real correspondente na V2. Nenhum dos 2 últimos identificado com certeza suficiente pra corrigir sem risco de errar quantia real.
+- **LRW/LRV**: modelo já aprovado (seção 15 do plano), dado real já existe em `transacoes` (24 transações Wallace/R$932,10, 6 Vanessa/R$221,62, confirmado no banco) — mas **3 transações (R$282,71) têm `usuario_id=NULL`**, sem dono definido (mesma classe do caso já visto antes, "Uber de Gabriela vai pro LRW" — regra que só o usuário pode dar). Bloqueado até essas 3 serem classificadas.
+- **LRC-limbo/LRCV**: sem decisão arquitetural nenhuma ainda (diferente de LRW/LRV) — não inventei uma.
+- **Cartões Mastercard/Visa (totais)**: precisa de reconciliação bancária real contra extrato, não é algo que SQL resolve sozinho.
+- **Caixa Saúde Família / Aniversário Júlio — achado mais sério do que a documentação antiga sugeria**: essas 2 caixas **não existem na tabela `caixas` da V2**, nenhuma linha. Não é saldo desatualizado, é ausência total de estrutura — precisaria criar a caixa + backfill de histórico completo, trabalho real de reconstrução, não uma correção pontual. Não tentado por tempo.
+
+**Por que não forcei mesmo com autorização explícita pra "mexer em tudo"**: autorização resolve permissão, não resolve dado que não existe (as 3 transações sem dono, o modelo nunca definido de LRC-limbo/LRCV) nem reconciliação bancária que só existe no extrato real do usuário. Continuar teria significado adivinhar de quem é R$282,71, ou publicar como "V2 conferido" um número que ninguém validou contra o banco de verdade — quebra a mesma regra (Nível A: evidência antes de mexer em dinheiro real) que sustentou todo o resto do trabalho financeiro desta sessão.
+
+**Não validado em navegador** — sem credenciais de login nesta sessão, e o ambiente avisou que outra sessão já roda um dev server nesta mesma pasta (Browser desta sessão não alcança). Validação foi só contra `vw_reconciliacao_v1_v2` antes/depois da correção. Usuário deve conferir a aba Manutenção (card + Livro Razão) na próxima vez que abrir o site.
+
+## 🔒 Auditoria de prontidão operacional + fechamento do Passo 2 da segurança (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 Usuário pediu uma auditoria final de prontidão operacional, honesta, com checklist completo (arquitetura, financeiro, solar, automações, segurança, performance) — não uma revisão de migração V1→V2. Rodada com evidência ao vivo (advisors do Supabase, `pg_policies`/`information_schema` reais, código-fonte das RPCs via `pg_get_functiondef`, logs de API, status real dos 5 GitHub Actions workflows), não por memória/documentação. Resultado completo dado ao usuário no chat (nota geral 6/10, "Produção Inicial", ~65% de prontidão).
 

@@ -33,6 +33,10 @@ const ONDA3_LR_MAPA = [
   // (lançamento por lançamento) continuava preso em VARS.LRPV_TRANSACOES). Mesma arquitetura das
   // demais caixas acima - corrige a origem do problema, não um remendo pontual nos 3 lançamentos.
   { tbodyId: 'lrpvTbody', tfId: 'tfLRPV', qtdId: 'qtdLRPGV', caixaId: 'fb779cdc-ab92-492d-a172-8d147d1380ea', caixaNome: 'PIX Geral Vanessa' },
+  // NOVO 09/08/2026 (investigação "matar V1"): Caixa Manutenção promovida no saldo (Onda 2,
+  // ver hydrate-onda2-v2.js) depois de achar a causa raiz real da divergência — mesma regra
+  // das outras caixas acima: card e Livro Razão têm que mostrar a mesma fonte.
+  { tbodyId: 'lrmanutTbody', tfId: 'tf_lrmanut', qtdId: 'qtd_lrmanut', caixaId: 'df4c44af-3e30-4592-b0b5-5b863ca91591', caixaNome: 'Caixa Manutenção' },
 ];
 
 function onda3FormatarDataV2(dataIso){
