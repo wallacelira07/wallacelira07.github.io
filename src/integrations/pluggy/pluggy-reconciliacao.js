@@ -253,10 +253,14 @@ function reconciliarPluggy(){
 // depois, sem alteracao - isto so PREENCHE categoriaSugerida quando o V1 nao tinha achado nada).
 let __regrasClassificacaoV2Cache = null;
 async function classificarViaV2(descricaoBruta, origem){
+  // CORRIGIDO 09/08/2026 (mesma varredura de segurança): passa a enviar o token do login quando
+  // existe (mesmo padrão de WallaceFinanceService._headers() em app.js) — plumbing pra quando a
+  // leitura pública for restringida (passo 2, ainda não feito, ver nota em app.js:_headers()).
+  const __tokenV2 = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
   try {
     if(!__regrasClassificacaoV2Cache){
       const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/regras_classificacao?select=prioridade,estabelecimento_contem,categoria_id,resultado&ativo=eq.true&resultado=eq.classificar&order=prioridade.asc', {
-        headers: { apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' }
+        headers: { apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer '+__tokenV2 }
       });
       if(!r.ok) return null;
       __regrasClassificacaoV2Cache = await r.json();
@@ -266,14 +270,14 @@ async function classificarViaV2(descricaoBruta, origem){
     if(!regra) return null;
     const rc = await fetch(`https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/resolver_caixa`, {
       method:'POST',
-      headers: { 'Content-Type':'application/json', apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+      headers: { 'Content-Type':'application/json', apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer '+__tokenV2 },
       body: JSON.stringify({ p_categoria_id: regra.categoria_id, p_usuario_id: null, p_origem: origem||null })
     });
     const caixaId = rc.ok ? await rc.json() : null;
     let caixaNome = null;
     if(caixaId){
       const rcx = await fetch(`https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/caixas?select=nome&id=eq.${caixaId}`, {
-        headers: { apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' }
+        headers: { apikey:'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization:'Bearer '+__tokenV2 }
       });
       const j = rcx.ok ? await rcx.json() : [];
       caixaNome = j[0] ? j[0].nome : null;

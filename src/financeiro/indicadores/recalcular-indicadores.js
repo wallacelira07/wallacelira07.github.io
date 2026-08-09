@@ -91,13 +91,16 @@ function recalcularIndicadores(){
   // Grava o snapshot deste ciclo no histórico (fire-and-forget, mesmo padrão das outras persistências
   // deste arquivo). Persiste também patrimonioLiquido/receitaTotalComp/despesaTotalComp/poupancaRS/
   // taxaPoupancaPct (novos), os campos antigos do PIB Wallace continuam gravados, intactos.
+  // CORRIGIDO 09/08/2026 (achado de seguranca, mesma varredura das outras 4 RPCs): registrar_pib_mensal
+  // tambem exige login/service_role agora - envia o token real, mesmo padrao de obterTokenAuthSupabase().
+  const tokenAuthPib = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
   if(typeof fetch !== 'undefined'){
     fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/registrar_pib_mensal', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-        'Authorization': 'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg'
+        'Authorization': 'Bearer ' + tokenAuthPib
       },
       body: JSON.stringify({ p_mes: VARS.cicloAtual, p_snapshot: {
         salarioLiquido: REG.pibWallace.salarioLiquido, reembolsos: REG.pibWallace.reembolsos,

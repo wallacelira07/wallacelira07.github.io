@@ -66,12 +66,24 @@ const WallaceFinanceService = {
   _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
   _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
   invalidarCache(){ this._cache.clear(); },
+  // NOVO 09/08/2026 (preparação pra fechar a leitura pública do banco - achado da auditoria de
+  // segurança: hoje toda leitura usa só a chave anônima, sem token de login nenhum). Passo 1 (este
+  // commit): manda o token do Firebase quando existe (obterTokenAuthSupabase(), definida acima),
+  // cai pra chave anônima se não tiver sessão - EXATAMENTE o mesmo comportamento de hoje quando
+  // deslogado, nada quebra. Passo 2 (SÓ depois de validar login real em navegador): restringir as
+  // policies de SELECT no Supabase pra `authenticated` - aí sim a leitura deixa de ser pública. Não
+  // fiz o passo 2 ainda de propósito - travaria a tela inteira se o token não estiver realmente
+  // sendo aceito pelo Supabase, e não consigo testar isso sem login ao vivo.
+  _headers(){
+    const token = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || this._key;
+    return { apikey: this._key, Authorization: `Bearer ${token}` };
+  },
   async getDashboardResumo(){
     const chave = 'rpc:dashboard_resumo';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
       method:'POST',
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
+      headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
       body:'{}'
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
@@ -91,7 +103,7 @@ const WallaceFinanceService = {
     // NOVO 09/08/2026: caixa_tipo adicionado ao select (era so caixa_nome,v2_saldo_calculado) - precisa
     // pra filtrar so caixas operacionais no calculo de deficit sem LREI (hydrate-deficit-caixas-sem-lrei.js).
     const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,caixa_tipo,v2_saldo_calculado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
     const dado = await resp.json();
@@ -105,7 +117,7 @@ const WallaceFinanceService = {
     const chave = 'vw_reconciliacao_v1_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
     const dado = await resp.json();
@@ -124,7 +136,7 @@ const WallaceFinanceService = {
     const chave = 'valores_v2_todos';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=eq.confirmado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
     const dado = await resp.json();
@@ -142,7 +154,7 @@ const WallaceFinanceService = {
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/rpc/valores_combinados_v2`, {
       method: 'POST',
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
+      headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
       body: '{}'
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores combinados da V2`);
@@ -165,7 +177,7 @@ const WallaceFinanceService = {
     const chave = 'comprometido_caixa_variavel_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
     const dado = await resp.json();
@@ -180,7 +192,7 @@ const WallaceFinanceService = {
     if(this._cache.has(chave)) return this._cache.get(chave);
     const lista = caixaIds.join(',');
     const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes por caixa`);
     const dado = await resp.json();
@@ -195,7 +207,7 @@ const WallaceFinanceService = {
     const chave = 'vw_compromisso_cartao_por_pessoa';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_compromisso_cartao_por_pessoa?select=usuario_nome,total_comprometido,qtd_transacoes`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_compromisso_cartao_por_pessoa`);
     const dado = await resp.json();
@@ -206,7 +218,7 @@ const WallaceFinanceService = {
     const chave = 'caixas';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
     const dado = await resp.json();
@@ -218,7 +230,7 @@ const WallaceFinanceService = {
     const caixa = caixas.find(c => c.nome === nomeCaixa);
     if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
     const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes`);
     const transacoes = await resp.json();
@@ -233,7 +245,7 @@ const WallaceFinanceService = {
     const chave = 'vw_patrimonio_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_patrimonio_v2?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_patrimonio_v2`);
     const dado = await resp.json();
@@ -254,7 +266,7 @@ const WallaceFinanceService = {
     const chave = 'vw_ciclo_solar_aberto';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_aberto?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_aberto`);
     const dado = await resp.json();
@@ -272,7 +284,7 @@ const WallaceFinanceService = {
     const chave = 'vw_ciclo_solar_historico';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_historico?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_historico`);
     const dado = await resp.json();
@@ -287,7 +299,7 @@ const WallaceFinanceService = {
     const chave = 'investimentos_opcoes';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/investimentos?select=ticker,ativo_subjacente,quantidade,valor_atual,preco_exercicio,data_vencimento,premio_bruto,custo_operacional,premio_recebido,preco_medio,nota_corretagem,exercida&tipo=eq.opcoes`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar investimentos (opções)`);
     const dado = await resp.json();
@@ -298,7 +310,7 @@ const WallaceFinanceService = {
     const chave = 'indicador:' + nome;
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/indicadores?select=valor,data_calculo&nome=eq.${encodeURIComponent(nome)}&order=data_calculo.desc&limit=1`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
     const dado = await resp.json();
@@ -318,7 +330,7 @@ const WallaceFinanceService = {
     const chave = 'vw_emprestimos_internos_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_emprestimos_internos_v2?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_emprestimos_internos_v2`);
     const dado = await resp.json();
@@ -331,7 +343,7 @@ const WallaceFinanceService = {
     const chave = 'reembolso_wartsila_ciclo';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&order=ciclo_referencia.desc&limit=1`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
     const dado = await resp.json();
@@ -351,7 +363,7 @@ const WallaceFinanceService = {
     const chave = 'vw_parcelamentos_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_parcelamentos_v2?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_parcelamentos_v2`);
     const dado = await resp.json();
@@ -364,7 +376,7 @@ const WallaceFinanceService = {
     const chave = 'vw_p2p_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/vw_p2p_v2?select=*`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_p2p_v2`);
     const dado = await resp.json();
@@ -385,7 +397,7 @@ const WallaceFinanceService = {
     const chave = 'mercadopago_eventos';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/mercadopago_eventos?select=id,origem,tipo,descricao,valor,data,status,status_triagem,metadata&order=data.desc`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar mercadopago_eventos`);
     const dado = await resp.json();
@@ -402,9 +414,9 @@ const WallaceFinanceService = {
     const chave = 'pluggy_contas_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const [respConexoes, respContas, respTransacoes] = await Promise.all([
-      fetch(`${this._url}/rest/v1/pluggy_conexoes?select=item_id,banco,status,atualizado_em`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
-      fetch(`${this._url}/rest/v1/pluggy_contas?select=id,conexao_id,numero,tipo,subtipo,nome,saldo,moeda,limite_total,limite_disponivel,fatura_vencimento_atual,fatura_valor_total,fatura_pagamento_minimo,qtd_transacoes_sincronizadas`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
-      fetch(`${this._url}/rest/v1/pluggy_transacoes?select=id,conta_id,data,descricao,valor,categoria,status`, { headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` } }),
+      fetch(`${this._url}/rest/v1/pluggy_conexoes?select=item_id,banco,status,atualizado_em`, { headers: this._headers() }),
+      fetch(`${this._url}/rest/v1/pluggy_contas?select=id,conexao_id,numero,tipo,subtipo,nome,saldo,moeda,limite_total,limite_disponivel,fatura_vencimento_atual,fatura_valor_total,fatura_pagamento_minimo,qtd_transacoes_sincronizadas`, { headers: this._headers() }),
+      fetch(`${this._url}/rest/v1/pluggy_transacoes?select=id,conta_id,data,descricao,valor,categoria,status`, { headers: this._headers() }),
     ]);
     if(!respConexoes.ok) throw new Error(`WallaceFinanceService: erro ${respConexoes.status} ao buscar pluggy_conexoes`);
     if(!respContas.ok) throw new Error(`WallaceFinanceService: erro ${respContas.status} ao buscar pluggy_contas`);
@@ -453,7 +465,7 @@ const WallaceFinanceService = {
     const chave = 'cronograma_boletos_fixos';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const resp = await fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=tx,nome,dia_vencimento,valor&ativo=eq.true&order=dia_vencimento.asc`, {
-      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}` }
+      headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_boletos_fixos`);
     const dado = await resp.json();
