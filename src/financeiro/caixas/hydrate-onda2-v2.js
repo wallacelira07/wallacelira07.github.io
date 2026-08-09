@@ -77,11 +77,16 @@ const ONDA2_V2_MAPA = [
     // Achado ao promover (09/08/2026): cxPgvBar/cxPgvPct eram calculados só em hydrate-caixas.js
     // (V1, meta fixa REG.caixasOperacionais.pixGeralVanessa.meta) e nunca reaproveitados aqui -
     // ficariam mostrando a % antiga (baseada em V1) junto do saldo novo (V2), inconsistente.
+    // Texto do % NÃO usa pctOf() (que capa em 100 - convenção do resto do projeto): pedido
+    // explícito do usuário pra PGV, já que passar da meta é informação real (caixa reforçada
+    // acima do normal), não deveria ficar escondida atrás de um "100,0%" enganoso. A BARRA
+    // continua capada em 100%, só o texto mostra o valor real.
     extra: (valorV2) => {
       const meta = REG.caixasOperacionais.pixGeralVanessa.meta;
-      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctReal = meta > 0 ? valorV2 / meta * 100 : 0;
+      const pctTxt = pctReal.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
       const pctEl = $('cxPgvPct'); if(pctEl) pctEl.textContent = pctTxt;
-      const barEl = $('cxPgvBar'); if(barEl) barEl.style.width = Math.min(100, pctOf(valorV2, meta))+'%';
+      const barEl = $('cxPgvBar'); if(barEl) barEl.style.width = Math.min(100, pctReal)+'%';
     },
   },
   { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
