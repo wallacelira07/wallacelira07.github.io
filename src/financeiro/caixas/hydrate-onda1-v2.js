@@ -48,7 +48,21 @@ const ONDA1_V2_MAPA = [
       const balEl = $('balResBoletos'); if(balEl) balEl.textContent = fmt(valorV2);
     },
   },
-  { idHtml: 'cxPixSaldo', caixaNome: 'PIX Vanessa', getValorV1: () => REG.caixasOperacionais.pixVanessa.saldo },
+  {
+    // ACHADO (09/08/2026, mesma classe do caso Boletos acima): cxPixSaldo já mostrava V2, mas
+    // cxPixPct/cxPixBar (barra de meta, seção 05) e balResPixVanessa (linha do Balanço,
+    // "Gestão das Reservas") continuavam presos no V1 (302,88 em vez de 2,88) - mesma caixa,
+    // três números diferentes na mesma tela. Achado ao investigar um relatório (depois
+    // desmentido) de outro Chat sobre a PIX Vanessa estar desatualizada.
+    idHtml: 'cxPixSaldo', caixaNome: 'PIX Vanessa', getValorV1: () => REG.caixasOperacionais.pixVanessa.saldo,
+    extra: (valorV2) => {
+      const meta = REG.caixasOperacionais.pixVanessa.meta;
+      const pctTxt = pctOf(valorV2, meta).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})+'%';
+      const pctEl = $('cxPixPct'); if(pctEl) pctEl.textContent = pctTxt;
+      const barEl = $('cxPixBar'); if(barEl) barEl.style.width = pctOf(valorV2, meta)+'%';
+      const balEl = $('balResPixVanessa'); if(balEl) balEl.textContent = fmt(valorV2);
+    },
+  },
   {
     // ACHADO (08/08/2026, mesma classe de bug): balOpCaixaVariavel (seção "Balanço Patrimonial" →
     // Operacional) duplica o mesmo saldo real da Caixa Variável, nunca tinha sido ligado.
@@ -58,7 +72,7 @@ const ONDA1_V2_MAPA = [
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];
 
-const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos', 'balOpCaixaVariavel']); // cxBoletosBar tem style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
+const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos', 'balOpCaixaVariavel', 'cxPixPct', 'balResPixVanessa']); // cxBoletosBar/cxPixBar têm style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
 
 async function aplicarOnda1V2(){
   let saldosV2;
@@ -106,4 +120,8 @@ async function aplicarOnda1V2(){
   });
   window.WALLACE_ONDA1_V2_RELATORIO = relatorio; // inspecionável no console: WALLACE_ONDA1_V2_RELATORIO
   console.log('Onda1V2: relatório completo em window.WALLACE_ONDA1_V2_RELATORIO', relatorio);
+  // Re-chama hydrateQualidade() (09/08/2026) — o alerta da PGV/PV nas "Verificações de Negócio"
+  // agora prefere o valor deste relatório quando disponível, mesmo padrão já usado em
+  // hydrate-onda7-pluggy.js/hydrate-onda4-lrei.js.
+  if(typeof hydrateQualidade === 'function') hydrateQualidade();
 }

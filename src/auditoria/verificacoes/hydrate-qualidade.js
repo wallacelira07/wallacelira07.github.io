@@ -79,8 +79,17 @@ function montarAlertasNegocio(){
   // secao 7: quando o saldo da PIX Geral Vanessa (PGV, conta autonoma dela) cai abaixo de R$50,00,
   // transferir R$300,00 da PIX Vanessa (PV, reserva do Wallace - a caixa DE ONDE o dinheiro sai).
   // Alerta em 3 niveis para o usuario ver ANTES de zerar, nao so depois.
-  const saldoPGV = VARS.pixGeralVanessaSaldo;
-  const saldoPV = VARS.caixaPixVanessa;
+  // CORRIGIDO 09/08/2026: esta funcao roda antes (e e re-chamada depois) das Ondas 1/2 V2
+  // resolverem - lia VARS.pixGeralVanessaSaldo/caixaPixVanessa (V1) direto, sem nunca saber que
+  // a PGV/PV ja tinham sido promovidas pra V2 no restante da tela (achado ao investigar um
+  // relatorio de outro Chat: o alerta mostrava R$50,69/R$302,88, valores que ja tinham sido
+  // corrigidos em todo o resto do painel). Agora prefere o valor V2 (via window.WALLACE_ONDA1_V2_
+  // RELATORIO/WALLACE_ONDA2_V2_RELATORIO, ja resolvidos quando essas ondas re-chamam esta funcao
+  // no fim), caindo pro V1 só se a onda correspondente ainda não rodou.
+  const pgvV2 = window.WALLACE_ONDA2_V2_RELATORIO?.find(r => r.caixa === 'PIX Geral Vanessa');
+  const saldoPGV = (pgvV2 && typeof pgvV2.v2 === 'number') ? pgvV2.v2 : VARS.pixGeralVanessaSaldo;
+  const pvV2 = window.WALLACE_ONDA1_V2_RELATORIO?.find(r => r.caixa === 'PIX Vanessa');
+  const saldoPV = (pvV2 && typeof pvV2.v2 === 'number') ? pvV2.v2 : VARS.caixaPixVanessa;
   const GATILHO_APORTE_PGV = 50.00;
   const VALOR_APORTE_PGV = 300.00;
   if(saldoPGV < GATILHO_APORTE_PGV){

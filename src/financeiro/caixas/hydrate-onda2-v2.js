@@ -170,6 +170,10 @@ async function aplicarOnda2V2(){
   });
   window.WALLACE_ONDA2_V2_RELATORIO = relatorio;
   console.log('Onda2V2: relatório completo em window.WALLACE_ONDA2_V2_RELATORIO', relatorio);
+  // Re-chama hydrateQualidade() (09/08/2026) — o alerta da PGV/PV nas "Verificações de Negócio"
+  // agora prefere o valor deste relatório quando disponível, mesmo padrão já usado em
+  // hydrate-onda7-pluggy.js/hydrate-onda4-lrei.js.
+  if(typeof hydrateQualidade === 'function') hydrateQualidade();
 }
 
 // LIVRO RAZÃO — FASE 1 (só diagnóstico, ZERO mudança de renderização, pedido explícito do
