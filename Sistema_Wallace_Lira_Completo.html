@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<link rel="stylesheet" href="assets/css/styles.css?v=274">
+<link rel="stylesheet" href="assets/css/styles.css?v=275">
 </head>
 <body>
 <script>
@@ -36,6 +36,20 @@
       window.location.replace('index.html');
       window.stop && window.stop();
     }
+  })();
+  // CORRIGIDO 09/08/2026 (achado do usuário: "o nublado demora aparecer, expondo os valores") -
+  // a checagem de "esconder valores" vivia em ui-componentes-visuais.js, o ÚLTIMO módulo carregado
+  // em todo o boot (depois de ~55 módulos + ~10 fetches + app.js + energia-solar.js +
+  // promocoes-financeengine.js) - os valores reais ficavam visíveis por segundos antes do blur
+  // aplicar. Movido pra cá: primeira coisa que roda, antes de qualquer conteúdo renderizar. Marca
+  // <html> (existe desde o primeiro byte do parser, <body> ainda nem começou) em vez de <body> -
+  // CSS/JS atualizados pra usar html.esconder-valores em vez de body.esconder-valores.
+  (function(){
+    try {
+      if(localStorage.getItem('wallace_esconder_valores') === '1'){
+        document.documentElement.classList.add('esconder-valores');
+      }
+    } catch(e){}
   })();
 </script>
 <div class="wrap">
@@ -1623,7 +1637,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260809-11';
+var __V = '20260809-12';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.

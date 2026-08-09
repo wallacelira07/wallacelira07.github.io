@@ -14,14 +14,20 @@ function toggleEsconderValores(){
   // esse botao, entao o icone nunca trocava. Agora esta funcao so alterna o blur (sua responsabilidade
   // real) e RETORNA o estado, pra quem chamou (index.html, via iframe.contentWindow) atualizar o
   // proprio botao visivel.
-  const ativo = document.body.classList.toggle('esconder-valores');
+  // CORRIGIDO 09/08/2026: alterna em <html>, nao mais em <body> - consistente com a checagem
+  // sincrona nova (topo de Sistema_Wallace_Lira_Completo.html), que roda antes de <body> existir.
+  const ativo = document.documentElement.classList.toggle('esconder-valores');
   try { localStorage.setItem('wallace_esconder_valores', ativo ? '1' : '0'); } catch(e) {}
   return ativo;
 }
-onDomPronto(() => { // V170: corrigido - era addEventListener DOMContentLoaded, nunca rodava
+// NOVO 09/08/2026: a checagem real (que evitava o "flash" de valores expostos) foi movida pro
+// topo de Sistema_Wallace_Lira_Completo.html, roda antes de qualquer conteudo renderizar. Este
+// bloco fica só como rede de segurança idempotente (ex: preferência mudada em outra aba entre o
+// boot e este ponto) - nunca é a defesa principal contra o flash.
+onDomPronto(() => {
   try {
     if(localStorage.getItem('wallace_esconder_valores') === '1'){
-      document.body.classList.add('esconder-valores');
+      document.documentElement.classList.add('esconder-valores');
     }
   } catch(e) {}
 });
