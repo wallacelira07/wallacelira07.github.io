@@ -126,7 +126,31 @@ Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Sit
 
 **Métrica atualizada**: 37 → **58 consumidores removidos** / ~46 → **~25 restantes**.
 
-**Pendente**: commit + push.
+**Commitado e enviado**: `d2c574d` → `origin/main`.
+
+## Ciclo Snapshots — bloqueador técnico real encontrado, respeitado
+
+**Contexto**: usuário pediu explicitamente pra priorizar impacto, classificar os ~25 restantes e escolher o melhor candidato, com autorização pra executar direto contanto que houvesse modelagem clara, sem risco de perda de dado e sem decisão de negócio pendente. Classificação entregue: Ciclo Snapshots tinha o maior número de consumidores (15) mas o maior risco; escolhido primeiro `CRONOGRAMA_BOLETOS_FIXOS` (ver bloco acima), depois o usuário pediu explicitamente pra avançar pra Ciclo Snapshots mesmo assim, com diretriz clara de "menor modelagem possível, preservar comportamento do CycleEngine".
+
+**Rodapé de versão corrigido antes de prosseguir**: usuário reportou "tá desatualizado demais" vendo o rodapé mostrar "v06/08/2026 (parte 140)" — era texto fixo no HTML, nunca ligado a nada, enquanto `__V` (cache-buster real) seguia sendo bumpado normalmente. Corrigido na raiz: rodapé agora deriva de `__V` via JS, nunca mais pode dessincronizar. Commit `718abd9`.
+
+**Investigação de Ciclo Snapshots**: mapeei os 15 consumidores e o schema completo (~25 campos escalares + `cascata` aninhada +, para ciclos fechados, 4 arrays de Livro Razão arquivados). Achado real: `CICLO_SNAPSHOTS` é lido de forma SÍNCRONA durante a construção inicial do `VARS`, por `aplicarCicloAoVARS()`, `recalcularNecessidade()`, `auditoria-automatica.js` e `CycleEngine.js` — Total Operacional, Necessidade Líquida, Modo Operacional e Saldo do Ciclo (números que o usuário usa pra decisão financeira diária) dependem desse dado estar pronto ANTES do primeiro cálculo do boot. Uma busca no Supabase é sempre assíncrona — trocar a fonte exigiria re-executar em cascata toda essa cadeia depois que o fetch resolvesse, um recálculo que eu não conseguiria mapear e validar com segurança total no tempo restante da sessão. **Isso bate exatamente na condição de parada que o próprio usuário definiu ("bloqueador técnico real")** — não contornado, não arriscado.
+
+**Decisão tomada**: separar a migração em 2 etapas. Etapa 1 (feita agora): mover só a ARMAZENAGEM pra uma tabela relacional, zero risco comportamental (nada no JS lê essa tabela ainda). Etapa 2 (explicitamente NÃO feita, fica pra sessão dedicada futura): religar os 15 consumidores.
+
+**Tabela criada**: `ciclos_financeiros_snapshots` — schema completo espelhando 1:1 o literal (`salario`, `entradas_totais`, campos de Caixa Variável, `reembolso_recebido`/`a_receber`, tolerância, `cascata` em jsonb, necessidade bruta/líquida, `modo_operacional`, `saldo_ciclo`, valores congelados de cartão do ciclo fechado, `livros_razao_arquivados` em jsonb com os 4 arrays LRW/LRV/LRC_LIMBO/LRPV do ciclo fechado). RLS com leitura pública. Backfill dos 2 ciclos existentes, copiado verbatim do literal (nunca "chutado") — conferido: `2026-06` (fechado) com 43 lançamentos LRW arquivados batendo exato com o comentário original do código ("43+10+6 lançamentos reais"), `2026-07` (aberto) sem arquivo, como esperado.
+
+**Comentário deixado na própria tabela** (`comment on table`) documentando explicitamente que só a armazenagem foi migrada e que o literal de `vars-ciclo-snapshots.js` NÃO deve ser removido até a 2ª etapa — proteção contra uma sessão futura assumir por engano que a migração está completa.
+
+## Bugfix fora da fila — frescor solar com alarme falso à noite
+
+Usuário reportou ao vivo, mostrando print do badge: "Última atualização há 2 horas — verifique se o robô SAJ está rodando", e apontou a causa raiz ele mesmo — o robô só lê das 6h às 18h (mostrou o cron `*/10 6-18 * * *` do workflow), não faz sentido continuar lendo/alarmando à noite sem geração.
+
+**Corrigido**: `formatarFrescor()`/`montarBadgeFrescor()` (app.js) ganharam um parâmetro opcional `agoraParaFaixa` — só usado pra CLASSIFICAR a faixa de alarme (verde/amarelo/laranja/vermelho), default `Date.now()` real, zero mudança de comportamento pra qualquer outro chamador que não passar o argumento (badge de frescor do ROC, etc). Novo `agoraEfetivoFrescorSolar()` em `hydrate-onda5-qualidade-geracao.js` — fora da janela 6h-18h (Brasília, UTC-3 fixo, sem horário de verão desde 2019, trick de deslocar o timestamp em -3h e usar getters UTC pra evitar bug de virada de dia), "congela" o relógio de classificação no último fechamento (18h) e só volta a contar quando a janela reabre. O tempo REAL exibido ("há 2 horas") continua sempre honesto — só a classificação de alarme ignora as horas noturnas sem leitura por design.
+
+**Validado ao vivo, no horário real de teste (21h em Brasília, dentro da janela noturna)**: badge mudou de "⚠️ atualização antiga, laranja" pra "✅ Atualizado há 2 horas, verde". Achado um bug na 1ª tentativa de implementação (misturar hora-SP com data-UTC gerava um timestamp no FUTURO) — pego e corrigido antes de considerar validado, testado de novo, confirmado certo. Zero erro de console. Commit `a85b469`.
+
+**Já commitado e enviado**: `718abd9` (rodapé) e `a85b469` (frescor solar). **Pendente**: commit + push só desta documentação (tabela `ciclos_financeiros_snapshots` já criada e validada em produção, sem código correspondente pra commitar ainda — ver Etapa 2 pendente acima).
 
 ## Bloco 30 — Endurecimento final de governança dos agentes Claude (08/08/2026, continuação do Bloco 29)
 
