@@ -2,7 +2,29 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🔴 Encerramento por limite de crédito, continuação do dia 09/08/2026 (leia primeiro, mais recente que tudo abaixo)
+## 🔒 Auditoria de prontidão operacional + fechamento do Passo 2 da segurança (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+Usuário pediu uma auditoria final de prontidão operacional, honesta, com checklist completo (arquitetura, financeiro, solar, automações, segurança, performance) — não uma revisão de migração V1→V2. Rodada com evidência ao vivo (advisors do Supabase, `pg_policies`/`information_schema` reais, código-fonte das RPCs via `pg_get_functiondef`, logs de API, status real dos 5 GitHub Actions workflows), não por memória/documentação. Resultado completo dado ao usuário no chat (nota geral 6/10, "Produção Inicial", ~65% de prontidão).
+
+**Achado que mudou o quadro**: a "Passo 2 da segurança" (RLS travado nas tabelas financeiras), documentada havia dias como pendência de prioridade Alta, continuava real e sem correção — confirmado com uma query direta (`anon` lendo `transacoes` sem restrição nenhuma). Dois achados **novos**, nunca documentados antes desta auditoria:
+1. **19 views `SECURITY DEFINER`** que rodavam com privilégio de quem as criou, não de quem consulta — mesmo travando o RLS das tabelas base, elas continuariam vazando tudo sem correção própria.
+2. **A passagem de turno anterior registrou "anon revogado das 5 RPCs" — não estava.** A checagem de JWT dentro do código das funções era real e funcionava (confirmado lendo o código), mas o `GRANT EXECUTE` pro `anon` nunca tinha sido de fato revogado em 4 das 5 RPCs.
+
+**Usuário respondeu "não vamos perder tempo, corrija tudo o mais rápido possível"** — corrigido na mesma sessão, direto em produção via `apply_migration` no Supabase:
+1. RLS travado (SELECT restrito ao JWT do Firebase, mesmo padrão já comprovado em `wallace_dados`) em 28 tabelas financeiras/sensíveis + `v1_v2_caixa_mapa` (que não tinha RLS nenhum).
+2. As 19 views convertidas pra `SECURITY INVOKER`.
+3. `EXECUTE` revogado de `anon`/`PUBLIC` nas 5 RPCs de escrita (`lancar_transacao_manual`, `criar_categoria`, `registrar_pib_mensal`, `fechar_ciclo_solar`, `triar_pluggy_item`) — `fechar_ciclo_solar` precisou de um segundo `REVOKE` explícito porque o primeiro (só `FROM PUBLIC`) não bastou.
+4. `search_path` corrigido em 7 funções restantes flagadas pelo linter.
+
+**Validado antes de declarar concluído** (não só leitura de código): teste direto como role `anon` (`SELECT count(*) FROM transacoes` → 0 linhas, era acesso total antes), `has_function_privilege` confirmando as 5 RPCs bloqueadas pra `anon`, `get_advisors(security)` rodado de novo mostrando **zero achados `ERROR`** restantes (só `WARN` informativo esperado — "usuário logado pode chamar RPC", que é o comportamento intencional). E o mais importante: **usuário confirmou ao vivo, logado no navegador real, painel carregando normal** ("tudo normal") — não parou na validação de banco.
+
+**Risco residual consciente, não é achado novo**: as automações do GitHub Actions usam a `service_role` key, que tem `BYPASSRLS=true` no Postgres — bypassam RLS por design, necessário pra funcionarem. A proteção nova é contra leitura anônima externa (navegador/curl com a chave pública do HTML), não uma segunda camada dentro do próprio Supabase para quem já tem a chave privilegiada.
+
+**Automações confirmadas saudáveis no caminho** (checado ao vivo via GitHub, não documentação): últimas execuções de Pluggy Sync, Mercado Pago Sync, SAJ Solar, Teste Cron e Pages Deploy — todas com sucesso.
+
+`ESTADO_ATUAL.md` já reescrito refletindo esse fechamento — a linha "Passo 2 da segurança, Alta prioridade" saiu da tabela de pendências.
+
+## 🔴 Encerramento por limite de crédito, continuação do dia 09/08/2026 (leia abaixo, anterior ao bloco acima)
 
 Sessão retomada depois do bloco "ENCERRAMENTO DA FASE DE IMPLANTAÇÃO V2" abaixo, focada em 2 bugs de UI reportados pelo usuário ao vivo (não achados de auditoria). Encerrada por limite de créditos, não por fim natural de tarefa.
 

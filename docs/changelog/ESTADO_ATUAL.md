@@ -2,9 +2,32 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 09/08/2026, fim de sessão longa (auditoria de prontidão operacional + correção de todos os achados críticos + bugs reais de UI encontrados testando ao vivo). HEAD `cbb7d00` no momento desta escrita, `git status` limpo (fora dos `desktop.ini` inofensivos do Google Drive Desktop, nunca commitados).
+Última reescrita: 09/08/2026, continuação da sessão longa — auditoria de prontidão operacional executada com evidência ao vivo (advisors do Supabase, RLS real, grants reais, código-fonte das RPCs) seguida do fechamento imediato de todos os achados críticos, a pedido explícito do usuário ("corrija tudo o mais rápido possível"). `git status` limpo (fora dos `desktop.ini` inofensivos do Google Drive Desktop, nunca commitados) até este commit.
 
-## 🚨 Achado mais importante da sessão: auditoria de segurança real, corrigida
+## 🔒 Passo 2 da segurança FECHADO — RLS travado, views corrigidas, RPCs revogadas (09/08/2026, mesma sessão, urgente)
+
+Auditoria de prontidão operacional (pedida pelo usuário, ver histórico do chat) confirmou ao vivo, consultando o banco diretamente — não por documentação —, que a "Passo 2" registrada como pendência de prioridade Alta continuava real: **28 tabelas financeiras/sensíveis** (`transacoes`, `caixas`, `cartoes`, `investimentos`, `reembolsos`, `reembolso_wartsila_ciclo`, `reembolso_wartsila_recebimentos`, `pluggy_contas`, `pluggy_transacoes`, `pluggy_conexoes`, `mercadopago_eventos`, `financiamentos`, `emprestimos_internos`, `parcelas`, `indicadores`, `patrimonio`, `metas`, `contas_bancarias`, `usuarios`, `regras_classificacao`, `regras_resolver_caixa`, `ciclos_financeiros_snapshots`, `ciclos_solares`, `cronograma_boletos_fixos`, `energia_solar_leituras`, `energia_solar_geracao_diaria`, `categorias`, `subcategorias`) tinham policy de SELECT `qual=true` pra `anon` — qualquer pessoa com a chave pública do site (embutida no HTML) lia o livro razão inteiro sem login.
+
+**2 achados novos, nunca documentados antes, que a auditoria descobriu**:
+1. **19 views `SECURITY DEFINER`** (`vw_saldo_v2_por_caixa`, `vw_patrimonio_v2`, `vw_parcelamentos_v2`, `vw_roc_carteira_v2`, `vw_p2p_v2`, `vw_ciclo_solar_historico`, etc.) rodavam com o privilégio de quem as criou, não de quem consulta — mesmo travando o RLS das tabelas base, essas views continuariam vazando tudo.
+2. **A passagem de turno anterior registrou "anon revogado das 5 RPCs de escrita" — não estava.** O código das funções tinha a checagem de JWT correta (confirmado lendo `pg_get_functiondef` ao vivo), mas o `GRANT EXECUTE` pro `anon`/`PUBLIC` nunca foi de fato revogado em 4 das 5 — só `triar_mercadopago_evento` tinha sido revogada de verdade.
+
+**Corrigido em produção, via `apply_migration` no Supabase (não é DDL local, foi direto no banco de produção)**:
+1. Todas as 28 tabelas: policy `"Leitura via anon key (site publico)"` (qual=true) trocada por `"Leitura restrita a login Firebase valido"` — mesmo padrão já usado e comprovado em `wallace_dados` (`auth.jwt()->>'iss'`/`'aud'` batendo com o Firebase do site). `service_role` (usado pelas automações do GitHub Actions) tem `BYPASSRLS=true` no Postgres, confirmado via `pg_roles` — nenhuma automação foi afetada.
+2. `v1_v2_caixa_mapa` (tabela de mapeamento, estava com RLS desativado, zero proteção) — RLS ativado com a mesma policy.
+3. As 19 views: `ALTER VIEW ... SET (security_invoker = true)` — agora respeitam o RLS de quem consulta, não de quem criou.
+4. `REVOKE EXECUTE ... FROM PUBLIC` (e `FROM anon` explicitamente pra `fechar_ciclo_solar`, que não tinha caído no primeiro `REVOKE FROM PUBLIC`) nas 5 RPCs — `authenticated`/`service_role` mantidos, login continua funcionando.
+5. `search_path` corrigido em 7 funções que o linter apontava como mutável (`atualizar_mercadopago_eventos`, `triar_mercadopago_evento`, `triar_pluggy_item`, `rpc_dashboard_resumo`, `fn_parse_data_v1`, `marcar_atualizado_em`, `valores_combinados_v2`).
+
+**Validado antes de declarar concluído**:
+- Como role `anon`: `SELECT count(*) FROM transacoes` → **0 linhas** (era acesso total antes).
+- `has_function_privilege('anon', ..., 'EXECUTE')` → `false` nas 5 RPCs, confirmado uma por uma.
+- `get_advisors(security)` rodado depois: **zero achados `ERROR`** restantes (os 19 `security_definer_view` e o `rls_disabled_in_public` sumiram). Sobrou só `WARN` informativo ("usuário autenticado pode chamar RPC") — que é o comportamento **intencional** do "+ Lançar" e afins.
+- **Usuário confirmou ao vivo, logado no navegador real, painel carregando normal** ("tudo normal") — não ficou só na validação de banco.
+
+**Risco residual que ainda existe, consciente**: as automações do GitHub Actions (Pluggy, Mercado Pago, SAJ Solar) usam a `service_role` key, que bypassa RLS por design — isso é esperado e necessário pra elas funcionarem, mas significa que a proteção nova é só contra leitura anônima externa (navegador/curl com a chave pública), não uma segunda camada dentro do próprio Supabase. Não é um achado novo, é a mesma superfície que sempre existiu pra chaves privilegiadas.
+
+## 🚨 Achado mais importante da sessão (antes do fechamento acima): auditoria de segurança real, corrigida
 
 Usuário pediu uma auditoria honesta de prontidão operacional (não uma revisão de migração V1→V2). Achado crítico confirmado lendo o código real das funções no Supabase: **6 RPCs `SECURITY DEFINER` (`lancar_transacao_manual`, `triar_pluggy_item`, `triar_mercadopago_evento`, `criar_categoria`, `registrar_pib_mensal`) estavam concedidas a `anon` sem NENHUMA checagem de quem chamava** — qualquer pessoa com a chave pública do site (está no HTML, visível a qualquer um) podia inserir transação confirmada direto no banco, sem login algum.
 
@@ -51,12 +74,12 @@ Uma sessão anterior (mesmo dia) tinha registrado "Claude Chat não deve gravar 
 - Home nova carrega, 5 botões levam aos destinos certos, ícone de voltar retorna à home.
 - PGV, PIX Vanessa, Bens Duráveis, Caixa Variável (saldo e Comprometido) — todos corretos e validados contra o banco.
 - Inbox com dedup mais robusto (7 livros→toda V2, + soma de combinações pra compra desmembrada).
+- **Passo 2 da segurança FECHADO**: RLS travado em 28 tabelas + `v1_v2_caixa_mapa`, 19 views convertidas pra `SECURITY INVOKER`, `EXECUTE` das 5 RPCs revogado de `anon`/`PUBLIC`. Validado contra o banco (`anon` lê 0 linhas) e confirmado ao vivo pelo usuário logado ("tudo normal").
 
 ## Pendências remanescentes — ordem de prioridade pra próxima sessão
 
 | Item | Prioridade |
 |---|---|
-| **Passo 2 da segurança**: restringir policies de SELECT (RLS) pras tabelas financeiras — hoje qualquer um lê tudo com a chave pública. Canalização do token já pronta e validada; falta só travar as policies e testar ao vivo. | **Alta** — maior exposição real que resta |
 | Ler `window.WALLACE_BOOT_TIMING` real (usuário já confirmou que funciona) e decidir o que otimizar com dado, não achismo | Alta — pedido explícito do usuário ("nublado"/loading lento) |
 | 4 caixas de exceção residual ainda em V1 na exibição (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) — mesma exposição que PGV tinha antes de ser promovida | Média — candidatas naturais se causar incidente |
 | Dependência de cron-job.org (externo, gratuito) pra todas as 4 automações do GitHub Actions, sem monitoramento de falha | Média — fora do alcance de qualquer agente sem conta do usuário |
