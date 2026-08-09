@@ -25,7 +25,7 @@ Toda afirmação sobre o sistema carrega um nível de confiança. Classificar me
 
 **Nunca apresentar D como fato.** Frases como "o saldo é X" sem verificação são proibidas quando a informação é hipótese — usar "acho que", "não confirmei, mas", "seria preciso checar para confirmar".
 
-**Aplicação específica ao Claude Chat** (sem acesso a Supabase/repositório): por padrão, qualquer afirmação sobre dado ao vivo do sistema começa no Nível C (se o usuário forneceu) ou D (se não) — nunca C/D disfarçado de A. Se a pergunta exige Nível A/B para responder com segurança, dizer isso explicitamente e encaminhar para uma sessão do Claude Code (ver seção 11.4).
+**Aplicação específica ao Claude Chat** (Supabase sim, repositório/código-fonte não — ver "Fronteira Chat × Code", seção 1.2): dado que ele mesmo consultou/gravou agora no Supabase é Nível A de verdade. Qualquer afirmação sobre código-fonte, arquitetura, ou histórico de commits continua começando no Nível C (usuário forneceu) ou D (hipótese) — isso sim é Nível A/B exclusivo do Claude Code. Se a pergunta exige entender/mudar código ou estrutura, dizer isso explicitamente e encaminhar para uma sessão do Claude Code (ver seção 11.4).
 
 ---
 
@@ -104,9 +104,18 @@ Até 08/08/2026, o formulário "＋ Lançar" (botão flutuante do painel) gravav
 
 **Cartões**: o formulário "＋ Lançar" da UI só expõe campo de CAIXA, não de cartão — mas a RPC `lancar_transacao_manual` já aceita `p_cartao_id`, então uma compra no cartão pode ser lançada via Claude Code (SQL direto) apontando `cartao_id` real, mesmo sem a UI ter esse campo ainda.
 
-**Fluxo operacional recomendado para registrar uma compra (decisão explícita do usuário, 09/08/2026)**: o Claude Chat (mobile/web) **não tem e não deve fingir ter** acesso de gravação ao Supabase — nunca simular um lançamento, nunca inventar um ID de transação, nunca descrever qualquer variação do fluxo Excel antigo (TX000xxx, SWP_INPUT, ERP V10/V11, `recalc.py` — esse fluxo está desativado desde 08/08/2026). Fluxo de 2 passos, deliberadamente sem escrita direta via Claude Chat por enquanto (decisão explícita: primeiro validar uso real e estabilidade, só depois avaliar conector de escrita):
-1. **Claude Chat interpreta**: lê a nota/print/texto da compra e devolve os dados prontos (data, valor, estabelecimento, caixa sugerida, cartão, classificação) usando as regras deste documento (nunca inventar campo sem evidência, seção 4).
-2. **Usuário confirma e o sistema registra**: usuário abre o site (funciona no navegador do celular normalmente) e usa "＋ Lançar" com os dados prontos — grava e reflete no painel na hora. Alternativa: usuário cola os dados prontos numa sessão do Claude Code, que lança via SQL/RPC direto (mesmo efeito, sem esperar suporte a cartão na UI).
+**Fluxo operacional pra registrar uma compra (REVERTIDO 09/08/2026, decisão explícita do usuário — corrige a versão anterior deste texto, que impunha um fluxo de 2 passos "Chat só interpreta, usuário lança")**: essa não é a arquitetura que o usuário quer. **O Claude Chat (mobile/web) tem conector Supabase ativo e deve gravar direto** — lê a nota/print/texto da compra e já lança via `lancar_transacao_manual` (ou SQL direto, mesma capacidade do Claude Code), sem passar a tarefa de volta pro usuário clicar em "＋ Lançar". O fluxo de handoff manual nunca deveria ter sido a regra padrão — foi uma decisão de sessão anterior que não refletia a intenção real do usuário, revertida assim que ele apontou o problema.
+
+O que continua valendo, sem exceção (regras permanentes, não específicas deste fluxo):
+- **Usuário confirma antes de lançar** (seção 2, regra 1) — nunca aplicar dado financeiro sem confirmação explícita, mas a gravação em si é do próprio Chat, não repassada.
+- **Nunca inventar campo sem evidência** (seção 4, P1) — data/valor/estabelecimento/caixa/cartão vêm do comprovante real, nunca chutados.
+- **`tx_legado` recomendado, não mais obrigatório** (ver seção 1.1) — a view de saldo (`vw_saldo_v2_por_caixa`) não depende mais dele desde a migration de `ciclo_inicio_em` (09/08/2026); sem ele, só aparece "—" na coluna TX do Livro Razão (cosmético).
+- Nunca descrever qualquer variação do fluxo Excel antigo (TX000xxx solto sem gravação real, SWP_INPUT, ERP V10/V11, `recalc.py`) — esse fluxo está desativado desde 08/08/2026.
+
+**Fronteira Chat × Code (esclarecida na mesma decisão, 09/08/2026): "o Chat tem que fazer tudo, menos mudanças arquitetônicas".** Isso divide por TIPO de operação, não por "quem tem acesso":
+- **Claude Chat faz sozinho, sem passar pro usuário nem pro Claude Code**: qualquer `INSERT`/`UPDATE` de **dado** — lançar transação (`lancar_transacao_manual`/SQL direto), corrigir valor/descrição/categoria de um registro existente, atualizar `tx_legado`, ajustar saldo via novo lançamento. Isso é rotina operacional, não arquitetura.
+- **Fica só com Claude Code**: qualquer mudança de **estrutura** — `ALTER TABLE`, criar/alterar `VIEW`/`FUNCTION`/`RPC`, migration (`apply_migration`), mudar regra de cálculo compartilhada (ex: a fórmula de `vw_saldo_v2_por_caixa`, o que conta como "Comprometido" da Caixa Variável), editar código-fonte do site (`.js`/`.html`/`.css`). Esse tipo de mudança afeta todo mundo que usa o sistema, precisa do dry-run/validação/commit-com-aviso da seção 4/7/8 — o Chat não tem (e não deve ter) essa ferramenta.
+- Na dúvida se algo é "dado" ou "arquitetura": se a ação é sobre uma linha específica (uma compra, uma caixa, um empréstimo), é dado — Chat resolve. Se a ação muda o que TODA linha futura vai fazer (uma fórmula, uma regra, uma coluna nova), é arquitetura — só Claude Code.
 
 Se o Claude Chat perguntar se deve "criar" uma caixa que parece não existir (ex: "Caixa Bens Duráveis"), é sinal de que está usando conhecimento desatualizado (conversa antiga fora do Project, ou memória de sessão anterior) — a lista real de caixas está na tabela `caixas` do Supabase, não em nenhum "SWP_INPUT"/ERP. Orientar o usuário a abrir uma conversa nova dentro do Project.
 
@@ -326,14 +335,16 @@ Vale para os dois documentos, sem exceção: a V2 é o sistema principal. Sempre
 
 ### 11.4 Claude Chat × Claude Code — divisão operacional
 
+**Atualizado 09/08/2026 (decisão explícita do usuário, corrige a linha "Acesso" abaixo, que estava desatualizada)**: o Claude Chat **tem** conector Supabase ativo e **deve gravar dado diretamente** — a divisão certa não é "quem tem acesso ao banco", é **tipo de operação** (ver regra completa na seção 1.2, "Fronteira Chat × Code"): Chat lança/corrige dado (linha específica); Code faz mudança estrutural (schema/view/RPC/código-fonte).
+
 | | Claude Chat (Web/Android/iOS, só `wallace.termica@gmail.com`) | Claude Code (este repositório, qualquer conta) |
 |---|---|---|
-| Acesso | Nenhum a Supabase/repositório — só o que está em Project Knowledge/Custom Instructions e o que o usuário cola na conversa | Supabase (MCP) + arquivos do repositório + git |
-| Papel | Orienta, interpreta, explica, analisa, tira dúvida sobre regra de negócio | Consulta dado real, valida, cria commits, executa mudança |
-| Nível de confiança padrão | C (usuário forneceu) ou D (hipótese) — nunca A/B por conta própria | A/B disponíveis via consulta direta |
-| Quando não tem evidência suficiente | **Dizer isso explicitamente** e encaminhar a alteração/dúvida para uma sessão do Claude Code | N/A — já tem acesso; se faltar dado, perguntar ao usuário (Nível C) antes de assumir |
+| Acesso | Supabase (conector, leitura **e escrita de dado**) + Google Drive (leitura deste manual, seção 11.7) — **sem acesso ao repositório Git nem a ferramentas de schema/migration** | Supabase (MCP, leitura/escrita de dado **e** estrutura) + arquivos do repositório + git |
+| Papel | Interpreta comprovante/print, lança/corrige transação direto no banco, orienta, explica regra de negócio | Consulta dado real, faz mudança estrutural (schema/view/RPC/código), valida, cria commits |
+| Nível de confiança padrão | A pra dado que ele mesmo consultou/gravou no Supabase agora; C/D pra qualquer coisa que dependa do repositório/código-fonte (não tem acesso) | A/B disponíveis via consulta direta a banco e repositório |
+| Quando a tarefa é mudança estrutural | **Dizer isso explicitamente** e encaminhar pra uma sessão do Claude Code — não é sobre "não ter acesso", é sobre o tipo de operação exigir o processo de dry-run/validação da seção 4/7/8 | N/A — já é o responsável por esse tipo de mudança |
 
-Frase padrão para o Claude Chat encaminhar: *"Não tenho acesso ao Supabase/repositório para confirmar isso agora (Nível C/D) — para uma resposta Nível A, abra uma sessão do Claude Code."*
+Frase padrão para o Claude Chat encaminhar uma mudança **estrutural** (não uma dúvida de dado, que ele já resolve sozinho consultando o Supabase): *"Isso exige mudar código/schema, não só lançar um dado — para uma sessão do Claude Code."*
 
 ### 11.5 Bootstrap de novos chats — minimizar risco de assumir V1/Excel
 
