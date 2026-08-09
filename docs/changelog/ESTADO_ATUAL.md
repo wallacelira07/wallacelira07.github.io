@@ -2,183 +2,72 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 09/08/2026 (mesmo dia, continuação — Prioridade 0 fechada + PIX Geral Vanessa promovida pra V2 + migration Pluggy upsert/histórico aplicada + **encerramento formal da fase de implantação V2** + 2 incidentes reais corrigidos em Operação Assistida). HEAD `c5572bd` (mais estas correções, ainda não commitadas), `git status` limpo (fora dos `desktop.ini` inofensivos espalhados pelo disco pelo Google Drive Desktop, nunca commitados).
+Última reescrita: 09/08/2026, fim de sessão longa (auditoria de prontidão operacional + correção de todos os achados críticos + bugs reais de UI encontrados testando ao vivo). HEAD `cbb7d00` no momento desta escrita, `git status` limpo (fora dos `desktop.ini` inofensivos do Google Drive Desktop, nunca commitados).
 
-## 🔍 UI/UX — busca movida pra fora do iframe + gráfico solar travado por dado real (09/08/2026)
+## 🚨 Achado mais importante da sessão: auditoria de segurança real, corrigida
 
-**Busca global movida pra barra fixa externa**: usuário pediu "sempre visível, na barra de cima" — uma tentativa anterior (CSS `position:sticky` dentro do `#mainIframe`) não satisfez, porque tecnicamente não é a mesma barra do email/olho/sair. Corrigido de vez: o campo agora vive em `index.html` (`#headerSearchWrap`), fora do iframe. Como `position:fixed`/`absolute` de dentro de um iframe nunca pinta por cima do documento externo, o dropdown de resultados também teve que sair pra fora. Zero duplicação de lógica: `dashboard-navegacao.js` ganhou `buscaGlobalDados()`/`buscaGlobalNavegar()`, que reaproveitam 100% do índice e do match/ordenação já existentes (`construirIndiceBuscaGlobal`/`construirIndiceTransacoesBusca`), só devolvendo dados brutos em vez de escrever HTML — a navegação (trocar de aba, rolar até a linha) continua rodando dentro do iframe, via `iframe.contentWindow.buscaGlobalNavegar()` (mesmo padrão cross-frame já usado por `toggleEsconderValoresHeader()`). Caixa antiga da Capa removida.
+Usuário pediu uma auditoria honesta de prontidão operacional (não uma revisão de migração V1→V2). Achado crítico confirmado lendo o código real das funções no Supabase: **6 RPCs `SECURITY DEFINER` (`lancar_transacao_manual`, `triar_pluggy_item`, `triar_mercadopago_evento`, `criar_categoria`, `registrar_pib_mensal`) estavam concedidas a `anon` sem NENHUMA checagem de quem chamava** — qualquer pessoa com a chave pública do site (está no HTML, visível a qualquer um) podia inserir transação confirmada direto no banco, sem login algum.
 
-**Gráfico solar "Histórico mês a mês" vazio, 2ª ocorrência do mesmo bug**: já tinha sido diagnosticado nesta sessão (`OFFSET_SOLAR` andando por calendário — dia > 8 do mês — sem checar se um ciclo realmente fechou) e ficou só como observação. Voltou a acontecer, então desta vez corrigido de verdade: `OFFSET_SOLAR` agora é travado em `Math.min(offsetCiclosSolar(), ciclosSolarFechados.length)` — só avança quando existe um ciclo solar de verdade fechado no banco (`ciclosSolarFechados`, já buscado da V2 antes), nunca por suposição de calendário. Hoje, com 0 ciclos fechados, o offset trava em 0 e "Ago" volta a aparecer com dado real. Afeta os 2 gráficos que compartilham essa variável (`cUnidadeGeradora`/"Histórico mês a mês" e `cSolarRateio`/"Crédito Wallace").
+**Corrigido e testado ponta a ponta, com confirmação do usuário em navegador real**:
+1. As 5 RPCs agora exigem JWT válido do login Firebase do site (mesmo emissor/audiência da policy que já existia em `wallace_dados`) OU `role=service_role` — testado chamando sem autenticação (rejeitou corretamente) e testado ao vivo pelo usuário logado (`+ Lançar` funcionou).
+2. `anon` revogado das 5 funções. `audit_log` (antes público) restrito a `authenticated`.
+3. Token do login Firebase (`sessionStorage['auth'].idToken`) agora é enviado em **toda** chamada ao Supabase do site — as ~55 chamadas de `WallaceFinanceService` (via `_headers()` central), as 9 leituras de boot (inline em `Sistema_Wallace_Lira_Completo.html`, via `__wallaceAuthHeader()`), e os módulos avulsos (`pluggy-reconciliacao.js`, `inbox-financeira.js`, `recalcular-indicadores.js`, `promocoes-financeengine.js`). Cai pra chave anônima se não tiver sessão (comportamento de hoje preservado quando deslogado).
+4. **2 chamadas ficaram quebradas na 1ª rodada e foram corrigidas antes de virar incidente**: "Criar categoria nova" e a sugestão automática de caixa (`resolver_caixa`) ainda mandavam a chave anônima crua pra RPCs que já exigiam login.
 
-**Texto "(parcial)" da produção solar de hoje**: condicionado ao horário real de operação da usina (05:30–18:00, informado pelo usuário) — fora dessa janela, a leitura do dia já é final, não "parcial".
+**Passo 2 (fechar a leitura pública/RLS das tabelas financeiras) NÃO foi feito ainda** — a canalização do token está pronta e validada, mas travar as policies de SELECT é a próxima ação, deliberadamente separada pra não arriscar travar o painel inteiro sem conseguir testar em tempo real. Ver pendências.
 
-**Busca não achava "LRPV" / cobertura incompleta**: `LIVROS_BUSCAVEIS` cobria só 9 dos ~24 arrays de transação reais do sistema, e não comparava contra o código do livro em si (só TX/nome/valor de cada transação individual). Corrigido: lista expandida pra todos os arrays confirmados (Caixa Lance, Manutenção, Aniversário Júlio, Eventos, Seguro, Combustível, Churrasco, Escola, Mastercard/Infinite, Suavização, Saúde Família, Wärtsilä, Corporativo MP, Parcelamentos Visa/MP), e o match agora também compara contra `it.livro` (código do array). Navegação por clique (`LIVRO_PARA_TAB_LR`) expandida só pras abas confirmadas direto no HTML — sem mapeamento certo, cai no fallback seguro já existente (leva só até a seção, nunca risca trocar pra aba errada).
+## 🐛 3 bugs reais encontrados testando "+ Lançar" ao vivo pela primeira vez (não relacionados à segurança)
 
-**Busca externa presa em "Painel ainda carregando…" (achado do usuário: "não pesquisa mais nada")**: `dashboard-navegacao.js` é um dos últimos arquivos numa cadeia longa de scripts em sequência dentro do iframe — pode terminar de carregar segundos depois dos badges "SISTEMA ÍNTEGRO"/"V2 ATIVA" já aparecerem (vêm de uma parte bem mais cedo do boot). Antes, a busca externa desistia na primeira tentativa falha. Corrigido: agora tenta de novo sozinha (até 6s, a cada 400ms) e reexecuta a busca automaticamente assim que `buscaGlobalDados()` aparecer no iframe — autocura, sem exigir que o usuário digite de novo.
+1. **`rpc_dashboard_resumo()` nunca retornava o `id` da caixa** no array `caixas` — toda `<option>` do dropdown de caixa no formulário "+ Lançar" tinha `value="undefined"` desde que o formulário existe (05/08/2026). Ninguém tinha testado escolher uma caixa manualmente ali antes. Corrigido: campo `'id', cc.id` adicionado ao `jsonb_build_object`. Confirmado ao vivo pelo usuário (sugestão de caixa passou a mostrar nome real, lançamento funcionou).
+2. **Barra de abas duplicada na home nova** (`.master-tabs`, sempre visível "em qualquer aba" desde V145) sobrepunha visualmente os 5 botões novos da home (`.home-nav-grid`, mesmos 5 destinos). Corrigido via CSS (`#home.active ~ .master-tabs{display:none}`) — só some na home, volta normal dentro de qualquer uma das 5 abas de destino.
+3. **"Esconder valores" (blur de privacidade) demorava segundos pra aplicar**, expondo números reais na tela por um instante — a checagem rodava no ÚLTIMO módulo carregado no boot inteiro (`ui-componentes-visuais.js`, depois de ~55 módulos + ~10 fetches + app.js + energia-solar.js + promocoes-financeengine.js). Movida pro topo de `Sistema_Wallace_Lira_Completo.html`, primeira coisa que roda. Classe trocada de `body.esconder-valores` pra `html.esconder-valores` (existe desde o 1º byte do parser).
 
-## ✅ Referência visível em todos os lançamentos — "—" eliminado (09/08/2026)
+## 💰 2 bugs financeiros reais corrigidos (achados/validados nesta sessão)
 
-Usuário reportou (via prints da aba LRBD e LRPGV) que lançamentos nativos da V2 apareciam com "—" na coluna TX, sem nenhuma referência. Causa: 7 transações de 08/08 foram gravadas direto na V2 sem `tx_legado` (Abastecimento PGV — par PGV/PV, DL*UberRides, Fruta, Sabão Júlio, MERCADOLIVRE*CLAMPER, MERCADOLIVRE*MERCADOL). **Corrigido**: atribuídos códigos `TX000223` a `TX000228` (o par PGV/PV espelhado — entrada numa caixa, saída na outra — recebeu o mesmo código, `TX000223`, mesmo padrão já usado em `TX000150`), confirmado no banco após o `UPDATE`. Não sobra mais nenhum "—" nas tabelas de Livro Razão hoje.
+1. **"Comprometido" da Caixa Variável estava com double-count real**: a fórmula (`mbLRWConfirmado+mbLRVConfirmado+...`, números fixos mantidos à mão) contava TODA compra no cartão de Wallace/Vanessa, sem distinguir gasto genérico (responsabilidade real da Caixa Variável) de compra com caixa temática própria (Bens Duráveis, Churrasco, Provisionado Wärtsilä — já contabilizadas na própria caixa). Caso real: TX000228 (carne pro Churrasco) contava 2x. Corrigido: nova função `getComprometidoCaixaVariavelV2()` — soma ao vivo da V2 (`caixa_id='Caixa Variável' + cartao_id set + afeta_saldo_real=false`, o padrão real de toda compra sem caixa própria). Validado contra o banco antes de implementar: caiu de R$1.931,68 pra R$1.436,43 (Disponível Real virou +R$450,22, não mais -R$45,03).
+2. **`vw_saldo_v2_por_caixa` dependia de `wallace_dados`/array V1 pra caixas "de ciclo"** — uma transação com `tx_legado` preenchido só contava se também existisse espelhada em `wallace_dados`, escondendo dinheiro real (achado original: PGV mostrando R$50,73 quando o real era R$306,73). Corrigido na raiz: nova coluna `caixas.ciclo_inicio_em` (data real de início de ciclo por caixa, levantada e validada contra as transações de "aporte mensal" reais de cada uma) — a view agora soma só `transacoes` com `data >= ciclo_inicio_em`, zero dependência de V1/`tx_legado`. **Validado antes de aplicar**: 16 de 19 caixas bateram exato com a lógica antiga, as 3 que mudaram (PGV +R$256, PIX Vanessa -R$300, Bens Duráveis -R$228,99) eram exatamente as 3 com dinheiro real escondido — nenhuma regressão.
+3. **Dedup da Inbox tinha 2 buracos reais**: (a) lista hardcoded de 7 livros nunca cobria Bens Duráveis/Churrasco/etc — trocada por consulta real a toda `transacoes` da V2; (b) compra desmembrada em partes (Mercado Livre R$551,01 = TX000159+TX000159-A+TX000159-B) não batia por valor exato — nova função `valores_combinados_v2()` (soma de até 3 transações da mesma caixa, janela de 5 dias) fecha essa classe.
 
-**Backlog de Produto registrado, prioridade baixa, não implementado agora** (pedido explícito do usuário — direção oficial da arquitetura, mas só quando decidido implementar): substituir a numeração manual `TX000xxx` por uma sequência própria gerada pelo banco pra lançamentos nativos da V2 — `V2-000001`, `V2-000002`, ... (Postgres `sequence`/`identity`, preenchido automaticamente pelas RPCs que inserem em `transacoes`, ex. `lancar_transacao_manual`). Histórico herdado (`TX000xxx`) permanece intocado — só transações novas da V2 passariam a usar o prefixo novo. Objetivo: eliminar sequenciamento manual, colisões de numeração (mesma família de problema já visto em `TX000203-208`), e a necessidade de decidir números em sessão, como aconteceu agora.
+## 🏠 Nova arquitetura de navegação: home como tela inicial
 
-**Não validado no navegador** — 5 slots de preview do projeto ocupados por outras sessões o dia inteiro; usuário confirmará visualmente na próxima vez que abrir o site.
+Pedido do usuário: o resumo executivo (`.cover` — Patrimônio/Meta do Milhão/Modo Operacional/Caixa Var. + Simulador Fim de Ciclo) virou a página de entrada de verdade, não só decoração no topo de uma rolagem única. Implementado reaproveitando o mecanismo `showMaster()`/`.master-pane.active` que já trocava Painel/Gráficos/Solar/Cenários/Balanço — `.cover` virou `#home`, com 5 botões grandes (`.home-nav-grid`) levando aos 5 destinos de sempre (`irParaPrimeiraSecao()`, já existia). Ícone "voltar" (`#brandLogo`, `index.html`) agora chama `irParaPrimeiraSecao('home')` de verdade (trocava só rolar a página antes). **As 49 seções internas do Painel continuam como rolagem única dentro do seu próprio pane — não viraram páginas individuais** (avaliado e descartado: HTML são siblings soltos sem wrapper, refactor grande e arriscado pro que foi pedido).
 
-## 📌 Apontamentos pendentes, não investigados a fundo (09/08/2026, Operação Assistida)
+## 📜 Política nova: caixa negativa sem LREI soma na Necessidade Total Bruta
 
-Registrados por pedido explícito do usuário — não corrigir sem revisitar.
+Pedido do usuário: caixas operacionais são "bolsões" de gasto temático — comprar algo no cartão pra um bolsão sem saldo suficiente deixa a caixa negativa até ser coberta (LREI, reembolso, aporte do dia 25). Isso nunca era contabilizado na Necessidade Total (o número que diz quanto precisa entrar no ciclo). Novo módulo `hydrate-deficit-caixas-sem-lrei.js`: soma `max(0, -saldoV2 - LREI_ATIVO_dessa_caixa)` de toda caixa operacional negativa, soma o total na Necessidade Total Bruta (ajuste em cima, não um 8º componente). Validado contra o banco antes de implementar: R$842,68 hoje (Bens Duráveis R$583,99 + Churrasco R$258,63 + Saúde Família R$0,06).
 
-1. **`VARS.faturaMPCorporativoPendente` (R$1.544,11, card "Reembolso Wärtsilá pendente acumulado")** — parado desde 27/07/2026 (V187). **Decisão final do usuário (09/08/2026)**: não corrigir, não zerar, não recalcular, não aposentar o card — falta evidência suficiente pra afirmar se as 3 despesas que compõem esse valor (Recife ida/volta R$1.277,88 + Aeroporto JP R$266,23) já estão contidas no "Amount Due Employee" atual da Wärtsilá (R$6.700,61, confirmado por print nesta sessão) ou se são reembolso separado. Único ajuste feito: aviso de texto adicionado abaixo do card no HTML (`Sistema_Wallace_Lira_Completo.html`, próximo à linha 1507) — "⚠ Valor histórico acumulado. Necessita confirmação futura [...]". Classificado como **Backlog de Produto → Aguardando validação manual**, sem impacto operacional, sem prioridade.
-2. ~~Gráfico "Cenário Salário" (`cCenarioSalario`, "Ponto de empate") dessincronizado~~ — **FALSO ALARME, corrigido no registro (09/08/2026)**. Eu tinha concluído, só pela leitura estática do código (ordem das linhas em `graficos-cenarios-lazy.js`), que esse gráfico rodava antes do dado da V2 chegar e ficaria preso no valor antigo (R$3.090,16). O usuário testou ao vivo no navegador depois da correção do Supabase: a legenda já mostra o valor certo, **R$1.017,01**, e o "Ponto de empate" já é R$11.991 (13.007,86 − 1.017,01) — a função que desenha esse texto está dentro do mesmo fluxo assíncrono que espera a V2, ao contrário do que eu tinha suposto sem testar. Lição: não declarar bug de dessincronia por leitura de código sozinha sem confirmar em navegador real quando isso é possível.
-   - **Achado à parte, ainda sem explicação**: a "Necessidade Total" usada nessa legenda (R$13.007,86) não bate com `necessidadeTotalBruta` do snapshot do ciclo atual (R$13.146,21, `vars-ciclo-snapshots.js`) — diferença de R$138,35. Não investigado ainda, registrado só como observação.
+## 🔓 Governança do Claude Chat revertida — decisão explícita do usuário
 
-## ✅ Último resíduo estrutural da PIX Geral Vanessa fechado (09/08/2026)
+Uma sessão anterior (mesmo dia) tinha registrado "Claude Chat não deve gravar direto no Supabase, só interpretar e devolver dados pro usuário lançar via '+ Lançar'". Usuário apontou que essa **não é a arquitetura que ele quer**: "o Chat deve atualizar tudo, não pode passar pra mim fazer isso". Revertido — Claude Chat volta a gravar direto (RPC ou SQL, mesma capacidade do Claude Code). **Fronteira esclarecida por TIPO de operação, não por acesso**: Chat resolve qualquer coisa sobre uma linha específica (lançar/corrigir transação); Code fica com mudança estrutural (schema/view/RPC/código-fonte) — "o Chat tem que fazer tudo, menos mudanças arquitetônicas". Manual atualizado nos dois lugares (repo + cópia espelhada no Drive, `Livro Razão/Agentes/`).
 
-Usuário reportou que 3 lançamentos de ontem (Sabão Júlio R$40, Fruta R$4, Abastecimento PGV R$300 — gravados direto na V2, provavelmente pelo Claude Chat) não apareciam na aba "LRPGV" (Livro Razão da PIX Geral Vanessa). Causa raiz: mesmo padrão já corrigido 3× nesta sessão (card/badge lê V2, mas essa tabela específica de lançamentos ficava presa em `VARS.LRPV_TRANSACOES`, array V1) — só que aqui era mais estrutural: a PGV tinha o saldo, o Balanço e os alertas já em V2 desde a promoção desta sessão, mas o Livro Razão (lançamento por lançamento) tinha ficado esquecido fora da lista `ONDA3_LR_MAPA`.
+## Instrumentação de performance adicionada, ainda não medida com dado real
 
-**Correção estrutural, não remendo** (pedido explícito do usuário: nada de replicar os 3 lançamentos pro array V1): adicionada a PGV em `hydrate-onda3-livro-razao.js` — `caixaId='fb779cdc-ab92-492d-a172-8d147d1380ea'`, mesmo tratamento mecânico já usado nas outras 7 caixas (Eventos/Seguro/Combustível/Churrasco/Mastercard-Infinite/Bens Duráveis/PIX Vanessa). A tabela passa a ler a V2 direto — os 17 lançamentos reais (14 antigos + os 3 de ontem) aparecem automaticamente, sem sincronização manual, sem dependência do array V1 daqui em diante (ele só volta a ser usado como fallback se a V2 falhar).
+`performance.mark`/`performance.measure` em volta de cada etapa do boot (módulos base → dados remotos → app.js → solar → promoções → completo), resultado em `window.WALLACE_BOOT_TIMING`/`console.table`. Puramente aditivo, zero mudança de comportamento. Usuário tentou ler no console do navegador nesta sessão e esbarrou num detalhe de estrutura do site: o painel real roda dentro de um `<iframe>` (`Sistema_Wallace_Lira_Completo.html`), então o DevTools abre por padrão no frame de fora (`top`, só o login) — `window.WALLACE_BOOT_TIMING` só existe no frame de dentro. Orientado a trocar o dropdown de contexto do Console (canto superior esquerdo, ao lado do ícone de olho) pro frame do iframe antes de digitar o comando. **Sessão encerrada por limite de créditos antes do usuário conseguir rodar `console.table(window.WALLACE_BOOT_TIMING)` no frame certo e mandar o resultado** — próxima sessão deve começar retomando exatamente esse passo (usuário já sabe onde trocar o frame, só falta o dado).
 
-**Validado por código/fonte/dados, não por navegador** (5 slots de preview seguiam ocupados por outras sessões mesmo depois do usuário fechar as dele — não é algo que "fechar aba" resolve, é processo de servidor de outra sessão): IDs do HTML confirmados (`lrpvTbody`/`tfLRPV`/`qtdLRPGV`), `caixa_id` confirmado na tabela `caixas`, os 3 lançamentos confirmados com `status='confirmado'` (único filtro da query `getTransacoesPorCaixaIds`) — nada os excluiria. Usuário validará visualmente na próxima vez que abrir o site normalmente.
+## O que já está pronto pra uso diário (Nível A/B, testado em navegador real hoje)
 
-**Recontagem final das exceções remanescentes** (pedida pelo usuário): cruzando os 3 mapas (saldo já em V2 via Onda 1/2, existência de aba de Livro Razão, cobertura da Onda 3) — de 11 caixas com saldo já em V2, 3 não têm aba de Livro Razão pra comparar (Boletos, Caixa Variável/grupo LRW-LRV-LRC-limbo-LRCV, Escola de Júlio — nenhuma bug, é ausência de estrutura). As 8 restantes têm aba, e as 8 já estão cobertas pela Onda 3 agora (as 7 de antes + PGV). **Confirmado: nenhum outro caso "card V2 + tabela V1" escondido.** Lista definitiva do que ainda é 100% V1 (saldo e lançamentos juntos, por decisão consciente, não bug): **Manutenção, Saúde Família, Aniversário Júlio, Caixa Lance, Provisionado Wärtsilá** — só saem dessa lista quando a causa raiz de cada divergência for investigada e resolvida, um de cada vez.
+- Login → "+ Lançar" → grava na V2 com autenticação real → painel atualiza na mesma ação. Testado ao vivo.
+- Dropdown de caixa do "+ Lançar" funciona (bug do `id` ausente corrigido).
+- Home nova carrega, 5 botões levam aos destinos certos, ícone de voltar retorna à home.
+- PGV, PIX Vanessa, Bens Duráveis, Caixa Variável (saldo e Comprometido) — todos corretos e validados contra o banco.
+- Inbox com dedup mais robusto (7 livros→toda V2, + soma de combinações pra compra desmembrada).
 
-## 🔧 Operação Assistida em ação — 3 incidentes reais reportados e corrigidos (09/08/2026, já dentro da nova fase)
+## Pendências remanescentes — ordem de prioridade pra próxima sessão
 
-Primeiro uso real da Operação Assistida declarada logo abaixo — divergências reportadas pelo usuário via screenshot, investigadas com evidência (Nível A) antes de qualquer correção.
-
-**1. Card "Reembolsos a receber" mostrando R$0,00 (deveria ser R$6.700,61)** — causa raiz: `reembolso_wartsila_ciclo` (V2, domínio "Onda 4 Wärtsilä", declarado V2-exclusivo sem fallback) tinha uma linha criada 08/08 às 13:30 com um snapshot **anterior** às 2 últimas correções confirmadas pelo usuário (05/08 "parte 96" e 07/08) — nunca foi atualizada depois. A proteção "sem fallback silencioso" só cobre dado *ausente*, não dado *presente e errado*, por isso o card não soou alarme sozinho.
-   - Reconstrução Nível A bottom-up (pedida explicitamente pelo usuário antes de aplicar qualquer correção, para não repetir o V1 como "argumento de autoridade"): `valor_a_receber=6700.61` confirmado por print do próprio sistema de reembolso da Wärtsilä ("Amount Due Employee: R$6.700,61", mostrado pelo usuário na sessão); `perna_cartao_corporativo_pessoal=297.31` reconstruído somando as 5 transações reais de `LRC_LIMBO_TRANSACOES` (TX000158+161+172+173+174), confirmadas também na tabela `transacoes` da V2; `perna_mp_corporativo=266.23` = `TXMP000011` (real, mas só existe no array V1 ainda, não migrado pra V2); `perna_fatura_wartsila=5056.95` = confirmação direta do usuário em 05/08 (extrato do cartão, sem transação decomponível no sistema); `valor_total_bruto=7040.61` = soma de 340 (recebido, `TX000220`, já na V2) + 6700.61 (a receber). Todos os 5 números bateram exatos com a reconstrução — corrigido via `UPDATE` direto (não é DDL, sem migration formal, mesmo padrão de correção pontual de dado já usado nesta sessão).
-   - **Achado lateral registrado, não corrigido**: `TXMP000011` (R$266,23, PIX Isabel Cristina Barbosa, transporte corporativo, 01/08) ainda não foi migrado pra tabela `transacoes` da V2 — só existe no array V1. Não é urgente (fora do escopo deste incidente), mas fica registrado.
-   - **Não validado no navegador** — os 5 slots de preview do projeto estavam ocupados por outras sessões simultâneas nos dois momentos em que tentei. Correção confirmada só por evidência de banco (antes/depois via `SELECT`), não por captura de tela real. Recomendado ao usuário conferir visualmente.
-
-**2. Card "KMV Ipiranga" mostrando R$600,00 (deveria ser R$400,00)** — usuário já tinha usado 1 dos 3 cupons de R$200 e já tinha reportado isso antes, mas a correção nunca foi aplicada em nenhum lugar (nem `indicadores.creditoKmvIpiranga` na V2, nem o literal em `vars-operacional.js`) — ficou parada em R$600 desde 31/07/2026. Corrigido nos dois lugares (`UPDATE` no Supabase + literal do arquivo, mesmo padrão de manutenção dupla já usado nesta sessão pra não deixar o V1 desatualizado como fallback). Mesma limitação de validação em navegador do item 1.
-
-**3. Card "Bens Duráveis" negativo (R$-583,99) sem ficar vermelho** — causa raiz: `hydrateCaixas()` (V1) já pinta a cor certa (vermelho se negativo), mas roda ANTES da Onda 2 (V2) sobrescrever o número exibido — sem resincronizar a cor no ponto certo, ela ficava presa no estado do boot. Mesma classe de bug já corrigida hoje pros cards Wärtsilä/Patrimônio (Onda 4). Corrigido em `hydrate-onda2-v2.js` (`extra()` do item `cxBensDuraveisSaldo`), reaplicando a mesma regra (`valorV2 < 0 ? vermelho : verde`) depois do valor real da V2 ser escrito. Mesma limitação de validação em navegador dos itens acima.
-
-## 🏁 ENCERRAMENTO DA FASE DE IMPLANTAÇÃO V2 (09/08/2026) — leia primeiro
-
-**Decisão do usuário, registrada formalmente**: a fase de implantação da V2 está encerrada. O projeto entra em **Operação Assistida** — a métrica que importa a partir de agora é **estabilidade** e **consistência financeira** observadas no uso real, não mais "quantos consumidores de `wallace_dados` faltam" ou "% migrado". Não abrir novas frentes de migração ou refatoração grande por iniciativa própria; não perseguir 100% como métrica artificial (decisão já em vigor desde o Bloco 36 da Passagem de Turno, agora formalizada com revisão final de remanescentes).
-
-### Comunicado oficial (posição do projeto)
-
-> Implantação V2 concluída (100%). O sistema entra agora em fase de Operação Assistida, com monitoramento de estabilidade, qualidade de dados e evolução contínua.
-
-**O que "100%" significa aqui, explicitamente** (confirmado pelo usuário): não significa sistema perfeito, não significa backlog zerado, não significa dívida técnica inexistente. Significa que **não existem mais migrações estruturais obrigatórias para colocar a V2 em operação** — balde "Implantação V2" vazio.
-
-✅ Implantação V2 encerrada
-✅ Sistema Wallace operando em V2
-✅ Operação Assistida iniciada
-
-### Métrica nova a partir de agora
-
-**Parar de medir**: consumidores migrados, remanescentes V1.
-
-**Passar a medir**: incidentes operacionais, consistência financeira, disponibilidade das automações (Actions/Pluggy/robôs), qualidade dos dados, estabilidade da operação.
-
-### Taxonomia permanente (não confundir daqui pra frente)
-
-**Implantação V2 ≠ Operação Assistida ≠ Backlog de Produto ≠ Governança.** Só o balde 1 pode ser chamado de "pendência da V2". Os outros 3 são vida normal de sistema em produção — existem depois de qualquer implantação bem-sucedida, para sempre. Ver classificação completa abaixo.
-
-### Veredito objetivo
-
-1. **V2 pronta para uso diário?** Sim.
-2. **V2 pronta para produção?** Sim — já está em produção e em uso real (compras/lançamentos reais registrados, Pluggy sincronizando, Solar consistente).
-3. **V2 concluída?** Depende da métrica: **concluída como fase de implantação — sim**, é isso que este bloco declara. **Concluída como "100% da arquitetura migrada" — não**, e essa deixou de ser a métrica perseguida (decisão explícita do usuário, ver Bloco 36).
-4. **Percentual do comunicado de encerramento: 100%.** Não "o sistema é perfeito" — a implantação (definida como trabalho de migração/engenharia estrutural) está com o balde "Implantação V2" **vazio** (ver reclassificação abaixo). Todo item real que restou pertence a operação, produto ou governança, nenhum é migração disfarçada. Dar 95-99% implicaria dizer que ainda existe migração por fazer — não existe.
-5. **Bloqueador operacional real restante?** **Nenhum identificado** nesta revisão.
-
-### Reclassificação final — Implantação concluída ≠ Evolução futura do sistema
-
-A partir de agora, nada aqui deve ser chamado de "pendência da V2" a menos que caia literalmente no balde 1. Os outros 3 baldes são vida normal de sistema em produção — existem *depois* de qualquer implantação bem-sucedida, para sempre.
-
-**1) Implantação V2 — vazio.** Nenhum item. É o próprio resultado desta revisão.
-
-**2) Operação Assistida** (monitorar, não construir — converte em tarefa pontual só se virar incidente real):
-- 3 caixas de exceção residual ainda dormentes (Manutenção, Saúde Família, Aniversário Júlio) — vigilância; se o Chat gravar direto nelas e reproduzir o padrão já visto em PGV/PIX Vanessa, vira tarefa pontual, não reabertura de frente.
-- Próxima Action horária do Pluggy rodar pra começar a acumular histórico real via upsert (lógica já testada, falta só o relógio passar).
-- O critério original de "V2 concluída" (compras reais sem incidente, caixas/patrimônio consistentes, zero divergência nova) — não é mais meta, é a própria definição operacional desta fase.
-
-**3) Backlog de produto** (melhoria futura opcional, sem prazo):
-- Campo de cartão no formulário "＋ Lançar" (UI só via Claude Code hoje).
-- `PIB_WALLACE_HISTORICO`, `PADROES_RUIDO_TRANSACAO`, `DEFICIT_ZERO_PISO_OVERRIDE`, `ENERGISA_TARIFA_COMPOSICAO` ainda em `wallace_dados` via `jsonb_set` — baixo ROI.
-- Card de qualidade de geração solar lendo cópia local em vez da view V2 direto.
-- `wallace_dados.pixGeralVanessaSaldo` (valor órfão R$338,00) ainda no banco — higiene, zero risco.
-- Necessidade Total / Modo Operacional / Saldo do Ciclo ao vivo — modelagem nova significativa.
-- `sincronizar_v1_v2()` — função já existe e foi validada em dry-run, falta só gatilho automático/periódico (frente antiga, congelada, ver `PLANO_UNIFICACAO_V1_V2.md` seção 19).
-- Fase 4D (frontend da unificação V1→V2 relacional) — levantamento técnico feito, zero implementação, sem requisitos levantados.
-- Conector MCP de escrita direta pro Claude Chat — avaliado e adiado deliberadamente.
-
-**4) Governança** (decisão, política, documentação, segurança):
-- RLS desabilitado em `public.v1_v2_caixa_mapa` — decisão de política pendente do usuário.
-- **Achado nesta revisão, nunca formalizado antes**: `get_advisors` (security) lista 17 views com `SECURITY DEFINER` (nível ERROR) e 6 funções `SECURITY DEFINER` executáveis por `anon`/`authenticated` sem restrição (`criar_categoria`, `fechar_ciclo_solar`, `lancar_transacao_manual`, `registrar_pib_mensal`, `triar_mercadopago_evento`, `triar_pluggy_item` — nível WARN, provavelmente intencional já que é assim que o Chat/frontend grava, mas nunca revisado formalmente). Mais 6 funções com `search_path` mutável (WARN, hardening menor). Nenhuma dessas é nova desta sessão — pré-existentes, só não estavam documentadas.
-- `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` (item 4) ainda lista PIX Geral Vanessa como "causa indeterminada" — desatualizado, a causa raiz foi encontrada e corrigida nesta sessão. PIX Vanessa também foi promovida e não está listada lá. Doc não corrigido ainda, registrado pra ajuste pontual futuro.
-- Exceções formais já fechadas (não reabrir, ver `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`): headline totals de cartão (Mastercard Black/Visa), Solar 301×361 kWh, Caixa Lance (R$4,37), `TX000203-208` (5 colisões de `tx_legado`), `PLUGGY_TRIAGEM` permanecendo em `wallace_dados` JSONB.
-
-### Pluggy — histórico via upsert: já concluído, não é mais pendência
-
-A única "frente estrutural" que ainda estava aberta antes desta sessão (upsert com histórico real no Pluggy) **foi implementada, testada e commitada nesta mesma sessão** (`c5572bd`) — ver seção abaixo. Não entra mais em nenhuma classificação de pendência.
-
-### Inbox — parecer final
-
-**Operacional.** Fluxo completo Compra → Pluggy → Inbox → Triagem → Sistema confirmado funcionando ponta a ponta (correção do filtro Mastercard Black validada: 11→20 pendentes reais na Inbox). Nenhum fluxo quebrado conhecido nesta revisão. `PLUGGY_TRIAGEM` continuar em `wallace_dados` é decisão explícita do usuário (classe D), não uma falha.
-
-## Migration aplicada nesta sessão: Pluggy DELETE+INSERT → UPSERT com histórico real (09/08/2026)
-
-Pendência registrada no bloco de encerramento anterior da Passagem de Turno, aplicada agora com confirmação explícita do usuário. **Via `apply_migration` no Supabase de produção (`bakdgacmwlopvrrppwdm`), sem migration correspondente no repositório** (mesmo padrão já usado pra RPC do Pluggy no Bloco 35).
-
-1. `pluggy_transacoes` ganhou 5 colunas novas: `primeiro_visto_em`, `status_anterior`, `status_mudou_em`, `qtd_sincronizacoes`, `ultima_sincronizacao_em`. Backfill aplicado nas 362 linhas existentes (`primeiro_visto_em=criado_em`, `qtd_sincronizacoes=1`, `status_anterior/status_mudou_em=NULL` — sem histórico real anterior a hoje, documentado como limite honesto).
-2. RPC `atualizar_pluggy_contas` reescrita: `DELETE...WHERE true` + `INSERT` nas 3 tabelas (`pluggy_conexoes`/`pluggy_contas`/`pluggy_transacoes`) trocado por `INSERT...ON CONFLICT DO UPDATE` nas 3, usando as PKs já existentes (`item_id`/`id`/`id`). Mesma assinatura, mesmo nome, mesma lógica de geração de `id`/hash — GitHub Action não precisa de nenhum ajuste. `status_anterior`/`status_mudou_em` só mudam quando o `status` real muda (`IS DISTINCT FROM`); `qtd_sincronizacoes` incrementa a cada rodada em que a transação reaparece.
-3. **Validado com teste controlado e reversível** (mesmo padrão do Bloco 34): chamei a RPC via `execute_sql` reusando dados reais de uma transação existente (`0f48aa77-...`, MP*MELIMAIS) — 1ª chamada confirmou upsert sem duplicar (`qtd_sincronizacoes` 1→2, sem mudança de status); 2ª chamada com `status` alterado pra `POSTED` confirmou captura correta (`status_anterior='PENDING'`, `status_mudou_em` preenchido, `qtd_sincronizacoes`→3). Linha revertida ao estado original depois do teste (`status='PENDING'`, `qtd_sincronizacoes=1`, campos de histórico zerados de volta) — zero resíduo do teste na tabela real.
-4. `get_advisors` (security) rodado depois da migration: nenhum advisory novo — só os já conhecidos (RLS de `v1_v2_caixa_mapa`, security-definer views pré-existentes).
-5. **Efeito colateral bom**: elimina de vez o `DELETE...WHERE true` (workaround do bug de segurança do Postgres documentado no Bloco 35) — não há mais `DELETE` nenhum na função.
-6. **Pendência real pra confirmar 100%**: a próxima sincronização real da Action (roda de hora em hora) precisa rodar pra começar a acumular histórico de verdade em produção — o teste acima prova que a lógica funciona, mas via chamada manual, não via o caminho real do Python/Action. Só depois de alguns dias de sincronizações acumuladas o histórico vira sinal útil pra reavaliar os 10 dias de `PENDING` da conta 2250 (objetivo original do usuário).
-
-## A mudança de fase, em uma frase
-
-**Não se caça mais consumidor de `wallace_dados`, não se abre mais frente de engenharia grande por iniciativa própria.** O trabalho é usar o sistema de verdade, monitorar, e corrigir só o que realmente atrapalhar o uso — ou o que o usuário pedir explicitamente, como aconteceu nesta sessão (investigação e promoção da PGV).
-
-## Critério de encerramento da V2 (não é "métrica chegou a zero")
-
-A V2 será declarada "concluída" quando, durante um **período real de uso**: compras/pagamentos reais sem incidente, caixas/patrimônio consistentes, Pluggy sincronizando, Solar consistente, zero divergência operacional nova. **Ainda não declarado concluído** — segue sendo tempo + observação, não tarefa de agente.
-
-## Sessão de hoje (09/08/2026) — resumo do que mudou
-
-1. **Prioridade 0 encerrada**: a divergência de R$121,97 na PIX Geral Vanessa tinha causa raiz real — `TX000219`/`TX000221` foram inseridas na V2 sob o `caixa_id` errado ("PIX Vanessa" em vez de "PIX Geral Vanessa") por confusão de sigla numa migration de 08/08. Corrigido via `UPDATE transacoes SET caixa_id=...`, registrado em `audit_log`, rollback documentado. Investigação Nível A completa (extrato bancário real da Vanessa + export JSON do Mercado Pago com `origem:"cofrinhos"` + confirmação do usuário em chat).
-2. **Hipótese do saldo "R$338,00" encerrada**: era um valor órfão em `wallace_dados.pixGeralVanessaSaldo`, resíduo de antes da migração V192 (27/07/2026) — sobrescrito toda carga de página pelo recálculo real (`app.js:926`), nunca chegava à tela. Confirmado em navegador real: o site sempre mostrou R$50,69 (V1 recalculado), nunca R$338.
-3. **PIX Geral Vanessa promovida pra exibição V2** (decisão do usuário, causa raiz já resolvida e documentada): `hydrate-onda2-v2.js` — `aceitarDivergenciaConhecida: true`, `extraId` pra linha do Balanço, `extra()` pra barra/percentual de meta (mostra valor real sem capar em 100%, pedido explícito, já que a caixa passou da meta de propósito). Painel agora mostra **R$306,73** (era R$50,69), Balanço idem, meta em **102,2%**. Telemetria de divergência mantida no console (`window.WALLACE_ONDA2_V2_RELATORIO`) — resíduo de ~R$256 entre V1 e V2 aceito como consequência esperada da transição (lançamentos que nascem só na V2), não mais divergência a investigar. Validado em navegador real antes e depois. Commits `2c35499`/`285d262`.
-4. **Governança do Claude Chat reorganizada**: os 2 documentos (`MANUAL_OPERACIONAL_AGENTES.md`/`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`) saíram de `Livro Razão/Sistema Wallace Lira - Claude Chat/` (upload estático, cada atualização criava cópia nova) e foram pra `Livro Razão/Agentes/`, com um ponteiro fixo (`ONDE_LER.md`) — o Claude Chat, com o conector do Google Drive ativo, agora busca a versão mais recente ao vivo em vez de depender de Project Knowledge reanexado manualmente. Cópias antigas removidas.
-5. **Achado lateral, resolvido**: duas versões do Google Drive Desktop rodando ao mesmo tempo neste computador causaram travamento consistente de acesso à pasta de governança — corrigido encerrando as duas e reabrindo só a mais recente. Isso também gerou uma enxurrada de arquivos `desktop.ini` (inclusive dentro de `.git/refs/`, quebrando a manutenção automática do Git num commit) — limpos de dentro do `.git`; os que sobraram fora do `.git` são inofensivos e não vão pro controle de versão.
-
-## O que já está pronto pra uso diário (Nível A/B)
-
-- **Fase 5 (fechamento do ciclo de gravação)**: lançar uma transação atualiza caixa/Balanço/Resumo Executivo na mesma ação, incluindo agora a PGV (Onda 2 roda dentro de `atualizarPainelAposLancamento()`).
-- **Pluggy**: Action verde, sincronização completa.
-- **Cartões**: mapeamento oficial completo (Itaú Wallace/Vanessa, 6 finais).
-- **PIX Geral Vanessa**: efetivamente operada pela V2 — mesma classe das outras 10 caixas já migradas, não é mais exceção.
-
-## Pendências remanescentes — mantidas registradas, SEM prioridade imediata
-
-Não abrir essas frentes por iniciativa própria. Só mexer se o usuário pedir, ou se uma delas causar um incidente real durante o uso diário.
-
-| Item | Classe |
+| Item | Prioridade |
 |---|---|
-| **Risco estrutural**: as 4 caixas de exceção residual restantes (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) têm a mesma exposição que a PGV tinha — se o Chat gravar direto na V2 delas, o padrão "cresce no banco, invisível no painel" se repete. Hoje dormant (nenhum lançamento fora de `reconciliacao` até 09/08). Candidatas naturais a promoção se/quando a mesma investigação Nível A for feita. | A — mesma classe já resolvida uma vez, replicável |
-| Campo de cartão no formulário "＋ Lançar" (hoje só via Claude Code, RPC já suporta `p_cartao_id`) | Dívida técnica de UI |
-| `PLUGGY_TRIAGEM` (decisão de aprovar/rejeitar da Inbox, ainda em `wallace_dados` JSONB) | B — deixado fora por decisão explícita do usuário |
-| RLS desabilitado em `public.v1_v2_caixa_mapa` | Pendência de segurança — decisão de política do usuário |
-| Necessidade Total / Modo Operacional / Saldo do Ciclo (não recalculam ao vivo, vêm de `ciclos_financeiros_snapshots`) | Modelagem nova significativa, fora de escopo |
-| `PIB_WALLACE_HISTORICO`, `PADROES_RUIDO_TRANSACAO`, `DEFICIT_ZERO_PISO_OVERRIDE`, `ENERGISA_TARIFA_COMPOSICAO` (RPCs que gravam em `wallace_dados` via `jsonb_set`) | C — dívida técnica, baixo ROI |
-| Card de qualidade de geração solar lendo cópia local em vez da view V2 direto | C — dívida técnica, dado correto |
-| Headline totals de cartão, Solar 301×361 kWh, Caixa Lance, 4 caixas de causa indeterminada, `TX000203-208` | D — exceções formais, não reabrir (ver `docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`) |
-| Conector MCP de escrita direta para o Claude Chat | Avaliado e adiado deliberadamente — revisitar só depois do período de uso real |
-| `wallace_dados.pixGeralVanessaSaldo` (valor órfão, R$338,00) ainda existe no banco, não removido | Higiene — zero risco, mas pode confundir quem ler `wallace_dados` direto no futuro achando que é o valor exibido |
+| **Passo 2 da segurança**: restringir policies de SELECT (RLS) pras tabelas financeiras — hoje qualquer um lê tudo com a chave pública. Canalização do token já pronta e validada; falta só travar as policies e testar ao vivo. | **Alta** — maior exposição real que resta |
+| Ler `window.WALLACE_BOOT_TIMING` real (usuário já confirmou que funciona) e decidir o que otimizar com dado, não achismo | Alta — pedido explícito do usuário ("nublado"/loading lento) |
+| 4 caixas de exceção residual ainda em V1 na exibição (Caixa Lance, Manutenção, Saúde Família, Aniversário Júlio) — mesma exposição que PGV tinha antes de ser promovida | Média — candidatas naturais se causar incidente |
+| Dependência de cron-job.org (externo, gratuito) pra todas as 4 automações do GitHub Actions, sem monitoramento de falha | Média — fora do alcance de qualquer agente sem conta do usuário |
+| LRR/LRS/LRC sem migração V2 completa (nem array V1 pra comparar) | Baixa — feature nova, não bug pontual |
+| Auditoria de rateio/créditos solares — não investigada a fundo ainda | Baixa |
+| Campo de cartão na UI do "+ Lançar" (hoje só via SQL/Claude Code) | Baixa — dívida técnica de UI conhecida |
 
 ## Protocolo de sessão nova
 
 1. Este arquivo.
-2. `PASSAGEM_DE_TURNO.md` — bloco mais recente.
-3. **Não iniciar nenhuma nova frente de migração/engenharia por conta própria.** A prioridade do usuário é usar o sistema, não reduzir consumidores — exceto quando o usuário pedir uma investigação específica, como hoje.
-4. Se o usuário reportar uma compra/pagamento real: seguir o fluxo de 2 passos (seção 1.2 do manual) — nunca simular lançamento, sempre confirmar antes de gravar.
-5. Se o usuário reportar um **incidente** (divergência, erro, dado que não bateu): investigar com evidência real (Nível A/B), documentar em `docs/decisions/` se for uma causa raiz nova, corrigir só o que impactou a operação.
-6. Sempre `git status`/`git log` antes de assumir pendente ou concluído.
-7. Pendente do usuário (fora do alcance de qualquer agente): nas Custom Instructions do Project do Claude Chat, colar a instrução apontando pro `Livro Razão/Agentes/ONDE_LER.md` (ver Bloco de reorganização de governança em `PASSAGEM_DE_TURNO.md`) — ainda não confirmado se foi feito.
+2. `PASSAGEM_DE_TURNO.md` — bloco mais recente (topo).
+3. Antes de tocar em qualquer RPC/tabela financeira: relembrar que a canalização de auth token já existe (`obterTokenAuthSupabase()`/`_headers()`/`__wallaceAuthHeader()`) — reaproveitar, não recriar.
+4. Se for mexer no formulário "+ Lançar" ou em qualquer RPC `SECURITY DEFINER`: testar em navegador real antes de considerar concluído — 2 bugs reais desta sessão (`rpc_dashboard_resumo` sem `id`, 2 chamadas com chave anônima crua) só apareceram no teste ao vivo, não na leitura de código.
+5. `git status`/`git log` sempre antes de assumir pendente ou concluído.
