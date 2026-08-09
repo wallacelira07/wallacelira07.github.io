@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 08/08/2026, abertura da **Fase 5 — fechar o ciclo de gravação (V2 de consulta → V2 operacional)**. HEAD `7139966`, tudo commitado e enviado — `git status` limpo.
+Última reescrita: 08/08/2026. **Fase 5 (fechar o ciclo de gravação) — status: IMPLEMENTADA, aguardando validação operacional da UI.** HEAD `9cb1ed2`, tudo commitado e enviado — `git status` limpo.
 
 ## Mudança de prioridade nesta sessão
 
@@ -21,6 +21,17 @@ A fase de "migrações rápidas" (caçar consumidores de `wallace_dados` por bai
 **Ainda sem prova ao vivo (etapas 3-5: invalidação de cache, reexecução dos módulos, atualização do DOM)**: o ambiente de preview desta sessão não conseguiu abrir um navegador real (5 slots de preview ocupados por outras sessões simultâneas, em todas as tentativas). Essa parte foi verificada só por revisão manual de código (Nível B). **Pendência real para a próxima sessão ou para o próprio usuário**: testar o clique de "＋ Lançar" na UI de verdade e confirmar que o saldo muda na tela sem recarregar a página.
 
 **Limitação conhecida, deliberadamente fora desta rodada**: Necessidade Total / Modo Operacional / Saldo do Ciclo (topo do Resumo Executivo) continuam vindo de um snapshot do ciclo mantido à parte (`VARS.CICLO_SNAPSHOTS`), não são soma ao vivo de `transacoes`. Recalcular isso ao vivo é modelagem nova significativa — mesmo bloqueador técnico já identificado na investigação de Ciclo Snapshots Etapa 2. Uma compra lançada muda o saldo da caixa e o Balanço, mas não muda esses 3 números de topo. Usuário concordou explicitamente em deixar isso fora.
+
+## Bloqueadores operacionais restantes, ordenados por impacto (pós-Fase 5)
+
+Reclassificação pedida pelo usuário depois da prova de banco: **nenhum item da lista antiga que dependia da hipótese "lançamento não reflete no saldo" continua válido como bloqueador amplo** — isso foi resolvido para as caixas normais (a maioria das 18). O que resta é mais estreito:
+
+1. **Validação visual da UI (não é bug, é confirmação pendente)** — a prova de banco (etapas 1-2) é forte evidência de que o resto funciona, mas o clique real na tela ainda não foi testado ao vivo nesta sessão (ambiente de preview bloqueado o tempo todo). Ação: usuário testar 1 lançamento real numa caixa normal (ex: Boletos) e conferir se o saldo muda sem reload.
+2. **5 caixas com exceção formal (Caixa Lance + Manutenção + Saúde Família + PIX Geral Vanessa + Aniversário Júlio)** — continuam exibindo o valor V1 por decisão já tomada (divergência não resolvida, não reabrir). Efeito prático: registrar uma compra/pagamento contra uma DESSAS 5 caixas específicas grava normalmente no banco, mas o número na tela não se move — mesma classe do problema antigo, só que agora restrita a essas 5, não a todas.
+3. **Cartões (Mastercard Black, Visa Infinite, Mercado Pago) não têm campo de lançamento manual no formulário "＋ Lançar"** — só entram por sincronização automática (Pluggy/Mercado Pago) ou triagem na Inbox. Coerente com a exceção formal já existente (headline total de cartão é sempre V1, regra de negócio "fatura sempre vence"), mas significa que "registrar uma compra no cartão" na hora, manualmente, não é uma ação suportada hoje — só caixas.
+4. **Necessidade Total/Modo Operacional/Saldo do Ciclo não recalculam ao vivo** — aceito fora de escopo pelo usuário (modelagem própria de ciclo, não bug).
+
+**Nenhum destes impede o uso diário do fluxo principal** (registrar compras/pagamentos em qualquer uma das ~13 caixas normais, acompanhar saldos/caixas/patrimônio/solar) — são recortes específicos, não uma barreira geral como antes da Fase 5.
 
 ## Pendência de segurança em aberto (não corrigir sem decisão do usuário)
 
