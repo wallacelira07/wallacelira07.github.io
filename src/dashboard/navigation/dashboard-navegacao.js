@@ -170,6 +170,17 @@ function construirIndiceBuscaGlobal(){
         const rotulo = kEl.textContent.trim();
         if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: secEl});
       });
+      // CORRIGIDO 09/08/2026 (achado do usuario: "nao pega as caixas, so pega transacao, tem que
+      // pegar todas as caixas, titulos") - os cards de saldo/agregado (ex: secao 05 "Caixas
+      // operacionais": Caixa boletos, PIX Vanessa, PIX Geral Vanessa) usam um padrao de HTML
+      // diferente do .row .k acima - o rotulo eh um <div style="color:var(--text-mid)"> solto
+      // dentro de .card, sem classe propria. Sem classe pra selecionar, o indice antigo nunca via
+      // esses titulos. Esse estilo inline (color:var(--text-mid), tamanho ~0.7rem) eh o padrao
+      // usado em ~112 rotulos de card no HTML inteiro, entao cobre a classe inteira do problema.
+      conteudo.querySelectorAll('.card [style*="color:var(--text-mid)"]').forEach(labelEl => {
+        const rotulo = labelEl.textContent.trim();
+        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: secEl});
+      });
     }
   });
   return indice;
