@@ -303,6 +303,13 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   } catch(err){
     console.error('reconciliarTransacoesPluggy: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada.', err);
   }
+  // CORRIGIDO 09/08/2026 (achado do usuário: compra desmembrada em 3 partes não batia por valor
+  // exato). Ver getValoresCombinadosV2() em app.js.
+  try {
+    (await WallaceFinanceService.getValoresCombinadosV2()).forEach(v => valoresConhecidos.add(v));
+  } catch(err){
+    console.error('reconciliarTransacoesPluggy: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
+  }
 
   // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
   // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as

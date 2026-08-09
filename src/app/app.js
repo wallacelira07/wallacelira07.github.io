@@ -17,6 +17,23 @@ function onDomPronto(fn){
   }
 }
 
+// NOVO 09/08/2026 (achado real de auditoria de segurança: lancar_transacao_manual/triar_pluggy_item/
+// triar_mercadopago_evento eram SECURITY DEFINER concedidas a `anon` SEM nenhuma checagem de quem
+// chamava - qualquer pessoa com a chave publica do site (esta no HTML, visivel por qualquer um)
+// podia inserir transacao confirmada direto no banco. Corrigido no banco (as 3 funcoes agora exigem
+// JWT do mesmo login Firebase que o site ja usa, ou service_role) - MAS a checagem so funciona se o
+// cliente de fato ENVIAR esse token. index.html grava a resposta do login Firebase (que inclui
+// idToken) em sessionStorage['auth'] - o iframe (este arquivo) ja compartilha o mesmo sessionStorage
+// (confirmado: a propria checagem de sessao no topo do HTML ja le essa mesma chave). Retorna null se
+// nao houver sessao (usuario deslogado) - quem chamar isso DEVE tratar o null antes de montar a
+// requisicao, senao a RPC vai rejeitar com "nao autenticado" (comportamento correto, nao um bug).
+function obterTokenAuthSupabase(){
+  try {
+    const auth = JSON.parse(sessionStorage.getItem('auth') || 'null');
+    return (auth && auth.idToken) ? auth.idToken : null;
+  } catch(e){ return null; }
+}
+
 // MOVIDO 08/08/2026 pra cá (era definido lá embaixo, perto de auditoriaCruzadaV1V2) — CORRIGIDO
 // bug real de ordem de execução: onDomPronto() acima roda a função IMEDIATAMENTE, de forma
 // SÍNCRONA, sempre que o DOM já está pronto — e como app.js é injetado depois de um fetch
@@ -112,6 +129,25 @@ const WallaceFinanceService = {
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
     const dado = await resp.json();
     const valores = dado.map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
+    this._cache.set(chave, valores);
+    return valores;
+  },
+  // NOVO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" pendente na Inbox era a MESMA
+  // compra já lançada, só desmembrada em 3 partes - TX000159 196,01 + TX000159-A 319,90 +
+  // TX000159-B 35,10. getValoresConhecidosV2() só compara valor exato, nunca pegaria isso. Usa a
+  // função nova valores_combinados_v2() (soma de até 3 transações da mesma caixa, janela de 5
+  // dias) pra fechar essa classe de falso-negativo.
+  async getValoresCombinadosV2(){
+    const chave = 'valores_combinados_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/rpc/valores_combinados_v2`, {
+      method: 'POST',
+      headers:{ apikey:this._key, Authorization:`Bearer ${this._key}`, 'Content-Type':'application/json' },
+      body: '{}'
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores combinados da V2`);
+    const dado = await resp.json();
+    const valores = dado.map(r => Math.round(Math.abs(Number(r.valor_combinado))*100)/100);
     this._cache.set(chave, valores);
     return valores;
   },
@@ -1915,12 +1951,19 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
           lancamentos = [{ caixaId: document.getElementById('ltxCaixa').value, valor }];
         }
 
+        // CORRIGIDO 09/08/2026 (achado de seguranca): lancar_transacao_manual agora exige login
+        // valido (auditoria encontrou a RPC aberta pra qualquer um com a chave publica, sem
+        // checagem nenhuma) - envia o token do login Firebase como Authorization em vez da chave
+        // publica. Sem sessao valida, avisa e para ANTES de tentar (a RPC recusaria mesmo assim,
+        // mas falhar cedo com mensagem clara e melhor que deixar o fetch estourar sem contexto).
+        const tokenAuth = obterTokenAuthSupabase();
+        if(!tokenAuth){ msg.textContent = 'Sessão expirada — recarregue a página e faça login de novo antes de lançar.'; msg.style.color = '#e2554f'; return; }
         msg.textContent = 'Salvando...'; msg.style.color = '#c8d4e3';
         try {
           for(const l of lancamentos){
             const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/lancar_transacao_manual', {
               method: 'POST',
-              headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg' },
+              headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer '+tokenAuth },
               body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:l.valor, p_tipo:tipo, p_caixa_id:l.caixaId, p_usuario_id:usuarioId, p_categoria_id:categoriaId })
             });
             if(!r.ok){ const err = await r.text(); msg.textContent = `Erro (parte já lançada antes desta pode ter sido gravada): ${err}`; msg.style.color = '#e2554f'; return; }

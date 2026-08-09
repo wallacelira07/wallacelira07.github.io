@@ -123,6 +123,14 @@ async function sincronizarMercadoPagoParaInbox(){
   } catch(err){
     console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).', err);
   }
+  // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já lançada,
+  // desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma caixa fecha
+  // essa classe de falso-negativo. Mesmo tratamento de falha silenciosa (nunca esconde item real).
+  try {
+    (await WallaceFinanceService.getValoresCombinadosV2()).forEach(v => valoresConhecidos.add(v));
+  } catch(err){
+    console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
+  }
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
   let novos = 0;
   eventos.forEach(ev=>{

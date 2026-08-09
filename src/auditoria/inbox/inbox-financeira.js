@@ -68,14 +68,20 @@ const SUPABASE_ANON_KEY_WALLACE = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwf
 // status_triagem, nunca outro campo). Fire-and-forget com log de erro - a UI ja mudou otimisticamente
 // (inboxAprovar/inboxRejeitar chamam isso, mas nao esperam a resposta pra atualizar a tela), pra nao
 // travar o clique numa rede lenta/instavel.
+// CORRIGIDO 09/08/2026 (achado de seguranca): triar_mercadopago_evento/triar_pluggy_item eram
+// SECURITY DEFINER abertas pra `anon` sem checagem nenhuma - agora exigem o login Firebase do
+// site (ou service_role). obterTokenAuthSupabase() (app.js) le o token ja salvo no login. Sem
+// sessao valida, a RPC recusa (comportamento correto - mesmo padrao do "+ Lançar").
 function persistirTriagemMercadoPago(idExterno, statusTriagem){
   if(!idExterno) return; // item nao veio do Mercado Pago (ex: manual/Pluggy) - nada a persistir aqui
+  const tokenAuth = typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null;
+  if(!tokenAuth){ console.error('persistirTriagemMercadoPago: sem sessao valida, recarregue a pagina e faca login de novo.'); return; }
   fetch(`${SUPABASE_URL_WALLACE}/rest/v1/rpc/triar_mercadopago_evento`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON_KEY_WALLACE,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY_WALLACE}`
+      'Authorization': `Bearer ${tokenAuth}`
     },
     body: JSON.stringify({ p_id: idExterno, p_status_triagem: statusTriagem })
   }).then(resp=>{
@@ -88,12 +94,14 @@ function persistirTriagemMercadoPago(idExterno, statusTriagem){
 // persistirTriagemMercadoPago.
 function persistirTriagemPluggy(idExterno, statusTriagem){
   if(!idExterno) return;
+  const tokenAuth = typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null;
+  if(!tokenAuth){ console.error('persistirTriagemPluggy: sem sessao valida, recarregue a pagina e faca login de novo.'); return; }
   fetch(`${SUPABASE_URL_WALLACE}/rest/v1/rpc/triar_pluggy_item`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON_KEY_WALLACE,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY_WALLACE}`
+      'Authorization': `Bearer ${tokenAuth}`
     },
     body: JSON.stringify({ p_id_externo: idExterno, p_status_triagem: statusTriagem })
   }).then(resp=>{
