@@ -1345,6 +1345,56 @@ const CARTAO_PLUGGY_MAPA = VARS.CARTAO_PLUGGY_MAPA || construirCartaoPluggyMapa(
 const VISA_DETALHE_LABELS = ['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa','Não Reconciliado'];
 const VISA_DETALHE_CORES = ['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0','#4a4d52'];
 
+// FASE 5 (08/08/2026) — "gravado e refletido no sistema", não "gravado mas invisível": até aqui,
+// lancar_transacao_manual() gravava direto em `transacoes`, mas nada no painel se atualizava sozinho
+// (mensagem antiga do form avisava isso explicitamente) — o mesmo padrão que já causou perda real de
+// visibilidade (TX000652/PIX R$652, aprovado na Inbox e nunca lançado de fato no livro visível).
+//
+// ACHADO que tornou isso simples (verificado direto no Supabase antes de implementar, não suposto):
+// `vw_saldo_v2_por_caixa` já é uma VIEW live — `saldo_inicial_ciclo + soma(transacoes do ciclo atual,
+// data >= 25/07/2026)`. Ou seja, inserir uma transação nova na caixa certa JÁ muda o saldo calculado
+// pela view, sem precisar de nenhum SQL novo. O único motivo de o painel não refletir isso é que os
+// módulos Onda* (que buscam essa view) só rodam UMA VEZ, no boot — e o cache do WallaceFinanceService
+// (Map sem TTL) segura a resposta antiga mesmo que a view já tenha mudado.
+//
+// Esta função reproduz exatamente a mesma sequência de overlays V2 já usada no boot (hydrate(), mais
+// abaixo) — nenhuma lógica nova de cálculo, só re-executa o que já existe depois de invalidar o cache.
+// Cobre: Caixas (Onda 1/2/3), Patrimônio, Wärtsilä/Reembolsos, LREI, Livro Razão (10/18 caixas
+// reconciliadas), P2P, Parcelamentos — todos alimentados por `transacoes`/`caixas`/`patrimonio`, os
+// mesmos que uma compra/pagamento manual pode afetar. Deliberadamente FORA (sem relação com um
+// lançamento manual de caixa): Investimentos/ROC (tabela `investimentos`, não `transacoes`), Qualidade
+// da Geração Solar (robô SAJ), Mercado Pago/Pluggy (sincronização externa) — rodar de novo não traria
+// nenhum dado novo, só gastaria requisição à toa.
+//
+// LIMITAÇÃO CONHECIDA, registrada explicitamente (não escondida): Necessidade Total/Modo
+// Operacional/Saldo do Ciclo (topo do Resumo Executivo, VARS.CICLO_SNAPSHOTS) NÃO são recalculados
+// aqui — esses campos vêm de um snapshot do ciclo mantido à parte (não são soma ao vivo de
+// `transacoes`), e recalculá-los ao vivo é modelagem nova significativa (o mesmo bloqueador técnico
+// já registrado na investigação de Ciclo Snapshots Etapa 2), fora do escopo desta rodada.
+async function atualizarPainelAposLancamento(){
+  WallaceFinanceService.invalidarCache();
+  // Promise.allSettled (não Promise.all): cada onda* já trata a própria falha internamente
+  // (marcarIndisponivelV2/console.warn, nunca lança) — allSettled só garante que esperamos TODAS
+  // terminarem antes de considerar o painel atualizado, mesmo que uma demore mais que outra.
+  await Promise.allSettled([
+    aplicarOnda1V2(),
+    aplicarOnda2V2(),
+    aplicarOnda3CaixaLance(),
+    aplicarOnda3Suavizacao(),
+    aplicarOnda3LrwLrv(),
+    aplicarOnda4Patrimonio(),
+    aplicarOnda4Wartsila(),
+    aplicarOnda5P2P(),
+    // Estes 3 dependem da tabela V1 (renderLivrosVariaveis/renderParcelamentos) já estar no DOM antes
+    // de sobrescrever — já estão, desde o boot; seguro re-chamar, mesmo padrão dos demais.
+    typeof aplicarOnda3LivroRazao === 'function' ? aplicarOnda3LivroRazao() : null,
+    typeof aplicarOnda4Lrei === 'function' ? aplicarOnda4Lrei() : null,
+    typeof aplicarOnda5Parcelamentos === 'function' ? aplicarOnda5Parcelamentos() : null,
+  ]);
+  if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
+  if(typeof auditoriaAutomatica === 'function') auditoriaAutomatica();
+}
+
 function hydrate(){
   hydrateResumoExecutivo(); // MODULARIZAÇÃO 07/08/2026: KPIs do topo + Modo Operacional (seção 02) + seção 20 + Resumo Executivo (seção 21) + badges soltos extraídos pra src/modules/hydrate-resumo-executivo.js — mesma sequência, nenhum id/fórmula alterado.
 
@@ -1899,14 +1949,27 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
             });
             if(!r.ok){ const err = await r.text(); msg.textContent = `Erro (parte já lançada antes desta pode ter sido gravada): ${err}`; msg.style.color = '#e2554f'; return; }
           }
-          msg.textContent = lancamentos.length > 1
-            ? `✓ Lançado em ${lancamentos.length} caixas (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).`
-            : '✓ Lançado (só na V2/Supabase — o app.js/V1 não recalcula sozinho, é dado paralelo até a Fase 5 unificar).';
-          msg.style.color = '#5fd68a';
+          msg.textContent = 'Lançado — atualizando painel...';
           document.getElementById('ltxDescricao').value = ''; document.getElementById('ltxValor').value = '';
           document.getElementById('ltxSplitRows').innerHTML = '';
           document.getElementById('ltxDividir').checked = false;
           document.getElementById('ltxDividir').dispatchEvent(new Event('change'));
+          // FASE 5 (08/08/2026): antes disso o lançamento ficava "gravado mas invisível" (mesmo padrão
+          // do caso real TX000652/PIX R$652) — agora o mesmo clique que grava já refresca caixas,
+          // patrimônio, reembolsos, LREI, livro razão, P2P e parcelamentos com o dado novo. Ver
+          // atualizarPainelAposLancamento() (comentário completo lá) pro que NÃO é recalculado ainda
+          // (Necessidade Total/Modo Operacional do ciclo — modelagem nova, fora desta rodada).
+          try {
+            await atualizarPainelAposLancamento();
+            msg.textContent = lancamentos.length > 1
+              ? `✓ Lançado em ${lancamentos.length} caixas e refletido no painel.`
+              : '✓ Lançado e refletido no painel.';
+            msg.style.color = '#5fd68a';
+          } catch(errRefresh){
+            console.error('atualizarPainelAposLancamento: falha ao atualizar o painel após o lançamento — o dado JÁ está salvo no Supabase, só a tela não atualizou sozinha. Recarregue a página.', errRefresh);
+            msg.textContent = '✓ Lançado no banco, mas houve erro ao atualizar o painel — recarregue a página pra ver refletido.';
+            msg.style.color = '#e8a63a';
+          }
         } catch(e){ msg.textContent = 'Erro de rede: '+e.message; msg.style.color = '#e2554f'; }
       };
     }
