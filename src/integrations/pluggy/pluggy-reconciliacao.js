@@ -359,7 +359,22 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
       if(!Array.isArray(transacoes) || !transacoes.length) continue; // ainda sem dado (410 antigo ou conta sem movimento)
       resultado.semDados = false;
       for(const t of transacoes){
-        if(t.status !== 'POSTED' || typeof t.valor !== 'number') continue;
+        if(typeof t.valor !== 'number') continue;
+        // CORRIGIDO 09/08/2026 (investigacao real: conta "2250"/Mastercard Black consolidada tinha
+        // 81 transacoes 100% em PENDING, algumas ha 23 dias - rastreado ponta a ponta ate a API da
+        // Pluggy, sem transformacao em nenhuma camada nossa - Pluggy/Itau nunca promove essa conta
+        // pra POSTED). Antes, `t.status !== 'POSTED'` excluia TODAS elas da Inbox, sempre, pra
+        // sempre - a Inbox ficava cega pro cartao principal. Regra nova: aceita POSTED sempre, ou
+        // PENDING com PENDING_ELEGIVEL_DIAS+ dias parado (folga generosa acima do ciclo normal de
+        // assentamento, que no Visa Infinite - mesma familia de produto - e de poucos dias). Passa
+        // pelos MESMOS filtros de sempre depois (ruido/valor minimo/valoresConhecidos/
+        // pluggyJaTriado) - nenhuma protecao removida.
+        const PENDING_ELEGIVEL_DIAS = 10;
+        if(t.status !== 'POSTED'){
+          if(t.status !== 'PENDING') continue;
+          const diasParado = t.data ? (Date.now() - new Date(t.data).getTime()) / 86400000 : 0;
+          if(diasParado < PENDING_ELEGIVEL_DIAS) continue;
+        }
         // parte 55: fora da janela recente - historico do 1o sync completo da Pluggy, nao entra na
         // Inbox (nao e "perder dado real" - e dado de fora do periodo que o ERP controla granularmente).
         if(t.data && new Date(t.data) < dataCorte){ resultado.ignoradasPorData++; continue; }
