@@ -22,9 +22,19 @@
 // somam em cartaoMBTotal; 4845 e o unico Infinite ativo, cartaoInfiniteTotal). Cartao Mercado Pago casado
 // pelo nome da conexao (Pluggy nao usa final-4 pra ele, usa "numero" interno tipo "7642").
 const CARTAO_PLUGGY_MAPA_DEFAULT = {
-  '2244': {titular:'Wallace', apelido:'MB físico', totalVar:'cartaoMBTotal'},
+  // ATUALIZADO 08/08/2026: mapeamento oficial confirmado pelo usuário diretamente (não inferido) —
+  // Itaú Wallace (1371 físico/4628 virtual/5147 Samsung Wallet), Itaú Vanessa (6351 físico/5660
+  // virtual/4017 Samsung Wallet). '1371'/'5147'/'5660'/'4017' nunca tinham entrada aqui antes —
+  // gap real que deixava esses 4 finais caindo em "não mapeado" caso a V2 (`cartoes`, ver
+  // construirCartaoPluggyMapa() abaixo) estivesse indisponível. Fallback só usado offline/falha de
+  // fetch — a fonte viva é a tabela `cartoes`, já atualizada com os mesmos 3 cartões novos.
+  '1371': {titular:'Wallace', apelido:'MB físico (novo, substitui 2244)', totalVar:'cartaoMBTotal'},
+  '2244': {titular:'Wallace', apelido:'MB físico (aposentado, substituído por 1371)', totalVar:'cartaoMBTotal'},
   '4628': {titular:'Wallace', apelido:'MB virtual', totalVar:'cartaoMBTotal'},
-  '6351': {titular:'Vanessa', apelido:'MB ativo', totalVar:'cartaoMBTotal'},
+  '5147': {titular:'Wallace', apelido:'MB Samsung Wallet', totalVar:'cartaoMBTotal'},
+  '6351': {titular:'Vanessa', apelido:'MB físico', totalVar:'cartaoMBTotal'},
+  '5660': {titular:'Vanessa', apelido:'MB virtual', totalVar:'cartaoMBTotal'},
+  '4017': {titular:'Vanessa', apelido:'MB Samsung Wallet', totalVar:'cartaoMBTotal'},
   '4845': {titular:'Vanessa', apelido:'Visa Infinite ativo', totalVar:'cartaoInfiniteTotal'},
   '4844': {titular:'Wallace', apelido:'Visa Infinite aposentado', totalVar:null}, // CORRIGIDO 04/08/2026 (parte 84, achado durante migracao pro Supabase): estava 'Vanessa' aqui, mas a Politica (secao 3, tabela oficial de cartoes) diz Wallace - inconsistencia entre os dois, Politica prevalece (documento de referencia formal). so liquidacao, sem total agregado pra comparar
   '2773': {titular:'Wallace', apelido:'Bradesco parcelamentos antigos', totalVar:null},
@@ -71,8 +81,16 @@ const CARTAO_PLUGGY_MAPA_DEFAULT = {
 // `cartoes` hoje. window.WALLACE_CARTOES_V2 é buscado em paralelo no bootstrap (mesmo padrão de
 // window.WALLACE_LEGENDAS_REMOTAS); se vier null (offline/falha), cai 100% no literal
 // CARTAO_PLUGGY_MAPA_DEFAULT acima, sem quebrar nada.
+// ATUALIZADO 08/08/2026: mapeamento oficial de finais Mastercard Black confirmado pelo usuário
+// diretamente (Itaú Wallace: 1371 físico/4628 virtual/5147 Samsung Wallet; Itaú Vanessa: 6351
+// físico/5660 virtual/4017 Samsung Wallet) — 5147/5660/4017 são cartões novos, nunca tinham linha
+// em `cartoes` nem entrada aqui antes disso. Todos batem na mesma fatura consolidada (ver '2250'
+// no CARTAO_PLUGGY_MAPA_DEFAULT abaixo) — a Pluggy só expõe o total da fatura por "2250", nunca por
+// plástico individual; estes finais servem pra atribuir TITULAR quando o texto de uma transação
+// cita "final XXXX" (ver classificarItemDeterministico() em classificacao-inbox.js).
 const CARTAO_PLUGGY_TOTALVAR_POR_NUMERO = {
-  '2244':'cartaoMBTotal', '1371':'cartaoMBTotal', '4628':'cartaoMBTotal', '6351':'cartaoMBTotal', '2250':'cartaoMBTotal',
+  '2244':'cartaoMBTotal', '1371':'cartaoMBTotal', '4628':'cartaoMBTotal', '5147':'cartaoMBTotal',
+  '6351':'cartaoMBTotal', '5660':'cartaoMBTotal', '4017':'cartaoMBTotal', '2250':'cartaoMBTotal',
   '4845':'cartaoInfiniteTotal',
 };
 const CARTAO_PLUGGY_NOME_USUARIO = {
