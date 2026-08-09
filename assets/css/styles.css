@@ -453,6 +453,14 @@
     .home-nav-grid{ grid-template-columns:repeat(2,1fr); }
   }
 
+  /* CORRIGIDO 09/08/2026 (achado do usuário: "os botões estão duplicados") - .master-tabs foi
+     desenhada pra ficar sempre visível "em qualquer aba" (comentário original V145), mas na home
+     isso duplicava visualmente os 5 botões novos de .home-nav-grid (mesmos 5 destinos, dois
+     estilos diferentes, um embaixo do outro). Escondida só enquanto #home está ativo - volta a
+     aparecer normal em qualquer uma das 5 abas de destino. Seletor de irmão geral (~) funciona
+     porque #home vem ANTES de .master-tabs no HTML. */
+  #home.active ~ .master-tabs{ display:none; }
+
   /* V300 Etapa 8 (UX Premium) — aditivo: so suaviza a troca de aba (antes era corte seco de
      display:none pra block, sem transicao). Nao muda estrutura/dado de nenhuma secao. */
   @keyframes v300FadeInPane{
