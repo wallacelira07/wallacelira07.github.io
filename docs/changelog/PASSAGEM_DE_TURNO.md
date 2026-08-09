@@ -2,6 +2,20 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## Bloco 36 — Mudança de fase: de "migração V1→V2" para "operação diária controlada" (09/08/2026, encerramento — ler antes de tudo abaixo)
+
+**Decisão do usuário, fechando esta sessão de vez**: não perseguir "100% migrado" como métrica artificial. A V2 está apta para operação diária controlada — o usuário vai começar a usar de verdade, e o critério de "V2 concluída" deixou de ser "consumidores removidos = 0" e passou a ser **estabilidade observada num período real de uso**: compras/pagamentos reais sem incidente, caixas/patrimônio consistentes, Pluggy sincronizando, Solar consistente, zero divergência operacional nova. Isso não é uma tarefa que um agente completa — é tempo + observação. Detalhe completo do critério em `ESTADO_ATUAL.md`.
+
+**Nova prioridade explícita para qualquer sessão futura**: validar lançamento real pela UI, monitorar uso diário, registrar incidentes, corrigir só o que impactar operação. **Não abrir novas frentes grandes de engenharia por iniciativa própria** — as pendências remanescentes (campo de cartão na UI, `PLUGGY_TRIAGEM`, RLS de `v1_v2_caixa_mapa`, Necessidade Total/Modo Operacional/Saldo do Ciclo, dívidas técnicas classe C, exceções formais classe D) ficam registradas mas sem prioridade — só mexer se o usuário pedir ou se uma delas causar incidente real.
+
+**Resumo do que esta sessão de aceleração entregou, do início ao fim** (para quem só vai ler este bloco): fechou a fase de migrações rápidas (~61 consumidores religados/removidos, Bloco 33); abriu e fechou a Fase 5 (lançamento manual agora reflete no painel na mesma ação, testado e em uso real, Blocos 34-35); corrigiu o Pluggy de ponta a ponta (causa raiz real — proteção do Supabase contra `DELETE` sem `WHERE`, não reproduzível em teste via SQL direto — Action verde confirmada pelo usuário); aplicou o mapeamento oficial de cartões (6 finais Itaú); documentou o hardware novo do domínio Solar (medidor Chint/SAJ, plano de evolução futura); e resolveu uma lacuna de governança real (o manual mestre não tinha a seção Fase 5, só as cópias do Google Chat tinham — corrigido) além de fixar o formato oficial dos documentos do Claude Chat (`.md`, nunca Google Doc, depois de uma confusão real causada por arquivos duplicados).
+
+**Estado do repositório**: `git status` limpo, tudo commitado e enviado até este bloco. Nenhuma pendência técnica bloqueando o uso diário — só as pendências de baixa prioridade já listadas.
+
+**Para a próxima sessão**: comece perguntando ao usuário se houve algum incidente no uso real desde a última sessão, antes de qualquer outra coisa. Se não houve, não há trabalho a fazer — só confirmar e seguir monitorando.
+
+---
+
 ## Bloco 35 — Pluggy corrigido de ponta a ponta (Action verde) + mapeamento de cartões + governança do Claude Chat (09/08/2026, continuação do Bloco 34)
 
 **Mapeamento oficial de cartões aplicado**: usuário confirmou diretamente os finais que faltavam — Itaú Wallace (1371 físico/4628 virtual/5147 Samsung Wallet), Itaú Vanessa (6351 físico/5660 virtual/4017 Samsung Wallet). 3 linhas novas inseridas em `cartoes` (5147/5660/4017), `CARTAO_PLUGGY_MAPA_DEFAULT`/`CARTAO_PLUGGY_TOTALVAR_POR_NUMERO` atualizados em `pluggy-reconciliacao.js` (também corrigiu ausência histórica de '1371' no literal de fallback). Commit `981fefb`.
