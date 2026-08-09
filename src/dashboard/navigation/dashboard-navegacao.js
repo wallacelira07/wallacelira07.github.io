@@ -345,6 +345,61 @@ function renderResultadosBusca(termo){
 
 const buscaGlobalDebounced = debounce(function(e){ renderResultadosBusca(e.target.value.trim()); }, 200);
 
+// NOVO 09/08/2026 (pedido do usuario: campo de busca movido pra barra fixa FORA do iframe, index.html
+// - so assim fica "sempre visivel" de verdade, já que position:fixed daqui de dentro nunca pinta por
+// cima da barra externa). Versao "so dados" das funcoes acima - reaproveita 100% do mesmo indice/
+// match/ordenacao de renderResultadosBusca(), so devolve objetos simples (sem elemento DOM) em vez de
+// escrever HTML, porque quem desenha o dropdown agora é o index.html. Navegação (scroll/troca de aba)
+// continua acontecendo AQUI dentro do iframe - só o resultado da busca cruza a fronteira.
+let _buscaGlobalUltimoResultado = null;
+function buscaGlobalDados(termo){
+  if(!_buscaGlobalIndice) _buscaGlobalIndice = construirIndiceBuscaGlobal();
+  if(!_buscaGlobalIndiceTransacoes) _buscaGlobalIndiceTransacoes = construirIndiceTransacoesBusca();
+  const t = (termo||'').toLowerCase().trim();
+  if(!t){ _buscaGlobalUltimoResultado = { secoes: [], transacoes: [] }; return { secoes: [], transacoes: [] }; }
+  const tSemTx = t.replace(/^tx0*/, '');
+  const tSoDigitos = t.replace(/[^\d,.]/g, '');
+  const vistos = new Set();
+  const secoesOriginais = _buscaGlobalIndice
+    .filter(it => it.texto.includes(t))
+    .filter(it => { if(vistos.has(it.rotulo)) return false; vistos.add(it.rotulo); return true; })
+    .slice(0, 5);
+  const transacoesOriginais = t.length >= 2 ? _buscaGlobalIndiceTransacoes.filter(it=>{
+    if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;
+    if(it.nome.includes(t)) return true;
+    if(tSoDigitos && (it.valorTexto.includes(tSoDigitos.replace('.',',')) || it.valorNumStr.includes(tSoDigitos))) return true;
+    return false;
+  }).sort((a,b)=>{
+    const valorBuscado = tSoDigitos ? parseFloat(tSoDigitos.replace(',','.')) : null;
+    const aExato = valorBuscado !== null && a.registro.valor === valorBuscado;
+    const bExato = valorBuscado !== null && b.registro.valor === valorBuscado;
+    if(aExato && !bExato) return -1;
+    if(bExato && !aExato) return 1;
+    return 0;
+  }).slice(0, 6) : [];
+  _buscaGlobalUltimoResultado = { secoes: secoesOriginais, transacoes: transacoesOriginais };
+  return {
+    secoes: secoesOriginais.map((it,i) => ({ idx:i, rotulo: it.rotulo })),
+    transacoes: transacoesOriginais.map((it,i) => ({
+      idx:i, tx: it.registro.tx||'—', nome: it.registro.nome||it.registro.descricao||'(sem descrição)',
+      valor: fmt(it.registro.valor), data: it.registro.data||'', obs: it.registro.obs||'',
+      livro: it.livro.replace('_TRANSACOES','').replace('HISTORICO_ERP_TODOS_CICLOS','Histórico')
+    }))
+  };
+}
+function buscaGlobalNavegar(tipo, idx){
+  if(!_buscaGlobalUltimoResultado) return;
+  if(tipo === 'secao'){
+    const item = _buscaGlobalUltimoResultado.secoes[idx];
+    if(item) irParaSecaoBusca(item);
+  } else {
+    const it = _buscaGlobalUltimoResultado.transacoes[idx];
+    if(it) irParaTransacaoNoLivro(it.registro, it.livro);
+  }
+}
+window.buscaGlobalDados = buscaGlobalDados;
+window.buscaGlobalNavegar = buscaGlobalNavegar;
+
 function initBuscaGlobal(){
   const input = $('buscaGlobalInput');
   if(!input) return;

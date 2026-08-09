@@ -4,6 +4,16 @@
 
 Última reescrita: 09/08/2026 (mesmo dia, continuação — Prioridade 0 fechada + PIX Geral Vanessa promovida pra V2 + migration Pluggy upsert/histórico aplicada + **encerramento formal da fase de implantação V2** + 2 incidentes reais corrigidos em Operação Assistida). HEAD `c5572bd` (mais estas correções, ainda não commitadas), `git status` limpo (fora dos `desktop.ini` inofensivos espalhados pelo disco pelo Google Drive Desktop, nunca commitados).
 
+## 🔍 UI/UX — busca movida pra fora do iframe + gráfico solar travado por dado real (09/08/2026)
+
+**Busca global movida pra barra fixa externa**: usuário pediu "sempre visível, na barra de cima" — uma tentativa anterior (CSS `position:sticky` dentro do `#mainIframe`) não satisfez, porque tecnicamente não é a mesma barra do email/olho/sair. Corrigido de vez: o campo agora vive em `index.html` (`#headerSearchWrap`), fora do iframe. Como `position:fixed`/`absolute` de dentro de um iframe nunca pinta por cima do documento externo, o dropdown de resultados também teve que sair pra fora. Zero duplicação de lógica: `dashboard-navegacao.js` ganhou `buscaGlobalDados()`/`buscaGlobalNavegar()`, que reaproveitam 100% do índice e do match/ordenação já existentes (`construirIndiceBuscaGlobal`/`construirIndiceTransacoesBusca`), só devolvendo dados brutos em vez de escrever HTML — a navegação (trocar de aba, rolar até a linha) continua rodando dentro do iframe, via `iframe.contentWindow.buscaGlobalNavegar()` (mesmo padrão cross-frame já usado por `toggleEsconderValoresHeader()`). Caixa antiga da Capa removida.
+
+**Gráfico solar "Histórico mês a mês" vazio, 2ª ocorrência do mesmo bug**: já tinha sido diagnosticado nesta sessão (`OFFSET_SOLAR` andando por calendário — dia > 8 do mês — sem checar se um ciclo realmente fechou) e ficou só como observação. Voltou a acontecer, então desta vez corrigido de verdade: `OFFSET_SOLAR` agora é travado em `Math.min(offsetCiclosSolar(), ciclosSolarFechados.length)` — só avança quando existe um ciclo solar de verdade fechado no banco (`ciclosSolarFechados`, já buscado da V2 antes), nunca por suposição de calendário. Hoje, com 0 ciclos fechados, o offset trava em 0 e "Ago" volta a aparecer com dado real. Afeta os 2 gráficos que compartilham essa variável (`cUnidadeGeradora`/"Histórico mês a mês" e `cSolarRateio`/"Crédito Wallace").
+
+**Texto "(parcial)" da produção solar de hoje**: condicionado ao horário real de operação da usina (05:30–18:00, informado pelo usuário) — fora dessa janela, a leitura do dia já é final, não "parcial".
+
+**Não validado no navegador** — 5 slots de preview do projeto ocupados por outras sessões o dia inteiro; usuário confirmará visualmente na próxima vez que abrir o site.
+
 ## 📌 Apontamentos pendentes, não investigados a fundo (09/08/2026, Operação Assistida)
 
 Registrados por pedido explícito do usuário — não corrigir sem revisitar.

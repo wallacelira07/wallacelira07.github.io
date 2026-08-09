@@ -66,7 +66,13 @@ async function aplicarOnda5QualidadeGeracao(){
 
   const fmtKwh = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' kWh';
 
-  t('qgProducaoHoje', registroHoje ? fmtKwh(registroHoje.kwh) + ' (parcial)' : 'Sem leitura ainda hoje');
+  // CORRIGIDO 09/08/2026 (pedido do usuário): "(parcial)" só faz sentido enquanto a usina ainda pode
+  // gerar mais naquele dia. Ela roda das 05:30 às 18:00 (horário real informado pelo usuário) - fora
+  // dessa janela a leitura de hoje já é o valor final do dia, não tem mais nada "parcial" nela.
+  const agora = new Date();
+  const minutosDoDia = agora.getHours()*60 + agora.getMinutes();
+  const usinaAindaGerandoHoje = minutosDoDia >= (5*60+30) && minutosDoDia < 18*60;
+  t('qgProducaoHoje', registroHoje ? fmtKwh(registroHoje.kwh) + (usinaAindaGerandoHoje ? ' (parcial)' : '') : 'Sem leitura ainda hoje');
 
   if(!diaReferencia){
     t('qgMediaHistorica', '—');

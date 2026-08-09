@@ -151,13 +151,12 @@
         <h1>Painel Financeiro</h1>
         <div class="cover-sub">Ciclo <span id="cicloRange">25/06 → 24/07/2026</span></div>
       </div>
-      <!-- V300 Etapa 6 (Busca Global). Movida (parte 47, pedido do usuario) pro canto vazio do
-           cabecalho, no lugar da faixa inteira que ficava entre a Capa e o Simulador so pra ela -
-           mesmos ids/logica (initBuscaGlobal em app.js), so o local no HTML mudou. -->
-      <div class="busca-global-wrap cover-search-corner">
-        <input type="text" id="buscaGlobalInput" placeholder="Buscar…" autocomplete="off">
-        <div id="buscaGlobalResultados" style="display:none"></div>
-      </div>
+      <!-- REMOVIDO 09/08/2026 (pedido do usuario: busca sempre visivel, movida pra barra fixa fora
+           do #mainIframe, em index.html). O campo/dropdown daqui (V300 Etapa 6, depois "canto vazio
+           do cabecalho" da parte 47) deixou de existir - a logica de indice/match (construirIndice
+           BuscaGlobal/construirIndiceTransacoesBusca) continua em dashboard-navegacao.js, agora
+           exposta via buscaGlobalDados()/buscaGlobalNavegar() pro index.html consumir. Nada mais
+           lia #buscaGlobalInput/#buscaGlobalResultados fora daqui. -->
     </div>
     <div class="cover-metrics">
       <div class="cm-card cm-c1"><div class="cm-ico">💰</div><div class="cm-body"><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div></div>

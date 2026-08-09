@@ -247,6 +247,72 @@
             align-items: center;
         }
 
+        #dashboardScreen header .header-search-wrap {
+            position: relative;
+            flex: 0 1 320px;
+            min-width: 120px;
+            display: flex;
+            align-items: center;
+        }
+        #dashboardScreen header .header-search-icon {
+            position: absolute;
+            left: 11px;
+            color: #6f6d66;
+            pointer-events: none;
+        }
+        #dashboardScreen header .header-search-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #eceae4;
+            font-size: 12.5px;
+            padding: 7px 10px 7px 30px;
+            border-radius: 999px;
+            outline: none;
+            font-family: inherit;
+            transition: border-color .15s ease, background-color .15s ease;
+        }
+        #dashboardScreen header .header-search-input:focus {
+            border-color: rgba(57,135,229,0.55);
+            background: rgba(255,255,255,0.08);
+        }
+        #dashboardScreen header .header-search-resultados {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 100%;
+            min-width: 280px;
+            background: #1d2024;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 50;
+        }
+        #dashboardScreen header .header-search-item {
+            padding: 8px 12px;
+            font-size: 12.5px;
+            color: #c8c6bf;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        #dashboardScreen header .header-search-item:last-child { border-bottom: none; }
+        #dashboardScreen header .header-search-item:hover { background: rgba(57,135,229,0.12); color: #eceae4; }
+        #dashboardScreen header .header-search-item .hs-sub {
+            display: block;
+            font-size: 10.5px;
+            color: #8b8a84;
+            margin-top: 2px;
+        }
+        #dashboardScreen header .header-search-vazio {
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #8b8a84;
+        }
+        @media (max-width: 780px) {
+            #dashboardScreen header .header-search-wrap { display: none; }
+        }
+
         #dashboardScreen header .user-chip {
             display: flex;
             align-items: center;
@@ -379,6 +445,23 @@
                     <h1>Sistema Wallace Lira</h1>
                     <span class="brand-sub">Painel Financeiro</span>
                 </div>
+            </div>
+            <!-- NOVO 09/08/2026 (pedido do usuario: "lupa de pesquisa na barra de cima, pra aparecer
+                 sempre"): campo real vive AQUI, fora do #mainIframe - so assim fica na mesma barra
+                 fixa do email/olho/sair (um sticky DENTRO do iframe, tentativa anterior, nao contava
+                 como "barra de cima" pro usuario, e um dropdown position:fixed dentro do iframe nunca
+                 conseguiria pintar por cima da barra externa mesmo se o campo ficasse la dentro -
+                 iframe nao "vaza" position:fixed pra fora da propria caixa). Zero logica de busca
+                 duplicada: buscaGlobalDados()/buscaGlobalNavegar() (expostas em dashboard-navegacao.js,
+                 dentro do iframe) reaproveitam 100% do indice/match/ordenacao ja existentes - aqui so
+                 desenha o dropdown e repassa o clique de volta pro iframe navegar. -->
+            <div class="header-search-wrap" id="headerSearchWrap">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-search-icon" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="headerSearchInput" class="header-search-input" placeholder="Buscar…" autocomplete="off">
+                <div id="headerSearchResultados" class="header-search-resultados" style="display:none"></div>
             </div>
             <div class="user-info">
                 <div class="user-chip">
@@ -515,6 +598,69 @@
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
             else fn();
         }
+
+        // NOVO 09/08/2026 (pedido do usuario: busca na barra fixa de fora do iframe, sempre visivel).
+        // Mesmo padrao ja usado em toggleEsconderValoresHeader() acima - chama funcoes expostas dentro
+        // do iframe via contentWindow (mesma origem). buscaGlobalDados()/buscaGlobalNavegar() (ver
+        // dashboard-navegacao.js) reaproveitam 100% do indice/match/ordenacao da busca original - aqui
+        // so desenha o dropdown (que precisa viver FORA do iframe, porque position:fixed/absolute
+        // dentro do iframe nunca pinta por cima da barra externa) e repassa cliques de volta.
+        let _headerSearchDebounce = null;
+        let _headerSearchUltimo = null; // guarda o ultimo {secoes,transacoes} pra saber o que o clique de cada item significa
+        function headerSearchInput(valor){
+            clearTimeout(_headerSearchDebounce);
+            _headerSearchDebounce = setTimeout(() => headerSearchExecutar(valor), 200);
+        }
+        function headerSearchExecutar(valor){
+            const termo = (valor || '').trim();
+            const wrap = document.getElementById('headerSearchResultados');
+            if(!wrap) return;
+            if(!termo){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+            const iframe = document.getElementById('mainIframe');
+            if(!iframe || !iframe.contentWindow || typeof iframe.contentWindow.buscaGlobalDados !== 'function'){
+                wrap.innerHTML = '<div class="header-search-vazio">Painel ainda carregando…</div>';
+                wrap.style.display = 'block';
+                return;
+            }
+            let resultado;
+            try { resultado = iframe.contentWindow.buscaGlobalDados(termo); }
+            catch(e){ console.error('headerSearchExecutar: falha ao consultar busca do painel', e); return; }
+            _headerSearchUltimo = resultado;
+            const { secoes = [], transacoes = [] } = resultado || {};
+            if(secoes.length === 0 && transacoes.length === 0){
+                wrap.innerHTML = '<div class="header-search-vazio">Nada encontrado</div>';
+                wrap.style.display = 'block';
+                return;
+            }
+            wrap.innerHTML = secoes.map(s =>
+                `<div class="header-search-item" onclick="headerSearchNavegar('secao',${s.idx})">${s.rotulo}</div>`
+            ).join('') + transacoes.map(t =>
+                `<div class="header-search-item" onclick="headerSearchNavegar('transacao',${t.idx})">`
+                + `<strong>${t.tx}</strong> · ${t.nome} · <strong>${t.valor}</strong>`
+                + `<span class="hs-sub">${t.data || ''} — ${t.livro}${t.obs ? ' — ' + t.obs : ''}</span></div>`
+            ).join('');
+            wrap.style.display = 'block';
+        }
+        function headerSearchNavegar(tipo, idx){
+            const iframe = document.getElementById('mainIframe');
+            if(iframe && iframe.contentWindow && typeof iframe.contentWindow.buscaGlobalNavegar === 'function'){
+                try { iframe.contentWindow.buscaGlobalNavegar(tipo, idx); } catch(e){ console.error('headerSearchNavegar: falha ao navegar no painel', e); }
+            }
+            const wrap = document.getElementById('headerSearchResultados');
+            const input = document.getElementById('headerSearchInput');
+            if(wrap) wrap.style.display = 'none';
+            if(input) input.value = '';
+        }
+        onDomPronto2(function(){
+            const input = document.getElementById('headerSearchInput');
+            if(input) input.addEventListener('input', (e) => headerSearchInput(e.target.value));
+            document.addEventListener('click', (e) => {
+                if(!e.target.closest('#headerSearchWrap')){
+                    const wrap = document.getElementById('headerSearchResultados');
+                    if(wrap) wrap.style.display = 'none';
+                }
+            });
+        });
     </script>
 
     <!-- CARREGAMENTO DIRETO DO FIREBASE SCRIPT GLOBAL -->

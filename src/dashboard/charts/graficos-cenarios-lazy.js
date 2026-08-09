@@ -848,7 +848,14 @@ async function _lazyRenderSolarSecao(){
       : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     return (inicioCicloAtual.getFullYear()-ANCHOR_SOLAR_ANO)*12 + (inicioCicloAtual.getMonth()+1-ANCHOR_SOLAR_MES_CICLO);
   }
-  const OFFSET_SOLAR = Math.max(0, offsetCiclosSolar());
+  // CORRIGIDO 09/08/2026 (achado do usuário, 2ª vez que o gráfico aparecia vazio): offsetCiclosSolar()
+  // sozinho só olha o calendário (dia > 8 do mês = "já virou"), sem checar se um ciclo de verdade
+  // fechou. Hoje (09/08) já passou do dia 8, então o offset calculado empurrava a janela pra "Set" —
+  // mas só existe 1 ciclo real (o de "Ago"), ainda ABERTO (nenhuma leitura oficial confirmada, ver
+  // fechar_ciclo_solar()). Resultado: o único dado real ficava fora da janela visível, gráfico vazio.
+  // Trava o avanço em ciclosSolarFechados.length (já buscado acima, Nível A) — a tela só anda pra
+  // frente quando um ciclo REALMENTE fechou, nunca antes disso por suposição de calendário.
+  const OFFSET_SOLAR = Math.max(0, Math.min(offsetCiclosSolar(), ciclosSolarFechados.length));
   const MESES_ABREV_SOLAR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   function gerarRotulosSolar(){
     const labels = [];
