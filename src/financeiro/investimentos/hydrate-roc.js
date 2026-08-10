@@ -66,7 +66,14 @@ function hydrateROC(){
   // antes de injetar - nao precisa editar as ~28 legendas uma por uma, nem lembrar de fazer isso
   // em legendas novas no futuro.
   const RE_VALOR_MONETARIO = /R\$\s?-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+  // NOVO 10/08/2026: ids que passaram a ser CALCULADOS (não mais texto estático da tabela
+  // `legendas`/VARS.LEGENDAS) ficam de fora deste loop genérico — senão o texto fixo (que ainda
+  // existe como fallback local em vars-operacional.js) sobrescreveria o texto dinâmico logo depois,
+  // já que hydrateROC() roda DEPOIS de quem calcula essas legendas (hydrateResumoExecutivo(), no
+  // início de hydrate()). Ver hydrate-resumo-executivo.js pra legNecessidadeBrutaLiquida.
+  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida']);
   Object.keys(VARS.LEGENDAS).forEach(id => {
+    if(LEGENDAS_CALCULADAS.has(id)) return;
     const el = $(id);
     if(el) el.innerHTML = VARS.LEGENDAS[id].replace(RE_VALOR_MONETARIO, m => `<span class="v">${m}</span>`);
   });

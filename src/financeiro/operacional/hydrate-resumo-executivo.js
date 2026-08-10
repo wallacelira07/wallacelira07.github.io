@@ -61,4 +61,21 @@ function hydrateResumoExecutivo(){
   t('r21TotalOp', fmt(R.operacional.totalOperacional));
   const totalOpMar27 = R.evolucao.totalOperacional[R.evolucao.totalOperacional.length-1];
   t('r21TotalOpMar27', fmt(totalOpMar27));
+
+  // CORRIGIDO 10/08/2026 (achado do usuário: legenda estática, números de julho/2026 nunca
+  // atualizados, e descrevia uma regra JÁ CORRIGIDA em 26/07/2026 — Cobertura Garantida deixou de
+  // ser "soma automática de MP corp + Visa Infinite corp" e virou valor 100% manual, só existe
+  // quando o usuário confirma "coloquei R$X na caixa Y cobrindo a fatura Z" (ver
+  // recalcular-necessidade.js:25, VARS.coberturaGarantidaConfirmada). A legenda antiga ainda citava
+  // R$954,90 — o mesmo número que `vars-operacional.js:122` já registra como "nunca existiu de
+  // fato". Diferente das outras ~28 legendas estáticas (hydrate-roc.js, tabela `legendas`), esta
+  // agora é COMPUTADA a cada hydrateResumoExecutivo() — nunca mais fica presa a um número antigo,
+  // acompanha automaticamente qualquer futura confirmação real de Cobertura Garantida.
+  const legNecBrutaLiquidaEl = $('legNecessidadeBrutaLiquida');
+  if(legNecBrutaLiquidaEl){
+    const cg = R.operacional.coberturaGarantida;
+    legNecBrutaLiquidaEl.innerHTML = cg > 0
+      ? `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Cobertura Garantida confirmada: <span class="v">${fmt(cg)}</span> — só conta quando você coloca o valor numa caixa e informa o que ele cobre (nunca calculada automática pela cascata de reembolso).`
+      : `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Cobertura Garantida — hoje <span class="v">R$0,00</span> (nada confirmado ainda), então Bruta e Líquida são o mesmo valor. Só passa a divergir quando você confirmar que colocou um valor numa caixa cobrindo uma fatura específica (nunca calculada automática pela cascata de reembolso Wärtsilä).`;
+  }
 }
