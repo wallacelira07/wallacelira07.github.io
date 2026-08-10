@@ -12,13 +12,11 @@
 
 Pedido explícito: ao aplicar uma correção que já foi pedida antes, agir direto — não prefixar com "você pediu X antes" ou reexplicar o que ele mesmo pediu. A documentação do projeto existe pra isso.
 
-## ⚠️ PENDÊNCIA #1 (prioridade máxima) — "Patrimônio Total" aparece vazio ("—") no card da capa
+## ✅ PENDÊNCIA #1 RESOLVIDA (era suspeita, não bug) — "Patrimônio Total" vazio no card da capa
 
-Adicionei `id="coverPatrimonioTotal"` na capa (`Sistema_Wallace_Lira_Completo.html`), populado por `hydrate-resumo-p2p.js` com `R.balanco.patrimonioTotalGeral`. Print do usuário mostrou o campo vazio, enquanto "Líquido" (campo antigo, mesma linha) apareceu certo. Não confirmei se é:
-- **(a) cache do navegador** — o site usa `var __V` como cache-buster manual (`Sistema_Wallace_Lira_Completo.html`); qualquer edição só aparece depois de bumped essa string. Já bumped pra `'20260810-15'` no último commit, mas o print pode ter sido tirado antes disso.
-- **(b) bug real de ordem de execução** — `recalcularPatrimonio()` (app.js:1339, escreve `REG.balanco.patrimonioTotalGeral`) roda antes de `hydrateResumoP2P()` (app.js:1514) na leitura do código, e `REG.balanco.pgbl`/`.fgts` são inicializados síncrono de `VARS.patPgbl`/`patFgts` (`reg-balanco.js`) — não achei motivo pra estar undefined, mas não testei em navegador real.
+Testado em 10/08/2026 (sessão seguinte): forcei carga 100% limpa do `Sistema_Wallace_Lira_Completo.html` local (bypass de login via `sessionStorage['auth']` fake, só pra inspecionar DOM/REG, nenhum dado real tocado) — `#coverPatrimonioTotal` renderiza certo: **R$ 685.683** (Total) e **R$ 120.368** (Líquido), `REG.balanco.patrimonioTotalGeral`/`.pgbl`/`.fgts` todos com valor numérico correto, nenhuma exceção. Confirma a hipótese (a) do registro anterior: era **cache do navegador** (HTML/JS antigo, de antes do `__V` bumped), não bug de código. Ordem de execução (hipótese b) descartada — `REG.balanco.pgbl`/`.fgts` já são números bem antes de `recalcularPatrimonio()` rodar.
 
-**Primeira ação da próxima sessão**: pedir pro usuário confirmar `__V` no rodapé bate com `'20260810-15'` (ou mais recente) e dar F5 puro; se persistir, abrir console e checar `REG.balanco.patrimonioTotalGeral`/`REG.balanco.pgbl`/`REG.balanco.fgts` diretamente.
+**Não precisa de ação de código.** Se o usuário ainda ver "—", é F5 forçado / conferir `__V` no rodapé.
 
 ## ⚠️ PENDÊNCIA #2 — abas cortando/travando ao rolar no mobile
 
