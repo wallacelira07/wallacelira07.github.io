@@ -53,12 +53,15 @@ Local (`VARS.LEGENDAS`, `vars-operacional.js`) + Supabase (tabela `legendas`, se
 
 "Patrimônio" (ambíguo) → "Patrimônio Líquido" em 3 lugares (capa, KPI do Painel, Resumo Executivo) — deixa claro que é só Reserva+BTG/Necton+Caixa Lance+Necton CC. "Patrimônio Total" (Físico+Financeiro+Previdência+FGTS líquido de passivos, já existia só na aba Balanço) virou o valor principal do mesmo card da capa, com Líquido como linha secundária. **Ver Pendência #1 — o valor Total não está aparecendo ainda.**
 
-## 🔜 Aprovado pelo usuário, NÃO implementado — 4 itens
+## ✅ Implementado nesta sessão (10/08/2026) — filtro de assinatura/recorrência conhecida
+
+Dedup da Inbox (Mercado Pago + Pluggy) agora também compara por ESTABELECIMENTO, não só valor exato — fecha o caso de assinatura com reajuste/câmbio (ex: Anthropic em USD) reaparecendo como "nova" todo ciclo. Fonte: view nova `vw_assinaturas_confirmadas_v2` (categoria "Assinaturas" já classificada em V2, 22 hoje), sem lista hardcoded. Ver `classificacao-inbox.js`/`pluggy-reconciliacao.js`, commit `7bbe694`. **Não testado em navegador real** (não consigo logar) — validação depende do usuário ver a Inbox de perto.
+
+## 🔜 Aprovado pelo usuário, NÃO implementado — 3 itens
 
 1. **Compartilhamento público (só leitura) da aba Energia Solar** — link com token de validade em dias, sem exigir login, expondo só dados solares (nunca financeiro). Desenho completo aprovado (ver `PASSAGEM_DE_TURNO.md` item 11 do bloco mais recente). Precisa: 1 tabela nova no Supabase, 2 RPCs, 1 página HTML pública nova, botão "Compartilhar" na aba Solar. Maior peça de trabalho pendente.
-2. **Totais de fatura de cartão via Pluggy** (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) — trocar a fonte manual pelo valor real que a Pluggy já traz do banco (`conta.fatura_mes_atual.valor_total`), com fallback pro valor manual se a Pluggy estiver fora do ar. Isso reabre/substitui `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — atualizar esse doc ao implementar.
-3. **Filtro de assinatura/recorrência conhecida na Inbox Financeira** — hoje dedup só compara valor exato; comparar também por descrição/estabelecimento contra assinaturas já confirmadas, pra parar de reaparecer todo ciclo quando o valor muda um pouco (reajuste/câmbio).
-4. **21 transações "Assinaturas" sem `cartao_id`** — proposta de classificação por data de corte (16/07/2026: antes=Visa 4844, depois=MB consolidada 2250) apresentada, usuário não confirmou execução. `TXS000003` pode ser duplicata de `TXS000008` — decidir cancelar vs classificar antes de tocar nela.
+2. **Totais de fatura de cartão via Pluggy** (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) — trocar a fonte manual pelo valor real que a Pluggy já traz do banco (`conta.fatura_mes_atual.valor_total`), com fallback pro valor manual se a Pluggy estiver fora do ar. Isso reabre/substitui `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — atualizar esse doc ao implementar. **Faz parte do domínio Cartões, deixado de fora desta sessão por decisão do usuário (ver `PLANO_UNIFICACAO_V1_V2.md` seção 47).**
+3. **21 transações "Assinaturas" sem `cartao_id`** — proposta de classificação por data de corte (16/07/2026: antes=Visa 4844, depois=MB consolidada 2250) apresentada, usuário não confirmou execução. `TXS000003` pode ser duplicata de `TXS000008` — decidir cancelar vs classificar antes de tocar nela. **Idem — domínio Cartões, fora do escopo desta sessão.**
 
 ## Pendências antigas, sem decisão do usuário ainda
 
