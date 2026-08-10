@@ -2,7 +2,29 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## 🎯 Correção de critério do usuário: V1 não é mais autoridade nenhuma (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## 🏁 Encerramento desta sessão longa — resumo executivo pro próximo agente (09/08/2026)
+
+Sessão extensa, várias frentes. Pra não precisar ler tudo abaixo linha por linha, aqui vai o que realmente importa saber antes de começar a próxima:
+
+**1. Regra mais importante, aprendida com correção direta do usuário**: `wallace_dados`/`VARS` (V1) **não é mais autoridade nenhuma**. Passei boa parte desta sessão comparando V2 contra V1 (`vw_reconciliacao_v1_v2`) pra decidir "o que está errado" — usuário corrigiu: o critério é a V2 estar certa contra a realidade (extrato, comprovante, o que ele confirma), não contra o que o V1 dizia. Isso já está em `ESTADO_ATUAL.md` como a 1ª seção — leia antes de qualquer coisa.
+
+**2. Segurança está fechada** (RLS, views, RPCs — Passo 2 completo, validado ao vivo). Não precisa reabrir isso.
+
+**3. Reconciliação financeira**: 8 caixas fecharam em R$0,00 nesta sessão (Manutenção, Lance, Saúde Família, Aniversário Júlio, Escola de Júlio, Seguro Emplacamento, Combustível, Eventos) — todas usando a mesma técnica (consultar `wallace_dados` no Supabase direto, não o arquivo `.js` local, que fica desatualizado). PIX Vanessa e Bens Duráveis foram reavaliadas e **não tinham problema nenhum** — a "divergência" era só contra V1 irrelevante.
+
+**4. Um erro meu que virou lição**: registrei numa investigação anterior desta mesma sessão que "Caixa Saúde Família e Aniversário Júlio não existem na V2, precisam ser criadas do zero" — **estava errado**, as duas já existiam, só faltavam transações. Não confiar em afirmações tipo "isso não existe" sem reconferir com uma query nova antes de assumir um trabalho grande.
+
+**5. Quase-incidente evitado**: cheguei a inserir 41 transações de cartão (Visa Infinite 4844) achando que estavam ausentes — usuário interrompeu a tempo, já estavam lançadas em outro mecanismo do sistema que eu não tinha localizado. Revertido, confirmado 0 linhas residuais. Não repetir esse tipo de suposição.
+
+**6. 3 melhorias de mobile/UX entregues** (busca sumida, categorias do Livro Razão, link direto `?aba=solar`) — testadas via DOM/CSS em preview local, **não testadas com login real**. Pedir pro usuário conferir no celular.
+
+**7. Achado novo no fim da sessão, sem confirmação de correção**: leitura solar de hoje (09/08) ficou sem `geracao_acumulada` porque a leitura manual da Energisa foi cadastrada depois da execução automática do robô SAJ do dia. Pedi pro usuário rodar o workflow "Atualizar Geração Solar (SAJ → Supabase)" manualmente de novo — **não confirmei se ele fez isso antes da sessão acabar**. Primeira coisa a checar na próxima sessão.
+
+**8. Pendências reais que ficaram**, todas por falta de dado/decisão do usuário, não por falta de tentativa: as 3 transações do LRW/LRV sem dono (R$282,71), os totais de fatura Mastercard/Visa (cuidado extra aqui pelo item 5), `window.WALLACE_BOOT_TIMING` (nunca foi lido, mesmo confirmado funcionando há sessões).
+
+Todo o detalhe passo a passo de cada um desses pontos está nos blocos abaixo (mais recente primeiro) e em `ESTADO_ATUAL.md`.
+
+## 🎯 Correção de critério do usuário: V1 não é mais autoridade nenhuma (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 Usuário interrompeu: "por que está refazendo o trabalho das caixas? todas já são V2, V1 não existe mais, não importa o que ele era, o menor resíduo dela deve ser eliminado". Eu tinha parado PIX Vanessa e Caixa Bens Duráveis "por cautela" só porque não batiam com `vw_reconciliacao_v1_v2` (que compara contra V1). Isso estava errado de enquadramento — reconferi as duas contra a realidade (extratos bancários já lidos, decisões de sessão anterior) e **nenhuma das duas tinha problema real**: PIX Vanessa bate exato com o padrão real dos extratos MP; Bens Duráveis negativa é comportamento desenhado (centro de custo separado). A "divergência" só existia contra um V1 que não vale mais nada como referência.
 
