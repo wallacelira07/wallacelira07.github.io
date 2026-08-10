@@ -2,7 +2,20 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 10/08/2026, fim de sessão longa de UI/UX + 2 bugs de cálculo (créditos da sessão esgotados no meio de uma investigação — ver pendência 1, prioridade máxima). HEAD `e15131c`, tudo commitado e pushed (branch `main`, `wallacelira07.github.io`).
+Última reescrita: 10/08/2026, sessão de continuação (achados reais via foto do celular + navegador). HEAD `c123dfe`, tudo commitado e pushed (branch `main`, `wallacelira07.github.io`).
+
+## ✅ Corrigido nesta sessão (10/08/2026, 4ª rodada) — 6 achados via foto real do celular/navegador
+
+1. **Botão "Compartilhar" (aba Solar) invisível** — usava `var(--purple)` sem fallback; essa variável CSS nunca foi definida no painel principal (só existe em `solar-compartilhado.html`), então o botão renderizava sem background/border nenhum, só texto branco solto contra o fundo escuro. Corrigido com fallback `var(--purple, #9085e9)`. **A funcionalidade de escolher a validade do link já existia** (`prompt()` pedindo dias, 1-365, padrão 30) — o usuário só não via porque o botão era invisível.
+2. **Card "Caixa Var. — Disponível Real" (capa) sempre verde, mesmo negativo** — classe de cor fixa no HTML (`cm-val g`), nunca trocava pra vermelho como o card gêmeo do Simulador já fazia. Corrigido em `hydrate-resumo-p2p.js` (toggle de classe `.r` conforme sinal).
+3. **Lupa do cabeçalho quase invisível numa 2ª faixa de largura (560-780px)** — a correção de contraste da rodada anterior só valia abaixo de 560px; unificada no bloco de 780px (mesma faixa em que o botão já vira círculo).
+4. **"Ver ciclo" vazando pra todas as abas** — era global (fora de qualquer master-pane, decisão antiga V145 de 25/07 "sempre visível em qualquer aba"), o usuário pediu que só aparecesse no Painel. Movido pra dentro de `#painel`, mesmo padrão já usado pro card Verificações de Negócio.
+5. **F5 sempre voltava pro Painel** — agora grava a aba atual em `sessionStorage` (`showMaster()`) e restaura no boot seguinte (`irParaPrimeiraSecao`).
+6. **Boot mais rápido** — medido via `window.WALLACE_BOOT_TIMING` (instrumentação já existia, nunca tinha sido lida): total ~935ms, maior fatia (~500ms) era `promocoes-financeengine.js` carregando em série antes dos 6 módulos finais (documentados como independentes dele). Agora disparam em paralelo.
+
+**Decisão tomada com o usuário** (AskUserQuestion): "atualizar dados ao trocar de aba" — nem sempre (mais lento, mais chamadas ao Supabase) nem nunca (dado pode ficar velho numa sessão longa). Implementado meio-termo: recarrega o iframe inteiro (reaproveitando o F5 que já restaura a aba) só se fizer mais de 5min desde o último boot. Recarregar tudo em vez de tentar atualizar só os dados foi escolha deliberada de segurança — os gráficos (`graficos-cenarios-lazy.js`) são documentados como não seguros de recriar (`new Chart()` de novo no mesmo canvas duplica/quebra).
+
+Commits: `5f1187a`, `c123dfe`. **Não testado em dispositivo real** (só emulação de viewport + sessão fake-auth local) — validação real depende do usuário.
 
 ## 🎯 Regra permanente (de sessão anterior, continua valendo): V1 não é autoridade
 
