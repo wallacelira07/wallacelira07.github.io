@@ -65,6 +65,14 @@ async function aplicarOnda4Patrimonio(){
   // patrimonioDetalhe), lido 1x na criação) continuava com a composição V1 do boot. Mesma classe de
   // bug do caso Necessidade Bruta/Líquida (provMP/déficit de caixas), corrigida na mesma sessão.
   REG.patrimonioDetalhe = { reserva, btg, caixaLance, nectonContaCorrente: nectonCC };
+  // CORRIGIDO 10/08/2026 (achado do usuário: "eu retirei o juros lá da caixa dos 100k... esse é o
+  // plano, manter esse valor sempre lá" — mas a aba Cenários mostrava R$100.644,15, o valor V1
+  // antigo, mesmo depois do Balanço já mostrar V2 certo): REG.reserva.atual (só consumido por
+  // hydrateCenarios(), aba Cenários — Reserva de Emergência normal×extremo) nunca era atualizado
+  // aqui, mesma classe do caso do gráfico de rosca (REG.patrimonioDetalhe) logo acima. Reentrante e
+  // seguro de chamar de novo (hydrateCenarios só escreve textContent, não cria gráfico).
+  REG.reserva.atual = reserva;
+  if(typeof hydrateCenarios === 'function') hydrateCenarios();
 
   t('patTotal', fmt(total));
   t('patReserva', fmt(reserva));

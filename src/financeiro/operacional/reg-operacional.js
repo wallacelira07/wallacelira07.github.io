@@ -80,7 +80,14 @@ function criarRegOperacional(){
       // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
       // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
       liquidoReal: {0: 16819.56}, // ATUALIZADO 25/07/2026 (V150): salario real do ciclo atual ja recebido (24/07/2026, TX000136) - preenchido conforme a propria regra manda ("preencher quando um ciclo fechar e o valor real chegar"). Era {} (vazio).
-      necessidade: [13146.21,12951.87,12620.07,12138.93,11871.07,11771.07,...Array(6).fill(VARS.necessidadeHeld)] // ATUALIZADO V150: indice 0 (ciclo atual) = NECESSIDADE_TOTAL corrigida (13146.21, ver V146/V147). Era 14317.00 (desatualizado, herdado de antes da correcao das parcelas).
+      // CORRIGIDO 10/08/2026 (achado do usuário: tabela "NECESSIDADE (PAGA TUDO)" da aba Cenários
+      // não batia com o gráfico "Necessidade líquida" da aba Gráficos): este array era um literal
+      // congelado desde V150 (25/07/2026), só o índice 0 era resincronizado — a partir do índice 1
+      // ficou parado enquanto o gráfico gêmeo já recalculava tudo por fórmula. Placeholder vazio
+      // aqui: recalcularNecessidade() (recalcular-necessidade.js) substitui este array inteiro pela
+      // MESMA referência de REG.evolucao.necessidadeBruta assim que roda (sempre antes de qualquer
+      // renderização que leia isto) — nunca mais duas cópias pra dessincronizar.
+      necessidade: []
     },
     // ===== QUALIDADE/REGRAS DE NEGOCIO (18/07/2026, V79) - "linter" enxuto: nao guarda transacao
     // por transacao (REG so tem agregados, por design - inflar isso pesaria o app.js), mas expoe os

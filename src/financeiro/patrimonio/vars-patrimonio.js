@@ -14,7 +14,11 @@ function criarVarsPatrimonio(){
   // = R$1.021,59; IR 22,5% (aplicação <180 dias) = R$229,86; líquido projetado = R$791,73. Retirar esse
   // valor em 03/08 devolve a Reserva para R$100.000,00 (mesma rotina mensal). Ajustar com o valor REAL
   // do app no dia, se divergir da projeção linear (CDI varia dia a dia, fins de semana não rendem).
-  reserva: 100644.15, // ATUALIZADO 31/07/2026 (V210): print BTG "meus investimentos", saldo atualizado 31/07/2026, rendimento R$870,24 (03/07 a 28/07). Era R$100.476,11.
+  // ATUALIZADO 10/08/2026 (usuário confirmou: "eu retirei o juros lá da caixa dos 100k, então o
+  // valor é 100k, esse é o plano, manter esse valor sempre lá") — rotina mensal de retirada de
+  // rendimento executada, Reserva travada em R$100.000,00 (mesmo valor já atualizado na tabela V2
+  // `patrimonio`, id d36ce6aa-6ce2-4212-bcdf-c858615aa1ef). Era R$100.644,15.
+  reserva: 100000.00,
   reservaRetiradaProgramada: { data: '03/08/2026', valorProjetado: 791.73, motivo: 'Rendimento do mês (IOF zera aos 30 dias), retirar pra manter Reserva em R$100.000,00' },
   btgNecton: 14779.62, // ATUALIZADO 31/07/2026 (V210): print BTG, LFTS11, 94 cotas, +1,25% resultado com proventos. Era R$14.673,40.
   nectonContaCorrente: 429.75, // ATUALIZADO 31/07/2026 (V210): print BTG "Saldo conta investimento". Era R$429,70.

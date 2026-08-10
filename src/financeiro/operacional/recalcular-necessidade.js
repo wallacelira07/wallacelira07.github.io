@@ -75,6 +75,16 @@ function recalcularNecessidade(){
   REG.evolucao = REG.evolucao || {};
   REG.evolucao.totalOperacional = [];
   REG.evolucao.necessidadeLiquida = [];
+  // NOVO 10/08/2026 (achado do usuário: "os valores de necessidade líquida e operacional não
+  // refletem com os valores que vejo na aba Cenários" — confirmado bug real: a tabela "NECESSIDADE
+  // (PAGA TUDO)" da aba Cenários lia REG.superavitNormal.necessidade, um array LITERAL congelado
+  // desde V150/25-07-2026 nos índices 1-11 (só o índice 0 era resincronizado, ver comentário V203
+  // abaixo) — o gráfico "Necessidade líquida" da aba Gráficos já usava a fórmula viva
+  // (REG.evolucao.necessidadeLiquida). Duas fontes pro mesmo conceito = elas dessincronizam assim
+  // que qualquer parcela/aporte muda depois de 25/07. Corrigido pela raiz: necessidadeBruta agora é
+  // um array vivo aqui, e REG.superavitNormal.necessidade abaixo passa a ser a MESMA referência (não
+  // uma cópia) — impossível dessincronizar de novo, os dois nomes sempre apontam pro mesmo array.
+  REG.evolucao.necessidadeBruta = [];
   for(let i=0;i<12;i++){
     const parcelasProj = somaParcelasProjetadas(i);
     const aportesPatProj = r2(D.aportesPat + (calcularAporteIncrementalPorCiclo(i) - aporteIncrementalHoje));
@@ -82,12 +92,14 @@ function recalcularNecessidade(){
     const necBrutaProj = r2(totalOpProj + REG.operacional.orcamentoOperacional);
     const coberturaProj = i===0 ? REG.operacional.coberturaGarantida : 0; // cobertura garantida so existe confirmada pro ciclo atual, nunca projetada pra frente (regra 04 - nao chutar confirmacao futura)
     REG.evolucao.totalOperacional.push(totalOpProj);
+    REG.evolucao.necessidadeBruta.push(necBrutaProj);
     REG.evolucao.necessidadeLiquida.push(r2(necBrutaProj - coberturaProj));
   }
   // ciclo atual (indice 0) sempre usa o valor JA COMPUTADO acima (fonte real do ciclo, pode incluir
   // ajustes/overrides que a formula generica de parcelas nao capturaria) - so os indices 1+ sao 100%
   // projecao por formula.
   REG.evolucao.totalOperacional[0] = REG.operacional.totalOperacional;
+  REG.evolucao.necessidadeBruta[0] = REG.operacional.necessidadeTotalBruta;
   REG.evolucao.necessidadeLiquida[0] = REG.operacional.necessidadeLiquida;
 
   REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta; // CORRIGIDO V150: era numero fixo, agora e a mesma Necessidade Total Bruta (Boletos+Parcelas+Assinaturas+Recorrencias+Consorcios+AportesPatrimoniais+OrcamentoOperacional). Movido para APOS necessidadeTotalBruta ser calculado (ordem de execucao).
@@ -107,10 +119,11 @@ function recalcularNecessidade(){
   else if(REG.operacional.saldoCiclo < 8000) REG.operacional.modoOperacional = 'Normal';
   else REG.operacional.modoOperacional = 'Alto';
 
-  // V203 (varredura de bugs): o indice 0 (ciclo atual) da serie de cenarios era um literal duplicado
-  // do snapshot (13146.21), que dessincronizaria se a necessidade do ciclo mudasse. Agora deriva do
-  // agregado real.
-  if(REG.superavitNormal && Array.isArray(REG.superavitNormal.necessidade)) REG.superavitNormal.necessidade[0] = REG.operacional.necessidadeTotalBruta;
+  // V203 (varredura de bugs, índice 0) + CORRIGIDO 10/08/2026 (varredura desta sessão, índices 1-11,
+  // ver comentário grande acima): REG.superavitNormal.necessidade inteiro agora É
+  // REG.evolucao.necessidadeBruta (mesma referência de array, não uma cópia) — a tabela "NECESSIDADE
+  // (PAGA TUDO)" da aba Cenários passa a ler exatamente a mesma fonte viva do gráfico da aba Gráficos.
+  if(REG.superavitNormal) REG.superavitNormal.necessidade = REG.evolucao.necessidadeBruta;
   // V138: elimina duplicacao - antes o mesmo numero vivia em REG.estimador.necessidadeLiquidaProximoCiclo
   // (literal solto) E em REG.evolucao.necessidadeLiquida[1] (array). Agora so o array e fonte, o estimador le dele.
   REG.estimador.necessidadeLiquidaProximoCiclo = REG.evolucao.necessidadeLiquida[1];
