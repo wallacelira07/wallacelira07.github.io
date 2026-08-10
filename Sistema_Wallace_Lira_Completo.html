@@ -1086,6 +1086,21 @@
   <div id="solar" class="master-pane">
 
     <div class="section-num"><span class="n">01</span><h2>☀️ Como a usina está indo</h2></div>
+
+    <!-- NOVO 10/08/2026 (item aprovado pelo usuário: "compartilhamento público (só leitura) da aba
+         Energia Solar" — link temporário, sem login, expondo só dado do domínio Solar, nunca
+         financeiro). Ver solar-compartilhado.html (página pública nova) + RPCs
+         criar_compartilhamento_solar/desativar_compartilhamento_solar/listar_compartilhamentos_solar
+         (Postgres, exigem login — só quem está logado aqui pode criar/gerenciar links). -->
+    <div class="card" style="border-left:3px solid var(--purple)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.7rem">
+        <div style="font-size:0.78rem;color:var(--text-mid);flex:1;min-width:220px">🔗 Compartilhe só os dados solares (geração, eficiência, economia estimada) com a família — link temporário, sem login, sem acesso ao resto do sistema.</div>
+        <button type="button" onclick="criarLinkCompartilhamentoSolar()" style="background:var(--purple);color:#fff;border:none;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Compartilhar</button>
+      </div>
+      <div id="solarLinkGerado" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:var(--surface-2);border-radius:8px;font-size:0.78rem;word-break:break-all"></div>
+      <div id="solarLinksAtivos" style="margin-top:0.6rem;font-size:0.72rem;color:var(--text-dim)"></div>
+    </div>
+
     <!-- "Qualidade da geração" - card separado do crédito/rateio. Objetivo único: responder "hoje
     a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL,
     rateio). Ver hydrate-onda5-qualidade-geracao.js. -->
@@ -1686,6 +1701,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/livros-razao/hydrate-onda5-parcelamentos.js',
   'src/financeiro/investimentos/hydrate-onda5-p2p.js',
   'src/solar/hydrate-onda5-qualidade-geracao.js',
+  'src/solar/compartilhamento-solar.js',
   'src/financeiro/patrimonio/hydrate-patrimonio.js',
   'src/financeiro/indicadores/hydrate-indicadores.js',
   'src/financeiro/operacional/hydrate-metas.js',

@@ -1673,5 +1673,7 @@ function initSolarLazy(){
   if(_solarCarregado) return;
   _solarCarregado = true;
   _lazyRenderSolarSecao();
+  // NOVO 10/08/2026: mostra os links de compartilhamento já ativos (se houver) assim que a aba abre.
+  if(typeof renderizarLinksCompartilhamentoSolar === 'function') renderizarLinksCompartilhamentoSolar();
   WallaceBus.emit('graficoAtualizado', {origem:'initSolarLazy'});
 }

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energia Solar — Sistema Wallace Lira</title>
+<!-- PÁGINA PÚBLICA, SEM LOGIN, DE PROPÓSITO (10/08/2026) — item aprovado pelo usuário
+     ("compartilhamento público (só leitura) da aba Energia Solar", ver PASSAGEM_DE_TURNO.md e
+     ESTADO_ATUAL.md). Acesso controlado só pelo token na URL (?token=...), validado pela RPC
+     `consultar_solar_compartilhado` (Postgres, checa existência/ativo/validade antes de devolver
+     qualquer coisa). REGRA DE OURO desta página: só dado do domínio Solar (leituras, geração,
+     eficiência, economia estimada) — NUNCA nenhuma tabela financeira (caixas, cartões, patrimônio,
+     salário). Aprovado explicitamente pelo usuário: pode mostrar R$ de economia/valor do kWh/payback
+     (são cálculos do próprio domínio Solar, não financeiro geral) — mas nada além disso.
+     Zero dependência de app.js/VARS/REG do painel principal — script autocontido, só usa os dados
+     que a RPC devolve + as 3 constantes de tarifa abaixo (cópia deliberada, não importada, de
+     vars-energia-solar.js — ver comentário no bloco de cálculo). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#0f1113; --panel:#16181b; --border:#2a2d31; --text:#e8e6df; --text-dim:#a9a79f; --text-mid:#c8c6bf;
+    --green:#34c98a; --blue:#3987e5; --amber:#e8a63a; --red:#e2554f; --purple:#9085e9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:1.2rem;max-width:900px;margin-inline:auto}
+  header{display:flex;align-items:center;gap:0.7rem;margin-bottom:1.4rem}
+  header .ico{font-size:1.6rem}
+  h1{font-size:1.15rem;margin:0}
+  .sub{font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.8rem}
+  .stat-lbl{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em}
+  .stat-val{font-size:1.4rem;font-weight:700;margin-top:0.2rem}
+  .stat-sub{font-size:0.72rem;color:var(--text-mid);margin-top:0.2rem}
+  .chart-wrap{height:220px;position:relative}
+  .msg{text-align:center;padding:3rem 1rem;color:var(--text-dim)}
+  .msg h2{color:var(--text);margin-bottom:0.5rem}
+  .footer-note{font-size:0.7rem;color:var(--text-dim);text-align:center;margin-top:1.5rem;line-height:1.5}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+  <div id="app">
+    <div class="msg"><h2>Carregando…</h2></div>
+  </div>
+
+<script>
+// Chave publishable do projeto (a mesma já exposta no site principal — não é segredo, é a chave
+// pública/anon do Supabase, protegida pela RLS/RPC, não pela ocultação da chave).
+const SUPABASE_URL = 'https://bakdgacmwlopvrrppwdm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+
+function fmt(v){ return (v==null || isNaN(v)) ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtKwh(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' kWh'; }
+function fmtPct(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%'; }
+function fmtData(iso){ if(!iso) return '—'; const [a,m,d] = iso.slice(0,10).split('-'); return d+'/'+m+'/'+a; }
+
+function renderErro(mensagem){
+  const msgs = {
+    'link invalido': ['Link inválido', 'Esse link de compartilhamento não existe ou foi digitado errado.'],
+    'link desativado': ['Link desativado', 'Esse link foi revogado por quem compartilhou.'],
+    'link expirado': ['Link expirado', 'A validade desse link já passou — peça um novo link pra quem compartilhou.'],
+  };
+  const [titulo, texto] = msgs[mensagem] || ['Não foi possível carregar', 'Tente novamente em alguns minutos, ou peça um link novo.'];
+  document.getElementById('app').innerHTML = `<div class="msg"><h2>☀️ ${titulo}</h2><p>${texto}</p></div>`;
+}
+
+// Réplica deliberada (não importada) das 3 constantes de tarifa de vars-energia-solar.js —
+// mudam raramente (fatura Energisa), e esta página propositalmente não carrega app.js/VARS/REG do
+// painel principal (nenhuma dependência do sistema autenticado, superfície mínima). Se a tarifa for
+// atualizada lá, atualizar aqui também.
+const TARIFA_ENERGISA_VALOR = 322.99;
+const TARIFA_ENERGISA_KWH = 304;
+const TARIFA_RS_POR_KWH = Math.round((TARIFA_ENERGISA_VALOR / TARIFA_ENERGISA_KWH) * 10000) / 10000;
+const INVESTIMENTO_PADRAO = 25000; // mesmo default do simulador do painel privado (simInvestimento)
+
+async function carregar(){
+  const token = new URLSearchParams(location.search).get('token');
+  if(!token){ renderErro('link invalido'); return; }
+
+  let resp, dados;
+  try {
+    resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consultar_solar_compartilhado`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_token: token }),
+    });
+  } catch(e){
+    document.getElementById('app').innerHTML = '<div class="msg"><h2>☀️ Sem conexão</h2><p>Não consegui buscar os dados agora. Confira sua internet e recarregue a página.</p></div>';
+    return;
+  }
+  if(!resp.ok){
+    let corpo = null;
+    try { corpo = await resp.json(); } catch(e){}
+    renderErro((corpo && (corpo.message || corpo.hint)) || '');
+    return;
+  }
+  dados = await resp.json();
+
+  const leituras = dados.leituras || [];
+  const geracaoDiaria = dados.geracaoDiaria || [];
+  const ciclo = dados.cicloAberto || null;
+  const ultima = leituras.length ? leituras[leituras.length - 1] : null;
+
+  const importadoAcum = ultima ? ultima.leitura03 : null;
+  const exportadoAcum = ultima ? ultima.leitura103 : null;
+  const geracaoAcum = ultima ? ultima.geracaoAcumulada : null;
+  const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
+  const saldoLiquidoAcum = (importadoAcum!=null && exportadoAcum!=null) ? Math.round((exportadoAcum - importadoAcum)*100)/100 : null;
+
+  let consumoDiretoAcum=null, consumoTotalCasa=null, autoconsumoPct=null, dependenciaPct=null, exportacaoDaGeracaoPct=null;
+  let economiaEstimada=null, valorKwhGerado=null, paybackAnos=null;
+  if(temGeracao && importadoAcum!=null && exportadoAcum!=null){
+    // MESMA fórmula de graficos-cenarios-lazy.js (painel privado) — ver seção "Fluxo de energia"/
+    // "Eficiência da unidade". importado = leitura03, exportado = leitura103.
+    consumoDiretoAcum = Math.round((geracaoAcum - exportadoAcum) * 100) / 100;
+    consumoTotalCasa = Math.round((consumoDiretoAcum + importadoAcum) * 100) / 100;
+    autoconsumoPct = consumoTotalCasa > 0 ? Math.round((consumoDiretoAcum / consumoTotalCasa) * 1000) / 10 : 0;
+    dependenciaPct = consumoTotalCasa > 0 ? Math.round((importadoAcum / consumoTotalCasa) * 1000) / 10 : 0;
+    exportacaoDaGeracaoPct = geracaoAcum > 0 ? Math.round((exportadoAcum / geracaoAcum) * 1000) / 10 : 0;
+
+    // Economia estimada — simplificada de propósito (não é o simulador completo do painel privado,
+    // que projeta mês a mês com degradação/Lei 14.300): consumo direto das placas × tarifa média,
+    // desde a data de ativação. Deixado claro na tela que é estimativa, não fatura real.
+    economiaEstimada = Math.round(consumoDiretoAcum * TARIFA_RS_POR_KWH * 100) / 100;
+    valorKwhGerado = geracaoAcum > 0 ? Math.round((economiaEstimada / geracaoAcum) * 10000) / 10000 : null;
+    if(ciclo && ciclo.data_inicio){
+      const diasDesdeInicio = Math.max(1, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
+      const economiaAnualEstimada = (economiaEstimada / diasDesdeInicio) * 365;
+      paybackAnos = economiaAnualEstimada > 0 ? Math.round((INVESTIMENTO_PADRAO / economiaAnualEstimada) * 10) / 10 : null;
+    }
+  }
+
+  const expiraTxt = dados.expiraEm ? fmtData(dados.expiraEm) : '—';
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header>
+      <span class="ico">☀️</span>
+      <div>
+        <h1>Energia Solar — Sistema Wallace Lira</h1>
+        <div class="sub">Só leitura, dados solares apenas · link válido até ${expiraTxt}</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <div><div class="stat-lbl">Geração acumulada</div><div class="stat-val" style="color:var(--amber)">${temGeracao ? fmtKwh(geracaoAcum) : '—'}</div><div class="stat-sub">${temGeracao ? '' : 'aguardando leitura do inversor'}</div></div>
+        <div><div class="stat-lbl">Autoconsumo</div><div class="stat-val" style="color:var(--green)">${fmtPct(autoconsumoPct)}</div><div class="stat-sub">${consumoDiretoAcum!=null ? fmtKwh(consumoDiretoAcum)+' direto das placas' : 'dados insuficientes'}</div></div>
+        <div><div class="stat-lbl">Dependência da rede</div><div class="stat-val" style="color:var(--blue)">${fmtPct(dependenciaPct)}</div><div class="stat-sub">${importadoAcum!=null ? fmtKwh(importadoAcum)+' importados' : ''}</div></div>
+        <div><div class="stat-lbl">Exportação da geração</div><div class="stat-val" style="color:var(--purple)">${fmtPct(exportacaoDaGeracaoPct)}</div><div class="stat-sub">${exportadoAcum!=null ? fmtKwh(exportadoAcum)+' exportados' : ''}</div></div>
+      </div>
+      ${saldoLiquidoAcum!=null ? `<div class="stat-sub" style="margin-top:0.9rem;padding-top:0.9rem;border-top:1px solid var(--border)">Saldo líquido: <strong style="color:${saldoLiquidoAcum>=0?'var(--green)':'var(--red)'}">${saldoLiquidoAcum>=0?'+':''}${fmtKwh(saldoLiquidoAcum)}</strong> ${saldoLiquidoAcum>=0 ? '— excedente (exportando mais do que importa)' : '— dependendo mais da rede do que exportando'}</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.6rem">Economia estimada (desde a ativação)</div>
+      <div class="grid">
+        <div><div class="stat-lbl">Economia acumulada</div><div class="stat-val" style="color:var(--green)">${fmt(economiaEstimada)}</div></div>
+        <div><div class="stat-lbl">Valor do kWh gerado</div><div class="stat-val">${valorKwhGerado!=null ? fmt(valorKwhGerado) : '—'}</div></div>
+        <div><div class="stat-lbl">Payback estimado</div><div class="stat-val">${paybackAnos!=null ? paybackAnos.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos' : '—'}</div><div class="stat-sub">investimento de ${fmt(INVESTIMENTO_PADRAO)} (padrão)</div></div>
+      </div>
+      <div class="stat-sub" style="margin-top:0.8rem">Estimativa simplificada (tarifa média, sem projeção mês a mês) — não é a fatura real.</div>
+    </div>
+
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">Geração diária (kWh)</div>
+      <div class="chart-wrap"><canvas id="cGeracaoDiaria"></canvas></div>
+    </div>
+
+    <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
+  `;
+
+  if(geracaoDiaria.length && window.Chart){
+    const ultimos = geracaoDiaria.slice(-30);
+    new Chart(document.getElementById('cGeracaoDiaria'), {
+      type: 'bar',
+      data: {
+        labels: ultimos.map(r => fmtData(r.data)),
+        datasets: [{ data: ultimos.map(r => r.kwh), backgroundColor: '#e8a63a', borderRadius: 3 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + ' kWh' } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
+          y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+}
+
+carregar();
+</script>
+</body>
+</html>
