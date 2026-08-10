@@ -41,7 +41,8 @@ function renderGraficosPainelPrincipal(){
   Chart.defaults.font.family = "-apple-system, 'Segoe UI', Roboto, sans-serif";
   Chart.defaults.font.size = 11;
 
-  new Chart($('cPatrim'), {
+  window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+  window.WALLACE_CHARTS.painelPatrimonio = new Chart($('cPatrim'), {
     type:'doughnut',
     data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
       datasets:[{data:Object.values(REG.patrimonioDetalhe),
@@ -73,7 +74,7 @@ function renderGraficosPainelPrincipal(){
       tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
   });
 
-  new Chart($('cVariavel'), {
+  window.WALLACE_CHARTS.painelCaixaVariavel = new Chart($('cVariavel'), {
     type:'bar',
     plugins:[barValuePlugin],
     data:{labels:['Saldo real','Comprometido','Disponível'],

@@ -53,6 +53,7 @@ function _lazyRenderGraficosSecao(){
 // ===== Aba GRAFICOS =====
 const muted = '#a9a79f', grid='#2a2d31';
 const legendStd = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
+window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
 // barValuePlugin agora e global (definido junto de fmt(), no topo do arquivo) - reutilizado aqui.
 
 // plugin: rotula % em cima de cada barra de progresso de metas
@@ -73,7 +74,7 @@ const metaValuePlugin = {
   }
 };
 
-new Chart($('g_cPatrim'), {
+window.WALLACE_CHARTS.gPatrim = new Chart($('g_cPatrim'), {
   type:'doughnut',
   data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
     datasets:[{data:Object.values(REG.patrimonioDetalhe),
@@ -165,7 +166,7 @@ new Chart($('g_cTotalOpBar'), {
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
 
-new Chart($('g_cVariavel'), {
+window.WALLACE_CHARTS.gCaixaVariavel = new Chart($('g_cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:['Saldo real','Comprometido','Disponível'],
@@ -294,6 +295,34 @@ function atualizarGraficosNecessidade(){
     cSuperavit.update();
     if(typeof _renderTabelaSuperavitNormal === 'function') _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
   }
+}
+
+// NOVO 10/08/2026 (mesmo achado do usuário, domínio Patrimônio): re-renderiza os 2 gráficos de rosca
+// "Reserva/BTG/Caixa Lance/Necton" (Painel: cPatrim; aba Gráficos: g_cPatrim) — chamada por
+// hydrate-onda4-patrimonio.js depois de atualizar REG.patrimonioDetalhe.
+function atualizarGraficoPatrimonio(){
+  if(!window.WALLACE_CHARTS) return;
+  const dados = Object.values(REG.patrimonioDetalhe);
+  [window.WALLACE_CHARTS.painelPatrimonio, window.WALLACE_CHARTS.gPatrim].forEach(chart => {
+    if(!chart) return;
+    chart.data.datasets[0].data = dados;
+    chart.update();
+  });
+}
+
+// NOVO 10/08/2026 (mesmo achado do usuário, domínio Caixa Variável): re-renderiza os 2 gráficos de
+// barra "Saldo real/Comprometido/Disponível" (Painel: cVariavel; aba Gráficos: g_cVariavel) —
+// chamada por hydrate-onda1-v2.js (saldoReal) e hydrate-comprometido-caixa-variavel-v2.js
+// (comprometido), cada um podendo resolver em ordem diferente — sempre lê o REG.caixaVariavel atual
+// no momento da chamada, nunca fica presa a qual dos dois módulos disparou por último.
+function atualizarGraficoCaixaVariavel(){
+  if(!window.WALLACE_CHARTS) return;
+  const dados = [REG.caixaVariavel.saldoReal, REG.caixaVariavel.comprometido, REG.caixaVariavel.disponivel];
+  [window.WALLACE_CHARTS.painelCaixaVariavel, window.WALLACE_CHARTS.gCaixaVariavel].forEach(chart => {
+    if(!chart) return;
+    chart.data.datasets[0].data = dados;
+    chart.update();
+  });
 }
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,

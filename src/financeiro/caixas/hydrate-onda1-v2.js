@@ -66,8 +66,18 @@ const ONDA1_V2_MAPA = [
   {
     // ACHADO (08/08/2026, mesma classe de bug): balOpCaixaVariavel (seção "Balanço Patrimonial" →
     // Operacional) duplica o mesmo saldo real da Caixa Variável, nunca tinha sido ligado.
+    // CORRIGIDO 10/08/2026 (achado do usuário: "gráficos iguais devem ler do mesmo lugar"): esta
+    // entrada só sobrescrevia o texto de #cvSaldoReal, nunca REG.caixaVariavel.saldoReal — o
+    // gráfico de barras cVariavel/g_cVariavel (lê REG.caixaVariavel.saldoReal/.comprometido/
+    // .disponivel na criação) continuava mostrando o saldo V1, mesmo com o texto já em V2. Mesma
+    // classe de bug do caso Patrimônio/Necessidade, mesma sessão.
     idHtml: 'cvSaldoReal', caixaNome: 'Caixa Variável', getValorV1: () => REG.caixaVariavel.saldoReal,
-    extra: (valorV2) => { const el = $('balOpCaixaVariavel'); if(el) el.textContent = fmt(valorV2); },
+    extra: (valorV2) => {
+      const el = $('balOpCaixaVariavel'); if(el) el.textContent = fmt(valorV2);
+      REG.caixaVariavel.saldoReal = valorV2;
+      if(typeof recalcularCaixas === 'function') recalcularCaixas(); // deriva .disponivel a partir do saldoReal novo
+      if(typeof atualizarGraficoCaixaVariavel === 'function') atualizarGraficoCaixaVariavel();
+    },
   },
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];

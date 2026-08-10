@@ -59,6 +59,12 @@ async function aplicarOnda4Patrimonio(){
   // depois do card principal (patTotal) já mostrar V2.
   REG.patrimonio.total = total;
   REG.patrimonio.metaMilhaoPct = metaMilhaoPct;
+  // CORRIGIDO 10/08/2026 (achado do usuário: "gráficos iguais devem refletir exatamente a mesma
+  // fonte"): REG.patrimonioDetalhe nunca era atualizado aqui — os textos abaixo (patReserva/patBtg/
+  // patEscola) já mostravam V2, mas o gráfico de rosca cPatrim/g_cPatrim (Object.values(REG.
+  // patrimonioDetalhe), lido 1x na criação) continuava com a composição V1 do boot. Mesma classe de
+  // bug do caso Necessidade Bruta/Líquida (provMP/déficit de caixas), corrigida na mesma sessão.
+  REG.patrimonioDetalhe = { reserva, btg, caixaLance, nectonContaCorrente: nectonCC };
 
   t('patTotal', fmt(total));
   t('patReserva', fmt(reserva));
@@ -106,6 +112,9 @@ async function aplicarOnda4Patrimonio(){
   // Resincroniza kpiPatrimonio/kpiPatrimonioPct/r21Patrimonio/r21MetaMilhaoPct (hydrateResumoExecutivo,
   // chamada antes desta função no boot) agora que REG.patrimonio.total/metaMilhaoPct foram atualizados acima.
   hydrateResumoExecutivo();
+  // CORRIGIDO 10/08/2026: re-renderiza os gráficos de rosca (Painel: cPatrim; aba Gráficos: g_cPatrim)
+  // agora que REG.patrimonioDetalhe foi atualizado acima — antes ficavam presos na composição V1.
+  if(typeof atualizarGraficoPatrimonio === 'function') atualizarGraficoPatrimonio();
 
   // Auditoria: confere contra o que hydratePatrimonio() (V1) já tinha escrito antes desta função rodar
   const diverge = Math.abs(v1Total - total) > 0.01;

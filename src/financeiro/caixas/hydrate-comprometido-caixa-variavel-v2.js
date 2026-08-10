@@ -49,4 +49,7 @@ async function aplicarComprometidoCaixaVariavelV2(){
   if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof hydrateResumoCartoes === 'function') hydrateResumoCartoes();
   if(typeof hydrateSimuladorCiclo === 'function') hydrateSimuladorCiclo();
+  // CORRIGIDO 10/08/2026 (mesmo achado do caso Necessidade/Patrimônio): o gráfico de barras
+  // cVariavel/g_cVariavel também lê REG.caixaVariavel.*, nunca era re-renderizado depois daqui.
+  if(typeof atualizarGraficoCaixaVariavel === 'function') atualizarGraficoCaixaVariavel();
 }
