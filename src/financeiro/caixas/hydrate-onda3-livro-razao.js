@@ -40,6 +40,10 @@ const ONDA3_LR_MAPA = [
   // NOVO 09/08/2026 (investigação "matar V1"): Caixa Lance promovida no saldo (Onda 3,
   // ver hydrate-onda3-caixalance.js) depois de fechar o resíduo pra R$20 (alta confiança).
   { tbodyId: 'lrlanceTbody', tfId: 'tf_lrlance', qtdId: 'qtd_lrlance', caixaId: 'ff0cd9af-c5a9-4a9b-8cdd-c379e167275e', caixaNome: 'Caixa Lance' },
+  // NOVO 09/08/2026 (investigação "matar V1"): Saúde Família e Aniversário Júlio promovidas
+  // no saldo (Onda 2, ver hydrate-onda2-v2.js), resíduo R$0,00 nas duas.
+  { tbodyId: 'lrsaudeTbody', tfId: 'tf_lrsaude', qtdId: 'qtd_lrsaude', caixaId: 'd15e8cbe-4443-4ee4-9631-06d8d49058fe', caixaNome: 'Caixa Saúde Família' },
+  { tbodyId: 'lranivTbody', tfId: 'tf_lraniv', qtdId: 'qtd_lraniv', caixaId: 'ffa94985-902c-4e8a-bd31-0a15a054a403', caixaNome: 'Caixa Aniversário Júlio' },
 ];
 
 function onda3FormatarDataV2(dataIso){

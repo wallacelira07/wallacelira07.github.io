@@ -2,7 +2,22 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## ✅ Caixa Lance fechada de vez (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## ✅ Mais 6 caixas fechadas, técnica repetida em série (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+Usuário pediu pra ir "da mais simples pra mais completa e registrar tudo". Usei o diagnóstico `LivroRazaoFase1` que apareceu no console do usuário (12 caixas com contagem V1≠V2) pra escolher a ordem, e apliquei a mesma técnica que funcionou na Caixa Lance (consultar `wallace_dados` direto, não o arquivo JS local) em cada uma:
+
+- **4 caixas com resíduo <R$3** (Escola de Júlio, Seguro Emplacamento, Combustível, Eventos): todas tinham o mesmo `AJUSTE-06-08` (rendimento real, confirmado pelo usuário) nunca migrado. Inseridas as 4 juntas, confirmando ausência antes. Todas fecharam em R$0,00.
+- **Saúde Família e Aniversário Júlio**: mesmo padrão da Manutenção (transação presa em `pendente_classificacao` + itens ausentes). Corrigidas, fecharam em R$0,00, promovidas no código junto com a tabela de Livro Razão.
+
+**2 documentos novos lidos, sem achado novo**: `Bradesco .pdf` (extrato de conta corrente, confirma o fluxo salário→PIX já conhecido) e `mp-wallet_...pdf` (é o MESMO extrato de junho+julho que já tinha lido em arquivos separados, só que combinado num PDF de 18 páginas).
+
+**2 caixas paradas de propósito, não é o mesmo padrão limpo**:
+- **PIX Vanessa** (R$300): os lançamentos em V2 não batem com o array V1 nem em conteúdo nem em sinal — inconsistência estrutural, não falta de migração. Não mexi.
+- **Caixa Bens Duráveis** (R$583,99): o ajuste em V1 zera a compra do fone+cortador porque essa caixa virou centro de custo separado (decisão de sessão anterior, pode ficar negativa) — comparar direto com V1=R$0,00 pode não fazer mais sentido conceitual. Não mexi sem confirmar com o usuário.
+
+**Ainda pendente, fora do escopo desta rodada**: `window.WALLACE_BOOT_TIMING` apareceu no console do usuário mas colapsado (não expandido) — ainda não vi os números reais. Planilha `.xlsx` de conciliação ainda sem Python funcional pra abrir. PDF de 41 páginas e imagens do WhatsApp ainda não processados. Cartões Mastercard/Visa (totais) e LRW/LRV (3 transações sem dono) seguem bloqueados como já registrado.
+
+## ✅ Caixa Lance fechada de vez (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 Usuário pediu explicitamente pra continuar fechando a Caixa Lance, mas com cautela (depois do quase-incidente do cartão 4844, ver bloco abaixo). Em vez de adivinhar a partir dos extratos bancários (o que já tinha tentado sem sucesso antes), fui direto na fonte: `wallace_dados.CAIXA_LANCE_TRANSACOES` no Supabase (não o arquivo `vars-caixas.js`, que estava desatualizado — só 8 dos 10 itens reais). Achei os 2 itens faltando: `RENDIMENTO-31-07` (+R$9,42, já certo na V2) e `AJUSTE-06-08` (-R$65,76, ajuste manual que o usuário já tinha feito baseado num print real do Mercado Pago, nunca sincronizado). Confirmei que só o segundo faltava na V2, inseri via `UPDATE`, resíduo caiu de R$85,76 pra R$20,00 (alta confiança — é uma venda P2P real só na V2, mesmo padrão aceito nas outras caixas). Caixa Lance promovida (`hydrate-onda3-caixalance.js` + `hydrate-onda3-livro-razao.js`, saldo e tabela juntos).
 

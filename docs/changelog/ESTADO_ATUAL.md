@@ -2,6 +2,19 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
+## ✅ Mais 6 caixas fecharam em R$0,00 — mesma técnica da Caixa Lance, aplicada em série (09/08/2026, mesma sessão)
+
+Depois de achar o padrão real na Caixa Lance (consultar `wallace_dados` direto em vez do arquivo JS local), usei o mesmo diagnóstico (`vw_reconciliacao_v1_v2`) pra varrer as 12 caixas que o console do usuário mostrava com "quantidade de transações V1≠V2". Resultado:
+
+- **4 caixas com resíduo minúsculo (<R$3), causa idêntica**: Escola de Júlio (R$2,06), Caixa Seguro Emplacamento (R$0,88), Caixa Combustível (R$0,40), Caixa Eventos (R$0,34) — todas tinham um `AJUSTE-06-08` (rendimento acumulado, real, confirmado pelo usuário em 06/08) nunca migrado pra V2. Inseridos os 4 de uma vez, confirmando ausência antes. Todas fecharam em R$0,00.
+- **Caixa Saúde Família** (R$147,12) e **Caixa Aniversário Júlio** (R$107,10) — mesmo padrão da Manutenção: `TX000213` (Saúde Família) estava preso em `status='pendente_classificacao'`; Aniversário Júlio tinha `TX000208` e `AJUSTE-06-08` totalmente ausentes. Corrigido, ambas fecharam em R$0,00. **Promovidas no código** (`hydrate-onda2-v2.js` + `hydrate-onda3-livro-razao.js`, saldo e tabela juntos, mesmo tratamento das outras).
+
+**Paradas por cautela, não é o mesmo padrão limpo**:
+- **PIX Vanessa** (R$300) — os lançamentos da caixa V2 não batem com o array V1 `LRPV_TRANSACOES` nem em conteúdo nem em sinal (ex: `TX000150` aparece como entrada num lado e saída no outro). Não é "faltou migrar", é uma inconsistência estrutural — não mexi sem entender a causa raiz de verdade.
+- **Caixa Bens Duráveis** (R$583,99) — o array V1 tem um `AJUSTE-06-08` que zera a compra do fone+cortador (~R$355) porque essa caixa virou um centro de custo separado por decisão explícita do usuário numa sessão anterior (pode ficar negativa, não é mais debitada da Caixa Variável) — a comparação direta com V1=R$0,00 pode estar comparando coisas que não deveriam mais ser iguais. Não mexi sem confirmar com o usuário.
+
+**Estado das 12 caixas do diagnóstico do console**: 6 já eram V2 (Caixa Variável, Bens Duráveis, PIX Geral Vanessa — resíduo aceito e documentado antes —, Mastercard/Infinite não estava na lista de exceção), agora +6 fecharam nesta rodada. Restam só PIX Vanessa e Bens Duráveis com pendência real de investigação.
+
 ## ✅ Caixa Lance promovida pra V2 — causa raiz real fechada com evidência da fonte (09/08/2026, mesma sessão)
 
 Resíduo de R$85,76 (1,90%) que tinha ficado em aberto: a causa não estava nos extratos bancários (MP julho/junho, já lidos nesta sessão), estava na própria fonte V1. **Consultando `wallace_dados` direto (não o arquivo JS estático `vars-caixas.js`, que só tinha 8 dos 10 itens reais do array)**, achei os 2 itens que faltavam: `RENDIMENTO-31-07` (+R$9,42, rendimento real — já existia certo na V2) e `AJUSTE-06-08` (-R$65,76, correção manual que o usuário já tinha feito em 06/08 contra print real do Mercado Pago — nunca migrada pra V2). Inserido via `UPDATE`. Resíduo caiu de R$85,76 pra **R$20,00** (0,44%), agora com **alta confiança**: é uma venda de P2P real que já existe na V2 mas nunca foi copiada de volta pro V1 — mesmo padrão já aceito nas outras caixas promovidas (V2 recebe lançamento novo direto, V1 não acompanha automaticamente).

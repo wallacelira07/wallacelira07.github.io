@@ -95,7 +95,11 @@ const ONDA2_V2_MAPA = [
       const barEl = $('cxPgvBar'); if(barEl) barEl.style.width = Math.min(100, pctReal)+'%';
     },
   },
-  { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: false },
+  // PROMOVIDAS 09/08/2026 (investigação "matar V1"): mesma causa raiz da Manutenção — Saúde
+  // Família tinha TX000213 preso em pendente_classificacao + AJUSTE-06-08 nunca migrado;
+  // Aniversário Júlio tinha TX000208 e AJUSTE-06-08 nunca migrados. Ambas fecharam em R$0,00
+  // de resíduo (causa_provavel='sincronizado', alta confiança) depois da correção.
+  { idHtml: 'cxSaudeSaldo', caixaNome: 'Caixa Saúde Família', getValorV1: () => REG.caixasOperacionais.saudeFamilia.saldo, aceitarDivergenciaConhecida: true },
   // PROMOVIDA 09/08/2026 (investigação "matar V1"): causa raiz da divergência de R$345,73
   // encontrada e confirmada com alta confiança (vw_reconciliacao_v1_v2.causa_provavel) — 2
   // transações reais (TX000214 "Cortinas" -R$450, TX000215 empréstimo LREI0004 +R$103,55),
@@ -106,7 +110,7 @@ const ONDA2_V2_MAPA = [
   // confiança, mesma classe de "divergência conhecida e documentada" já aceita nas outras
   // caixas desta lista — não bloqueia mais.
   { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: true },
-  { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: false },
+  { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResCombustivel', caixaNome: 'Caixa Combustível', getValorV1: () => REG.balanco.reservas.combustivel, aceitarDivergenciaConhecida: true },
   // log-only: sem idHtml -> nunca escreve no DOM, mesmo com aceitarDivergenciaConhecida=true (falta ESTRUTURA, não só divergência)
