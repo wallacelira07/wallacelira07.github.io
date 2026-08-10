@@ -183,7 +183,9 @@
            lia #buscaGlobalInput/#buscaGlobalResultados fora daqui. -->
     </div>
     <div class="cover-metrics">
-      <div class="cm-card cm-c1"><div class="cm-ico">💰</div><div class="cm-body"><div class="cm-lbl">Patrimônio</div><div class="cm-val g" id="coverPatrimonio">—</div></div></div>
+      <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "total como principal e um pequeno com o líquido,
+           no mesmo card" — Total já existia só na aba Balanço, Líquido é o que sempre apareceu aqui). -->
+      <div class="cm-card cm-c1"><div class="cm-ico">💰</div><div class="cm-body"><div class="cm-lbl">Patrimônio Total</div><div class="cm-val g" id="coverPatrimonioTotal">—</div><div class="cm-sub">Líquido: <span class="v" id="coverPatrimonio">—</span></div></div></div>
       <div class="cm-card cm-c2"><div class="cm-ico">🎯</div><div class="cm-body"><div class="cm-lbl">Meta do milhão</div><div class="cm-val p" id="coverMetaPct">—</div></div></div>
       <div class="cm-card cm-c3"><div class="cm-ico">⚙️</div><div class="cm-body"><div class="cm-lbl">Modo operacional</div><div class="cm-val g" id="coverModoOp">—</div></div></div>
       <div class="cm-card cm-c4"><div class="cm-ico">💳</div><div class="cm-body"><div class="cm-lbl">Caixa Var. — Disponível Real</div><div class="cm-val g" id="coverCaixaVar">—</div></div></div>
@@ -227,22 +229,6 @@
   </div>
   </div>
 
-  <!-- CORRIGIDO 10/08/2026 (pedido do usuario, print da home real): Verificacoes de Negocio volta
-       pra home/capa do site (fora de qualquer aba/master-pane) - ficava antes no topo do Painel
-       (parte 51 original), depois no fim do Painel (revisao anterior), nenhum dos dois era "o
-       dashboard" que o usuario tinha em mente - ele quer ver isso na propria tela inicial, logo
-       apos os botoes de navegacao e antes do seletor de ciclo, sem precisar entrar em nenhuma aba. -->
-  <div class="card verif-card" style="margin-top:1.5rem;margin-bottom:1.5rem">
-    <div class="card-header-icon" style="margin-bottom:0.7rem">
-      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
-      <div>
-        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
-        <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
-      </div>
-    </div>
-    <div class="v" id="alertasNegocio">—</div>
-  </div>
-
   <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
        (Caixa Variavel, Reembolso, Tolerancia, Cascata do Reembolso, Modo Operacional) sem tocar em
        Necessidade Total/Patrimonio/Faturas obrigatorias (fluxo continuo, mesmos em qualquer ciclo). -->
@@ -268,10 +254,26 @@
 
   <div id="painel" class="master-pane">
 
+  <!-- CORRIGIDO 10/08/2026, 2ª rodada (achado do usuário: "Verificações de Negócio está aparecendo
+       na parte de cima de todas as abas, só é pra aparecer no dashboard") - a tentativa anterior
+       colocou isso na área "home" (capa do site, fora de qualquer master-pane), que é compartilhada
+       por TODAS as abas, não só o Painel - por isso vazava pra Gráficos/Solar/Cenários/Balanço.
+       Movido pra dentro do próprio #painel (só existe/mostra quando essa aba está ativa), como
+       primeiro elemento, pra manter a posição "logo no topo" que o usuário pediu no print original. -->
+  <div class="card verif-card" style="margin-top:1rem;margin-bottom:1.5rem">
+    <div class="card-header-icon" style="margin-bottom:0.7rem">
+      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
+      <div>
+        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
+        <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
+      </div>
+    </div>
+    <div class="v" id="alertasNegocio">—</div>
+  </div>
 
     <div class="kpi-strip">
     <div class="kpi">
-      <div class="lbl">Patrimônio financeiro</div>
+      <div class="lbl">Patrimônio Líquido</div>
       <div class="val g" id="kpiPatrimonio">—</div>
       <div class="sub"><span class="v" id="kpiPatrimonioPct">—</span>% da Meta do Milhão</div>
     </div>
@@ -940,7 +942,7 @@
   <!-- 21 -->
   <div class="section-num"><span class="n">21</span><h2>Resumo executivo</h2></div>
   <div class="card">
-    <div class="row"><span class="k" style="font-weight:600">Patrimônio financeiro</span><span class="v" style="font-size:1.1rem;font-weight:700" id="r21Patrimonio">—</span></div>
+    <div class="row"><span class="k" style="font-weight:600">Patrimônio Líquido</span><span class="v" style="font-size:1.1rem;font-weight:700" id="r21Patrimonio">—</span></div>
     <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span class="v" id="r21MetaMilhaoPct">—</span>%</span></div>
     <div class="row"><span class="k">Modo operacional</span><span class="badge bg" id="r21ModoOp">—</span></div>
     <div class="row"><span class="k">Visa Infinite</span><span class="v" id="r21Visa">—</span></div>
@@ -969,6 +971,13 @@
   <div class="section-num"><span class="n">22</span><h2>📥 Inbox Financeira</h2></div>
   <div class="card">
     <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
+    <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
+         mais do que ajuda" — decisão: remover o atalho global flutuante, deixar só nos lugares que já
+         fazem sentido). Formulário "＋ Lançar" (lancar_transacao_manual, V2) migrado do dock flutuante
+         fixo (visível em cima de qualquer aba, sempre) pra este slot dentro da Inbox Financeira — é
+         onde já existe o mesmo tipo de ação (revisar/confirmar um lançamento). Populado por
+         app.js (mesmo código/lógica de sempre, só o alvo de injeção mudou). -->
+    <div id="lancarTxSlot" style="margin-bottom:0.8rem"></div>
     <div class="v" id="inboxFinanceiraResumo" style="font-size:0.68rem;color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
     <div style="overflow-x:auto">
       <table id="inboxFinanceiraTable"><thead><tr><th>ID</th><th>Origem</th><th>Descrição</th><th class="r">Valor</th><th>Data</th><th class="r">Confiança</th><th>Status</th><th>Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
@@ -1628,7 +1637,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260810-14';
+var __V = '20260810-15';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.

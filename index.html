@@ -232,8 +232,11 @@
             letter-spacing: 0.2px;
             color: #f3f1ec;
         }
-        #dashboardScreen header .brand-name-short {
+        #dashboardScreen header .brand-name-full {
             display: none;
+        }
+        #dashboardScreen header .brand-name-short {
+            display: inline;
         }
 
         #dashboardScreen header .brand-sub {
@@ -250,6 +253,16 @@
             align-items: center;
         }
 
+        /* NOVO 10/08/2026 (pedido do usuário: "mais destaque nos botões, pode reorganizar"):
+           agrupa busca+chip+ações como 1 bloco à direita — header vira só 2 filhos (.brand e este
+           grupo), garante alinhamento/gap consistentes em qualquer largura, sem depender de
+           justify-content:space-between espalhar 4 filhos de forma instável. */
+        #dashboardScreen header .header-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         #dashboardScreen header .header-search-wrap {
             position: relative;
             flex: 0 1 320px;
@@ -260,13 +273,15 @@
         #dashboardScreen header .header-search-icon {
             position: absolute;
             left: 11px;
-            color: #6f6d66;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6f9bd8;
             pointer-events: none;
         }
         #dashboardScreen header .header-search-input {
             width: 100%;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(57,135,229,0.07);
+            border: 1px solid rgba(57,135,229,0.25);
             color: #eceae4;
             font-size: 12.5px;
             padding: 7px 10px 7px 30px;
@@ -312,6 +327,9 @@
             font-size: 12px;
             color: #8b8a84;
         }
+        /* CORRIGIDO 10/08/2026 (pedido do usuário: "o de pesquisa precisa ser um pouco mais
+           pronunciado que os outros") - tom de acento (mesmo azul da marca) já em repouso, não só
+           no hover, pra se diferenciar visualmente de olho/sair (ghost buttons neutros). */
         #dashboardScreen header .header-search-toggle-btn {
             display: none;
             align-items: center;
@@ -319,11 +337,21 @@
             width: 34px;
             height: 34px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #eceae4;
+            background: rgba(57,135,229,0.16);
+            border: 1px solid rgba(57,135,229,0.45);
+            color: #8ab4f8;
             cursor: pointer;
             flex-shrink: 0;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        #dashboardScreen header .header-search-toggle-btn:hover {
+            background: rgba(57,135,229,0.26);
+            border-color: rgba(57,135,229,0.7);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(57,135,229,0.22);
+        }
+        #dashboardScreen header .header-search-toggle-btn:active {
+            transform: translateY(0) scale(0.94);
         }
         @media (max-width: 780px) {
             #dashboardScreen header .header-search-wrap { display: none; }
@@ -342,33 +370,72 @@
                 z-index: 60;
                 flex: none;
             }
+            /* CORRIGIDO 10/08/2026 (pedido do usuário: "quando abre o campo pra pesquisa a lupa fica
+               torta") - causa raiz: o wrap ganha padding:8px 14px só no overlay mobile, mas o ícone
+               (position:absolute) usa o mesmo left:11px de sempre, relativo à borda do wrap — sem
+               contar esse padding novo, o ícone ficava perto da própria borda/curva do pill em vez de
+               centrado dentro do campo. Ajustado só pra este contexto (14px do padding + 11px original). */
+            #dashboardScreen header .header-search-wrap.mobile-open .header-search-icon {
+                left: 25px;
+            }
         }
 
         #dashboardScreen header .user-chip {
+            position: relative;
             display: flex;
             align-items: center;
-            gap: 7px;
-            padding: 6px 14px 6px 9px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.035);
-            border: 1px solid rgba(255,255,255,0.08);
+            justify-content: center;
+            padding: 0;
+            border-radius: 50%;
+            cursor: pointer;
         }
-
-        #dashboardScreen header .user-avatar-icon {
-            color: #6f9bd8;
-            flex-shrink: 0;
-        }
-
-        #dashboardScreen header .user-email {
-            font-size: 12px;
+        /* NOVO 10/08/2026 (pedido do usuário: "quando passar o mouse ou clicar sobre a letra com a
+           inicial, pode identificar que está logado com o email, bem sutil") - pill discreto que some
+           sozinho, alternativa ao title="" (que não é confiável em toque no mobile). */
+        #dashboardScreen header .user-email-tooltip {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: #1d2024;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #c8c6bf;
+            font-size: 11px;
             font-weight: 500;
-            color: #a9a79f;
-            letter-spacing: 0.1px;
+            white-space: nowrap;
+            padding: 5px 10px;
+            border-radius: 7px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 70;
+        }
+        #dashboardScreen header .user-email-tooltip.visivel {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* NOVO 10/08/2026 (pedido do usuário: avatar só com a inicial, "como sites modernos") -
+           mesmo diâmetro (34px) dos outros botões circulares do cabeçalho (busca/olho/sair), pra
+           ficar tudo alinhado na mesma "fileira de ícones" em vez do chip alongado com email inteiro. */
+        #dashboardScreen header .user-avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3987e5, #9085e9);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0;
+            flex-shrink: 0;
         }
 
         #dashboardScreen header .header-divider {
             width: 1px;
-            height: 22px;
+            height: 28px;
             background: rgba(255,255,255,0.1);
         }
 
@@ -430,20 +497,26 @@
             #dashboardScreen header .brand-name-short {
                 display: inline;
             }
-            #dashboardScreen header .user-chip {
-                padding: 5px 10px 5px 7px;
-            }
-            #dashboardScreen header .user-email {
-                display: none;
-            }
             #dashboardScreen header .header-divider {
                 display: none;
             }
             #dashboardScreen header .eye-toggle-btn,
-            #dashboardScreen header .logout-btn {
+            #dashboardScreen header .logout-btn,
+            #dashboardScreen header .header-search-toggle-btn,
+            #dashboardScreen header .user-avatar-initial {
                 width: 28px;
                 height: 28px;
                 font-size: 11px;
+            }
+            /* CORRIGIDO 10/08/2026 (pedido do usuário: proporção/alinhamento perfeitos no mobile) -
+               header-search-toggle-btn não fazia parte deste bloco antes, ficava 34px enquanto
+               olho/sair encolhiam pra 28px — os 3 ícones agora encolhem juntos, mesma proporção. */
+            #dashboardScreen header .header-actions-group {
+                gap: 7px;
+            }
+            #dashboardScreen header .header-search-toggle-btn svg {
+                width: 15px;
+                height: 15px;
             }
         }
 
@@ -479,7 +552,7 @@
             <div class="brand" id="brandLogo" role="button" tabindex="0" title="Voltar ao Painel">
                 <span class="brand-icon" aria-hidden="true">📊</span>
                 <div class="brand-text">
-                    <h1><span class="brand-name-full">Sistema Wallace Lira</span><span class="brand-name-short">SWL</span></h1>
+                    <h1><span class="brand-name-full">Sistema Wallace Lira</span><span class="brand-name-short">Wallace Lira</span></h1>
                     <span class="brand-sub">Painel Financeiro</span>
                 </div>
             </div>
@@ -496,48 +569,62 @@
                  busca inteira sumia abaixo de 780px (regra antiga só escondia, sem alternativa).
                  Botão só-ícone abaixo, visível só no mobile (ver CSS), abre o mesmo campo/dropdown
                  de sempre como um overlay - zero lógica de busca nova, só toggle de visibilidade. -->
-            <button type="button" id="headerSearchToggleBtn" class="header-search-toggle-btn" onclick="toggleHeaderSearchMobile()" aria-label="Buscar" title="Buscar">
-                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-            </button>
-            <div class="header-search-wrap" id="headerSearchWrap">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-search-icon" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input type="text" id="headerSearchInput" class="header-search-input" placeholder="Buscar…" autocomplete="off">
-                <div id="headerSearchResultados" class="header-search-resultados" style="display:none"></div>
-            </div>
-            <div class="user-info">
-                <div class="user-chip">
-                    <svg class="user-avatar-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
+            <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "mais destaque nos botões, pode reorganizar,
+                 busca mais pronunciada, cuidado com o mobile") - agrupador único (.header-actions-group)
+                 pra busca+chip+ações ficarem sempre juntos como 1 bloco à direita, em vez de 3 filhos
+                 soltos disputando espaço via justify-content:space-between do header (o que deixava a
+                 proporção instável entre larguras de tela). Zero mudança de IDs/onclick/lógica de busca. -->
+            <div class="header-actions-group">
+                <button type="button" id="headerSearchToggleBtn" class="header-search-toggle-btn" onclick="toggleHeaderSearchMobile()" aria-label="Buscar" title="Buscar">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <span id="userEmail" class="user-email"></span>
+                </button>
+                <div class="header-search-wrap" id="headerSearchWrap">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-search-icon" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="headerSearchInput" class="header-search-input" placeholder="Buscar…" autocomplete="off">
+                    <div id="headerSearchResultados" class="header-search-resultados" style="display:none"></div>
                 </div>
-                <div class="header-divider" aria-hidden="true"></div>
-                <div class="header-actions">
-                    <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
-                        <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        <svg class="eye-icon eye-closed" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.42 20.42 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.16 3.19"></path>
-                            <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
-                            <line x1="1" y1="1" x2="23" y2="23"></line>
-                        </svg>
-                    </button>
-                    <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                    </button>
+                <div class="user-info">
+                    <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o bonequinho de login pode ficar só a
+                         inicial de quem acessou, não o email inteiro, aí pode ficar no canto, como
+                         sites modernos") - troca ícone genérico + email completo por avatar circular
+                         com a inicial (mesmo padrão Gmail/Google Workspace) - email completo continua
+                         acessível via title="" (hover/long-press), nada de informação perdida. -->
+                    <!-- NOVO 10/08/2026 (pedido do usuário: "quando passar o mouse ou clicar sobre a
+                         letra com a inicial, pode identificar que está logado com o email, bem sutil")
+                         - title="" já cobre hover em desktop; tooltip próprio abaixo cobre toque no
+                         mobile (title/long-press não é confiável em touch) e também funciona no clique
+                         do mouse. -->
+                    <div class="user-chip" id="userChip" title="">
+                        <span id="userAvatarInitial" class="user-avatar-initial"></span>
+                        <span id="userEmailTooltip" class="user-email-tooltip"></span>
+                    </div>
+                    <div class="header-divider" aria-hidden="true"></div>
+                    <div class="header-actions">
+                        <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
+                            <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg class="eye-icon eye-closed" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.42 20.42 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.42 20.42 0 0 1-2.16 3.19"></path>
+                                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                        <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -835,10 +922,35 @@
         function showDashboard(email) {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('dashboardScreen').style.display = 'flex';
-            document.getElementById('userEmail').textContent = email;
+            // CORRIGIDO 10/08/2026 (pedido do usuário: avatar só com a inicial, email completo só no
+            // hover/long-press via title) - inicial vem do e-mail (nunca há nome cadastrado à parte).
+            const inicial = (email || '?').trim().charAt(0).toUpperCase();
+            document.getElementById('userAvatarInitial').textContent = inicial;
+            document.getElementById('userChip').title = email || '';
+            document.getElementById('userEmailTooltip').textContent = email || '';
             loadDashboard();
             iniciarMonitorInatividade();
         }
+
+        // NOVO 10/08/2026 (pedido do usuário: "quando passar o mouse ou clicar sobre a letra com a
+        // inicial, pode identificar que está logado com o email, bem sutil") - clique/toque alterna o
+        // tooltip (funciona em qualquer dispositivo, ao contrário de title=""); fecha sozinho depois de
+        // alguns segundos ou ao tocar fora, mesmo padrão já usado no dropdown de busca.
+        (function(){
+            const chip = document.getElementById('userChip');
+            const tooltip = document.getElementById('userEmailTooltip');
+            if(!chip || !tooltip) return;
+            let timerFechar = null;
+            const fechar = () => tooltip.classList.remove('visivel');
+            chip.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const abrindo = !tooltip.classList.contains('visivel');
+                tooltip.classList.toggle('visivel', abrindo);
+                clearTimeout(timerFechar);
+                if(abrindo) timerFechar = setTimeout(fechar, 3000);
+            });
+            document.addEventListener('click', (ev) => { if(!chip.contains(ev.target)) fechar(); });
+        })();
 
         // NOVO 07/08/2026 (pedido do usuário: "quero que o site bloqueie por inatividade... não
         // ficando aberto em algum computador"): desloga sozinho depois de 15min sem nenhuma

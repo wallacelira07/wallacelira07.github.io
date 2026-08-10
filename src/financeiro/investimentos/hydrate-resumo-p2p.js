@@ -10,6 +10,12 @@ function hydrateResumoP2P(){
   const fmtInt = v => 'R$ '+Math.round(v).toLocaleString('pt-BR');
 
   // cover-metrics
+  // CORRIGIDO 10/08/2026 (pedido do usuário: "total como principal e um pequeno com o líquido, no
+  // mesmo card") - coverPatrimonioTotal (novo, valor principal do card) = Físico+Financeiro+
+  // Previdência+FGTS líquido de passivos (mesmo total já mostrado na aba Balanço,
+  // REG.balanco.patrimonioTotalGeral). coverPatrimonio (id antigo, agora só a linha pequena) continua
+  // sendo o líquido de sempre (Reserva+BTG/Necton+Caixa Lance+Necton CC).
+  t('coverPatrimonioTotal', fmtInt(R.balanco.patrimonioTotalGeral));
   t('coverPatrimonio', fmtInt(R.patrimonio.total));
   t('coverMetaPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   t('coverModoOp', R.operacional.modoOperacional);

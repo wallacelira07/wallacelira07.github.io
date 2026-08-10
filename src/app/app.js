@@ -1693,86 +1693,34 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // depende de nenhum elemento existente no HTML - zero risco de quebrar layout. Fecha por
     // padrão (só o botão fica visível); clique abre/fecha. Só leitura, mesma disciplina das outras
     // peças desta sessão.
-    // NOVO 07/08/2026 (pedido do usuário: botões flutuantes "não estão combinando, não simétrico"):
-    // dock flutuante único via flexbox pros 2 botões ("+ Lançar" e "💰 V2"), injetado 1x. Antes cada
-    // um tinha position:fixed com right em rem fixo — quando o texto de um crescia (badge de
-    // divergência), colava no outro (já corrigido uma vez à mão, parte 144, mas voltava a acontecer
-    // toda vez que o texto mudava de tamanho). Com flexbox os dois sempre ficam alinhados e nunca se
-    // sobrepõem, não importa o tamanho do texto. Só CSS/posicionamento — nenhum cálculo, nenhuma
-    // fórmula, nenhum dado tocado.
+    // CORRIGIDO 10/08/2026 (pedido do usuário: "esse botão de lançar não combina com nada, até no PC
+    // parece deslocado, atrapalha mais do que ajuda" — decisão explícita: remover o atalho global
+    // flutuante, deixar só nos lugares que já fazem sentido). Antes disto vivia um dock fixo
+    // (position:fixed, canto inferior direito, "aba" deslizante no mobile) com o botão "＋ Lançar" —
+    // removido por completo (dock, animação hover circular, comportamento de aba no mobile). O botão
+    // e o formulário agora são um bloco inline normal, injetado dentro de #lancarTxSlot (Inbox
+    // Financeira, Sistema_Wallace_Lira_Completo.html seção 22) — mesma lógica/RPC de sempre, só
+    // deixou de flutuar por cima do resto do site o tempo todo.
     if(!document.getElementById('wallaceFabStyles')){
       const wallaceFabCss = document.createElement('style');
       wallaceFabCss.id = 'wallaceFabStyles';
       wallaceFabCss.textContent = `
-        #wallaceFabDock{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem}
-        /* NOVO 08/08/2026 (pedido do usuario: "no mobile os botoes ficam muito baixos, podem ficar em
-           meia lua na lateral da tela"): em telas estreitas o dock sai do canto inferior (perto da
-           barra de UI do navegador, dificil de alcancar com o polegar) e vai pro meio da lateral
-           direita, centralizado verticalmente - mais facil de alcancar numa mao so e longe da barra
-           do navegador. */
-        @media (max-width:640px){
-          #wallaceFabDock{bottom:auto;top:44%;right:0;transform:translateY(-50%);gap:0.7rem}
-          /* NOVO 08/08/2026 (pedido do usuario: "quero que eles sejam uma aba na tela, ai quando
-             passar o dedo ele aparece e abre o campo"): cada botao fica quase todo escondido pra fora
-             da borda direita (so uma tira visivel, "aba"). Tocar nela revela o dock inteiro (desliza
-             pra dentro da tela); tocar de novo no botao ja revelado executa a acao normal (abre o
-             painel/form). Fecha sozinho (volta a ser aba) depois de alguns segundos sem uso ou ao
-             tocar fora - controlado em JS, ver mais abaixo (dataset.abaLigada).
-             AJUSTADO ainda 08/08/2026 (usuario pediu de novo, com print marcando a altura certa):
-             posicao subiu de 50% pra 44% (mais perto do meio da capa, no lugar marcado no print) e o
-             formato virou retangulo alto (nao mais circulo) - mais facil de notar como "aba" real, e
-             a tira que fica visivel por padrao aumentou de 16px pra 22px (mais perceptivel sem abrir
-             ainda). Cantos arredondados so do lado esquerdo (o direito fica sempre fora da tela). */
-          #wallaceFabDock .wallace-fab{height:4.4rem;border-radius:16px 0 0 16px;transform:translateX(calc(100% - 22px))}
-          #wallaceFabDock .wallace-fab-icon{width:2.6rem;height:4.4rem}
-          #wallaceFabDock.wallace-fab-dock--aberto .wallace-fab{transform:translateX(0)}
-        }
-        /* REDESENHADO 07/08/2026 (pedido do usuário): pill fino → botão sólido preenchido. REFEITO
-           ainda 07/08/2026 (pedido explícito do usuário, ficou pendente uma sessão inteira: "círculo
-           pequeno com ícone, e ao passar o mouse uma tira lateral desliza revelando o texto" — não
-           mais um pill sempre expandido com texto visível). Agora é um círculo fixo (2.6rem, só o
-           ícone) e o rótulo mora num span à parte, com max-width 0/opacity 0 por padrão — no hover
-           (ou foco, pra acessibilidade via teclado) o rótulo expande e aparece ao lado do ícone.
-        */
-        .wallace-fab{position:relative;order:1;display:inline-flex;align-items:center;height:2.6rem;padding:0;border-radius:999px;border:none;cursor:pointer;background:linear-gradient(155deg,#4a9eff,#3987e5);color:#fff;box-shadow:0 6px 20px rgba(57,135,229,0.4),0 2px 4px rgba(0,0,0,0.25);overflow:hidden;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,filter .18s ease}
-        .wallace-fab-icon{flex:0 0 2.6rem;width:2.6rem;height:2.6rem;display:flex;align-items:center;justify-content:center;font-size:1.05rem;position:relative}
-        .wallace-fab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:0.78rem;font-weight:700;letter-spacing:0.01em;transition:max-width .3s ease,opacity .2s ease,padding-right .3s ease}
-        .wallace-fab--lancar{order:2;background:linear-gradient(155deg,#3fd68a,#27a866);box-shadow:0 6px 20px rgba(39,168,102,0.4),0 2px 4px rgba(0,0,0,0.25)}
-        .wallace-fab--warn{background:linear-gradient(155deg,#f0b94d,#d99a2b);box-shadow:0 6px 20px rgba(217,154,43,0.4),0 2px 4px rgba(0,0,0,0.25)}
-        /* CORRIGIDO 08/08/2026 (pedido do usuario: "no mobile os botoes ficaram travado"): :hover em
-           touchscreen fica "grudado" depois do toque (o navegador simula hover no tap e so remove
-           quando o usuario toca em outro lugar) - o botao ficava com o rotulo expandido/preso depois
-           de 1 toque so, parecendo travado. Isolado dentro de @media(hover:hover), que so e verdadeiro
-           em dispositivos com mouse de verdade - touch nunca aciona esse bloco, sempre fica so o
-           circulo com o icone (o clique/tap continua funcionando normal, so nao expande visualmente). */
-        @media (hover:hover) and (pointer:fine){
-          .wallace-fab:hover,.wallace-fab:focus-visible{transform:translateY(-3px) scale(1.02);filter:brightness(1.08);box-shadow:0 10px 26px rgba(57,135,229,0.5),0 3px 6px rgba(0,0,0,0.3)}
-          .wallace-fab:active{transform:translateY(-1px) scale(0.98)}
-          .wallace-fab:hover .wallace-fab-label,.wallace-fab:focus-visible .wallace-fab-label{max-width:8rem;opacity:1;padding-right:1.05rem}
-          .wallace-fab--lancar:hover,.wallace-fab--lancar:focus-visible{box-shadow:0 10px 26px rgba(39,168,102,0.5),0 3px 6px rgba(0,0,0,0.3)}
-          .wallace-fab--warn:hover,.wallace-fab--warn:focus-visible{box-shadow:0 10px 26px rgba(217,154,43,0.5),0 3px 6px rgba(0,0,0,0.3)}
-        }
-        .wallace-fab-badge{position:absolute;top:-0.25rem;right:-0.25rem;min-width:1.15rem;height:1.15rem;padding:0 0.3rem;border-radius:999px;background:#e2554f;color:#fff;font-size:0.62rem;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 3px #0b0c0e,0 2px 6px rgba(226,85,79,0.5);line-height:1}
-        .wallace-panel{position:fixed;right:1.25rem;bottom:4rem;z-index:9999;width:280px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 4px 20px rgba(0,0,0,.4);display:none}
+        .wallace-lancar-btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1rem;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(155deg,#3fd68a,#27a866);color:#fff;font-weight:700;font-size:0.78rem;box-shadow:0 2px 8px rgba(39,168,102,0.3);transition:filter .15s ease,transform .15s ease}
+        .wallace-lancar-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+        .wallace-lancar-btn:active{transform:translateY(0) scale(0.98)}
+        .wallace-panel{position:relative;margin-top:0.6rem;width:100%;max-width:320px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 2px 12px rgba(0,0,0,.25);display:none}
       `;
       document.head.appendChild(wallaceFabCss);
     }
-    if(!document.getElementById('wallaceFabDock')){
-      const wallaceFabDock = document.createElement('div');
-      wallaceFabDock.id = 'wallaceFabDock';
-      document.body.appendChild(wallaceFabDock);
-    }
-    // NOVO 07/08/2026 (pedido do usuario): clique fora de qualquer painel flutuante (V2 ou Lancar)
-    // fecha ele sozinho. 1 listener global, registrado 1x (guard por window.__wallaceFabOutsideClick__)
-    // - fecha o painel/form clicado fora, mas ignora clique no proprio dock (senao o botao que abre
-    // fecharia no mesmo clique).
+    // Clique fora do form fecha ele sozinho (mesmo comportamento de antes, sem depender mais de dock).
     if(!window.__wallaceFabOutsideClick__){
       window.__wallaceFabOutsideClick__ = true;
       document.addEventListener('click', (ev) => {
-        const dock = document.getElementById('wallaceFabDock');
-        if(dock && dock.contains(ev.target)) return;
         const formLancar = document.getElementById('formLancarTx');
-        if(formLancar && formLancar.style.display === 'block' && !formLancar.contains(ev.target)) formLancar.style.display = 'none';
+        const btnLancarEl = document.getElementById('btnLancarTx');
+        if(!formLancar || formLancar.style.display !== 'block') return;
+        if(formLancar.contains(ev.target) || (btnLancarEl && btnLancarEl.contains(ev.target))) return;
+        formLancar.style.display = 'none';
       });
     }
 
@@ -1796,19 +1744,11 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // mesma chamada, zero fetch extra pra popular os selects).
     if(resumoV2.caixas && !document.getElementById('btnLancarTx')){
       const btnLancar = document.createElement('button');
+      btnLancar.type = 'button';
       btnLancar.id = 'btnLancarTx';
-      btnLancar.className = 'wallace-fab wallace-fab--lancar';
+      btnLancar.className = 'wallace-lancar-btn';
       btnLancar.title = 'Lançar uma transação direto na Arquitetura V2 (Supabase relacional)';
-      const btnLancarIcon = document.createElement('span');
-      btnLancarIcon.className = 'wallace-fab-icon';
-      btnLancarIcon.textContent = '＋';
-      const btnLancarLabel = document.createElement('span');
-      btnLancarLabel.className = 'wallace-fab-label';
-      btnLancarLabel.textContent = 'Lançar';
-      btnLancar.appendChild(btnLancarIcon);
-      btnLancar.appendChild(btnLancarLabel);
-      // CORRIGIDO 07/08/2026: agora entra no dock flutuante (#wallaceFabDock, flexbox) em vez de
-      // right:9.5rem fixo — nunca mais cola no botão V2, mesmo com o badge crescendo.
+      btnLancar.textContent = '＋ Lançar transação';
 
       const form = document.createElement('div');
       form.id = 'formLancarTx';
@@ -1839,32 +1779,12 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       btnLancar.onclick = () => {
         form.style.display = form.style.display !== 'block' ? 'block' : 'none';
       };
-      document.getElementById('wallaceFabDock').appendChild(btnLancar);
-      document.body.appendChild(form);
-
-      // NOVO 08/08/2026 (pedido do usuario: "no mobile quero que eles sejam uma aba na tela, ai
-      // quando passar o dedo ele aparece e abre o campo"): no mobile (ver CSS acima, media
-      // max-width:640px) o dock comeca quase todo fora da tela, so uma tira visivel. 1o toque revela
-      // (classe wallace-fab-dock--aberto, so isso - nao dispara a acao do botao ainda); com o dock ja
-      // revelado, o toque seguinte passa direto pro onclick normal do botao (abre painel/form). Fecha
-      // sozinho (volta a ser so a tira) depois de alguns segundos sem uso, ou ao tocar fora do dock -
-      // guard por dataset pra rodar so uma vez mesmo chamado de novo em recargas do resumo V2.
-      const dockEl = document.getElementById('wallaceFabDock');
-      if(dockEl && !dockEl.dataset.abaLigada && window.matchMedia('(max-width:640px)').matches){
-        dockEl.dataset.abaLigada = '1';
-        let timerFecharAba = null;
-        const fecharAba = () => dockEl.classList.remove('wallace-fab-dock--aberto');
-        const agendarFechamento = () => { clearTimeout(timerFecharAba); timerFecharAba = setTimeout(fecharAba, 4000); };
-        dockEl.addEventListener('click', (ev) => {
-          if(!dockEl.classList.contains('wallace-fab-dock--aberto')){
-            ev.preventDefault();
-            ev.stopPropagation();
-            dockEl.classList.add('wallace-fab-dock--aberto');
-          }
-          agendarFechamento();
-        }, true); // fase de captura - roda ANTES do onclick de cada botao, pra poder interceptar o 1o toque
-        document.addEventListener('click', (ev) => { if(!dockEl.contains(ev.target)) fecharAba(); });
-      }
+      // CORRIGIDO 10/08/2026: injeta dentro de #lancarTxSlot (card Inbox Financeira) em vez do dock
+      // flutuante removido — se o slot ainda não existir por algum motivo (HTML em cache antigo,
+      // deploy no meio do caminho), cai pro rodapé do body só pra não perder a funcionalidade.
+      const lancarSlot = document.getElementById('lancarTxSlot') || document.body;
+      lancarSlot.appendChild(btnLancar);
+      lancarSlot.appendChild(form);
 
       // NOVO 06/08/2026 (parte 119): fecha o pipeline Nivel1->2->3 no unico form interativo que
       // existe hoje - ao escolher categoria/usuario, chama resolver_caixa() de verdade e AUTO-

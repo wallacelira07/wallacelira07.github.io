@@ -170,6 +170,10 @@
   .cm-body{min-width:0}
   .cover-metrics .cm-lbl{font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
   .cover-metrics .cm-val{font-size:1.2rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* NOVO 10/08/2026 (pedido do usuário: "total como principal e um pequeno com o líquido, no mesmo
+     card") - linha secundária discreta, mesmo card do valor principal. */
+  .cover-metrics .cm-sub{font-size:0.68rem;color:var(--text-dim);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cover-metrics .cm-sub span{color:var(--text-mid);font-weight:600;font-variant-numeric:tabular-nums}
   @media (max-width:820px){.cover-metrics{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:480px){.cover-metrics{grid-template-columns:1fr}}
   .master-tabs{
@@ -358,6 +362,20 @@
   .pane.active{display:block; animation:v300FadeInPane 0.25s ease}
 
   table{width:100%;border-collapse:collapse;font-size:0.82rem;table-layout:fixed}
+  /* CORRIGIDO 10/08/2026 (pedido do usuário: "muitos campos com muito texto ficam trepados um sobre
+     os outros, parece que abriu um navegador de PC no celular"). Causa raiz: table-layout:fixed +
+     width:100% força QUALQUER tabela (mesmo com 8 colunas — ex: Inbox Financeira, Opções vendidas) a
+     caber exatamente na largura da tela, sem exceção — cada coluna vira ~40px no celular e texto como
+     "INBX000004"/datas quebra letra por letra (overflow-wrap:anywhere da linha abaixo, que existe pra
+     não vazar da caixa, piora ainda mais nesse cenário). Os `<div style="overflow-x:auto">` que já
+     envolvem toda tabela do site nunca disparavam o scroll horizontal, porque a tabela nunca crescia
+     além da tela pra precisar dele. No mobile, a tabela agora usa table-layout:auto (colunas do
+     tamanho do conteúdo) + min-width maior que a tela, deixando o scroll horizontal que já existia
+     fazer o trabalho — texto continua numa linha só, legível, e o usuário arrasta pro lado pra ver o
+     resto (mesmo padrão de app financeiro em qualquer tabela larga). Desktop (>640px) não muda nada. */
+  @media (max-width:640px){
+    table{table-layout:auto;width:max-content;min-width:100%}
+  }
   th{
     text-align:left;font-size:0.68rem;font-weight:600;color:var(--text-dim);
     text-transform:uppercase;letter-spacing:0.04em;
@@ -466,6 +484,23 @@
   .home-nav-btn span{ font-size:0.72rem; font-weight:600; color:var(--text-mid); }
   @media(max-width:820px){
     .home-nav-grid{ grid-template-columns:repeat(2,1fr); }
+  }
+  /* CORRIGIDO 10/08/2026 (pedido do usuário: "a barra com as abas toma muito o espaço útil pra
+     navegar" — no mobile os 5 botões grandes viravam 3 linhas empilhadas, ~350-400px só de
+     navegação antes de qualquer conteúdo real). Vira 1 linha rolável na horizontal (mesmo padrão já
+     usado nos 22 botões de categoria do Livro Razão, .tabs acima) — cada botão compacto, ícone e
+     texto lado a lado em vez de empilhados, tudo cabe numa faixa fina em vez de um bloco alto. */
+  @media(max-width:640px){
+    .home-nav-grid{
+      display:flex; flex-wrap:nowrap; overflow-x:auto; gap:0.5rem;
+      -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+      margin:0.9rem 0 1.1rem; padding-bottom:0.2rem;
+    }
+    .home-nav-btn{
+      flex:0 0 auto; flex-direction:row; gap:0.4rem;
+      padding:0.55rem 0.85rem; font-size:1.05rem;
+    }
+    .home-nav-btn span{ font-size:0.7rem; }
   }
 
   /* CORRIGIDO 09/08/2026 (achado do usuário: "os botões estão duplicados") - .master-tabs foi
