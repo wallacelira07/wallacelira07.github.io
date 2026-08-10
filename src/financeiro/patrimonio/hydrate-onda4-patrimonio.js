@@ -115,6 +115,10 @@ async function aplicarOnda4Patrimonio(){
   // CORRIGIDO 10/08/2026: re-renderiza os gráficos de rosca (Painel: cPatrim; aba Gráficos: g_cPatrim)
   // agora que REG.patrimonioDetalhe foi atualizado acima — antes ficavam presos na composição V1.
   if(typeof atualizarGraficoPatrimonio === 'function') atualizarGraficoPatrimonio();
+  // CORRIGIDO 10/08/2026: atualizarGraficoPatrimonio() mora no módulo lazy (graficos-cenarios-lazy.js)
+  // e some se a aba Gráficos/Cenários nunca foi aberta — atualizarGraficoPainelPatrimonio() (sempre
+  // carregada) cobre o gráfico do Painel principal nesse caso.
+  if(typeof atualizarGraficoPainelPatrimonio === 'function') atualizarGraficoPainelPatrimonio();
 
   // Auditoria: confere contra o que hydratePatrimonio() (V1) já tinha escrito antes desta função rodar
   const diverge = Math.abs(v1Total - total) > 0.01;

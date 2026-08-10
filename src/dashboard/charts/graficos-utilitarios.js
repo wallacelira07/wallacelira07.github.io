@@ -124,7 +124,15 @@ function alignSeriesCiclo(series){
 // mesmo que ninguem atualize os arrays por 1-2 meses, o grafico nunca mostra o numero errado no mes
 // errado (so fica "atrasado" - repete o ultimo valor conhecido, nunca inventa um novo).
 const ANCHOR_MONTH = '2026-07'; // atualizar para o mes corrente sempre que os arrays abaixo forem recalculados manualmente
-const ANCHOR_MONTH_CICLO = '2026-07'; // V163: mes do CICLO (nao calendario) em que os arrays foram recalculados - hoje (25/07/2026) ja esta no ciclo 2026-07 (25/07-24/08), que rotula como "Ago/26" no grafico
+// CORRIGIDO 10/08/2026 (achado do usuario: 1o ponto do grafico "Necessidade liquida - proximos
+// ciclos" nao batia com o card "Necessidade liquida do salario" logo acima, que mostra o mesmo
+// REG.operacional.necessidadeLiquida). Causa raiz: este anchor estava gravado como '2026-07'
+// (mes calendario em que foi setado), mas ciclosDesdeAncoraCiclo() compara contra o mes do CICLO
+// (que ja pula pro mes seguinte a partir do dia 25) - isso deixava o offset sempre em 1, mesmo no
+// dia em que o anchor foi definido, e alignSeriesCiclo() descartava o indice 0 (valor real de
+// hoje) do grafico, comecando a linha ja no 1o ponto projetado. Anchor agora gravado no mesmo
+// formato que ciclosDesdeAncoraCiclo() compara (mes do ciclo, nao mes calendario).
+const ANCHOR_MONTH_CICLO = '2026-08'; // mes do CICLO (nao calendario): ciclo 25/07-24/08 rotula "Ago/26"
 function mesesDesdeAncora(){
   const [ay, am] = ANCHOR_MONTH.split('-').map(Number);
   const agora = new Date();

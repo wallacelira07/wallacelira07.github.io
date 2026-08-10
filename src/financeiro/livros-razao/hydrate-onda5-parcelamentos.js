@@ -73,6 +73,9 @@ async function aplicarOnda5Parcelamentos(){
   if(typeof hydrateCenarios === 'function') hydrateCenarios();
   if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
+  // CORRIGIDO 10/08/2026: cobre o mesmo caso de graficos-cenarios-lazy.js não ter carregado ainda
+  // (aba Gráficos/Cenários nunca aberta) — ver comentário completo em atualizarGraficosPainelPrincipal().
+  if(typeof atualizarGraficosPainelPrincipal === 'function') atualizarGraficosPainelPrincipal();
   if(typeof atualizarGraficoTotalOpDetalhe === 'function') atualizarGraficoTotalOpDetalhe();
 
   const diverge = v1QtdVisa !== VARS.PARCELAMENTOS_VISA.length || v1QtdMP !== VARS.PARCELAMENTOS_MP.length;

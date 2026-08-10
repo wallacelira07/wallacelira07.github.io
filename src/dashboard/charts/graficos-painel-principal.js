@@ -129,3 +129,52 @@ function renderGraficosPainelPrincipal(){
         y:{grid:{color:grid},min:necLiqRange.min,max:necLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
   });
 }
+
+// CORRIGIDO 10/08/2026 (achado do usuário, 2ª ocorrência do mesmo bug: card R$13.700,48 x 1º ponto
+// do gráfico R$13.008 — mesma classe do achado já registrado em hydrate-deficit-caixas-sem-lrei.js,
+// mas sobrevivendo mesmo depois daquele fix). Causa raiz real: atualizarGraficosNecessidade() (que
+// já existia pra resolver exatamente isso) mora em graficos-cenarios-lazy.js, um módulo LAZY que só
+// carrega quando o usuário abre a aba Gráficos/Cenários pela 1ª vez — se a sessão nunca visitou essa
+// aba (caso comum: usuário fica só no Painel/home), a função nunca existe, o guard defensivo
+// `typeof atualizarGraficosNecessidade === 'function'` falha silenciosamente, e os 2 gráficos do
+// Painel principal (sempre visíveis, sem precisar abrir nenhuma aba) ficam congelados no valor do
+// boot inicial pra sempre, mesmo depois de aplicarDeficitCaixasSemLrei()/provMP recalcularem
+// REG.evolucao de verdade. Esta função replica só a atualização dos 2 gráficos do Painel (não
+// depende de nada lazy) — chamada em paralelo com atualizarGraficosNecessidade() nos mesmos 2 pontos
+// que já chamavam ela, então a aba Cenários (se já carregada) continua sendo coberta também.
+function atualizarGraficosPainelPrincipal(){
+  if(!window.WALLACE_CHARTS) return;
+  const atualizarSerie = (chart, serie) => {
+    if(!chart) return;
+    const range = yRange(serie);
+    chart.data.datasets[0].data = serie;
+    chart.options.scales.y.min = range.min;
+    chart.options.scales.y.max = range.max;
+    chart.update();
+  };
+  atualizarSerie(window.WALLACE_CHARTS.painelTotalOperacional, alignSeriesCiclo(REG.evolucao.totalOperacional));
+  atualizarSerie(window.WALLACE_CHARTS.painelNecessidadeLiquida, alignSeriesCiclo(REG.evolucao.necessidadeLiquida));
+}
+
+// NOVO 10/08/2026 (achado do usuário na mesma varredura: "confira se todos os gráficos são
+// automáticos" — mesma classe de bug do fix acima, encontrada por inspeção antes de virar
+// reclamação nova). atualizarGraficoPatrimonio()/atualizarGraficoCaixaVariavel() (graficos-cenarios-
+// lazy.js) já atualizavam window.WALLACE_CHARTS.painelPatrimonio/painelCaixaVariavel corretamente —
+// o problema é que as próprias FUNÇÕES só existem depois que o módulo lazy carrega (usuário abriu
+// Gráficos/Cenários pelo menos 1x). Sem isso, hydrate-onda4-patrimonio.js/hydrate-onda1-v2.js/
+// hydrate-comprometido-caixa-variavel-v2.js chamam uma função inexistente (guard silencioso) e os 2
+// gráficos do Painel ficam congelados no valor do boot, exatamente como necessidadeLiquida estava.
+// Estas 2 funções replicam só a metade "Painel principal" (doughnut/bar simples, sem min/max de
+// eixo pra recalcular) — chamadas em paralelo com as versões lazy nos mesmos pontos de chamada.
+function atualizarGraficoPainelPatrimonio(){
+  const chart = window.WALLACE_CHARTS && window.WALLACE_CHARTS.painelPatrimonio;
+  if(!chart) return;
+  chart.data.datasets[0].data = Object.values(REG.patrimonioDetalhe);
+  chart.update();
+}
+function atualizarGraficoPainelCaixaVariavel(){
+  const chart = window.WALLACE_CHARTS && window.WALLACE_CHARTS.painelCaixaVariavel;
+  if(!chart) return;
+  chart.data.datasets[0].data = [REG.caixaVariavel.saldoReal, REG.caixaVariavel.comprometido, REG.caixaVariavel.disponivel];
+  chart.update();
+}

@@ -52,4 +52,7 @@ async function aplicarComprometidoCaixaVariavelV2(){
   // CORRIGIDO 10/08/2026 (mesmo achado do caso Necessidade/Patrimônio): o gráfico de barras
   // cVariavel/g_cVariavel também lê REG.caixaVariavel.*, nunca era re-renderizado depois daqui.
   if(typeof atualizarGraficoCaixaVariavel === 'function') atualizarGraficoCaixaVariavel();
+  // CORRIGIDO 10/08/2026: cobre o caso do módulo lazy não ter carregado — ver comentário completo
+  // em atualizarGraficoPainelCaixaVariavel() (graficos-painel-principal.js).
+  if(typeof atualizarGraficoPainelCaixaVariavel === 'function') atualizarGraficoPainelCaixaVariavel();
 }

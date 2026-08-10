@@ -25,5 +25,9 @@ function hydrateResumoP2P(){
   t('p2pCreditosRestantes', R.p2p.creditosRestantes + ' / ' + R.p2p.creditosTotal);
   t('p2pSaldoInvestido', fmt(R.p2p.saldoInvestido));
   t('p2pLucroRealizado', fmt(R.p2p.lucroRealizado));
-  t('p2pDetalhe', `Custo ${fmt(R.p2p.precoCompra)}/crédito · Venda ${fmt(R.p2p.precoVenda)}/crédito (rentabilidade ${R.p2p.rentabilidadePct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% sobre o custo) · ${R.p2p.creditosVendidos} créditos vendidos deste lote (1 crédito doado à Vanessa em 13/07, não contado como venda) — última venda: TXP2P0003, 2 créditos, R$40,00, 22/07/2026.`);
+  // CORRIGIDO 10/08/2026 (pedido do usuario: "revise todas as legendas, evite usar datas, causa
+  // desincronizacao"): removida a parte hardcoded ("1 credito doado a Vanessa em 13/07" / "ultima
+  // venda: TXP2P0003...") - eram fatos soltos no texto, nunca recalculados, ficavam desatualizados
+  // a cada nova venda real. O que resta e 100% derivado de REG.p2p ao vivo.
+  t('p2pDetalhe', `Custo ${fmt(R.p2p.precoCompra)}/crédito · Venda ${fmt(R.p2p.precoVenda)}/crédito (rentabilidade ${R.p2p.rentabilidadePct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% sobre o custo) · ${R.p2p.creditosVendidos} créditos vendidos deste lote.`);
 }

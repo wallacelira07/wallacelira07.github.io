@@ -80,6 +80,10 @@ async function aplicarDeficitCaixasSemLrei(){
   if(typeof hydrateCenarios === 'function') hydrateCenarios();
   if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
+  // CORRIGIDO 10/08/2026: atualizarGraficosNecessidade() mora no módulo lazy (graficos-cenarios-lazy.js)
+  // e some quando a aba Gráficos/Cenários nunca foi aberta - atualizarGraficosPainelPrincipal() (sempre
+  // carregada, graficos-painel-principal.js) cobre os 2 gráficos do Painel principal nesse caso.
+  if(typeof atualizarGraficosPainelPrincipal === 'function') atualizarGraficosPainelPrincipal();
 
   if(deficitTotal > 0){
     console.warn(`DeficitCaixasSemLrei: +${fmt(deficitTotal)} somado à Necessidade Total Bruta (${porCaixa.length} caixa(s) negativa(s) sem LREI de suporte: ${porCaixa.map(x=>x.caixa+' '+fmt(x.deficit)).join(', ')}).`);

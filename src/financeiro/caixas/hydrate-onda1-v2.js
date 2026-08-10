@@ -77,6 +77,9 @@ const ONDA1_V2_MAPA = [
       REG.caixaVariavel.saldoReal = valorV2;
       if(typeof recalcularCaixas === 'function') recalcularCaixas(); // deriva .disponivel a partir do saldoReal novo
       if(typeof atualizarGraficoCaixaVariavel === 'function') atualizarGraficoCaixaVariavel();
+      // CORRIGIDO 10/08/2026: cobre o caso do módulo lazy não ter carregado — ver comentário completo
+      // em atualizarGraficoPainelCaixaVariavel() (graficos-painel-principal.js).
+      if(typeof atualizarGraficoPainelCaixaVariavel === 'function') atualizarGraficoPainelCaixaVariavel();
     },
   },
   { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
