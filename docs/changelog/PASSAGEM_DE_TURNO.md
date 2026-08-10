@@ -2,7 +2,15 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## ✅ Mais 6 caixas fechadas, técnica repetida em série (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## 🎯 Correção de critério do usuário: V1 não é mais autoridade nenhuma (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+Usuário interrompeu: "por que está refazendo o trabalho das caixas? todas já são V2, V1 não existe mais, não importa o que ele era, o menor resíduo dela deve ser eliminado". Eu tinha parado PIX Vanessa e Caixa Bens Duráveis "por cautela" só porque não batiam com `vw_reconciliacao_v1_v2` (que compara contra V1). Isso estava errado de enquadramento — reconferi as duas contra a realidade (extratos bancários já lidos, decisões de sessão anterior) e **nenhuma das duas tinha problema real**: PIX Vanessa bate exato com o padrão real dos extratos MP; Bens Duráveis negativa é comportamento desenhado (centro de custo separado). A "divergência" só existia contra um V1 que não vale mais nada como referência.
+
+**Achado real que sobrava**: Caixa Manutenção ainda tinha o `AJUSTE-06-08` (R$0,72) só *aceito como conhecido*, nunca de fato lançado — corrigido agora, fecha em R$0,72 real.
+
+**Regra pra daqui em diante, registrada**: parar de usar `vw_reconciliacao_v1_v2`/comparação com V1 como critério de "precisa mexer". Serve só como ferramenta pra achar transação real que ficou pra trás na migração (o que já fez sentido nesta sessão pra 7 caixas) — nunca mais como validador de "a V2 está certa".
+
+## ✅ Mais 6 caixas fechadas, técnica repetida em série (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 Usuário pediu pra ir "da mais simples pra mais completa e registrar tudo". Usei o diagnóstico `LivroRazaoFase1` que apareceu no console do usuário (12 caixas com contagem V1≠V2) pra escolher a ordem, e apliquei a mesma técnica que funcionou na Caixa Lance (consultar `wallace_dados` direto, não o arquivo JS local) em cada uma:
 

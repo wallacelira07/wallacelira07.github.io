@@ -2,6 +2,16 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
+## 🎯 Mudança de critério: V1 deixou de ser referência — só importa a V2 estar certa (09/08/2026, mesma sessão)
+
+Usuário corrigiu o enquadramento desta sessão inteira: "por que está refazendo o trabalho das caixas? todas já são V2, V1 não existe mais, não importa o que ele era, o menor resíduo dela deve ser eliminado". Eu estava usando `vw_reconciliacao_v1_v2` (comparação contra V1) como critério de "precisa corrigir" — isso parou de fazer sentido. A partir de agora: **o critério é a V2 estar certa contra a realidade (extrato bancário), não contra o que o V1 dizia**.
+
+Consequência prática imediata: **PIX Vanessa e Caixa Bens Duráveis, que eu tinha parado de mexer "por cautela" (não bater com V1), na verdade não tinham nada de errado** — PIX Vanessa bate exato com o padrão real dos extratos MP (retirada do cofrinho → PIX pra ela, R$300 recorrente); Bens Duráveis negativa é o comportamento desenhado (centro de custo separado, decisão de sessão anterior). Nenhuma das duas precisava de correção — a "divergência" era só contra um V1 que não é mais autoridade.
+
+**Último resíduo real fechado**: Caixa Manutenção tinha 1 item a menos que o V1 mesmo depois da promoção anterior (o `AJUSTE-06-08` de R$0,72 tinha sido só *aceito como divergência conhecida*, nunca de fato lançado). Inserido agora — R$0,72 vira valor real da V2, não mais tolerância.
+
+**Estado final das 12 caixas do diagnóstico do console**: todas com contagem de transações V1×V2 batendo (ou V2 com item a mais legítimo, como a venda P2P da Caixa Lance — V2 tendo mais dado real que o V1 nunca capturou, não uma falta).
+
 ## ✅ Mais 6 caixas fecharam em R$0,00 — mesma técnica da Caixa Lance, aplicada em série (09/08/2026, mesma sessão)
 
 Depois de achar o padrão real na Caixa Lance (consultar `wallace_dados` direto em vez do arquivo JS local), usei o mesmo diagnóstico (`vw_reconciliacao_v1_v2`) pra varrer as 12 caixas que o console do usuário mostrava com "quantidade de transações V1≠V2". Resultado:

@@ -106,9 +106,9 @@ const ONDA2_V2_MAPA = [
   // já mostradas ao usuário no V1 há dias, estavam presas em status='pendente_classificacao'
   // na V2 (vw_saldo_v2_por_caixa só soma status='confirmado') — corrigido via UPDATE direto
   // (mesmas 2 + o par espelhado TX000212/TX000216 da Caixa Lance, ver PASSAGEM_DE_TURNO.md).
-  // Resíduo de R$0,72 depois da correção: causa_provavel='transacao_ausente_na_v2', alta
-  // confiança, mesma classe de "divergência conhecida e documentada" já aceita nas outras
-  // caixas desta lista — não bloqueia mais.
+  // Resíduo de R$0,72 fechado de vez (09/08/2026, achado real: era o mesmo AJUSTE-06-08 —
+  // rendimento real, nunca inserido — já visto em 5 outras caixas). Não é mais "divergência
+  // aceita", é R$0,00 real.
   { idHtml: 'cxManutSaldo', caixaNome: 'Caixa Manutenção', getValorV1: () => REG.caixasOperacionais.manutencao.saldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco, aceitarDivergenciaConhecida: true },
