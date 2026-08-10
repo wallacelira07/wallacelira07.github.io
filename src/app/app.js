@@ -471,6 +471,21 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 10/08/2026 (fecha o último escritor ativo de wallace_dados disparado por clique do
+  // usuário — ver PLANO_UNIFICACAO_V1_V2.md seção 44): decisões de Aprovar/Rejeitar da Inbox pra
+  // itens de origem Pluggy, antes só em wallace_dados.PLUGGY_TRIAGEM. Tabela nova, mesmo padrão de
+  // `legendas`/`cronograma_boletos_fixos` (schema pequeno, sem dependência de outra tabela).
+  async getPluggyTriagemV2(){
+    const chave = 'pluggy_triagem';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/pluggy_triagem?select=id_externo,status_triagem,atualizado_em`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pluggy_triagem`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 

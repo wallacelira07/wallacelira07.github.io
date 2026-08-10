@@ -3,18 +3,25 @@
 // (chamada por sincronizar_pluggy.py) passou a fazer substituição total nas 3 tabelas em vez de
 // jsonb_set em wallace_dados — wallace_dados.PLUGGY_CONTAS parou de ser atualizado a partir de agora.
 //
-// VARS.PLUGGY_TRIAGEM (decisões de aprovar/rejeitar da Inbox) fica FORA desta migração de propósito
-// (decisão explícita do usuário, 08/08/2026) — continua em wallace_dados, é um mecanismo de decisão
-// persistente pequeno e de granularidade mista (conta/transação), tratado como etapa futura separada.
-// pluggyJaTriado()/inboxAprovar()/inboxRejeitar() continuam funcionando exatamente como antes.
+// CORRIGIDO 10/08/2026 (fecha o último escritor ativo de wallace_dados disparado por clique do
+// usuário — ver PLANO_UNIFICACAO_V1_V2.md seção 44/47): VARS.PLUGGY_TRIAGEM (decisões de
+// aprovar/rejeitar da Inbox) tinha ficado FORA da Onda 7 de propósito, tratado como etapa futura —
+// agora migrado pra tabela `pluggy_triagem` (RPC `triar_pluggy_item` já escreve lá desde esta
+// correção). Busca em paralelo com PLUGGY_CONTAS, sobrescreve VARS.PLUGGY_TRIAGEM ANTES de chamar
+// reconciliarPluggy()/reconciliarTransacoesPluggy() (que leem pluggyJaTriado() de forma síncrona
+// durante a própria execução — precisa estar pronto antes, não dá pra atualizar depois).
 //
 // Mesma estratégia já usada em Wärtsilä/Investimentos/Parcelamentos/LREI/Mercado Pago: troca só a
-// ORIGEM do dado (VARS.PLUGGY_CONTAS) e reaproveita reconciliarPluggy()/reconciliarTransacoesPluggy()/
-// hydrateQualidade() (V1, INALTERADAS) — zero lógica de negócio duplicada (mapa de cartão, filtro de
-// ruído, comparação de fatura por vencimento continuam exatamente como eram).
+// ORIGEM do dado (VARS.PLUGGY_CONTAS/PLUGGY_TRIAGEM) e reaproveita reconciliarPluggy()/
+// reconciliarTransacoesPluggy()/pluggyJaTriado()/hydrateQualidade() (V1, INALTERADAS) — zero lógica
+// de negócio duplicada (mapa de cartão, filtro de ruído, comparação de fatura por vencimento
+// continuam exatamente como eram).
 //
 // NOVO 08/08/2026: Pluggy é fonte V2 EXCLUSIVA — em caso de falha, NÃO roda nenhuma reconciliação
 // (evita empurrar dado V1 potencialmente desatualizado/parado pra Inbox), sem fallback silencioso.
+// Falha específica de PLUGGY_TRIAGEM sozinha (contas OK, triagem falhou) é tolerada — degrada pra
+// "nenhum item marcado como já triado" (pior caso: um item já decidido reaparece 1x na Inbox, não
+// perde dado real nenhum, já que a decisão em si já está gravada na tabela desde a RPC).
 
 async function aplicarOnda7Pluggy(){
   let pluggyV2;
@@ -34,6 +41,16 @@ async function aplicarOnda7Pluggy(){
   const v1QtdConexoes = (VARS.PLUGGY_CONTAS && Array.isArray(VARS.PLUGGY_CONTAS.conexoes)) ? VARS.PLUGGY_CONTAS.conexoes.length : 0;
 
   VARS.PLUGGY_CONTAS = pluggyV2;
+
+  try {
+    const triagemV2 = await WallaceFinanceService.getPluggyTriagemV2();
+    const mapa = {};
+    (triagemV2 || []).forEach(t => { mapa[t.id_externo] = { status_triagem: t.status_triagem, atualizado_em: t.atualizado_em }; });
+    VARS.PLUGGY_TRIAGEM = mapa;
+    console.log(`Onda7Pluggy: PLUGGY_TRIAGEM sincronizado da V2 (${triagemV2.length} decisão(ões)).`);
+  } catch(err){
+    console.warn('Onda7Pluggy: falha ao buscar pluggy_triagem (V2) — itens já triados podem reaparecer 1x na Inbox nesta carga, nenhuma decisão é perdida (já gravada na tabela).', err);
+  }
 
   // Reaproveita reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, inalteradas) — mesma lógica de
   // negócio (mapa de cartão, comparação de fatura por vencimento, filtro de ruído), dado novo.

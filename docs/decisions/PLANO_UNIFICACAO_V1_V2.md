@@ -1788,4 +1788,16 @@ Qualquer total V2 hoje seria **enganoso**, não só incompleto — mostraria Vis
 
 **Regra de aplicação**: nenhum agente inicia essa classificação sem pedido explícito e novo do usuário, mesma regra já em vigor pras 5 exceções formais (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`). Quando o usuário decidir abrir essa frente, a entrega esperada é: estratégia de classificação, estimativa real de esforço, risco, e plano de execução por lotes — não uma correção pontual.
 
-**Fila de continuação (ordem do usuário)**: 1) Busca Global ✅ (seção 43-44), 2) Pluggy (schema novo + RPC nova), 3) demais leitores/escritores ativos da V1. Cartões fica fora dessa fila.
+**Fila de continuação (ordem do usuário)**: 1) Busca Global ✅ (seção 43-44), 2) Pluggy ✅ (seção 48), 3) demais leitores/escritores ativos da V1. Cartões fica fora dessa fila.
+
+## 48. Execução — Pluggy (Inbox), último escritor ativo de wallace_dados fechado (10/08/2026)
+
+Schema novo: tabela `pluggy_triagem(id_externo text PK, status_triagem text, atualizado_em timestamptz)`, RLS habilitado (SELECT exige JWT Firebase válido ou service_role, mesmo padrão de `wallace_dados`). RPC `triar_pluggy_item` trocada de alvo (mesmo nome/assinatura, zero mudança no client) — de `jsonb_set` em `wallace_dados.PLUGGY_TRIAGEM` para `INSERT ... ON CONFLICT` em `pluggy_triagem`. Testada (aprovação + rejeição, id sintético de teste, removido depois).
+
+Migração de dado real: 9 decisões já tomadas (`aprovado`/`rejeitado`) em `wallace_dados.PLUGGY_TRIAGEM` espelhadas pra V2 (4 itens `pendente` não precisaram — já é o padrão da tabela nova).
+
+Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `getCronogramaBoletosV2()`) buscada em paralelo com `PLUGGY_CONTAS` dentro de `aplicarOnda7Pluggy()` (`hydrate-onda7-pluggy.js`), sobrescrevendo `VARS.PLUGGY_TRIAGEM` **antes** de chamar `reconciliarPluggy()`/`reconciliarTransacoesPluggy()` (que leem `pluggyJaTriado()` de forma síncrona durante a própria execução — ordem importa). Falha isolada da busca de triagem (contas OK, triagem falha) é tolerada com aviso — pior caso é um item já decidido reaparecer 1x na Inbox, nenhuma decisão é perdida (já está gravada na tabela desde a RPC).
+
+**Resultado**: `wallace_dados` deixa de ter qualquer escritor disparado por interação direta do usuário (Inbox Mercado Pago + Inbox Pluggy, os 2 últimos, ambos fechados hoje). Escritores restantes são só scripts agendados (Python, sem usuário no loop) — ver tabela da seção 43, item 2.
+
+**Arquivos alterados**: `src/app/app.js` (+`getPluggyTriagemV2()`), `hydrate-onda7-pluggy.js`, tabela `pluggy_triagem` + RPC `triar_pluggy_item` (Postgres).
