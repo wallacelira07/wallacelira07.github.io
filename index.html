@@ -518,6 +518,17 @@
                 width: 15px;
                 height: 15px;
             }
+            /* CORRIGIDO 10/08/2026 (achado do usuário via foto real do celular: "a lupa ficou quase
+               invisível dentro do círculo") - a versão de repouso (fundo azul 16% opacidade, borda
+               45%) simplesmente não tem contraste suficiente contra o fundo quase-preto do cabeçalho
+               num círculo de só 28px - funcionava em telas maiores/mais de perto, não no celular. Só
+               no mobile: fundo e borda mais fortes, ícone branco puro (era #8ab4f8, azul claro) em vez
+               de herdar a cor de acento. */
+            #dashboardScreen header .header-search-toggle-btn {
+                background: rgba(57,135,229,0.32);
+                border-color: rgba(57,135,229,0.75);
+                color: #ffffff;
+            }
         }
 
         #dashboardContent {
