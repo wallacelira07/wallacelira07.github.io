@@ -51,7 +51,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -61,6 +61,22 @@ from cryptography.hazmat.primitives import padding as crypto_padding
 SAJ_BASE = "https://iop.saj-electric.com/dev-api/api/v2"
 SAJ_LOGIN_URL = f"{SAJ_BASE}/sys/user/login"
 SAJ_ENERGY_URL = f"{SAJ_BASE}/monitor/plantHome/getPlantEnergyStatistics"
+
+# CORRIGIDO 09/08/2026: Brasil não usa horário de verão desde 2019, então UTC-3 fixo é
+# seguro (sem depender de tzdata do SO, que nem sempre está disponível no runner do
+# GitHub Actions). Precisa ser um fuso FIXO, nunca `datetime.now(timezone.utc)` puro,
+# porque as leituras em SOLAR_LEITURAS/energia_solar_leituras são datadas pelo dia
+# civil de Brasília (quando o usuário/Claude registra a leitura), não pelo dia em UTC.
+# Se comparar "hoje" em UTC contra uma `data` em horário de Brasília, o script erra o
+# dia sozinho todo santo dia entre ~21h e meia-noite (horário de Brasília) — bug real
+# que essa mesma sessão quase deixou passar ao corrigir o bug anterior (ver histórico).
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def hoje_brasilia_str() -> str:
+    """Data civil de hoje em Brasília, formato YYYY-MM-DD — usar SEMPRE que comparar
+    contra a coluna `data` de uma leitura solar, nunca `datetime.now(timezone.utc)`."""
+    return datetime.now(FUSO_BRASILIA).strftime("%Y-%m-%d")
 
 # CORRIGIDO (chave real confirmada via breakpoint no navegador, 01/08/2026 - testada byte a byte
 # contra um login de teste real, bateu exato): a chave NAO e derivada do clientSecret OAuth (isso foi
@@ -219,7 +235,7 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
         "Authorization": f"Bearer {supabase_key}",
         "Content-Type": "application/json",
     }
-    hoje_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    hoje_str = hoje_brasilia_str()
 
     # 1) Lê o estado atual
     get_url = f"{supabase_url}/rest/v1/wallace_dados?select=dados&id=eq.1"
