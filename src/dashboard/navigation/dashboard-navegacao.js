@@ -142,6 +142,27 @@ function renderPageStrip(paneId){
 }
 WallaceBus.on('abaAlterada', ({id}) => renderPageStrip(id));
 
+// NOVO 10/08/2026 (pedido do usuário: "quando eu mudar de aba, deve atualizar os dados" — decisão
+// tomada junto com o usuário: rebuscar SEMPRE a cada troca deixaria cada clique mais lento (mais
+// chamadas ao Supabase), rebuscar NUNCA deixa dado velho numa sessão longa aberta o dia todo.
+// Meio-termo: só re-executa o boot (mesmo fluxo do F5, já restaura a aba atual sozinho) se a última
+// carga de dados já tem mais de LIMIAR_DADOS_VELHOS_MS. Recarregar o iframe inteiro em vez de tentar
+// re-chamar hydrate()/os "onda" na mão foi escolha deliberada seguranca > sofisticação: os gráficos
+// (graficos-cenarios-lazy.js) são documentados como NÃO seguros de re-inicializar (new Chart() de
+// novo no mesmo canvas duplica/quebra) - o boot completo já é o único caminho testado e comprovado
+// seguro pra reconstruir tudo do zero. window.__wallaceUltimoBootTs é gravado 1x, no fim do boot
+// (Sistema_Wallace_Lira_Completo.html, junto do WALLACE_BOOT_TIMING).
+const LIMIAR_DADOS_VELHOS_MS = 5 * 60 * 1000;
+WallaceBus.on('abaAlterada', ({id}) => {
+  if(id === 'home') return; // capa não depende de fetch novo pra fazer sentido revisitar
+  const ts = window.__wallaceUltimoBootTs;
+  if(!ts) return; // ainda no meio do próprio boot - nada a fazer
+  if(Date.now() - ts > LIMIAR_DADOS_VELHOS_MS){
+    console.log('[Wallace] Dados desta sessão têm mais de 5min — recarregando pra buscar versão atual.');
+    location.reload();
+  }
+});
+
 function toggleBtnVoltarCapa(){
   const btn = $('btnVoltarCapa');
   if(!btn) return;
