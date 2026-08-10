@@ -20,6 +20,11 @@ function hydrateResumoP2P(){
   t('coverMetaPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   t('coverModoOp', R.operacional.modoOperacional);
   t('coverCaixaVar', fmt(R.caixaVariavel.disponivel));
+  // CORRIGIDO 10/08/2026 (usuário reportou "de vez em quando aparece a caixa variável negativa" —
+  // na verdade estava SEMPRE verde, classe "cm-val g" fixa no HTML, nunca trocava pra vermelho
+  // quando negativo, diferente do card gêmeo do Simulador que já fazia essa troca).
+  const coverCaixaVarEl = $('coverCaixaVar');
+  if(coverCaixaVarEl) coverCaixaVarEl.classList.toggle('r', R.caixaVariavel.disponivel < 0);
 
   // caixa variavel
   t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));

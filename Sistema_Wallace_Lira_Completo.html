@@ -229,18 +229,6 @@
   </div>
   </div>
 
-  <!-- V145 (25/07/2026): Seletor de Ciclo - sempre visivel em qualquer aba, troca so os dados POR-CICLO
-       (Caixa Variavel, Reembolso, Tolerancia, Cascata do Reembolso, Modo Operacional) sem tocar em
-       Necessidade Total/Patrimonio/Faturas obrigatorias (fluxo continuo, mesmos em qualquer ciclo). -->
-  <div class="ciclo-seletor-wrap">
-    <span class="ciclo-seletor-label">🗓️ Ver ciclo:</span>
-    <div class="ciclo-seletor-btns" id="cicloSeletorBtns"><!-- populado por popularSeletorCiclo() --></div>
-  </div>
-  <div id="cicloBannerFechado" style="display:none">
-    <span>🔒</span>
-    <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
-  </div>
-
   <!-- parte 45 (pedido do usuario): tabs movidas pra logo acima do conteudo que elas de fato trocam -
        antes ficavam la em cima, longe da area que muda ao clicar, dando a impressao de que o clique
        "nao fazia nada" (a mudança real só aparecia varias telas abaixo). -->
@@ -253,6 +241,19 @@
   </div>
 
   <div id="painel" class="master-pane">
+
+  <!-- V145 (25/07/2026) + CORRIGIDO 10/08/2026 3ª rodada (usuário: "isso só é pra aparecer no
+       dashboard" — o seletor de ciclo era global (fora de qualquer master-pane, "sempre visível em
+       qualquer aba"), vazando pra Gráficos/Solar/Cenários/Balanço igual o card de Verificações
+       vazava antes. Mesma correção: movido pra dentro de #painel, só existe/mostra na aba Painel. -->
+  <div class="ciclo-seletor-wrap">
+    <span class="ciclo-seletor-label">🗓️ Ver ciclo:</span>
+    <div class="ciclo-seletor-btns" id="cicloSeletorBtns"><!-- populado por popularSeletorCiclo() --></div>
+  </div>
+  <div id="cicloBannerFechado" style="display:none">
+    <span>🔒</span>
+    <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
+  </div>
 
   <!-- CORRIGIDO 10/08/2026, 2ª rodada (achado do usuário: "Verificações de Negócio está aparecendo
        na parte de cima de todas as abas, só é pra aparecer no dashboard") - a tentativa anterior
@@ -1092,10 +1093,10 @@
          financeiro). Ver solar-compartilhado.html (página pública nova) + RPCs
          criar_compartilhamento_solar/desativar_compartilhamento_solar/listar_compartilhamentos_solar
          (Postgres, exigem login — só quem está logado aqui pode criar/gerenciar links). -->
-    <div class="card" style="border-left:3px solid var(--purple)">
+    <div class="card" style="border-left:3px solid var(--purple, #9085e9)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.7rem">
         <div style="font-size:0.78rem;color:var(--text-mid);flex:1;min-width:220px">🔗 Compartilhe só os dados solares (geração, eficiência, economia estimada) com a família — link temporário, sem login, sem acesso ao resto do sistema.</div>
-        <button type="button" onclick="criarLinkCompartilhamentoSolar()" style="background:var(--purple);color:#fff;border:none;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Compartilhar</button>
+        <button type="button" onclick="criarLinkCompartilhamentoSolar()" style="background:var(--purple, #9085e9);color:#fff;border:none;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Compartilhar</button>
       </div>
       <div id="solarLinkGerado" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:var(--surface-2);border-radius:8px;font-size:0.78rem;word-break:break-all"></div>
       <div id="solarLinksAtivos" style="margin-top:0.6rem;font-size:0.72rem;color:var(--text-dim)"></div>
@@ -1652,7 +1653,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260810-16';
+var __V = '20260810-17';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -2018,51 +2019,62 @@ Promise.all([
     scriptSolar.src = 'src/solar/energia-solar.js?v=' + __V;
     scriptSolar.onload = function(){
       performance.mark('wallace-solar-loaded');
-      const scriptPromocoes = document.createElement('script');
-      scriptPromocoes.src = 'src/app/promocoes-financeengine.js?v=' + __V;
-      // OTIMIZAÇÃO 07/08/2026: os 6 módulos abaixo (dashboard-navegacao, ui-navegacao-basica,
-      // ui-componentes-visuais, graficos-cenarios-lazy, filtro-livros-razao,
-      // contagem-abas-livros-razao) já eram documentados como "ordem não importa" entre si e com
-      // promocoes-financeengine (só usam onDomPronto/onclick/chamadas lazy, nada síncrono no
-      // carregamento) - antes carregavam 1 de cada vez em cadeia onload (6 requisições sequenciais
-      // sem necessidade nenhuma). Agora disparam todos juntos, em paralelo.
-      scriptPromocoes.onload = function(){
-        performance.mark('wallace-promocoes-loaded');
-        // NOVO 09/08/2026 (instrumentacao): Promise.all no lugar de forEach solto, so pra saber
-        // quando os ultimos 6 modulos (100% independentes/lazy, nao bloqueiam nada) terminam de
-        // baixar - fecha o timing completo do boot. Nao muda a ordem/paralelismo ja existente.
-        Promise.all(['src/dashboard/navigation/dashboard-navegacao.js',
-         'src/dashboard/navigation/ui-navegacao-basica.js',
-         'src/dashboard/widgets/ui-componentes-visuais.js',
-         'src/dashboard/charts/graficos-cenarios-lazy.js',
-         'src/dashboard/navigation/filtro-livros-razao.js',
-         'src/dashboard/widgets/contagem-abas-livros-razao.js'].map(function(src){
-          return new Promise(function(resolve){
-            const s = document.createElement('script');
-            s.src = src + '?v=' + __V;
-            s.onload = resolve;
-            s.onerror = resolve;
-            document.body.appendChild(s);
-          });
-        })).then(function(){
-          performance.mark('wallace-boot-complete');
-          try {
-            const marcas = ['wallace-boot-start','wallace-modulos-base-loaded','wallace-dados-remotos-loaded','wallace-appjs-loaded','wallace-solar-loaded','wallace-promocoes-loaded','wallace-boot-complete'];
-            const linhas = [];
-            for(let i=1;i<marcas.length;i++){
-              if(!performance.getEntriesByName(marcas[i]).length || !performance.getEntriesByName(marcas[i-1]).length) continue;
-              const nome = marcas[i-1] + ' → ' + marcas[i];
-              performance.measure(nome, marcas[i-1], marcas[i]);
-              linhas.push({ etapa: nome, ms: Math.round(performance.getEntriesByName(nome)[0].duration) });
-            }
-            performance.measure('wallace-boot-total', 'wallace-boot-start', 'wallace-boot-complete');
-            linhas.push({ etapa: 'TOTAL (boot-start → boot-complete)', ms: Math.round(performance.getEntriesByName('wallace-boot-total')[0].duration) });
-            window.WALLACE_BOOT_TIMING = linhas;
-            console.table(linhas);
-          } catch(e){ console.warn('Instrumentação de boot: falha ao calcular measures (não afeta o carregamento real).', e); }
+      // OTIMIZAÇÃO 10/08/2026 (pedido do usuário: "deixar o carregamento de dados mais rápido" —
+      // medido via window.WALLACE_BOOT_TIMING, achado real: sozinho, promocoes-financeengine.js
+      // consumia ~500ms nesta etapa, EM SÉRIE, enquanto os 6 módulos abaixo (já documentados como
+      // sem dependência dele, comentário original de 07/08/2026) só começavam a baixar depois dele
+      // terminar por completo. Nenhum dos dois depende do outro (só de app.js/energia-solar.js, já
+      // carregados aqui) — disparados juntos agora, boot fecha quando os DOIS terminarem, não mais
+      // em série. Não muda nenhum comportamento/fórmula, só sobrepõe 2 downloads que já iam
+      // acontecer de qualquer forma.
+      const promessaPromocoes = new Promise(function(resolve){
+        const scriptPromocoes = document.createElement('script');
+        scriptPromocoes.src = 'src/app/promocoes-financeengine.js?v=' + __V;
+        scriptPromocoes.onload = function(){ performance.mark('wallace-promocoes-loaded'); resolve(); };
+        scriptPromocoes.onerror = resolve;
+        document.body.appendChild(scriptPromocoes);
+      });
+      const promessaModulosIndependentes = Promise.all(['src/dashboard/navigation/dashboard-navegacao.js',
+       'src/dashboard/navigation/ui-navegacao-basica.js',
+       'src/dashboard/widgets/ui-componentes-visuais.js',
+       'src/dashboard/charts/graficos-cenarios-lazy.js',
+       'src/dashboard/navigation/filtro-livros-razao.js',
+       'src/dashboard/widgets/contagem-abas-livros-razao.js'].map(function(src){
+        return new Promise(function(resolve){
+          const s = document.createElement('script');
+          s.src = src + '?v=' + __V;
+          s.onload = resolve;
+          s.onerror = resolve;
+          document.body.appendChild(s);
         });
-      };
-      document.body.appendChild(scriptPromocoes);
+      }));
+      Promise.all([promessaPromocoes, promessaModulosIndependentes]).then(function(){
+        performance.mark('wallace-boot-complete');
+        try {
+          const marcas = ['wallace-boot-start','wallace-modulos-base-loaded','wallace-dados-remotos-loaded','wallace-appjs-loaded','wallace-solar-loaded','wallace-promocoes-loaded','wallace-boot-complete'];
+          const linhas = [];
+          for(let i=1;i<marcas.length;i++){
+            if(!performance.getEntriesByName(marcas[i]).length || !performance.getEntriesByName(marcas[i-1]).length) continue;
+            const nome = marcas[i-1] + ' → ' + marcas[i];
+            performance.measure(nome, marcas[i-1], marcas[i]);
+            linhas.push({ etapa: nome, ms: Math.round(performance.getEntriesByName(nome)[0].duration) });
+          }
+          performance.measure('wallace-boot-total', 'wallace-boot-start', 'wallace-boot-complete');
+          linhas.push({ etapa: 'TOTAL (boot-start → boot-complete)', ms: Math.round(performance.getEntriesByName('wallace-boot-total')[0].duration) });
+          window.WALLACE_BOOT_TIMING = linhas;
+          console.table(linhas);
+        } catch(e){ console.warn('Instrumentação de boot: falha ao calcular measures (não afeta o carregamento real).', e); }
+        // NOVO 10/08/2026 (pedido do usuário: "ao dar F5 tem que recarregar na página que eu estou")
+        // - restaura a última aba visitada nesta sessão do navegador (gravada em showMaster(),
+        // ui-navegacao-basica.js). Só age se houver algo salvo e a função já existir (módulo acima de
+        // já carregado nesse ponto, boot-complete) - sem valor salvo, comportamento de sempre (home).
+        try {
+          const abaSalva = sessionStorage.getItem('wallaceAbaAtual');
+          if(abaSalva && document.getElementById(abaSalva) && typeof irParaPrimeiraSecao === 'function'){
+            irParaPrimeiraSecao(abaSalva);
+          }
+        } catch(e){ console.warn('Restauração de aba: falha (não afeta o carregamento real).', e); }
+      });
     };
     document.body.appendChild(scriptSolar);
   };

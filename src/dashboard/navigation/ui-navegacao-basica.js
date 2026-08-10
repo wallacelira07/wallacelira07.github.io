@@ -15,6 +15,10 @@ function showMaster(id){
   document.querySelectorAll('[data-pane]').forEach(t=>t.classList.remove('active'));
   $(id).classList.add('active');
   document.querySelectorAll(`[data-pane="${id}"]`).forEach(t=>t.classList.add('active'));
+  // NOVO 10/08/2026 (pedido do usuário: "ao dar F5 tem que recarregar na página que eu estou, não
+  // sempre no dashboard") - grava a aba atual pra sobreviver a um F5; lido no boot (ver bloco de
+  // restauração em Sistema_Wallace_Lira_Completo.html, logo após todos os módulos carregarem).
+  try { sessionStorage.setItem('wallaceAbaAtual', id); } catch(e){}
   // V300 (Etapa 1.1): so cria os graficos de Graficos/Cenarios quando o usuario realmente abre uma
   // dessas 2 abas pela 1a vez (initGraficosECenariosLazy tem flag interna, seguro chamar sempre aqui).
   if(id === 'graficos' || id === 'cenarios'){
