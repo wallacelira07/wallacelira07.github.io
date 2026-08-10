@@ -149,14 +149,14 @@ const totalOpLabels = ['Boletos','Parcelas','Consórcios','Recorrências','Aport
 const totalOpData = Object.values(REG.totalOpDetalhe);
 const totalOpColors = ['#3987e5','#9085e9','#e2554f','#34c98a','#e8a63a','#6f6d66','#e879b0'];
 
-new Chart($('g_cTotalOp'), {
+window.WALLACE_CHARTS.gTotalOpDoughnut = new Chart($('g_cTotalOp'), {
   type:'doughnut',
   data:{labels:totalOpLabels,datasets:[{data:totalOpData,backgroundColor:totalOpColors,borderColor:'#16181b',borderWidth:3}]},
   options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-new Chart($('g_cTotalOpBar'), {
+window.WALLACE_CHARTS.gTotalOpBar = new Chart($('g_cTotalOpBar'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:totalOpLabels,datasets:[{data:totalOpData,backgroundColor:totalOpColors,borderRadius:4}]},
@@ -304,6 +304,23 @@ function atualizarGraficoPatrimonio(){
   if(!window.WALLACE_CHARTS) return;
   const dados = Object.values(REG.patrimonioDetalhe);
   [window.WALLACE_CHARTS.painelPatrimonio, window.WALLACE_CHARTS.gPatrim].forEach(chart => {
+    if(!chart) return;
+    chart.data.datasets[0].data = dados;
+    chart.update();
+  });
+}
+
+// NOVO 10/08/2026: re-renderiza os 2 gráficos de composição do Total Operacional (aba Gráficos:
+// g_cTotalOp doughnut + g_cTotalOpBar) — os 7 componentes vêm de REG.totalOpDetalhe, o mesmo objeto
+// que ganha o provMP corrigido em hydrate-onda5-parcelamentos.js. Sem par no Painel principal (só
+// existe na aba Gráficos). Cobertura parcial, registrada como tal: só religada no gatilho confirmado
+// (provMP/Onda5) — os outros 6 componentes (boletos/parcelas/consórcios/recorrências/aportesPat/
+// assinaturas) têm suas próprias origens espalhadas por outras Ondas, não auditadas uma a uma nesta
+// rodada por escopo/tempo.
+function atualizarGraficoTotalOpDetalhe(){
+  if(!window.WALLACE_CHARTS) return;
+  const dados = Object.values(REG.totalOpDetalhe);
+  [window.WALLACE_CHARTS.gTotalOpDoughnut, window.WALLACE_CHARTS.gTotalOpBar].forEach(chart => {
     if(!chart) return;
     chart.data.datasets[0].data = dados;
     chart.update();

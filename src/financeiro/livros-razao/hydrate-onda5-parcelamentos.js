@@ -73,6 +73,7 @@ async function aplicarOnda5Parcelamentos(){
   if(typeof hydrateCenarios === 'function') hydrateCenarios();
   if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
+  if(typeof atualizarGraficoTotalOpDetalhe === 'function') atualizarGraficoTotalOpDetalhe();
 
   const diverge = v1QtdVisa !== VARS.PARCELAMENTOS_VISA.length || v1QtdMP !== VARS.PARCELAMENTOS_MP.length;
   if(diverge) console.warn(`Onda5Parcelamentos: quantidade diverge — Visa V1=${v1QtdVisa}×V2=${VARS.PARCELAMENTOS_VISA.length}, MP V1=${v1QtdMP}×V2=${VARS.PARCELAMENTOS_MP.length} (inesperado, investigar).`);
