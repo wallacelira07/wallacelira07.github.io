@@ -193,6 +193,24 @@ async function aplicarOnda2V2(){
   // agora prefere o valor deste relatório quando disponível, mesmo padrão já usado em
   // hydrate-onda7-pluggy.js/hydrate-onda4-lrei.js.
   if(typeof hydrateQualidade === 'function') hydrateQualidade();
+
+  // CORRIGIDO 10/08/2026 (achado do usuário, varredura completa de gráficos): esta função só
+  // sobrescrevia texto do DOM — REG.caixasOperacionais[k].saldo (fonte do gráfico g_cCaixas,
+  // "Caixas operacionais vs metas") nunca era atualizado, mesma classe de bug já corrigida em
+  // Patrimônio/Caixa Variável/Necessidade. Mapa caixaNome→chave cobre só as 7 caixas deste
+  // arquivo que têm par em REG.caixasOperacionais (Churrasco/Combustível/PGV não têm — usam
+  // outros campos, fora do escopo deste gráfico).
+  const CAIXA_NOME_PARA_CHAVE = {
+    'Caixa Bens Duráveis': 'bensDuraveis', 'Caixa Eventos': 'eventos', 'Caixa Seguro Emplacamento': 'seguroEmplacamento',
+    'Escola de Júlio': 'escolaJulio', 'Caixa Saúde Família': 'saudeFamilia', 'Caixa Manutenção': 'manutencao',
+    'Caixa Aniversário Júlio': 'aniversarioJulio',
+  };
+  relatorio.forEach(r => {
+    if(r.exibindo !== 'V2') return;
+    const chave = CAIXA_NOME_PARA_CHAVE[r.caixa];
+    if(chave && REG.caixasOperacionais[chave]) REG.caixasOperacionais[chave].saldo = r.v2;
+  });
+  if(typeof atualizarGraficoCaixas === 'function') atualizarGraficoCaixas();
 }
 
 // LIVRO RAZÃO — FASE 1 (só diagnóstico, ZERO mudança de renderização, pedido explícito do

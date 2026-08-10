@@ -134,4 +134,14 @@ async function aplicarOnda1V2(){
   // agora prefere o valor deste relatório quando disponível, mesmo padrão já usado em
   // hydrate-onda7-pluggy.js/hydrate-onda4-lrei.js.
   if(typeof hydrateQualidade === 'function') hydrateQualidade();
+
+  // CORRIGIDO 10/08/2026 (mesmo achado do usuário, ver hydrate-onda2-v2.js): sincroniza
+  // REG.caixasOperacionais.{boletos,pixVanessa}.saldo — fonte do gráfico g_cCaixas — que esta
+  // função só escrevia em texto do DOM até agora.
+  const ONDA1_CAIXA_NOME_PARA_CHAVE = { 'Caixa Boletos': 'boletos', 'PIX Vanessa': 'pixVanessa' };
+  relatorio.forEach(r => {
+    const chave = ONDA1_CAIXA_NOME_PARA_CHAVE[r.caixa];
+    if(chave && r.v2 !== undefined && REG.caixasOperacionais[chave]) REG.caixasOperacionais[chave].saldo = r.v2;
+  });
+  if(typeof atualizarGraficoCaixas === 'function') atualizarGraficoCaixas();
 }

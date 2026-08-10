@@ -10,6 +10,20 @@
 // observeAndRenderChart — todos já existem a essa altura do carregamento. Nenhuma fórmula,
 // comportamento ou resultado foi alterado, só o arquivo que hospeda o código.
 
+// NOVO 10/08/2026: extraída pra escopo top-level (achado do usuário, varredura completa de
+// gráficos) — antes vivia dentro de _lazyRenderGraficosSecao(), inacessível de fora; precisa ser
+// chamável tanto na criação do gráfico g_cCartoesLiquidoCV (dentro daquela função) quanto na
+// atualização (atualizarGraficoCaixaVariavel(), mais abaixo neste arquivo).
+function _calcularCartoesLiquidoCV(){
+  const cvComprometido = REG.caixaVariavel.comprometido;
+  const cvDisponivel = REG.caixaVariavel.disponivel;
+  const visaTotal = REG.cartaoInfinite.total;
+  const mbTotal = REG.cartaoMB.total;
+  const liquido = Math.round((visaTotal + mbTotal - cvComprometido)*100)/100;
+  const reposicao = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
+  return [mbTotal, visaTotal, -cvComprometido, liquido, cvDisponivel, reposicao];
+}
+
 function _lazyRenderCenariosSalario(){
 const grid='#2a2d31';
 const cenarioLabelPlugin = {
@@ -123,18 +137,18 @@ new Chart($('g_cVisaBar'), {
 // legenda/titulo que combine os dois. Adicionadas 2 barras novas: Disponivel real (Saldo Real -
 // Comprometido) e Reposicao necessaria, pra mostrar a diferenca entre o que esta provisionado
 // (Comprometido) e o que existe de verdade em caixa agora (Disponivel).
+// _calcularCartoesLiquidoCV() declarada em escopo top-level deste arquivo (fora desta função) —
+// precisa ser chamável por atualizarGraficoCaixaVariavel() também, ver mais abaixo.
 (function(){
-  const cvComprometido = REG.caixaVariavel.comprometido;
-  const cvDisponivel = REG.caixaVariavel.disponivel;
-  const visaTotal = REG.cartaoInfinite.total;
-  const mbTotal = REG.cartaoMB.total;
-  const liquido = Math.round((visaTotal + mbTotal - cvComprometido)*100)/100;
-  const reposicao = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
-  new Chart($('g_cCartoesLiquidoCV'), {
+  // CORRIGIDO 10/08/2026 (achado do usuário, varredura completa de gráficos): comprometido/disponivel
+  // vêm de REG.caixaVariavel, atualizado ao vivo por hydrate-onda1-v2.js e
+  // hydrate-comprometido-caixa-variavel-v2.js — mesma classe de bug já corrigida em cVariavel/
+  // g_cVariavel, aqui achada num terceiro gráfico que também deriva desses campos.
+  window.WALLACE_CHARTS.gCartoesLiquidoCV = new Chart($('g_cCartoesLiquidoCV'), {
     type:'bar',
     plugins:[barValuePlugin],
     data:{labels:['Mastercard Black','Visa Infinite','Caixa Variável (comprometido)','Líquido não coberto','Disponível real em caixa','Reposição necessária'],
-      datasets:[{data:[mbTotal, visaTotal, -cvComprometido, liquido, cvDisponivel, reposicao],
+      datasets:[{data:_calcularCartoesLiquidoCV(),
       backgroundColor:['#9085e9','#3987e5','#e2554f','#e8a63a','#34c98a','#e0574c'],borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:60,left:10}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
@@ -311,12 +325,15 @@ function atualizarGraficoPatrimonio(){
 }
 
 // NOVO 10/08/2026: re-renderiza os 2 gráficos de composição do Total Operacional (aba Gráficos:
-// g_cTotalOp doughnut + g_cTotalOpBar) — os 7 componentes vêm de REG.totalOpDetalhe, o mesmo objeto
-// que ganha o provMP corrigido em hydrate-onda5-parcelamentos.js. Sem par no Painel principal (só
-// existe na aba Gráficos). Cobertura parcial, registrada como tal: só religada no gatilho confirmado
-// (provMP/Onda5) — os outros 6 componentes (boletos/parcelas/consórcios/recorrências/aportesPat/
-// assinaturas) têm suas próprias origens espalhadas por outras Ondas, não auditadas uma a uma nesta
-// rodada por escopo/tempo.
+// g_cTotalOp doughnut + g_cTotalOpBar) — os 7 componentes vêm de REG.totalOpDetalhe. Sem par no
+// Painel principal (só existe na aba Gráficos). AUDITADO por completo (10/08/2026, varredura pedida
+// pelo usuário) — dos 7 componentes: boletos/parcelas/consorcios/aportesPat nunca são reescritos
+// depois do boot síncrono (zero risco de divergência); recorrencias/assinaturas têm 1 escritor
+// (promocoes-financeengine.js, FASE 2M) mas ele roda de forma SÍNCRONA durante o carregamento do
+// script, terminando bem antes desta aba (lazy, só abre no clique do usuário) sequer existir — nunca
+// pega o valor errado. `provMP` é o único componente com escritor assíncrono real
+// (hydrate-onda5-parcelamentos.js), por isso é o único religado abaixo — cobertura completa, não
+// parcial.
 function atualizarGraficoTotalOpDetalhe(){
   if(!window.WALLACE_CHARTS) return;
   const dados = Object.values(REG.totalOpDetalhe);
@@ -340,6 +357,25 @@ function atualizarGraficoCaixaVariavel(){
     chart.data.datasets[0].data = dados;
     chart.update();
   });
+  const cLiquidoCV = window.WALLACE_CHARTS.gCartoesLiquidoCV;
+  if(cLiquidoCV){
+    cLiquidoCV.data.datasets[0].data = _calcularCartoesLiquidoCV();
+    cLiquidoCV.update();
+  }
+}
+
+// NOVO 10/08/2026 (achado do usuário, varredura completa de gráficos): re-renderiza g_cCaixas
+// ("Caixas operacionais vs metas") — chamada por hydrate-onda1-v2.js (Boletos/PIX Vanessa) e
+// hydrate-onda2-v2.js (as outras 7 caixas cobertas), cada um podendo resolver em ordem diferente.
+// Só existe se o usuário já rolou até esse gráfico pelo menos 1x (observeAndRenderChart, lazy) —
+// se ainda não existir, não há nada a atualizar (nasce certo quando for criado, lendo
+// REG.caixasOperacionais já sincronizado nesse momento).
+function atualizarGraficoCaixas(){
+  if(!window.WALLACE_CHARTS || !window.WALLACE_CHARTS.gCaixas) return;
+  const chart = window.WALLACE_CHARTS.gCaixas;
+  const chaves = Object.keys(REG.caixasOperacionais);
+  chart.data.datasets[1].data = chaves.map(k => REG.caixasOperacionais[k].saldo);
+  chart.update();
 }
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,
@@ -367,7 +403,6 @@ const CAIXAS_OPERACIONAIS_INFO = {
 };
 const caixasChaves = Object.keys(REG.caixasOperacionais);
 const caixasLabels = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].label) || k);
-const caixasSaldo = caixasChaves.map(k=>REG.caixasOperacionais[k].saldo);
 const caixasMeta =  caixasChaves.map(k=>REG.caixasOperacionais[k].meta);
 const caixasNotas = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].nota) || '');
 
@@ -389,13 +424,15 @@ const caixasValuePlugin = {
   }
 };
 
-observeAndRenderChart($('g_cCaixas'), () => new Chart($('g_cCaixas'), {
+observeAndRenderChart($('g_cCaixas'), () => window.WALLACE_CHARTS.gCaixas = new Chart($('g_cCaixas'), {
   type:'bar',
   plugins:[caixasValuePlugin],
   data:{labels:caixasLabels,
+    // Saldo recalculado no momento real da criação (scroll até o gráfico), não no momento em que a
+    // aba abriu — evita closure presa ao valor de quando _lazyRenderGraficosSecao() rodou.
     datasets:[
       {label:'Meta', data:caixasMeta, backgroundColor:'#e8a63a', borderRadius:3},
-      {label:'Saldo atual', data:caixasSaldo, backgroundColor:'#3987e5', borderRadius:3}
+      {label:'Saldo atual', data:caixasChaves.map(k=>REG.caixasOperacionais[k].saldo), backgroundColor:'#3987e5', borderRadius:3}
     ]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:70}},
     barPercentage:0.7,categoryPercentage:0.65,
