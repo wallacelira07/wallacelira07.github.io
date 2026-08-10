@@ -513,6 +513,13 @@
      porque #home vem ANTES de .master-tabs no HTML. */
   #home.active ~ .master-tabs{ display:none; }
 
+  /* NOVO 10/08/2026 (pedido do usuário: "remova esse espaço em todas as abas sobre o menu das
+     abas") - body tem padding-top:2.5rem (pensado pro hero grande da capa, #home), mas nas outras
+     5 abas #home vira display:none (0 altura) e esse padding sobra inteiro como vão vazio acima da
+     barra de abas. Reduzido só quando #home NÃO está ativo (mesmo padrão de seletor de irmão do
+     bloco acima) - a capa continua com o respiro original. */
+  #home:not(.active) ~ .master-tabs{ margin-top:-1.5rem; }
+
   /* V300 Etapa 8 (UX Premium) — aditivo: so suaviza a troca de aba (antes era corte seco de
      display:none pra block, sem transicao). Nao muda estrutura/dado de nenhuma secao. */
   @keyframes v300FadeInPane{

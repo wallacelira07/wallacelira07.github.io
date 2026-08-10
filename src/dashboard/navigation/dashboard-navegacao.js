@@ -185,8 +185,15 @@ function construirIndiceBuscaGlobal(){
     const tituloSecao = h2.textContent.trim();
     const paneId = paneEl.id;
     indice.push({texto: tituloSecao.toLowerCase(), rotulo: tituloSecao, paneId, alvo: secEl});
-    const conteudo = secEl.nextElementSibling;
-    if(conteudo){
+    // CORRIGIDO 10/08/2026 (achado do usuario: buscar "PIB" nao achava "PIB Wallace do mes", mesmo
+    // sendo um <span class="k"> real na tela) - o indexador so olhava o PRIMEIRO irmao depois do
+    // titulo da secao (secEl.nextElementSibling), mas varias secoes tem 2-3 blocos depois do titulo
+    // (paragrafo de descricao, DEPOIS o card com os valores, ou um <details> recolhido no fim, como
+    // o card "PIB Wallace" dentro da secao "Crescimento Patrimonial") - qualquer coisa alem do
+    // primeiro irmao nunca entrava no indice. Agora varre TODOS os irmaos seguintes ate a proxima
+    // secao (ou ate acabar o pane), nao so o primeiro - mesma logica de sempre, escopo maior.
+    let conteudo = secEl.nextElementSibling;
+    while(conteudo && !conteudo.classList.contains('section-num')){
       conteudo.querySelectorAll('.row .k').forEach(kEl => {
         const rotulo = kEl.textContent.trim();
         if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: secEl});
@@ -207,6 +214,15 @@ function construirIndiceBuscaGlobal(){
         const cardAlvo = labelEl.closest('.card') || labelEl;
         if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: cardAlvo});
       });
+      // NOVO 10/08/2026: <summary> de <details> (ex: "PIB Wallace (metodologia antiga...)") tambem
+      // eh um titulo clicavel de verdade na tela - indexavel pelo proprio texto, alvo eh o <details>
+      // (clicar no resultado precisa abri-lo pra nao rolar ate um bloco recolhido/vazio).
+      conteudo.querySelectorAll('summary').forEach(sumEl => {
+        const rotulo = sumEl.textContent.trim();
+        const detalhesAlvo = sumEl.closest('details') || sumEl;
+        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: detalhesAlvo});
+      });
+      conteudo = conteudo.nextElementSibling;
     }
   });
   // NOVO 09/08/2026 (pedido do usuario: "coloque so as siglas tambem na pesquisa") - ate aqui, a
