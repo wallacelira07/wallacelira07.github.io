@@ -51,19 +51,20 @@ Durante investigação de reconciliação de cartão (Visa Infinite 4844), assum
 
 **Não validado com login real** — usuário deve conferir os 3 no celular/navegador de verdade.
 
-## 🔴 Achado novo, ainda sem confirmação de correção: leitura solar de hoje sem `geracao_acumulada`
+## ✅ Bug estrutural do robô SAJ corrigido na raiz (não é mais só "rodar de novo")
 
-Usuário reportou "de novo perdeu os dados do SAJ" (cards "Autoconsumo/Dependência da rede/Exportação da geração: Dados insuficientes"). Diagnóstico: `energia_solar_geracao_diaria` está completa e correta até hoje (09/08, 30,49 kWh) — o problema é só a linha de hoje em `energia_solar_leituras` (leitura manual Energisa 03=69/103=412, criada às 23h25) ter `geracao_acumulada=NULL`. Causa: o script `atualizar_geracao_saj.py` sempre atualiza a leitura **mais recente por data** com o total acumulado do inversor — se a leitura manual da Energisa for cadastrada DEPOIS da execução automática do dia, a leitura nova fica sem esse campo até a próxima execução (que aí vai atualizar a leitura de amanhã, pulando a de hoje pra sempre, a menos que rode de novo manualmente).
+Usuário reportou "de novo perdeu os dados do SAJ" (cards "Autoconsumo/Dependência da rede/Exportação da geração: Dados insuficientes"). Diagnóstico: `energia_solar_geracao_diaria` estava completa e correta até hoje (09/08, 30,49 kWh) — o problema era só a linha de hoje em `energia_solar_leituras` (leitura manual Energisa 03=69/103=412, criada às 23h25) ter `geracao_acumulada=NULL`.
 
-**Não fabriquei o número** (o próprio código tem uma regra P1 explícita contra isso). **Ação pedida ao usuário**: rodar de novo, manualmente, o workflow "Atualizar Geração Solar (SAJ → Supabase)" no GitHub Actions agora que a leitura de hoje já existe — isso deve preencher o campo. **Não confirmado se o usuário já rodou** — próxima sessão deve perguntar/conferir.
+**Causa raiz real** (achada lendo `scripts/sync/atualizar_geracao_saj.py` por completo): o script sempre escrevia o acumulado do inversor na leitura **mais recente por posição/data**, sem checar se essa leitura era efetivamente de hoje. Se o robô roda (09h ou 17h) ANTES da leitura manual da Energisa ser cadastrada, ele grava o número de hoje numa linha de ONTEM — e quando a leitura de hoje nasce depois, fica sem o campo, dependendo de sorte de ordem manual×robô.
 
-**Melhoria estrutural que vale considerar** (não implementada, só identificada): o script poderia checar se a leitura mais recente já tem `geracao_acumulada` preenchido por outra leitura mais nova adicionada depois, ou simplesmente atualizar por `id` mais recente por `created_at` em vez de por `data`, pra não depender da ordem manual×automático do dia.
+**Corrigido nesta sessão** (`scripts/sync/atualizar_geracao_saj.py`, funções `atualizar_supabase` e `atualizar_v2_leitura_geracao_acumulada`): agora só grava `geracaoAcumulada`/`geracao_acumulada` se já existir uma leitura com `data == hoje` (V1 em `SOLAR_LEITURAS`, V2 em `energia_solar_leituras`); senão pula e loga aviso, sem nunca contaminar a linha errada. Isso torna o comportamento independente da ordem — a leitura de hoje é preenchida assim que existir e o robô rodar de novo (2x/dia), nunca fica presa numa linha errada. **Não commitado ainda** — pedir autorização antes de commitar/dar push, e ainda falta rodar o workflow manual pra preencher a leitura de hoje (bug antigo já aconteceu, correção é só pra não repetir).
 
 ## Pendências remanescentes — ordem de prioridade pra próxima sessão
 
 | Item | Prioridade |
 |---|---|
-| Confirmar se o usuário rodou o workflow SAJ manualmente e se a leitura de hoje já tem `geracao_acumulada` | Alta — reportado nesta sessão, sem confirmação de correção ainda |
+| Confirmar se o usuário rodou o workflow SAJ manualmente (ou aguardar a próxima execução agendada) e se a leitura de hoje já tem `geracao_acumulada` preenchido | Alta — bug antigo ainda não corrigido nos dados, só a causa raiz foi corrigida no código |
+| Commitar/dar push a correção do `atualizar_geracao_saj.py` (pendente de autorização do usuário) | Alta — correção pronta, só falta autorização pra commit conforme regra do projeto |
 | Ler `window.WALLACE_BOOT_TIMING` real (usuário já confirmou que funciona, nunca foi lido) | Alta — pedido explícito do usuário, arrastado de sessões anteriores |
 | Classificar as 3 transações do LRW/LRV sem dono (R$282,71, `usuario_id=NULL`) — só o usuário pode dizer de quem são | Média — bloqueia fechar totalmente o domínio Caixa Variável/cartão |
 | Cartões Mastercard/Visa (totais de fatura) — precisa reconciliação bancária manual real, não é SQL puro; **cuidado**: já teve 1 quase-duplicação nesse domínio nesta sessão | Média — grande, arriscado, precisa entender onde o dado já mora antes de mexer |

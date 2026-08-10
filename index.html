@@ -232,6 +232,9 @@
             letter-spacing: 0.2px;
             color: #f3f1ec;
         }
+        #dashboardScreen header .brand-name-short {
+            display: none;
+        }
 
         #dashboardScreen header .brand-sub {
             font-size: 10px;
@@ -421,6 +424,12 @@
             #dashboardScreen header .brand-sub {
                 display: none;
             }
+            #dashboardScreen header .brand-name-full {
+                display: none;
+            }
+            #dashboardScreen header .brand-name-short {
+                display: inline;
+            }
             #dashboardScreen header .user-chip {
                 padding: 5px 10px 5px 7px;
             }
@@ -470,7 +479,7 @@
             <div class="brand" id="brandLogo" role="button" tabindex="0" title="Voltar ao topo">
                 <span class="brand-icon" aria-hidden="true">📊</span>
                 <div class="brand-text">
-                    <h1>Sistema Wallace Lira</h1>
+                    <h1><span class="brand-name-full">Sistema Wallace Lira</span><span class="brand-name-short">SWL</span></h1>
                     <span class="brand-sub">Painel Financeiro</span>
                 </div>
             </div>

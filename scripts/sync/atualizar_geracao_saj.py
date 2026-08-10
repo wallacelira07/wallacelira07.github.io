@@ -168,27 +168,27 @@ def atualizar_v2_geracao_diaria(supabase_url: str, supabase_key: str, data_str: 
         resp.read()
 
 
-def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str, geracao_total: float) -> None:
-    """NOVO 08/08/2026 (fecha o gap achado na investigação do mesmo dia — energia_solar_leituras.
-    geracao_acumulada nunca tinha escrita automática, só o bootstrap manual da migração de ciclos
-    solares): mesma semântica já usada em wallace_dados.SOLAR_LEITURAS[-1] acima — atualiza a
-    geracao_acumulada da leitura MAIS RECENTE (maior `data`) em energia_solar_leituras, com o
-    energy1Total que a API da SAJ acabou de devolver. Não cria linha nova, não mexe em ciclo_id/
-    eh_leitura_oficial_energisa/evidencia, não recalcula nada em ciclos_solares. Falha aqui é
-    tratada como aviso, mesma tolerância de atualizar_v2_geracao_diaria (a escrita em V1 acima já
-    está garantida antes de chegar aqui)."""
+def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str, geracao_total: float, hoje_str: str) -> bool:
+    """CORRIGIDO 09/08/2026 (bug real: escrevia sempre na leitura mais recente por `data`, mesmo
+    quando essa leitura era de ONTEM — se o robô roda antes da leitura manual de hoje ser lançada,
+    ele contaminava a linha errada com o acumulado de hoje, e a linha de hoje nascia depois sem
+    esse valor). Agora só atualiza a linha cuja `data` é EXATAMENTE hoje (hoje_str, UTC — mesmo
+    fuso usado em SOLAR_GERACAO_DIARIA). Se ainda não existe leitura de hoje, não mexe em nenhuma
+    linha antiga — devolve False pra quem chamou logar o aviso certo; a próxima execução agendada
+    (roda 2x/dia) resolve sozinha assim que a leitura existir, sem depender de ordem manual-vs-robô.
+    Falha de rede/HTTP aqui continua tratada como aviso pelo chamador (a escrita em V1 já é a crítica)."""
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
         "Content-Type": "application/json",
     }
-    # 1) Acha o id da leitura mais recente (maior `data`) — nunca por posição, sempre por data real.
-    get_url = f"{supabase_url}/rest/v1/energia_solar_leituras?select=id,data&order=data.desc&limit=1"
+    # 1) Acha a leitura de HOJE especificamente — nunca "a mais recente que existir".
+    get_url = f"{supabase_url}/rest/v1/energia_solar_leituras?select=id,data&data=eq.{hoje_str}&limit=1"
     req = Request(get_url, headers=headers, method="GET")
     with urlopen(req, timeout=20) as resp:
         linhas = json.loads(resp.read().decode("utf-8"))
     if not linhas:
-        raise RuntimeError("energia_solar_leituras está vazia — nada para atualizar.")
+        return False
     leitura_id = linhas[0]["id"]
 
     # 2) Atualiza só o campo geracao_acumulada dessa linha, mesmo valor gravado em V1.
@@ -197,10 +197,18 @@ def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str,
     req_patch = Request(patch_url, data=body, headers=headers, method="PATCH")
     with urlopen(req_patch, timeout=20) as resp_patch:
         resp_patch.read()
+    return True
 
 
 def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float, geracao_hoje: float | None) -> None:
-    """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da ÚLTIMA leitura, grava de volta.
+    """Lê SOLAR_LEITURAS atual, atualiza geracaoAcumulada da leitura DE HOJE, grava de volta.
+    CORRIGIDO 09/08/2026 (bug real, causou perda de dado em produção): antes escrevia sempre em
+    leituras[-1] (a última por posição), sem checar a data. Se o robô roda ANTES da leitura manual
+    de hoje ser lançada, leituras[-1] ainda é a de ontem — o robô gravava o acumulado de HOJE numa
+    linha de ONTEM, e quando a leitura de hoje nascia depois, ficava sem esse número (dependia da
+    ordem manual-vs-robô, que não é controlável). Agora só grava se já existir uma leitura com
+    data == hoje; senão pula e loga aviso — a próxima execução agendada (2x/dia) resolve sozinha
+    assim que a leitura existir, sem nunca contaminar a linha errada.
     NOVO 05/08/2026 (pedido do usuário: "não vai conseguir me dar dados de vários dias?"): também
     acrescenta/atualiza um registro em SOLAR_GERACAO_DIARIA (histórico diário de verdade, um valor
     por execução do robô - antes esse dado (energy1Today, já vinha da API) era buscado e descartado,
@@ -211,6 +219,8 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
         "Authorization": f"Bearer {supabase_key}",
         "Content-Type": "application/json",
     }
+    hoje_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
     # 1) Lê o estado atual
     get_url = f"{supabase_url}/rest/v1/wallace_dados?select=dados&id=eq.1"
     req = Request(get_url, headers=headers, method="GET")
@@ -223,16 +233,18 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
     if not leituras:
         raise RuntimeError("SOLAR_LEITURAS está vazio — nada para atualizar.")
 
-    # 2) Atualiza a geração da ÚLTIMA leitura (mesmo comportamento de sempre)
-    leituras[-1]["geracaoAcumulada"] = round(geracao_total, 2)
-    leituras[-1].setdefault("fonte", "real")
+    # 2) Atualiza a geração só se a leitura mais recente for de HOJE — nunca por posição.
+    leitura_hoje = leituras[-1] if leituras[-1].get("data") == hoje_str else None
+    if leitura_hoje is not None:
+        leitura_hoje["geracaoAcumulada"] = round(geracao_total, 2)
+        leitura_hoje.setdefault("fonte", "real")
 
-    # 3) NOVO: registra a geração de HOJE no histórico diário, se a API devolveu esse valor.
+    # 3) Registra a geração de HOJE no histórico diário, se a API devolveu esse valor.
     # Chave = data de hoje (UTC) - se o robô já rodou hoje (roda 2x/dia), sobrescreve o mesmo dia em
     # vez de duplicar, sempre com o valor mais recente da API (mais confiável quanto mais tarde no dia).
+    # Isso não depende de existir leitura de hoje — é histórico próprio, sempre seguro de gravar.
     historico_diario = dados_atuais.get("SOLAR_GERACAO_DIARIA", [])
     if geracao_hoje is not None:
-        hoje_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         idx_existente = next((i for i, r in enumerate(historico_diario) if r.get("data") == hoje_str), None)
         registro = {"data": hoje_str, "kwh": round(geracao_hoje, 2), "capturadoEm": datetime.now(timezone.utc).isoformat()}
         if idx_existente is not None:
@@ -250,8 +262,11 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
     req_patch = Request(patch_url, data=body, headers=headers, method="PATCH")
     with urlopen(req_patch, timeout=20) as resp_patch:
         resp_patch.read()
-    print(f"Supabase atualizado: geracaoAcumulada={geracao_total} kWh na última leitura"
-          + (f", SOLAR_GERACAO_DIARIA[{hoje_str}]={geracao_hoje} kWh" if geracao_hoje is not None else " (sem valor de hoje pra registrar)"))
+    if leitura_hoje is not None:
+        print(f"Supabase atualizado: geracaoAcumulada={geracao_total} kWh na leitura de hoje ({hoje_str})")
+    else:
+        print(f"AVISO: ainda não existe leitura com data={hoje_str} em SOLAR_LEITURAS — geracaoAcumulada NÃO foi gravada em nenhuma linha (evitando contaminar a leitura de outro dia). A próxima execução agendada resolve assim que a leitura existir.", file=sys.stderr)
+    print(("SOLAR_GERACAO_DIARIA[" + hoje_str + f"]={geracao_hoje} kWh") if geracao_hoje is not None else "(sem valor de hoje pra registrar em SOLAR_GERACAO_DIARIA)")
 
     # 5) NOVO 08/08/2026: mesmo valor, também na tabela relacional V2 (energia_solar_geracao_diaria)
     # — sincroniza persistência, mesma estratégia já usada nos outros domínios (Onda 4/5). Falha aqui
@@ -263,12 +278,14 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
         except Exception as e:
             print(f"AVISO: falha ao sincronizar energia_solar_geracao_diaria (V2) — V1 já gravado normalmente, não é um erro fatal: {e}", file=sys.stderr)
 
-    # 6) NOVO 08/08/2026: fecha o gap achado na investigação do mesmo dia — energia_solar_leituras.
-    # geracao_acumulada (V2) nunca tinha escrita automática. Mesma tolerância a falha dos outros
-    # passos V2 (aviso, não derruba o script).
+    # 6) NOVO 08/08/2026, CORRIGIDO 09/08/2026 (mesmo bug de data do item 2, agora também na V2):
+    # energia_solar_leituras.geracao_acumulada só é escrito se já existir a linha de hoje.
     try:
-        atualizar_v2_leitura_geracao_acumulada(supabase_url, supabase_key, geracao_total)
-        print(f"Supabase V2 (energia_solar_leituras.geracao_acumulada) sincronizado: {geracao_total} kWh")
+        gravou = atualizar_v2_leitura_geracao_acumulada(supabase_url, supabase_key, geracao_total, hoje_str)
+        if gravou:
+            print(f"Supabase V2 (energia_solar_leituras.geracao_acumulada) sincronizado: {geracao_total} kWh")
+        else:
+            print(f"AVISO: ainda não existe leitura V2 com data={hoje_str} em energia_solar_leituras — geracao_acumulada NÃO foi gravado (evitando contaminar a leitura de outro dia).", file=sys.stderr)
     except Exception as e:
         print(f"AVISO: falha ao sincronizar energia_solar_leituras.geracao_acumulada (V2) — V1 já gravado normalmente, não é um erro fatal: {e}", file=sys.stderr)
 
