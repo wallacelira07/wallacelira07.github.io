@@ -2,6 +2,14 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
+## ✅ Caixa Lance promovida pra V2 — causa raiz real fechada com evidência da fonte (09/08/2026, mesma sessão)
+
+Resíduo de R$85,76 (1,90%) que tinha ficado em aberto: a causa não estava nos extratos bancários (MP julho/junho, já lidos nesta sessão), estava na própria fonte V1. **Consultando `wallace_dados` direto (não o arquivo JS estático `vars-caixas.js`, que só tinha 8 dos 10 itens reais do array)**, achei os 2 itens que faltavam: `RENDIMENTO-31-07` (+R$9,42, rendimento real — já existia certo na V2) e `AJUSTE-06-08` (-R$65,76, correção manual que o usuário já tinha feito em 06/08 contra print real do Mercado Pago — nunca migrada pra V2). Inserido via `UPDATE`. Resíduo caiu de R$85,76 pra **R$20,00** (0,44%), agora com **alta confiança**: é uma venda de P2P real que já existe na V2 mas nunca foi copiada de volta pro V1 — mesmo padrão já aceito nas outras caixas promovidas (V2 recebe lançamento novo direto, V1 não acompanha automaticamente).
+
+**Promovida**: `hydrate-onda3-caixalance.js` (saldo — cards `balResLance`/`patLance`) e `hydrate-onda3-livro-razao.js` (tabela de lançamentos, nova entrada `lrlanceTbody`) — mesma fonte V2 nos dois lugares, mesmo cuidado já usado na Caixa Manutenção pra não deixar "card V2 + tabela V1" inconsistentes.
+
+**Lição prática confirmada nesta investigação**: o arquivo JS estático (`vars-caixas.js`) pode ficar desatualizado em relação ao `wallace_dados` real no Supabase — quando uma reconciliação não fecha com o que está no arquivo, vale sempre conferir a fonte viva antes de concluir "causa indeterminada".
+
 ## 🚨 Quase-duplicação evitada + 3 melhorias de mobile/UX entregues (09/08/2026, mesma sessão)
 
 **Quase-incidente, revertido a tempo**: durante a investigação de reconciliação de cartão (Visa Infinite 4844), assumi que "zero linhas em `transacoes` pra esse `cartao_id`" significava "nada rastreado" — errado. O usuário interrompeu no meio da migration ("não lance, você vai duplicar") depois de eu já ter inserido 41 transações de julho. **Revertido imediatamente** (`DELETE FROM transacoes WHERE tx_legado LIKE 'TX4844-%'`, confirmado 0 linhas depois). Causa raiz do meu erro: essas mesmas compras já estavam lançadas manualmente linha a linha em outro mecanismo do sistema (confirmado pelo usuário com prints de uma tela de Livro Razão por categoria — TX000012, TX000017, TX000018... os mesmos estabelecimentos que eu ia inserir de novo). **Lição registrada**: nunca mais assumir "ausente numa tabela = nunca lançado" sem confirmar onde o dado real mora primeiro.

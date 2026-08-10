@@ -37,6 +37,9 @@ const ONDA3_LR_MAPA = [
   // ver hydrate-onda2-v2.js) depois de achar a causa raiz real da divergência — mesma regra
   // das outras caixas acima: card e Livro Razão têm que mostrar a mesma fonte.
   { tbodyId: 'lrmanutTbody', tfId: 'tf_lrmanut', qtdId: 'qtd_lrmanut', caixaId: 'df4c44af-3e30-4592-b0b5-5b863ca91591', caixaNome: 'Caixa Manutenção' },
+  // NOVO 09/08/2026 (investigação "matar V1"): Caixa Lance promovida no saldo (Onda 3,
+  // ver hydrate-onda3-caixalance.js) depois de fechar o resíduo pra R$20 (alta confiança).
+  { tbodyId: 'lrlanceTbody', tfId: 'tf_lrlance', qtdId: 'qtd_lrlance', caixaId: 'ff0cd9af-c5a9-4a9b-8cdd-c379e167275e', caixaNome: 'Caixa Lance' },
 ];
 
 function onda3FormatarDataV2(dataIso){

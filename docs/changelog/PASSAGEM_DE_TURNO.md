@@ -2,7 +2,13 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## ⚠️ Quase-duplicação de dado financeiro + 3 fixes de UI mobile (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+## ✅ Caixa Lance fechada de vez (09/08/2026, mesma sessão, mais recente que tudo abaixo)
+
+Usuário pediu explicitamente pra continuar fechando a Caixa Lance, mas com cautela (depois do quase-incidente do cartão 4844, ver bloco abaixo). Em vez de adivinhar a partir dos extratos bancários (o que já tinha tentado sem sucesso antes), fui direto na fonte: `wallace_dados.CAIXA_LANCE_TRANSACOES` no Supabase (não o arquivo `vars-caixas.js`, que estava desatualizado — só 8 dos 10 itens reais). Achei os 2 itens faltando: `RENDIMENTO-31-07` (+R$9,42, já certo na V2) e `AJUSTE-06-08` (-R$65,76, ajuste manual que o usuário já tinha feito baseado num print real do Mercado Pago, nunca sincronizado). Confirmei que só o segundo faltava na V2, inseri via `UPDATE`, resíduo caiu de R$85,76 pra R$20,00 (alta confiança — é uma venda P2P real só na V2, mesmo padrão aceito nas outras caixas). Caixa Lance promovida (`hydrate-onda3-caixalance.js` + `hydrate-onda3-livro-razao.js`, saldo e tabela juntos).
+
+**Lição confirmada**: quando uma reconciliação não fecha e o arquivo JS local não explica o resíduo, checar a fonte viva (`wallace_dados` real, não o literal no código) antes de declarar "causa indeterminada" — o arquivo local pode estar desatualizado.
+
+## ⚠️ Quase-duplicação de dado financeiro + 3 fixes de UI mobile (09/08/2026, mesma sessão, anterior ao bloco acima)
 
 **Incidente evitado por pouco**: continuando a reconciliação de cartão da rodada anterior, encontrei `cartao_id` do Visa Infinite 4844 com zero linhas em `transacoes` e concluí (errado) que nada estava lançado — comecei a inserir as ~180 compras de julho/agosto extraídas das faturas reais que o usuário mandou. Cheguei a rodar uma migration inserindo 41 delas antes do usuário interromper: "não lance, você vai duplicar" / "você vai duplicar". **Revertido na mesma hora** (`DELETE ... WHERE tx_legado LIKE 'TX4844-%'`), confirmado 0 linhas. O usuário então mostrou (prints de uma tela de Livro Razão por categoria, TX000012/TX000017/TX000018 etc.) que essas mesmas compras já estavam lançadas manualmente linha a linha em outro lugar do sistema — a ausência na tabela que eu consultei não significava ausência real. **Regra pra próxima vez**: antes de inserir qualquer transação "faltando", perguntar/confirmar onde o dado já pode estar, não assumir pela ausência numa única tabela.
 
