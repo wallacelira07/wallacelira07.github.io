@@ -38,6 +38,16 @@ function recalcularNecessidade(){
     REG.operacional.necessidadeTotalBruta = r2(REG.operacional.totalOperacional + REG.operacional.orcamentoOperacional);
     REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
   }
+
+  // CORRIGIDO 10/08/2026: ajuste de déficit de caixas negativas sem LREI (política 09/08/2026, ver
+  // hydrate-deficit-caixas-sem-lrei.js) precisa ser REAPLICADO toda vez que a necessidade é
+  // recalculada, não só uma vez no momento em que o fetch V2 termina — senão qualquer recálculo
+  // posterior (ex: provMP atualizando depois da Onda 5) reseta a necessidade e "esquece" o déficit
+  // já contabilizado, mesmo bug de raiz que motivou esta correção. `REG.operacional.deficitCaixasSemLrei`
+  // é 0 até a política calcular um valor real; `|| 0` cobre a primeira chamada, antes desse fetch existir.
+  REG.operacional.deficitCaixasSemLrei = REG.operacional.deficitCaixasSemLrei || 0;
+  REG.operacional.necessidadeTotalBruta = r2(REG.operacional.necessidadeTotalBruta + REG.operacional.deficitCaixasSemLrei);
+  REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
   REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
 
   // NOVO 05/08/2026 (parte 102, pedido do usuario: "todo valor nao pode depender de nada manual, tudo

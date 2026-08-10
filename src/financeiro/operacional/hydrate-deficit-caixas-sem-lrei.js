@@ -59,24 +59,29 @@ async function aplicarDeficitCaixasSemLrei(){
   window.WALLACE_DEFICIT_CAIXAS_RELATORIO = { porCaixa, total: deficitTotal };
   console.log('DeficitCaixasSemLrei: relatório completo em window.WALLACE_DEFICIT_CAIXAS_RELATORIO', window.WALLACE_DEFICIT_CAIXAS_RELATORIO);
 
-  if(deficitTotal <= 0) return; // nada a ajustar, nenhuma caixa operacional negativa sem LREI
-
-  // Mesma cascata de recalcular-necessidade.js (necessidadeTotalBruta -> necessidadeLiquida/saldoCiclo/
-  // modoOperacional) - reaplicada aqui porque o ajuste entra DEPOIS que essas funções já rodaram no
-  // boot síncrono.
-  REG.operacional.necessidadeTotalBruta = r2(REG.operacional.necessidadeTotalBruta + deficitTotal);
-  REG.operacional.necessidadeLiquida = r2(REG.operacional.necessidadeTotalBruta - REG.operacional.coberturaGarantida);
-  REG.operacional.saldoCiclo = r2(REG.balanco.fluxo.entradas - REG.operacional.necessidadeTotalBruta);
-  REG.balanco.fluxo.saidas = REG.operacional.necessidadeTotalBruta;
-  REG.balanco.fluxo.resultado = r2(REG.balanco.fluxo.entradas - REG.balanco.fluxo.saidas);
-  if(REG.operacional.saldoCiclo < 0) REG.operacional.modoOperacional = 'Crítico';
-  else if(REG.operacional.saldoCiclo < 3000) REG.operacional.modoOperacional = 'Baixo';
-  else if(REG.operacional.saldoCiclo < 8000) REG.operacional.modoOperacional = 'Normal';
-  else REG.operacional.modoOperacional = 'Alto';
-  if(REG.superavitNormal && Array.isArray(REG.superavitNormal.necessidade)) REG.superavitNormal.necessidade[0] = REG.operacional.necessidadeTotalBruta;
+  // CORRIGIDO 10/08/2026: antes só rodava a cascata (necessidadeTotalBruta→necessidadeLiquida/saldoCiclo/
+  // modoOperacional) quando deficitTotal>0, e nunca tocava REG.evolucao (o array que alimenta o
+  // gráfico "Necessidade líquida — próximos ciclos") nem o gráfico em si — o card do Resumo Executivo
+  // mostrava o valor com déficit, o gráfico continuava com o valor de antes, congelado desde o boot
+  // (achado real: R$13.850,48 no card × R$13.179 no primeiro ponto do gráfico, mesmo ciclo). Also
+  // corrigia só o caminho "tem déficit" - se uma caixa voltasse a ficar positiva (déficit some), o
+  // ajuste antigo somado ficava travado pra sempre, porque só é subtraído recalculando do zero.
+  // Agora sempre grava (mesmo 0, pra "zerar" um déficit resolvido) e sempre reprocessa via a mesma
+  // função pura usada no boot (recalcularNecessidade(), agora reentrante — ver seção do próprio
+  // ajuste lá dentro), que já recalcula REG.evolucao[0] junto. Único passo extra aqui é reconciliar
+  // os gráficos já desenhados (ver atualizarGraficosNecessidade(), graficos-cenarios-lazy.js).
+  REG.operacional.deficitCaixasSemLrei = deficitTotal;
+  // recalcularNecessidade() já cuida de necessidadeLiquida/saldoCiclo/fluxo.saidas/fluxo.resultado/
+  // modoOperacional/REG.evolucao[0] — nenhuma dessas linhas precisa ser replicada aqui.
+  if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
 
   if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
   if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
 
-  console.warn(`DeficitCaixasSemLrei: +${fmt(deficitTotal)} somado à Necessidade Total Bruta (${porCaixa.length} caixa(s) negativa(s) sem LREI de suporte: ${porCaixa.map(x=>x.caixa+' '+fmt(x.deficit)).join(', ')}).`);
+  if(deficitTotal > 0){
+    console.warn(`DeficitCaixasSemLrei: +${fmt(deficitTotal)} somado à Necessidade Total Bruta (${porCaixa.length} caixa(s) negativa(s) sem LREI de suporte: ${porCaixa.map(x=>x.caixa+' '+fmt(x.deficit)).join(', ')}).`);
+  } else {
+    console.log('DeficitCaixasSemLrei: nenhuma caixa operacional negativa sem LREI de suporte — ajuste em 0.');
+  }
 }

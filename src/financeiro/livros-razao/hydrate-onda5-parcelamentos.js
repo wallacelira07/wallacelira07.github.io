@@ -53,6 +53,25 @@ async function aplicarOnda5Parcelamentos(){
   // Reaproveita renderParcelamentos() (V1, inalterada) — mesma renderização, dado novo.
   renderParcelamentos();
 
+  // CORRIGIDO 10/08/2026: `provMP` (perna 4 da cascata de reembolso Wärtsilä, `REG.totalOpDetalhe.provMP`/
+  // `VARS.totalOpProvMP`) é derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO, ver app.js), mas esse
+  // cálculo rodava só 1x, de forma síncrona, no boot — ANTES desta função (assíncrona) trocar
+  // PARCELAMENTOS_MP pelo dado V2 acima. Resultado: mesmo com PARCELAMENTOS_MP já V2, `provMP` ficava
+  // congelado no valor derivado do array V1 antigo, e tudo que depende dele (cascata de reembolso,
+  // Necessidade Total/Líquida, os 2 gráficos "próximos ciclos") nunca via a atualização. Diferente de
+  // Cartões/Ciclo Snapshots (bloqueados por falta de estrutura V2), aqui a estrutura já existe — só
+  // faltava religar o recálculo, mesmo padrão que hydrate-onda4-wartsila.js já usa pras outras 3 pernas.
+  VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
+  REG.totalOpDetalhe.provMP = VARS.totalOpProvMP;
+  if(typeof recalcularReembolsos === 'function') recalcularReembolsos();
+  if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
+  if(typeof hydrateReembolsos === 'function') hydrateReembolsos();
+  if(typeof hydrateMercadoPago === 'function') hydrateMercadoPago();
+  if(typeof hydrateResumoCartoes === 'function') hydrateResumoCartoes();
+  if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
+  if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
+
   const diverge = v1QtdVisa !== VARS.PARCELAMENTOS_VISA.length || v1QtdMP !== VARS.PARCELAMENTOS_MP.length;
   if(diverge) console.warn(`Onda5Parcelamentos: quantidade diverge — Visa V1=${v1QtdVisa}×V2=${VARS.PARCELAMENTOS_VISA.length}, MP V1=${v1QtdMP}×V2=${VARS.PARCELAMENTOS_MP.length} (inesperado, investigar).`);
   else console.log(`Onda5Parcelamentos: V1×V2 batem (${VARS.PARCELAMENTOS_VISA.length} Visa + ${VARS.PARCELAMENTOS_MP.length} MP). V2 é a fonte exibida.`);

@@ -216,7 +216,13 @@ new Chart($('g_cMetas'), {
 
 const gTotalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro
 const gTotalOpRange = yRange(gTotalOpSeries);
-new Chart($('g_cEvol'), {
+// CORRIGIDO 10/08/2026: instância guardada em window.WALLACE_CHARTS (antes só existia dentro do
+// escopo deste script, inacessível de fora) — precisa disso pra atualizarGraficosNecessidade()
+// (abaixo) conseguir re-renderizar depois que provMP/déficit de caixas atualizam REG.evolucao
+// de forma assíncrona, depois deste gráfico já ter sido desenhado uma vez (achado real: card do
+// Resumo Executivo mudava, gráfico ficava com o valor congelado do boot).
+window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+window.WALLACE_CHARTS.totalOperacional = new Chart($('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -232,7 +238,7 @@ new Chart($('g_cEvol'), {
 
 const gNecLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no CICLO financeiro (25-24), nao no mes calendario - evita o valor "pular" quando mes vira mas ciclo nao, ou vice-versa
 const gNecLiqRange = yRange(gNecLiqSeries);
-new Chart($('g_cNecessidadeLiquida'), {
+window.WALLACE_CHARTS.necessidadeLiquida = new Chart($('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
   data:{labels:gerarMesesCiclo(12),
@@ -245,6 +251,37 @@ new Chart($('g_cNecessidadeLiquida'), {
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
       y:{grid:{color:grid},min:gNecLiqRange.min,max:gNecLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
+
+// NOVO 10/08/2026: re-renderiza os 2 gráficos acima com o REG.evolucao atual — chamada por qualquer
+// módulo que recalcule REG.evolucao DEPOIS do boot inicial (hoje: hydrate-onda5-parcelamentos.js
+// pra provMP, hydrate-deficit-caixas-sem-lrei.js pro déficit de caixas negativas). Sem isso, os
+// gráficos ficam mostrando o valor do boot pra sempre, mesmo quando o card do Resumo Executivo já
+// mudou (achado real: card R$13.850,48 × gráfico R$13.179, mesma necessidade, mesmo ciclo — os dois
+// deveriam bater sempre). Guard defensivo (`typeof atualizarGraficosNecessidade === 'function'`) em
+// quem chama, porque este script carrega por último no boot (módulo "lazy") — se algum recálculo
+// assíncrono terminar ANTES deste arquivo rodar, os gráficos nem existem ainda, mas nesse caso já
+// nascem certos (leem REG.evolucao já atualizado na primeira `new Chart(...)` acima).
+function atualizarGraficosNecessidade(){
+  if(!window.WALLACE_CHARTS) return;
+  const cTotalOp = window.WALLACE_CHARTS.totalOperacional;
+  if(cTotalOp){
+    const serie = alignSeriesCiclo(REG.evolucao.totalOperacional);
+    const range = yRange(serie);
+    cTotalOp.data.datasets[0].data = serie;
+    cTotalOp.options.scales.y.min = range.min;
+    cTotalOp.options.scales.y.max = range.max;
+    cTotalOp.update();
+  }
+  const cNecLiq = window.WALLACE_CHARTS.necessidadeLiquida;
+  if(cNecLiq){
+    const serie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
+    const range = yRange(serie);
+    cNecLiq.data.datasets[0].data = serie;
+    cNecLiq.options.scales.y.min = range.min;
+    cNecLiq.options.scales.y.max = range.max;
+    cNecLiq.update();
+  }
+}
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,
 // extinta em 13/07/2026, e sem Fatura Wärtsilä: não é uma caixa operacional com meta própria, é um

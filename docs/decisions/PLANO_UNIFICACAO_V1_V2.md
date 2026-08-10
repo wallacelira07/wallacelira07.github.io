@@ -1593,3 +1593,161 @@ INSERT INTO public.indicadores (nome, valor, data_calculo) VALUES
 **Validação**: técnica (ids conferidos contra o HTML, nomes únicos, `marcarIndisponivelV2` definida em escopo global antes de qualquer chamada real). **Validação do estado de erro em navegador real pendente** (exigiria simular falha de rede/Supabase, não feito nesta sessão).
 
 **Próximo passo (fila de remoção, não executado ainda)**: Mastercard Black/Visa, Ciclo Snapshots e Operacional são os maiores blocos restantes — todos classificados 🔴 "depende de modelagem", nenhum tem caminho seguro de migração imediata sem investigação adicional (que o usuário já pediu pra não fazer sem necessidade). Próxima sessão: escolher 1 desses pra desenhar o schema, mesmo processo já validado nesta sessão (regra de negócio primeiro, Política Interna, depois schema).
+
+---
+
+# MUDANÇA DE OBJETIVO (10/08/2026) — de "V2 principal com fallback V1" para "V2 exclusiva"
+
+**Decisão do usuário**: não basta mais V2 ser a fonte preferida com V1 como rede de segurança. O objetivo agora é literal — **desligar `wallace_dados` sem quebrar nada**. Gatilho: a leitura solar de 09/08 existia na V2 (`energia_solar_leituras`) mas o painel mostrou "Dados insuficientes" porque outro ponto do sistema ainda checava V1 primeiro (achado real da sessão da madrugada 09→10/08, ver `ESTADO_ATUAL.md`). Isso provou, na prática, que "V2 com fallback" ainda deixa a V1 participando da operação real, mesmo quando o dado certo já está na V2.
+
+## 43. Auditoria completa e corrigida — quem ainda lê/escreve `wallace_dados` (10/08/2026)
+
+**Método**: 4 buscas exaustivas em paralelo (agentes de busca, código real, sem suposição) cobrindo Solar, Gráficos, Reembolsos, Cartões, Livros Razão, Caixas, Inbox, Patrimônio, Dashboard e Resumo Executivo, mais leitura completa do "switchboard" central de boot (`Sistema_Wallace_Lira_Completo.html:1656-2057` — todo fetch V1/V2 do sistema nasce ali, em `Promise.all`), mais consulta direta ao Postgres (`pg_get_functiondef`) pra confirmar, function por function, quais RPCs realmente escrevem em `wallace_dados` (não só o que o comentário do JS diz — uma das duas checagens abaixo só bateu depois de ler o SQL real da RPC, ver nota no item 2).
+
+### Correções à seção 41 (estava desatualizada em 2 pontos)
+
+1. **Solar não é mais 🟡 "depende de evidência externa"** — está classificado errado na seção 41. Confirmado em `src/app/app.js:808-844`: `VARS.SOLAR_LEITURAS`/`SOLAR_GERACAO_DIARIA` são **V2-exclusivos de fato**, sem fallback pro `wallace_dados` (array vazio se a V2 falhar, nunca cai pro blob). O que resta do domínio Solar em V1 são só **constantes de configuração sem tabela equivalente nenhuma** (tarifas, rateio Wallace/Irmã, data de ativação, composição tarifária Energisa) — não é dado transacional preso, é parâmetro estático que nunca teve proposta de virar schema. Ver lista completa no item 1 abaixo.
+2. **3 Ondas não documentadas nas seções 23-42, já implementadas e ativas**: Onda 6 (`hydrate-onda6-mercadopago.js` — `MERCADOPAGO_EVENTOS` migrado pra tabela `mercadopago_eventos`, V2-exclusivo, sem fallback), Onda 7 (`hydrate-onda7-pluggy.js` — `PLUGGY_CONTAS` migrado, V2-exclusivo pro saldo/reconciliação; `PLUGGY_TRIAGEM` explicitamente mantido em V1 por decisão do usuário, ver item 2 abaixo), Onda 8 (`hydrate-onda8-cronograma-boletos.js` — `CRONOGRAMA_BOLETOS_FIXOS` migrado, fallback silencioso pro V1 se a V2 falhar, sem marcação visual).
+
+### 1) Tudo que ainda CONSULTA (lê) V1 hoje
+
+| Domínio | O que ainda lê V1 | Como |
+|---|---|---|
+| Solar | Só constantes: `faturaEnergisaValor/Kwh`, `ENERGISA_TARIFA_COMPOSICAO`, `FIO_B_*`, `solarRateioWallace/Irma`, `solarDataAtivacao`, `solarConsumoDiario*`, `ENERGIA_FATURAS_REAIS` (`vars-energia-solar.js` completo, lido em `graficos-cenarios-lazy.js` ~15 pontos) | C — literal estático, sem tabela V2 correspondente proposta ainda |
+| Gráficos | Mesmas constantes acima (é o mesmo domínio, arquivo `graficos-cenarios-lazy.js`) | C |
+| Reembolsos | `REG.totalOpDetalhe.provMP` (perna 4 de 5 da cascata, "MP pessoal") — `hydrate-onda4-wartsila.js` explicitamente NÃO cobre esse campo | C, dentro de um domínio majoritariamente A |
+| Reembolsos | `CICLO_SNAPSHOTS`/`cascata` completo (`vars-ciclo-snapshots.js`) — fallback pro literal V1 se `ciclos_financeiros_snapshots` não tiver o ciclo atual | B |
+| Reembolsos | `app.js:1172-1223 aplicarCicloAoVARS()` — roda síncrono no boot, herda o fallback do snapshot acima; alimenta `faturaWartsila`, `cartaoInfiniteTotal`, `cartaoMBTotal`, `mercadoPagoFatura`, `LRW_TRANSACOES`/`LRV_TRANSACOES` do ciclo fechado | B |
+| Cartões | `vars-mercado-pago.js` inteiro (`cartaoInfiniteTotal`, `cartaoMBTotal`, `mercadoPagoFatura`, `livroLRP/LRCON/LRB/LRCV/LRPV/LRC`, `PARCELAMENTOS_*`, `TRANSACOES_CORPORATIVAS_MP`) — comentário no próprio arquivo confirma que `wallace_dados` sobrescreve sempre | C — já classificado 🔴 na seção 41, confirmado sem mudança |
+| Cartões | `app.js:1392-1396` — `VARS.CARTAO_PLUGGY_MAPA` (override manual em V1) tem prioridade explícita sobre a tabela `cartoes` (V2) quando setado | B, com V1 tendo prioridade (não é "fallback", é "override") |
+| Cartões | `app.js:746-773` — `mercadoPagoFatura`/`mercadoPagoVencimentoPluggy` calculados a partir de `VARS.PLUGGY_CONTAS` **antes** da Onda 7 rodar (síncrono no boot); esse cálculo específico nunca é refeito depois | C |
+| Livros Razão | `LRW_TRANSACOES`, `LRV_TRANSACOES`, `LRC_LIMBO_TRANSACOES`, `LRCV_TRANSACOES`, `TRANSACOES_CORPORATIVAS_MP`, `ESCOLA_JULIO_TRANSACOES`, `BOLETOS_TRANSACOES` — sem onda cobrindo o array `VARS[...]` em si (só 9 caixas simples + LRPV/PV/Bens Duráveis têm array promovido pela Onda 3) | C |
+| Livros Razão | **Achado novo**: pra as caixas que a Onda 3 promove (Eventos, Seguro, Combustível, Churrasco, Mastercard/Infinite, Bens Duráveis, PIX Vanessa, Manutenção, Caixa Lance, Saúde Família, Aniversário Júlio), a promoção é só no `<tbody>` do DOM (`hydrate-onda3-livro-razao.js:101`) — o array `VARS[cfg.arr]` em si **nunca é sobrescrito**. Resultado: a tabela na tela mostra V2, mas o índice de Busca Global (`dashboard-navegacao.js:261`, `VARS[nomeLivro]`) continua indexando V1 pros mesmos livros — tela e busca podem divergir | C só pra busca, mesmo domínio já é A/B na tela |
+| Patrimônio | `caixaLance` — exceção deliberada e registrada (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md` item 3, `hydrate-onda4-patrimonio.js:50`) | C, decisão de negócio, não reabrir |
+| Inbox | Nenhuma leitura de `wallace_dados` sobrevive — `MERCADOPAGO_EVENTOS` e `PLUGGY_CONTAS` (pro saldo/reconciliação) já são V2-exclusivos via Ondas 6/7 | — |
+| Dashboard/Resumo Executivo | Nenhuma lógica própria de V1/V2 — só leem `REG`/`VARS` já resolvidos por outros módulos; herdam a origem de quem escreveu o campo por último | herdado |
+
+### 2) Tudo que ainda ESCREVE em V1 hoje (confirmado no Postgres, não só no JS)
+
+Consulta direta (`pg_get_functiondef` de toda função em `public` que menciona `wallace_dados`) — mais confiável que grep no client, porque **RPC escreve no servidor, o comentário do JS às vezes nem menciona o nome real da tabela** (achei uma contradição entre duas leituras desta própria auditoria — só resolvida consultando o SQL real, ver abaixo):
+
+| RPC/Script | Escreve em `wallace_dados`? | Chave | Chamado hoje? |
+|---|---|---|---|
+| `triar_pluggy_item` | **Sim, confirmado no SQL** (`UPDATE wallace_dados SET dados = jsonb_set(dados,'{PLUGGY_TRIAGEM}',...)`) | `PLUGGY_TRIAGEM` | Sim — toda vez que o usuário aprova/rejeita um item de origem Pluggy na Inbox (`inbox-financeira.js:95-110`) |
+| `triar_mercadopago_evento` | **Sim, confirmado no SQL** (mesmo padrão, `{MERCADOPAGO_EVENTOS}`) | `MERCADOPAGO_EVENTOS` | Sim — idem, pra itens de origem Mercado Pago (`inbox-financeira.js:75-90`) |
+| `atualizar_cotacoes_acoes` | Sim | `ACOES_COTACOES` | Sim — `scripts/sync/atualizar_cotacoes_acoes.py` + workflow agendado |
+| `registrar_pib_mensal` | Sim | `PIB_WALLACE_HISTORICO` | Sim — efeito colateral de rede do cálculo de PIB Wallace (`app.js`) |
+| `atualizar_geracao_solar` | Sim (mesmo bug de "sempre o último índice do array" que corrigi hoje de madrugada no script Python, nunca corrigido aqui) | `SOLAR_LEITURAS` | **Não** — grep confirma zero chamador no repositório (nem `.py`, nem `.js`, nem workflow). Órfã, superada pelo PATCH direto do `atualizar_geracao_saj.py`. Candidata a remoção. |
+| `atualizar_mercadopago_eventos` | Não (apesar do nome) | — | escreve em tabela relacional, não em `wallace_dados` |
+| `diagnostico_sync_v1_v2`, `sincronizar_v1_v2` | Não | — | só leitura/comparação (classificação D) |
+| Scripts Python (`mercadopago_sync.py`, `sincronizar_pluggy.py`, `sincronizar_erp_supabase.py`) | Sim, sem mudança desde a seção 41 | `MERCADOPAGO_EVENTOS`\*, `PLUGGY_CONTAS`, `HISTORICO_ERP_TODOS_CICLOS` | Agendados (\*nota: se `hydrate-onda6-mercadopago.js` já lê só V2 pra exibição, este script pode estar escrevendo uma chave que não tem mais consumidor de leitura — vale confirmar antes de desligar) |
+
+**Achado da contradição**: minha primeira leitura (busca só no JS client) concluiu "as RPCs de triagem da Inbox não escrevem em `wallace_dados`, só em tabela relacional" — errado. O comentário do código (`inbox-financeira.js:92-93`) já dizia "escreve dentro de PLUGGY_TRIAGEM", mas só bati o olho no `pg_get_functiondef` real pra confirmar que isso É `wallace_dados.dados->PLUGGY_TRIAGEM`, não uma tabela `plugy_triagem` separada. Registro isso porque é exatamente o tipo de erro que vale a pena documentar: **grep no client não basta pra provar "não escreve em V1" — RPC é código de servidor, precisa checar o SQL real.**
+
+### 3) Tudo que depende de `wallace_dados` (fetch único, ponto de falha central)
+
+- `Sistema_Wallace_Lira_Completo.html:1775-1787` — o único `fetch` de `wallace_dados` (GET) do sistema inteiro. Se cair, o site cai pro "último deploy publicado" (literais `vars-*.js`), nunca quebra — mas todo domínio ainda não migrado (tabela do item 1) perde a atualização do dia.
+- Todas as ~95 chaves de topo listadas na seção 41 que ainda não têm ✅/domínio migrado — praticamente idêntico à lista de lá, com as 2 correções acima (Solar sai da lista de dependentes; Onda 6/7/8 saem também).
+- **Config estática sem tabela proposta** (Solar/tarifas, ver item 1) — categoria nova que a seção 41 não separou: não é "trabalho de migração pendente" no mesmo sentido de saldo de caixa, é decisão de modelagem que nem foi tomada ainda (vale schema `parametros_tarifarios` ou fica como config de código versionado — pergunta em aberto, não bloqueador).
+
+### 4) O que quebraria HOJE se `wallace_dados` fosse removido
+
+Com base nos itens 1-2 acima, remoção completa e imediata quebraria:
+- **Cartões** (Mastercard Black/Visa, MP) — praticamente 100% do domínio, incluindo os totais de fatura que aparecem no Resumo Executivo.
+- **Cascata de Reembolso** — a perna `provMP` especificamente, e todo `CICLO_SNAPSHOTS` se a V2 (`ciclos_financeiros_snapshots`) não tiver o ciclo pedido.
+- **Livros Razão** (LRW/LRV/LRC-limbo/LRCV/Escola de Júlio/Boletos) — tabelas inteiras, mais a Busca Global pros 11 livros já promovidos na tela mas não no array de busca.
+- **Inbox** — as duas RPCs de triagem (`triar_pluggy_item`/`triar_mercadopago_evento`) começariam a falhar (`wallace_dados` inexistente = `UPDATE` sem linha, RPC provavelmente retorna erro ou noop silencioso — não testado).
+- **Patrimônio** — só `caixaLance` (exceção deliberada, R$ pequeno).
+- **Cotações de ações**, **PIB Wallace histórico** — via RPCs de escrita ainda ativas.
+- **Solar/Gráficos** — só as constantes de tarifa/rateio (sem elas, `graficos-cenarios-lazy.js` quebra o cálculo de "conta sem/com solar" inteiro — é pouca chave, mas é uma dependência real, não cosmética).
+- Nada em **Dashboard**, **Resumo Executivo** (lógica própria) ou **domínio Solar de dado transacional** (leituras/geração) quebraria — já são V2-exclusivos.
+
+### Punch list final — na ordem que reduz mais risco por menos esforço
+
+1. **Remover a RPC órfã `atualizar_geracao_solar`** — zero chamador, zero risco, fecha 1 escritor imediatamente.
+2. **Mover as 4 constantes de config solar/tarifa pra uma tabela** (`parametros_tarifarios` ou nome equivalente) — baixo volume de dado, sem lógica de cascata, mais parecido com o precedente já validado de `legendas`.
+3. **Fechar o gap Busca Global × Onda 3** — fazer `hydrate-onda3-livro-razao.js` também atualizar `VARS[cfg.arr]`, não só o `<tbody>`, pros 11 livros já promovidos. Elimina a divergência tela-vs-busca sem tocar em nenhum domínio novo.
+4. **`provMP` (perna 4 da cascata)** — único campo que falta pra fechar `Cascata Wärtsilä` 100% (hoje é "quase lá").
+5. **Migrar as 2 RPCs de triagem da Inbox** (`triar_pluggy_item`/`triar_mercadopago_evento`) pra escrever em tabela relacional em vez de `wallace_dados.PLUGGY_TRIAGEM`/`.MERCADOPAGO_EVENTOS` — ativo, roda toda vez que o usuário usa a Inbox, maior escritor "vivo" do sistema hoje.
+6. **Cartões (Mastercard Black/Visa)** e **Ciclo Snapshots/Operacional** — continuam sendo os blocos grandes e genuinamente bloqueados por modelagem (mesma conclusão da seção 41/42), não há atalho novo encontrado nesta auditoria.
+
+Nenhum item desta lista foi executado nesta rodada — é levantamento, conforme pedido. Execução de qualquer item exige aprovação explícita, mesma regra de governança do topo deste documento.
+
+## 44. Diagnóstico aprofundado — Inbox (escritores ativos), Busca Global (gap) e `provMP` (10/08/2026)
+
+**Contexto**: usuário definiu ordem de ataque — primeiro tudo que ainda ESCREVE em V1 (resíduo operacional vivo), depois tudo que ainda LÊ, Cartões fica de fora por ora (projeto separado). Este item aprofunda os 3 achados mais acionáveis da seção 43, com evidência nova direto do Postgres (`pg_get_functiondef`, contagem de linhas reais) — não só grep no client.
+
+### PRIORIDADE 1 — Inbox: `triar_pluggy_item` / `triar_mercadopago_evento`
+
+**1. O que exatamente escrevem** (SQL real via `pg_get_functiondef`, não o comentário do JS):
+- `triar_pluggy_item(p_id_externo, p_status_triagem)`: lê `wallace_dados.dados->'PLUGGY_TRIAGEM'` (objeto, chave = id sintético tipo `pluggy-divergencia-1234-2026-08-10`), faz `jsonb_set` só naquela chave com `{status_triagem, atualizado_em}`, grava de volta com `UPDATE wallace_dados SET dados = jsonb_set(dados,'{PLUGGY_TRIAGEM}',...)`.
+- `triar_mercadopago_evento(p_id, p_status_triagem)`: lê `wallace_dados.dados->'MERCADOPAGO_EVENTOS'` (array inteiro), reescreve o array inteiro trocando só o `status_triagem` do evento com `id = p_id`, grava de volta o array completo.
+- Ambas exigem sessão Firebase válida (corrigido 09/08/2026, eram abertas pra `anon` antes).
+
+**2. Por que ainda escrevem ali** — motivos diferentes pra cada uma, achado central da investigação:
+- **Pluggy**: decisão explícita registrada (`hydrate-onda7-pluggy.js:6-8`, 08/08/2026) — "tratado como etapa futura separada", nunca migrado. Coerente hoje: escreve V1, lê V1 (`pluggyJaTriado()` em `pluggy-reconciliacao.js:135-138` lê `VARS.PLUGGY_TRIAGEM`, que vem do merge de `wallace_dados`). **Não há bug ativo aqui** — é só resíduo, funciona, mas é 100% V1.
+- **Mercado Pago**: aqui achei um **bug ativo, não só resíduo arquitetural**. A leitura já migrou pra V2 (`hydrate-onda6-mercadopago.js:36-39`, `VARS.MERCADOPAGO_EVENTOS = eventosV2.map(ev => ({..., status_triagem: ev.status_triagem}))` — lê da tabela `mercadopago_eventos`, que **já tem coluna `status_triagem`**), mas a escrita (clique de Aprovar/Rejeitar) continua indo só pro `wallace_dados`. **Confirmado no banco agora**: 9 eventos têm `status_triagem='rejeitado'` em `wallace_dados.MERCADOPAGO_EVENTOS`, mas só 1 desses 9 tem o mesmo status refletido em `mercadopago_eventos` (V2) — os outros 8 continuam `'pendente'` na tabela que a tela realmente lê hoje. Ou seja: **rejeitar um item de Mercado Pago na Inbox hoje pode não "grudar"** — na próxima carga da página, o item pode reaparecer, porque o filtro que esconde item já triado (`classificacao-inbox.js:143`, `if(ev.status_triagem && ev.status_triagem !== 'pendente') return;`) olha pro campo que já é V2, e a RPC nunca escreveu lá.
+
+**3. Estrutura V2 que deveria receber**:
+- **Mercado Pago**: já existe — `mercadopago_eventos.status_triagem` (coluna já criada, já usada por leitura, só falta a escrita apontar pra ela). Existe até uma RPC irmã (`atualizar_mercadopago_eventos`) que faz upsert nessa tabela preservando `status_triagem` no conflito — só falta uma RPC (ou ajuste nela) que it aceite `(id, status_triagem)` e faça `UPDATE mercadopago_eventos SET status_triagem=... WHERE id=...`, mesmo padrão simples de `triar_mercadopago_evento` atual, só mudando o alvo da tabela.
+- **Pluggy**: não existe nada ainda. Precisa de tabela nova pequena — `pluggy_triagem(id_externo text primary key, status_triagem text, atualizado_em timestamptz default now())` — granularidade solta de propósito (os ids são sintéticos, tipo `pluggy-mapa-1234`/`pluggy-divergencia-1234-2026-08-10`, não FK de nenhuma tabela Pluggy real, porque cobrem coisas como "cartão não mapeado" que não têm linha própria em `pluggy_contas`). Mesmo padrão de tabela solta já validado com `legendas`.
+
+**4. O que impede remover a escrita V1 hoje**:
+- Mercado Pago: nada estrutural — a tabela e a coluna já existem, é só trocar o alvo de 1 RPC e testar. Bloqueador é só não ter sido feito ainda.
+- Pluggy: falta criar a tabela nova (schema simples, sem dependência) + nova RPC + trocar `pluggyJaTriado()` pra ler de lá em vez de `VARS.PLUGGY_TRIAGEM`. Um pouco mais de esforço que MP, mas ainda pequeno — mesma classe de trabalho da tabela `legendas`.
+
+**5. Impacto esperado da migração**:
+- Mercado Pago: **corrige um bug ativo** (itens rejeitados reaparecendo), não é só arquitetura — tem efeito prático imediato pro usuário na Inbox.
+- Pluggy: elimina o último ponto de escrita síncrona em `wallace_dados` que roda por interação direta do usuário (distinto dos scripts agendados, que rodam sem ninguém olhando). Depois desses dois, `wallace_dados` deixa de receber QUALQUER escrita disparada por clique do usuário — só sobra escrita agendada (scripts Python) e a RPC órfã já identificada.
+
+### PRIORIDADE 2 — Busca Global: tela V2, busca V1
+
+**1. Livros já V2 na tela** (12 caixas cobertas por `ONDA3_LR_MAPA`, `hydrate-onda3-livro-razao.js:22-47`, condicionado a saldo já promovido nas Ondas 1/2): Eventos, Seguro Emplacamento, Combustível, Churrasco, Mastercard/Infinite, Bens Duráveis, PIX Vanessa, PIX Geral Vanessa (LRPV), Manutenção, Caixa Lance, Saúde Família, Aniversário Júlio.
+
+**2. Livros ainda V1 na busca** — depende de qual dos 24 arrays de `LIVROS_BUSCAVEIS` (`dashboard-navegacao.js:239-244`):
+- **Gap real (tela V2, busca V1)** — as 12 caixas do item 1: a Onda 3 escreve só no `<tbody>` do DOM (`hydrate-onda3-livro-razao.js:101`, `tbody.innerHTML = ...`), nunca em `VARS[cfg.arr]`. A busca (`dashboard-navegacao.js:261`, `(VARS[nomeLivro]||[]).forEach(...)`) lê o array em memória, que continua sendo o literal V1 (ou o que veio do merge de `wallace_dados`) — nunca é tocado pela Onda 3.
+- **Consistente, já V2 nos dois** — só 2 arrays: `PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` (`hydrate-onda5-parcelamentos.js:50-51` sobrescreve `VARS.PARCELAMENTOS_VISA/MP` diretamente, não só o DOM — por isso a busca já reflete V2 pra esses dois).
+- **Consistente, ainda V1 nos dois** (não é o gap reportado, mas também não está resolvido): `LRW_TRANSACOES`, `LRV_TRANSACOES`, `LRC_LIMBO_TRANSACOES`, `LRCV_TRANSACOES`, `BOLETOS_TRANSACOES`, `ESCOLA_JULIO_TRANSACOES`, `SUAVIZACAO_TRANSACOES`, `WARTSILA_CAIXA_TRANSACOES`, `TRANSACOES_CORPORATIVAS_MP` — confirmado por grep, nenhum destes é reatribuído em nenhum arquivo fora do seed V1.
+- **Caso à parte**: `HISTORICO_ERP_TODOS_CICLOS` — reatribuído em `app.js:885` a partir de `window.WALLACE_HISTORICO_ERP_V2` (view `vw_historico_erp_completo`), com fallback silencioso documentado como aceitável (domínio auxiliar de busca, não card financeiro). Já é V2 quando o fetch funciona, tela e busca combinam porque não tem card próprio, só busca.
+
+**3. Como alinhar a busca à mesma fonte da tela**:
+- Fix mínimo e cirúrgico: em `hydrate-onda3-livro-razao.js`, depois de `tbody.innerHTML = linhas.map(onda3LinhaTransacao).join('')` (linha 101), adicionar `VARS[algumMapaDeArray[caixaId]] = linhas.map(mapearParaFormatoBusca)` — precisa mapear `caixa_id` → nome do array VARS (ex: `'ecaebc58-...' → 'EVENTOS_TRANSACOES'`, dado que já existe implicitamente no `ONDA3_LR_MAPA`, só falta adicionar o campo) e mapear o formato de linha da V2 (`tx_legado/data/descricao/tipo/valor`) pro formato que a busca espera (`tx/nome/valor`, ver `construirIndiceTransacoesBusca():262`, `t.tx`/`t.nome`/`t.valor`). Não precisa de fetch novo — mesmo dado que já chegou pra desenhar a tabela, só grava também no array.
+- Risco: baixo — é escrita em memória (`VARS`), não é rede nem schema; pior caso de bug é a busca mostrar itens errados temporariamente, não perda de dado.
+
+### PRIORIDADE 3 — Perna `provMP` (4ª perna da cascata de reembolso)
+
+**1. O que depende dela**: `REG.totalOpDetalhe.provMP` alimenta `reembolsoSobraPessoal` (`recalcular-reembolsos.js:27`), `totalOperacional`/`necessidadeBruta` (`recalcular-necessidade.js:37,64`), a auditoria automática de consistência da cascata (`auditoria-automatica.js:36`), e é exibido em 3 lugares (`hydrate-reembolsos.js:18`, `hydrate-mercado-pago.js:21`, `hydrate-resumo-cartoes.js:62`).
+
+**2. Por que ficou de fora** — achado principal, muda a natureza do problema: `provMP` (via `VARS.totalOpProvMP`) **já é derivado de `VARS.PARCELAMENTOS_MP`** (`app.js:1005`, `Math.round(VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO').reduce(...))`) — e `PARCELAMENTOS_MP` **já é V2** desde a Onda 5 (`hydrate-onda5-parcelamentos.js:51`). O problema não é falta de estrutura V2 (como Cartões/Ciclo Snapshots) — é **ordem de execução**: `app.js:1005` roda uma vez, de forma síncrona, no boot, ANTES de `aplicarOnda5Parcelamentos()` (assíncrona) sobrescrever `PARCELAMENTOS_MP` com V2. `hydrate-onda4-wartsila.js:13,56` até documenta a exclusão explicitamente ("Fora do escopo desta migration (propositalmente)"), mas na época isso foi tratado como "falta modelagem" — na real, é só um recálculo que nunca foi religado depois que o dado-fonte virou V2.
+- Confirmação: `aplicarOnda5Parcelamentos()` (código lido nesta investigação) sobrescreve `VARS.PARCELAMENTOS_VISA/MP` e chama `renderParcelamentos()`, mas **nunca** recalcula `totalOpProvMP`/`REG.totalOpDetalhe.provMP` nem re-chama `recalcularReembolsos()`/`hydrateReembolsos()`/`recalcularNecessidade()` — diferente de `hydrate-onda4-wartsila.js`, que faz exatamente esse "re-derivar e re-renderizar" pras outras 3 pernas.
+
+**3. Esforço real pra mover**: **baixo** — não precisa de schema novo, RPC nova, nem investigação de dado. É religar um cálculo que já tem tudo que precisa: no fim de `aplicarOnda5Parcelamentos()` (ou logo depois, mesmo padrão do Onda4Wartsila), recalcular `VARS.totalOpProvMP` a partir do `VARS.PARCELAMENTOS_MP` (já V2 nesse ponto), atualizar `REG.totalOpDetalhe.provMP`, e re-chamar `recalcularReembolsos()` + `hydrateReembolsos()` + (provavelmente) `recalcularNecessidade()`/`hydrateMetas()` pra propagar até Necessidade/Modo Operacional. Menor esforço dos 3 itens desta seção — é o único que não precisa de nenhuma peça de infraestrutura nova.
+
+### Resumo — ordem de ataque proposta (escritores primeiro, como pedido)
+
+| # | Item | Precisa de schema/RPC novo? | Corrige bug ativo? |
+|---|---|---|---|
+| 1 | Mercado Pago (Inbox) — trocar alvo da RPC de triagem | Não (coluna já existe) | **Sim** — itens rejeitados podem estar reaparecendo hoje |
+| 2 | `provMP` — religar recálculo pós-Onda5 | Não (dado já é V2) | Não é bug, é atraso de propagação (valor pode estar defasado no Resumo Executivo até o próximo full-reload) |
+| 3 | Busca Global — sincronizar `VARS[array]` com a tela | Não (mesmo dado já buscado) | Não é bug financeiro, é busca incompleta/desatualizada |
+| 4 | Pluggy (Inbox) — tabela nova + RPC nova | Sim (tabela pequena, sem dependência) | Não (resíduo consistente, não bugado) |
+
+Nenhuma mudança de código foi feita nesta rodada — é só o diagnóstico pedido. Aguardando decisão de qual entra primeiro em execução.
+
+## 45. Execução — Mercado Pago (Inbox) e `provMP` corrigidos (10/08/2026)
+
+### Mercado Pago (Inbox) — prioridade 1
+`triar_mercadopago_evento` (RPC) trocada de alvo — antes `UPDATE wallace_dados SET dados=jsonb_set(dados,'{MERCADOPAGO_EVENTOS}',...)`, agora `UPDATE mercadopago_eventos SET status_triagem=..., atualizado_em=now() WHERE id=...` (mesma tabela V2 que a Inbox já lê desde a Onda 6). Mesmo nome/assinatura — zero mudança no client (`inbox-financeira.js`). Migração aplicada via `apply_migration` (`triar_mercadopago_evento_escreve_v2`).
+
+Validado: aprovação e rejeição testadas em `MP171714576661` (simulando `service_role` via `SET LOCAL request.jwt.claim.role`, já que a chamada direta ao Postgres não carrega JWT de sessão real), gravação confirmada na tabela. Aproveitado pra fechar o gap de verdade: **9 eventos que já estavam `rejeitado` em V1 desde antes** (drift antigo, nunca sincronizado) tiveram o mesmo status espelhado em V2 — hoje `mercadopago_eventos` tem 9/9 rejeições batendo com V1 (era 1/9). `pg_get_functiondef` confirma que a RPC não menciona mais `wallace_dados`.
+
+### `provMP` (perna 4 da cascata Wärtsilä) — prioridade 2
+Cadeia religada: `aplicarOnda5Parcelamentos()` agora recalcula `VARS.totalOpProvMP`/`REG.totalOpDetalhe.provMP` a partir do `PARCELAMENTOS_MP` já-V2 (antes congelava no valor calculado 1x no boot, a partir do literal V1), e propaga via `recalcularReembolsos()` → `recalcularNecessidade()` → hydrates → `atualizarGraficosNecessidade()` (nova).
+
+**Achado colateral, mesmo padrão de bug, escopo maior do que só `provMP`**: `hydrate-deficit-caixas-sem-lrei.js` (política 09/08/2026 — caixa operacional negativa sem LREI soma à Necessidade Total Bruta) tinha o mesmo problema — atualizava o card do Resumo Executivo mas nunca `REG.evolucao` nem os gráficos "Total Operacional"/"Necessidade líquida — próximos ciclos" (que são `new Chart(...)` de uma vez só no boot, nunca re-renderizados). Usuário reportou ao vivo: card R$13.850,48 × primeiro ponto do gráfico R$13.179, mesmo ciclo. Confirmado que o déficit somado é real e deliberado (política do usuário), não um bug de cálculo — só a propagação pro gráfico estava quebrada.
+
+**Correção estrutural (não workaround)**: `recalcularNecessidade()` (`recalcular-necessidade.js`) agora é reentrante — `REG.operacional.deficitCaixasSemLrei` é reaplicado toda vez que a função roda (não só na primeira vez que o fetch V2 termina), então qualquer recálculo futuro (provMP, ou qualquer outra Onda) nunca mais "esquece" o déficit já contabilizado. `graficos-cenarios-lazy.js` agora guarda as 2 instâncias `Chart` em `window.WALLACE_CHARTS` e expõe `atualizarGraficosNecessidade()`, chamada por `hydrate-onda5-parcelamentos.js` (provMP) e `hydrate-deficit-caixas-sem-lrei.js` (déficit) sempre que um dos dois recalcula.
+
+**Validado por SQL** (não por browser — sem login nesta sessão): `vw_parcelamentos_v2` soma R$403,11 em parcelas MP ATIVO, idêntico ao literal V1 antigo (coincidência de dado, não prova que o mecanismo estava quebrado, só que hoje não muda visualmente) — a garantia real é estrutural: o valor agora deriva de uma consulta viva, nunca mais de um literal congelado no boot. Déficit de caixas hoje: R$842,62 (Bens Duráveis -R$583,99 + Churrasco -R$258,63, nenhuma com LREI de suporte) — não reproduzível por SQL sozinho (depende de campos só calculados em JS no navegador), validação visual delegada ao usuário na próxima abertura do painel; se divergir, tratar como incidente à parte (decisão do usuário, não bloqueia este commit).
+
+**Arquivos alterados**: `recalcular-necessidade.js`, `hydrate-onda5-parcelamentos.js`, `hydrate-deficit-caixas-sem-lrei.js`, `graficos-cenarios-lazy.js`, RPC `triar_mercadopago_evento` (Postgres). Commitado e enviado.
