@@ -486,6 +486,23 @@ const WallaceFinanceService = {
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
+  },
+  // NOVO 10/08/2026 (item aprovado, ver ESTADO_ATUAL.md: "filtro de assinatura/recorrência
+  // conhecida na Inbox"): descrições de transações já confirmadas na categoria "Assinaturas" (V2,
+  // 22 hoje) — usado pra detectar duplicidade por ESTABELECIMENTO, não só por valor exato (uma
+  // assinatura com reajuste/variação de câmbio nunca bateria no dedup antigo, só por valor). Sem
+  // lista hardcoded de nomes de serviço — a fonte é a categorização real já feita em `transacoes`,
+  // sempre atualizada conforme o usuário classifica itens novos.
+  async getAssinaturasConfirmadasV2(){
+    const chave = 'assinaturas_confirmadas_v2';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_assinaturas_confirmadas_v2?select=descricao`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_assinaturas_confirmadas_v2`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
   }
 };
 

@@ -314,6 +314,14 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   } catch(err){
     console.error('reconciliarTransacoesPluggy: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
   }
+  // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida na Inbox — antes
+  // dedup só comparava valor exato, uma cobrança recorrente da Pluggy com valor levemente diferente
+  // do mês anterior (reajuste/câmbio) reaparecia como "suspeita" todo ciclo). Mesma função
+  // compartilhada com sincronizarMercadoPagoParaInbox (classificacao-inbox.js), fonte real (V2), sem
+  // lista hardcoded de nomes de serviço.
+  const palavrasChaveAssinaturas = typeof obterPalavrasChaveAssinaturasConhecidas === 'function'
+    ? await obterPalavrasChaveAssinaturasConhecidas('reconciliarTransacoesPluggy')
+    : new Set();
 
   // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
   // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as
@@ -390,6 +398,14 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
         const valorAbs = Math.round(Math.abs(t.valor)*100)/100;
         if(valorAbs < valorMinimo) continue;
         if(pareceRuidoInterno(t.descricao)){ resultado.ignoradasPorRuido = (resultado.ignoradasPorRuido||0)+1; continue; }
+        // NOVO 10/08/2026: mesmo tratamento do valor exato acima — se bate um estabelecimento já
+        // confirmado como assinatura (por palavra-chave, não valor), também não entra como
+        // "suspeita" nova. Contado à parte no relatório pra ficar rastreável (não é "sumiu sem
+        // explicação", é "reconhecida como recorrência já classificada").
+        if(descricaoBateAssinaturaConhecida(t.descricao, palavrasChaveAssinaturas)){
+          resultado.ignoradasPorAssinaturaConhecida = (resultado.ignoradasPorAssinaturaConhecida||0)+1;
+          continue;
+        }
         if(!valoresConhecidos.has(valorAbs)){
           // CORRIGIDO 04/08/2026 (parte 54): faltava idExterno + checagem pluggyJaTriado aqui - mesmo
           // gap que a parte 42 diagnosticou e a parte 49 corrigiu pros itens de CARTAO da Pluggy, só

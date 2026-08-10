@@ -101,6 +101,51 @@ function inboxDescricaoAutomaticaMP(tipo){
   return MAPA_TIPO_MP[tipo] || `Evento Mercado Pago (tipo: ${tipo || 'desconhecido'})`;
 }
 
+// NOVO 10/08/2026 (item aprovado: "filtro de assinatura/recorrência conhecida na Inbox" — hoje
+// dedup só comparava valor exato, uma assinatura com reajuste/variação de câmbio nunca batia,
+// reaparecendo todo ciclo). Extrai palavras-chave (>=4 letras, maiúsculas, sem acento) de uma
+// descrição de transação já confirmada como Assinatura — usado pra montar o conjunto de
+// "estabelecimentos conhecidos" a partir de vw_assinaturas_confirmadas_v2 (dado real, não lista
+// hardcoded). Descarta parte entre parênteses (é narrativa livre do usuário tipo "compra
+// internacional, cartão X..." — não é nome de estabelecimento) e um stopword set pequeno de
+// palavras genéricas que apareceriam em qualquer descrição, não identificam o serviço.
+const ASSINATURA_STOPWORDS = new Set(['ASSINATURA','MENSAL','ANUAL','RENOVACAO','COMPRA','CARTAO',
+  'VIRTUAL','FISICO','VALOR','BASE','APROVADO','ESTIMADO','CONFIRMA','INTERNACIONAL','MASTERCARD',
+  'BLACK','INFINITE','VISA','CONSOLIDADA','COBRANCA','SEPARADA','MESMO','HORARIOS','DIFERENTES',
+  'FINAL','WALLACE','VANESSA']);
+function extrairPalavrasChaveAssinatura(descricao){
+  const semParenteses = (descricao || '').split('(')[0];
+  const normalizado = semParenteses.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  return (normalizado.match(/[A-Z]{4,}/g) || []).filter(p => !ASSINATURA_STOPWORDS.has(p));
+}
+function construirPalavrasChaveAssinaturasConhecidas(descricoesConfirmadas){
+  const chaves = new Set();
+  descricoesConfirmadas.forEach(row => {
+    extrairPalavrasChaveAssinatura(row.descricao).forEach(p => chaves.add(p));
+  });
+  return chaves;
+}
+// Bate se QUALQUER palavra-chave conhecida aparecer na descrição do item novo — substring, não
+// igualdade exata (ex.: "ANTHROPIC" bate em "ANTHROPIC*CLAUDE SUB" e em "ANTHROPIC_API").
+function descricaoBateAssinaturaConhecida(descricaoNova, palavrasChaveConhecidas){
+  if(!palavrasChaveConhecidas || !palavrasChaveConhecidas.size) return false;
+  const novaChaves = extrairPalavrasChaveAssinatura(descricaoNova);
+  if(!novaChaves.length) return false;
+  return novaChaves.some(p => palavrasChaveConhecidas.has(p));
+}
+// Busca única, cacheada em WallaceFinanceService — reaproveitada pelos dois pontos de dedup
+// (Mercado Pago abaixo, Pluggy em pluggy-reconciliacao.js). Falha de rede nunca esconde item real
+// da Inbox, só desativa esse aviso específico nesta rodada (mesmo tratamento dos outros dedups).
+async function obterPalavrasChaveAssinaturasConhecidas(origemLog){
+  try {
+    const rows = await WallaceFinanceService.getAssinaturasConfirmadasV2();
+    return construirPalavrasChaveAssinaturasConhecidas(rows);
+  } catch(err){
+    console.error(`${origemLog}: falha ao buscar assinaturas confirmadas da V2 — checagem de estabelecimento conhecido DESATIVADA nesta rodada (dedup por valor exato continua ativo).`, err);
+    return new Set();
+  }
+}
+
 async function sincronizarMercadoPagoParaInbox(){
   const eventos = VARS.MERCADOPAGO_EVENTOS;
   if(!Array.isArray(eventos) || !eventos.length){
@@ -131,6 +176,10 @@ async function sincronizarMercadoPagoParaInbox(){
   } catch(err){
     console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
   }
+  // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida): fecha o caso que
+  // o dedup por valor nunca pegava — mesma assinatura, valor diferente (reajuste/câmbio). Ver
+  // obterPalavrasChaveAssinaturasConhecidas() acima.
+  const palavrasChaveAssinaturas = await obterPalavrasChaveAssinaturasConhecidas('sincronizarMercadoPagoParaInbox');
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
   let novos = 0;
   eventos.forEach(ev=>{
@@ -143,7 +192,10 @@ async function sincronizarMercadoPagoParaInbox(){
     if(ev.status_triagem && ev.status_triagem !== 'pendente') return;
     if(typeof ev.valor !== 'number') return; // evento sem valor normalizado, nao entra (nada a conciliar)
     const valorAbs = Math.round(Math.abs(ev.valor)*100)/100;
-    const possivelDuplicata = valoresConhecidos.has(valorAbs);
+    const bateAssinatura = descricaoBateAssinaturaConhecida(ev.descricao, palavrasChaveAssinaturas);
+    const avisoDuplicidade = valoresConhecidos.has(valorAbs)
+      ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)'
+      : (bateAssinatura ? ' — ⚠ estabelecimento já é uma assinatura confirmada (valor pode ter mudado — reajuste/câmbio)' : '');
     const sugestao = classificarItemMercadoPago(ev.descricao) || {};
     // CORRIGIDO 04/08/2026 (parte 54): idExterno agora vai direto na criacao (idExterno: ev.id) em vez
     // de um VARS.INBOX_FINANCEIRA.find(...) logo depois pra "achar de volta" o item e so entao setar -
@@ -151,7 +203,7 @@ async function sincronizarMercadoPagoParaInbox(){
     // renderInboxFinanceira). silencioso:true pelo mesmo motivo: 1 render no final, nao 1 por evento.
     inboxAdicionarItem({
       origem: 'Mercado Pago',
-      descricao: (ev.descricao || inboxDescricaoAutomaticaMP(ev.tipo)) + (possivelDuplicata ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)' : ''),
+      descricao: (ev.descricao || inboxDescricaoAutomaticaMP(ev.tipo)) + avisoDuplicidade,
       valor: ev.valor, data: ev.data,
       categoriaSugerida: sugestao.categoriaSugerida || null,
       livroSugerido: sugestao.livroSugerido || null,
