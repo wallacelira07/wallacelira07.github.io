@@ -77,6 +77,8 @@ async function aplicarDeficitCaixasSemLrei(){
 
   if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
   if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  if(typeof hydrateCenarios === 'function') hydrateCenarios();
+  if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
 
   if(deficitTotal > 0){

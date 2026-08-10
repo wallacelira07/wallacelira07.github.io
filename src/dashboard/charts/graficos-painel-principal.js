@@ -85,9 +85,20 @@ function renderGraficosPainelPrincipal(){
         y:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}}}}
   });
 
+  // CORRIGIDO 10/08/2026 (achado do usuário: "todos os gráficos devem pegar o valor do mesmo lugar,
+  // não pode haver dois divergentes"): este é o SEGUNDO par de gráficos "Total Operacional"/
+  // "Necessidade Líquida" do sistema — canvases cEvol/cNecessidadeLiquida no Painel principal (aba
+  // que abre por padrão), diferente de g_cEvol/g_cNecessidadeLiquida (aba Cenários,
+  // graficos-cenarios-lazy.js). Os dois pares leem a MESMA fonte (REG.evolucao, derivado só dentro
+  // de recalcularNecessidade()) — single source of truth já garantido — mas cada canvas tinha seu
+  // próprio Chart.js criado 1x e nunca atualizado. Guardado em window.WALLACE_CHARTS (mesmo padrão
+  // de graficos-cenarios-lazy.js) pra atualizarGraficosNecessidade() conseguir atualizar os DOIS
+  // pares juntos sempre que REG.evolucao mudar (hoje: provMP pós-Onda5, déficit de caixas sem LREI).
+  window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+
   const totalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro (25-24)
   const totalOpRange = yRange(totalOpSeries);
-  new Chart($('cEvol'), {
+  window.WALLACE_CHARTS.painelTotalOperacional = new Chart($('cEvol'), {
     type:'line',
     plugins:[valueLeaderPlugin],
     data:{labels:gerarMesesCiclo(12),
@@ -103,7 +114,7 @@ function renderGraficosPainelPrincipal(){
 
   const necLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no ciclo financeiro
   const necLiqRange = yRange(necLiqSeries);
-  new Chart($('cNecessidadeLiquida'), {
+  window.WALLACE_CHARTS.painelNecessidadeLiquida = new Chart($('cNecessidadeLiquida'), {
     type:'line',
     plugins:[valueLeaderPlugin],
     data:{labels:gerarMesesCiclo(12),

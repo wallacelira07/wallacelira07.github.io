@@ -252,34 +252,47 @@ window.WALLACE_CHARTS.necessidadeLiquida = new Chart($('g_cNecessidadeLiquida'),
       y:{grid:{color:grid},min:gNecLiqRange.min,max:gNecLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
 });
 
-// NOVO 10/08/2026: re-renderiza os 2 gráficos acima com o REG.evolucao atual — chamada por qualquer
-// módulo que recalcule REG.evolucao DEPOIS do boot inicial (hoje: hydrate-onda5-parcelamentos.js
-// pra provMP, hydrate-deficit-caixas-sem-lrei.js pro déficit de caixas negativas). Sem isso, os
-// gráficos ficam mostrando o valor do boot pra sempre, mesmo quando o card do Resumo Executivo já
-// mudou (achado real: card R$13.850,48 × gráfico R$13.179, mesma necessidade, mesmo ciclo — os dois
-// deveriam bater sempre). Guard defensivo (`typeof atualizarGraficosNecessidade === 'function'`) em
-// quem chama, porque este script carrega por último no boot (módulo "lazy") — se algum recálculo
-// assíncrono terminar ANTES deste arquivo rodar, os gráficos nem existem ainda, mas nesse caso já
-// nascem certos (leem REG.evolucao já atualizado na primeira `new Chart(...)` acima).
+// NOVO 10/08/2026, AMPLIADO 10/08/2026 (achado do usuário: "todos os gráficos devem pegar o valor
+// do mesmo lugar... não pode haver dois divergentes"): re-renderiza TODO gráfico que consome
+// REG.evolucao/REG.superavitNormal — chamada por qualquer módulo que recalcule esses campos DEPOIS
+// do boot inicial (hoje: hydrate-onda5-parcelamentos.js pra provMP, hydrate-deficit-caixas-sem-lrei.js
+// pro déficit de caixas negativas). Cobre os 2 PARES de gráficos "Total Operacional"/"Necessidade
+// Líquida" que existem no sistema (Painel principal: cEvol/cNecessidadeLiquida, definidos em
+// graficos-painel-principal.js; aba Cenários: g_cEvol/g_cNecessidadeLiquida, logo acima neste
+// arquivo) MAIS o gráfico "Superávit Normal" (cSuperavitNormal). Os 5 já liam da mesma fonte
+// (REG.evolucao/REG.superavitNormal, só escritos dentro de recalcularNecessidade() — single source
+// of truth já garantido na origem), o problema era só re-render: cada canvas tinha seu Chart.js
+// criado 1x e nunca atualizado depois. Guard defensivo (`typeof atualizarGraficosNecessidade ===
+// 'function'`) em quem chama, porque graficos-cenarios-lazy.js é módulo lazy (só carrega quando o
+// usuário abre a aba Gráficos/Cenários pela 1ª vez) — se ninguém abriu essa aba ainda, a função nem
+// existe, e os gráficos dela nem foram criados ainda (nascem certos quando forem criados, leem
+// REG.evolucao já atualizado). graficos-painel-principal.js roda no boot síncrono, então sempre
+// existe a essa altura.
 function atualizarGraficosNecessidade(){
   if(!window.WALLACE_CHARTS) return;
-  const cTotalOp = window.WALLACE_CHARTS.totalOperacional;
-  if(cTotalOp){
-    const serie = alignSeriesCiclo(REG.evolucao.totalOperacional);
+  const atualizarSerie = (chart, serie) => {
+    if(!chart) return;
     const range = yRange(serie);
-    cTotalOp.data.datasets[0].data = serie;
-    cTotalOp.options.scales.y.min = range.min;
-    cTotalOp.options.scales.y.max = range.max;
-    cTotalOp.update();
-  }
-  const cNecLiq = window.WALLACE_CHARTS.necessidadeLiquida;
-  if(cNecLiq){
-    const serie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
-    const range = yRange(serie);
-    cNecLiq.data.datasets[0].data = serie;
-    cNecLiq.options.scales.y.min = range.min;
-    cNecLiq.options.scales.y.max = range.max;
-    cNecLiq.update();
+    chart.data.datasets[0].data = serie;
+    chart.options.scales.y.min = range.min;
+    chart.options.scales.y.max = range.max;
+    chart.update();
+  };
+  const totalOpSerie = alignSeriesCiclo(REG.evolucao.totalOperacional);
+  const necLiqSerie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
+  atualizarSerie(window.WALLACE_CHARTS.totalOperacional, totalOpSerie);          // aba Cenários (g_cEvol)
+  atualizarSerie(window.WALLACE_CHARTS.necessidadeLiquida, necLiqSerie);         // aba Cenários (g_cNecessidadeLiquida)
+  atualizarSerie(window.WALLACE_CHARTS.painelTotalOperacional, totalOpSerie);    // Painel principal (cEvol)
+  atualizarSerie(window.WALLACE_CHARTS.painelNecessidadeLiquida, necLiqSerie);   // Painel principal (cNecessidadeLiquida)
+
+  const cSuperavit = window.WALLACE_CHARTS.superavitNormal;
+  if(cSuperavit && typeof _calcularSuperavitNormal === 'function'){
+    const { snLabels, snLiquido, snNecessidade, snDiferenca } = _calcularSuperavitNormal();
+    cSuperavit.data.datasets[0].data = snDiferenca;
+    cSuperavit._snLiquido = snLiquido;
+    cSuperavit._snNecessidade = snNecessidade;
+    cSuperavit.update();
+    if(typeof _renderTabelaSuperavitNormal === 'function') _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
   }
 }
 
@@ -414,10 +427,15 @@ observeAndRenderChart($('g_cAlivio'), () => new Chart($('g_cAlivio'), {
 }
 
 // ===== Operação Superávit Normal (Cenarios, secao 05) - mesmo piso do Deficit Zero, renda media 12m =====
-function _lazyRenderCenariosSuperavit(){
-  const grid2b = '#2a2d31';
-  function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
-
+// CORRIGIDO 10/08/2026 (achado do usuário: "o valor necessidade bruta no gráfico ainda não bate"):
+// esta seção compara Líquido × Necessidade Total Bruta (REG.superavitNormal.necessidade[0], já
+// reentrante desde a correção de recalcularNecessidade() — ver recalcular-necessidade.js), mas o
+// gráfico/tabela em si eram desenhados 1x só, igual aos 2 gráficos de graficos-cenarios-lazy.js já
+// corrigidos (Total Operacional/Necessidade Líquida) — terceiro lugar com o mesmo problema de fundo,
+// não coberto pela primeira rodada da correção. Cálculo extraído pra função própria
+// (_calcularSuperavitNormal) pra poder ser chamado de novo por atualizarGraficosNecessidade(), sem
+// duplicar a fórmula.
+function _calcularSuperavitNormal(){
   // CORRIGIDO 16/07/2026 (usuario): (1) nao usar mais o piso absoluto (gasto minimo essencial) como
   // comparacao - usar a Necessidade Total BRUTA (cenario "paga tudo normalmente", mesma serie do card
   // "Cenario normal" da secao 04) porque este grafico representa o cenario normal, nao o de sobrevivencia.
@@ -438,29 +456,54 @@ function _lazyRenderCenariosSuperavit(){
   const snLiquido = alignSeriesCiclo(snLabels.map((_,i)=>liquidoMes(i)));
   const snNecessidade = alignSeriesCiclo(REG.superavitNormal.necessidade);
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
+  return { snLabels, snLiquido, snNecessidade, snDiferenca };
+}
+
+function _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca){
+  function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
+  const snTbody = $('snTableBody');
+  if(!snTbody) return;
+  snTbody.innerHTML = snLabels.map((m,i)=>{
+    return '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:var(--green)">+'+fmt0b(snDiferenca[i])+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
+function _lazyRenderCenariosSuperavit(){
+  const grid2b = '#2a2d31';
+  const { snLabels, snLiquido, snNecessidade, snDiferenca } = _calcularSuperavitNormal();
 
   // Rotulo compacto em "k" (em vez de milhar completo) - o valor de Julho (salario real) e bem maior que
   // os demais (media), o que gerava sobreposicao de texto com o formato anterior "+13.371" (7 caracteres
   // largos demais para 12 barras). Formato "+19,4k" e fixo e mais estreito.
   const fmtK = v => '+'+(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'k';
 
+  // CORRIGIDO 10/08/2026: le de chart.data.datasets[0].data (a fonte que atualizarGraficosNecessidade()
+  // atualiza) em vez do array `snDiferenca` capturado por closure — senão o rótulo continuaria mostrando
+  // o valor antigo pra sempre, mesmo depois do chart.update() recolocar as barras certas.
   const snDataLabelPlugin = {
     id:'snDataLabelPlugin',
     afterDatasetsDraw(chart){
       const {ctx} = chart;
       const meta = chart.getDatasetMeta(0);
+      const diferenca = chart.data.datasets[0].data;
       ctx.save();
       ctx.textAlign = 'center';
       ctx.font = "700 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       meta.data.forEach((bar,i)=>{
         ctx.fillStyle = '#34c98a';
-        ctx.fillText(fmtK(snDiferenca[i]), bar.x, bar.y - 7);
+        ctx.fillText(fmtK(diferenca[i]), bar.x, bar.y - 7);
       });
       ctx.restore();
     }
   };
 
-  new Chart($('cSuperavitNormal'), {
+  window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+  const chartSuperavit = new Chart($('cSuperavitNormal'), {
     type:'bar',
     plugins:[snDataLabelPlugin],
     data:{labels:snLabels,
@@ -469,23 +512,18 @@ function _lazyRenderCenariosSuperavit(){
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24,bottom:6}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
-        label:c=>{const i=c.dataIndex; return ['Líquido: '+fmt(snLiquido[i]),'Necessidade Total (paga tudo): '+fmt(snNecessidade[i]),'Superávit: '+fmt(snDiferenca[i])];}
+        // le de chart._snLiquido/_snNecessidade (atualizados junto com os dados) em vez do closure —
+        // mesmo motivo do datalabel acima.
+        label:c=>{const i=c.dataIndex; const liq=c.chart._snLiquido; const nec=c.chart._snNecessidade; return ['Líquido: '+fmt(liq[i]),'Necessidade Total (paga tudo): '+fmt(nec[i]),'Superávit: '+fmt(c.chart.data.datasets[0].data[i])];}
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
         y:{grid:{color:grid2b},ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:9.5}}}}}
   });
+  chartSuperavit._snLiquido = snLiquido;
+  chartSuperavit._snNecessidade = snNecessidade;
+  window.WALLACE_CHARTS.superavitNormal = chartSuperavit;
 
-  const snTbody = $('snTableBody');
-  if(snTbody){
-    snTbody.innerHTML = snLabels.map((m,i)=>{
-      return '<tr style="border-bottom:1px solid var(--border)">'+
-        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
-        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
-        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
-        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:var(--green)">+'+fmt0b(snDiferenca[i])+'</td>'+
-        '</tr>';
-    }).join('');
-  }
+  _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
 }
 
 // ===== Operação Déficit Zero e Energia Solar (Cenarios, secoes 06/07) =====

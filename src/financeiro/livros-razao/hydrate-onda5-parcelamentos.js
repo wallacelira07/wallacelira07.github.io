@@ -70,6 +70,8 @@ async function aplicarOnda5Parcelamentos(){
   if(typeof hydrateResumoCartoes === 'function') hydrateResumoCartoes();
   if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
   if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  if(typeof hydrateCenarios === 'function') hydrateCenarios();
+  if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
 
   const diverge = v1QtdVisa !== VARS.PARCELAMENTOS_VISA.length || v1QtdMP !== VARS.PARCELAMENTOS_MP.length;
