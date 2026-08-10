@@ -1751,3 +1751,41 @@ Cadeia religada: `aplicarOnda5Parcelamentos()` agora recalcula `VARS.totalOpProv
 **Validado por SQL** (não por browser — sem login nesta sessão): `vw_parcelamentos_v2` soma R$403,11 em parcelas MP ATIVO, idêntico ao literal V1 antigo (coincidência de dado, não prova que o mecanismo estava quebrado, só que hoje não muda visualmente) — a garantia real é estrutural: o valor agora deriva de uma consulta viva, nunca mais de um literal congelado no boot. Déficit de caixas hoje: R$842,62 (Bens Duráveis -R$583,99 + Churrasco -R$258,63, nenhuma com LREI de suporte) — não reproduzível por SQL sozinho (depende de campos só calculados em JS no navegador), validação visual delegada ao usuário na próxima abertura do painel; se divergir, tratar como incidente à parte (decisão do usuário, não bloqueia este commit).
 
 **Arquivos alterados**: `recalcular-necessidade.js`, `hydrate-onda5-parcelamentos.js`, `hydrate-deficit-caixas-sem-lrei.js`, `graficos-cenarios-lazy.js`, RPC `triar_mercadopago_evento` (Postgres). Commitado e enviado.
+
+## 46. Varredura completa de gráficos — mesma classe de bug em 4 domínios (10/08/2026)
+
+Pedido do usuário: "todos os gráficos devem pegar o valor do mesmo lugar... onde tem dados iguais devem obrigatoriamente ler do mesmo lugar". Achado geral: em vários domínios já migrados pra V2, os TEXTOS dos cards já mostravam V2 (Ondas já rodavam e escreviam DOM direto), mas os GRÁFICOS Chart.js correspondentes liam o objeto `REG.*` inteiro, que a Onda nunca reatribuía (só escrevia texto solto) — gráfico ficava congelado em V1 pra sempre, mesma classe de bug do caso Necessidade Bruta/Líquida (seção 45), em mais 3 domínios:
+
+- **Patrimônio** (`cPatrim`/`g_cPatrim`) — `hydrate-onda4-patrimonio.js` nunca atualizava `REG.patrimonioDetalhe`.
+- **Caixa Variável** (`cVariavel`/`g_cVariavel`/`g_cCartoesLiquidoCV`) — `hydrate-onda1-v2.js`/`hydrate-comprometido-caixa-variavel-v2.js` nunca atualizavam `REG.caixaVariavel.saldoReal`.
+- **Caixas operacionais** (`g_cCaixas`, 9 caixas vs meta) — `hydrate-onda1-v2.js`/`hydrate-onda2-v2.js` nunca atualizavam `REG.caixasOperacionais[chave].saldo`.
+
+**Correção**: cada Onda afetada agora também atualiza o objeto `REG` correspondente (não só o texto), e chama uma função de re-render dedicada (`atualizarGraficoPatrimonio()`, `atualizarGraficoCaixaVariavel()`, `atualizarGraficoCaixas()` — mesmo padrão de `window.WALLACE_CHARTS` + `atualizarGraficosNecessidade()` da seção 45).
+
+**Confirmado sem bug, por análise completa (não presunção)**:
+- Visa/Mastercard Black (`cVisa`/`cVisaMB`/`g_cVisaBar`) — nenhuma Onda toca `REG.visaDetalhe`/`REG.mbDetalhe` (domínio Cartões ainda 100% V1, ver seção 47) — texto e gráfico já vêm da mesma fonte, sem divergência possível hoje.
+- `g_cTotalOp`/`g_cTotalOpBar` (7 componentes) — `boletos`/`parcelas`/`consorcios`/`aportesPat` nunca reescritos após o boot; `recorrencias`/`assinaturas` têm 1 escritor síncrono que sempre termina antes de qualquer gráfico lazy existir; só `provMP` tinha escritor assíncrono real — já religado.
+
+6 commits, todos com checagem de balanceamento de chaves (sem Node/eslint disponível na sessão) + leitura manual antes de cada push.
+
+## 47. Cartões (Visa Infinite/Mastercard Black) — registrado como bloqueador estrutural, não bug (10/08/2026)
+
+**Decisão do usuário**: Cartões NÃO entra na onda de correções desta sessão. É um domínio à parte, com uma natureza de problema diferente de tudo resolvido hoje — os outros itens tinham causa raiz de código (religação de recálculo/re-render); Cartões tem causa raiz de **dado histórico não classificado**.
+
+**Estado real, conferido no banco em 10/08/2026** (não é estimativa antiga):
+| Cartão | `cartao_id` preenchido | Total V2 hoje |
+|---|---|---|
+| Visa Infinite (4844 aposentado + 4845 ativo) | **0 transações** | R$0,00 — nunca tocado na migração |
+| Mastercard Black (6351/2244/1371/4628) | 41 transações | R$2.321,60 (claramente parcial) |
+| `transacoes` no geral | 311 linhas totais, 41 com `cartao_id` (13%), 59 com `usuario_id` (19%) | — |
+
+Qualquer total V2 hoje seria **enganoso**, não só incompleto — mostraria Visa Infinite zerado e Mastercard Black bem abaixo do real. Diferente de `vw_compromisso_cartao_por_pessoa` (LRW/LRV), que já tolera dado parcial porque é informação "quem gastou quanto" (parcial ainda é útil); aqui o consumidor é a cascata de reembolso e o Resumo Executivo — parcial quebra o número final.
+
+**Classificação formal**: bloqueador estrutural, não bug nem dívida técnica simples. Requer migração própria com:
+1. Estratégia de classificação retroativa (~270 transações sem `cartao_id`).
+2. Validação contra fatura real de cada cartão (mesmo tipo de trabalho que quase causou uma duplicação real nesta sessão, Visa Infinite 4844, revertida a tempo).
+3. Atribuição confiável de `cartao_id`/`usuario_id`.
+
+**Regra de aplicação**: nenhum agente inicia essa classificação sem pedido explícito e novo do usuário, mesma regra já em vigor pras 5 exceções formais (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`). Quando o usuário decidir abrir essa frente, a entrega esperada é: estratégia de classificação, estimativa real de esforço, risco, e plano de execução por lotes — não uma correção pontual.
+
+**Fila de continuação (ordem do usuário)**: 1) Busca Global ✅ (seção 43-44), 2) Pluggy (schema novo + RPC nova), 3) demais leitores/escritores ativos da V1. Cartões fica fora dessa fila.
