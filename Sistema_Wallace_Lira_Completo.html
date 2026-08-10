@@ -1609,7 +1609,7 @@
   </div>
 
   <footer>
-    <span id="rodapeVersao">Sistema Wallace Lira · ERP V11</span>
+    <span id="rodapeVersao">Sistema Wallace Lira</span>
   </footer>
 
 </div>
@@ -1637,7 +1637,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260810-15';
+var __V = '20260810-16';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1650,7 +1650,7 @@ performance.mark('wallace-boot-start');
 (function(){
   var m = __V.match(/^(\d{4})(\d{2})(\d{2})-(\d+)$/);
   var el = document.getElementById('rodapeVersao');
-  if(m && el) el.textContent = 'Sistema Wallace Lira · ERP V11 · v' + m[3] + '/' + m[2] + '/' + m[1] + ' (build ' + m[4] + ')';
+  if(m && el) el.textContent = 'Sistema Wallace Lira · v' + m[3] + '/' + m[2] + '/' + m[1] + ' (build ' + m[4] + ')';
 })();
 
 function __carregarScriptsParalelo(caminhos){

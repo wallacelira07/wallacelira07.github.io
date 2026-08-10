@@ -2,82 +2,79 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 09/08/2026, fim de sessão muito longa (auditoria de prontidão operacional → fechamento de segurança → investigação "matar V1" → reconciliação de 8 caixas → correção de critério pelo usuário → achado solar). HEAD `d733c6b` no momento desta escrita, mais uma migration solar/SAJ possivelmente ainda pendente de execução manual pelo usuário (ver pendências).
+Última reescrita: 10/08/2026, fim de sessão longa de UI/UX + 2 bugs de cálculo (créditos da sessão esgotados no meio de uma investigação — ver pendência 1, prioridade máxima). HEAD `e15131c`, tudo commitado e pushed (branch `main`, `wallacelira07.github.io`).
 
-## 🎯 Regra mais importante pra próxima sessão: V1 não é mais autoridade
+## 🎯 Regra permanente (de sessão anterior, continua valendo): V1 não é autoridade
 
-Durante esta sessão, o usuário corrigiu explicitamente um erro de enquadramento meu: eu estava usando `vw_reconciliacao_v1_v2` (comparação Supabase `wallace_dados` × `transacoes`) como critério de "isso precisa de correção". **Isso está errado.** V1 (`wallace_dados`/`VARS`) não é mais fonte de verdade nenhuma. O critério correto, daqui pra frente, é: **a V2 (`transacoes`/tabelas relacionais) está certa contra a realidade (extrato bancário, comprovante, o que o usuário confirma que aconteceu)** — nunca "bate com o que o V1 tinha".
+`wallace_dados`/`VARS` (V1) não é mais fonte de verdade — a V2 (`transacoes`/tabelas relacionais/tabela `legendas`) só é validada contra a realidade (extrato, comprovante, confirmação do usuário), nunca contra o que o V1 dizia. `vw_reconciliacao_v1_v2` é só ferramenta de detecção de migração incompleta.
 
-`vw_reconciliacao_v1_v2` continua útil só como **ferramenta de detecção** — ela aponta rápido onde uma transação real pode ter ficado pra trás na migração (foi assim que achei e fechei 8 caixas nesta sessão). Mas se depois de investigar a V2 está certa e o V1 é que estava errado/desatualizado/tinha um conceito diferente, **a V2 fica como está** — não adaptar a V2 pra "bater com o V1".
+## 🎯 Regra nova desta sessão: não narrar de volta pedidos antigos do usuário
 
-## ✅ Segurança — Passo 2 fechado (RLS travado, views corrigidas, RPCs revogadas)
+Pedido explícito: ao aplicar uma correção que já foi pedida antes, agir direto — não prefixar com "você pediu X antes" ou reexplicar o que ele mesmo pediu. A documentação do projeto existe pra isso.
 
-Confirmado ao vivo (não por documentação) que 28 tabelas financeiras tinham policy de SELECT aberta pra `anon` (`qual=true`) — qualquer um com a chave pública do HTML lia tudo sem login. Corrigido:
-- RLS travado nas 28 tabelas + `v1_v2_caixa_mapa` (SELECT exige JWT Firebase válido, mesmo padrão de `wallace_dados`).
-- **19 views `SECURITY DEFINER`** (bypassavam RLS mesmo com as tabelas travadas) convertidas pra `SECURITY INVOKER`.
-- `EXECUTE` das 5 RPCs de escrita revogado de `anon`/`PUBLIC` (a passagem de turno anterior dizia que isso já tinha sido feito — não estava, só 1 das 5 tinha sido revogada de fato).
-- `search_path` corrigido em 7 funções.
-- `service_role` (usado pelo GitHub Actions) tem `BYPASSRLS=true`, confirmado — nenhuma automação foi afetada.
+## ⚠️ PENDÊNCIA #1 (prioridade máxima) — "Patrimônio Total" aparece vazio ("—") no card da capa
 
-Validado: `anon` lê 0 linhas de `transacoes` agora; `get_advisors(security)` sem nenhum achado `ERROR`; usuário confirmou ao vivo, logado, painel normal.
+Adicionei `id="coverPatrimonioTotal"` na capa (`Sistema_Wallace_Lira_Completo.html`), populado por `hydrate-resumo-p2p.js` com `R.balanco.patrimonioTotalGeral`. Print do usuário mostrou o campo vazio, enquanto "Líquido" (campo antigo, mesma linha) apareceu certo. Não confirmei se é:
+- **(a) cache do navegador** — o site usa `var __V` como cache-buster manual (`Sistema_Wallace_Lira_Completo.html`); qualquer edição só aparece depois de bumped essa string. Já bumped pra `'20260810-15'` no último commit, mas o print pode ter sido tirado antes disso.
+- **(b) bug real de ordem de execução** — `recalcularPatrimonio()` (app.js:1339, escreve `REG.balanco.patrimonioTotalGeral`) roda antes de `hydrateResumoP2P()` (app.js:1514) na leitura do código, e `REG.balanco.pgbl`/`.fgts` são inicializados síncrono de `VARS.patPgbl`/`patFgts` (`reg-balanco.js`) — não achei motivo pra estar undefined, mas não testei em navegador real.
 
-## ✅ Reconciliação financeira — 8 caixas fechadas em R$0,00 nesta sessão
+**Primeira ação da próxima sessão**: pedir pro usuário confirmar `__V` no rodapé bate com `'20260810-15'` (ou mais recente) e dar F5 puro; se persistir, abrir console e checar `REG.balanco.patrimonioTotalGeral`/`REG.balanco.pgbl`/`REG.balanco.fgts` diretamente.
 
-Usando a técnica "consultar `wallace_dados` (Supabase) direto, nunca o arquivo `vars-caixas.js` local (que fica desatualizado)" pra achar transações reais que nunca migraram pra V2:
+## ⚠️ PENDÊNCIA #2 — abas cortando/travando ao rolar no mobile
 
-| Caixa | Causa raiz real | Status |
-|---|---|---|
-| Caixa Manutenção | 2 transações (`TX000214`/`TX000215`) presas em `status='pendente_classificacao'` + `AJUSTE-06-08` nunca lançado | ✅ R$0,00 |
-| Caixa Lance | `AJUSTE-06-08` (-R$65,76, correção manual do usuário contra print real) nunca migrado | ✅ R$0,00 (resíduo era V2 ter 1 venda P2P a mais que o V1 nunca teve — não é falta, é V2 mais completa) |
-| Caixa Saúde Família | `TX000213` preso em `pendente_classificacao` + `AJUSTE-06-08` ausente | ✅ R$0,00 |
-| Caixa Aniversário Júlio | `TX000208` e `AJUSTE-06-08` totalmente ausentes | ✅ R$0,00 |
-| Escola de Júlio, Caixa Seguro Emplacamento, Caixa Combustível, Caixa Eventos | Mesmo `AJUSTE-06-08` (rendimento pequeno, <R$3) nunca migrado em cada uma | ✅ R$0,00 nas 4 |
+Usuário reportou 2 sintomas: (a) `.master-tabs` (position:sticky;top:0) "desce um pouco e trava" ao rolar, precisa rolar tudo de volta pro topo pra trocar de aba; (b) clicar numa aba corta a parte de cima do conteúdo novo. Não achei a causa lendo o CSS — pedi print/gravação 2x, sem resposta ainda. **Não mexer sem evidência visual real.**
 
-Todas promovidas no código (`hydrate-onda2-v2.js` e/ou `hydrate-onda3-caixalance.js`/`hydrate-onda3-livro-razao.js`, saldo + tabela de Livro Razão juntos, pra nunca ficar "card V2 + tabela V1").
+## ✅ Corrigido nesta sessão — bug real de dado (Necessidade Líquida)
 
-**Correção de um erro registrado antes**: uma investigação anterior nesta mesma sessão concluiu "Caixa Saúde Família e Aniversário Júlio não existem na V2, precisam ser criadas do zero" — **isso estava errado**. As duas já existiam (`d15e8cbe-...` e `ffa94985-...`), só tinham transações reais faltando, mesmo padrão das outras. Não acreditar em "não existe" sem reconferir a query.
+Gráfico "Necessidade líquida — próximos ciclos" não batia com o card do mesmo valor (ex: R$13.700 no card × R$13.008/13.179 no 1º ponto do gráfico). Duas causas:
+1. `ANCHOR_MONTH_CICLO` (`graficos-utilitarios.js`) gravado com mês calendário em vez do mês de ciclo — corrigido pra `'2026-08'`.
+2. Achado mais sério: a função que resincroniza gráficos depois de recálculo assíncrono (`atualizarGraficosNecessidade()`) mora só no módulo *lazy* (`graficos-cenarios-lazy.js`, só carrega se o usuário abrir a aba Gráficos/Cenários) — quem fica só no Painel nunca via a atualização. Criadas versões não-lazy em `graficos-painel-principal.js` (`atualizarGraficosPainelPrincipal`/`atualizarGraficoPainelPatrimonio`/`atualizarGraficoPainelCaixaVariavel`), conectadas nos mesmos pontos de chamada.
 
-**PIX Vanessa e Caixa Bens Duráveis**: reavaliadas sob o critério novo (V2 contra a realidade, não contra V1) — **nenhuma das duas tinha problema real**. PIX Vanessa bate com o padrão real dos extratos MP (retirada do cofrinho → PIX pra ela). Bens Duráveis negativa é o comportamento desenhado (virou centro de custo separado numa sessão anterior, pode ficar negativa). Não mexi em nenhuma — estavam certas, a "divergência" era só contra um V1 irrelevante.
+**Confirmado funcionando pelo usuário** (print). **Suspeita não verificada**: outros gráficos (dos ~26 `new Chart(...)` do site) podem ter o mesmo padrão de bug — só os 3 achados nesta varredura foram corrigidos, não houve varredura exaustiva de todos.
 
-## ⚠️ Quase-duplicação evitada — lição registrada
+## ✅ Corrigido — 12 legendas sem data/histórico de correção
 
-Durante investigação de reconciliação de cartão (Visa Infinite 4844), assumi errado que "zero linhas em `transacoes` pra esse `cartao_id`" = "nada rastreado" e cheguei a inserir 41 transações de julho antes do usuário interromper ("vai duplicar"). Revertido na hora (`DELETE ... WHERE tx_legado LIKE 'TX4844-%'`, confirmado 0 linhas). Essas compras já estavam lançadas manualmente em outro mecanismo do sistema que não localizei antes de agir. **Regra**: nunca mais assumir "ausente numa tabela = nunca lançado" sem confirmar onde o dado real mora primeiro.
+Local (`VARS.LEGENDAS`, `vars-operacional.js`) + Supabase (tabela `legendas`, sempre vence) atualizados juntos: `legEscolaJulioForaPatrimonio`, `legVisaAposentado`, `legVisaCorrecaoV207`, `legAguaGasMedintech`, `legMigracaoAssinaturasMB`, `legPGVSaldoResidual`, `legOpcoesReconstruido`, `legLinha4vs5MP`, `legSimulacaoMesAMes`, `legTotalOperacionalDefinicao`, `legTaxasPorHoraAviso`, `legQgHojeParcial` (frequência real: atualiza a cada 10 min, não "captura única"). `legPGBLDefinicao` migrada de HTML hardcoded pro sistema de legendas (não existia como legenda de verdade antes). **Não houve varredura exaustiva de todas as legendas do site** — só as apontadas pelo usuário + as com o mesmo padrão dentro de `VARS.LEGENDAS`.
 
-## ✅ 3 melhorias de mobile/UX entregues e testadas (DOM/CSS via preview local, sem login real)
+## ✅ Corrigido — cabeçalho e mobile (index.html + assets/css/styles.css)
 
-1. **Busca sumia no mobile** (`display:none` fixo <780px, sem alternativa) — botão-ícone (`#headerSearchToggleBtn`) abre o campo como overlay. Testado.
-2. **Barra de 22 categorias do Livro Razão** virava ~11 linhas de botão no celular antes de mostrar dado — vira faixa rolável horizontal só <640px.
-3. **Link direto pra uma aba** (`index.html?aba=solar`) — bug real achado e corrigido: primeira versão usava `onDomPronto()` (roda cedo demais, `showMaster()` ainda não existia nesse ponto do carregamento); corrigido com `window.addEventListener('load', ...)`. Testado com e sem o parâmetro.
+- Nome abreviado "Wallace Lira" (era "SWL"), avatar vira círculo com a inicial + tooltip de clique/toque com o email (não só hover).
+- Botões do cabeçalho agrupados em `.header-actions-group` — alinhamento consistente em qualquer largura.
+- Lupa de busca torta no overlay mobile — corrigida (cálculo de posição não considerava padding extra do overlay).
+- Tabelas quebrando texto letra por letra no mobile — `table-layout:fixed` global trocado por `table-layout:auto` + scroll horizontal (`max-width:640px`), o `overflow-x:auto` que já existia nos wrappers passou a funcionar de verdade.
+- Grade de navegação da home (5 botões grandes) — virava 3 linhas no mobile, agora é faixa rolável horizontal.
+- Botão flutuante "＋ Lançar" — removido do dock `position:fixed` global, migrado pra dentro do card Inbox Financeira (`#lancarTxSlot`), mesma lógica/RPC internas.
 
-**Não validado com login real** — usuário deve conferir os 3 no celular/navegador de verdade.
+**Confirmado pelo usuário**: cabeçalho/avatar/busca. **Não testado em navegador real ainda**: tabelas mobile, botão Lançar reposicionado (não consigo logar).
 
-## ✅ Bug estrutural do robô SAJ corrigido na raiz (não é mais só "rodar de novo")
+## ✅ Corrigido — "Verificações de Negócio" vazando pra todas as abas
 
-Usuário reportou "de novo perdeu os dados do SAJ" (cards "Autoconsumo/Dependência da rede/Exportação da geração: Dados insuficientes"). Diagnóstico: `energia_solar_geracao_diaria` estava completa e correta até hoje (09/08, 30,49 kWh) — o problema era só a linha de hoje em `energia_solar_leituras` (leitura manual Energisa 03=69/103=412, criada às 23h25) ter `geracao_acumulada=NULL`.
+1ª tentativa desta sessão moveu o card pra área "home" (capa) — errado, essa área é compartilhada por todas as abas, vazava pra Gráficos/Solar/Cenários/Balanço (usuário reportou com print). Corrigido de vez: movido pra dentro do próprio `#painel` (só existe quando essa aba está ativa), como primeiro elemento.
 
-**Causa raiz real** (achada lendo `scripts/sync/atualizar_geracao_saj.py` por completo): o script sempre escrevia o acumulado do inversor na leitura **mais recente por posição/data**, sem checar se essa leitura era efetivamente de hoje. Se o robô roda (09h ou 17h) ANTES da leitura manual da Energisa ser cadastrada, ele grava o número de hoje numa linha de ONTEM — e quando a leitura de hoje nasce depois, fica sem o campo, dependendo de sorte de ordem manual×robô.
+## ✅ Corrigido — card "Patrimônio" renomeado e expandido
 
-**Corrigido nesta sessão** (`scripts/sync/atualizar_geracao_saj.py`, funções `atualizar_supabase` e `atualizar_v2_leitura_geracao_acumulada`): agora só grava `geracaoAcumulada`/`geracao_acumulada` se já existir uma leitura com `data == hoje` (V1 em `SOLAR_LEITURAS`, V2 em `energia_solar_leituras`); senão pula e loga aviso, sem nunca contaminar a linha errada. Commitado e enviado (`7a64293`).
+"Patrimônio" (ambíguo) → "Patrimônio Líquido" em 3 lugares (capa, KPI do Painel, Resumo Executivo) — deixa claro que é só Reserva+BTG/Necton+Caixa Lance+Necton CC. "Patrimônio Total" (Físico+Financeiro+Previdência+FGTS líquido de passivos, já existia só na aba Balanço) virou o valor principal do mesmo card da capa, com Líquido como linha secundária. **Ver Pendência #1 — o valor Total não está aparecendo ainda.**
 
-**Segundo bug achado ao validar o primeiro** (autônomo, madrugada 09→10/08, usuário dormindo, pedido explícito "fique corrigindo as falhas"): o `hoje_str` usado pra comparar contra a coluna `data` era calculado com `datetime.now(timezone.utc)`, mas as leituras são datadas pelo dia civil de **Brasília**, não UTC. Isso faz "hoje" bater errado sozinho todo dia entre ~21h e meia-noite (horário de Brasília) — justo a janela em que o usuário mais lança leitura manual da Energisa à noite. Corrigido: novo `FUSO_BRASILIA`/`hoje_brasilia_str()` (UTC-3 fixo, Brasil não tem horário de verão desde 2019), usado no cálculo de `hoje_str` em `atualizar_supabase`. Confirmado por SQL direto no Supabase: a leitura de 09/08 (`b5f3fda0-...`) segue com `geracao_acumulada=NULL` — **esse valor histórico específico não vai ser preenchido sozinho** (a próxima execução agendada já vai calcular "hoje"=10/08, que não bate com a `data`=09/08 dessa linha) — não fabriquei o número; se o usuário quiser fechar esse buraco específico, precisa informar o total acumulado real de 09/08 (foto do Elekeeper) pra lançar manual. Dali em diante (leituras novas) o bug estruturalmene está corrigido nas duas frentes (linha errada E dia errado).
+## 🔜 Aprovado pelo usuário, NÃO implementado — 4 itens
 
-## Pendências remanescentes — ordem de prioridade pra próxima sessão
+1. **Compartilhamento público (só leitura) da aba Energia Solar** — link com token de validade em dias, sem exigir login, expondo só dados solares (nunca financeiro). Desenho completo aprovado (ver `PASSAGEM_DE_TURNO.md` item 11 do bloco mais recente). Precisa: 1 tabela nova no Supabase, 2 RPCs, 1 página HTML pública nova, botão "Compartilhar" na aba Solar. Maior peça de trabalho pendente.
+2. **Totais de fatura de cartão via Pluggy** (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) — trocar a fonte manual pelo valor real que a Pluggy já traz do banco (`conta.fatura_mes_atual.valor_total`), com fallback pro valor manual se a Pluggy estiver fora do ar. Isso reabre/substitui `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — atualizar esse doc ao implementar.
+3. **Filtro de assinatura/recorrência conhecida na Inbox Financeira** — hoje dedup só compara valor exato; comparar também por descrição/estabelecimento contra assinaturas já confirmadas, pra parar de reaparecer todo ciclo quando o valor muda um pouco (reajuste/câmbio).
+4. **21 transações "Assinaturas" sem `cartao_id`** — proposta de classificação por data de corte (16/07/2026: antes=Visa 4844, depois=MB consolidada 2250) apresentada, usuário não confirmou execução. `TXS000003` pode ser duplicata de `TXS000008` — decidir cancelar vs classificar antes de tocar nela.
 
-| Item | Prioridade |
+## Pendências antigas, sem decisão do usuário ainda
+
+| Item | Nota |
 |---|---|
-| Leitura de 09/08 em `energia_solar_leituras` ficou com `geracao_acumulada=NULL` pra sempre — cards "Autoconsumo/Dependência da rede/Exportação da geração" mostram "Dados insuficientes" enquanto essa continuar sendo a leitura mais recente. **10/08: usuário confirmou que isso NÃO é pendência de bug** — ele não tem leitura em tempo real da Energisa (só de vez em quando, manual), já comprou um Energy Meter pra pegar dado direto do inversor mas ainda não instalou. Até a instalação, esse gap é esperado e reaparece a cada card entre leituras manuais — não tentar "resolver" de novo sem pedido explícito novo. Desbloqueia sozinho assim que o usuário lançar a próxima leitura 03/103 real (cria linha nova, robô SAJ preenche o acumulado dela no próximo ciclo agendado). | Baixa — comportamento esperado, não bug; reavaliar só depois do Energy Meter instalado |
-| Ler `window.WALLACE_BOOT_TIMING` real (usuário já confirmou que funciona, nunca foi lido) — **não executável sem o usuário**: só existe depois de login real (iframe autenticado), e entrar credenciais/senha por conta própria é proibido pra qualquer agente | Alta — pedido explícito do usuário, mas trava em ação que só ele pode fazer (abrir DevTools console logado e colar aqui) |
-| Classificar as 3 transações do LRW/LRV sem dono (R$282,71, `usuario_id=NULL`) — só o usuário pode dizer de quem são | Média — bloqueia fechar totalmente o domínio Caixa Variável/cartão |
-| Cartões Mastercard/Visa (totais de fatura) — precisa reconciliação bancária manual real, não é SQL puro; **cuidado**: já teve 1 quase-duplicação nesse domínio nesta sessão | Média — grande, arriscado, precisa entender onde o dado já mora antes de mexer |
-| LRC-limbo/LRCV — nunca teve modelagem de dado aprovada (diferente de LRW/LRV) | Baixa — decisão de arquitetura, não bug |
-| Dependência de cron-job.org (externo, gratuito) pra automações do GitHub Actions, sem monitoramento de falha | Baixa — fora do alcance de qualquer agente sem conta do usuário |
-| Campo de cartão na UI do "+ Lançar" (hoje só via SQL/Claude Code) | Baixa — dívida técnica de UI conhecida |
+| Rodapé "ERP V11" | Proposta de renomear feita 2x nesta sessão, usuário nunca confirmou "sim" |
+| 3 transações LRW/LRV sem dono (R$282,71) | Só o usuário pode dizer de quem são |
+| `window.WALLACE_BOOT_TIMING` | Nunca foi lido, precisa login real + DevTools |
+| Leitura solar 09/08 sem `geracao_acumulada` | Confirmado pelo usuário como comportamento esperado (sem Energy Meter instalado ainda), não é bug |
 
 ## Protocolo de sessão nova
 
-1. Este arquivo.
-2. `PASSAGEM_DE_TURNO.md` — bloco mais recente (topo).
-3. **Regra de ouro**: nunca comparar V2 contra V1 pra decidir se algo "está certo" — só contra a realidade. `vw_reconciliacao_v1_v2` é ferramenta de detecção de migração incompleta, não de validação.
-4. Antes de assumir "essa transação não existe em `transacoes`, preciso inserir": procurar primeiro onde ela pode já estar rastreada por outro caminho (aconteceu 1x nesta sessão, quase virou duplicação real).
-5. Antes de tocar em qualquer RPC/tabela financeira: a canalização de auth token já existe (`obterTokenAuthSupabase()`/`_headers()`/`__wallaceAuthHeader()`) — reaproveitar, não recriar.
-6. `git status`/`git log` sempre antes de assumir pendente ou concluído — e antes de confiar em qualquer afirmação anterior tipo "essa caixa não existe" sem reconferir com uma query nova.
+1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
+2. **Pendência #1 é a mais urgente** — resolver antes de qualquer coisa nova.
+3. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
+4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa — já causou confusão real nesta sessão (edições que "não apareciam" só porque a string não tinha sido bumped).
+5. Não reabrir a exceção arquitetural de totais de cartão sem seguir o item 2 da lista "aprovado, não implementado" — é uma decisão formal já registrada, só muda com esse plano específico.
