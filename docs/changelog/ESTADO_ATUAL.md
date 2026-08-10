@@ -57,11 +57,21 @@ Local (`VARS.LEGENDAS`, `vars-operacional.js`) + Supabase (tabela `legendas`, se
 
 Dedup da Inbox (Mercado Pago + Pluggy) agora também compara por ESTABELECIMENTO, não só valor exato — fecha o caso de assinatura com reajuste/câmbio (ex: Anthropic em USD) reaparecendo como "nova" todo ciclo. Fonte: view nova `vw_assinaturas_confirmadas_v2` (categoria "Assinaturas" já classificada em V2, 22 hoje), sem lista hardcoded. Ver `classificacao-inbox.js`/`pluggy-reconciliacao.js`, commit `7bbe694`. **Não testado em navegador real** (não consigo logar) — validação depende do usuário ver a Inbox de perto.
 
-## 🔜 Aprovado pelo usuário, NÃO implementado — 3 itens
+## ✅ Implementado nesta sessão (10/08/2026) — compartilhamento público da aba Energia Solar
 
-1. **Compartilhamento público (só leitura) da aba Energia Solar** — link com token de validade em dias, sem exigir login, expondo só dados solares (nunca financeiro). Desenho completo aprovado (ver `PASSAGEM_DE_TURNO.md` item 11 do bloco mais recente). Precisa: 1 tabela nova no Supabase, 2 RPCs, 1 página HTML pública nova, botão "Compartilhar" na aba Solar. Maior peça de trabalho pendente.
-2. **Totais de fatura de cartão via Pluggy** (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) — trocar a fonte manual pelo valor real que a Pluggy já traz do banco (`conta.fatura_mes_atual.valor_total`), com fallback pro valor manual se a Pluggy estiver fora do ar. Isso reabre/substitui `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — atualizar esse doc ao implementar. **Faz parte do domínio Cartões, deixado de fora desta sessão por decisão do usuário (ver `PLANO_UNIFICACAO_V1_V2.md` seção 47).**
-3. **21 transações "Assinaturas" sem `cartao_id`** — proposta de classificação por data de corte (16/07/2026: antes=Visa 4844, depois=MB consolidada 2250) apresentada, usuário não confirmou execução. `TXS000003` pode ser duplicata de `TXS000008` — decidir cancelar vs classificar antes de tocar nela. **Idem — domínio Cartões, fora do escopo desta sessão.**
+Link com token temporário, sem login, expondo só dado do domínio Solar (geração/eficiência/economia estimada em R$) — nunca nenhuma tabela financeira. Tabela `solar_compartilhamentos` + 4 RPCs (criar/desativar/listar autenticadas; consultar pública) + página nova `solar-compartilhado.html` (autocontida) + botão "Compartilhar" na aba Solar (`src/solar/compartilhamento-solar.js`). Commit `a02c095`. **Validado**: RPCs testadas direto no Postgres, página pública testada de ponta a ponta com token real (leituras/gráfico/economia renderizando certo). **Não testado**: fluxo de criar link a partir do painel autenticado (exige login Firebase real, sem credenciais nesta sessão) — só a rejeição de token inválido foi confirmada.
+
+## ✅ Corrigido nesta sessão — 2 achados do usuário via foto real do celular (depois do refresh)
+
+1. Lupa de busca quase invisível no círculo do cabeçalho mobile (baixo contraste) — cores mais fortes só no mobile.
+2. Carrossel horizontal dos 5 botões de navegação da home — usuário não gostou ("não gostei desse carrossel"), pediu grade 2 colunas. Trocado, e o breakpoint foi unificado em 820px depois de uma 2ª reclamação ("essa barra também não tá legal, toma muito espaço") — o celular real do usuário caía na faixa 640-820px, que ainda usava a versão alta antiga.
+
+Commit `bb11918`. **Confirmado pelo usuário só pra lupa/carrossel visualmente via prints — não testado por mim em dispositivo real** (só emulação de viewport local).
+
+## 🔜 Aprovado pelo usuário, NÃO implementado — 2 itens (ambos domínio Cartões, fora do escopo desta sessão)
+
+1. **Totais de fatura de cartão via Pluggy** (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) — trocar a fonte manual pelo valor real que a Pluggy já traz do banco (`conta.fatura_mes_atual.valor_total`), com fallback pro valor manual se a Pluggy estiver fora do ar. Isso reabre/substitui `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — atualizar esse doc ao implementar. **Ver `PLANO_UNIFICACAO_V1_V2.md` seção 47.**
+2. **21 transações "Assinaturas" sem `cartao_id`** — proposta de classificação por data de corte (16/07/2026: antes=Visa 4844, depois=MB consolidada 2250) apresentada, usuário não confirmou execução. `TXS000003` pode ser duplicata de `TXS000008` — decidir cancelar vs classificar antes de tocar nela. **Idem — domínio Cartões, fora do escopo desta sessão.**
 
 ## Pendências antigas, sem decisão do usuário ainda
 
