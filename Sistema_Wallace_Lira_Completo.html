@@ -217,6 +217,18 @@
     <div class="v" id="simMensagem" style="font-size:0.8rem;color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
 
+  <!-- CORRIGIDO 11/08/2026, 2ª rodada (pedido do usuário: "coloque as abas abaixo do simulador fim
+       de ciclo" — 1ª rodada tinha colocado logo abaixo dos cards de resumo, ainda acima do
+       Simulador). Sticky continua valendo (ver CSS), só mudou a posição de repouso no topo da
+       página. -->
+  <div class="home-nav-grid">
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('painel')">📊<span>Painel</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('graficos')">📈<span>Gráficos</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('solar')">☀️<span>Energia Solar</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('cenarios')">🛡️<span>Cenários</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
+  </div>
+
   <!-- V145 (25/07/2026) + CORRIGIDO 10/08/2026 4ª rodada (usuário: "eu quero que o único lugar que
        apareça é no dashboard" — 3ª rodada tinha movido pra dentro de #painel, achando que "dashboard"
        = aba Painel; usuário esclareceu que "dashboard" é só a CAPA (#home), nem a aba Painel deve
@@ -242,17 +254,6 @@
       </div>
     </div>
     <div class="v" id="alertasNegocio">—</div>
-  </div>
-
-  <!-- NOVO 09/08/2026: botoes de navegacao da home - mesmos 5 destinos da .master-tabs (reaproveita
-       irParaPrimeiraSecao(), ja faz showMaster()+scroll ate a 1a secao), so que em formato de botao
-       grande clicavel em vez de aba fina no topo. -->
-  <div class="home-nav-grid">
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('painel')">📊<span>Painel</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('graficos')">📈<span>Gráficos</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('solar')">☀️<span>Energia Solar</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('cenarios')">🛡️<span>Cenários</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
   </div>
   </div>
 
@@ -1681,7 +1682,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-7';
+var __V = '20260811-8';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.

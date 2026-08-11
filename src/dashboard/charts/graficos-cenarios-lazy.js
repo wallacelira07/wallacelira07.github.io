@@ -1674,7 +1674,15 @@ async function _lazyRenderSolarSecao(){
       const creditoLiquidoPrevisao = Math.round((creditoLiquidoDesdeAtivacaoPrevisao - baselineKwh) * 100) / 100;
       const creditoWallacePrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioWallace * 100) / 100;
       const creditoIrmaPrevisao = Math.round(creditoLiquidoPrevisao * VARS.solarRateioIrma * 100) / 100;
-      const diasDesdeInicioCiclo = Math.max(0, Math.round((new Date(ultimaSolar.data) - new Date(cicloSolarAberto.data_inicio)) / 86400000));
+      // CORRIGIDO 11/08/2026 (achado do usuário: "porque está atrasado? a geração diária sempre supera
+      // o mínimo" — logo após fechar um ciclo só existe 1 leitura manual, na própria data de abertura,
+      // então "dias decorridos até a última leitura MANUAL" dava 0 e zerava a Média/Status mesmo o
+      // numerador (creditoWallacePrevisao) já sendo uma projeção até HOJE via VARS._creditoLiquidoProjetadoHoje
+      // (que soma a geração diária real do robô SAJ). Numerador projetado até hoje exige denominador em
+      // dias até hoje, não até a última leitura manual — mesmo truque de fuso já usado em
+      // agoraEfetivoFrescorSolar()/hydrate-onda5-qualidade-geracao.js (desloca -3h, só a data importa aqui).
+      const hojeBrasilia = new Date(Date.now() - 3*3600*1000);
+      const diasDesdeInicioCiclo = Math.max(0, Math.round((hojeBrasilia - new Date(cicloSolarAberto.data_inicio)) / 86400000));
       renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a');
       renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, diasDesdeInicioCiclo, '#e8a63a');
     } else {
