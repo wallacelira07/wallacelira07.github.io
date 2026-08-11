@@ -147,4 +147,24 @@ async function aplicarOnda1V2(){
     if(chave && r.v2 !== undefined && REG.caixasOperacionais[chave]) REG.caixasOperacionais[chave].saldo = r.v2;
   });
   if(typeof atualizarGraficoCaixas === 'function') atualizarGraficoCaixas();
+
+  // NOVO 11/08/2026 (achado do usuário: legenda de detalhe da Caixa Mastercard/Infinite
+  // hardcoded — ver comentário completo em getExtratoCaixaMastercardInfinite(), app.js).
+  // Assíncrono à parte (não bloqueia o resto da Onda 1) - falha aqui não derruba nada, só deixa
+  // a legenda antiga (V1) visível, o número grande acima já está correto de qualquer forma.
+  try {
+    const extrato = await WallaceFinanceService.getExtratoCaixaMastercardInfinite();
+    const detEl = $('balOpMastercardInfiniteDetalhe');
+    if(detEl && Array.isArray(extrato)){
+      if(!extrato.length){
+        detEl.textContent = 'Sem lançamentos neste ciclo.';
+      } else {
+        const partes = extrato.map(t => (t.tipo === 'entrada' ? '+' : '−') + fmt(Number(t.valor)) + ' (' + t.descricao + ')');
+        const total = extrato.reduce((s,t) => s + (t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor)), 0);
+        detEl.textContent = partes.join(' ') + ' = ' + fmt(Math.round(total*100)/100);
+      }
+    }
+  } catch(err){
+    console.warn('Onda1V2: falha ao buscar extrato da Caixa Mastercard/Infinite — legenda de detalhe fica na versão V1 antiga.', err);
+  }
 }

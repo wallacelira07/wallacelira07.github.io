@@ -245,7 +245,9 @@ window.WALLACE_CHARTS.totalOperacional = new Chart($('g_cEvol'), {
     borderColor:'#3987e5',backgroundColor:'rgba(57,135,229,0.08)',
     borderWidth:2.5,pointBackgroundColor:'#3987e5',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:5,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
+  // CORRIGIDO 10/08/2026 (achado do usuário: "gráficos de necessidade e evolução cortando os
+  // últimos valores") - último ponto sem espaço pro rótulo (valueLeaderPlugin) não ser cortado.
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40,right:32}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
       y:{grid:{color:grid},min:gTotalOpRange.min,max:gTotalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
@@ -261,7 +263,7 @@ window.WALLACE_CHARTS.necessidadeLiquida = new Chart($('g_cNecessidadeLiquida'),
     borderColor:'#34c98a',backgroundColor:'rgba(52,201,138,0.08)',
     borderWidth:2,pointBackgroundColor:'#34c98a',pointBorderColor:'#16181b',
     pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40}},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40,right:32}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
       y:{grid:{color:grid},min:gNecLiqRange.min,max:gNecLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
