@@ -64,13 +64,23 @@ async function aplicarOnda5Parcelamentos(){
   VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
   REG.totalOpDetalhe.provMP = VARS.totalOpProvMP;
   // CORRIGIDO 11/08/2026 (achado do usuário, print real: "Total comprometido"/"Parcelas (LRP)" do
-  // Visa Infinite sempre R$1.017,89, igual há dias) — mesmo bug do provMP acima, só que ninguém tinha
-  // religado este aqui: VARS.livroLRP (soma das parcelas ATIVAS do Visa) é calculado 1x no boot
-  // (app.js), ANTES desta função trocar PARCELAMENTOS_VISA pelo dado V2 — depois disso nunca mais
-  // recalculava, mesmo com o array já atualizado. REG.visa.visaDetalhe.parcelas (criarRegMercadoPago(),
-  // também só roda 1x no boot) herdava o mesmo valor congelado. Religado aqui, mesmo padrão do provMP.
+  // Visa Infinite sempre R$1.017,89, igual há dias, e confirmado pelo usuário que hoje o Visa
+  // Infinite É só essas parcelas — os outros componentes estão zerados) — 2 bugs empilhados:
+  // 1) VARS.livroLRP (soma das parcelas ATIVAS) era calculado 1x no boot, ANTES desta função trocar
+  //    PARCELAMENTOS_VISA pelo dado V2 — nunca mais recalculava depois. REG.visaDetalhe.parcelas
+  //    (top-level, criarRegMercadoPago() via Object.assign(REG,...) em app.js — NÃO é REG.visa.
+  //    visaDetalhe, esse caminho não existe) também só rodava 1x, herdando o valor congelado.
+  // 2) VARS.cartaoInfiniteTotal ("Total comprometido") era um NÚMERO DIGITADO À MÃO
+  //    (vars-mercado-pago.js), sem nenhuma derivação — só batia com livroLRP por coincidência.
+  //    Corrigido pra somar de verdade os 8 componentes do visaDetalhe (mesmos que já aparecem no
+  //    detalhamento da tela) — nunca mais precisa editar esse número na mão de novo.
   VARS.livroLRP = Math.round(VARS.PARCELAMENTOS_VISA.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
-  if(typeof REG !== 'undefined' && REG.visa && REG.visa.visaDetalhe) REG.visa.visaDetalhe.parcelas = VARS.livroLRP;
+  if(typeof REG !== 'undefined' && REG.visaDetalhe){
+    REG.visaDetalhe.parcelas = VARS.livroLRP;
+    VARS.cartaoInfiniteTotal = Math.round(Object.values(REG.visaDetalhe).reduce((s,v) => s + Number(v||0), 0) * 100) / 100;
+    REG.cartaoInfinite.total = VARS.cartaoInfiniteTotal;
+    if(typeof recalcularMercadoPago === 'function') recalcularMercadoPago();
+  }
   if(typeof recalcularReembolsos === 'function') recalcularReembolsos();
   if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
   if(typeof hydrateReembolsos === 'function') hydrateReembolsos();
