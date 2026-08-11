@@ -40,22 +40,29 @@ jobs:
     if: always()
     uses: ./.github/workflows/mercadopago_sync.yml
     secrets: inherit
+  backup_externo:
+    name: "5/5 - Backup Externo Criptografado"
+    needs: mercadopago
+    if: always()
+    uses: ./.github/workflows/backup_externo.yml
+    secrets: inherit
   resumo:
     name: "Resumo da execução"
-    needs: [saj, cotacoes, pluggy, mercadopago]
+    needs: [saj, cotacoes, pluggy, mercadopago, backup_externo]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Reportar status de cada etapa
         run: |
           echo "===== RESUMO DA EXECUÇÃO ====="
-          echo "1/4 SAJ (geração solar):     ${{ needs.saj.result }}"
-          echo "2/4 Cotações de ações:       ${{ needs.cotacoes.result }}"
-          echo "3/4 Pluggy (bancos):         ${{ needs.pluggy.result }}"
-          echo "4/4 Mercado Pago:            ${{ needs.mercadopago.result }}"
+          echo "1/5 SAJ (geração solar):     ${{ needs.saj.result }}"
+          echo "2/5 Cotações de ações:       ${{ needs.cotacoes.result }}"
+          echo "3/5 Pluggy (bancos):         ${{ needs.pluggy.result }}"
+          echo "4/5 Mercado Pago:            ${{ needs.mercadopago.result }}"
+          echo "5/5 Backup externo:          ${{ needs.backup_externo.result }}"
           echo "==============================="
-          if [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ]; then
+          if [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ] || [ "${{ needs.backup_externo.result }}" != "success" ]; then
             echo "::warning::Pelo menos uma etapa não terminou com sucesso - confira os logs de cada job acima."
             exit 1
           fi
-          echo "Todas as 4 etapas rodaram com sucesso."
+          echo "Todas as 5 etapas rodaram com sucesso."

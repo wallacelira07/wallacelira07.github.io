@@ -1,0 +1,79 @@
+name: Backup Externo (Supabase -> GitHub)
+# NOVO 11/08/2026 - fecha o ultimo ponto unico de falha da auditoria de
+# continuidade de negocio: sem isto, TODAS as copias de backup viviam dentro
+# da mesma instancia Supabase e nao sobreviveriam a perda total do projeto.
+# Grava 2 copias independentes dentro deste mesmo repositorio GitHub
+# (infraestrutura totalmente separada da Supabase):
+#   1. DADOS - snapshot de todas as linhas de todas as tabelas, criptografado
+#      (Fernet/AES) porque o repositorio e PUBLICO.
+#   2. SCHEMA - estrutura (tabelas, funcoes, RLS, triggers, indices) via
+#      pg_dump --schema-only, em texto puro (nao contem dado sensivel, so
+#      estrutura - mesmo padrao de qualquer codigo ja publico neste repo).
+# Sem as duas juntas, um projeto Supabase recriado do zero nao teria como
+# reconstruir nem a estrutura nem o conteudo. Ver
+# docs/decisions/CONTINUIDADE_NEGOCIO_DR.md para o procedimento completo.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+permissions:
+  contents: write
+jobs:
+  backup-externo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependências Python
+        run: pip install cryptography
+      - name: Backup de DADOS (criptografado)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: python3 scripts/sync/backup_externo_criptografado.py
+      - name: Instalar cliente PostgreSQL (pg_dump)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Backup de SCHEMA (estrutura, texto puro)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p backups_externos
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL não configurado - pulando backup de schema (só dados foi salvo)."
+          else
+            TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
+            pg_dump "$SUPABASE_DB_URL" --schema-only --no-owner --no-privileges \
+              --schema=public \
+              -f "backups_externos/wallace_schema_${TIMESTAMP}.sql"
+            echo "Schema salvo: backups_externos/wallace_schema_${TIMESTAMP}.sql"
+            python3 - <<'PYEOF'
+import glob, os
+from datetime import datetime, timedelta, timezone
+limite = datetime.now(timezone.utc) - timedelta(days=30)
+for caminho in glob.glob("backups_externos/wallace_schema_*.sql"):
+    nome = os.path.basename(caminho)
+    try:
+        ts = nome.replace("wallace_schema_", "").replace(".sql", "")
+        data_arquivo = datetime.strptime(ts, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        continue
+    if data_arquivo < limite:
+        os.remove(caminho)
+        print(f"Removido (retenção 30d): {nome}")
+PYEOF
+          fi
+      - name: Commitar e enviar os backups pro repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups_externos/
+          if git diff --cached --quiet; then
+            echo "Nada novo pra commitar (backup idêntico ao anterior ou etapa anterior falhou)."
+          else
+            git commit -m "Backup externo automático (dados + schema)"
+            git push
+          fi

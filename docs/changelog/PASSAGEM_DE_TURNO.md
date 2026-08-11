@@ -2,6 +2,14 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 11/08/2026 (continuação, mesma sessão) — continuidade de negócio/DR: cópia externa fora da Supabase
+
+Usuário pediu auditoria final: os backups (recém-corrigidos) sobrevivem à perda TOTAL do projeto Supabase? Resposta honesta: não — viviam dentro da mesma instância, e nem o schema (DDL) tinha cópia fora dela (histórico de migrations também é interno ao projeto). Isso ampliou o escopo do pedido original ("backup de dados") pra "dados + schema", porque um sem o outro não permite reconstruir o sistema do zero.
+
+**Implementado**: workflow novo `backup_externo.yml`, plugado como 5º passo do orquestrador diário já existente (`executar_tudo.yml`, disparado por cron-job.org — nenhuma peça de automação nova a manter). Grava 2 cópias dentro do próprio repositório GitHub (infraestrutura 100% separada da Supabase): dados criptografados com Fernet (o repo é público, por isso a criptografia — chave gerada localmente com `openssl`, nunca commitada) e schema via `pg_dump --schema=public` (texto puro, sem dado sensível). Reaproveita a `criar_backup_completo()`/`restaurar_backup()` já validada na rodada anterior, em vez de inventar mecanismo novo — a recuperação de desastre completa (seção 6 do documento) é: provisionar projeto novo, rodar o `.sql` de schema, decifrar o `.json.enc`, reinserir na tabela `backups` do projeto novo, chamar `restaurar_backup()` de novo.
+
+**Limite honesto desta sessão**: não tenho como cadastrar segredos no GitHub nem disparar workflows por conta própria (sem `gh` CLI, sem token com escopo de administração — e mesmo se tivesse um token de push reaproveitável, decidi conscientemente não usá-lo pra mexer em configuração de conta de terceiro sem ação explícita do usuário). O workflow está pronto e revisado com cuidado, mas **nunca rodou de verdade** — falta o usuário cadastrar 2 segredos (`BACKUP_ENCRYPTION_KEY`, valor já gerado e entregue; `SUPABASE_DB_URL`, ele mesmo pega no dashboard Supabase) e disparar manualmente uma vez. Prontidão operacional estimada em ~98%, não 100%, exatamente por essa validação pendente + recuperação completa nunca ter sido ensaiada de ponta a ponta contra um projeto novo de verdade. Documentado sem maquiagem em `docs/decisions/CONTINUIDADE_NEGOCIO_DR.md`.
+
 ## 🏁 Encerramento 11/08/2026 (continuação, sessão nova retomada após limite de uso) — backup/restore fechado
 
 Usuário pediu verificação ao vivo de um alerta de segurança do Supabase (`rls_disabled_in_public`) — confirmado como alerta histórico real (2 tabelas ficaram sem RLS por algumas horas no mesmo dia, sessão anterior), já corrigido, 0 `ERROR` ativo no momento da checagem. Depois pediu fechamento do último risco real: backup/restore.
