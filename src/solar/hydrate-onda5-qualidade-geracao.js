@@ -56,8 +56,16 @@ async function aplicarOnda5QualidadeGeracao(){
     return;
   }
 
-  // Mesma convenção de data do script (atualizar_geracao_saj.py): UTC, "YYYY-MM-DD".
-  const hojeStr = new Date().toISOString().slice(0,10);
+  // CORRIGIDO 11/08/2026 (achado do usuário: "isso só pode ficar assim após 0hs [Brasília]... deve
+  // manter a geração do dia até a virada do dia" — "Hoje até agora" virava "Sem leitura ainda hoje"
+  // cedo demais). O comentário antigo aqui dizia "mesma convenção do script: UTC" — mas
+  // atualizar_geracao_saj.py na verdade usa hoje_brasilia_str() (Brasília, UTC-3) pra gravar a
+  // chave `data` de cada registro, não UTC puro. O cliente aqui calculava "hoje" em UTC de verdade
+  // — entre meia-noite UTC e meia-noite Brasília (3h de diferença), a data virava aqui ANTES de
+  // virar no dado gravado, fazendo o dia de ontem "sumir" (não batia mais com hojeStr) sem ainda
+  // ter um registro de hoje pra substituí-lo. Mesmo truque de fuso já usado em
+  // agoraEfetivoFrescorSolar() (mesmo arquivo): desloca -3h e lê os getters UTC do resultado.
+  const hojeStr = new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10);
   const registroHoje = registros.find(r => r.data === hojeStr) || null;
   // "Dias completos" = todos os registros exceto o de hoje (nunca sabemos se hoje já terminou).
   const diasCompletos = registros.filter(r => r.data !== hojeStr && typeof r.kwh === 'number');
