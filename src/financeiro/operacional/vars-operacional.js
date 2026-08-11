@@ -50,7 +50,13 @@ function criarVarsOperacional(){
     legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
     legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Não há fórmula CLT/convenção implementada como derivado — atualizar manualmente se o salário-base mudar.`,
     legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$7.667,73/mês</strong>.`,
-    legDeficitSemEmbarque: `Se você ficasse 12 meses seguidos sem embarque (líquido fixo de R$7.667,73/mês), o déficit contra o piso absoluto diminui sozinho conforme parcelas do Visa Infinite e do Mercado Pago vão terminando — sem cortar nada. Boletos, Consórcios, Recorrências e Assinaturas ficam constantes (não têm previsão de encerrar).`,
+    // ATUALIZADO 11/08/2026 (pedido do usuário: gráfico 06 "Operação Déficit Zero" virou o gráfico
+    // 04, atrelado à seção "O que NUNCA é cortado" — trocou o que compara: antes era líquido fixo
+    // sem trabalhar × piso absoluto de gastos fixos, agora é o piso mínimo GARANTIDO por lei sempre
+    // que há pelo menos 1 dia trabalhado no ciclo (salário base + Periculosidade 30% + Supervisão
+    // 5% = base×1,35, nunca cai abaixo disso) × a Evolução real do Total Operacional (mesma série
+    // viva do gráfico gêmeo da aba Gráficos, cai conforme parcelas terminam).
+    legDeficitSemEmbarque: `Compara o piso mínimo que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo (salário base R$10.913,66 + Periculosidade 30% + Supervisão 5% = <strong>R$14.733,44/mês</strong>, nunca cai abaixo disso) contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`,
     legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     // CORRIGIDO 07/08/2026 (mudança de regra de negócio): a legenda antiga condicionava o

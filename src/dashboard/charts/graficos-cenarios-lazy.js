@@ -621,13 +621,20 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     function fmt0(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const legendStd2 = {position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}};
 
-  // Piso corrigido 15/07/2026: Parcelas Visa Infinite E Mercado Pago pessoal declinam (parcela
-  // 3/6 do MP termina ~Set/26; a de 10/24 avança devagar). Consorcio NAO tem previsao de acabar
-  // (confirmado pelo usuario) - fica fixo, assim como Boletos/Recorrencias/Assinaturas.
-  // Liquido sem trabalhar fixo R$7.667,73 (12 contracheques reais).
+  // CORRIGIDO 11/08/2026 (pedido do usuário: "coloque os valores do gráfico Evolução do Total
+  // Operacional... onde tem Líquido coloque meu salário base + 35%, que é obrigatório eu receber
+  // se eu trabalhar pelo menos 1 dia"): trocada a fonte de dado inteira deste gráfico.
+  // - "Piso" (era REG.deficitZero.piso, série separada e só parcialmente atualizada) agora é
+  //   REG.evolucao.totalOperacional — a MESMA fonte viva do gráfico "Evolução do Total Operacional"
+  //   (aba Gráficos), nunca mais duas séries divergentes pro mesmo conceito.
+  // - "Líquido" (era REG.deficitZero.liquidoSemTrabalhar, R$7.667,73) agora é o piso mínimo
+  //   GARANTIDO por lei sempre que há pelo menos 1 dia trabalhado no ciclo: Periculosidade (30%) +
+  //   Supervisão (5%) = 35% de adicionais fixos, não dependem de hora extra/banco de horas.
+  //   Salário base R$10.913,66 informado pelo usuário × 1,35 = R$14.733,44.
   const dzLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
-  const dzLiquido = REG.deficitZero.liquidoSemTrabalhar;
-  const dzPiso = alignSeriesCiclo(REG.deficitZero.piso);
+  const SALARIO_BASE_GARANTIDO = 10913.66;
+  const dzLiquido = Math.round(SALARIO_BASE_GARANTIDO * 1.35 * 100) / 100; // R$14.733,44
+  const dzPiso = alignSeriesCiclo(REG.evolucao.totalOperacional);
   const dzDeficit = dzPiso.map(p=>Math.round((dzLiquido-p)*100)/100);
 
   const dzDataLabelPlugin = {
@@ -657,7 +664,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
-        label:c=>{const i=c.dataIndex; return ['Líquido sem trabalhar: '+fmt(dzLiquido),'Piso absoluto: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Déficit: ':'Superávit: ')+fmt(Math.abs(dzDeficit[i]))];}
+        label:c=>{const i=c.dataIndex; return ['Piso mínimo garantido (base+35%): '+fmt(dzLiquido),'Total Operacional: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(dzDeficit[i]))];}
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
