@@ -24,7 +24,7 @@ Usuário mencionou "os 100k estão no Itaú" ao ser informado que a Reserva de E
 
 `scripts/sync/atualizar_geracao_saj.py` parou de escrever em `wallace_dados` (V1) — confirmado que `app.js` não lê mais `SOLAR_LEITURAS`/`SOLAR_GERACAO_DIARIA` de lá (domínio V2-exclusivo desde outra sessão). Escrita V2 (`energia_solar_geracao_diaria`/`energia_solar_leituras`) já existia em paralelo, agora é a única.
 
-**Resta**: `scripts/database/sincronizar_erp_supabase.py` (escreve `HISTORICO_ERP_TODOS_CICLOS` em `wallace_dados`) — não investigado/migrado ainda. Próximo item natural da fila original "demais leitores/escritores ativos da V1" (depois: só Cartões, fora de escopo).
+**Investigado**: `scripts/database/sincronizar_erp_supabase.py` (escreve `HISTORICO_ERP_TODOS_CICLOS` em `wallace_dados`) — diferente do caso Solar, NÃO é uma correção rápida. A leitura já prioriza V2 corretamente (`vw_historico_erp_completo`, V1 só como fallback silencioso, já documentado como aceitável em `PLANO_UNIFICACAO_V1_V2.md:1711` — "domínio auxiliar de busca, não card financeiro"). O bloqueio é na ESCRITA: a tabela V2 `transacoes` exige `caixa_id` (NOT NULL, FK) e a planilha ERP só tem o nome do livro em texto — não existe mapeamento livro→caixa_id pronto pra popular isso sem risco de gravar dado mal categorizado na tabela viva. Precisa de um mapeamento novo antes de qualquer migração de escrita — não é dívida técnica simples, registrar como escopo próprio se o usuário quiser continuar essa fila. **Com isso, a fila "demais leitores/escritores V1" está fechada até onde dá sem trabalho de schema novo** — só restam Cartões (fora de escopo) e este item (bloqueado por mapeamento).
 
 ## ✅ Corrigido — 8 achados de UI/UX via foto real do celular/navegador
 
