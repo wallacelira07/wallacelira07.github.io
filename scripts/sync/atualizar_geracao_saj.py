@@ -167,6 +167,30 @@ def buscar_geracao_acumulada(auth_header: str, plant_uid: str) -> dict:
     return {"energy_hoje": pv.get("energy1Today"), "energy_total": pv.get("energy1Total")}
 
 
+# NOVO 11/08/2026 (pedido do usuário, depois de achar um erro real numa leitura MANUAL de 03/103
+# com salto implausível de 1 dia): buffer de segurança pro lado automático (SAJ) — não regrava o
+# valor de hoje se a última escrita foi há menos de 1h. O cron já roda só 2x/dia (09h/17h, ~8h de
+# intervalo — nunca dispara isso sozinho); o buffer protege contra reexecuções manuais/retries do
+# workflow muito próximas, que poderiam gravar um valor lido no meio de uma transição/instabilidade
+# momentânea do inversor por cima de um valor bom já salvo minutos antes.
+BUFFER_MINUTOS_ENTRE_ESCRITAS = 60
+
+
+def _minutos_desde_ultima_escrita(supabase_url: str, supabase_key: str, data_str: str) -> float | None:
+    """Retorna quantos minutos se passaram desde a última escrita de hoje em
+    energia_solar_geracao_diaria, ou None se ainda não existe registro de hoje."""
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    url = f"{supabase_url}/rest/v1/energia_solar_geracao_diaria?data=eq.{data_str}&select=atualizado_em&limit=1"
+    req = Request(url, headers=headers, method="GET")
+    with urlopen(req, timeout=20) as resp:
+        linhas = json.loads(resp.read().decode("utf-8"))
+    if not linhas or not linhas[0].get("atualizado_em"):
+        return None
+    atualizado_em = datetime.fromisoformat(linhas[0]["atualizado_em"].replace("Z", "+00:00"))
+    delta = datetime.now(timezone.utc) - atualizado_em
+    return delta.total_seconds() / 60
+
+
 def atualizar_v2_geracao_diaria(supabase_url: str, supabase_key: str, data_str: str, geracao_hoje: float) -> None:
     """NOVO 08/08/2026 (Onda 4/5, domínio Solar - sincronizar persistência V1->V2, mesma estratégia
     já usada nos outros domínios): grava o MESMO valor que acabou de ir pra
@@ -256,8 +280,12 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
     hoje_str = hoje_brasilia_str()
 
     if geracao_hoje is not None:
-        atualizar_v2_geracao_diaria(supabase_url, supabase_key, hoje_str, geracao_hoje)
-        print(f"Supabase V2 (energia_solar_geracao_diaria) sincronizado: {hoje_str}={round(geracao_hoje,2)} kWh")
+        minutos_desde_ultima = _minutos_desde_ultima_escrita(supabase_url, supabase_key, hoje_str)
+        if minutos_desde_ultima is not None and minutos_desde_ultima < BUFFER_MINUTOS_ENTRE_ESCRITAS:
+            print(f"AVISO: última escrita de hoje foi há {round(minutos_desde_ultima,1)} min (< {BUFFER_MINUTOS_ENTRE_ESCRITAS} min de buffer) — pulando regravação pra evitar valor lido no meio de uma execução muito próxima da anterior.", file=sys.stderr)
+        else:
+            atualizar_v2_geracao_diaria(supabase_url, supabase_key, hoje_str, geracao_hoje)
+            print(f"Supabase V2 (energia_solar_geracao_diaria) sincronizado: {hoje_str}={round(geracao_hoje,2)} kWh")
     else:
         print("(sem valor de hoje pra registrar em energia_solar_geracao_diaria)")
 
