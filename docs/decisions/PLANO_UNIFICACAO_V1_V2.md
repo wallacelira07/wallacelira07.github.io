@@ -1801,3 +1801,22 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 **Resultado**: `wallace_dados` deixa de ter qualquer escritor disparado por interação direta do usuário (Inbox Mercado Pago + Inbox Pluggy, os 2 últimos, ambos fechados hoje). Escritores restantes são só scripts agendados (Python, sem usuário no loop) — ver tabela da seção 43, item 2.
 
 **Arquivos alterados**: `src/app/app.js` (+`getPluggyTriagemV2()`), `hydrate-onda7-pluggy.js`, tabela `pluggy_triagem` + RPC `triar_pluggy_item` (Postgres).
+
+## 49. Cartões — início da sessão dedicada: convenção de registro individual definida (10/08/2026)
+
+**Pedido do usuário**: rastreabilidade individual de compras em cartão — hoje só existiam agregados manuais (`mbLRVConfirmado`/`mbLRWConfirmado`), sem registro por compra. Usuário deu "começar agora" explicitamente pra esta primeira etapa (não a migração completa da seção 47 — ver limites abaixo).
+
+**Correção de premissa**: o pedido original citava `transacoes` sem coluna `cartao_id` — na verdade a coluna já existe (`uuid`, nullable, índice `idx_transacoes_cartao`), só nunca foi usada de verdade.
+
+**Convenção definida** (reaproveita padrão já existente, não inventa `tipo` novo): uma compra de cartão é uma linha em `transacoes` com `caixa_id` = "Caixa Variável" e `afeta_saldo_real = false` — **exatamente o mesmo padrão que `vw_compromisso_cartao_por_pessoa` já usa e já lia há dias**, só nunca com `cartao_id` preenchido. `tipo='saida'` (é uma saída, só que ainda não movimenta caixa real — vira compromisso até a fatura ser paga). Isso evita duas fontes de verdade: não é um `tipo` novo brigando com o enum entrada/saída existente, é o MESMO mecanismo de "compromisso, não caixa real" que o resto do sistema já usa pra cartão.
+
+**Implementado**:
+1. View nova `vw_compromisso_cartao_detalhe` (aditiva — não altera `vw_compromisso_cartao_por_pessoa`): lista cada compra individual (data/descrição/valor/usuário/cartão) em vez de só o total agregado. Mesmo filtro da view existente (`Caixa Variável` + `afeta_saldo_real=false`), com LEFT JOIN em `cartoes`/`usuarios` (linhas antigas sem `cartao_id` aparecem com esse campo nulo, não quebram a view).
+2. 2 compras reais do dia lançadas como exemplo/validação: Wands Burguer R$97,87 (cartão MB físico 1371, Wallace) e Redepharma R$55,19 (cartão MB Samsung Wallet 4017, Vanessa) — ambas com `cartao_id`+`usuario_id` preenchidos.
+
+**NÃO feito nesta etapa (deliberado — fora do "começar agora" desta rodada)**:
+- **Classificação retroativa das ~270 transações antigas sem `cartao_id`** (o grosso do trabalho da seção 47 — "estratégia de classificação, estimativa real de esforço, risco, plano de execução por lotes"). O que foi feito hoje é só a convenção de registro **daqui pra frente**, não uma reclassificação em lote do histórico.
+- **Decisão sobre `mbLRVConfirmado`/`mbLRWConfirmado` continuarem manuais vs. passarem a vir da soma de `transacoes`** — essa troca mudaria o Resumo Executivo/cascata de reembolso (consumidores reais, não só busca), e já existe uma exceção arquitetural formal registrada (`EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`) sobre esse exato ponto — não revisitada aqui, precisa de decisão explícita separada.
+- Visa Infinite continua com **zero** transações classificadas em V2 (nenhuma mudança nesta etapa).
+
+**Arquivos/schema alterados**: view `vw_compromisso_cartao_detalhe` (Postgres, migração `criar_view_compromisso_cartao_detalhe`), 2 linhas novas em `transacoes`.
