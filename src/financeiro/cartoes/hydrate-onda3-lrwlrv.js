@@ -64,4 +64,31 @@ async function aplicarOnda3LrwLrv(){
   });
   window.WALLACE_ONDA3_LRWLRV_RELATORIO = relatorio;
   console.log('Onda3LrwLrv: relatório completo em window.WALLACE_ONDA3_LRWLRV_RELATORIO', relatorio);
+
+  // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de lançamentos com total
+  // diferente do card acima — R$1.318,19/R$376,64 na lista vs R$972,98/R$245,84 aqui): a lista
+  // detalhada (VARS.LRW_TRANSACOES/LRV_TRANSACOES, renderizada por renderLivrosVariaveis()) era um
+  // array V1 mantido à mão no código, nunca migrado. Substitui pela mesma fonte V2 já usada acima
+  // (mesmo filtro exato), pra lista e card nunca mais divergirem — um só lê o outro escreve, nunca 2
+  // fontes independentes pra mesma coisa.
+  try {
+    const detalhe = await WallaceFinanceService.getTransacoesCartaoVariavelDetalhe();
+    if(Array.isArray(detalhe)){
+      const mapear = nome => detalhe
+        .filter(l => l.usuario_nome === nome)
+        .map(l => ({
+          tx: l.tx_legado || '—',
+          data: l.data ? l.data.slice(0,10).split('-').reverse().join('/') : '—',
+          nome: l.descricao || '',
+          valor: Math.round(Number(l.valor)*100)/100,
+        }));
+      VARS.LRW_TRANSACOES = mapear('Wallace');
+      VARS.LRV_TRANSACOES = mapear('Vanessa');
+      if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
+    } else {
+      console.warn('Onda3LrwLrv: resposta inesperada de vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).');
+    }
+  } catch(err){
+    console.error('Onda3LrwLrv: falha ao buscar vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).', err);
+  }
 }

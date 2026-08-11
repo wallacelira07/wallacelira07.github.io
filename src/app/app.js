@@ -224,6 +224,24 @@ const WallaceFinanceService = {
     this._cache.set(chave, total);
     return total;
   },
+  // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
+  // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
+  // detalhada vinha de VARS.LRW_TRANSACOES/LRV_TRANSACOES, array V1 mantido à mão no código, nunca
+  // migrado. Esta função busca vw_transacoes_cartao_variavel_por_pessoa (view nova, MESMO filtro exato
+  // de vw_compromisso_cartao_por_pessoa — caixa Variável + afeta_saldo_real=false + cartao_id
+  // preenchido + ciclo atual) — garante que a lista detalhada e o card resumido nunca mais divergem,
+  // os dois vêm da mesma fonte.
+  async getTransacoesCartaoVariavelDetalhe(){
+    const chave = 'transacoes_cartao_variavel_detalhe';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_transacoes_cartao_variavel_por_pessoa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   // NOVO 08/08/2026 (Onda 3, Livro Razão): transações confirmadas de uma lista de caixas, numa
   // única chamada (in.(id1,id2,...)) em vez de N requests separados.
   async getTransacoesPorCaixaIds(caixaIds){
