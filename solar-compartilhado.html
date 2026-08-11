@@ -65,13 +65,15 @@ function renderErro(mensagem){
   document.getElementById('app').innerHTML = `<div class="msg"><h2>☀️ ${titulo}</h2><p>${texto}</p></div>`;
 }
 
-// Réplica deliberada (não importada) das 3 constantes de tarifa de vars-energia-solar.js —
-// mudam raramente (fatura Energisa), e esta página propositalmente não carrega app.js/VARS/REG do
-// painel principal (nenhuma dependência do sistema autenticado, superfície mínima). Se a tarifa for
-// atualizada lá, atualizar aqui também.
-const TARIFA_ENERGISA_VALOR = 322.99;
-const TARIFA_ENERGISA_KWH = 304;
-const TARIFA_RS_POR_KWH = Math.round((TARIFA_ENERGISA_VALOR / TARIFA_ENERGISA_KWH) * 10000) / 10000;
+// CORRIGIDO 11/08/2026 (achado do usuário: "de onde você tirou que o kwh vale 18 centavos? o valor
+// de kWh aqui é 0,8995") - a versão anterior derivava a tarifa dividindo valor da fatura (R$) pelo
+// total de kWh da fatura (322,99/304 ≈ R$1,06/kWh), só que o card "Valor do kWh gerado" abaixo não
+// usava essa constante direto: dividia a economia estimada (que só conta o kWh AUTOCONSUMIDO) pela
+// GERAÇÃO TOTAL (que inclui o kWh exportado, sem economia direta nesta fórmula simplificada) — uma
+// média diluída, não a tarifa real, e por isso saía bem menor (~R$0,18). Corrigido: tarifa real
+// informada pelo usuário (linha "TE" da fatura Energisa, R$/kWh), e "Valor do kWh gerado" agora
+// mostra essa tarifa diretamente, não mais a média diluída.
+const TARIFA_RS_POR_KWH = 0.8995;
 const INVESTIMENTO_PADRAO = 25000; // mesmo default do simulador do painel privado (simInvestimento)
 
 async function carregar(){
@@ -100,6 +102,7 @@ async function carregar(){
   const leituras = dados.leituras || [];
   const geracaoDiaria = dados.geracaoDiaria || [];
   const ciclo = dados.cicloAberto || null;
+  const ciclosFechados = dados.ciclosFechados || [];
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
 
   const importadoAcum = ultima ? ultima.leitura03 : null;
@@ -123,13 +126,39 @@ async function carregar(){
     // que projeta mês a mês com degradação/Lei 14.300): consumo direto das placas × tarifa média,
     // desde a data de ativação. Deixado claro na tela que é estimativa, não fatura real.
     economiaEstimada = Math.round(consumoDiretoAcum * TARIFA_RS_POR_KWH * 100) / 100;
-    valorKwhGerado = geracaoAcum > 0 ? Math.round((economiaEstimada / geracaoAcum) * 10000) / 10000 : null;
+    valorKwhGerado = TARIFA_RS_POR_KWH;
     if(ciclo && ciclo.data_inicio){
       const diasDesdeInicio = Math.max(1, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
       const economiaAnualEstimada = (economiaEstimada / diasDesdeInicio) * 365;
       paybackAnos = economiaAnualEstimada > 0 ? Math.round((INVESTIMENTO_PADRAO / economiaAnualEstimada) * 10) / 10 : null;
     }
   }
+
+  // NOVO 11/08/2026 (pedido do usuário: "coloque mais gráficos lá no link, se possível todos os
+  // gráficos") - "Histórico mês a mês" (importado/consumo direto/exportado/saldo líquido), mesma
+  // ideia do gráfico do painel privado (seção 02), recalculada aqui a partir do delta entre leituras
+  // consecutivas (só dado solar, já devolvido pela RPC). Mês de cada intervalo = mês da leitura que
+  // fecha o intervalo.
+  const historicoMensal = {}; // 'YYYY-MM' -> {importado, exportado, consumoDireto, saldo}
+  for(let i=1;i<leituras.length;i++){
+    const ant = leituras[i-1], atu = leituras[i];
+    if(atu.leitura03==null || ant.leitura03==null || atu.leitura103==null || ant.leitura103==null) continue;
+    const mesKey = atu.data.slice(0,7);
+    const dImportado = Math.round((atu.leitura03 - ant.leitura03)*100)/100;
+    const dExportado = Math.round((atu.leitura103 - ant.leitura103)*100)/100;
+    let dConsumoDireto = null;
+    if(atu.geracaoAcumulada!=null && ant.geracaoAcumulada!=null){
+      dConsumoDireto = Math.round(((atu.geracaoAcumulada - ant.geracaoAcumulada) - dExportado)*100)/100;
+    }
+    const dSaldo = Math.round((dExportado - dImportado)*100)/100;
+    if(!historicoMensal[mesKey]) historicoMensal[mesKey] = {importado:0, exportado:0, consumoDireto:0, temConsumoDireto:false, saldo:0};
+    historicoMensal[mesKey].importado += dImportado;
+    historicoMensal[mesKey].exportado += dExportado;
+    historicoMensal[mesKey].saldo += dSaldo;
+    if(dConsumoDireto!=null){ historicoMensal[mesKey].consumoDireto += dConsumoDireto; historicoMensal[mesKey].temConsumoDireto = true; }
+  }
+  const mesesHistorico = Object.keys(historicoMensal).sort();
+  const mesLbl = (chave)=>{ const [a,m] = chave.split('-'); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(m,10)-1]+'/'+a.slice(2); };
 
   const expiraTxt = dados.expiraEm ? fmtData(dados.expiraEm) : '—';
 
@@ -168,6 +197,16 @@ async function carregar(){
       <div class="chart-wrap"><canvas id="cGeracaoDiaria"></canvas></div>
     </div>
 
+    ${mesesHistorico.length ? `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">Histórico mês a mês (kWh)</div>
+      <div class="chart-wrap"><canvas id="cHistoricoMensal"></canvas></div>
+    </div>` : ''}
+
+    ${ciclosFechados.length ? `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">Rateio Solar — crédito por casa, por ciclo fechado</div>
+      <div class="chart-wrap"><canvas id="cRateioSolar"></canvas></div>
+    </div>` : ''}
+
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
 
@@ -185,6 +224,50 @@ async function carregar(){
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  if(mesesHistorico.length && window.Chart){
+    new Chart(document.getElementById('cHistoricoMensal'), {
+      type: 'bar',
+      data: {
+        labels: mesesHistorico.map(mesLbl),
+        datasets: [
+          { label:'Importado (código 03)', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].importado*10)/10), backgroundColor:'#e2554f', borderRadius:3 },
+          { label:'Consumo direto (calculado)', data: mesesHistorico.map(m=>historicoMensal[m].temConsumoDireto ? Math.round(historicoMensal[m].consumoDireto*10)/10 : null), backgroundColor:'#e8a63a', borderRadius:3 },
+          { label:'Exportado (código 103)', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].exportado*10)/10), backgroundColor:'#3987e5', borderRadius:3 },
+          { label:'Saldo líquido', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].saldo*10)/10), backgroundColor:'#34c98a', borderRadius:3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.raw==null ? c.dataset.label+': sem dado ainda' : c.dataset.label+': '+c.raw+' kWh' } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.9, barPercentage:0.35 },
+          y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
+        },
+      },
+    });
+  }
+
+  if(ciclosFechados.length && window.Chart){
+    new Chart(document.getElementById('cRateioSolar'), {
+      type: 'bar',
+      data: {
+        labels: ciclosFechados.map(c => fmtData(c.dataFim)),
+        datasets: [
+          { label:'Crédito Wallace', data: ciclosFechados.map(c=>c.creditoWallaceKwh), backgroundColor:'#34c98a', borderRadius:3 },
+          { label:'Crédito Wellida', data: ciclosFechados.map(c=>c.creditoIrmaKwh), backgroundColor:'#14b8a6', borderRadius:3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw+' kWh' } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
+          y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
         },
       },
     });

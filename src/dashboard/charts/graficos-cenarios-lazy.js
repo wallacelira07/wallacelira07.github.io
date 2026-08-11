@@ -1418,7 +1418,11 @@ async function _lazyRenderSolarSecao(){
           meta.data.forEach((bar,i)=>{
             const v = ds.data[i];
             if(v===null || v===undefined) return;
-            ctx.fillText(Math.round(v)+' kWh', bar.x, bar.y - 4);
+            // CORRIGIDO 11/08/2026 (pedido do usuário: "os números sobre os gráficos devem ficar só
+            // os números... igual os outros gráficos" - com "kWh" no texto e 4 barras finas lado a
+            // lado, os rótulos de barras vizinhas coladas/iguais (ex: 69/69) se sobrepunham e
+            // ficavam ilegíveis. Mesmo padrão sem unidade já usado em energiaBarLabelPlugin.
+            ctx.fillText(String(Math.round(v)), bar.x, bar.y - 4);
           });
         });
         ctx.restore();
@@ -1653,31 +1657,54 @@ async function _lazyRenderSolarSecao(){
     return {emoji:'🔴', texto:'Atrasado', cor:'#e2554f'};
   }
 
-  function renderPrevisao(prefixo, meta, diaLeitura, creditoAtual, diasDecorridos, corBarra){
+  // CORRIGIDO 11/08/2026 (pedido do usuário, doc "Ajuste Conceitual da Seção 'Previsão até a
+  // Próxima Leitura'") - renderPrevisao agora só cobre o Fluxo 2 (GD atual, em formação): "Faltam"/
+  // "Saldo esperado" comparados com a meta do MÊS saíram daqui (não fazem mais sentido pra um crédito
+  // que ainda nem fechou) - viraram Período/Rateio, informativos, não uma promessa de cobertura.
+  function renderPrevisao(prefixo, meta, diaLeitura, creditoAtual, diasDecorridos, corBarra, periodoTxt, rateioTxt){
     const diasRestantes = calcularDiasRestantes(diaLeitura);
     const creditoRestante = calcularCreditoRestante(meta, creditoAtual);
     const mediaNecessaria = calcularMediaNecessaria(Math.max(0,creditoRestante), diasRestantes);
     const mediaRealizada = calcularMediaRealizada(creditoAtual, diasDecorridos);
     const previsao = calcularPrevisao(creditoAtual, mediaRealizada, diasRestantes);
-    const saldoEsperado = Math.round((previsao-meta)*10)/10;
     const status = calcularStatus(mediaRealizada, mediaNecessaria);
     const pct = Math.min(100, Math.max(0, Math.round(creditoAtual/meta*100)));
     const set = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
     const barEl = $(prefixo+'Bar');
     if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = status.cor; }
-    set(prefixo+'Fracao', creditoAtual+' / '+meta+' kWh');
+    set(prefixo+'Fracao', creditoAtual+' / '+meta+' kWh (meta do mês, referência)');
     set(prefixo+'Pct', pct+'%');
-    set(prefixo+'Faltam', Math.max(0,creditoRestante)+' kWh');
+    set(prefixo+'Periodo', periodoTxt || '—');
+    set(prefixo+'Rateio', rateioTxt || '—');
     set(prefixo+'Dias', diasRestantes+' dias');
     set(prefixo+'Necessario', mediaNecessaria+' kWh/dia');
     set(prefixo+'Media', mediaRealizada+' kWh/dia');
     set(prefixo+'Previsao', previsao+' kWh');
-    const saldoTxt = (saldoEsperado>=0?'+':'')+saldoEsperado+' kWh';
-    set(prefixo+'Saldo', saldoTxt);
-    const saldoEl = $(prefixo+'Saldo');
-    if(saldoEl) saldoEl.style.color = saldoEsperado>=0 ? '#34c98a' : '#e2554f';
     const statusEl = $(prefixo+'Status');
-    if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto; statusEl.style.color = status.cor; }
+    if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto+' (ritmo de geração desta GD)'; statusEl.style.color = status.cor; }
+  }
+
+  // NOVO 11/08/2026: Fluxo 1 - crédito já FECHADO no último ciclo da GD, o que realmente vai
+  // abater a próxima fatura de cada casa. Não recalcula nada (credito_wallace_kwh/credito_irma_kwh
+  // já vêm gravados e congelados por fechar_ciclo_solar() - ver ciclos_solares) - só apresenta.
+  function renderFluxo1Fechado(prefixo, meta, creditoFechado, dataFimTxt){
+    const set = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+    const barEl = $(prefixo+'Bar');
+    if(creditoFechado==null){
+      set(prefixo+'Fracao', 'Sem ciclo fechado ainda'); set(prefixo+'Cobertura', '—');
+      set(prefixo+'Data', '—'); set(prefixo+'Meta', meta+' kWh'); set(prefixo+'Faltam', '—');
+      if(barEl) barEl.style.width = '0%';
+      return;
+    }
+    const cobertura = meta>0 ? Math.round((creditoFechado/meta)*1000)/10 : 0;
+    const faltam = Math.round((meta-creditoFechado)*10)/10;
+    const pct = Math.min(100, Math.max(0, Math.round(cobertura)));
+    if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = faltam<=0 ? '#34c98a' : '#e8a63a'; }
+    set(prefixo+'Fracao', creditoFechado+' / '+meta+' kWh');
+    set(prefixo+'Cobertura', cobertura+'%');
+    set(prefixo+'Data', dataFimTxt);
+    set(prefixo+'Meta', meta+' kWh');
+    set(prefixo+'Faltam', faltam>0 ? faltam+' kWh' : 'Cobre com sobra de '+Math.abs(faltam)+' kWh');
   }
 
   if(ultimaSolar){
@@ -1706,8 +1733,22 @@ async function _lazyRenderSolarSecao(){
       // agoraEfetivoFrescorSolar()/hydrate-onda5-qualidade-geracao.js (desloca -3h, só a data importa aqui).
       const hojeBrasilia = new Date(Date.now() - 3*3600*1000);
       const diasDesdeInicioCiclo = Math.max(0, Math.round((hojeBrasilia - new Date(cicloSolarAberto.data_inicio)) / 86400000));
-      renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a');
-      renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, diasDesdeInicioCiclo, '#e8a63a');
+      const fmtDataBr = iso => iso ? iso.split('-').reverse().join('/') : '—';
+      const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → em aberto';
+      renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a', periodoTxt, Math.round(VARS.solarRateioWallace*1000)/10+'%');
+      renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, diasDesdeInicioCiclo, '#e8a63a', periodoTxt, Math.round(VARS.solarRateioIrma*1000)/10+'%');
+
+      // Fluxo 1: crédito do último ciclo JÁ FECHADO (congelado, não recalcula) - o que de fato vai
+      // abater a próxima fatura de cada casa. ciclosSolarFechados vem ordenado por data_fim DESC
+      // (vw_ciclo_solar_historico), então [0] é sempre o fechamento mais recente.
+      const ultimoFechado = Array.isArray(ciclosSolarFechados) && ciclosSolarFechados.length ? ciclosSolarFechados[0] : null;
+      if(ultimoFechado){
+        renderFluxo1Fechado('fechWallace', META_WALLACE, Number(ultimoFechado.credito_wallace_kwh), fmtDataBr(ultimoFechado.data_fim));
+        renderFluxo1Fechado('fechWellida', META_WELLIDA, Number(ultimoFechado.credito_irma_kwh), fmtDataBr(ultimoFechado.data_fim));
+      } else {
+        renderFluxo1Fechado('fechWallace', META_WALLACE, null, null);
+        renderFluxo1Fechado('fechWellida', META_WELLIDA, null, null);
+      }
     } else {
       ['prevWallaceStatus','prevWellidaStatus'].forEach(id => { const el=$(id); if(el){ el.textContent='⚠ Indisponível (V2)'; el.style.color='#e2554f'; } });
       console.error('CicloSolar: Previsão (seção 12) sem baselineKwh/cicloSolarAberto — não calculada, sem fallback silencioso.');

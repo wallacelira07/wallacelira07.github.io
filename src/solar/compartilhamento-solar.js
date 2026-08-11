@@ -48,10 +48,16 @@ async function criarLinkCompartilhamentoSolar(){
     if(!resp.ok){ const corpo = await resp.json().catch(()=>({})); throw new Error(corpo.message || `erro ${resp.status}`); }
     const dado = await resp.json();
     const link = _linkCompartilhamentoSolarUrl(dado.token);
+    // CORRIGIDO 11/08/2026 (pedido do usuário: "o link de compartilhamento deve ser mais amigavel")
+    // - antes mostrava o token de 64 caracteres cru, quebrado em várias linhas, parecendo um erro
+    // técnico. Mantém o link real (seguro, token longo) por trás, mas a tela mostra só "Abrir
+    // página" + "Copiar link" — quem recebe o link pelo WhatsApp/copiar-colar nunca vê o token.
     if(el){
-      el.innerHTML = `✅ Link criado, válido até <strong>${fmtDataHoraCompartilhamentoSolar(dado.expira_em)}</strong>:<br>` +
-        `<a href="${link}" target="_blank" rel="noopener" style="color:var(--blue)">${link}</a><br>` +
-        `<button type="button" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" style="margin-top:0.5rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.6rem;font-size:0.72rem;cursor:pointer">Copiar link</button>`;
+      el.innerHTML = `✅ Link criado, válido até <strong>${fmtDataHoraCompartilhamentoSolar(dado.expira_em)}</strong>` +
+        `<div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap">` +
+        `<a href="${link}" target="_blank" rel="noopener" style="background:var(--purple,#9085e9);color:#fff;border-radius:6px;padding:0.4rem 0.8rem;font-size:0.78rem;text-decoration:none;font-weight:600">☀️ Abrir página</a>` +
+        `<button type="button" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem 0.8rem;font-size:0.78rem;cursor:pointer">📋 Copiar link</button>` +
+        `</div>`;
     }
     renderizarLinksCompartilhamentoSolar();
   } catch(err){

@@ -50,12 +50,22 @@ function showMaster(id){
 // entao o fix da parte 43 (la em cima, so pros cards da Capa) nunca era executado por esses 4 botoes.
 // Esta funcao e o que os 4 botoes agora chamam: mesma logica de "achar a 1a .section-num do pane e
 // scrollIntoView nela" que irParaCapaDestino usa quando nao tem tituloSecao especifico.
+// CORRIGIDO 11/08/2026 (pedido do usuário: "quando eu clicar sobre a aba painel deveria vir para
+// cima desse menu e não sobre ciclo financeiro") - a versao anterior pulava pro 1o .section-num
+// do pane, escondendo qualquer conteudo ANTES dele (ex: o kpi-strip com Patrimonio/Total
+// Operacional/Caixa Variavel/Modo Operacional, que vem antes de "01 Ciclo Financeiro" no Painel).
+// Agora rola pro topo do PRÓPRIO pane (respeitando o offset da barra de abas fixa), nao mais pro
+// primeiro titulo de secao - assim nenhum conteudo de introducao fica escondido atras da barra.
 function irParaPrimeiraSecao(id){
   showMaster(id);
   const pane = document.getElementById(id);
-  const alvo = pane && pane.querySelector('.section-num');
-  if(!alvo){ window.scrollTo({top:0, behavior:'smooth'}); return; }
-  setTimeout(()=>{ scrollParaSecaoComOffset(alvo); }, 30);
+  if(!pane){ window.scrollTo({top:0, behavior:'smooth'}); return; }
+  setTimeout(()=>{
+    const tabs = document.querySelector('.master-tabs');
+    const offset = (tabs ? tabs.offsetHeight : 0) + 20;
+    const y = pane.getBoundingClientRect().top + window.pageYOffset - offset;
+    window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
+  }, 30);
 }
 
 function showLR(id, btn){

@@ -1183,43 +1183,78 @@
       <div id="historicoCiclosSolares">—</div>
     </div>
 
-    <div class="section-num"><span class="n">04</span><h2>📈 Previsão até a Próxima Leitura</h2></div>
+    <div class="section-num"><span class="n">04</span><h2>📈 Crédito garantido vs. crédito em formação</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Compara o ritmo de geração de crédito com o necessário pra cobrir a meta mensal até a próxima leitura da Energisa de cada unidade — atualiza sozinho conforme novas leituras (seção 02) chegam.</div>
+      <!-- CORRIGIDO 11/08/2026 (pedido do usuário: "Ajuste Conceitual da Seção 'Previsão até a
+           Próxima Leitura'" - documento anexado) - a seção antiga misturava 2 eventos diferentes:
+           o FECHAMENTO da GD (onde o crédito é gerado e congelado) e a LEITURA da UC de cada casa
+           (onde a Energisa aplica o crédito na fatura), fazendo o usuário achar que o crédito do
+           ciclo aberto (em formação, ainda crescendo) era "tudo que eu tenho pra minha próxima
+           conta" - quando na verdade a próxima conta já tem um crédito MAIOR, FECHADO e GARANTIDO,
+           do último ciclo da GD que fechou. Agora são 2 blocos sempre visíveis e nomeados: Fluxo 1
+           (fechado, não muda mais, é o que "viaja" pra próxima fatura) e Fluxo 2 (em formação,
+           cresce todo dia, só fecha e vira crédito de verdade no próximo fechamento da GD). -->
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Dois créditos coexistem ao mesmo tempo, sem se misturar: o que já fechou (garantido, vai pra próxima fatura) e o que a usina está gerando agora (só fecha no próximo fechamento da GD).</div>
 
       <div style="font-weight:600;margin-bottom:0.3rem">⚡ Wallace</div>
+      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
+      <div class="progress"><div class="fill" id="fechWallaceBar" style="width:0%;background:var(--green)"></div></div>
+      <div class="progress-lbl"><span class="v" id="fechWallaceFracao">—</span><span class="v" id="fechWallaceCobertura">—</span></div>
+      <div class="grid-3" style="margin-top:0.5rem">
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Fechado em</div><div class="v" style="font-weight:600" id="fechWallaceData">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Meta</div><div class="v" style="font-weight:600" id="fechWallaceMeta">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Faltam (se negativo)</div><div class="v" style="font-weight:600" id="fechWallaceFaltam">—</div></div>
+      </div>
+      <div class="legend-note" style="font-size:0.66rem;margin-top:0.4rem">Este valor não muda mais — é o que a Energisa vai abater na fatura que fecha por volta do dia 21.</div>
+
+      <div style="border-top:1px dashed var(--surface-2);margin:0.9rem 0"></div>
+
+      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
       <div class="progress"><div class="fill" id="prevWallaceBar" style="width:0%;background:var(--accent)"></div></div>
       <div class="progress-lbl"><span class="v" id="prevWallaceFracao">—</span><span class="v" id="prevWallacePct">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Faltam</div><div class="v" style="font-weight:600" id="prevWallaceFaltam">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dias restantes</div><div class="v" style="font-weight:600" id="prevWallaceDias">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Necessário/dia</div><div class="v" style="font-weight:600" id="prevWallaceNecessario">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Período</div><div class="v" style="font-weight:600" id="prevWallacePeriodo">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Rateio Wallace</div><div class="v" style="font-weight:600" id="prevWallaceRateio">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Média atual</div><div class="v" style="font-weight:600" id="prevWallaceMedia">—</div></div>
       </div>
       <div class="grid-3" style="margin-top:0.5rem">
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Média atual</div><div class="v" style="font-weight:600" id="prevWallaceMedia">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Previsão</div><div class="v" style="font-weight:600" id="prevWallacePrevisao">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Saldo esperado</div><div class="v" style="font-weight:600" id="prevWallaceSaldo">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dias restantes (GD)</div><div class="v" style="font-weight:600" id="prevWallaceDias">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Necessário/dia</div><div class="v" style="font-weight:600" id="prevWallaceNecessario">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Previsão de fechamento</div><div class="v" style="font-weight:600" id="prevWallacePrevisao">—</div></div>
       </div>
       <div style="margin-top:0.5rem;font-weight:600" id="prevWallaceStatus">—</div>
 
-      <div style="border-top:1px solid var(--surface-2);margin:1rem 0"></div>
+      <div style="border-top:1px solid var(--surface-2);margin:1.2rem 0"></div>
 
       <div style="font-weight:600;margin-bottom:0.3rem">⚡ Wellida</div>
+      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
+      <div class="progress"><div class="fill" id="fechWellidaBar" style="width:0%;background:var(--green)"></div></div>
+      <div class="progress-lbl"><span class="v" id="fechWellidaFracao">—</span><span class="v" id="fechWellidaCobertura">—</span></div>
+      <div class="grid-3" style="margin-top:0.5rem">
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Fechado em</div><div class="v" style="font-weight:600" id="fechWellidaData">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Meta</div><div class="v" style="font-weight:600" id="fechWellidaMeta">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Faltam (se negativo)</div><div class="v" style="font-weight:600" id="fechWellidaFaltam">—</div></div>
+      </div>
+      <div class="legend-note" style="font-size:0.66rem;margin-top:0.4rem">Este valor não muda mais — é o que a Energisa vai abater na fatura que fecha por volta do dia 8.</div>
+
+      <div style="border-top:1px dashed var(--surface-2);margin:0.9rem 0"></div>
+
+      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
       <div class="progress"><div class="fill" id="prevWellidaBar" style="width:0%;background:var(--amber)"></div></div>
       <div class="progress-lbl"><span class="v" id="prevWellidaFracao">—</span><span class="v" id="prevWellidaPct">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Faltam</div><div class="v" style="font-weight:600" id="prevWellidaFaltam">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dias restantes</div><div class="v" style="font-weight:600" id="prevWellidaDias">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Necessário/dia</div><div class="v" style="font-weight:600" id="prevWellidaNecessario">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Período</div><div class="v" style="font-weight:600" id="prevWellidaPeriodo">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Rateio Wellida</div><div class="v" style="font-weight:600" id="prevWellidaRateio">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Média atual</div><div class="v" style="font-weight:600" id="prevWellidaMedia">—</div></div>
       </div>
       <div class="grid-3" style="margin-top:0.5rem">
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Média atual</div><div class="v" style="font-weight:600" id="prevWellidaMedia">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Previsão</div><div class="v" style="font-weight:600" id="prevWellidaPrevisao">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Saldo esperado</div><div class="v" style="font-weight:600" id="prevWellidaSaldo">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dias restantes (GD)</div><div class="v" style="font-weight:600" id="prevWellidaDias">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Necessário/dia</div><div class="v" style="font-weight:600" id="prevWellidaNecessario">—</div></div>
+        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Previsão de fechamento</div><div class="v" style="font-weight:600" id="prevWellidaPrevisao">—</div></div>
       </div>
       <div style="margin-top:0.5rem;font-weight:600" id="prevWellidaStatus">—</div>
 
-      <div class="legend-note" style="font-size:0.68rem;margin-top:0.7rem">Leitura Wallace (apartamento): dia 21 do mês (janela 19-21). Leitura Wellida (casa da mãe): dia 8 do mês (janela 06-09). 🟢 no ritmo (média ≥ necessário) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%).</div>
+      <div class="legend-note" style="font-size:0.68rem;margin-top:0.7rem">Leitura/fatura Wallace (apartamento): dia 21 do mês (janela 19-21). Leitura/fatura Wellida (casa da mãe): dia 8 do mês (janela 06-09) — mesmo dia do fechamento da GD. 🟢 no ritmo (média ≥ necessário pra fechar a meta) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%) — status do Fluxo 2 (em formação), não do Fluxo 1 (já fechado).</div>
     </div>
 
     <div class="section-num"><span class="n">05</span><h2>☀️ Geração diária</h2></div>
@@ -1682,7 +1717,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-10';
+var __V = '20260811-11';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
