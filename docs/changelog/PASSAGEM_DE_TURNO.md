@@ -2,6 +2,32 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 10/08/2026 (noite, continuação da sessão de tarde) — créditos no fim (~99%)
+
+Sessão de continuação (retomou de compactação), focada em achados reais do usuário via foto do celular/navegador + 2 bugs de dado sérios. HEAD `30ee4ae`, tudo commitado e pushed. **Não testado em dispositivo real por mim** (sem login) — validação depende do usuário.
+
+**Resolvido nesta rodada:**
+1. Botão "Compartilhar" (aba Solar) invisível — `var(--purple)` sem fallback, variável nunca definida no painel principal. Corrigido + redesenhado em pílula com ícone (pedido do usuário, referência visual mandada por ele).
+2. Card "Caixa Var." da capa sempre verde mesmo negativo — classe de cor fixa no HTML, nunca trocava.
+3. Lupa do cabeçalho quase invisível na faixa 560-780px (correção anterior só cobria <560px).
+4. "Ver Ciclo" vazava pra todas as abas — era global fora de qualquer master-pane (decisão antiga V145 "sempre visível"), movido pra dentro de `#painel` por pedido explícito do usuário nesta sessão (contraria a decisão V145 de propósito — usuário confirmou querer só no Painel).
+5. F5 sempre voltava pro Painel, sem lembrar a aba — restauração via `sessionStorage.wallaceAbaAtual`, em 2 etapas (script síncrono cedo + `irParaPrimeiraSecao()` completo no fim do boot) pra eliminar o "flash" da home antes de trocar.
+6. Boot ~500ms mais rápido: os 6 módulos finais (documentados como independentes) esperavam `promocoes-financeengine.js` terminar por completo antes de começar a baixar — agora em paralelo.
+7. "Atualizar dados ao trocar de aba": decisão tomada COM o usuário (AskUserQuestion) — nem sempre (mais lento), nem nunca (fica velho). Implementado: recarrega o iframe inteiro (reaproveita o F5) só se passou +5min desde o boot. Recarregar tudo (não só re-chamar hydrate) foi escolha deliberada — gráficos não são seguros de recriar (`new Chart()` 2x quebra).
+8. Robô solar (`scripts/sync/atualizar_geracao_saj.py`) parou de escrever em `wallace_dados` (V1) — confirmado que nada mais lê aquilo (domínio Solar é V2-exclusivo). Fecha a fila original "demais leitores/escritores V1" pro domínio Solar. **Resta**: `scripts/database/sincronizar_erp_supabase.py` (HISTORICO_ERP_TODOS_CICLOS) — não cheguei a investigar/migrar, próximo item natural da fila.
+9. Espaço vazio acima do menu de abas em todas as 5 abas (não na capa) — `body{padding-top}` pensado pro hero da capa sobrava inteiro nas outras, `#home` vira `display:none` (0 altura).
+10. Busca Global não achava "PIB" (nem outros termos em seções com 2+ blocos de conteúdo) — indexador só olhava o 1º elemento-irmão depois do título da seção. Corrigido pra varrer todos os irmãos até a próxima seção.
+11. Card "PIB Wallace (metodologia antiga)" removido da tela por pedido do usuário — "Crescimento Patrimonial" (seção acima, já existia de sessão anterior) é o indicador correto (desconta gasto real, não só bens duráveis avulsos). Cálculo/histórico continuam intactos.
+12. **Bug de dado sério**: Reserva de Emergência mostrava R$100.644,15 (com rendimento) na aba Cenários — usuário já tinha retirado o rendimento (rotina mensal documentada, manter em R$100.000 fixo). Corrigido em 3 pontos: tabela V2 `patrimonio` (UPDATE direto via SQL), literal de fallback V1 (`vars-patrimonio.js`), e a conexão que faltava (`REG.reserva.atual` nunca era resincronizado quando a V2 de Patrimônio carregava — `aplicarOnda4Patrimonio()` agora atualiza e re-chama `hydrateCenarios()`).
+13. **Bug de dado sério**: tabela "Necessidade (paga tudo)" (Cenários) não batia com o gráfico "Necessidade líquida" (Gráficos) a partir do 2º mês — `REG.superavitNormal.necessidade` era um array LITERAL congelado desde V150 (25/07), só o índice 0 era resincronizado. Corrigido pela raiz: novo `REG.evolucao.necessidadeBruta` (array vivo) e `REG.superavitNormal.necessidade` agora É essa mesma referência — impossível dessincronizar de novo.
+14. **Bug de dado sério**: gráfico "Evolução do Total Operacional" mostrava o mês seguinte (Set/26) MAIOR que o atual (Ago/26), contrário à tendência de queda esperada. Causa: `D.provMP` (parcelas Mercado Pago ativas) contado como componente FIXO em `baseFixaOperacional` E DE NOVO dentro de `somaParcelasProjetadas()` (que já soma Visa+MP com decaimento real) — dupla contagem em todo mês projetado. Removido `D.provMP` de `baseFixaOperacional`.
+
+**Não resolvido / próxima sessão:**
+- `scripts/database/sincronizar_erp_supabase.py` — último escritor V1 conhecido fora de Cartões, não investigado ainda.
+- Domínio Cartões (Visa Infinite/Mastercard Black) — continua explicitamente fora de escopo, "bloqueador estrutural", sessão dedicada. Usuário perguntou sobre puxar a Reserva (R$100k) via Pluggy — **não é isso, a Reserva é conta BTG (já corrigida acima), o R$100k que ele mencionou por último está no Itaú** (conta "itau" já conectada no Pluggy, mas só sincroniza saldo de conta corrente/cartão, não investimentos — não confundir os dois R$100k, são contas diferentes, não investigado a fundo qual é qual, checar com o usuário na próxima sessão).
+- Nenhum dos itens desta rodada foi testado em navegador real por mim (sem login) — todos pendem de confirmação visual do usuário no próximo acesso real.
+- Item da fila original ainda não fechado por completo: "demais leitores/escritores ativos da V1" (só Solar foi fechado nesta rodada).
+
 ## 🏁 Encerramento de sessão longa 10/08/2026 (tarde/noite) — resumo pro próximo agente
 
 Sessão muito longa, muitas frentes de UI/UX + 2 bugs reais de cálculo. Créditos acabaram no meio de uma investigação — leia o item 1 primeiro, é o mais urgente.
