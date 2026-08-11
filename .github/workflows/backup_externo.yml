@@ -36,7 +36,18 @@ jobs:
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: python3 scripts/sync/backup_externo_criptografado.py
       - name: Instalar cliente PostgreSQL (pg_dump)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+        # O runner do GitHub vem só com postgresql-client 16, mas o servidor
+        # do Supabase roda Postgres 17 - pg_dump recusa dumpar de um servidor
+        # mais novo que a própria versão (descoberto na primeira execução
+        # real, 11/08/2026). Adiciona o repositório oficial PGDG pra
+        # instalar o client 17 (o wrapper postgresql-client-common passa a
+        # usar a versão mais alta instalada automaticamente).
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
       - name: Backup de SCHEMA (estrutura, texto puro)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
