@@ -18,6 +18,14 @@ function criarVarsPatrimonio(){
   // valor é 100k, esse é o plano, manter esse valor sempre lá") — rotina mensal de retirada de
   // rendimento executada, Reserva travada em R$100.000,00 (mesmo valor já atualizado na tabela V2
   // `patrimonio`, id d36ce6aa-6ce2-4212-bcdf-c858615aa1ef). Era R$100.644,15.
+  // ESCLARECIDO 10/08/2026: comentários antigos deste campo alternavam entre "print Itaú" (27/07) e
+  // "print BTG" (31/07) sem nunca dizer explicitamente qual banco é — usuário confirmou que a
+  // Reserva de Emergência é conta ITAÚ (não BTG; BTG/Necton é o campo separado `btgNecton` abaixo,
+  // LFTS11). Checado via Pluggy (10/08): a conta "itau" já está conectada (`pluggy_contas`, item
+  // 7a747d7d-...), mas sincroniza como CHECKING_ACCOUNT com saldo R$0 (sync fresco, 10/08 22:52) —
+  // os R$100k não aparecem porque devem estar num produto separado (poupança/CDB/fundo) não incluído
+  // no escopo desta conexão Pluggy, não por sync desatualizado. Não dá pra automatizar via Pluggy sem
+  // adicionar esse produto à conexão primeiro (fora do escopo desta sessão).
   reserva: 100000.00,
   reservaRetiradaProgramada: { data: '03/08/2026', valorProjetado: 791.73, motivo: 'Rendimento do mês (IOF zera aos 30 dias), retirar pra manter Reserva em R$100.000,00' },
   btgNecton: 14779.62, // ATUALIZADO 31/07/2026 (V210): print BTG, LFTS11, 94 cotas, +1,25% resultado com proventos. Era R$14.673,40.
