@@ -997,7 +997,17 @@ async function _lazyRenderSolarSecao(){
   const ANCHOR_SOLAR_ANO = Number(VARS.solarDataAtivacao.split('-')[0]);
   const ANCHOR_SOLAR_MES_CICLO = mesFechamentoCiclo(VARS.solarDataAtivacao); // 8 = Ago/2026 - unica ancora, usada em TUDO abaixo (dados E rotulos)
   const leituraMaisRecentePorMes = {}; // {indiceMes 0-11: leitura com maior creditoLiquido acumulado naquele CICLO}
+  // CORRIGIDO 11/08/2026 (achado do usuário, print real: barra "Set" aparecendo com dado provisório
+  // em 11/08, quando Set nem começou) — antes, QUALQUER leitura manual nova (mesmo não-oficial, tirada
+  // em pleno ciclo aberto) já criava/avançava um bucket de mês via mesFechamentoCiclo(l.data), que
+  // empurra qualquer dia>8 pro mês seguinte. Isso fazia uma foto tirada dia 11 (ciclo ainda aberto,
+  // sem fechar) "criar" uma barra "Set" com número parcial, e o aviso de congelamento citava "Set"
+  // como se já tivesse passado. Corrigido: só leituras OFICIAIS (fecham um ciclo de verdade,
+  // eh_leitura_oficial_energisa=true) alimentam o histórico mês a mês — mesma regra "só por ciclo
+  // fechado" já usada no card "Fluxo 1" (seção 04). Leitura em andamento no ciclo aberto não cria
+  // barra nova; o progresso ao vivo continua visível nos KPIs do topo (Crédito do ciclo atual).
   solarL.forEach(l=>{
+    if(!l.ehLeituraOficial) return;
     const mesLeitura = mesFechamentoCiclo(l.data);
     const idx = (mesLeitura - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // idx0 = Ago (1º ciclo), nao mais Jul
     if(!leituraMaisRecentePorMes[idx] || l.creditoLiquido > leituraMaisRecentePorMes[idx].creditoLiquido) leituraMaisRecentePorMes[idx] = l;
@@ -1212,18 +1222,15 @@ async function _lazyRenderSolarSecao(){
       VARS._diasProjetadosSolar = diasProjetadosSolar;
       VARS._diasComDadoRealSolar = diasComDadoRealSolar;
 
-      const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10)); // CORRIGIDO 03/08/2026: era mes calendario puro (hojeChart.getMonth()+1) - agora usa o ciclo de leitura (dia 8), consistente com o resto deste grafico
-      const idxMesAtual = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12; // CORRIGIDO 03/08/2026: mesma ancora unica (Ago)
-      // credito acumulado ATE O FIM DO CICLO ANTERIOR (ultima leitura de um ciclo diferente do atual)
-      let creditoAcumAntesDoMesAtual = 0;
-      solarL.forEach(l => {
-        const mesDaLeitura = mesFechamentoCiclo(l.data); // CORRIGIDO 03/08/2026: era mes calendario puro
-        if(mesDaLeitura !== mesAtualCalendario) creditoAcumAntesDoMesAtual = l.creditoLiquido;
-      });
-      const creditoDoMesAtualEstimado = Math.round((saldoTotalEstimadoChart - creditoAcumAntesDoMesAtual) * 100) / 100;
-      creditoMensalWallace[idxMesAtual] = Math.round(creditoDoMesAtualEstimado * VARS.solarRateioWallace * 100) / 100;
-      creditoMensalIrma[idxMesAtual] = Math.round(creditoDoMesAtualEstimado * VARS.solarRateioIrma * 100) / 100;
-      temLeituraNoMes[idxMesAtual] = true;
+      // REMOVIDO 11/08/2026 (pedido do usuário, "seção 02 confusa" + regra "só por ciclo fechado"
+      // confirmada): este bloco injetava o crédito ESTIMADO de hoje direto numa barra do histórico
+      // mês a mês (creditoMensalWallace/Irma[idxMesAtual]), fazendo o ciclo AINDA ABERTO aparecer como
+      // se já fosse um mês fechado no gráfico "Rateio Solar" — mesma causa raiz do bug da barra "Set"
+      // prematura no gráfico "Histórico mês a mês" (Unidade Geradora), corrigido acima com o filtro
+      // ehLeituraOficial. O progresso ao vivo do ciclo aberto continua 100% visível e correto na seção
+      // 04 (Fluxo 2 "GD atual, crédito em formação") — não se perde informação, só para de duplicar
+      // com um número diferente dentro de uma barra que deveria significar "ciclo fechado".
+      // VARS._creditoLiquidoProjetadoHoje continua exposto acima (usado pela seção 04).
     }
   }
 

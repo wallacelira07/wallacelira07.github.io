@@ -1117,54 +1117,68 @@
 
     <div class="section-num"><span class="n">02</span><h2>Unidade Geradora (Casa da Mãe)</h2></div>
     <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida — quanto a casa consumiu direto das placas, quanto importou da rede, quanto exportou e o saldo líquido produzido.</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Acompanha a eficiência da usina que gera os créditos rateados entre Wallace e Wellida.</div>
 
-      <div class="grid-2">
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Geração acumulada (inversor SAJ)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugGeracaoAcumulada">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugImportado">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugExportado">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📊 Crédito do ciclo atual</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugSaldoLiquido">—</div>
+      <!-- CORRIGIDO 11/08/2026 (pedido do usuário: "seção muito poluída e bagunçada, não é intuitivo")
+           - de 6 cards + resumo + eficiência + diagrama + gráfico, tudo sempre visível, ficou só o
+           essencial de cara: crédito do ciclo atual + status. O resto (números técnicos derivados,
+           diagrama didático, histórico mensal) foi pro <details> "Ver detalhes técnicos" - mesmo dado,
+           mesmos cálculos, só deixou de competir visualmente com o que importa no dia a dia. -->
+      <div class="card" style="border-left:3px solid var(--green)">
+        <div style="font-size:0.72rem;color:var(--text-mid)">📊 Crédito do ciclo atual</div>
+        <div class="v" style="font-weight:600;font-size:1.4rem" id="ugSaldoLiquido">—</div>
         <div class="v" id="ugAcumuladoDesdeAtivacao" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.3rem">—</div>
-        <div class="v" id="ugSaldoLiquidoEstimado" style="display:none;font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border)">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏠 Consumo direto das placas</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏡 Consumo total da casa</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoTotalCasa">—</div></div>
-      </div>
-
-      <div id="ugAvisosConsistencia" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:#e2554f"></div>
-      <div id="ugCicloParcial" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:var(--text)"></div>
-      <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:8px;font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
-
-      <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
-      <div class="grid-3">
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Autoconsumo</div><div class="v" style="font-weight:600" id="ugAutoconsumoPct">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dependência da rede</div><div class="v" style="font-weight:600" id="ugDependenciaPct">—</div></div>
-        <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
+        <div class="v" id="ugSaldoLiquidoEstimado" style="display:none;font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border)">—</div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600" id="ugStatus">—</div>
 
-      <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.6rem">Fluxo de energia</div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.78rem;text-align:center">
-        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">☀️ Placas solares — geração total</div>
-        <div style="color:var(--text-dim)">↓</div>
-        <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
-          <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">🏠 Consumo imediato da casa</div>
-          <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">📤 Exportação (código 103)</div>
-        </div>
-        <div style="color:var(--text-dim)">↓ (só a exportação vira crédito)</div>
-        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">💳 Créditos Energisa</div>
-        <div style="color:var(--text-dim)">↓</div>
-        <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
-          <div style="padding:0.5rem 0.8rem;background:rgba(52,201,138,0.12);border-radius:8px;border:1px solid #34c98a;flex:1;min-width:130px">Wallace (71%)</div>
-          <div style="padding:0.5rem 0.8rem;background:rgba(232,166,58,0.12);border-radius:8px;border:1px solid #e8a63a;flex:1;min-width:130px">Wellida (29%)</div>
-        </div>
-        <div style="color:var(--text-dim);margin-top:0.4rem">À noite ↓</div>
-        <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">🔌 Rede Energisa → Código 03 (Importação)</div>
-      </div>
+      <div id="ugAvisosConsistencia" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:#e2554f"></div>
+      <div id="ugCicloParcial" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.35);border-radius:8px;font-size:0.76rem;line-height:1.5;color:var(--text)"></div>
 
-      <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>
-      <div class="chart-box tall"><canvas id="cUnidadeGeradora"></canvas></div>
-      <div class="legend-note" style="font-size:0.68rem;margin-top:0.4rem">Consumo direto = geração real do inversor SAJ − exportado real (código 103) — nunca estimado. Sem a leitura real de geração do inversor, os campos dependentes mostram "Dados insuficientes para cálculo" em vez de estimar.</div>
-      <div class="legend-note v" id="legConsumoDiretoCongelado" style="font-size:0.68rem;margin-top:0.3rem;color:var(--amber)"></div>
+      <details style="margin-top:1rem">
+        <summary style="cursor:pointer;font-weight:600;font-size:0.82rem;color:var(--text-mid);padding:0.4rem 0">Ver detalhes técnicos (importado, exportado, consumo direto, eficiência, histórico)</summary>
+
+        <div class="grid-2" style="margin-top:0.8rem">
+          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Geração acumulada (inversor SAJ)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugGeracaoAcumulada">—</div></div>
+          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugImportado">—</div></div>
+          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugExportado">—</div></div>
+          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏠 Consumo direto das placas</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">—</div></div>
+          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏡 Consumo total da casa</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoTotalCasa">—</div></div>
+        </div>
+
+        <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:8px;font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
+
+        <div style="font-weight:600;margin-top:1rem;margin-bottom:0.5rem">Eficiência da unidade</div>
+        <div class="grid-3">
+          <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Autoconsumo</div><div class="v" style="font-weight:600" id="ugAutoconsumoPct">—</div></div>
+          <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Dependência da rede</div><div class="v" style="font-weight:600" id="ugDependenciaPct">—</div></div>
+          <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
+        </div>
+
+        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.6rem">Fluxo de energia</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.78rem;text-align:center">
+          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">☀️ Placas solares — geração total</div>
+          <div style="color:var(--text-dim)">↓</div>
+          <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
+            <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">🏠 Consumo imediato da casa</div>
+            <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);flex:1;min-width:130px">📤 Exportação (código 103)</div>
+          </div>
+          <div style="color:var(--text-dim)">↓ (só a exportação vira crédito)</div>
+          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">💳 Créditos Energisa</div>
+          <div style="color:var(--text-dim)">↓</div>
+          <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
+            <div style="padding:0.5rem 0.8rem;background:rgba(52,201,138,0.12);border-radius:8px;border:1px solid #34c98a;flex:1;min-width:130px">Wallace (71%)</div>
+            <div style="padding:0.5rem 0.8rem;background:rgba(232,166,58,0.12);border-radius:8px;border:1px solid #e8a63a;flex:1;min-width:130px">Wellida (29%)</div>
+          </div>
+          <div style="color:var(--text-dim);margin-top:0.4rem">À noite ↓</div>
+          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">🔌 Rede Energisa → Código 03 (Importação)</div>
+        </div>
+
+        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>
+        <div class="chart-box tall"><canvas id="cUnidadeGeradora"></canvas></div>
+        <div class="legend-note" style="font-size:0.68rem;margin-top:0.4rem">Consumo direto = geração real do inversor SAJ − exportado real (código 103) — nunca estimado. Sem a leitura real de geração do inversor, os campos dependentes mostram "Dados insuficientes para cálculo" em vez de estimar. Uma barra nova só aparece quando o ciclo daquele mês realmente fecha — o ciclo em andamento fica de fora do histórico até fechar (o progresso ao vivo está no card verde do topo).</div>
+        <div class="legend-note v" id="legConsumoDiretoCongelado" style="font-size:0.68rem;margin-top:0.3rem;color:var(--amber)"></div>
+      </details>
     </div>
 
     <div class="section-num"><span class="n">03</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
@@ -1717,7 +1731,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-14';
+var __V = '20260811-15';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
