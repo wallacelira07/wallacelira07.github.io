@@ -142,7 +142,12 @@ async function aplicarOnda5QualidadeGeracao(){
   // (legQgHojeParcial/legQgSemLeituraHoje), não mais hardcoded aqui — {hora} é o único placeholder
   // necessário pra esse texto.
   if(elAviso){
-    const capturado = registroHoje && registroHoje.capturadoEm ? new Date(registroHoje.capturadoEm) : null;
+    // CORRIGIDO 11/08/2026 (achado do usuário, "última captura nunca corrige"): usava
+    // registroHoje.capturadoEm (= created_at, congela na 1ª gravação do dia, ~06h) em vez de
+    // atualizadoEm (= atualizado_em, reflete a gravação mais recente do robô) — mesmo campo que o
+    // badge de frescor logo abaixo já usa corretamente. O texto dizia "última captura" mas sempre
+    // mostrava a PRIMEIRA.
+    const capturado = registroHoje && registroHoje.atualizadoEm ? new Date(registroHoje.atualizadoEm) : null;
     const horaTxt = capturado ? capturado.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}) : '—';
     elAviso.textContent = registroHoje
       ? formatarLegenda('legQgHojeParcial', { hora: horaTxt })
