@@ -50,21 +50,7 @@ jobs:
               --schema=public \
               -f "backups_externos/wallace_schema_${TIMESTAMP}.sql"
             echo "Schema salvo: backups_externos/wallace_schema_${TIMESTAMP}.sql"
-            python3 - <<'PYEOF'
-import glob, os
-from datetime import datetime, timedelta, timezone
-limite = datetime.now(timezone.utc) - timedelta(days=30)
-for caminho in glob.glob("backups_externos/wallace_schema_*.sql"):
-    nome = os.path.basename(caminho)
-    try:
-        ts = nome.replace("wallace_schema_", "").replace(".sql", "")
-        data_arquivo = datetime.strptime(ts, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
-    except ValueError:
-        continue
-    if data_arquivo < limite:
-        os.remove(caminho)
-        print(f"Removido (retenção 30d): {nome}")
-PYEOF
+            python3 scripts/sync/podar_backups_externos.py --prefixo wallace_schema_ --sufixo .sql --dias 30
           fi
       - name: Commitar e enviar os backups pro repositório
         run: |
