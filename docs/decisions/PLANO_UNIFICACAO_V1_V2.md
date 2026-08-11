@@ -1923,3 +1923,11 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 **Commits desta rodada**: RPCs/tabelas via `apply_migration` direto no Supabase (sem arquivo `.sql` versionado no repo — mesmo padrão já usado em todas as migrações desta frente) + 1 commit no repositório (`f2cb453`, fetch/hydratação das 2 tabelas novas).
 
 **Regra de aplicação, mesma de sempre**: qualquer achado novo a partir daqui é backlog, não reabre esta fase.
+
+## 54. Encerramento definitivo — Migração V1→V2 concluída com sucesso (11/08/2026)
+
+**Aprovação final do usuário.** A migração V1 (`wallace_dados`)→V2 relacional (`transacoes`/`caixas`/etc.) está **encerrada e concluída com sucesso**. Frentes fechadas nesta mesma sessão: Mastercard Black (seção 51), Caixa Mastercard/Infinite, Onda 9 (LRS/LRR/LRCON/LRDOA), Adequação Consórcios/LREI0005, backlog técnico (seção 53).
+
+**Único item que permanece como backlog deliberado, congelado**: Visa Infinite/`cartao_id` histórico — não reabrir sem evidência nova e objetiva.
+
+**A partir de agora, este documento (`PLANO_UNIFICACAO_V1_V2.md`) é histórico/referência, não plano de trabalho ativo.** Qualquer demanda nova sobre o sistema é correção de defeito, melhoria evolutiva ou funcionalidade nova — não "migração". Nenhum agente deve tratar trabalho futuro como continuação desta frente sem pedido explícito do usuário reabrindo especificamente algum ponto aqui registrado.
