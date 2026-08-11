@@ -1681,7 +1681,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-3';
+var __V = '20260811-4';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1859,7 +1859,7 @@ var __promiseLegendasRemotas = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // wallace_dados (proibido fallback silencioso) — VARS.SOLAR_LEITURAS vira array vazio, os campos
 // dependentes mostram "Dados insuficientes"/"Indisponível (V2)" em vez de número desatualizado do V1.
 window.WALLACE_SOLAR_LEITURAS_V2 = null;
-var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_leituras?select=leitura_03,leitura_103,geracao_acumulada,data&casa=eq.mae&order=data.asc', {
+var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_leituras?select=leitura_03,leitura_103,geracao_acumulada,data,eh_leitura_oficial_energisa&casa=eq.mae&order=data.asc', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){

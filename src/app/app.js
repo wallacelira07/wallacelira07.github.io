@@ -879,6 +879,10 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_LEITURAS_
       geracaoAcumulada: r.geracao_acumulada != null ? Number(r.geracao_acumulada) : null,
       geracaoAcumuladaData: null, // não existe em energia_solar_leituras (V2) — nunca fabricado (P1)
       fonte: 'real',
+      // NOVO 11/08/2026 (pedido do usuário: leitura de fronteira de ciclo divide a geração do dia
+      // 50/50 entre o mês que fecha e o que abre, já que não se sabe a hora exata do leiturista —
+      // ver ajuste em graficos-cenarios-lazy.js, só usa esta flag pra saber QUAL leitura é fronteira).
+      ehLeituraOficial: !!r.eh_leitura_oficial_energisa,
     };
   });
 } else {

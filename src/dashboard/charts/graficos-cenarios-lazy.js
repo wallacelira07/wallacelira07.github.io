@@ -1109,6 +1109,30 @@ async function _lazyRenderSolarSecao(){
       temLeituraNoMes.push(false);
     }
   }
+
+  // NOVO 11/08/2026 (pedido do usuário: "não sabemos a hora que o leiturista passa, vamos dividir a
+  // quantidade" — aplicado só aqui, Consumo Direto, por decisão explícita do usuário: o crédito do
+  // ciclo/rateio Wallace-Irmã usa só os códigos 03/103, cumulativos como odômetro, sem essa
+  // ambiguidade). Quando o mês i termina numa leitura marcada como fronteira oficial de ciclo
+  // (ehLeituraOficial), a geração TOTAL daquele dia (energia_solar_geracao_diaria, robô SAJ) é
+  // dividida meio-a-meio: metade fica no mês que fecha (i), metade passa pro mês que abre (i+1) —
+  // aproximação razoável já que a leitura manual (03/103) e o total diário do robô não têm o mesmo
+  // timestamp exato. Sem essa correção, geracaoDoMes[i] levava o dia inteiro da fronteira, e o mês
+  // seguinte começava sem ele (mesmo problema em menor escala pra qualquer fronteira, não só day 08).
+  for(let i=0;i<12;i++){
+    const l = leituraMaisRecentePorMes[i];
+    if(!l || !l.ehLeituraOficial || geracaoEstMensal[i] == null) continue;
+    const diaFronteira = (VARS.SOLAR_GERACAO_DIARIA||[]).find(g => g.data === l.data);
+    if(!diaFronteira || typeof diaFronteira.kwh !== 'number') continue;
+    const metade = Math.round((diaFronteira.kwh/2)*100)/100;
+    geracaoEstMensal[i] = Math.round((geracaoEstMensal[i] - metade)*100)/100;
+    consumoDiretoMensal[i] = consumoDiretoMensal[i] != null ? Math.round((consumoDiretoMensal[i] - metade)*100)/100 : consumoDiretoMensal[i];
+    if(i+1 < 12 && geracaoEstMensal[i+1] != null){
+      geracaoEstMensal[i+1] = Math.round((geracaoEstMensal[i+1] + metade)*100)/100;
+      consumoDiretoMensal[i+1] = consumoDiretoMensal[i+1] != null ? Math.round((consumoDiretoMensal[i+1] + metade)*100)/100 : consumoDiretoMensal[i+1];
+    }
+  }
+
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
