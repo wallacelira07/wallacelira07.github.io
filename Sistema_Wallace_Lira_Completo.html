@@ -255,6 +255,21 @@
     </div>
     <div class="v" id="alertasNegocio">—</div>
   </div>
+
+  <!-- NOVO 11/08/2026 (hardening de produção, pedido do usuário: "eliminar falha silenciosa" das
+       automações agendadas). Lê vw_saude_jobs (tabela execucoes_jobs, heartbeat gravado por cada
+       script Python ao final de toda execução, sucesso ou erro) e classifica cada job em
+       OK/Atenção/Falha por idade da última execução. Ver hydrate-saude-operacional.js. -->
+  <div class="card verif-card" style="margin-top:1rem;margin-bottom:1.5rem">
+    <div class="card-header-icon" style="margin-bottom:0.7rem">
+      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🩺</div>
+      <div>
+        <div class="chi-title" style="font-size:0.82rem">Saúde Operacional</div>
+        <div class="chi-sub" style="font-size:0.68rem">Última execução de cada automação agendada — em menos de 30 segundos você sabe se algo parou</div>
+      </div>
+    </div>
+    <div class="v" id="saudeOperacional">—</div>
+  </div>
   </div>
 
   <!-- parte 45 (pedido do usuario): tabs movidas pra logo acima do conteudo que elas de fato trocam -
@@ -1765,7 +1780,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-32';
+var __V = '20260811-33';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1845,6 +1860,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/integrations/pluggy/hydrate-onda7-pluggy.js',
   'src/financeiro/caixas/hydrate-onda8-cronograma-boletos.js',
   'src/financeiro/livros-razao/hydrate-onda9-livros-fixos.js',
+  'src/auditoria/verificacoes/hydrate-saude-operacional.js',
   'src/auditoria/classificacao/classificacao-inbox.js',
   'src/auditoria/classificacao/hydrate-onda6-mercadopago.js',
   'src/financeiro/caixas/recalcular-caixas.js',

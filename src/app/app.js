@@ -529,6 +529,18 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado;
   },
+  // NOVO 11/08/2026 (hardening de produção: "eliminar falha silenciosa" das automações agendadas).
+  // vw_saude_jobs = última execução (sucesso/erro) de cada job Python, gravada por _heartbeat.py
+  // ao final de toda execução (scripts/sync/). Ver hydrate-saude-operacional.js.
+  async getSaudeJobs(){
+    const chave = 'vw_saude_jobs';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/vw_saude_jobs?select=job_nome,ultima_execucao,ultimo_status,ultimo_detalhe,horas_desde_ultima_execucao`, { headers: this._headers() });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saude_jobs`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   // NOVO 11/08/2026 (achado do usuário: "confira se isso tudo é V2" — LRS/LRR/LRCON/LRDOA eram HTML
   // estático, nunca lido do banco) — mesmo padrão de getCronogramaBoletosV2() acima, 4 tabelas novas
   // (cronograma_assinaturas/recorrencias/consorcios/doacoes). Ver hydrate-onda9-livros-fixos.js.
@@ -1785,6 +1797,9 @@ onDomPronto(aplicarOnda7Pluggy);
 // cronograma_boletos_fixos — editável sem deploy de código a partir de agora. Ver hydrate-onda8-cronograma-boletos.js.
 onDomPronto(aplicarOnda8CronogramaBoletos);
 onDomPronto(aplicarOnda9LivrosFixos);
+// NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
+// Ver hydrate-saude-operacional.js.
+onDomPronto(aplicarSaudeOperacional);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.

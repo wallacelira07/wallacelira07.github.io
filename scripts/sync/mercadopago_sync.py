@@ -231,4 +231,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from _heartbeat import registrar_execucao
+    try:
+        main()
+        registrar_execucao("mercadopago", "sucesso")
+    except SystemExit as _e:
+        # main() ja chama sys.exit(1) no caso de variavel de ambiente faltando - respeita o
+        # codigo original, so registra o heartbeat de acordo.
+        registrar_execucao("mercadopago", "sucesso" if (_e.code in (None, 0)) else "erro")
+        raise
+    except Exception as _e:
+        registrar_execucao("mercadopago", "erro", detalhe=str(_e))
+        raise

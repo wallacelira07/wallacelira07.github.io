@@ -299,4 +299,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    from _heartbeat import registrar_execucao
+    _codigo = main()
+    registrar_execucao("geracao_solar", "sucesso" if _codigo == 0 else "erro")
+    sys.exit(_codigo)
