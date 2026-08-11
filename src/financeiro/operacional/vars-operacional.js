@@ -57,6 +57,13 @@ function criarVarsOperacional(){
     // 5% = base×1,35, nunca cai abaixo disso) × a Evolução real do Total Operacional (mesma série
     // viva do gráfico gêmeo da aba Gráficos, cai conforme parcelas terminam).
     legDeficitSemEmbarque: `Compara o piso mínimo que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo (salário base R$10.913,66 + Periculosidade 30% + Supervisão 5% = <strong>R$14.733,44/mês</strong>, nunca cai abaixo disso) contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`,
+    // NOVO 11/08/2026 (pedido do usuário, gráfico idêntico ao de cima com 2 eixos diferentes):
+    // compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" já
+    // usada na seção 01, base+5%+creche, sem periculosidade) contra o piso absoluto de gastos que
+    // nunca é cortado (seção 03, mesmo valor de pisoTotal). Os 2 valores são constantes mês a mês
+    // (diferente do gráfico de cima, que usa a Evolução real do Total Operacional) — a diferença se
+    // repete igual nos 12 meses, é o esperado, não é bug.
+    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche, sem periculosidade — <strong>R$7.667,73/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
     legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     // CORRIGIDO 07/08/2026 (mudança de regra de negócio): a legenda antiga condicionava o

@@ -655,6 +655,77 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     }
   };
 
+  // NOVO 11/08/2026 (pedido do usuário: gráfico idêntico ao de cima, 2 eixos diferentes) — compara
+  // o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA (REG.deficitZero.liquidoSemTrabalhar, fórmula
+  // "Não trabalha" já usada na seção 01) contra o piso absoluto que nunca é cortado (REG.reserva.piso,
+  // mesmo valor de pisoTotal na seção 03). Os 2 são CONSTANTES (não uma série viva mês a mês, ao
+  // contrário do gráfico acima) — por isso psPiso/psLiquido repetem o mesmo valor nos 12 meses de
+  // propósito, não é bug.
+  const psLabels = dzLabels; // mesma janela de 12 meses, mesma âncora de ciclo
+  const psLiquido = REG.deficitZero.liquidoSemTrabalhar;
+  const psPiso = psLabels.map(() => REG.reserva.piso);
+  const psDeficit = psPiso.map(p => Math.round((psLiquido - p) * 100) / 100);
+
+  const psDataLabelPlugin = {
+    id:'psDataLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      const meta = chart.getDatasetMeta(0);
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = "700 11px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      meta.data.forEach((bar,i)=>{
+        const d = psDeficit[i];
+        ctx.fillStyle = d<0 ? '#e2554f' : '#34c98a';
+        const label = (d<0?'−':'+')+fmt0(Math.abs(d));
+        ctx.fillText(label, bar.x, d>=0 ? bar.y - 8 : bar.y + 16);
+      });
+      ctx.restore();
+    }
+  };
+
+  new Chart($('cPisoSemTrabalhar'), {
+    type:'bar',
+    plugins:[psDataLabelPlugin],
+    data:{labels:psLabels,
+      datasets:[{data:psDeficit,
+        backgroundColor: psDeficit.map(v=>v<0?'#e2554f':'#34c98a'),
+        borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:c=>{const i=c.dataIndex; return ['Não trabalha: '+fmt(psLiquido),'O que NUNCA é cortado: '+fmt(psPiso[i]),(psDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(psDeficit[i]))];}
+      }}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+        y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
+  });
+
+  const psTbody = $('psTableBody');
+  if(psTbody){
+    psTbody.innerHTML = psLabels.map((m,i)=>{
+      const d = psDeficit[i];
+      const cor = d<0 ? 'var(--red)' : 'var(--green)';
+      const sinal = d<0 ? '−' : '+';
+      return '<tr style="border-bottom:1px solid var(--border)">'+
+        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psLiquido)+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psPiso[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  const psViraEl = $('psViraSuperavit');
+  if(psViraEl){
+    const idxViraPs = psDeficit.findIndex(d=>d>=0);
+    if(idxViraPs === 0){
+      psViraEl.textContent = 'Já cobre';
+    } else if(idxViraPs > 0){
+      psViraEl.textContent = psLabels[idxViraPs]+' ('+(idxViraPs+1)+'º mês)';
+    } else {
+      psViraEl.textContent = 'Não cobre em nenhum dos 12 meses (valores fixos — não muda sozinho)';
+    }
+  }
+
   new Chart($('cDeficitZero'), {
     type:'bar',
     plugins:[dzDataLabelPlugin],

@@ -1403,32 +1403,30 @@
       <div class="legend-note v" id="legMPCorporativoImpacto">—</div>
     </div>
 
-    <!-- CORRIGIDO 11/08/2026 (pedido do usuário: "06 Operação Déficit Zero... deveria ficar abaixo
-         do campo 03 e ser atrelado a ele, inclusive mudar o nome") — movida de posição (era a última
-         seção da aba, ficava longe do 03 que ela na prática complementa) pra logo abaixo do piso
-         absoluto. Também trocou de conteúdo: "Piso" agora usa a série viva de Evolução do Total
-         Operacional (REG.evolucao.totalOperacional, mesma fonte do gráfico gêmeo da aba Gráficos —
-         não mais REG.deficitZero.piso, uma série separada e só parcialmente atualizada) e "Líquido"
-         vira o salário BASE garantido por lei sempre que há pelo menos 1 dia trabalhado (Periculosidade
-         30% + Supervisão 5% = 35% de adicionais fixos, não dependem de hora extra) — R$10.913,66 base
-         × 1,35 = R$14.733,44, valor informado pelo usuário. Renomeada pra refletir a pergunta real que
-         o gráfico responde. -->
-    <div class="section-num"><span class="n">04</span><h2>O piso mínimo garantido cobre o Total Operacional? — 12 meses</h2></div>
+    <!-- NOVO 11/08/2026 (pedido do usuário): idêntico em estrutura ao gráfico "O piso mínimo garantido
+         cobre o Total Operacional?" (agora seção 07, movido pra baixo do Estimador de Salário) - mesmo
+         tipo de comparação, 2 eixos diferentes: "Não trabalha" (REG.deficitZero.liquidoSemTrabalhar,
+         fórmula validada base+5%+creche, sem periculosidade - o mínimo garantido MESMO sem trabalhar
+         nenhum dia) contra "O que NUNCA é cortado" (REG.reserva.piso, seção 03 logo acima, mesmo valor
+         de pisoTotal). Responde: mesmo se eu não trabalhar nenhum dia no ciclo, o mínimo garantido cobre
+         o piso absoluto? Os 2 valores são constantes (não variam mês a mês, ao contrário do Total
+         Operacional do gráfico 07) - por isso a diferença se repete igual nos 12 meses, é esperado. -->
+    <div class="section-num"><span class="n">04</span><h2>O mínimo garantido (mesmo sem trabalhar) cobre o que NUNCA é cortado? — 12 meses</h2></div>
     <div class="card" style="margin-bottom:1rem">
-      <div class="v" id="legDeficitSemEmbarque" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
-      <div class="chart-box tall"><canvas id="cDeficitZero"></canvas></div>
+      <div class="v" id="legPisoSemTrabalhar" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
+      <div class="chart-box tall"><canvas id="cPisoSemTrabalhar"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Salário base + 35% garantido</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Total Operacional</th>
+            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Não trabalha: fórmula validada</th>
+            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">O que NUNCA é cortado</th>
             <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
           </tr></thead>
-          <tbody id="dzTableBody"></tbody>
+          <tbody id="psTableBody"></tbody>
         </table>
       </div>
-      <div class="total-line" style="margin-top:0.6rem"><span>Piso mínimo passa a cobrir o Total Operacional em</span><span class="v" style="color:var(--green)" id="dzViraSuperavit">—</span></div>
+      <div class="total-line" style="margin-top:0.6rem"><span>Mínimo garantido passa a cobrir o piso absoluto em</span><span class="v" style="color:var(--green)" id="psViraSuperavit">—</span></div>
     </div>
 
     <div class="section-num"><span class="n">05</span><h2>Reserva de Emergência — quanto tempo aguenta</h2></div>
@@ -1483,7 +1481,29 @@
       <div class="v legend-note" id="legCenarioFicaEmCasa">—</div>
     </div>
 
-    <div class="section-num"><span class="n">07</span><h2>Operação Superávit Normal — 12 meses de renda média</h2></div>
+    <!-- MOVIDO 11/08/2026 (pedido do usuário: "esse gráfico tem que ir para baixo do 06 Estimador de
+         Salário do Mês") — era a seção 04, ficava entre "O que NUNCA é cortado" (03) e "Reserva de
+         Emergência" (05); o novo gráfico da seção 04 (comparação com "Não trabalha") tomou esse lugar.
+         Conteúdo/ids/lógica 100% intactos, só a posição (e o número, 04→07) mudaram. -->
+    <div class="section-num"><span class="n">07</span><h2>O piso mínimo garantido cobre o Total Operacional? — 12 meses</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="v" id="legDeficitSemEmbarque" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
+      <div class="chart-box tall"><canvas id="cDeficitZero"></canvas></div>
+      <div style="overflow-x:auto;margin-top:0.8rem">
+        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
+            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Salário base + 35% garantido</th>
+            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Total Operacional</th>
+            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
+          </tr></thead>
+          <tbody id="dzTableBody"></tbody>
+        </table>
+      </div>
+      <div class="total-line" style="margin-top:0.6rem"><span>Piso mínimo passa a cobrir o Total Operacional em</span><span class="v" style="color:var(--green)" id="dzViraSuperavit">—</span></div>
+    </div>
+
+    <div class="section-num"><span class="n">08</span><h2>Operação Superávit Normal — 12 meses de renda média</h2></div>
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Cenário normal (paga tudo): confronta o líquido de cada ciclo contra a Necessidade Total <strong>bruta</strong> (boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional) — não o piso essencial. Jul/26 usa o líquido calculado pelo Estimador de Salário (R$16.048,51). Os meses seguintes usam a MEDIANA dos últimos 12 meses (R$18.283,64) como valor conservador — não a média (R$20.740,48), que é puxada para cima por meses excepcionais (Dez/25 R$40k, Jun/26 R$33,7k, Jan/26 R$27,7k). Conforme cada mês real chegar, o valor conservador é substituído pelo real (atualizar REG.superavitNormal.liquido[i]).</div>
       <div class="chart-box tall"><canvas id="cSuperavitNormal"></canvas></div>
@@ -1731,7 +1751,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-23';
+var __V = '20260811-24';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
