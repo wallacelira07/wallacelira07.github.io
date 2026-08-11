@@ -47,6 +47,8 @@ function criarVarsCaixas(){
     { tx:'TX000210', data:'05/08', nome:'PIX Itaú → Mercado Pago (aporte Caixa Lance, rendimento Reserva de Emergência)', tipo:'Entrada', valor:921.17 },
     { tx:'TX000212', data:'07/08', nome:'Reembolso Bradesco Saúde - quitação LREI0002 (Caixa Saúde Família)', tipo:'Entrada', valor:164.94 },
     { tx:'TX000216', data:'07/08', nome:'Empréstimo p/ Caixa Manutenção (LREI0004, complemento pagamento das cortinas)', tipo:'Saída', valor:103.55 },
+    { tx:'LREI0005-LANCE', data:'11/08', nome:'Empréstimo p/ Caixa Boletos (LREI0005, adequação consórcios Porto p/ pagamento em dinheiro)', tipo:'Saída', valor:1950.77 },
+    { tx:'RENDIMENTO-09-10-08', data:'10/08', nome:'Juros do saldo que dormiu na conta corrente (09→10/08, durante movimentação Caixa Boletos → corrente)', tipo:'Entrada', valor:0.60 },
   ],
   caixaLance: 4453.50,                  // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar CAIXA_LANCE_TRANSACOES.
   MANUTENCAO_SALDO_INICIAL: 178.72,
@@ -96,6 +98,11 @@ function criarVarsCaixas(){
     { tx:'TXB000007', nome:'FIES Vanessa (PIX Vanessa Gomes Galdino)', diaVencimento:10, valor:245.00 },
     { tx:'TXB000008', nome:'Conselho Regional', diaVencimento:31, valor:163.24 },
     { tx:'TXB000009', nome:'Energia (Energisa Paraíba)', diaVencimento:26, valor:367.36 },
+    // NOVO 11/08/2026 (adequação pedida pelo usuário): os 2 consórcios Porto deixaram de ser cobrados
+    // no Mastercard Black (LRCON zerado, ver vars-mercado-pago.js) e passaram a boleto pago em dinheiro
+    // por esta caixa, vencimento dia 15. Mesmos TX das linhas antigas do LRCON (rastreabilidade).
+    { tx:'TXCON000001', nome:'Porto Consórcio (Carro) — migrado do Mastercard Black p/ dinheiro em 11/08/2026', diaVencimento:15, valor:501.32 },
+    { tx:'TXCON000002', nome:'Porto Consórcio (Casa Nova) — migrado do Mastercard Black p/ dinheiro em 11/08/2026', diaVencimento:15, valor:1449.45 },
     // REVERTIDO 04/08/2026 (parte 63): a parte 62 tinha adicionado TXB000010/011/012 (Vivo+Brisanet)
     // aqui, achando que nao tinham registro nenhum - erro meu, so tinha procurado em
     // CRONOGRAMA_BOLETOS_FIXOS, nao no resto do app.js. Usuario mostrou print confirmando que Vivo
@@ -111,6 +118,7 @@ function criarVarsCaixas(){
     { tx:'TXB000001', data:'27/07', nome:'Prestação da casa (Caixa Econômica)', tipo:'Saída', valor:588.66 },
     { tx:'TXB000008', data:'31/07', nome:'Conselho Regional', tipo:'Saída', valor:163.24 },
     { tx:'RENDIMENTO-31-07', data:'31/07', nome:'Rendimento acumulado (ajuste conforme saldo real do app, R$168,43 - documentado, não ajustado silenciosamente conforme P1)', tipo:'Entrada', valor:168.43 },
+    { tx:'LREI0005-BOLETOS', data:'11/08', nome:'Empréstimo recebido da Caixa Lance (LREI0005, adequação consórcios Porto p/ pagamento em dinheiro)', tipo:'Entrada', valor:1950.77 },
   ],
   // RESOLVIDO 31/07/2026 (V213): usuario confirmou os 3 boletos pagos no ciclo (25/07-31/07) por
   // vencimento: Energisa (26/07, R$367,36) + Prestação da casa (27/07, R$588,66) + Conselho Regional
@@ -177,7 +185,17 @@ function criarVarsCaixas(){
   MASTERCARD_INFINITE_TRANSACOES: [
     { tx:'PIX-BRADESCO-27-07', data:'27/07', nome:'Aporte para fatura Visa Infinite (avisado pelo usuário, corrigido 05/08 — não era saída de pagamento, e sim reforço na caixa)', tipo:'Entrada', valor:9073.92 },
     { tx:'PIX-ITAU-27-07', data:'27/07', nome:'Aporte para fatura Mastercard Black (avisado pelo usuário, corrigido 05/08 — não era saída de pagamento, e sim reforço na caixa)', tipo:'Entrada', valor:1937.18 },
-    { tx:'JUROS-27-07-MB', data:'27/07', nome:'Juros acumulados (repassados à Caixa Lance)', tipo:'Entrada', valor:161.12 },
+    // CORRIGIDO 11/08/2026 (achado do usuário, com extrato real do cartão Personnalité Mult B mostrando
+    // "Pagamento efetuado -R$1.937,18" em 27/07): esta caixa tinha só as entradas, nunca as saídas dos
+    // pagamentos de fatura de verdade - usuário confirmou que pagou as 2 faturas (Visa Infinite + MB) no
+    // vencimento de cada, 28/07/2026, usando exatamente os 2 aportes acima.
+    { tx:'PAGTO-FATURA-VISA-28-07', data:'28/07', nome:'Pagamento da fatura Visa Infinite (vencimento 28/07, confirmado pelo usuário)', tipo:'Saída', valor:9073.92 },
+    { tx:'PAGTO-FATURA-MB-28-07', data:'28/07', nome:'Pagamento da fatura Mastercard Black (vencimento 28/07, confirmado pelo usuário — extrato do cartão mostra "Pagamento efetuado -R$1.937,18")', tipo:'Saída', valor:1937.18 },
+    // CORRIGIDO 11/08/2026: mesmo bug já corrigido antes em WARTSILA_CAIXA_TRANSACOES (JUROS-27-07-WARTSILA)
+    // - estava lançado como Entrada aqui E o mesmo valor já entra em CAIXA_LANCE_TRANSACOES/JUROS-27-07,
+    // dobrando a contagem (inflava esta caixa em vez de esvaziar o que foi repassado). É Saída: o juro sai
+    // daqui e vira a entrada em Lance.
+    { tx:'JUROS-27-07-MB', data:'27/07', nome:'Juros acumulados repassados à Caixa Lance', tipo:'Saída', valor:161.12 },
   ],
   caixaMastercardInfinite: 11172.22, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar MASTERCARD_INFINITE_TRANSACOES.
   // NOVO 04/08/2026 (parte 77, metodologia definida pelo usuario): categoria nova - compras avulsas

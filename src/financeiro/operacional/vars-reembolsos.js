@@ -12,6 +12,12 @@ function criarVarsReembolsos(){
     { id:'LREI0002', data:'27/07', credora:'Caixa Lance', devedora:'Caixa Saúde Família', valor:164.94, origem:'Reembolso do plano de saúde (conduta pediátrica de Júlio)', status:'QUITADO', quitadoEm:'07/08', quitadoPor:'Reembolso Bradesco (TX000212), R$164,94 de volta à Caixa Lance' },
     { id:'LREI0003', data:'24/07', credora:'Caixa Lance', devedora:'Fatura Cartão Mercado Pago', valor:266.23, origem:'Reembolso Wärtsilä (transporte corporativo, TXMP000009, vence 04/08)', status:'ATIVO' },
     { id:'LREI0004', data:'07/08', credora:'Caixa Lance', devedora:'Caixa Manutenção', valor:103.55, origem:'Complemento pagamento das cortinas (R$450,00 total; Manutenção cobriu o resto)', status:'ATIVO' },
+    // NOVO 11/08/2026: adequação dos 2 consórcios Porto (Carro+Casa Nova) - deixaram de ser cobrados
+    // no Mastercard Black e passaram a boleto/dinheiro pela Caixa Boletos (dia 15). O aporte mensal
+    // desta caixa sobe de R$2.600 para R$4.550,77 a partir de agora, mas o aporte deste ciclo já saiu
+    // no valor antigo - a Caixa Lance cobre a diferença só neste 1º mês (fonte real: emprestimos_internos
+    // no Supabase, tabela V2-exclusiva - este literal é só o fallback síncrono do boot).
+    { id:'LREI0005', data:'11/08', credora:'Caixa Lance', devedora:'Caixa Boletos', valor:1950.77, origem:'Cobertura do 1º mês da adequação dos 2 consórcios Porto (Carro R$501,32 + Casa Nova R$1.449,45) migrados do Mastercard Black para pagamento em dinheiro (vencimento dia 15)', status:'ATIVO' },
   ],
   // ===== V137 (23/07/2026, auditoria SSOT - pedido explicito do usuario: "nada com numero digitado,
   // tudo formula e referencia a lista de variaveis, so atualizar em 1 lugar") =====

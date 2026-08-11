@@ -529,6 +529,45 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado;
   },
+  // NOVO 11/08/2026 (achado do usuário: "confira se isso tudo é V2" — LRS/LRR/LRCON/LRDOA eram HTML
+  // estático, nunca lido do banco) — mesmo padrão de getCronogramaBoletosV2() acima, 4 tabelas novas
+  // (cronograma_assinaturas/recorrencias/consorcios/doacoes). Ver hydrate-onda9-livros-fixos.js.
+  async getCronogramaAssinaturasV2(){
+    const chave = 'cronograma_assinaturas';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor&ativo=eq.true&order=data.asc`, { headers: this._headers() });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getCronogramaRecorrenciasV2(){
+    const chave = 'cronograma_recorrencias';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getCronogramaConsorciosV2(){
+    const chave = 'cronograma_consorcios';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/cronograma_consorcios?select=tx,nome,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_consorcios`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  async getCronogramaDoacoesV2(){
+    const chave = 'cronograma_doacoes';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const resp = await fetch(`${this._url}/rest/v1/cronograma_doacoes?select=tx,descricao,responsavel,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_doacoes`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   // NOVO 10/08/2026 (fecha o último escritor ativo de wallace_dados disparado por clique do
   // usuário — ver PLANO_UNIFICACAO_V1_V2.md seção 44): decisões de Aprovar/Rejeitar da Inbox pra
   // itens de origem Pluggy, antes só em wallace_dados.PLUGGY_TRIAGEM. Tabela nova, mesmo padrão de
@@ -1727,6 +1766,7 @@ onDomPronto(aplicarOnda7Pluggy);
 // NOVO 08/08/2026 (Onda 8): CRONOGRAMA_BOLETOS_FIXOS (literal em vars-caixas.js) migrado pra tabela
 // cronograma_boletos_fixos — editável sem deploy de código a partir de agora. Ver hydrate-onda8-cronograma-boletos.js.
 onDomPronto(aplicarOnda8CronogramaBoletos);
+onDomPronto(aplicarOnda9LivrosFixos);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.
@@ -2128,7 +2168,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       // promove independente do bloco acima (que ja rodou/nao rodou baseado no domId da Gestao das
       // Reservas), reaproveitando o mesmo sV2 ja calculado nesta iteracao.
       const CARDS_COM_BARRA = {
-        'Caixa Boletos':     {idSaldo:'cxBoletosSaldo', idPct:'cxBoletosPct', idBarra:'cxBoletosBar', meta:2600},
+        'Caixa Boletos':     {idSaldo:'cxBoletosSaldo', idPct:'cxBoletosPct', idBarra:'cxBoletosBar', meta:4550.77}, // AUMENTADA 11/08/2026 (era 2600): consorcios Porto migraram do cartao p/ esta caixa.
         'PIX Vanessa':       {idSaldo:'cxPixSaldo',     idPct:'cxPixPct',     idBarra:'cxPixBar',     meta:1200},
         'Caixa Manutenção':  {idSaldo:'cxManutSaldo',   idPct:'cxManutPct',   idBarra:'cxManutBar',   meta:2000},
         'Escola de Júlio':   {idSaldo:'cxEscolaSaldo',  idPct:'cxEscolaPct',  idBarra:'cxEscolaBar',  meta:9236},

@@ -18,7 +18,7 @@ function criarRegCaixas(){
       pendenteProximoCiclo: VARS.caixaVariavelPendenteProximoCiclo, // NOVO 23/07/2026 (regra REGRA_LIMBO_FATURA_MB_CICLO): compras no Mastercard Black feitas depois do fechamento da fatura MB (dia 22) mas ainda dentro do ciclo financeiro atual (ate dia 25) - NAO contam no comprometido DESTE ciclo (a fatura so cobra no mes seguinte), ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25.
     },
     caixasOperacionais: {
-      boletos:            { saldo:VARS.caixaBoletos,            meta:2600 },
+      boletos:            { saldo:VARS.caixaBoletos,            meta:4550.77 }, // META AUMENTADA 11/08/2026 (era 2600): consorcios Porto migraram do cartao p/ esta caixa, ver vars-operacional.js totalOpBoletos.
       pixVanessa:          { saldo:VARS.caixaPixVanessa,         meta:1200 },
       manutencao:          { saldo:VARS.caixaManutencao,         meta:2000 },
       eventos:             { saldo:VARS.caixaEventos,            meta:2000 },

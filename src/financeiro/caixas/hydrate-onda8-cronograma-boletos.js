@@ -21,6 +21,8 @@
 // aqui como um pequeno mapa por `tx` pra não perder a informação quando a tabela virou dinâmica.
 const ONDA8_BOLETO_NOTA_POR_TX = {
   TXB000009: 'última conta sem efeito do solar (gerador ativo desde 21/07, desconto só a partir da fatura de 21/08)',
+  TXCON000001: 'migrado do Mastercard Black para pagamento em dinheiro em 11/08/2026 — antes era LRCON, agora entra no cronograma de boletos',
+  TXCON000002: 'migrado do Mastercard Black para pagamento em dinheiro em 11/08/2026 — antes era LRCON, agora entra no cronograma de boletos',
 };
 
 function onda8LrbRenderTabela(){
