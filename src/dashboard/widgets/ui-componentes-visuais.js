@@ -81,7 +81,12 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
     var slug = titulo.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    var hoje = new Date().toISOString().slice(0, 10);
+    // CORRIGIDO 11/08/2026 (auditoria pedida pelo usuário depois do achado em hydrate-onda5-
+    // qualidade-geracao.js: "mude o UTC do site como você falou") - .toISOString() sempre devolve
+    // UTC, nunca horário de Brasília; pra nome de arquivo isso só troca a data perto da meia-noite,
+    // impacto pequeno, mas é a mesma classe de bug, corrigido pelo mesmo motivo. Desloca -3h antes de
+    // extrair a data, mesmo truque já usado em agoraEfetivoFrescorSolar()/hydrate-onda5-qualidade-geracao.js.
+    var hoje = new Date(Date.now() - 3*3600*1000).toISOString().slice(0, 10);
     var prefixo = num ? ('secao-' + num + '-') : ''; // NOVO 07/08/2026: cards avulsos (ver abaixo) nao tem numero de secao
     var link = document.createElement('a');
     link.download = prefixo + slug + '-' + hoje + '.jpg';
