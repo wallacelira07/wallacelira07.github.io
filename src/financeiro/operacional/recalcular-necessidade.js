@@ -71,7 +71,16 @@ function recalcularNecessidade(){
   // nunca substituem o valor de hoje por uma soma reconstruida do zero (evita perder algum componente
   // de aportesPat que nao faca parte das 4-5 caixas incrementais mapeadas, ex: aporte BTG regular).
   const aporteIncrementalHoje = calcularAporteIncrementalPorCiclo(0);
-  const baseFixaOperacional = r2(D.boletos + D.consorcios + D.recorrencias + D.provMP + D.assinaturas);
+  // CORRIGIDO 10/08/2026 (achado do usuário: "porque o total operacional está mais alto mês que vem
+  // se a tendência é as contas irem eliminando" — bug real confirmado): D.provMP (parcelas Mercado
+  // Pago ATIVAS, VARS.totalOpProvMP) estava contado AQUI como componente fixo E DE NOVO dentro de
+  // somaParcelasProjetadas() abaixo (que soma PARCELAMENTOS_VISA + PARCELAMENTOS_MP, com decaimento
+  // real por parcela restante) — dupla contagem em TODO mês projetado (índice 1+), nunca no índice 0
+  // (que usa REG.operacional.totalOperacional, sem essa duplicação). Resultado: qualquer mês futuro
+  // saía artificialmente mais alto que o atual. Removido daqui — só Boletos/Consórcios/Recorrências/
+  // Assinaturas ficam fixos (mesma lista já documentada no comentário abaixo), MP/Visa decaem juntos
+  // via somaParcelasProjetadas(), única fonte agora.
+  const baseFixaOperacional = r2(D.boletos + D.consorcios + D.recorrencias + D.assinaturas);
   REG.evolucao = REG.evolucao || {};
   REG.evolucao.totalOperacional = [];
   REG.evolucao.necessidadeLiquida = [];
