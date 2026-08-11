@@ -63,6 +63,14 @@ async function aplicarOnda5Parcelamentos(){
   // faltava religar o recálculo, mesmo padrão que hydrate-onda4-wartsila.js já usa pras outras 3 pernas.
   VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
   REG.totalOpDetalhe.provMP = VARS.totalOpProvMP;
+  // CORRIGIDO 11/08/2026 (achado do usuário, print real: "Total comprometido"/"Parcelas (LRP)" do
+  // Visa Infinite sempre R$1.017,89, igual há dias) — mesmo bug do provMP acima, só que ninguém tinha
+  // religado este aqui: VARS.livroLRP (soma das parcelas ATIVAS do Visa) é calculado 1x no boot
+  // (app.js), ANTES desta função trocar PARCELAMENTOS_VISA pelo dado V2 — depois disso nunca mais
+  // recalculava, mesmo com o array já atualizado. REG.visa.visaDetalhe.parcelas (criarRegMercadoPago(),
+  // também só roda 1x no boot) herdava o mesmo valor congelado. Religado aqui, mesmo padrão do provMP.
+  VARS.livroLRP = Math.round(VARS.PARCELAMENTOS_VISA.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
+  if(typeof REG !== 'undefined' && REG.visa && REG.visa.visaDetalhe) REG.visa.visaDetalhe.parcelas = VARS.livroLRP;
   if(typeof recalcularReembolsos === 'function') recalcularReembolsos();
   if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
   if(typeof hydrateReembolsos === 'function') hydrateReembolsos();
