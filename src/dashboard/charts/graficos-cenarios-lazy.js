@@ -1551,7 +1551,10 @@ async function _lazyRenderSolarSecao(){
       datasets:[
         {label:'Crédito Wallace (gerado)', data:alignSolar(creditoMensalWallace), backgroundColor:'#34c98a', borderRadius:3},
         {label:'Consumo esperado Wallace', data:alignSolar(consumoMensalWallace), backgroundColor:'#f0c94a', borderRadius:3},
-        {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:'#1c7a54', borderRadius:3},
+        // CORRIGIDO 11/08/2026 (pedido do usuário: "esse verde da minha irmã está muito claro, não
+        // tá legal de ver" — era #1c7a54, verde escuro/musgo, baixo contraste contra o fundo escuro
+        // do card): trocado por um teal mais saturado, bem distinto do verde do Wallace (#34c98a).
+        {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:'#14b8a6', borderRadius:3},
         {label:'Consumo esperado Irmã', data:alignSolar(consumoMensalIrma), backgroundColor:'#a9861f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
