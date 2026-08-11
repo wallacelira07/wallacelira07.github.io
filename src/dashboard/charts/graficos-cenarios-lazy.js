@@ -1142,6 +1142,25 @@ async function _lazyRenderSolarSecao(){
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
+  // CORRIGIDO 11/08/2026 (achado do usuário, print real: gráfico "Rateio Solar" mostrando Ago=321/74
+  // quando deveria ser Ago=262/70): consumoMensalWallace/consumoMensalIrma (kwhAnoAnterior/
+  // solarConsumoIrmaAnoAnterior) são indexados por CALENDÁRIO (mesesPares[0]='Jul', índice fixo,
+  // igual à seção 09) - mas estavam sendo alinhados aqui embaixo com alignSolar()/OFFSET_SOLAR, que
+  // usa uma âncora DIFERENTE (ciclo de fechamento, dia 8) e fica travado em 0 até existir mais de 1
+  // ciclo fechado (regra correta pro Crédito, que não deve "andar" antes de ter dado real - ver
+  // comentário de OFFSET_SOLAR acima). Misturar as duas âncoras empurrava o valor de Julho pra baixo
+  // do rótulo "Ago". Corrigido com o MESMO truque de lookup por nome do mês já usado em
+  // kwhPorMesAnterior/anoAnteriorAlinhado (seção 09) - imune a quantos ciclos já fecharam, sempre
+  // calendário real.
+  const kwhWallacePorMes = {}, kwhIrmaPorMes = {};
+  mesesPares.forEach((m,i) => {
+    const nome = m.replace('*','');
+    kwhWallacePorMes[nome] = kwhAnoAnterior[i];
+    kwhIrmaPorMes[nome] = consumoMensalIrma[i];
+  });
+  const consumoMensalWallaceAlinhado = mesesParesSolar.map(label => kwhWallacePorMes[label] != null ? kwhWallacePorMes[label] : null);
+  const consumoMensalIrmaAlinhado = mesesParesSolar.map(label => kwhIrmaPorMes[label] != null ? kwhIrmaPorMes[label] : null);
+
   // NOVO 02/08/2026 (pedido EXPLICITO do usuario - o texto sozinho na Unidade Geradora nao bastava,
   // "só a nota não é o impacto do gráfico"): a barra do MES CALENDARIO ATUAL no grafico 11 (Rateio
   // Solar) tambem precisa refletir o valor calculado (geracao real do inversor - consumo medio da
@@ -1577,12 +1596,12 @@ async function _lazyRenderSolarSecao(){
     data:{labels:mesesParesSolar,
       datasets:[
         {label:'Crédito Wallace (gerado)', data:alignSolar(creditoMensalWallace), backgroundColor:'#34c98a', borderRadius:3},
-        {label:'Consumo esperado Wallace', data:alignSolar(consumoMensalWallace), backgroundColor:'#f0c94a', borderRadius:3},
+        {label:'Consumo esperado Wallace', data:consumoMensalWallaceAlinhado, backgroundColor:'#f0c94a', borderRadius:3},
         // CORRIGIDO 11/08/2026 (pedido do usuário: "esse verde da minha irmã está muito claro, não
         // tá legal de ver" — era #1c7a54, verde escuro/musgo, baixo contraste contra o fundo escuro
         // do card): trocado por um teal mais saturado, bem distinto do verde do Wallace (#34c98a).
         {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:'#14b8a6', borderRadius:3},
-        {label:'Consumo esperado Irmã', data:alignSolar(consumoMensalIrma), backgroundColor:'#a9861f', borderRadius:3}
+        {label:'Consumo esperado Irmã', data:consumoMensalIrmaAlinhado, backgroundColor:'#a9861f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{
