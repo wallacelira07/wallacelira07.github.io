@@ -1708,9 +1708,23 @@
        frame. A chamada completa (que já existia, faz scroll + liga gráficos lazy) continua rodando
        no fim do boot, agora como no-op visual (já está na aba certa) só completando o resto. -->
   <script>
+  // CORRIGIDO 11/08/2026 (pedido do usuário: "quando eu entro no site está entrando na aba painel
+  // e não no dashboard, corrija") - a restauração de aba (pensada só pra F5, pedido de 10/08)
+  // também disparava numa ENTRADA NOVA no site (login de novo na mesma aba do navegador, sem
+  // fechar a aba) - sessionStorage sobrevive a isso, só é limpo quando a aba do navegador fecha
+  // de verdade. wallaceEhReload() distingue os dois casos via Performance Navigation Timing API:
+  // 'reload' (F5) restaura a aba salva; qualquer outro tipo ('navigate' etc, entrada nova) ignora
+  // o valor salvo e cai no padrão de sempre (home/Dashboard).
+  function wallaceEhReload(){
+    try {
+      var navs = performance.getEntriesByType('navigation');
+      if(navs && navs.length) return navs[0].type === 'reload';
+      return !!(performance.navigation && performance.navigation.type === 1);
+    } catch(e){ return false; }
+  }
   (function(){
     try {
-      var aba = sessionStorage.getItem('wallaceAbaAtual');
+      var aba = wallaceEhReload() ? sessionStorage.getItem('wallaceAbaAtual') : null;
       if(!aba || aba === 'home') return;
       var alvo = document.getElementById(aba);
       var home = document.getElementById('home');
@@ -1751,7 +1765,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-31';
+var __V = '20260811-32';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -2211,9 +2225,13 @@ Promise.all([
         // ui-navegacao-basica.js). Só age se houver algo salvo e a função já existir (módulo acima de
         // já carregado nesse ponto, boot-complete) - sem valor salvo, comportamento de sempre (home).
         try {
-          const abaSalva = sessionStorage.getItem('wallaceAbaAtual');
+          // CORRIGIDO 11/08/2026: mesmo critério do script síncrono no topo (wallaceEhReload) -
+          // só restaura aba salva em F5 de verdade, nunca numa entrada nova no site.
+          const abaSalva = wallaceEhReload() ? sessionStorage.getItem('wallaceAbaAtual') : null;
           if(abaSalva && document.getElementById(abaSalva) && typeof irParaPrimeiraSecao === 'function'){
             irParaPrimeiraSecao(abaSalva);
+          } else if(!wallaceEhReload()){
+            try { sessionStorage.removeItem('wallaceAbaAtual'); } catch(e2){}
           }
         } catch(e){ console.warn('Restauração de aba: falha (não afeta o carregamento real).', e); }
       });
