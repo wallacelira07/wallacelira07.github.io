@@ -1402,8 +1402,31 @@ async function _lazyRenderSolarSecao(){
     // Historico mes a mes (03, 103, consumo direto real, saldo liquido) - so plota consumo direto
     // quando existir geracaoAcumulada real naquele mes (senao fica null, sem barra - mesmo padrao
     // ja usado pros meses sem leitura de credito).
+    // NOVO 11/08/2026 (pedido do usuário: "coloque os valores sobre as barras como todo gráfico do
+    // site") - mesmo padrão já usado em energiaBarLabelPlugin/caixasValuePlugin (afterDatasetsDraw,
+    // uma cor por dataset, texto acima de cada barra do grupo).
+    const unidadeGeradoraBarLabelPlugin = {
+      id:'unidadeGeradoraBarLabelPlugin',
+      afterDatasetsDraw(chart){
+        const {ctx} = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        chart.data.datasets.forEach((ds,di)=>{
+          const meta = chart.getDatasetMeta(di);
+          ctx.fillStyle = ds.backgroundColor;
+          meta.data.forEach((bar,i)=>{
+            const v = ds.data[i];
+            if(v===null || v===undefined) return;
+            ctx.fillText(Math.round(v)+' kWh', bar.x, bar.y - 4);
+          });
+        });
+        ctx.restore();
+      }
+    };
     observeAndRenderChart($('cUnidadeGeradora'), () => new Chart($('cUnidadeGeradora'), {
       type:'bar',
+      plugins:[unidadeGeradoraBarLabelPlugin],
       data:{labels:mesesParesSolar,
         datasets:[
           {label:'Importado (código 03)', data:alignSolar(importadoMensal), backgroundColor:'#e2554f', borderRadius:3},
