@@ -16,6 +16,33 @@
 // Rollback: comentar a chamada aplicarOnda8CronogramaBoletos() em app.js — VARS.CRONOGRAMA_BOLETOS_FIXOS
 // volta a vir só do literal local (vars-caixas.js), comportamento idêntico ao de antes desta Onda.
 
+// NOVO 11/08/2026: anotações presentacionais que existiam só no HTML estático (ex: contexto do
+// desconto solar na conta de Energia) — não têm coluna própria em cronograma_boletos_fixos, mantidas
+// aqui como um pequeno mapa por `tx` pra não perder a informação quando a tabela virou dinâmica.
+const ONDA8_BOLETO_NOTA_POR_TX = {
+  TXB000009: 'última conta sem efeito do solar (gerador ativo desde 21/07, desconto só a partir da fatura de 21/08)',
+};
+
+function onda8LrbRenderTabela(){
+  const tbody = $('lrbTbody');
+  const lista = VARS.CRONOGRAMA_BOLETOS_FIXOS;
+  if(tbody){
+    if(!Array.isArray(lista) || !lista.length){
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2)</td></tr>';
+    } else {
+      tbody.innerHTML = lista.map(b => {
+        const nota = ONDA8_BOLETO_NOTA_POR_TX[b.tx] ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${ONDA8_BOLETO_NOTA_POR_TX[b.tx]}</span>` : '';
+        return `<tr><td class="mono">${b.tx}</td><td>${b.nome}${nota}</td><td class="r">${fmt(b.valor)}</td></tr>`;
+      }).join('');
+    }
+  }
+  // Rodapé passa a ser a SOMA real dos itens acima — antes era VARS.livroLRB, o saldo (com aportes/
+  // rendimento) da Caixa Boletos, um número de outra fonte que só coincidia por acaso.
+  const somaBoletos = Array.isArray(lista) ? Math.round(lista.reduce((s,b) => s + Number(b.valor||0), 0) * 100) / 100 : 0;
+  const tfEl = $('tfLRB'); if(tfEl) tfEl.textContent = fmt(somaBoletos);
+  const qtdEl = $('qtdLRB'); if(qtdEl) qtdEl.textContent = (Array.isArray(lista) ? lista.length : 0) + ' boleto(s)';
+}
+
 async function aplicarOnda8CronogramaBoletos(){
   let cronogramaV2;
   try {
@@ -23,11 +50,13 @@ async function aplicarOnda8CronogramaBoletos(){
   } catch(err){
     console.error('Onda8CronogramaBoletos: falha ao buscar cronograma_boletos_fixos — mantendo o schedule V1 local (baixo risco, já rodou no boot).', err);
     window.WALLACE_ONDA8_CRONOGRAMA_RELATORIO = { status: 'erro_v2', erro: String(err) };
+    onda8LrbRenderTabela();
     return;
   }
   if(!Array.isArray(cronogramaV2) || !cronogramaV2.length){
     console.warn('Onda8CronogramaBoletos: resposta vazia/inesperada — mantendo o schedule V1 local.');
     window.WALLACE_ONDA8_CRONOGRAMA_RELATORIO = { status: 'sem_dado_v2' };
+    onda8LrbRenderTabela();
     return;
   }
 
@@ -48,6 +77,8 @@ async function aplicarOnda8CronogramaBoletos(){
 
   if(diverge) console.warn(`Onda8CronogramaBoletos: schedule V1 (${v1Qtd} itens, ${fmt(v1Total)}) × V2 (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} itens, ${fmt(v2Total)}) — DIVERGE. Se for uma edição intencional feita direto no Supabase, é esperado; se não, investigar.`);
   else console.log(`Onda8CronogramaBoletos: V1×V2 batem (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} boletos, ${fmt(v2Total)}). V2 é a fonte do schedule a partir de agora.`);
+
+  onda8LrbRenderTabela();
 
   window.WALLACE_ONDA8_CRONOGRAMA_RELATORIO = { qtdV1: v1Qtd, totalV1: v1Total, qtdV2: VARS.CRONOGRAMA_BOLETOS_FIXOS.length, totalV2: v2Total, diverge, exibindo: 'V2' };
 }

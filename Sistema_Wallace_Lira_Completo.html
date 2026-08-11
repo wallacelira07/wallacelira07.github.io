@@ -574,16 +574,15 @@
     </div>
 
     <div id="lrb" class="pane">
-      <table><thead><tr><th>TX</th><th>Item</th><th class="r">Valor</th></tr></thead><tbody>
-      <tr><td class="mono">TXB000001</td><td>Prestação da casa</td><td class="r">R$ 588,66</td></tr>
-      <tr><td class="mono">TXB000002</td><td>Condomínio Bellagio</td><td class="r">R$ 210,00</td></tr>
-      <tr><td class="mono">TXB000003</td><td>Curso de inglês</td><td class="r">R$ 695,00</td></tr>
-      <tr><td class="mono">TXB000004</td><td>Água (Medintech)</td><td class="r">R$ 133,41</td></tr>
-      <tr><td class="mono">TXB000005</td><td>Gás (Medintech)</td><td class="r">R$ 30,28</td></tr>
-      <tr><td class="mono">TXB000006</td><td>Anderson Ramos</td><td class="r">R$ 210,00</td></tr>
-      <tr><td class="mono">TXB000007</td><td>FIES Vanessa</td><td class="r">R$ 245,00</td></tr>
-      <tr><td class="mono">TXB000008</td><td>Conselho Regional</td><td class="r">R$ 163,24</td></tr>
-      <tr><td class="mono">TXB000009</td><td>Energia (Energisa) <span style="font-size:0.62rem;color:var(--text-dim)">· última conta sem efeito do solar (gerador ativo desde 21/07, desconto só a partir da fatura de 21/08)</span></td><td class="r">R$ 367,36</td></tr>
+      <!-- CORRIGIDO 11/08/2026 (achado do usuário, print real: "soma dos boletos errada" — o rodapé
+           mostrava R$4.586,45, o saldo da Caixa Boletos (inclui aportes/rendimento), não a soma dos 9
+           itens acima, R$2.642,95) — linhas eram HTML estático digitado à mão (nunca lido do banco,
+           só coincidia com a V2 porque alguém manteve os dois em sincronia manualmente); agora tbody
+           vazio, preenchido ao vivo por aplicarOnda8CronogramaBoletos() a partir de
+           VARS.CRONOGRAMA_BOLETOS_FIXOS (V2) — rodapé passa a ser a SOMA real desses mesmos itens,
+           nunca mais um número de outra fonte. -->
+      <table><thead><tr><th>TX</th><th>Item</th><th class="r">Valor</th></tr></thead><tbody id="lrbTbody">
+      <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="v" id="legAguaGasMedintech" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
       <div class="tfoot"><span id="qtdLRB">—</span><span class="total v" id="tfLRB">—</span></div>
@@ -1763,7 +1762,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-25';
+var __V = '20260811-26';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.

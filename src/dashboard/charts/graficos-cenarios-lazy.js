@@ -1694,10 +1694,16 @@ async function _lazyRenderSolarSecao(){
       ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
-        ctx.fillStyle = ds.backgroundColor;
         meta.data.forEach((bar,i)=>{
           const v = ds.data[i];
           if(v===null || v===undefined) return;
+          // CORRIGIDO 11/08/2026 (achado do usuário, print real: número sumiu de cima da barra "Ago")
+          // — ds.backgroundColor virou uma FUNÇÃO (corBarraCredito(), pinta a barra do ciclo aberto
+          // mais clara) desde a correção de mais cedo hoje, mas ctx.fillStyle=ds.backgroundColor
+          // atribuía a função inteira em vez de uma cor — canvas ignora silenciosamente um fillStyle
+          // inválido. Resolve a cor por barra (chamando a função quando for função, igual o Chart.js
+          // já faz internamente pra pintar a própria barra), nunca mais preso a string fixa.
+          ctx.fillStyle = typeof ds.backgroundColor === 'function' ? ds.backgroundColor({dataIndex:i, chart}) : ds.backgroundColor;
           ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
         });
       });
