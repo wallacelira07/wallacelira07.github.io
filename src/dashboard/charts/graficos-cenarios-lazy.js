@@ -1295,13 +1295,24 @@ async function _lazyRenderSolarSecao(){
       if(!Array.isArray(ciclosSolarFechados)){
         historicoEl.innerHTML = '<span style="color:var(--text-danger)">⚠ Indisponível (V2)</span>';
       } else if(ciclosSolarFechados.length === 0){
-        historicoEl.innerHTML = '<span style="color:var(--text-dim);font-style:italic">Nenhum ciclo fechado ainda — o ciclo atual está aberto desde '+(cicloSolarAberto ? new Date(cicloSolarAberto.data_inicio).toLocaleDateString('pt-BR') : '21/07/2026')+'.</span>';
+        // CORRIGIDO 11/08/2026 (achado do usuário, print real: "20/07 – 06/08" quando o ciclo real é
+        // 21/07 – 07/08, 1 dia a menos nas duas pontas): new Date('2026-07-21').toLocaleDateString()
+        // interpreta a string como meia-noite UTC; sem fixar o timezone, formatar pro fuso do Brasil
+        // (UTC-3) subtrai 3h e cai no dia ANTERIOR. Corrigido com conversão só de texto (sem passar
+        // por Date/fuso nenhum) — mesmo truque já usado em fmtDataBr() mais abaixo neste arquivo.
+        const fmtDataSemFuso = iso => iso ? iso.slice(0,10).split('-').reverse().join('/') : '—';
+        historicoEl.innerHTML = '<span style="color:var(--text-dim);font-style:italic">Nenhum ciclo fechado ainda — o ciclo atual está aberto desde '+(cicloSolarAberto ? fmtDataSemFuso(cicloSolarAberto.data_inicio) : '21/07/2026')+'.</span>';
       } else {
+        // CORRIGIDO 11/08/2026 (achado do usuário, print real: tabela mostrando "R$ 194,00 kWh") —
+        // fmt() é formatador de MOEDA ('R$ '+número), reaproveitado aqui por engano pra uma coluna
+        // que é kWh, não Real. Corrigido com formatador local só de número (mesmas 2 casas decimais).
+        const fmtKwhHistorico = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const fmtDataSemFuso = iso => iso ? iso.slice(0,10).split('-').reverse().join('/') : '—';
         historicoEl.innerHTML = '<table style="width:100%;font-size:0.78rem"><thead><tr><th style="text-align:left">Período</th><th class="r">Crédito líquido</th><th class="r">Wallace</th><th class="r">Wellida</th></tr></thead><tbody>'
           + ciclosSolarFechados.map(c => {
-              const ini = new Date(c.data_inicio).toLocaleDateString('pt-BR');
-              const fim = new Date(c.data_fim).toLocaleDateString('pt-BR');
-              return '<tr><td>'+ini+' – '+fim+'</td><td class="r">'+fmt(Number(c.credito_liquido_kwh))+' kWh</td><td class="r">'+fmt(Number(c.credito_wallace_kwh))+' kWh</td><td class="r">'+fmt(Number(c.credito_irma_kwh))+' kWh</td></tr>';
+              const ini = fmtDataSemFuso(c.data_inicio);
+              const fim = fmtDataSemFuso(c.data_fim);
+              return '<tr><td>'+ini+' – '+fim+'</td><td class="r">'+fmtKwhHistorico(Number(c.credito_liquido_kwh))+' kWh</td><td class="r">'+fmtKwhHistorico(Number(c.credito_wallace_kwh))+' kWh</td><td class="r">'+fmtKwhHistorico(Number(c.credito_irma_kwh))+' kWh</td></tr>';
             }).join('')
           + '</tbody></table>';
       }
