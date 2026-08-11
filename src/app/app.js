@@ -197,10 +197,25 @@ const WallaceFinanceService = {
   // Ver hydrate-comprometido-caixa-variavel-v2.js. Id fixo da Caixa Variável (singleton, estável -
   // mesmo padrão de outros ids fixos já hardcoded no projeto, ex: CARTAO_PLUGGY_MAPA).
   CAIXA_VARIAVEL_ID_V2: '8522e256-2039-4c11-bd28-69738bfcf5b8',
+  // CORRIGIDO 11/08/2026 (achado do usuário: "ontem eu tinha 450 de crédito, como agora virou 350
+  // de débito" — salto real de ~R$800 num dia só): esta consulta somava TODAS as compras de cartão
+  // já classificadas como Caixa Variável, sem filtro de data — incluindo 54 transações desde
+  // 02/06/2026 (mais de 2 meses), não só as do ciclo atual (25/07→24/08). Mesmo bug de classe já
+  // corrigido em vw_compromisso_cartao_por_pessoa/vw_saldo_v2_por_caixa nesta sessão, mas nessa
+  // consulta específica (bate direto em `transacoes`, não passa por view) tinha passado batido.
+  // Provável gatilho: a classificação retroativa de ~106 transações (sessão anterior) deu cartao_id
+  // a compras antigas, que passaram a entrar nesta soma de uma vez só assim que ganharam cartao_id.
   async getComprometidoCaixaVariavelV2(){
     const chave = 'comprometido_caixa_variavel_v2';
     if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false`, {
+    const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${this.CAIXA_VARIAVEL_ID_V2}`, {
+      headers: this._headers()
+    });
+    if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em da Caixa Variável`);
+    const dadoCaixa = await respCaixa.json();
+    const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+    const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false${filtroData}`, {
       headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
