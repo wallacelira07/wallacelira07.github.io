@@ -1884,3 +1884,42 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 **Não existem mais bloqueadores para o desligamento operacional da V1** no que diz respeito ao uso financeiro do painel. O que resta de `wallace_dados` ativo é escrita agendada (scripts Python, item 3 acima) e config estática (item 2) — nenhum dos dois é lido por decisão financeira do usuário no dia a dia. V1 continua existindo como fallback/histórico, não como fonte primária de nenhum domínio crítico.
 
 **Regra de aplicação, mesmo padrão das exceções formais**: nenhum agente reabre a auditoria de Mastercard Black, Caixa Mastercard/Infinite, ou qualquer item já classificado como exceção formal, sem pedido explícito e novo do usuário. Qualquer achado novo nessas frentes é backlog, não bloqueador.
+
+## 53. Execução do backlog em modo fechamento — itens 1-4 concluídos, `wallace_dados` sem nenhuma escrita ativa (11/08/2026)
+
+**Pedido do usuário**: executar todo o backlog remanescente da seção 52 imediatamente, "modo fechamento", sem tratar nada como investigação nova.
+
+**Item 1 — Busca Global**: **já estava concluído** (achado ao verificar antes de executar, não refeito) — `hydrate-onda3-livro-razao.js` já escreve `VARS[varsArray]` pras 12 caixas desde 10/08/2026 (comentário no próprio arquivo), função já chamada no boot (`onDomPronto(aplicarOnda3LivroRazao)`, `app.js`). A seção 52 estava desatualizada nesse ponto — corrigido aqui.
+
+**Item 2 — Limpeza técnica**:
+- RPC órfã `atualizar_geracao_solar` removida (`DROP FUNCTION`, zero chamadores confirmados por grep antes da remoção).
+- 4 constantes de tarifa solar (`faturaEnergisaValor`, `faturaEnergisaKwh`, `consumoMinimoComSolarKwh`, `taxaMinimaEnergisa`) migradas para tabela nova `parametros_solares` (chave/valor, mesmo padrão de `legendas`). Leitura: `window.WALLACE_PARAMETROS_SOLARES_V2` (fetch paralelo no HTML) vence o literal V1 se responder, fallback silencioso se falhar. Comportamento funcional idêntico — mesmos valores, só a origem muda.
+
+**Item 3 — Eliminar dependências restantes da V1**:
+- **Achado ao verificar antes de executar**: `sincronizar_erp_supabase.py` e `sincronizar_pluggy.py`/`mercadopago_sync.py` já estavam 100% migrados pra V2 desde 08-10/08/2026 (confirmado nos próprios docstrings dos scripts) — não precisaram de nenhuma mudança.
+- Único item real pendente: `atualizar_cotacoes_acoes` (RPC) fazia dual-write (V1+V2) — `UPDATE wallace_dados` removido, RPC agora só grava em `cotacoes_acoes` (V2). Leitura já era V2-first desde 08/08, sem mudança de comportamento.
+- `PIB_WALLACE_HISTORICO` (único domínio sem nenhuma estrutura V2 antes de hoje) — tabela nova `pib_wallace_historico` (mes/snapshot), RPC `registrar_pib_mensal` migrada pra gravar só ali, 2 registros reais existentes (2026-06, 2026-07) transferidos de `wallace_dados`. Leitura: `window.WALLACE_PIB_HISTORICO_V2` vence o literal V1/wallace_dados, fallback silencioso.
+- **Confirmação final por SQL** (não por leitura de comentário): `SELECT proname FROM pg_proc WHERE prosrc ILIKE '%UPDATE wallace_dados%' OR prosrc ILIKE '%INSERT INTO wallace_dados%'` → **0 linhas**. Nenhuma função no Postgres escreve em `wallace_dados` hoje.
+
+**Item 4 — Varredura de juros duplicados**: executada em todas as caixas com array de transações (`vars-caixas.js`, `vars-reembolsos.js`), buscando o padrão "juros...repassad_" com `tipo:'Entrada'` que também tem par em `CAIXA_LANCE_TRANSACOES`.
+- **Caixas auditadas**: todas as ~14 caixas com array próprio de transações (Wärtsilä, Mastercard/Infinite, Lance, Manutenção, Saúde Família, Aniversário Júlio, Eventos, Seguro Emplacamento, Combustível, Churrasco, Bens Duráveis, PIX Vanessa, PIX Geral Vanessa, Boletos).
+- **Caixas corrigidas**: 0 novas — as 2 únicas ocorrências reais (Wärtsilä, Mastercard/Infinite) já tinham sido corrigidas antes (sessão anterior e nesta sessão, respectivamente).
+- **Impacto financeiro encontrado**: R$0,00 adicional. O componente "Fatura Mercado Pago" (R$8,27) citado no mesmo lançamento `JUROS-27-07` da Caixa Lance não tem array de caixa próprio pra duplicar contra — não é um caso aplicável do bug.
+
+**Item 5 — Encerramento**: esta seção + checklist abaixo é o relatório final. Memória de projeto atualizada na mesma rodada.
+
+### Checklist final atualizado
+
+- [x] Busca Global funcionando para as 12 caixas V2 (já estava, confirmado).
+- [x] RPC órfã removida.
+- [x] Tarifas solares parametrizadas (tabela `parametros_solares`).
+- [x] Scripts agendados confirmados migrados (2 já estavam; 1 RPC de cotações trimada; PIB histórico migrado, único item que exigia schema novo).
+- [x] Varredura de juros concluída — 0 ocorrências novas, R$0,00 de impacto.
+- [x] **Nenhuma escrita operacional em `wallace_dados`** — confirmado por consulta direta ao Postgres (`pg_proc`), não por suposição.
+- [x] Nenhum bloqueador aberto.
+- [x] V1 classificada oficialmente como legado/fallback — nenhuma função escreve nela, leitura só acontece quando a V2 falha (fallback silencioso documentado em cada ponto).
+- [x] V2 definida como única plataforma operacional.
+
+**Commits desta rodada**: RPCs/tabelas via `apply_migration` direto no Supabase (sem arquivo `.sql` versionado no repo — mesmo padrão já usado em todas as migrações desta frente) + 1 commit no repositório (`f2cb453`, fetch/hydratação das 2 tabelas novas).
+
+**Regra de aplicação, mesma de sempre**: qualquer achado novo a partir daqui é backlog, não reabre esta fase.
