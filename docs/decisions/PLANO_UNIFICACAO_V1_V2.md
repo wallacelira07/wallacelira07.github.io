@@ -1855,3 +1855,32 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 **Classificação formal**: mesma classe da exceção já registrada na seção 47/`EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — não é bug, é consequência estrutural de o "ciclo" interno do app (baseado em salário) não coincidir com o período de fatura real de cada cartão. **Melhoria futura, não bloqueador**: se algum dia a composição por cartão precisar refletir o período real de fatura (não o ciclo interno), a mudança é no filtro de `vw_compromisso_cartao_por_pessoa`/`vw_compromisso_cartao_detalhe` (trocar `ciclo_inicio_em` por uma janela de fatura por cartão) — não implementado, não decidido, não bloqueia o fechamento da V2.
 
 **Encerrado por decisão explícita do usuário** — não reabrir sem pedido novo, mesma regra das 5 exceções formais.
+
+## 52. Encerramento formal da fase de auditoria — V2 aprovada para operação (11/08/2026)
+
+**Decisão do usuário**: com base no levantamento das seções 43-51, a V2 relacional é considerada **fonte operacional principal** para uso financeiro. Fase de auditoria/investigação encerrada oficialmente; projeto entra em fase de estabilização. Daqui pra frente, qualquer achado novo é tratado como melhoria de backlog, **não** como condição para considerar a V2 pronta.
+
+### Checklist final de encerramento
+
+- [x] Nenhum bloqueador crítico aberto.
+- [x] Nenhuma divergência financeira material sem causa raiz identificada (16/16 caixas confiáveis reconciliadas na Fase 3; Mastercard Black explicado na seção 51).
+- [x] `wallace_dados` não recebe mais nenhuma escrita disparada por interação do usuário (Inbox Mercado Pago + Pluggy, seções 45/48 — únicos escritores "vivos" fechados).
+- [x] Todas as exceções remanescentes formalmente documentadas (`EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`, `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`, seção 51 deste documento).
+- [x] Investigação do Mastercard Black encerrada (seção 51).
+- [x] Investigação da Caixa Mastercard/Infinite encerrada (correção aplicada e validada nesta sessão, ver `PASSAGEM_DE_TURNO.md`/`ESTADO_ATUAL.md` do dia).
+
+### Status das pendências remanescentes (backlog, não bloqueadores)
+
+| # | Item | Natureza | Prioridade definida pelo usuário |
+|---|---|---|---|
+| 1 | Busca Global não indexa 12 caixas já migradas pra V2 na tela | Busca desatualizada, não é erro financeiro | 1 (única com valor prático real) |
+| 2 | RPC órfã `atualizar_geracao_solar` + 4 constantes de tarifa solar sem tabela própria | Limpeza técnica, zero risco | 2 |
+| 3 | Scripts Python agendados ainda escrevem em `wallace_dados` (cotações, PIB histórico, sync ERP) | Governança — rodam sem usuário no loop, sem bug ativo conhecido | 3 |
+| 4 | Padrão "juros repassados duplicados" (achado 2x: Wärtsilä, Mastercard/Infinite) — não varrido nas demais ~10 caixas | Revisão futura | 4 |
+| 5 | Visa Infinite com cobertura baixa de `cartao_id`/histórico | Bloqueado por decisão (dado ambíguo, sem evidência nova) — **não mexer** | 5, condicional a evidência nova |
+
+### Confirmação
+
+**Não existem mais bloqueadores para o desligamento operacional da V1** no que diz respeito ao uso financeiro do painel. O que resta de `wallace_dados` ativo é escrita agendada (scripts Python, item 3 acima) e config estática (item 2) — nenhum dos dois é lido por decisão financeira do usuário no dia a dia. V1 continua existindo como fallback/histórico, não como fonte primária de nenhum domínio crítico.
+
+**Regra de aplicação, mesmo padrão das exceções formais**: nenhum agente reabre a auditoria de Mastercard Black, Caixa Mastercard/Infinite, ou qualquer item já classificado como exceção formal, sem pedido explícito e novo do usuário. Qualquer achado novo nessas frentes é backlog, não bloqueador.
