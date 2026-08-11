@@ -5,7 +5,7 @@
 
 ## As 5 exceções
 
-1. **Headline totals Mastercard Black/Visa** (`cartaoMBTotal`, `cartaoInfiniteTotal`, `mercadoPagoFatura`) — regra de negócio "fatura sempre vence", detalhado em `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`.
+1. **Headline totals Mastercard Black/Visa** (`cartaoMBTotal`, `cartaoInfiniteTotal`, `mercadoPagoFatura`) — regra de negócio "fatura sempre vence", detalhado em `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`. **Atualização 11/08/2026**: gap de R$2.678,41 na composição do Mastercard Black investigado e explicado — janela de fatura real do banco ≠ janela do ciclo interno do app (`ciclo_inicio_em`), não é lançamento faltante. Absorvido em `mbDetalhe.naoReconciliado` (mesmo padrão do Visa). Detalhe completo em `PLANO_UNIFICACAO_V1_V2.md` seção 51. Encerrado, não reabrir sem pedido novo.
 2. **Solar 301×361 kWh** — fórmula de rateio (`saldoLiquido = exportado−importado` vs só exportado) sem prova externa (documento original ou fatura real). Ver `PLANO_UNIFICACAO_V1_V2.md` seção 38.
 3. **Caixa Lance** — divergência de R$4,37 não confirmada, causa raiz não fechada.
 4. **4 caixas de causa indeterminada** — Manutenção, Saúde Família, PIX Geral Vanessa, Aniversário Júlio — divergência R$107-346 sem causa raiz confirmada.

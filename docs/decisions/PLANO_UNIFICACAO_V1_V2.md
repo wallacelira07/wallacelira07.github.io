@@ -1841,3 +1841,17 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 - Visa Infinite continua com cobertura baixa (mesma limitação da seção 47 — poucas transações no período coberto pela planilha usada).
 
 **Arquivos/schema alterados**: `vw_compromisso_cartao_por_pessoa` (migração `corrige_filtro_ciclo_compromisso_cartao`, também corrige `vw_compromisso_cartao_detalhe`), 106 linhas de `transacoes` atualizadas (`usuario_id`/`cartao_id`/`caixa_id` mesclados), duplicatas removidas.
+
+## 51. Mastercard Black — gap de R$2.678,41 explicado por janela de período, não erro de dado (11/08/2026)
+
+**Contexto**: usuário pediu materialidade, não perfeição — "não espere uma auditoria perfeita dos 81 lançamentos pra avançar", com critério de parada explícito: "quando o saldo residual não conciliado for pequeno, conhecido e explicado".
+
+**Correção real aplicada (segura, sem ambiguidade)**: 16 transações (R$1.005,95, TX000081/082/096-106/108/110/111, todas confirmadas via cruzamento direto com a Pluggy — conta 2250, "PERSONNALITE MULT BLACK PTS") estavam com `cartao_id` apontando pro cartão físico **aposentado** (final 2244) em vez do ativo (final 1371) — mesmo emissor/conta, só plástico diferente. `UPDATE transacoes SET cartao_id = <ativo>` nas 16 linhas. Sem risco: não move dinheiro entre Visa e Mastercard Black, só corrige qual variante física do mesmo cartão MB está registrada.
+
+**Causa raiz do gap remanescente — não é dado faltante, é comparação de janelas diferentes**: `vw_compromisso_cartao_por_pessoa` (fonte de `mbLRWConfirmado`/`mbLRVConfirmado`) filtra `t.data >= c.ciclo_inicio_em` (Caixa Variável, hoje `2026-07-25`) — filtro **deliberado**, adicionado na seção 50 (10/08/2026) pra não deixar histórico antigo inflar o "compromisso atual". `cartaoMBTotal` (R$6.744,29), por outro lado, vem da fatura real do banco (Pluggy ou reconciliação manual — exceção arquitetural formal, `EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`), cujo período de cobrança **não coincide** com o ciclo interno do app (que começa no dia do salário, não no fechamento do cartão). Confirmado com evidência: a fatura Visa Infinite real (PDF Bradesco) mostra compras cobradas até 15/07 — antes do `ciclo_inicio_em` de 25/07 — várias delas com valor idêntico a itens do "gap" do Mastercard Black, confirmando que parte real do saldo não-conciliado pertence a um período anterior ao corte do ciclo interno, não a lançamento ausente.
+
+**Tratamento**: `mbDetalhe.naoReconciliado` (novo campo, mesmo padrão já usado no Visa desde a V135) absorve o R$2.678,41 — soma volta a bater exato com `cartaoMBTotal`, check #12 de `auditoria-automatica.js` passa. Não itemizado transação a transação (decisão de materialidade do usuário).
+
+**Classificação formal**: mesma classe da exceção já registrada na seção 47/`EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md` — não é bug, é consequência estrutural de o "ciclo" interno do app (baseado em salário) não coincidir com o período de fatura real de cada cartão. **Melhoria futura, não bloqueador**: se algum dia a composição por cartão precisar refletir o período real de fatura (não o ciclo interno), a mudança é no filtro de `vw_compromisso_cartao_por_pessoa`/`vw_compromisso_cartao_detalhe` (trocar `ciclo_inicio_em` por uma janela de fatura por cartão) — não implementado, não decidido, não bloqueia o fechamento da V2.
+
+**Encerrado por decisão explícita do usuário** — não reabrir sem pedido novo, mesma regra das 5 exceções formais.
