@@ -36,10 +36,13 @@ function criarVarsEnergiaSolar(){
   // 01/08/2026) - o Supabase tem a copia "viva" (ENERGISA_TARIFA_COMPOSICAO) que sobrescreve isto via
   // Object.assign(VARS, dr) no carregamento; mantido aqui so pra o card nao ficar vazio se o banco
   // estiver fora do ar. Editar via Supabase normalmente, nao aqui.
+  // ATUALIZADO 11/08/2026 (2 faturas oficiais reais em PDF, casa_wellida NF 009.005.476 e casa_mae
+  // NF 009.005.819, ambas emitidas 10/08/2026, período 08/07→07/08/2026) - fallback local só, a copia
+  // viva no Supabase (wallace_dados.ENERGISA_TARIFA_COMPOSICAO) já foi atualizada e sempre vence.
   ENERGISA_TARIFA_COMPOSICAO: {
     apartamento_wallace: { uc:'1.994.775.053-05', historico:{ mai26:270.10, jun26:322.99, jul26:367.36 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
-    casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
-    casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+    casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45, ago26:70.12 }, fatura_ago26_valor:70.12, fatura_ago26_consumo_kwh:111, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+    casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, fatura_ago26_valor:56.11, fatura_ago26_consumo_kwh:145, fatura_ago26_injetada_kwh:339, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
   },
   // ATUALIZADO 05/08/2026 (parte 99): fatura Energisa real do apartamento do Wallace (UC 1.994.775.053-05,
   // Rua Luzinalda Edite de Araujo Leite 598 Bloco C Apto 806C - Serrotão, leitura dia 21 = bate exato
