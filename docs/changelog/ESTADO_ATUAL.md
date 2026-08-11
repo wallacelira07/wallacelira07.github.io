@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 11/08/2026, fim de sessão muito longa (adequação consórcios/LREI, encerramento formal da migração V1→V2, auditoria de prontidão operacional, 2 rodadas de hardening de segurança, varredura final de fechamento). Tudo commitado e pushed (branch `main`, `wallacelira07.github.io`), working tree limpo. Sessão inteira sem acesso a login real — nenhuma mudança visual foi conferida no navegador.
+Última reescrita: 11/08/2026, continuação de sessão (retomada após limite de uso). Backup/restore — o último risco operacional real — implementado, testado com dados reais e documentado. Sessão inteira sem acesso a login real — nenhuma mudança visual foi conferida no navegador.
 
 ## 🎯 Regras permanentes desta sessão (não reabrir sem pedido novo)
 
@@ -24,17 +24,17 @@
 9. **Hardening de segurança, rodada 2**: 2 views `SECURITY DEFINER` convertidas pra `SECURITY INVOKER`; `search_path` explícito nas últimas 2 funções; painel novo "Saúde Operacional" (tabela `execucoes_jobs` + heartbeat nos 4 scripts Python agendados); confirmado que a proteção de leitura solar implausível já existia; checklist oficial de novas Ondas criado; decisão de manter cron-job.org com monitoramento (não migrar pra Supabase Cron agora).
 10. **Varredura final de fechamento**: TODO/FIXME/HACK no código (zero ocorrências reais — só falsos positivos da palavra "TODOS"), triggers (11, todos revisados, nenhum problema), RLS sem policy (1 tabela, `solar_compartilhamentos`, deny-by-default intencional, seguro), advisors de performance (25 FKs sem índice + 23 índices não usados, ambos INFO, esperado pro volume atual — ~300 linhas em `transacoes`), plano do projeto Supabase confirmado **free tier** (sem backup/PITR automático — ver pendência abaixo).
 
-## ⚠️ Único risco remanescente real, não mitigado
+## ✅ Backup/restore — resolvido nesta sessão (era o único risco remanescente)
 
-**Backup/recuperação**: o projeto Supabase está no plano **free**, que não inclui backup automático nem Point-in-Time Recovery. Não existe hoje nenhum procedimento de backup/restore validado (nem manual, nem automatizado) para os dados financeiros reais do sistema. Isso não foi corrigido nesta sessão — exigiria decisão do usuário (upgrade de plano pago, ou implementar rotina de export manual/agendado) antes de qualquer ação. Ver `docs/decisions/HARDENING_SEGURANCA_PRODUCAO.md` seção de fechamento final.
+Achado ao investigar: uma sessão anterior (mesmo dia, cortada por limite de uso) já tinha criado tabela `backups` + funções `criar_backup_completo`/`restaurar_backup` + cron diário, mas **nunca testou** — a função exigia `auth.role()='service_role'`, e o `pg_cron` executa sem JWT (`auth.role()` = `NULL` nesse contexto), então o próprio job agendado nunca teria conseguido gravar nada. Corrigido, testado com dados reais (backup real de 42 tabelas/328 transações, restore validado via roundtrip em tabela `TEMP` sem tocar produção), grants de `anon`/`authenticated` revogados (fechou 4 `WARN` do advisor). Retenção 14 dias, RPO ~24h, RTO minutos. Comparado contra upgrade pago (Pro+PITR = US$125/mês mínimo) — decisão: manter solução própria gratuita, já implementada. Ver `docs/decisions/BACKUP_RESTORE.md` para o procedimento completo de restore e os riscos residuais honestos (restore completo nunca foi executado ao vivo, só o mecanismo; backup vive dentro da mesma instância).
 
 ## Pendências antigas, sem decisão do usuário ainda
 
 | Item | Nota |
 |---|---|
 | Visa Infinite — cobertura baixa de `cartao_id`/histórico | Congelado por decisão explícita, não mexer sem evidência nova |
-| Backup/restore (ver acima) | Precisa decisão do usuário: upgrade de plano ou rotina manual |
 | Limiares do painel de Saúde Operacional | Estimados, não calibrados contra execução real ainda (vão se autocorrigir com o tempo) |
+| Backup fora da instância Supabase (proteção contra perda catastrófica do projeto) | Melhoria futura de baixo custo (export periódico pro Drive), não implementada, não bloqueadora |
 
 ## Protocolo de sessão nova
 
