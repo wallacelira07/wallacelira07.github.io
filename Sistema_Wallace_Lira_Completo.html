@@ -1113,6 +1113,18 @@
       <div style="margin-top:0.6rem;font-weight:600" id="qgStatus">—</div>
       <div style="font-size:0.72rem;font-weight:600;margin-top:0.4rem" id="qgFrescor">—</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
+      <!-- NOVO 11/08/2026 (pedido do usuário: "quero um ícone com a previsão do tempo do momento...
+           por exemplo, hoje a geração está baixa, mas está chovendo, então eu vendo esse ícone já sei
+           o porque") - clima atual de Campina Grande/PB (Open-Meteo, API pública, sem chave/cadastro),
+           só contexto visual pra explicar geração baixa/alta - nunca usado em nenhum cálculo. Ver
+           hydrate-clima-solar.js. -->
+      <div id="qgClima" style="display:none;margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);align-items:center;gap:0.6rem">
+        <span id="qgClimaIcone" style="font-size:1.6rem;line-height:1">—</span>
+        <div>
+          <div style="font-weight:600" id="qgClimaTexto">—</div>
+          <div style="font-size:0.66rem;color:var(--text-dim)" id="qgClimaLocal">Campina Grande/PB agora</div>
+        </div>
+      </div>
     </div>
 
     <div class="section-num"><span class="n">02</span><h2>Unidade Geradora (Casa da Mãe)</h2></div>
@@ -1485,7 +1497,7 @@
          Salário do Mês") — era a seção 04, ficava entre "O que NUNCA é cortado" (03) e "Reserva de
          Emergência" (05); o novo gráfico da seção 04 (comparação com "Não trabalha") tomou esse lugar.
          Conteúdo/ids/lógica 100% intactos, só a posição (e o número, 04→07) mudaram. -->
-    <div class="section-num"><span class="n">07</span><h2>O piso mínimo garantido cobre o Total Operacional? — 12 meses</h2></div>
+    <div class="section-num"><span class="n">07</span><h2>O Salário Base garantido cobre o Total Operacional? — 12 meses</h2></div>
     <div class="card" style="margin-bottom:1rem">
       <div class="v" id="legDeficitSemEmbarque" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
       <div class="chart-box tall"><canvas id="cDeficitZero"></canvas></div>
@@ -1751,7 +1763,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-24';
+var __V = '20260811-25';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1800,6 +1812,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/livros-razao/hydrate-onda5-parcelamentos.js',
   'src/financeiro/investimentos/hydrate-onda5-p2p.js',
   'src/solar/hydrate-onda5-qualidade-geracao.js',
+  'src/solar/hydrate-clima-solar.js',
   'src/solar/compartilhamento-solar.js',
   'src/financeiro/patrimonio/hydrate-patrimonio.js',
   'src/financeiro/indicadores/hydrate-indicadores.js',

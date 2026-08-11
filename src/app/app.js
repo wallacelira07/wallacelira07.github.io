@@ -1662,6 +1662,9 @@ function hydrate(){
   // (que continua pendente de validação, não tocado). Só responde "a usina está indo bem ou mal
   // hoje", sem jargão técnico. Ver hydrate-onda5-qualidade-geracao.js.
   aplicarOnda5QualidadeGeracao();
+  // NOVO 11/08/2026 (pedido do usuário: ícone de clima atual junto do card de desempenho da usina,
+  // "geração baixa mas está chovendo, aí eu já sei o porque"). Ver hydrate-clima-solar.js.
+  if(typeof aplicarClimaSolar === 'function') aplicarClimaSolar();
 }
 onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // NOVO 09/08/2026 (pedido do usuario: "compartilhar link de uma aba especifica, ex. solar") -
