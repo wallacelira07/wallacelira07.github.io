@@ -1196,6 +1196,7 @@ async function _lazyRenderSolarSecao(){
   // estimativa da Unidade Geradora: some pra dentro deste grafico especifico, nao muda o dado bruto
   // (SOLAR_LEITURAS continua 100% real) - so a exibicao desta barra.
   let diasComDadoRealSolar = 0, diasProjetadosSolar = 0;
+  let idxCicloAberto = null; // índice (0-11) da barra do ciclo AINDA ABERTO no gráfico Rateio Solar, se houver — usado pra estilizar essa barra diferente das fechadas
   if(ultimaSolar && ultimaSolar.geracaoAcumulada != null && diasAcumAnterior >= 0){
     const hojeChart = new Date();
     const hojeSoDataChart = new Date(Date.UTC(hojeChart.getFullYear(), hojeChart.getMonth(), hojeChart.getDate()));
@@ -1240,15 +1241,21 @@ async function _lazyRenderSolarSecao(){
       VARS._diasProjetadosSolar = diasProjetadosSolar;
       VARS._diasComDadoRealSolar = diasComDadoRealSolar;
 
-      // REMOVIDO 11/08/2026 (pedido do usuário, "seção 02 confusa" + regra "só por ciclo fechado"
-      // confirmada): este bloco injetava o crédito ESTIMADO de hoje direto numa barra do histórico
-      // mês a mês (creditoMensalWallace/Irma[idxMesAtual]), fazendo o ciclo AINDA ABERTO aparecer como
-      // se já fosse um mês fechado no gráfico "Rateio Solar" — mesma causa raiz do bug da barra "Set"
-      // prematura no gráfico "Histórico mês a mês" (Unidade Geradora), corrigido acima com o filtro
-      // ehLeituraOficial. O progresso ao vivo do ciclo aberto continua 100% visível e correto na seção
-      // 04 (Fluxo 2 "GD atual, crédito em formação") — não se perde informação, só para de duplicar
-      // com um número diferente dentro de uma barra que deveria significar "ciclo fechado".
-      // VARS._creditoLiquidoProjetadoHoje continua exposto acima (usado pela seção 04).
+      // RESTAURADO 11/08/2026 (pedido explícito do usuário, revertendo a remoção de mais cedo hoje:
+      // "quero que o valor que está sendo gerado vai somando aqui, se não não tem sentido ter esse
+      // gráfico") — mas com o problema original resolvido de outro jeito: o valor ao vivo do ciclo
+      // aberto volta a aparecer na barra, só que agora é claramente distinguível (cor mais clara/
+      // transparente, ver backgroundColor do dataset abaixo) das barras de ciclo REALMENTE fechado —
+      // antes as duas pareciam idênticas, o que fazia parecer que "Set" já tinha fechado. Fórmula
+      // idêntica à da seção 04 (Fluxo 2), mesma fonte (baselineKwh), nunca diverge dela.
+      const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10));
+      idxCicloAberto = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12;
+      if(baselineKwh != null){
+        const creditoLiquidoCicloAbertoEstimado = Math.round((saldoTotalEstimadoChart - baselineKwh) * 100) / 100;
+        creditoMensalWallace[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioWallace * 100) / 100;
+        creditoMensalIrma[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioIrma * 100) / 100;
+        temLeituraNoMes[idxCicloAberto] = true;
+      }
     }
   }
 
@@ -1626,25 +1633,30 @@ async function _lazyRenderSolarSecao(){
       ctx.restore();
     }
   };
+  // Índice da barra do ciclo AINDA ABERTO já ajustado pro mesmo deslocamento (OFFSET_SOLAR) aplicado
+  // aos dados/rótulos via alignSolar() — sem isso, a barra "diferente" apontaria pro mês errado assim
+  // que a janela de 12 meses começar a rolar.
+  const idxCicloAbertoAlinhado = idxCicloAberto != null ? idxCicloAberto - OFFSET_SOLAR : null;
+  const corBarraCredito = (corFechado) => (ctx) => ctx.dataIndex === idxCicloAbertoAlinhado ? corFechado + '66' : corFechado; // '66' = ~40% opacidade em hex, só na barra do ciclo aberto
   observeAndRenderChart($('cSolarRateio'), () => new Chart($('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
     data:{labels:mesesParesSolar,
       datasets:[
-        {label:'Crédito Wallace (gerado)', data:alignSolar(creditoMensalWallace), backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Crédito Wallace (gerado)', data:alignSolar(creditoMensalWallace), backgroundColor:corBarraCredito('#34c98a'), borderRadius:3},
         {label:'Consumo esperado Wallace', data:consumoMensalWallaceAlinhado, backgroundColor:'#f0c94a', borderRadius:3},
         // CORRIGIDO 11/08/2026 (pedido do usuário: "esse verde da minha irmã está muito claro, não
         // tá legal de ver" — era #1c7a54, verde escuro/musgo, baixo contraste contra o fundo escuro
         // do card): trocado por um teal mais saturado, bem distinto do verde do Wallace (#34c98a).
-        {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:'#14b8a6', borderRadius:3},
+        {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:corBarraCredito('#14b8a6'), borderRadius:3},
         {label:'Consumo esperado Irmã', data:consumoMensalIrmaAlinhado, backgroundColor:'#a9861f', borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{
         label:c=>{
           if(c.raw===null) return c.dataset.label+': sem leitura ainda';
-          const nota = (c.datasetIndex===0 && !temLeituraNoMes[c.dataIndex]) ? '' : '';
-          return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
+          const emAberto = (c.datasetIndex===0 || c.datasetIndex===2) && c.dataIndex===idxCicloAbertoAlinhado;
+          return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'+(emAberto ? ' (ciclo ainda ABERTO, estimativa — não fechou)' : '')+(c.datasetIndex%2===1?' (estimado, consumo histórico)':'');
         }
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
@@ -1665,7 +1677,13 @@ async function _lazyRenderSolarSecao(){
         + (diasProjetadosSolar>0 ? diasProjetadosSolar+' dia(s) por média histórica (robô ainda sem dado nesses dias)' : '')
         + ' — por isso pode diferir um pouco da Seção 04 (Previsão), que mostra só a última leitura manual, sem projetar nenhum dia à frente.'
       : '';
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa;
+    // NOVO 11/08/2026 (pedido do usuário, "quero que o valor que está sendo gerado vai somando aqui"):
+    // aviso explícito sobre a barra do ciclo aberto (mais clara/transparente no gráfico acima) pra não
+    // confundir "em andamento, ainda pode mudar" com um ciclo já fechado/congelado.
+    const avisoCicloAberto = idxCicloAbertoAlinhado != null
+      ? ' A barra mais CLARA/transparente é o ciclo AINDA ABERTO (estimativa ao vivo, cresce todo dia até fechar de verdade) — as barras sólidas são ciclos já fechados e congelados.'
+      : '';
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa+avisoCicloAberto;
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
