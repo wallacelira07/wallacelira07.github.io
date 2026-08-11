@@ -229,6 +229,57 @@ function reconciliarPluggy(){
   return resultado;
 }
 
+// NOVO 11/08/2026 (pedido explícito do usuário — supersede a exceção arquitetural de 08/08, ver
+// docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md): promove o valor REAL da fatura
+// Pluggy a fonte principal de cartaoInfiniteTotal/cartaoMBTotal/mercadoPagoFatura — só quando existe
+// uma fatura EM ABERTO de verdade (valor não-nulo, não-zero, com vencimento no futuro). Nunca
+// sobrescreve com fatura vencida/zerada/ausente — nesses casos o valor atual (reconciliado
+// manualmente, ou o fallback do ERP já existente pro Mercado Pago) permanece intocado. Mesma regra
+// "a fatura sempre vence" do documento de 08/08, só que agora COM a fatura real quando ela existe, em
+// vez de depender sempre de digitação manual. Roda depois de reconciliarPluggy() (que continua
+// intacta, só detecta divergência pro log/Inbox) — leitura separada do mesmo dado, nenhuma duplicação
+// de lógica de mapeamento de cartão.
+function promoverFaturaPluggyComoFonte(){
+  const pc = VARS.PLUGGY_CONTAS;
+  const promovidos = [];
+  if(!pc || !pc.conexoes){ window.WALLACE_PROMOCAO_PLUGGY_RELATORIO = { promovidos }; return { promovidos }; }
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  pc.conexoes.forEach(conexao => {
+    (conexao.contas||[]).forEach(conta => {
+      if(conta.tipo !== 'CREDIT') return;
+      const mapa = /mercado\s*pago/i.test(conta.nome) ? {totalVar:'mercadoPagoFatura'} : CARTAO_PLUGGY_MAPA[conta.numero];
+      if(!mapa || !mapa.totalVar || mapa.bloqueado) return;
+      const faturaPluggy = conta.fatura_mes_atual ? conta.fatura_mes_atual.valor_total : null;
+      // Pluggy pode devolver 0 mesmo com fatura real em aberto (achado documentado 05/08/2026, caso
+      // Mercado Pago) — 0/null tratados igual: sem dado confiável, mantém o valor atual.
+      if(faturaPluggy == null || faturaPluggy === 0) return;
+      const vencStr = conta.fatura_vencimento_atual || (conta.fatura_mes_atual && conta.fatura_mes_atual.vencimento);
+      const venc = vencStr ? new Date(vencStr) : null;
+      if(!venc || venc < hoje) return; // sem data, ou fatura já vencida/paga — não é a fatura EM ABERTO
+      const valorAnterior = VARS[mapa.totalVar];
+      VARS[mapa.totalVar] = faturaPluggy;
+      VARS[mapa.totalVar + 'Origem'] = 'pluggy';
+      promovidos.push({ totalVar: mapa.totalVar, cartao: conta.nome, numero: conta.numero, valorAnterior, valorPluggy: faturaPluggy, vencimento: vencStr });
+    });
+  });
+  if(promovidos.length){
+    REG.cartaoInfinite.total = VARS.cartaoInfiniteTotal;
+    REG.cartaoMB.total = VARS.cartaoMBTotal;
+    REG.mercadoPago = VARS.mercadoPagoFatura;
+    if(typeof recalcularMercadoPago === 'function') recalcularMercadoPago();
+    if(typeof hydrateResumoCartoes === 'function') hydrateResumoCartoes();
+    if(typeof hydrateVisaMB === 'function') hydrateVisaMB();
+    if(typeof hydrateMercadoPago === 'function') hydrateMercadoPago();
+    if(typeof hydrateBalanco === 'function') hydrateBalanco();
+    if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
+    console.log(`promoverFaturaPluggyComoFonte: ${promovidos.length} total(is) promovido(s) pra fatura real da Pluggy.`, promovidos);
+  } else {
+    console.log('promoverFaturaPluggyComoFonte: nenhuma fatura em aberto confiável na Pluggy nesta carga — mantendo valores atuais (reconciliação manual/fallback ERP).');
+  }
+  window.WALLACE_PROMOCAO_PLUGGY_RELATORIO = { promovidos };
+  return { promovidos };
+}
+
 // V400 Etapa 3 (Reconciliador transação-a-transação) - reconciliarTransacoesPluggy().
 // So faz sentido depois que o script externo sincronizar_pluggy.py (corrigido 03/08/2026, migrado
 // de /transactions para /v2/transactions com cursor) voltar a popular conta.transacoes_recentes no

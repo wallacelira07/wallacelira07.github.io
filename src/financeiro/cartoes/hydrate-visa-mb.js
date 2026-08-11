@@ -7,8 +7,17 @@ function hydrateVisaMB(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   const R = REG;
 
+  // NOVO 11/08/2026 (pedido do usuário: promover a fatura real da Pluggy como fonte do headline total,
+  // ver promoverFaturaPluggyComoFonte() em pluggy-reconciliacao.js — mesmo padrão de selo já usado em
+  // "Fatura atual (aberta)" do Mercado Pago): mostra a origem do número, nunca finge que é sempre a
+  // fatura real quando na verdade é o fallback reconciliado manualmente.
+  const badgeOrigem = (origemVar) => VARS[origemVar] === 'pluggy'
+    ? ' <span style="font-size:0.62rem;color:var(--green)" title="Valor vindo direto da fatura real da Pluggy, atualizado automaticamente">🔄 Pluggy</span>'
+    : ' <span style="font-size:0.62rem;color:var(--text-dim)" title="Pluggy sem fatura em aberto confiável nesta carga — valor reconciliado manualmente">📝 manual</span>';
+
   // visa infinite
-  t('visaTotal', fmt(R.cartaoInfinite.total));
+  const visaTotalEl = $('visaTotal');
+  if(visaTotalEl) visaTotalEl.innerHTML = fmt(R.cartaoInfinite.total) + badgeOrigem('cartaoInfiniteTotalOrigem');
   t('visaPessoal', fmt(R.cartaoInfinite.total - R.visaDetalhe.corp));
   t('visaLRW', fmt(R.visaDetalhe.wallace));
   t('visaLRV', fmt(R.visaDetalhe.vanessa));
@@ -19,7 +28,8 @@ function hydrateVisaMB(){
   t('visaLRC', fmt(R.visaDetalhe.corp));
   t('visaLRNaoReconciliado', fmt(R.visaDetalhe.naoReconciliado)); // V135: residuo soma-livros x fatura-real, documentado (P1)
   // mastercard black
-  t('mbTotal', fmt(R.cartaoMB.total));
+  const mbTotalEl = $('mbTotal');
+  if(mbTotalEl) mbTotalEl.innerHTML = fmt(R.cartaoMB.total) + badgeOrigem('cartaoMBTotalOrigem');
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - R.mbDetalhe.corp))); // CORRIGIDO 26/07/2026 (V177): usuario esclareceu que o ciclo fechado deve mostrar o valor CONGELADO do fechamento artificial (R$1.849,31), nao a formula viva recalculada com dados atuais.
   t('mbLRW', fmt(R.mbDetalhe.wallace));
   t('mbLRV', fmt(R.mbDetalhe.vanessa));

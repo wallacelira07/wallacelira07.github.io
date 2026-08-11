@@ -63,24 +63,22 @@ async function aplicarOnda5Parcelamentos(){
   // faltava religar o recálculo, mesmo padrão que hydrate-onda4-wartsila.js já usa pras outras 3 pernas.
   VARS.totalOpProvMP = Math.round(VARS.PARCELAMENTOS_MP.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
   REG.totalOpDetalhe.provMP = VARS.totalOpProvMP;
-  // CORRIGIDO 11/08/2026 (achado do usuário, print real: "Total comprometido"/"Parcelas (LRP)" do
-  // Visa Infinite sempre R$1.017,89, igual há dias, e confirmado pelo usuário que hoje o Visa
-  // Infinite É só essas parcelas — os outros componentes estão zerados) — 2 bugs empilhados:
-  // 1) VARS.livroLRP (soma das parcelas ATIVAS) era calculado 1x no boot, ANTES desta função trocar
-  //    PARCELAMENTOS_VISA pelo dado V2 — nunca mais recalculava depois. REG.visaDetalhe.parcelas
-  //    (top-level, criarRegMercadoPago() via Object.assign(REG,...) em app.js — NÃO é REG.visa.
-  //    visaDetalhe, esse caminho não existe) também só rodava 1x, herdando o valor congelado.
-  // 2) VARS.cartaoInfiniteTotal ("Total comprometido") era um NÚMERO DIGITADO À MÃO
-  //    (vars-mercado-pago.js), sem nenhuma derivação — só batia com livroLRP por coincidência.
-  //    Corrigido pra somar de verdade os 8 componentes do visaDetalhe (mesmos que já aparecem no
-  //    detalhamento da tela) — nunca mais precisa editar esse número na mão de novo.
+  // CORRIGIDO 11/08/2026 (achado do usuário, print real: "Parcelas (LRP)" no detalhamento do Visa
+  // Infinite sempre R$1.017,89, igual há dias) — mesmo bug do provMP acima: VARS.livroLRP (soma das
+  // parcelas ATIVAS) era calculado 1x no boot, ANTES desta função trocar PARCELAMENTOS_VISA pelo dado
+  // V2 — nunca mais recalculava depois. REG.visaDetalhe.parcelas (top-level, criarRegMercadoPago() via
+  // Object.assign(REG,...) em app.js — NÃO é REG.visa.visaDetalhe, esse caminho não existe) também só
+  // rodava 1x, herdando o valor congelado. Religado aqui, mesmo padrão do provMP.
+  //
+  // REVERTIDO 11/08/2026 (mesma sessão): uma 1ª tentativa desta correção também tinha feito
+  // VARS.cartaoInfiniteTotal ("Total comprometido" do card) derivar da soma dos componentes de
+  // visaDetalhe — revertido por contrariar a exceção arquitetural PERMANENTE documentada em
+  // docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md ("a fatura sempre vence" — o
+  // headline total nunca deriva de soma do ERP, só da fatura real via Pluggy ou reconciliação manual).
+  // O caminho correto (fatura real da Pluggy como fonte, com fallback pro valor manual) foi implementado
+  // em promoverFaturaPluggyComoFonte() (pluggy-reconciliacao.js), chamado de hydrate-onda7-pluggy.js.
   VARS.livroLRP = Math.round(VARS.PARCELAMENTOS_VISA.filter(p => p.status === 'ATIVO').reduce((s,p) => s + p.valor, 0) * 100) / 100;
-  if(typeof REG !== 'undefined' && REG.visaDetalhe){
-    REG.visaDetalhe.parcelas = VARS.livroLRP;
-    VARS.cartaoInfiniteTotal = Math.round(Object.values(REG.visaDetalhe).reduce((s,v) => s + Number(v||0), 0) * 100) / 100;
-    REG.cartaoInfinite.total = VARS.cartaoInfiniteTotal;
-    if(typeof recalcularMercadoPago === 'function') recalcularMercadoPago();
-  }
+  if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.parcelas = VARS.livroLRP;
   if(typeof recalcularReembolsos === 'function') recalcularReembolsos();
   if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
   if(typeof hydrateReembolsos === 'function') hydrateReembolsos();

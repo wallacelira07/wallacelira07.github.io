@@ -55,6 +55,12 @@ async function aplicarOnda7Pluggy(){
   // Reaproveita reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, inalteradas) — mesma lógica de
   // negócio (mapa de cartão, comparação de fatura por vencimento, filtro de ruído), dado novo.
   const resultadoCartoes = reconciliarPluggy();
+  // NOVO 11/08/2026 (pedido explícito do usuário, supersede a exceção arquitetural de 08/08 — ver
+  // docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md): promove a fatura real da Pluggy
+  // a fonte principal dos headline totals (cartaoInfiniteTotal/cartaoMBTotal/mercadoPagoFatura) quando
+  // ela existir de verdade (aberta, não-zero, não-vencida) — nunca sobrescreve com dado ruim, cai pro
+  // valor manual/fallback ERP já existente em caso contrário.
+  const resultadoPromocao = typeof promoverFaturaPluggyComoFonte === 'function' ? promoverFaturaPluggyComoFonte() : { promovidos: [] };
   const resultadoTransacoes = await reconciliarTransacoesPluggy();
   // Mesmo cuidado já aplicado a Onda6MercadoPago/LREI: itens novos da Inbox só existem depois do
   // await acima resolver, então o classificador genérico (que já rodava síncrono antes) precisa ser
@@ -65,6 +71,6 @@ async function aplicarOnda7Pluggy(){
   if(typeof hydrateQualidade === 'function') hydrateQualidade();
 
   const qtd = { conexoes: pluggyV2.conexoes.length, contas: pluggyV2.conexoes.reduce((s,c)=>s+c.contas.length,0), transacoes: pluggyV2.conexoes.reduce((s,c)=>s+c.contas.reduce((s2,a)=>s2+(a.transacoes_recentes||[]).length,0),0) };
-  console.log(`Onda7Pluggy: ${qtd.conexoes} conexão(ões), ${qtd.contas} conta(s), ${qtd.transacoes} transação(ões) da V2. ${resultadoCartoes.divergencias.length} divergência(s), ${resultadoTransacoes.suspeitas.length} transação(ões) suspeita(s). V2 é a fonte exibida.`);
-  window.WALLACE_ONDA7_PLUGGY_RELATORIO = { qtdConexoesV1: v1QtdConexoes, ...qtd, divergencias: resultadoCartoes.divergencias.length, naoMapeados: resultadoCartoes.naoMapeados.length, suspeitas: resultadoTransacoes.suspeitas.length, exibindo: 'V2' };
+  console.log(`Onda7Pluggy: ${qtd.conexoes} conexão(ões), ${qtd.contas} conta(s), ${qtd.transacoes} transação(ões) da V2. ${resultadoCartoes.divergencias.length} divergência(s), ${resultadoPromocao.promovidos.length} fatura(s) promovida(s) pra fonte Pluggy real, ${resultadoTransacoes.suspeitas.length} transação(ões) suspeita(s). V2 é a fonte exibida.`);
+  window.WALLACE_ONDA7_PLUGGY_RELATORIO = { qtdConexoesV1: v1QtdConexoes, ...qtd, divergencias: resultadoCartoes.divergencias.length, naoMapeados: resultadoCartoes.naoMapeados.length, promovidos: resultadoPromocao.promovidos, suspeitas: resultadoTransacoes.suspeitas.length, exibindo: 'V2' };
 }

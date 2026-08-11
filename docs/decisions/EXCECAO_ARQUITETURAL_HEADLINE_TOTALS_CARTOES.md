@@ -3,9 +3,25 @@
 **Data:** 08/08/2026
 **Status:** Decidido, permanente — não é dívida técnica, não reabrir sem novo evento que mude a regra de negócio.
 
+**Atualização 11/08/2026 (evento que muda a regra de negócio, previsto pelo parágrafo acima):**
+usuário aprovou (10/08) e eu implementei (11/08) `promoverFaturaPluggyComoFonte()`
+(`src/integrations/pluggy/pluggy-reconciliacao.js`, chamada de `hydrate-onda7-pluggy.js`) — os 3
+campos passam a ser sobrescritos pela fatura REAL da Pluggy (`conta.fatura_mes_atual.valor_total`)
+sempre que ela existir de verdade (não-nula, não-zero, com vencimento no futuro/fatura em aberto).
+**Isso não contraria a regra "a fatura sempre vence" — reforça ela**: antes, "a fatura" era digitada
+à mão a partir de conferência manual do extrato; agora, quando a Pluggy tem a fatura em aberto
+confiável, ela É a fatura, direto do banco, sem intermediação manual. Quando a Pluggy não tem dado
+confiável (fatura vencida/zerada/ausente — situação comum, ver `pluggy_contas` no momento desta
+escrita: todas as 4 contas CREDIT sem fatura aberta válida), o valor cai pro fallback já existente
+(reconciliação manual pra Visa/MB, soma do ERP pro Mercado Pago) — nunca esconde nem inventa dado.
+Continua **proibido** derivar esses 3 campos da soma de lançamentos categorizados do ERP
+(`transacoes`/`visaDetalhe`/`mbDetalhe`) — essa parte da exceção original permanece de pé, foi
+tentado e revertido na mesma sessão de 11/08 (ver histórico do commit). Badge "🔄 Pluggy"/"📝 manual"
+nos cards (`hydrate-visa-mb.js`/`hydrate-mercado-pago.js`) mostra a origem sempre visível pro usuário.
+
 ## O que fica de fora do objetivo "zero `wallace_dados`"
 
-Os campos `cartaoMBTotal`, `cartaoInfiniteTotal` e `mercadoPagoFatura` (headline totals das faturas de cartão) **nunca serão derivados exclusivamente da V2 relacional**.
+Os campos `cartaoMBTotal`, `cartaoInfiniteTotal` e `mercadoPagoFatura` (headline totals das faturas de cartão) **nunca serão derivados exclusivamente de soma de lançamentos categorizados da V2 relacional** (`transacoes`/`visaDetalhe`/`mbDetalhe`). Podem, sim, vir da fatura real da Pluggy (ver atualização acima) — a distinção é "fatura real do banco" vs. "soma do ERP", não "manual vs. automático".
 
 ## Por que
 
