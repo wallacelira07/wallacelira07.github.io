@@ -2,6 +2,18 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 11/08/2026 (sessão longa, continuação) — Onda 9, encerramento formal da migração V1→V2, hardening de segurança em 2 rodadas, varredura final de fechamento
+
+Sessão muito longa, continuação de uma sessão anterior do mesmo dia (retomada após limite de uso). Progressão: Onda 9 (LRS/LRR/LRCON/LRDOA) → adequação dos consórcios Porto pra Caixa Boletos (LREI0005) → correção da Caixa Mastercard/Infinite → auditoria e fechamento do gap do Mastercard Black → **encerramento formal da migração V1→V2** (aprovado explicitamente pelo usuário, `PLANO_UNIFICACAO_V1_V2.md` seção 52) → correção de UX (aba errada na entrada) → **auditoria de prontidão operacional completa** (40+ itens avaliados) → **hardening de segurança em 2 rodadas** (RPCs sem auth, RLS, grants excessivos, views SECURITY DEFINER, search_path, painel de Saúde Operacional com heartbeat das automações) → **varredura final de fechamento** (TODO/FIXME, triggers, RLS, grants, advisors, backup).
+
+**Regra confirmada nesta sessão**: quando o usuário pede "fechamento total"/"prioridade 0", o padrão de trabalho é: verificar o estado real antes de agir (várias vezes um item supostamente pendente já estava resolvido — Busca Global, proteção de leitura solar implausível), corrigir o que for seguro fazer sem quebrar produção, e classificar honestamente como "aceito conscientemente" o que não pode ser validado sem acesso que a sessão não tem (login real, credenciais de API, ciclo real de cron) — nunca fingir validação que não aconteceu.
+
+**Achado mais importante da rodada final**: o projeto Supabase está no plano **free**, sem backup/PITR automático — risco real, não corrigido (decisão do usuário necessária: upgrade de plano ou rotina manual de export). Registrado em `ESTADO_ATUAL.md` como único risco remanescente sem mitigação.
+
+**Resultado dos advisors do Supabase (segurança)**: começou a sessão em 26 itens (incluindo 4 `ERROR`: 2 RLS desabilitado + 2 view insegura). Terminou em 15 itens, **0 `ERROR`**.
+
+**Tudo commitado e pushed**, working tree limpo ao fim da sessão. `__V` final: `20260811-33`. **Nada foi testado em navegador real com login** — validação visual fica pendente pra próxima sessão com acesso.
+
 ## 🏁 Encerramento 11/08/2026 — UI Home/Painel + compartilhamento solar + correção real de crédito
 
 Sessão longa, várias rodadas de feedback rápido do usuário (prints/vídeo do celular) + 1 investigação de dado real motivada por 2 faturas Energisa novas (casa da mãe/GD e Wellida). HEAD `adfcf90`, tudo commitado e pushed. **Importante**: a correção mais consequente desta sessão (crédito do ciclo solar) foi SQL direto no Supabase, não um commit — não aparece em `git log`, ver seção dedicada abaixo.
