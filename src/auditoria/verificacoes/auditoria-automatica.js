@@ -101,7 +101,7 @@ function auditoriaAutomatica(){
     // mesma classe de checagem que faltava; foi por isso que mbDetalhe.wallace ficou 3 rodadas desatualizado
     // sem ninguem perceber - nada comparava a soma das partes com o total)
     const md = REG.mbDetalhe;
-    const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa);
+    const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa+md.naoReconciliado);
     if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
       problemas.push(`Mastercard Black: soma mbDetalhe=${mbDetalheCalc} ≠ cartaoMB.total(${REG.cartaoMB.total})`);
     }

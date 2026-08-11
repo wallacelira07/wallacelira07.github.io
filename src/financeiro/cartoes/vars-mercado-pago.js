@@ -45,6 +45,20 @@ function criarVarsMercadoPago(){
   mbLRSConfirmado: 663.10,        // SINCRONIZADO 07/08/2026 (fonte: Supabase): TX000207 RegistroBR 47438636 +40,00 (assinatura ANUAL de domínio, wallacelira.com.br) - LRS não tem array próprio de transação, só o total agregado. Era R$623,10 (04/08/2026, parte 64) - ver histórico completo de correções anteriores no Supabase.
   mbLRVConfirmado: 364.62,         // SINCRONIZADO 07/08/2026 (fonte: Supabase): TX000204 H57Store Vanessa +22,97 + TX000206 H57Store Vanessa +36,95 (cartão dela não confirmado - pode ser 6351 físico ou 4017 Samsung Wallet, ver LRV_TRANSACOES). Era R$304,70 (03/08/2026) - ver histórico completo de correções anteriores no Supabase.
   mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
+  // NOVO 11/08/2026 (auditoria pedida pelo usuário, "materialidade, não perseguir os 81 lançamentos um
+  // a um"): mbDetalhe nunca teve o campo "naoReconciliado" que o Visa já tem desde a V135 (achado real:
+  // check #12 de auditoria-automatica.js compara soma(mbDetalhe) x cartaoMBTotal e SEMPRE falhava, porque
+  // faltava esse campo). Cruzamento contra as 81 transações reais da Pluggy (conta 2250, wallace_dados.
+  // PLUGGY_CONTAS, período 16/07-07/08 = R$5.179,20 observado): R$1.113,32 são compras reais (H57Store,
+  // Nobre Carnes, Sup Ideal, Vendedora, Denis Massas, Filezão São Cristóvão, Drive Campina Grande, IFD
+  // Brothers Burger, etc.) que nunca entraram em LRW_TRANSACOES/LRV_TRANSACOES — resíduo real, não
+  // itemizado pessoa a pessoa ainda. O restante até fechar com a fatura real (R$6.744,29 - R$4.065,88
+  // itemizado = R$2.678,41 no total) é a Pluggy ainda não ter sincronizado 08-11/08 (fatura desta caixa
+  // fecha depois, "melhor data de compra 22/08") - residual conhecido e explicado pela defasagem de sync,
+  // não um erro de dado. Não itemizado transação a transação por decisão de materialidade (usuário: "não
+  // espere uma auditoria perfeita dos 81 lançamentos para avançar") - revisar quando a Pluggy sincronizar
+  // o resto do ciclo.
+  mbNaoReconciliado: 2678.41,
   // V144: footer LRC (Corporativo Visa Infinite) - "6 lancamentos" era texto fixo, valor ja em VARS.livroLRC
   livroLRCQtdLancamentos: 1, // CORRIGIDO 25/07/2026 (V156): so o corporativo do ciclo ATUAL (TX000158, Outback). Os 6 lancamentos antigos do Visa sao do ciclo fechado, ja cobertos no valor separado pra 28/07. Era 7.
   // ===== V154 (25/07/2026): PARCELAMENTOS ESTRUTURADOS - fonte unica de verdade, espelha 1:1 a aba

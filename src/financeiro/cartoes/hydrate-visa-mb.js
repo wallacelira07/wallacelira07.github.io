@@ -38,4 +38,5 @@ function hydrateVisaMB(){
   t('mbLRR', fmt(R.mbDetalhe.recorrencias));
   t('mbLRCON', fmt(R.mbDetalhe.consorcios));
   t('mbLRC', fmt(R.mbDetalhe.corp));
+  t('mbLRNaoReconciliado', fmt(R.mbDetalhe.naoReconciliado)); // NOVO 11/08/2026: residuo soma-livros x fatura-real, mesma logica ja usada no Visa (visaLRNaoReconciliado)
 }

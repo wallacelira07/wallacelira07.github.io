@@ -28,7 +28,7 @@ function criarRegMercadoPago(){
     // V135: wallace CORRIGIDO 1161.94 -> 1349.93 (= LIVRO_LRW_MB_TOTAL do ERP, V121 - TX128/129/130 de
     // 21/07 nunca tinham propagado pra ca). Era o unico motivo do mbDetalhe nao bater com cartaoMBTotal
     // (gap de R$187,99): 1161,94+614,45+43,80=1.820,19 vs VARS.cartaoMBTotal=2.008,18. Agora soma exato.
-    mbDetalhe: { parcelas:0, consorcios:VARS.livroLRCON, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:VARS.mbLRCConfirmado, assinaturas:VARS.mbLRSConfirmado, vanessa:VARS.mbLRVConfirmado }
+    mbDetalhe: { parcelas:0, consorcios:VARS.livroLRCON, wallace:VARS.mbLRWConfirmado, recorrencias:VARS.mbLRRConfirmado, corp:VARS.mbLRCConfirmado, assinaturas:VARS.mbLRSConfirmado, vanessa:VARS.mbLRVConfirmado, naoReconciliado:VARS.mbNaoReconciliado }
     // V136 (22/07/2026): visaDetalhe.vanessa +R$17,98 (TX131, H57Store, cartao 4845) e mbDetalhe.wallace
     // +R$56,99 (TX132, Google SunSurveyorApp, cartao 2244) - ambos ja embutidos acima. Soma continua
     // batendo exato com cartaoInfiniteTotal/cartaoMBTotal (checks #11/#12 da auditoria confirmam).
