@@ -178,6 +178,20 @@ let _buscaGlobalIndice = null;
 
 function construirIndiceBuscaGlobal(){
   const indice = [];
+  // NOVO 10/08/2026 (achado do usuario: buscar "Energia Solar" dava "Nada encontrado" mesmo sendo
+  // uma aba real do site) - o indice so cobria TITULOS DE SECAO (.section-num) dentro de cada aba,
+  // nunca o NOME DA PROPRIA ABA (Painel/Graficos/Energia Solar/Cenarios/Balanco) - "a lupa tem que
+  // pegar tudo que tem no site" inclui os destinos de navegacao, nao so o conteudo deles. Alvo e a
+  // 1a .section-num de dentro do pane (mesmo padrao de scroll ja usado em outro lugar), com fallback
+  // pro proprio pane se ele nao tiver nenhuma secao numerada.
+  document.querySelectorAll('.master-tabs .master-tab[data-pane]').forEach(tabBtn => {
+    const paneId = tabBtn.getAttribute('data-pane');
+    const paneEl = document.getElementById(paneId);
+    if(!paneEl) return;
+    const rotuloAba = tabBtn.textContent.trim();
+    const alvo = paneEl.querySelector('.section-num') || paneEl;
+    indice.push({texto: rotuloAba.toLowerCase(), rotulo: rotuloAba + ' (aba)', paneId, alvo});
+  });
   document.querySelectorAll('.section-num').forEach(secEl => {
     const h2 = secEl.querySelector('h2');
     const paneEl = secEl.closest('.master-pane');

@@ -217,6 +217,33 @@
     <div class="v" id="simMensagem" style="font-size:0.8rem;color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
 
+  <!-- V145 (25/07/2026) + CORRIGIDO 10/08/2026 4ª rodada (usuário: "eu quero que o único lugar que
+       apareça é no dashboard" — 3ª rodada tinha movido pra dentro de #painel, achando que "dashboard"
+       = aba Painel; usuário esclareceu que "dashboard" é só a CAPA (#home), nem a aba Painel deve
+       mostrar isso). Definitivo: dentro de #home, único pane onde nunca mais deve vazar nem ficar de
+       fora. -->
+  <div class="ciclo-seletor-wrap">
+    <span class="ciclo-seletor-label">🗓️ Ver ciclo:</span>
+    <div class="ciclo-seletor-btns" id="cicloSeletorBtns"><!-- populado por popularSeletorCiclo() --></div>
+  </div>
+  <div id="cicloBannerFechado" style="display:none">
+    <span>🔒</span>
+    <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
+  </div>
+
+  <!-- CORRIGIDO 10/08/2026, 4ª rodada (mesmo esclarecimento acima) - de volta pra dentro de #home,
+       definitivo desta vez. -->
+  <div class="card verif-card" style="margin-top:1rem;margin-bottom:1.5rem">
+    <div class="card-header-icon" style="margin-bottom:0.7rem">
+      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
+      <div>
+        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
+        <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
+      </div>
+    </div>
+    <div class="v" id="alertasNegocio">—</div>
+  </div>
+
   <!-- NOVO 09/08/2026: botoes de navegacao da home - mesmos 5 destinos da .master-tabs (reaproveita
        irParaPrimeiraSecao(), ja faz showMaster()+scroll ate a 1a secao), so que em formato de botao
        grande clicavel em vez de aba fina no topo. -->
@@ -241,36 +268,6 @@
   </div>
 
   <div id="painel" class="master-pane">
-
-  <!-- V145 (25/07/2026) + CORRIGIDO 10/08/2026 3ª rodada (usuário: "isso só é pra aparecer no
-       dashboard" — o seletor de ciclo era global (fora de qualquer master-pane, "sempre visível em
-       qualquer aba"), vazando pra Gráficos/Solar/Cenários/Balanço igual o card de Verificações
-       vazava antes. Mesma correção: movido pra dentro de #painel, só existe/mostra na aba Painel. -->
-  <div class="ciclo-seletor-wrap">
-    <span class="ciclo-seletor-label">🗓️ Ver ciclo:</span>
-    <div class="ciclo-seletor-btns" id="cicloSeletorBtns"><!-- populado por popularSeletorCiclo() --></div>
-  </div>
-  <div id="cicloBannerFechado" style="display:none">
-    <span>🔒</span>
-    <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
-  </div>
-
-  <!-- CORRIGIDO 10/08/2026, 2ª rodada (achado do usuário: "Verificações de Negócio está aparecendo
-       na parte de cima de todas as abas, só é pra aparecer no dashboard") - a tentativa anterior
-       colocou isso na área "home" (capa do site, fora de qualquer master-pane), que é compartilhada
-       por TODAS as abas, não só o Painel - por isso vazava pra Gráficos/Solar/Cenários/Balanço.
-       Movido pra dentro do próprio #painel (só existe/mostra quando essa aba está ativa), como
-       primeiro elemento, pra manter a posição "logo no topo" que o usuário pediu no print original. -->
-  <div class="card verif-card" style="margin-top:1rem;margin-bottom:1.5rem">
-    <div class="card-header-icon" style="margin-bottom:0.7rem">
-      <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
-      <div>
-        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
-        <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
-      </div>
-    </div>
-    <div class="v" id="alertasNegocio">—</div>
-  </div>
 
     <div class="kpi-strip">
     <div class="kpi">
@@ -1086,28 +1083,22 @@
        _lazyRenderSolarSecao() (graficos-cenarios-lazy.js). -->
   <div id="solar" class="master-pane">
 
-    <div class="section-num"><span class="n">01</span><h2>☀️ Como a usina está indo</h2></div>
-
-    <!-- NOVO 10/08/2026 (item aprovado pelo usuário: "compartilhamento público (só leitura) da aba
-         Energia Solar" — link temporário, sem login, expondo só dado do domínio Solar, nunca
-         financeiro). Ver solar-compartilhado.html (página pública nova) + RPCs
-         criar_compartilhamento_solar/desativar_compartilhamento_solar/listar_compartilhamentos_solar
-         (Postgres, exigem login — só quem está logado aqui pode criar/gerenciar links). -->
-    <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "remova essa frase, eu já sei disso, deixe o botão,
-         como modelo parecido ao que mandei" — removida a frase explicativa, botão redesenhado em
-         formato pílula com selo circular do ícone à esquerda, no mesmo estilo da referência que o
-         usuário mandou (ícone de seta curva + rótulo), cores do próprio tema (roxo) em vez do
-         vermelho da referência. -->
-    <div class="card" style="border-left:3px solid var(--purple, #9085e9);display:flex;flex-wrap:wrap;justify-content:flex-end">
-      <button type="button" onclick="criarLinkCompartilhamentoSolar()" style="display:inline-flex;align-items:stretch;background:var(--purple, #9085e9);color:#fff;border:none;border-radius:999px;padding:0;font-size:0.82rem;font-weight:700;cursor:pointer;overflow:hidden;line-height:1">
-        <span style="display:flex;align-items:center;justify-content:center;width:2.5rem;background:rgba(255,255,255,0.2)">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
+    <!-- CORRIGIDO 10/08/2026, 2ª rodada (pedido do usuário: "não precisa de corpo de menu, apenas o
+         botão roxo como está, pode até reduzir o tamanho e alinhar melhor") - removido o .card
+         (fundo/borda) que envolvia o botão; ele agora só se alinha à direita do próprio cabeçalho da
+         seção 01, um pouco menor. solarLinkGerado/solarLinksAtivos (feedback pós-clique) viram um
+         bloco solto abaixo, só aparecem quando têm conteúdo (display:none por padrão). -->
+    <div class="section-num" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.6rem">
+      <div style="display:flex;align-items:center;gap:0.5rem"><span class="n">01</span><h2 style="margin:0">☀️ Como a usina está indo</h2></div>
+      <button type="button" onclick="criarLinkCompartilhamentoSolar()" style="display:inline-flex;align-items:stretch;background:var(--purple, #9085e9);color:#fff;border:none;border-radius:999px;padding:0;font-size:0.72rem;font-weight:700;cursor:pointer;overflow:hidden;line-height:1;flex-shrink:0">
+        <span style="display:flex;align-items:center;justify-content:center;width:1.9rem;background:rgba(255,255,255,0.2)">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
         </span>
-        <span style="padding:0.75rem 1.1rem">Compartilhar</span>
+        <span style="padding:0.5rem 0.8rem">Compartilhar</span>
       </button>
-      <div id="solarLinkGerado" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:var(--surface-2);border-radius:8px;font-size:0.78rem;word-break:break-all;flex-basis:100%"></div>
-      <div id="solarLinksAtivos" style="margin-top:0.6rem;font-size:0.72rem;color:var(--text-dim);flex-basis:100%"></div>
     </div>
+    <div id="solarLinkGerado" style="display:none;margin-bottom:0.8rem;padding:0.7rem 0.9rem;background:var(--surface-2);border-radius:8px;font-size:0.78rem;word-break:break-all"></div>
+    <div id="solarLinksAtivos" style="font-size:0.72rem;color:var(--text-dim)"></div>
 
     <!-- "Qualidade da geração" - card separado do crédito/rateio. Objetivo único: responder "hoje
     a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL,
@@ -1680,7 +1671,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260810-22';
+var __V = '20260810-23';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
