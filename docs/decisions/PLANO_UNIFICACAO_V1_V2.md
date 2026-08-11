@@ -1820,3 +1820,24 @@ Leitura: `WallaceFinanceService.getPluggyTriagemV2()` (nova, mesmo padrão de `g
 - Visa Infinite continua com **zero** transações classificadas em V2 (nenhuma mudança nesta etapa).
 
 **Arquivos/schema alterados**: view `vw_compromisso_cartao_detalhe` (Postgres, migração `criar_view_compromisso_cartao_detalhe`), 2 linhas novas em `transacoes`.
+
+## 50. Cartões — classificação retroativa (106 transações) via evidência real + regressão crítica corrigida (10/08/2026)
+
+**Pedido do usuário**: "execute tudo isso" — reclassificar as ~270 transações antigas sem `cartao_id`, e decidir sobre `mbLRVConfirmado`/`mbLRWConfirmado` (manual vs. fórmula).
+
+**Item 2 resolvido sem código novo**: já estava decidido e implementado desde a Onda 3 (08/08/2026) — `mbLRW`/`mbLRV` no DOM já são 100% V2-exclusivos (`vw_compromisso_cartao_por_pessoa`, `hydrate-onda3-lrwlrv.js`, sem fallback pro literal manual, só usa V1 como referência de log). Os headline totals (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) têm exceção arquitetural formal **permanente** (`EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`, "a fatura sempre vence") — não revisitada, por decisão já registrada, não desta sessão.
+
+**Item 1 — classificação real, com evidência (regra P1 do manual: nenhuma inferência sem evidência)**: a planilha ERP tem colunas `RESPONSAVEL` (Wallace/Vanessa) e `FORMA_PAGAMENTO` (às vezes com número do cartão explícito, ex: "Cartao fisico 1371") que não tinham sido usadas no backfill inicial (seção 48... [ver commit anterior]). Reprocessadas as 106 transações dos livros de cartão (LRW/LRV+variantes, LRP, LRS, LRR):
+- **106/106 (100%) ganharam `usuario_id`** — `RESPONSAVEL` sempre presente e inequívoco.
+- **59/106 (56%) ganharam `cartao_id`** específico — só onde `FORMA_PAGAMENTO` citava o número explicitamente. Os outros 47 ficaram com `cartao_id=NULL` de propósito — "Cartao"/"Cartao virtual" genérico não é evidência suficiente pra apontar qual dos 3 cartões da pessoa (físico/virtual/Samsung Wallet), então não foi chutado.
+
+**Duplicação evitada**: as 106 transações já existiam 2x cada — uma cópia do backfill desta sessão (`Caixa Mastercard/Infinite`, sem classificação) e uma cópia de um backfill anterior (08/08, `Caixa Variável`, também sem classificação). Resolvido por merge (não criação de 3ª cópia): classificação aplicada na cópia de `Caixa Variável` (convenção correta, mesma que `vw_compromisso_cartao_por_pessoa` já usava) e a cópia duplicada em `Caixa Mastercard/Infinite` foi removida.
+
+**Regressão crítica encontrada e corrigida no mesmo movimento**: `vw_compromisso_cartao_por_pessoa` não tinha filtro de ciclo/data — meu próprio backfill histórico (linhas voltando a out/2025, `afeta_saldo_real=false` na mesma `Caixa Variável`) inflou o "compromisso atual" de Wallace de R$1.563,19 (V1) pra **R$8.802,81** (V2, errado) antes da correção. Adicionado o mesmo filtro que `vw_saldo_v2_por_caixa` já usa (`c.ciclo_inicio_em IS NULL OR t.data >= c.ciclo_inicio_em`) em `vw_compromisso_cartao_por_pessoa` E `vw_compromisso_cartao_detalhe`. Depois da correção: Wallace R$1.611,98 (27 tx, dentro da margem já tolerada pelo Onda 3), Vanessa R$245,84 (6 tx) — números plausíveis, mesma ordem de grandeza do V1.
+
+**O que NÃO foi feito (limite real, não falta de esforço)**:
+- Os ~47 registros "Cartao" genérico (sem número) continuam sem `cartao_id` — dado real não permite ir além sem arriscar atribuição errada.
+- As outras transações sem `cartao_id` fora dos livros de cartão (Boletos/Caixa Lance/Mercado Pago/PIX/outras caixas operacionais) **não são compras de cartão** — correto ficarem sem `cartao_id`, não é pendência.
+- Visa Infinite continua com cobertura baixa (mesma limitação da seção 47 — poucas transações no período coberto pela planilha usada).
+
+**Arquivos/schema alterados**: `vw_compromisso_cartao_por_pessoa` (migração `corrige_filtro_ciclo_compromisso_cartao`, também corrige `vw_compromisso_cartao_detalhe`), 106 linhas de `transacoes` atualizadas (`usuario_id`/`cartao_id`/`caixa_id` mesclados), duplicatas removidas.
