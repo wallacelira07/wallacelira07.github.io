@@ -2,6 +2,37 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 11/08/2026 — UI Home/Painel + compartilhamento solar + correção real de crédito
+
+Sessão longa, várias rodadas de feedback rápido do usuário (prints/vídeo do celular) + 1 investigação de dado real motivada por 2 faturas Energisa novas (casa da mãe/GD e Wellida). HEAD `adfcf90`, tudo commitado e pushed. **Importante**: a correção mais consequente desta sessão (crédito do ciclo solar) foi SQL direto no Supabase, não um commit — não aparece em `git log`, ver seção dedicada abaixo.
+
+**UI/UX (Home, abas, gráficos):**
+1. `.home-nav-grid` (5 botões da capa) reposicionado 3 vezes na mesma sessão: primeiro pedido do usuário foi "mais pra cima, mais destaque, acompanha o scroll" (referência a um vídeo que não consegui abrir) — implementei sticky. Usuário corrigiu 2x depois: "abaixo do Simulador Fim de Ciclo" e, por fim, "**fixa, não deve travar no topo igual as outras abas**" — sticky removido, virou elemento normal no fluxo. Licão: não confiar cegamente em interpretação de vídeo que não consigo abrir, perguntar de novo é mais barato que 3 rodadas de correção.
+2. Vão de 16px acima da barra de abas ao rolar (fora da capa) — `margin-top:-1.5rem` só cancelava parte do `body{padding-top:2.5rem}`. Trocado pra `-2.5rem` (cancela tudo).
+3. Clicar na aba Painel escondia os 4 cards de resumo (kpi-strip) atrás da barra fixa — `irParaPrimeiraSecao()` pulava pro 1º `.section-num`. Agora rola pro topo do pane inteiro.
+4. Ícone de busca mobile "achatado" (`width:2.67px` mesmo com CSS pedindo 15px) — hardening com `min-width`/`flex-shrink:0`, causa raiz não 100% confirmada.
+5. Rótulos de valor no gráfico "Histórico mês a mês" (pedido: "igual todo gráfico do site") — com "kWh" no texto, barras vizinhas coladas sobrepunham; simplificado pra só o número.
+6. "Atrasado" falso na Previsão logo após fechar um ciclo (usuário: "porque está atrasado se a geração sempre supera o mínimo?") — `diasDesdeInicioCiclo` contava até a última leitura MANUAL (= data de abertura, 0 dias) em vez de até hoje, zerando a Média mesmo o numerador já sendo uma projeção até hoje. Corrigido.
+
+**Compartilhamento Solar:**
+7. Tarifa mostrando ~R$0,18/kWh em vez dos R$0,8995 reais — era uma média diluída (economia autoconsumida ÷ geração total, não a tarifa). Corrigido pra usar a tarifa real direto.
+8. RPC `consultar_solar_compartilhado` (Supabase) estendida com `ciclosFechados` — página ganhou gráficos "Histórico mês a mês" e "Rateio Solar por ciclo" (pedido: "coloque mais gráficos, se possível todos").
+9. Link gerado não mostra mais o token de 64 chars cru — botões "Abrir página"/"Copiar link".
+
+**Seção 04 "Previsão" reestruturada (documento formal anexado pelo usuário):** separava crédito FECHADO (Fluxo 1, garantido pra próxima fatura) de crédito EM FORMAÇÃO (Fluxo 2, ciclo aberto, cresce todo dia) — antes só existia o Fluxo 2, e o usuário interpretava aquele número como "tudo que resta pra próxima conta", quando na verdade já existia um crédito maior e fechado esperando a fatura.
+
+**🔧 Correção de dado real (SQL direto no Supabase, sem deploy) — crédito do ciclo solar estava inflado:**
+
+Usuário mandou as 2 faturas reais de agosto (PDF, casa da mãe/GD UC 573.702.053-77 R$56,11/145kWh+339kWh injetada; Wellida UC 2.064.202.053-60 R$70,12/111kWh) e desconfiou que o gráfico mostrava mais crédito do que realmente existia, hipótese inicial dele: consumo pré-instalação (08/07-20/07) vazando no cálculo.
+
+Investigação (via SQL direto, cruzando `ciclos_solares`/`energia_solar_leituras` com as faturas em PDF): a hipótese do usuário estava **errada** — o ciclo já zerava a base corretamente em 21/07 (data real de instalação). A causa real era outra: a leitura manual de 08/08/2026 (código 103=412) tinha um salto de **+51 kWh em 1 dia** (fisicamente impossível, máx plausível ~25-30/dia) frente à leitura do dia anterior (07/08=361) — e o usuário confirmou que o leiturista real passou em 07/08, não 08/08 (a fatura registrou a data errada, possivelmente por 08/08 ser sábado).
+
+Corrigido: leitura de 08/08 desmarcada como oficial (auditoria gravada no campo `evidencia`, texto exato pedido pelo usuário: "Leitura de 08/08 descartada por inconsistência física (+51 kWh em 1 dia)"); leitura de 07/08 (03=60/103=361) virou o fechamento oficial. **Crédito líquido: 343→301 kWh** (Wallace 243,53→213,71; Wellida 99,47→87,29). Ciclo aberto realinhado pro mesmo ponto de partida. Fatura oficial (339 kWh injetada) usada só como validação externa, não substituiu a leitura do medidor como valor de fechamento — diretriz explícita do usuário.
+
+**Pendência aberta**: a leitura de 08/08 (69/412) continua no banco (só desmarcada, não apagada) — pode distorcer telas de "progresso do ciclo atual" até chegar uma leitura nova de verdade. **Pedir uma leitura fresca do medidor na próxima sessão, prioridade alta.**
+
+**Proposta em aberto, sem decisão**: usuário sugeriu um buffer de 1h nas leituras do SAJ pra evitar leituras "no meio da transição". Sugeri complementar com uma checagem automática de plausibilidade de delta diário (teria pego o bug de 412 sozinha) — nenhuma das duas implementada ainda.
+
 ## 🏁 Encerramento 10/08/2026 (noite, continuação da sessão de tarde) — créditos no fim (~99%)
 
 Sessão de continuação (retomou de compactação), focada em achados reais do usuário via foto do celular/navegador + 2 bugs de dado sérios. HEAD `30ee4ae`, tudo commitado e pushed. **Não testado em dispositivo real por mim** (sem login) — validação depende do usuário.
