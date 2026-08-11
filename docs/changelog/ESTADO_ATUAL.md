@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 10/08/2026, fim de sessão (créditos no fim, ~99%). HEAD `30ee4ae`, tudo commitado e pushed (branch `main`, `wallacelira07.github.io`).
+Última reescrita: 10/08/2026, fim de sessão longa (UI/UX + 3 bugs de dado + início da frente Cartões). HEAD `edb470f`, tudo commitado e pushed (branch `main`, `wallacelira07.github.io`).
 
 ## 🎯 Regra permanente: V1 não é autoridade
 
@@ -10,48 +10,51 @@
 
 ## ✅ Corrigido nesta sessão — 3 bugs de dado sérios (gráficos/tabelas dessincronizados)
 
-1. **Reserva de Emergência**: mostrava R$100.644,15 (com rendimento) na aba Cenários — usuário já retirou o rendimento, valor real é R$100.000,00 fixo (rotina mensal). Corrigido em 3 pontos: tabela V2 `patrimonio` (UPDATE aplicado), literal V1 (`vars-patrimonio.js`), e `REG.reserva.atual` (nunca era resincronizado quando a V2 de Patrimônio carregava — `aplicarOnda4Patrimonio()` agora atualiza e re-chama `hydrateCenarios()`).
-2. **"Necessidade (paga tudo)" (Cenários) ≠ "Necessidade líquida" (Gráficos)** a partir do 2º mês: `REG.superavitNormal.necessidade` era array literal congelado desde V150 (25/07), só índice 0 resincronizado. Corrigido pela raiz: `REG.superavitNormal.necessidade` agora é a MESMA referência de `REG.evolucao.necessidadeBruta` (array vivo) — impossível dessincronizar de novo.
-3. **"Evolução do Total Operacional" subia no mês seguinte** (contrário à tendência de queda): `D.provMP` (parcelas Mercado Pago) contado 2x — fixo em `baseFixaOperacional` E de novo dentro de `somaParcelasProjetadas()`. Removido de `baseFixaOperacional`.
+1. **Reserva de Emergência**: mostrava R$100.644,15 (com rendimento) na aba Cenários — usuário retirou o rendimento, valor real é R$100.000,00 fixo. Corrigido em 3 pontos: tabela V2 `patrimonio`, literal V1 (`vars-patrimonio.js`), e `REG.reserva.atual` (nunca resincronizava quando a V2 de Patrimônio carregava). **Esclarecido depois**: a Reserva é conta **Itaú**, não BTG (comentários antigos do código estavam ambíguos/conflitantes sobre o banco) — valor R$100.000 continua correto, só a documentação foi corrigida.
+2. **"Necessidade (paga tudo)" (Cenários) ≠ "Necessidade líquida" (Gráficos)**: `REG.superavitNormal.necessidade` era array literal congelado desde 25/07. Corrigido pela raiz — agora é a MESMA referência de `REG.evolucao.necessidadeBruta`.
+3. **"Evolução do Total Operacional" subia no mês seguinte**: `D.provMP` contado 2x (fixo + projetado). Removido da parte fixa.
 
 **Nenhum dos 3 testado em navegador real** (sem login) — confirmar com o usuário no próximo acesso.
 
-## ⚠️ PENDÊNCIA — qual conta é a "Reserva de R$100k"?
+## ✅ Fila "demais leitores/escritores V1" — fechada
 
-Usuário mencionou "os 100k estão no Itaú" ao ser informado que a Reserva de Emergência (BTG, campo `VARS.reserva`/tabela `patrimonio` id `d36ce6aa...`) não pode vir do Pluggy porque a Pluggy só sincroniza saldo de conta corrente/cartão (não investimentos). **Não investigado se são a mesma reserva (mapeamento errado) ou duas reservas diferentes** — checar com o usuário antes de mexer em qualquer valor de Reserva de novo.
+- **Solar**: `scripts/sync/atualizar_geracao_saj.py` parou de escrever em `wallace_dados` (V1 já não tinha leitor).
+- **ERP histórico**: `scripts/database/sincronizar_erp_supabase.py` migrado de V1 (`wallace_dados.HISTORICO_ERP_TODOS_CICLOS`) pra V2 (`transacoes`, UPSERT por `tx_legado`+`caixa_id`). Backfill executado contra a planilha real do usuário (`ERP_WALLACE_LIRA_V11_ATUALIZADO.xlsx`).
+- **Resta só Cartões** — não é mais "bloqueador estrutural fora de escopo": o usuário pediu explicitamente pra começar essa frente nesta sessão (ver seção abaixo). Ainda não é a migração completa.
 
-## ✅ Corrigido — fila "demais leitores/escritores V1" (domínio Solar fechado)
+## ✅ Cartões — sessão dedicada iniciada (não completa)
 
-`scripts/sync/atualizar_geracao_saj.py` parou de escrever em `wallace_dados` (V1) — confirmado que `app.js` não lê mais `SOLAR_LEITURAS`/`SOLAR_GERACAO_DIARIA` de lá (domínio V2-exclusivo desde outra sessão). Escrita V2 (`energia_solar_geracao_diaria`/`energia_solar_leituras`) já existia em paralelo, agora é a única.
+Pedido do usuário: rastreabilidade individual de compras em cartão + decidir `mbLRVConfirmado`/`mbLRWConfirmado`.
 
-**Investigado**: `scripts/database/sincronizar_erp_supabase.py` (escreve `HISTORICO_ERP_TODOS_CICLOS` em `wallace_dados`) — diferente do caso Solar, NÃO é uma correção rápida. A leitura já prioriza V2 corretamente (`vw_historico_erp_completo`, V1 só como fallback silencioso, já documentado como aceitável em `PLANO_UNIFICACAO_V1_V2.md:1711` — "domínio auxiliar de busca, não card financeiro"). O bloqueio é na ESCRITA: a tabela V2 `transacoes` exige `caixa_id` (NOT NULL, FK) e a planilha ERP só tem o nome do livro em texto — não existe mapeamento livro→caixa_id pronto pra popular isso sem risco de gravar dado mal categorizado na tabela viva. Precisa de um mapeamento novo antes de qualquer migração de escrita — não é dívida técnica simples, registrar como escopo próprio se o usuário quiser continuar essa fila. **Com isso, a fila "demais leitores/escritores V1" está fechada até onde dá sem trabalho de schema novo** — só restam Cartões (fora de escopo) e este item (bloqueado por mapeamento).
+- **`transacoes.cartao_id`** já existia (correção de premissa do pedido original), só nunca tinha sido usado de verdade.
+- **`mbLRVConfirmado`/`mbLRWConfirmado`**: já resolvido desde uma sessão anterior (Onda 3, 08/08) — o valor exibido já é 100% V2 (`vw_compromisso_cartao_por_pessoa`). Os *headline totals* (`cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura`) têm exceção arquitetural **permanente** ("a fatura sempre vence") — não mexido, não é pra mexer.
+- **106 transações classificadas** (livros LRW/LRV/LRP/LRS/LRR) usando colunas reais da planilha (RESPONSAVEL/FORMA_PAGAMENTO) — 100% ganharam `usuario_id`, 56% ganharam `cartao_id` específico (resto ficou `NULL` de propósito, sem número explícito na fonte, regra "nenhuma inferência sem evidência").
+- **Regressão própria encontrada e corrigida no mesmo movimento**: o backfill do ERP (acima) inflou `vw_compromisso_cartao_por_pessoa` com histórico antigo (view não tinha filtro de ciclo) — Wallace chegou a mostrar R$8.802 em vez de ~R$1.600. Corrigido com filtro de `ciclo_inicio_em`, mesmo padrão de `vw_saldo_v2_por_caixa`.
+- **Saldos de caixa reais confirmados intactos** em cada etapa (checado via `vw_saldo_v2_por_caixa` antes/depois).
+
+**NÃO feito** (fica pra quando o usuário quiser continuar esta frente): classificação retroativa das transações "Cartao" genérico (sem número, ~47 desta rodada + mais fora dela); domínio Visa Infinite continua com poucas transações classificadas; totais de fatura via Pluggy (item já documentado como aprovado/não implementado, Cartões-scope).
+
+Detalhe técnico completo: `docs/decisions/PLANO_UNIFICACAO_V1_V2.md`, seções 49-50.
 
 ## ✅ Corrigido — 8 achados de UI/UX via foto real do celular/navegador
 
-Botão Compartilhar (aba Solar) invisível (`var(--purple)` sem fallback) + redesenhado em pílula com ícone · card "Caixa Var." sempre verde mesmo negativo · lupa quase invisível na faixa 560-780px · "Ver Ciclo" vazando pra todas as abas (movido pra dentro de `#painel`, por pedido explícito do usuário — contraria decisão antiga V145 de propósito) · F5 sempre voltava pro Painel sem lembrar a aba (restaurado via `sessionStorage`) · espaço vazio acima do menu de abas em todas as abas exceto a capa · Busca Global não achava "PIB" nem outros termos em seções com 2+ blocos (indexador só olhava o 1º irmão, agora varre todos) · card "PIB Wallace (metodologia antiga)" removido da tela por pedido do usuário (Crescimento Patrimonial já é o indicador correto).
+Botão Compartilhar (aba Solar) invisível + redesenhado em pílula com ícone · card "Caixa Var." sempre verde mesmo negativo · lupa quase invisível na faixa 560-780px · "Ver Ciclo" vazando pra todas as abas (movido pra dentro de `#painel`) · F5 sempre voltava pro Painel sem lembrar a aba · espaço vazio acima do menu de abas · Busca Global não achava "PIB" (indexador só olhava o 1º irmão da seção) · card "PIB Wallace (metodologia antiga)" removido da tela.
 
-## ✅ Corrigido — performance de boot (~500ms)
+## ✅ Corrigido — performance de boot (~500ms) + atualização por aba
 
-Os 6 módulos finais do boot (documentados como independentes de `promocoes-financeengine.js`) esperavam ele terminar por completo antes de começar a baixar — agora em paralelo. `window.WALLACE_BOOT_TIMING` (instrumentação já existia) confirma: total ~935ms antes, maior fatia era essa espera sequencial.
-
-## ✅ Decisão tomada com o usuário — atualizar dados ao trocar de aba
-
-Nem sempre (mais chamadas ao Supabase, mais lento) nem nunca (fica velho numa sessão longa). Implementado: recarrega o iframe inteiro (reaproveita o F5, que já restaura a aba) só se passou +5min desde o último boot (`window.__wallaceUltimoBootTs`). Recarregar tudo em vez de re-chamar `hydrate()`/os "onda" na mão foi escolha deliberada de segurança — gráficos (`graficos-cenarios-lazy.js`) não são seguros de recriar (`new Chart()` 2x duplica/quebra).
+Boot: 6 módulos finais paralelizados com `promocoes-financeengine.js` (antes esperavam ele terminar). Troca de aba: decisão tomada com o usuário — recarrega (reaproveitando o F5) só se passou +5min desde o último boot, não a cada clique.
 
 ## Pendências antigas, sem decisão do usuário ainda
 
 | Item | Nota |
 |---|---|
-| Rodapé "ERP V11" | Já corrigido em sessão anterior (`f1e3d95`) |
 | Abas cortando/travando ao rolar no mobile | Usuário nunca respondeu ao pedido de print/gravação, não investigado |
-| 3 transações LRW/LRV sem dono (R$282,71) | Só o usuário pode dizer de quem são |
-| `window.WALLACE_BOOT_TIMING` | Já lido nesta sessão (~935ms total, boot paralelo aplicado) |
-| Cartões (Visa Infinite/Mastercard Black) | Bloqueador estrutural, sessão dedicada — fora de escopo |
+| 3 transações LRW/LRV sem dono (R$282,71) | Colisão de `tx_legado` de sessão anterior (TX000200/203/204/205/206), documentada em `hydrate-onda3-lrwlrv.js` — só o usuário pode dizer de quem são |
+| Cartões — classificação retroativa completa + totais via Pluggy | Frente aberta nesta sessão, não terminada — ver seção acima |
 
 ## Protocolo de sessão nova
 
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
-2. **Pendência da Reserva R$100k (Itaú vs BTG) é a mais urgente** — não mexer em nenhum valor de Reserva sem esclarecer com o usuário primeiro.
-3. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
-4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-5. Continuar a fila "demais leitores/escritores V1": próximo item é `sincronizar_erp_supabase.py`.
+2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
+3. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
+4. Se continuar Cartões: ler seção 49-50 de `PLANO_UNIFICACAO_V1_V2.md` primeiro — já tem convenção de registro definida (não reinventar), e o cuidado de sempre checar `vw_saldo_v2_por_caixa` antes/depois de qualquer INSERT/UPDATE em massa em `transacoes` (regressão real já aconteceu uma vez).
