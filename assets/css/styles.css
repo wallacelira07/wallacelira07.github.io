@@ -471,19 +471,13 @@
   /* NOVO 09/08/2026: botoes de navegacao da home (pedido do usuario, "botoes clicaveis pra cada
      aba"). Mesmo grid responsivo ja usado em .grid-3/.grid-4 acima, cards maiores/mais clicaveis
      que os itens finos de .master-tabs.
-     CORRIGIDO 11/08/2026 (pedido do usuário: "deveria estar mais pra cima, e em mais destaque...
-     quando rolar pra cima ela acompanhe pra dar mais espaço na tela" — movida no HTML pra logo
-     abaixo dos cards de resumo (era o último elemento da capa), e agora sticky no topo, mesmo
-     padrão já usado em .master-tabs (incluindo o pseudo-elemento que cobre o "fiapo" de conteúdo
-     atrás do canto arredondado durante o repaint do scroll). */
+     CORRIGIDO 11/08/2026, 3ª rodada (pedido do usuário: "as abas na tela Home devem ser fixas e
+     não travar no topo igual nas outras abas") - tentativa anterior (sticky, igual .master-tabs)
+     revertida: na Home o grid fica em fluxo normal (position:static), rola junto com o resto do
+     conteúdo, nunca gruda no topo do viewport. Sticky continua exclusivo de .master-tabs (as 5
+     outras abas), comportamento que o usuário já validou. */
   .home-nav-grid{
     display:grid; grid-template-columns:repeat(5,1fr); gap:0.8rem; margin:1.2rem 0 1.5rem;
-    position:sticky; top:0; z-index:40;
-    background:var(--bg); padding-top:0.6rem; padding-bottom:0.6rem;
-  }
-  .home-nav-grid::before{
-    content:''; position:absolute; left:0; right:0; top:-14px; height:14px;
-    background:var(--bg); z-index:-1;
   }
   .home-nav-btn{
     display:flex; flex-direction:column; align-items:center; gap:0.4rem;
