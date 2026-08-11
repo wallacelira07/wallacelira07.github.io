@@ -1019,6 +1019,24 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_HISTORICO_ERP_V
   }));
 }
 
+// NOVO 11/08/2026 (fecha consumidor de wallace_dados: 4 constantes de tarifa solar - faturaEnergisaValor/
+// Kwh, consumoMinimoComSolarKwh, taxaMinimaEnergisa. Mesmo padrao de cotacoes_acoes/historico_erp acima):
+// window.WALLACE_PARAMETROS_SOLARES_V2 (bootstrap do HTML, tabela parametros_solares) vence o literal
+// V1 se a V2 respondeu com dado. Fallback silencioso - se falhar, os literais de vars-energia-solar.js
+// continuam valendo, nunca quebra o calculo solar.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PARAMETROS_SOLARES_V2) && window.WALLACE_PARAMETROS_SOLARES_V2.length){
+  window.WALLACE_PARAMETROS_SOLARES_V2.forEach(r => { VARS[r.chave] = Number(r.valor); });
+}
+
+// NOVO 11/08/2026 (fecha consumidor de wallace_dados: PIB_WALLACE_HISTORICO, mesmo padrao acima):
+// window.WALLACE_PIB_HISTORICO_V2 (bootstrap do HTML, tabela pib_wallace_historico) vence o literal
+// V1/wallace_dados se a V2 respondeu com dado. Fallback silencioso.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PIB_HISTORICO_V2) && window.WALLACE_PIB_HISTORICO_V2.length){
+  const pibV2 = {};
+  window.WALLACE_PIB_HISTORICO_V2.forEach(r => { pibV2[r.mes] = r.snapshot; });
+  VARS.PIB_WALLACE_HISTORICO = pibV2;
+}
+
 // NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
 // creditoKmvIpiranga/proLaboreFixo, mesmo padrao de cartoes/cotacoes_acoes - fallback silencioso
 // permitido): window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, indicadores) vence o literal

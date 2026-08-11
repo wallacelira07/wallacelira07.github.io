@@ -1751,7 +1751,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-30';
+var __V = '20260811-31';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -2021,6 +2021,42 @@ var __promiseHistoricoErpV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/re
   console.warn('Nao consegui buscar vw_historico_erp_completo (V2) do Supabase, usando HISTORICO_ERP_TODOS_CICLOS local:', e);
 });
 
+// NOVO 11/08/2026 (fecha consumidor de wallace_dados: 4 constantes de tarifa solar, mesmo padrao
+// de cotacoes_acoes/historico_erp acima): busca `parametros_solares` em paralelo. Fallback
+// silencioso permitido - falha/offline mantem os literais V1 (vars-energia-solar.js).
+window.WALLACE_PARAMETROS_SOLARES_V2 = null;
+var __promiseParametrosSolaresV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/parametros_solares?select=chave,valor', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_PARAMETROS_SOLARES_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar parametros_solares (V2) do Supabase, usando literais V1:', e);
+});
+
+// NOVO 11/08/2026 (fecha consumidor de wallace_dados: PIB_WALLACE_HISTORICO, mesmo padrao acima):
+// busca `pib_wallace_historico` em paralelo. Fallback silencioso permitido - falha/offline mantem
+// o literal/wallace_dados anterior (nunca quebra o calculo de PIB Wallace).
+window.WALLACE_PIB_HISTORICO_V2 = null;
+var __promisePibHistoricoV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/pib_wallace_historico?select=mes,snapshot', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_PIB_HISTORICO_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar pib_wallace_historico (V2) do Supabase, usando PIB_WALLACE_HISTORICO local/wallace_dados:', e);
+});
+
 // NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
 // creditoKmvIpiranga/proLaboreFixo - "verdade externa" atualizada manualmente, mesmo padrao
 // do CDI_MENSAL_ATUAL): busca de uma vez em `indicadores`. Fallback silencioso permitido -
@@ -2099,6 +2135,8 @@ Promise.all([
   __promiseSolarGeracaoDiariaV2,
   __promiseCotacoesAcoesV2,
   __promiseHistoricoErpV2,
+  __promiseParametrosSolaresV2,
+  __promisePibHistoricoV2,
   __promiseCreditosExternosV2,
   __promiseCicloSnapshotsV2,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
