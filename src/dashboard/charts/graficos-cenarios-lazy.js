@@ -1149,6 +1149,24 @@ async function _lazyRenderSolarSecao(){
     }
   }
 
+  // CORRIGIDO 11/08/2026 (achado do usuário, print real: barra "Ago" mostrando crédito Wallace 214/
+  // Irmã 87 quando o fechamento oficial é 137,74/56,26) — a leitura manual do medidor de 07/08
+  // (60→361 = delta bruto de 301 kWh) não bateu com a fatura real da Energisa (delta oficial 194 kWh,
+  // ver evidência gravada na leitura) e o crédito desse ciclo foi corrigido À MÃO em ciclos_solares
+  // (194/137,74/56,26) sem recalcular a leitura em si. O loop acima (creditoMensalWallace/Irma/
+  // saldoLiquidoMensal) recalcula do zero a partir do delta bruto da leitura — ignorando a correção
+  // gravada e voltando a mostrar o número errado. Sobrescreve aqui com o valor OFICIAL de cada ciclo
+  // JÁ FECHADO (mesma fonte de ciclosSolarFechados já usada em renderFluxo1Fechado/tabela "Histórico
+  // de ciclos fechados") — nunca mais os gráficos e a tabela mostrando números diferentes pro mesmo
+  // ciclo.
+  ciclosSolarFechados.forEach(c => {
+    const mesFecha = mesFechamentoCiclo(c.data_fim);
+    const idx = (mesFecha - ANCHOR_SOLAR_MES_CICLO + 12) % 12;
+    creditoMensalWallace[idx] = Number(c.credito_wallace_kwh);
+    creditoMensalIrma[idx] = Number(c.credito_irma_kwh);
+    saldoLiquidoMensal[idx] = Number(c.credito_liquido_kwh);
+  });
+
   const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
   const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
 
