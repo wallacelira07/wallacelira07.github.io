@@ -942,10 +942,6 @@ const __literalAntesDoMerge = {
   consumoMinimoComSolarKwh: VARS.consumoMinimoComSolarKwh, faturaEnergisaKwh: VARS.faturaEnergisaKwh,
   faturaEnergisaValor: VARS.faturaEnergisaValor, taxaMinimaEnergisa: VARS.taxaMinimaEnergisa,
 };
-// visaLRVHistorico confirmado 0 tanto no literal de código quanto no último valor real de wallace_dados
-// (auditoria 11/08/2026) — mantido como constante, não depende de nenhuma fonte externa.
-VARS.visaLRVHistorico = 0;
-
 // NOVO 08/08/2026 (Solar entra na V2 — desligamento da V1): mesmo padrão do bloco LEGENDAS abaixo —
 // window.WALLACE_SOLAR_LEITURAS_V2 (buscado no bootstrap do HTML, tabela energia_solar_leituras)
 // sempre tem a última palavra sobre VARS.SOLAR_LEITURAS, sobrescrevendo tanto o literal local

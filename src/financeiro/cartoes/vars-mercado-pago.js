@@ -35,7 +35,14 @@ function criarVarsMercadoPago(){
                         // (483.83, extrato real reconciliado V128); os dois numeros sao proximos mas representam conceitos diferentes,
                         // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
-  visaLRWHistorico: 0,      // ZERADO 25/07/2026 (V147): confirmado pelo usuario - eram compras VARIAVEIS UNICAS no Visa Infinite ("compras unicas e pagou acabou"), nao recorrencia/assinatura. Ja foram pagas na fatura de julho (ciclo fechado), nao repetem no ciclo novo. Migracao de compras variaveis para o Mastercard Black e definitiva desde 23/07/2026 (fechamento da fatura MB). Era R$2.139,45.
+  // REVERTIDO 12/08/2026: tentativa de lançar wallace/assinatura/vanessa reais (R$84,81 da fatura,
+  // IOF+Uber+Google Mega+H57Store) — desfeita porque o campo "parcelas" (livroLRP) já conta adiantado
+  // uma parcela (Kinesiocenteos, TXP000015) sem data de cobrança cadastrada, e somar os 2 gera
+  // divergência REAL falsa (partes > total) sem correção de raiz possível sem inventar dado (nenhuma
+  // parcela tem data_prevista preenchida). Mantido zerado — resíduo pequeno (R$9,96) e já explicado
+  // como "não auditável" é preferível a um alarme de divergência real falso. Não mexer sem resolver
+  // primeiro a falta de data_prevista nas parcelas.
+  visaLRWHistorico: 0,
   // NOVO 12/08/2026 (PRIORIDADE 0, pedido do usuario): investigacao confirmou por SQL direto que
   // TODA transacao da Caixa Variavel com cartao_id preenchido pertence ao Mastercard Black - o Visa
   // Infinite nao tem cobertura de cartao_id nenhuma (item 5, PLANO_UNIFICACAO_V1_V2.md). Isso NAO e
@@ -48,8 +55,8 @@ function criarVarsMercadoPago(){
   // evidencia nova (cartao_id real do Visa passar a existir na base).
   cartaoIdCoberturaInsuficienteVisa: true,
   visaLRRConfirmado: 0,     // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as recorrencias para o Mastercard Black. Nenhuma recorrencia resta no Visa Infinite. Era R$1.106,53.
-  visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
-  visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
+  visaLRSConfirmado: 0,      // REVERTIDO 12/08/2026 (ver comentário em visaLRWHistorico acima).
+  visaLRVHistorico: 0,       // REVERTIDO 12/08/2026 (ver comentário em visaLRWHistorico acima).
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
   mbLRWConfirmado: 1563.19,       // CORRIGIDO 08/08/2026 (+207,02, TX000222 Dr.Pizza): usuário fez a compra e mandou lançar numa outra sessão/chat - ela gravou só na Arquitetura V2 (tabela transacoes), nunca chegou aqui nem debitou a Caixa Variável (comprometido ficou desatualizado até agora). Era R$1.356,17 (07/08/2026, fix do IOF do TX000200/TX000205) - ver histórico completo de correções anteriores no Supabase.
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
