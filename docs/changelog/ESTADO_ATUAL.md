@@ -2,7 +2,11 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso). Commits pushed: `2da024b` (Fase 1 — TTL de 90s no cache do `WallaceFinanceService` + scroll horizontal nos 24 painéis do Livro Razão), `821cf31` (Fase 3 — refino de paleta/tipografia do design system), `1a0b583` (composição tarifária real Wellida/Casa da Mãe, com correção também aplicada na cópia viva no Supabase).
+Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso), agora com login real validado no painel pela primeira vez. Commits pushed: `2da024b` (Fase 1), `821cf31` (Fase 3), `1a0b583`+`36c0939` (composição tarifária real, corrigida em 3 fontes — ver achado crítico abaixo), `b7b83c4`/`c642dcf`/`6de448e` (Fase 4). `__V` atual bate com `36c0939`.
+
+## ⚠️ Achado crítico de processo — fonte viva de dados mudou no meio da sessão (12/08/2026)
+
+Validado o painel logado pela primeira vez nesta sessão: a correção da composição tarifária (abaixo) não estava aparecendo. Causa: uma sessão paralela (mesmo dia, mesmo repositório — commit `143c501`, "Sepulta dependência operacional da V1") removeu `Object.assign(VARS, dr)` (o merge que lia `wallace_dados.dados` ao vivo) e passou a usar a tabela relacional `parametros_gerais`, que **congelou** o valor antigo de `ENERGISA_TARIFA_COMPOSICAO` no momento da migração — sem eu saber, porque o commentário do código (`vars-energia-solar.js`) ainda dizia "wallace_dados sobrescreve isto". Corrigido nas 3 fontes agora (local, `wallace_dados` — obsoleta mas deixada sincronizada por precaução, e `parametros_gerais` — a fonte real). Comentário do código atualizado pra não enganar a próxima sessão. **Lição**: depois de qualquer edição de dado "vivo" via Supabase, validar no painel logado antes de considerar resolvido — não basta confirmar por SQL que o UPDATE rodou, é preciso confirmar que é a tabela que o app de fato lê agora.
 
 ## ✅ Correção de dado real — composição tarifária Wellida/Casa da Mãe (12/08/2026)
 
@@ -53,9 +57,13 @@ Usuário pediu modernização geral (sem bug pontual) e autorizou aplicar direto
 | `cotacoes_acoes` sem heartbeat em `execucoes_jobs` | RPC funciona, mas o heartbeat do job nunca aparece — possível bug isolado, não investigado |
 | Painel principal (`Sistema_Wallace_Lira_Completo.html`) no celular | Usuário precisa testar e reportar o que quebra, OU liberar acesso de login pro agente — nenhuma sessão recente conseguiu testar de verdade |
 
+## ✅ Validado com login real no painel (12/08/2026, primeira vez nesta sessão)
+
+Usuário logou manualmente no navegador desta sessão (eu nunca toquei em campo de senha) e eu só li a tela depois. Confirmado funcionando: paleta da Fase 3 (cores/contraste corretas), botão `.btn-pill` "Compartilhar" (Energia Solar), badge `.badge.ba` "Benefícios, não patrimônio", boxes Wallace/Wellida com `var(--green)`/`var(--amber)`, tabela "Residual pós-solar" com os valores reais corretos (ver achado crítico acima), estrutura `data-inbox-id` do Inbox incremental, formulário de lançamento manual com classes `.wallace-field`. **Não testado**: clique real em Aprovar/Rejeitar da Inbox (evitado de propósito — grava de verdade no Supabase, não quis mexer em dado de produção só pra verificar); painéis do Livro Razão em tela mobile de verdade (só testado isolado, Fase 2 segue tecnicamente não confirmada no site real).
+
 ## Protocolo de sessão nova
 
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
 3. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-4. Mudanças de CSS/JS desta sessão **não foram testadas no painel principal com login real** — pedir confirmação visual do usuário antes de considerar "confirmado funcionando" no painel logado.
+4. **Antes de confiar em qualquer comentário do tipo "X sobrescreve Y no carregamento"**: outra sessão pode ter mudado isso no mesmo dia sem atualizar o comentário (aconteceu de verdade nesta sessão, ver achado crítico acima) — confirmar direto no `app.js` atual qual bloco realmente popula `VARS` antes de editar dado "vivo" achando que sabe onde ele mora.
