@@ -32,7 +32,7 @@ Usuário mandou 2 faturas reais em PDF (Ago/26, NF 009.005.476 Wellida e NF 009.
 | 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
 | 2 | Mobile/responsividade — auditoria + correções pontuais | 🔶 Em andamento — bug do Livro Razão corrigido; painel principal ainda não testado (sem login) |
 | 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
-| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | ✅ 5 dos 10 achados aplicados e commitados (`b7b83c4`, `c642dcf`) — cache granular, Inbox incremental, badges/radius tokens, N+1 do FinanceService, botão `.btn-pill`. 5 restantes ficam de backlog (ver pendências) |
+| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | ✅ 6 dos 10 achados aplicados e commitados (`b7b83c4`, `c642dcf`, `6de448e`) — cache granular, Inbox incremental, badges/radius tokens, N+1 do FinanceService, botão `.btn-pill`, form de lançamento manual extraído pra classes. 2 ficam de backlog deliberado (Chart.js `.update()`, `new Function` pra módulos — risco real sem validação com login) |
 
 ## ✅ Fase 3 — refino de paleta e tipografia (12/08/2026)
 
@@ -46,7 +46,7 @@ Usuário pediu modernização geral (sem bug pontual) e autorizou aplicar direto
 
 | Item | Nota |
 |---|---|
-| Fase 4 — achados não aplicados (backlog, decisão deliberada de não mexer sem validação visual) | Formulário de lançamento manual (`#formLancarTx`, `app.js`) tem paleta própria consistente internamente (#0f1620/#2d3b52/#c8d4e3/#5fd68a), separada dos tokens principais — não é drift acidental, é decisão visual antiga; convertê-lo pra `.form-control`/token do design system é maior risco (fluxo crítico de lançamento, sem como testar logado) que benefício. Chart.js recriado do zero (`destroy()`+`new Chart()`) em vez de `.update()` em 35 pontos — já protegido contra leak, só não é o mais barato. `new Function` pra carregar módulos (FinanceEngine/Comparator) — arquitetural, não trivial |
+| Fase 4 — 2 achados não aplicados (backlog, decisão deliberada) | Chart.js recriado do zero (`destroy()`+`new Chart()`) em vez de `.update()` em 35 pontos — já protegido contra leak, só não é o mais barato; converter exigiria checar caso a caso se o formato de dado muda (label novo, dataset novo) pra cada um dos 35, sem como testar visualmente logado. `new Function` pra carregar módulos (FinanceEngine/Comparator) — muda timing/escopo de execução do boot da página, risco de tela branca sem como testar. Formulário de lançamento manual JÁ foi extraído pra classes CSS (`.wallace-field`, mesmas cores, `6de448e`) — só as cores em si (paleta própria, não tokens principais) ficaram como estavam, por decisão deliberada |
 | Visa Infinite — cobertura baixa de `cartao_id`/histórico | Congelado por decisão explícita, não mexer sem evidência nova |
 | Limiares do painel de Saúde Operacional | Estimados, não calibrados contra execução real ainda |
 | Cadastrar `BACKUP_ENCRYPTION_KEY`/`SUPABASE_DB_URL` no GitHub + rodar o workflow `backup_externo.yml` 1x | Bloqueia validação final do backup externo/DR — ver `docs/decisions/CONTINUIDADE_NEGOCIO_DR.md` seção 4 |
