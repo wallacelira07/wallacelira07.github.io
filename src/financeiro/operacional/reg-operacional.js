@@ -102,6 +102,10 @@ function criarRegOperacional(){
       piorMes: VARS.salarioMin12M,
       mediana: VARS.salarioMediana12M,
       media: VARS.salarioMedia12M,
+      // CONFIRMADO 12/08/2026 pelo usuário: mediaPonderada12M (R$17.843,58) é o valor certo pro
+      // fallback do liquidoMes() (ver FinanceEngine.js calcularLiquidoMes) - supera a decisão de
+      // 16/07/2026 que tinha escolhido a mediana (R$18.283,64) em vez da média simples
+      // (R$20.084,86, puxada pra cima por meses excepcionais). Não trocar sem confirmar de novo.
       mediaPonderada12M: VARS.salarioMediaPonderada12M,
       desvioPadrao: VARS.desvioPadraoSalario
     },
