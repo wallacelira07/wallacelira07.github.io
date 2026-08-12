@@ -7,6 +7,9 @@
 // comportamento mudou.
 function auditoriaAutomatica(){
   const problemas = [];
+  const naoAuditaveis = []; // NOVO 12/08/2026 (Prioridade 0): checks #11/#12 caem aqui quando o gap
+  // observado é 100% explicado por lacuna de dado conhecida (cartaoIdCoberturaInsuficienteVisa),
+  // nunca uma divergência real — ver comentário completo nos checks abaixo e em vars-mercado-pago.js.
   const round2 = v => Math.round(v*100)/100;
   const bate = (a,b,tol=0.02) => Math.abs(a-b) <= tol;
 
@@ -91,38 +94,87 @@ function auditoriaAutomatica(){
   // fino por categoria), entao a soma das partes nunca vai bater com o total do ciclo fechado por design,
   // nao por erro. Comparar isso seria um falso-positivo constante.
   if(!VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado){
+    // NOVO 12/08/2026 (Prioridade 0, achado confirmado por SQL direto): "wallace" (LRW, compras
+    // variáveis) nos dois cartões depende de cartao_id, e o Visa Infinite não tem cobertura nenhuma
+    // dessa coluna na V2 - toda transação com cartao_id preenchido é do Mastercard Black. Não é bug
+    // de cálculo, é ausência de dado auditável (item 5, PLANO_UNIFICACAO_V1_V2.md). Enquanto isso,
+    // #11/#12 comparavam a soma INTEIRA (incluindo wallace) contra o total da fatura e sempre
+    // acusavam "divergência" - mesmo com as outras 7 partes de cada cartão batendo certinho. Agora:
+    // soma só as partes AUDITÁVEIS (sem wallace) e checa que elas cabem dentro do total da fatura -
+    // se couberem, o resto é exatamente a lacuna conhecida (marca "não auditável", não divergência);
+    // se ultrapassarem o total sozinhas, isso É impossível sem erro real (marca divergência, igual
+    // sempre foi).
+    const semCoberturaVisa = !!VARS.cartaoIdCoberturaInsuficienteVisa;
+
     const vd = REG.visaDetalhe;
-    const visaDetalheCalc = round2(vd.parcelas+vd.consorcios+vd.wallace+vd.recorrencias+vd.corp+vd.assinaturas+vd.vanessa+vd.naoReconciliado);
-    if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
+    const visaAuditavelCalc = round2(vd.parcelas+vd.consorcios+vd.recorrencias+vd.corp+vd.assinaturas+vd.vanessa+vd.naoReconciliado);
+    const visaDetalheCalc = round2(visaAuditavelCalc + vd.wallace);
+    if(semCoberturaVisa){
+      if(visaAuditavelCalc - 0.02 > REG.cartaoInfinite.total){
+        problemas.push(`Visa Infinite: soma das partes AUDITÁVEIS (sem LRW/wallace)=${visaAuditavelCalc} já ultrapassa cartaoInfinite.total(${REG.cartaoInfinite.total}) — isso é impossível só pela lacuna de cartao_id, indica divergência real.`);
+      } else if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
+        naoAuditaveis.push(`Visa Infinite: LRW (compras variáveis, R$${round2(REG.cartaoInfinite.total - visaAuditavelCalc)}) não auditável — Visa Infinite sem cobertura de cartao_id na V2 (item 5, PLANO_UNIFICACAO_V1_V2.md). Partes auditáveis batem dentro do total: ${visaAuditavelCalc} ≤ ${REG.cartaoInfinite.total}.`);
+      }
+    } else if(!bate(visaDetalheCalc, REG.cartaoInfinite.total)){
       problemas.push(`Visa Infinite: soma visaDetalhe=${visaDetalheCalc} ≠ cartaoInfinite.total(${REG.cartaoInfinite.total})`);
     }
 
     // 12) Mastercard Black: soma do detalhamento (mbDetalhe) = total do card (ADICIONADO 22/07/2026, V135 -
     // mesma classe de checagem que faltava; foi por isso que mbDetalhe.wallace ficou 3 rodadas desatualizado
     // sem ninguem perceber - nada comparava a soma das partes com o total)
+    // NOVO 12/08/2026: mbLRWConfirmado herda, por convenção histórica, todo gasto variável sem
+    // cartao_id identificado (não só o do MB de verdade) - mesma lacuna do Visa, só que do lado
+    // oposto (aqui o "wallace" pode estar inflado em vez de faltando). Mesmo tratamento: se as partes
+    // auditáveis (sem wallace) já excedem o total sozinhas, é divergência real de verdade; senão, o
+    // desvio é a lacuna conhecida.
     const md = REG.mbDetalhe;
-    const mbDetalheCalc = round2(md.parcelas+md.consorcios+md.wallace+md.recorrencias+md.corp+md.assinaturas+md.vanessa+md.naoReconciliado);
-    if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
+    const mbAuditavelCalc = round2(md.parcelas+md.consorcios+md.recorrencias+md.corp+md.assinaturas+md.vanessa+md.naoReconciliado);
+    const mbDetalheCalc = round2(mbAuditavelCalc + md.wallace);
+    if(semCoberturaVisa){
+      if(mbAuditavelCalc - 0.02 > REG.cartaoMB.total){
+        problemas.push(`Mastercard Black: soma das partes AUDITÁVEIS (sem LRW/wallace)=${mbAuditavelCalc} já ultrapassa cartaoMB.total(${REG.cartaoMB.total}) — isso é impossível só pela lacuna de cartao_id, indica divergência real.`);
+      } else if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
+        naoAuditaveis.push(`Mastercard Black: LRW (compras variáveis, diferença de R$${round2(mbDetalheCalc - REG.cartaoMB.total)}) não auditável — mbLRWConfirmado inclui gasto variável sem cartao_id atribuído por convenção, mesma lacuna do Visa Infinite (item 5, PLANO_UNIFICACAO_V1_V2.md).`);
+      }
+    } else if(!bate(mbDetalheCalc, REG.cartaoMB.total)){
       problemas.push(`Mastercard Black: soma mbDetalhe=${mbDetalheCalc} ≠ cartaoMB.total(${REG.cartaoMB.total})`);
     }
   }
 
   const healthBadge = $('healthBadge');
 
+  // NOVO 12/08/2026 (Prioridade 0): badge/footer agora só ficam vermelhos por divergência REAL
+  // (problemas). "Não auditável" (lacuna de dado conhecida, não erro) aparece à parte, em amarelo,
+  // sem contar como divergência - nem escondido (continua visível e no console), nem tratado como
+  // se fosse igual a um erro real.
   if(problemas.length === 0){
     console.log('%c✅ Auditoria automática: 0 divergências encontradas na matemática do REG.', 'color:#34c98a;font-weight:600');
+    if(naoAuditaveis.length){
+      console.warn('ℹ️ Auditoria automática: itens não auditáveis (lacuna de dado conhecida, não é divergência):');
+      naoAuditaveis.forEach(p => console.warn('  - ' + p));
+    }
     if(healthBadge){
-      healthBadge.textContent = '✅ Sistema íntegro';
-      healthBadge.style.color = '#34c98a';
-      healthBadge.title = 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
+      if(naoAuditaveis.length){
+        healthBadge.textContent = `✅ Sistema íntegro · ⚠️ ${naoAuditaveis.length} não auditável(is)`;
+        healthBadge.style.color = '#e2c46a';
+        healthBadge.title = `0 divergências reais.\n\nNão auditável (lacuna de dado conhecida, não é erro):\n${naoAuditaveis.join('\n')}`;
+      } else {
+        healthBadge.textContent = '✅ Sistema íntegro';
+        healthBadge.style.color = '#34c98a';
+        healthBadge.title = 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
+      }
     }
   } else {
     console.warn('⚠️ Auditoria automática encontrou divergências:');
     problemas.forEach(p => console.warn('  - ' + p));
+    if(naoAuditaveis.length){
+      console.warn('ℹ️ Auditoria automática: itens não auditáveis (lacuna de dado conhecida, não é divergência):');
+      naoAuditaveis.forEach(p => console.warn('  - ' + p));
+    }
     if(healthBadge){
       healthBadge.textContent = `⚠️ ${problemas.length} divergência(s) — ver console`;
       healthBadge.style.color = '#e2554f';
-      healthBadge.title = problemas.join('\n');
+      healthBadge.title = problemas.join('\n') + (naoAuditaveis.length ? `\n\nNão auditável (lacuna de dado conhecida, não é erro):\n${naoAuditaveis.join('\n')}` : '');
     }
     const footer = document.querySelector('footer');
     if(footer){

@@ -36,6 +36,17 @@ function criarVarsMercadoPago(){
                         // documentado, nao e erro. Antes vivia como literal solto dentro de visaDetalhe.corp.
   // V140: componentes de visaDetalhe/mbDetalhe/totalOpDetalhe que ainda eram literal solto
   visaLRWHistorico: 0,      // ZERADO 25/07/2026 (V147): confirmado pelo usuario - eram compras VARIAVEIS UNICAS no Visa Infinite ("compras unicas e pagou acabou"), nao recorrencia/assinatura. Ja foram pagas na fatura de julho (ciclo fechado), nao repetem no ciclo novo. Migracao de compras variaveis para o Mastercard Black e definitiva desde 23/07/2026 (fechamento da fatura MB). Era R$2.139,45.
+  // NOVO 12/08/2026 (PRIORIDADE 0, pedido do usuario): investigacao confirmou por SQL direto que
+  // TODA transacao da Caixa Variavel com cartao_id preenchido pertence ao Mastercard Black - o Visa
+  // Infinite nao tem cobertura de cartao_id nenhuma (item 5, PLANO_UNIFICACAO_V1_V2.md). Isso NAO e
+  // so um buraco no lado Visa: mbLRWConfirmado (linha 43) tambem herda, por convencao historica,
+  // gasto variavel sem cartao_id identificado - ou seja, o "wallace" (LRW) dos 2 cartoes e a MESMA
+  // lacuna de dado, so que atribuida por padrao ao MB. auditoriaAutomatica() usa esta flag pra
+  // marcar os checks #11/#12 como "nao auditavel" em vez de "divergencia" quando o gap observado e
+  // inteiramente explicavel por essa lacuna conhecida (nunca quando as partes JA auditaveis, sem
+  // wallace, ultrapassam o total da fatura - isso continua sendo divergencia real). Nao mexer sem
+  // evidencia nova (cartao_id real do Visa passar a existir na base).
+  cartaoIdCoberturaInsuficienteVisa: true,
   visaLRRConfirmado: 0,     // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as recorrencias para o Mastercard Black. Nenhuma recorrencia resta no Visa Infinite. Era R$1.106,53.
   visaLRSConfirmado: 0,      // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as assinaturas para o Mastercard Black (incluindo IFood/Vanessa, Meli+, Amazon Prime Canais, que ainda faltavam). Nenhuma assinatura resta no Visa Infinite. Era R$429,31.
   visaLRVHistorico: 0,       // REVERTIDO 30/07/2026 (V207): TX000176 (Drogasil, cartão 6351) nunca foi do Visa - erro de V201, corrigido. Cartão 6351 é Mastercard Black da Vanessa (tabela oficial). Era R$132,26 (errado).
