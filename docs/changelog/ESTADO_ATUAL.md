@@ -32,7 +32,7 @@ Usuário mandou 2 faturas reais em PDF (Ago/26, NF 009.005.476 Wellida e NF 009.
 | 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
 | 2 | Mobile/responsividade — auditoria + correções pontuais | 🔶 Em andamento — bug do Livro Razão corrigido; painel principal ainda não testado (sem login) |
 | 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
-| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | 🔶 Auditoria de código concluída (10 achados, ver `PASSAGEM_DE_TURNO.md`), aplicação aguardando priorização do usuário |
+| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | ✅ 3 dos 10 achados aplicados e commitados (`b7b83c4`) — cache granular, Inbox incremental, componentes. 7 restantes ficam de backlog (ver pendências) |
 
 ## ✅ Fase 3 — refino de paleta e tipografia (12/08/2026)
 
@@ -46,6 +46,7 @@ Usuário pediu modernização geral (sem bug pontual) e autorizou aplicar direto
 
 | Item | Nota |
 |---|---|
+| Fase 4 — 7 achados não aplicados (backlog) | N+1 sequencial em `FinanceService.getResumoPorCaixa()` (sem impacto hoje, código Fase 5 não ligado); formulário de lançamento manual fora do design system; botão pill sem classe reutilizável; Chart.js recriado do zero em vez de `.update()`; `new Function` pra carregar módulos. Detalhe completo em `PASSAGEM_DE_TURNO.md`, bloco Fase 4 |
 | Visa Infinite — cobertura baixa de `cartao_id`/histórico | Congelado por decisão explícita, não mexer sem evidência nova |
 | Limiares do painel de Saúde Operacional | Estimados, não calibrados contra execução real ainda |
 | Cadastrar `BACKUP_ENCRYPTION_KEY`/`SUPABASE_DB_URL` no GitHub + rodar o workflow `backup_externo.yml` 1x | Bloqueia validação final do backup externo/DR — ver `docs/decisions/CONTINUIDADE_NEGOCIO_DR.md` seção 4 |
