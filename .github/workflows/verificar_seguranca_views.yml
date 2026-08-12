@@ -1,0 +1,28 @@
+name: Verificar Segurança (views endurecidas)
+
+# NOVO 12/08/2026 - trava automática pedida pelo usuário depois de um achado real: 2 views já
+# corrigidas para SECURITY INVOKER (11/08) foram recriadas sem essa opção por migrations de
+# correção de dado no mesmo dia, reabrindo leitura de transação individual pra quem tem só a
+# chave pública (anon). Ver docs/decisions/REGRESSAO_SECURITY_DEFINER_VIEWS_CARTAO.md.
+#
+# Roda diariamente (chamado pelo orquestrador executar_tudo.yml) e falha ruidosamente - não
+# silenciosamente - se qualquer view da lista endurecida (mantida em
+# public.verificar_hardening_views(), Supabase) perder security_invoker=true.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+jobs:
+  verificar-seguranca-views:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Checar hardening das views (SECURITY INVOKER)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/checks/verificar_seguranca_views.py

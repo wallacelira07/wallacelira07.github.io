@@ -18,51 +18,56 @@ name: Executar Tudo (SAJ + Cotações + Pluggy + Mercado Pago)
 on:
   workflow_dispatch: {}
 jobs:
+  seguranca_views:
+    name: "0/6 - Verificar Segurança (views endurecidas)"
+    uses: ./.github/workflows/verificar_seguranca_views.yml
+    secrets: inherit
   saj:
-    name: "1/4 - Atualizar Geração Solar (SAJ)"
+    name: "1/6 - Atualizar Geração Solar (SAJ)"
     uses: ./.github/workflows/atualizar_geracao_saj.yml
     secrets: inherit
   cotacoes:
-    name: "2/4 - Atualizar Cotações de Ações"
+    name: "2/6 - Atualizar Cotações de Ações"
     needs: saj
     if: always()
     uses: ./.github/workflows/atualizar_cotacoes_acoes.yml
     secrets: inherit
   pluggy:
-    name: "3/4 - Sincronizar Pluggy"
+    name: "3/6 - Sincronizar Pluggy"
     needs: cotacoes
     if: always()
     uses: ./.github/workflows/sincronizar_pluggy.yml
     secrets: inherit
   mercadopago:
-    name: "4/4 - Sincronizar Mercado Pago"
+    name: "4/6 - Sincronizar Mercado Pago"
     needs: pluggy
     if: always()
     uses: ./.github/workflows/mercadopago_sync.yml
     secrets: inherit
   backup_externo:
-    name: "5/5 - Backup Externo Criptografado"
+    name: "5/6 - Backup Externo Criptografado"
     needs: mercadopago
     if: always()
     uses: ./.github/workflows/backup_externo.yml
     secrets: inherit
   resumo:
     name: "Resumo da execução"
-    needs: [saj, cotacoes, pluggy, mercadopago, backup_externo]
+    needs: [seguranca_views, saj, cotacoes, pluggy, mercadopago, backup_externo]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Reportar status de cada etapa
         run: |
           echo "===== RESUMO DA EXECUÇÃO ====="
-          echo "1/5 SAJ (geração solar):     ${{ needs.saj.result }}"
-          echo "2/5 Cotações de ações:       ${{ needs.cotacoes.result }}"
-          echo "3/5 Pluggy (bancos):         ${{ needs.pluggy.result }}"
-          echo "4/5 Mercado Pago:            ${{ needs.mercadopago.result }}"
-          echo "5/5 Backup externo:          ${{ needs.backup_externo.result }}"
+          echo "0/6 Verificar segurança:     ${{ needs.seguranca_views.result }}"
+          echo "1/6 SAJ (geração solar):     ${{ needs.saj.result }}"
+          echo "2/6 Cotações de ações:       ${{ needs.cotacoes.result }}"
+          echo "3/6 Pluggy (bancos):         ${{ needs.pluggy.result }}"
+          echo "4/6 Mercado Pago:            ${{ needs.mercadopago.result }}"
+          echo "5/6 Backup externo:          ${{ needs.backup_externo.result }}"
           echo "==============================="
-          if [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ] || [ "${{ needs.backup_externo.result }}" != "success" ]; then
+          if [ "${{ needs.seguranca_views.result }}" != "success" ] || [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ] || [ "${{ needs.backup_externo.result }}" != "success" ]; then
             echo "::warning::Pelo menos uma etapa não terminou com sucesso - confira os logs de cada job acima."
             exit 1
           fi
-          echo "Todas as 5 etapas rodaram com sucesso."
+          echo "Todas as 6 etapas rodaram com sucesso."

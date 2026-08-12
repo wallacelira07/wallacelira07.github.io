@@ -9,6 +9,7 @@
 // o agendamento real pra consulta, então isso é calibrado pelo comportamento documentado dos
 // workflows, não um fato garantido; ajustar se a cadência real for diferente):
 const SAUDE_JOBS_LIMIARES = {
+  seguranca_views: { atencaoH: 36, falhaH: 72, label: 'Verificação de segurança (views)' },
   pluggy:          { atencaoH: 36, falhaH: 72, label: 'Sincronização Pluggy (bancos)' },
   mercadopago:     { atencaoH: 36, falhaH: 72, label: 'Sincronização Mercado Pago' },
   cotacoes_acoes:  { atencaoH: 36, falhaH: 72, label: 'Cotações de ações' },
