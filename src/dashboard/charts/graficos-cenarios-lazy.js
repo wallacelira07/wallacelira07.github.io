@@ -1442,7 +1442,11 @@ async function _lazyRenderSolarSecao(){
     }
     // Secundário — acumulado desde a ativação (21/07), a mesma métrica que era o número principal
     // antes de hoje. Continua 100% real, só deixou de ser o número em destaque.
-    setUG('ugAcumuladoDesdeAtivacao', 'Acumulado desde 21/07: '+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(saldoLiquidoAcum)+' kWh');
+    // CORRIGIDO 12/08/2026 (pente fino pedido pelo usuário: "os dois números lado a lado confundem,
+    // não fica óbvio como um vira o outro" — achado real, os dois só coincidem enquanto nenhum ciclo
+    // fechou ainda): texto agora deixa explícita a relação (ciclo atual = este total MENOS os ciclos
+    // já fechados e congelados), em vez de só rotular "acumulado" sem dizer o que isso soma.
+    setUG('ugAcumuladoDesdeAtivacao', 'Soma bruta desde 21/07 (inclui ciclos já fechados): '+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(saldoLiquidoAcum)+' kWh');
 
     // Histórico de ciclos fechados (seção 11) — dado gravado em ciclos_solares, nunca recalculado.
     const historicoEl = $('historicoCiclosSolares');
