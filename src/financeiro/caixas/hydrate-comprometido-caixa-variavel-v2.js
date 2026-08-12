@@ -31,6 +31,17 @@ async function aplicarComprometidoCaixaVariavelV2(){
     return;
   }
 
+  // CORRIGIDO 12/08/2026 (achado do usuário, madrugada de reconciliação): TX000132 (22/07,
+  // R$56,99) e TX000154 (24/07, R$30,97) são o limbo da VIRADA ANTERIOR (24/07→25/07,
+  // REGRA_LIMBO_FATURA_MB_CICLO) — corretamente excluídas do comprometido AO VIVO (data <
+  // ciclo_inicio_em), mas o pré-débito manual que a regra exige na virada nunca foi feito
+  // (VARS.caixaVariavelPendenteProximoCiclo ficou zerado, última atualização 23/07). Resultado:
+  // R$87,96 gastos de verdade não contavam em lugar nenhum. Correção pontual, soma direto aqui -
+  // não usar caixaVariavelPendenteProximoCiclo (esse é pra próxima virada, 22-24/08, ainda zerado
+  // de propósito). Não repetir em ciclos futuros sem novo achado.
+  const LIMBO_VIRADA_25_07_NAO_DEBITADO = 87.96;
+  comprometidoV2 = Math.round((comprometidoV2 + LIMBO_VIRADA_25_07_NAO_DEBITADO) * 100) / 100;
+
   const comprometidoV1 = REG.caixaVariavel.comprometido;
   const diferenca = Math.round((comprometidoV1 - comprometidoV2) * 100) / 100;
   window.WALLACE_COMPROMETIDO_CV_RELATORIO = { comprometidoV1, comprometidoV2, diferenca };
