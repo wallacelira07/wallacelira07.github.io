@@ -308,6 +308,20 @@
   .badge.br{background:rgba(239,91,86,0.14);color:var(--red)}
   .badge.bb{background:rgba(76,142,242,0.14);color:var(--accent)}
 
+  /* NOVO 12/08/2026 (Fase 4, achado da auditoria): botão pill colorido reutilizável — antes só
+     existia 1 ocorrência (compartilhar link solar), construída do zero com estilo inline, usando
+     var(--purple, #9085e9) - --purple nunca foi definida em :root, então sempre caía no fallback
+     hardcoded, que ficou desatualizado assim que a Fase 3 mudou --accent-2 (era exatamente o valor
+     antigo de --accent-2 antes do refino de paleta). Extraído aqui pra próximo botão de ação
+     secundária reaproveitar em vez de repetir o mesmo bloco. */
+  .btn-pill{
+    display:inline-flex;align-items:stretch;background:var(--accent-2);color:#fff;
+    border:none;border-radius:var(--radius-pill);padding:0;font-size:0.72rem;font-weight:700;
+    cursor:pointer;overflow:hidden;line-height:1;flex-shrink:0;
+  }
+  .btn-pill-icon{display:flex;align-items:center;justify-content:center;width:1.9rem;background:rgba(255,255,255,0.2)}
+  .btn-pill-label{padding:0.5rem 0.8rem}
+
   .progress{height:6px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:0.55rem}
   .progress .fill{height:100%;border-radius:var(--radius-sm);transition:width 0.6s ease}
   /* NOVO 07/08/2026 (pedido do usuário: card CC-103/PIX Geral Vanessa ganhou meta de R$300 - "coloque

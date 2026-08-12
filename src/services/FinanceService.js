@@ -156,10 +156,10 @@ export class FinanceService {
    * (orquestração, não cálculo — cada saldo individual já vem do Engine). */
   async getResumoPorCaixa() {
     const caixas = await this.getCaixas();
-    const resumo = [];
-    for (const c of caixas) {
-      resumo.push({ nome: c.nome, saldo: await this.getSaldoCaixa(c.nome) });
-    }
-    return resumo;
+    // CORRIGIDO 12/08/2026 (Fase 4, achado da auditoria): era um await sequencial em loop, 1
+    // round-trip ao Supabase por caixa (10-15 hoje) em vez de paralelo. Promise.all dispara todas
+    // de uma vez - mesmo resultado, tempo total = a mais lenta, não a soma de todas.
+    const saldos = await Promise.all(caixas.map(c => this.getSaldoCaixa(c.nome)));
+    return caixas.map((c, i) => ({ nome: c.nome, saldo: saldos[i] }));
   }
 }
