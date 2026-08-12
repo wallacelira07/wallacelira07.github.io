@@ -1780,7 +1780,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260811-33';
+var __V = '20260812-1';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
@@ -1820,6 +1820,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/caixas/hydrate-onda3-suavizacao.js',
   'src/financeiro/caixas/hydrate-onda3-caixalance.js',
   'src/financeiro/cartoes/hydrate-onda3-lrwlrv.js',
+  'src/financeiro/cartoes/hydrate-onda10-lrclimbo.js',
   'src/financeiro/patrimonio/hydrate-onda4-patrimonio.js',
   'src/financeiro/investimentos/hydrate-onda4-investimentos.js',
   'src/financeiro/operacional/hydrate-onda4-lrei.js',
@@ -1912,26 +1913,11 @@ function __wallaceAuthHeader(){
     'Authorization': 'Bearer ' + (token || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg')
   };
 }
-window.WALLACE_DADOS_REMOTOS = null;
-// OTIMIZAÇÃO DE PERFORMANCE 07/08/2026: as 3 buscas abaixo (Supabase wallace_dados, FinanceEngine.js,
-// Comparator.js) eram 3 `await` em sequência (uma esperando a outra terminar pra só então começar) -
-// nenhuma depende do resultado da outra, então agora rodam em paralelo (Promise.all), junto com os
-// ~55 módulos já disparados acima (window.__promiseModulosBase). app.js só é criado depois que TUDO
-// isso termina - mesma garantia de antes (nada falta quando app.js roda), só a espera deixou de ser
-// serializada. Nenhuma lógica de negócio, autenticação ou chamada ao Supabase foi alterada.
-var __promiseDadosRemotos = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/wallace_dados?select=dados&id=eq.1', {
-  headers: __wallaceAuthHeader(),
-  cache: 'no-store'
-}).then(function(resp){
-  if(resp.ok) return resp.json();
-  return null;
-}).then(function(rows){
-  if(rows && rows[0] && rows[0].dados){
-    window.WALLACE_DADOS_REMOTOS = rows[0].dados;
-  }
-}).catch(function(e){
-  console.warn('Nao consegui buscar dados remotos do Supabase, usando versao publicada localmente:', e);
-});
+// REMOVIDO 12/08/2026 (sepultamento final da V1): até aqui existia uma busca de
+// `wallace_dados` (window.WALLACE_DADOS_REMOTOS) pra app.js aplicar por cima do VARS estático.
+// Nenhum campo daquele blob tem mais consumidor em app.js (auditoria completa desta sessão —
+// ver comentário equivalente em src/app/app.js) — todos migraram pra tabelas V2 dedicadas
+// (transacoes/caixas/indicadores/parametros_gerais/etc). Removida a busca em si, não só o uso.
 
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem ser hospedadas em um banco de legendas, para
 // quando quiser mudar nao precisar de deploy"): busca a tabela `legendas` (id text, texto text) em
@@ -2092,7 +2078,7 @@ var __promisePibHistoricoV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/re
 // do CDI_MENSAL_ATUAL): busca de uma vez em `indicadores`. Fallback silencioso permitido -
 // se falhar, os literais V1 continuam valendo (nunca quebra calculo nenhum).
 window.WALLACE_CREDITOS_EXTERNOS_V2 = null;
-var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga,proLaboreFixo)', {
+var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga,proLaboreFixo,cartaoMBTotal,mbLRWConfirmado,mbLRVConfirmado,cartaoInfiniteTotal)', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2104,6 +2090,26 @@ var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.c
   }
 }).catch(function(e){
   console.warn('Nao consegui buscar creditos externos (V2) do Supabase, usando literais V1:', e);
+});
+
+// NOVO 12/08/2026 (sepultamento final da V1 — revogação da exceção arquitetural, usuário pediu
+// remoção total de Object.assign(VARS, dr)): os últimos ~15 escalares/objetos isolados que só
+// existiam em wallace_dados (data de nascimento, financiamento da casa, consórcio, reserva/BTG/
+// Necton/FGTS/PGBL, composição tarifária Energisa, overrides pontuais) — congelados em
+// `parametros_gerais` (nome/valor jsonb), mesmo padrão de fallback silencioso dos blocos acima.
+window.WALLACE_PARAMETROS_GERAIS_V2 = null;
+var __promiseParametrosGeraisV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/parametros_gerais?select=nome,valor', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_PARAMETROS_GERAIS_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar parametros_gerais (V2) do Supabase, usando literais V1:', e);
 });
 
 // NOVO 08/08/2026 (fecha o maior consumidor de wallace_dados restante: CICLO_SNAPSHOTS, 15
@@ -2132,6 +2138,30 @@ var __promiseCicloSnapshotsV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/
   console.warn('Nao consegui buscar ciclos_financeiros_snapshots (V2) do Supabase, usando CICLO_SNAPSHOTS local/wallace_dados:', e);
 });
 
+// NOVO 11/08/2026 (auditoria de eliminação de dependência de V1, execução): busca as transações
+// reais da tabela `transacoes` (V2) pras 7 caixas pequenas onde o saldo V2 foi CONFIRMADO
+// idêntico ao saldo hoje derivado de wallace_dados (validado via SQL antes de qualquer código
+// escrito - Manutenção, Saúde Família, Aniversário Júlio, Eventos, Seguro Emplacamento,
+// Combustível, Escola de Júlio). Outras 6 caixas pequenas (Lance, Bens Duráveis, Boletos,
+// Churrasco, PIX Vanessa, PGV) NÃO entram aqui - saldo V2 diverge do valor real hoje exibido,
+// migrar às cegas violaria "sem regressão de saldo". Fallback permitido (mesmo padrão de
+// CICLO_SNAPSHOTS acima) - se falhar, os arrays de wallace_dados continuam valendo (já
+// confirmados corretos hoje, não é V1 "errado", é só a origem que ainda não migrou).
+window.WALLACE_CAIXAS_TRANSACOES_V2 = null;
+var __promiseCaixasTransacoesV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/transacoes?select=tx_legado,data,descricao,valor,tipo,caixa_id&caixa_id=in.(ffa94985-902c-4e8a-bd31-0a15a054a403,782d8722-392a-440d-8b71-4fa7476a5b30,ecaebc58-8f49-4d85-8ef4-6282ea765c2f,df4c44af-3e30-4592-b0b5-5b863ca91591,d15e8cbe-4443-4ee4-9631-06d8d49058fe,8dcfa73a-1560-4b37-9aac-48a499548d2c,3a1e6765-79d9-42bf-8bc0-c93f9c2b77e4,3d7f37e3-f52f-4aad-a611-23fa54810b39)&status=eq.confirmado&order=data.asc', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows)){
+    window.WALLACE_CAIXAS_TRANSACOES_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar transacoes (V2) das 7 caixas migradas, usando os arrays de wallace_dados:', e);
+});
+
 // FASE 2D (06/08/2026, experimental, autorizado - escopo unico Caixa Variavel) — CORRIGIDO na mesma
 // rodada (regressao real encontrada e confirmada: carregar FinanceEngine.js como <script src> classico
 // colocava as declaracoes top-level dele no MESMO escopo global do app.js - `const SolarConfig` existe
@@ -2158,7 +2188,6 @@ function carregarModuloIsoladoCommonJS(src, nomeGlobal){
 
 Promise.all([
   window.__promiseModulosBase,
-  __promiseDadosRemotos,
   __promiseLegendasRemotas,
   __promiseCartoesV2,
   __promiseSolarLeiturasV2,
@@ -2168,7 +2197,9 @@ Promise.all([
   __promiseParametrosSolaresV2,
   __promisePibHistoricoV2,
   __promiseCreditosExternosV2,
+  __promiseParametrosGeraisV2,
   __promiseCicloSnapshotsV2,
+  __promiseCaixasTransacoesV2,
   carregarModuloIsoladoCommonJS('src/services/FinanceEngine.js', 'FinanceEngine'),
   carregarModuloIsoladoCommonJS('src/services/Comparator.js', 'Comparator')
 ]).then(function(){

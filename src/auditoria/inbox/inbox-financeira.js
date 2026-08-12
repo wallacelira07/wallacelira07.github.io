@@ -35,7 +35,17 @@ function gerarProximoInboxId(){
 // bruto de origem (ex: {payer, payment_method} do Mercado Pago) — antes capturado só implicitamente e
 // nunca repassado nem exibido; agora guardado no item e mostrado em renderInboxFinanceira() como linha
 // de identificação. Não afeta aprovação/rejeição nem nenhuma lógica existente, só rastreio/exibição.
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, achado: "inboxAdicionarItem() não
+// verifica duplicata internamente - a responsabilidade de checar idExterno já visto era delegada a
+// cada chamador (classificacao-inbox.js, pluggy-reconciliacao.js), frágil pra chamador novo esquecer").
+// Centraliza a checagem aqui: se idExterno já existe em VARS.INBOX_FINANCEIRA, não adiciona de novo -
+// função vira idempotente, seguro chamar 2x com o mesmo item. Só afeta itens COM idExterno - itens sem
+// idExterno nunca tiveram checagem de duplicata (comportamento preservado, não inventado agora).
 function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, categoriaSugerida, livroSugerido, confianca, idExterno, metadata, silencioso}){
+  if(idExterno){
+    const jaExiste = VARS.INBOX_FINANCEIRA.find(it => it.idExterno === idExterno);
+    if(jaExiste) return jaExiste.id;
+  }
   const item = {
     id: gerarProximoInboxId(),
     origem: origem || 'Manual',

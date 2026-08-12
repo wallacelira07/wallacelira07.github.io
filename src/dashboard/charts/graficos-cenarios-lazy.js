@@ -46,6 +46,9 @@ const cenarioLabelPlugin = {
 };
 const cenarioSalarioData = [REG.deficitZero.liquidoSemTrabalhar,REG.operacional.necessidadeTotalBruta-REG.operacional.reembolsoSobraPessoal,REG.cenarioHistorico.media,VARS.cenarioMesesBonsMedia];
 const cenarioSalarioRange = yRange(cenarioSalarioData, 0.18);
+// DEFENSIVO (11/08/2026, achado de auditoria): destrói instância pré-existente antes de recriar (ver
+// nota completa em graficos-painel-principal.js, mesma proteção replicada em todo new Chart() do repo).
+{ const __chartExistente = Chart.getChart($('cCenarioSalario')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('cCenarioSalario'), {
   type:'bar',
   plugins:[cenarioLabelPlugin],
@@ -88,6 +91,7 @@ const metaValuePlugin = {
   }
 };
 
+{ const __chartExistente = Chart.getChart($('g_cPatrim')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.gPatrim = new Chart($('g_cPatrim'), {
   type:'doughnut',
   data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
@@ -97,6 +101,7 @@ window.WALLACE_CHARTS.gPatrim = new Chart($('g_cPatrim'), {
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
+{ const __chartExistente = Chart.getChart($('g_cVisa')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('g_cVisa'), {
   type:'doughnut',
   data:{labels:VISA_DETALHE_LABELS,
@@ -120,6 +125,7 @@ const FATURA_COMBINADA_VALORES = [
   REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas,
   REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa,
 ];
+{ const __chartExistente = Chart.getChart($('g_cVisaBar')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('g_cVisaBar'), {
   type:'bar',
   plugins:[barValuePlugin],
@@ -144,6 +150,7 @@ new Chart($('g_cVisaBar'), {
   // vêm de REG.caixaVariavel, atualizado ao vivo por hydrate-onda1-v2.js e
   // hydrate-comprometido-caixa-variavel-v2.js — mesma classe de bug já corrigida em cVariavel/
   // g_cVariavel, aqui achada num terceiro gráfico que também deriva desses campos.
+  { const __chartExistente = Chart.getChart($('g_cCartoesLiquidoCV')); if (__chartExistente) __chartExistente.destroy(); }
   window.WALLACE_CHARTS.gCartoesLiquidoCV = new Chart($('g_cCartoesLiquidoCV'), {
     type:'bar',
     plugins:[barValuePlugin],
@@ -163,6 +170,7 @@ const totalOpLabels = ['Boletos','Parcelas','Consórcios','Recorrências','Aport
 const totalOpData = Object.values(REG.totalOpDetalhe);
 const totalOpColors = ['#3987e5','#9085e9','#e2554f','#34c98a','#e8a63a','#6f6d66','#e879b0'];
 
+{ const __chartExistente = Chart.getChart($('g_cTotalOp')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.gTotalOpDoughnut = new Chart($('g_cTotalOp'), {
   type:'doughnut',
   data:{labels:totalOpLabels,datasets:[{data:totalOpData,backgroundColor:totalOpColors,borderColor:'#16181b',borderWidth:3}]},
@@ -170,6 +178,7 @@ window.WALLACE_CHARTS.gTotalOpDoughnut = new Chart($('g_cTotalOp'), {
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
+{ const __chartExistente = Chart.getChart($('g_cTotalOpBar')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.gTotalOpBar = new Chart($('g_cTotalOpBar'), {
   type:'bar',
   plugins:[barValuePlugin],
@@ -180,6 +189,7 @@ window.WALLACE_CHARTS.gTotalOpBar = new Chart($('g_cTotalOpBar'), {
       y:{grid:{display:false},ticks:{font:{size:10}}}}}
 });
 
+{ const __chartExistente = Chart.getChart($('g_cVariavel')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.gCaixaVariavel = new Chart($('g_cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
@@ -217,6 +227,7 @@ const metasDetalhe = [
   'Carta '+fmt(VARS.consorcioAutoCartaCredito)+', saldo devedor '+fmt(REG.balanco.passivos.consorcioAutoContemplado)
 ];
 
+{ const __chartExistente = Chart.getChart($('g_cMetas')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('g_cMetas'), {
   type:'bar',
   plugins:[metaValuePlugin],
@@ -237,6 +248,7 @@ const gTotalOpRange = yRange(gTotalOpSeries);
 // de forma assíncrona, depois deste gráfico já ter sido desenhado uma vez (achado real: card do
 // Resumo Executivo mudava, gráfico ficava com o valor congelado do boot).
 window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+{ const __chartExistente = Chart.getChart($('g_cEvol')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.totalOperacional = new Chart($('g_cEvol'), {
   type:'line',
   plugins:[valueLeaderPlugin],
@@ -255,6 +267,7 @@ window.WALLACE_CHARTS.totalOperacional = new Chart($('g_cEvol'), {
 
 const gNecLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no CICLO financeiro (25-24), nao no mes calendario - evita o valor "pular" quando mes vira mas ciclo nao, ou vice-versa
 const gNecLiqRange = yRange(gNecLiqSeries);
+{ const __chartExistente = Chart.getChart($('g_cNecessidadeLiquida')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.necessidadeLiquida = new Chart($('g_cNecessidadeLiquida'), {
   type:'line',
   plugins:[valueLeaderPlugin],
@@ -426,7 +439,7 @@ const caixasValuePlugin = {
   }
 };
 
-observeAndRenderChart($('g_cCaixas'), () => window.WALLACE_CHARTS.gCaixas = new Chart($('g_cCaixas'), {
+observeAndRenderChart($('g_cCaixas'), () => { const __chartExistente = Chart.getChart($('g_cCaixas')); if (__chartExistente) __chartExistente.destroy(); return window.WALLACE_CHARTS.gCaixas = new Chart($('g_cCaixas'), {
   type:'bar',
   plugins:[caixasValuePlugin],
   data:{labels:caixasLabels,
@@ -443,7 +456,7 @@ observeAndRenderChart($('g_cCaixas'), () => window.WALLACE_CHARTS.gCaixas = new 
     }}},
     scales:{x:{grid:{color:grid},ticks:{callback:v=>'R$'+Math.round(v/100)/10+'k',font:{size:10}}},
       y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
-}));
+}); });
 
 // 08 — Alivio de pressao: soma dos aportes das caixas incrementais (Aniversario Julio, Escola Julio,
 // Saude Familia, Seguro/Emplacamento) mes a mes, ate cada uma zerar/trocar seu aporte ao bater meta/prazo.
@@ -496,7 +509,7 @@ const alivioStepPlugin = {
   }
 };
 
-observeAndRenderChart($('g_cAlivio'), () => new Chart($('g_cAlivio'), {
+observeAndRenderChart($('g_cAlivio'), () => { const __chartExistente = Chart.getChart($('g_cAlivio')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('g_cAlivio'), {
   type:'line',
   plugins:[alivioStepPlugin],
   data:{labels:alivioLabels,
@@ -508,7 +521,7 @@ observeAndRenderChart($('g_cAlivio'), () => new Chart($('g_cAlivio'), {
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)+' em aportes incrementais ativos'}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
       y:{grid:{color:grid},min:0,max:yRange(alivioData,0.15).max,ticks:{callback:v=>'R$'+v,font:{size:10}}}}}
-}));
+}); });
 }
 
 // ===== Operação Superávit Normal (Cenarios, secao 05) - mesmo piso do Deficit Zero, renda media 12m =====
@@ -588,6 +601,7 @@ function _lazyRenderCenariosSuperavit(){
   };
 
   window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+  { const __chartExistente = Chart.getChart($('cSuperavitNormal')); if (__chartExistente) __chartExistente.destroy(); }
   const chartSuperavit = new Chart($('cSuperavitNormal'), {
     type:'bar',
     plugins:[snDataLabelPlugin],
@@ -684,6 +698,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     }
   };
 
+  { const __chartExistente = Chart.getChart($('cPisoSemTrabalhar')); if (__chartExistente) __chartExistente.destroy(); }
   new Chart($('cPisoSemTrabalhar'), {
     type:'bar',
     plugins:[psDataLabelPlugin],
@@ -726,6 +741,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     }
   }
 
+  { const __chartExistente = Chart.getChart($('cDeficitZero')); if (__chartExistente) __chartExistente.destroy(); }
   new Chart($('cDeficitZero'), {
     type:'bar',
     plugins:[dzDataLabelPlugin],
@@ -929,7 +945,7 @@ async function _lazyRenderSolarSecao(){
     }
   };
 
-  observeAndRenderChart($('cEnergiaSolar'), () => new Chart($('cEnergiaSolar'), {
+  observeAndRenderChart($('cEnergiaSolar'), () => { const __chartExistente = Chart.getChart($('cEnergiaSolar')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cEnergiaSolar'), {
     type:'bar',
     plugins:[energiaBarLabelPlugin],
     data:{labels:mesesParesEnergia,
@@ -956,7 +972,7 @@ async function _lazyRenderSolarSecao(){
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.6,barPercentage:0.75},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
-  }));
+  }); });
   // CORRIGIDO 03/08/2026: era anoAnterior[0]/esteAno[0] (sempre Jul, nunca avançava) - agora usa o
   // indice 0 do array JA ALINHADO, que corresponde ao mes atual de verdade (mesesParesEnergia[0]).
   const economiaAtual = anoAnteriorAlinhado[0] - esteAnoAlinhado[0];
@@ -1561,7 +1577,7 @@ async function _lazyRenderSolarSecao(){
         ctx.restore();
       }
     };
-    observeAndRenderChart($('cUnidadeGeradora'), () => new Chart($('cUnidadeGeradora'), {
+    observeAndRenderChart($('cUnidadeGeradora'), () => { const __chartExistente = Chart.getChart($('cUnidadeGeradora')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cUnidadeGeradora'), {
       type:'bar',
       plugins:[unidadeGeradoraBarLabelPlugin],
       data:{labels:mesesParesSolar,
@@ -1580,7 +1596,7 @@ async function _lazyRenderSolarSecao(){
         }}},
         scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
-    }));
+    }); });
     // NOVO 03/08/2026: aviso automatico dos meses com "Consumo direto" CONGELADO (dessincronia entre
     // a automacao SAJ e a leitura manual do 103 - ver logica acima). Usa os MESMOS rotulos ja
     // deslocados (mesesParesSolar) pra apontar o mes certo, mesmo apos o grafico "andar pra frente".
@@ -1661,7 +1677,7 @@ async function _lazyRenderSolarSecao(){
         ctx.restore();
       }
     };
-    observeAndRenderChart($('cGeracaoPorDia'), () => new Chart($('cGeracaoPorDia'), {
+    observeAndRenderChart($('cGeracaoPorDia'), () => { const __chartExistente = Chart.getChart($('cGeracaoPorDia')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cGeracaoPorDia'), {
       type:'bar',
       plugins:[linhaConsumoMedioPlugin],
       data:{labels:labelsPorDia, datasets:[
@@ -1674,7 +1690,7 @@ async function _lazyRenderSolarSecao(){
         }}},
         scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
-    }));
+    }); });
     const legGeracaoPorDiaEl = $('legGeracaoPorDia');
     if(legGeracaoPorDiaEl){
       const qtdReal = Object.keys(diariosPorData).length;
@@ -1715,7 +1731,7 @@ async function _lazyRenderSolarSecao(){
   // que a janela de 12 meses começar a rolar.
   const idxCicloAbertoAlinhado = idxCicloAberto != null ? idxCicloAberto - OFFSET_SOLAR : null;
   const corBarraCredito = (corFechado) => (ctx) => ctx.dataIndex === idxCicloAbertoAlinhado ? corFechado + '66' : corFechado; // '66' = ~40% opacidade em hex, só na barra do ciclo aberto
-  observeAndRenderChart($('cSolarRateio'), () => new Chart($('cSolarRateio'), {
+  observeAndRenderChart($('cSolarRateio'), () => { const __chartExistente = Chart.getChart($('cSolarRateio')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
     data:{labels:mesesParesSolar,
@@ -1738,7 +1754,7 @@ async function _lazyRenderSolarSecao(){
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
         y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
-  }));
+  }); });
   const legSolarEl = $('legSolarRateio');
   if(legSolarEl && ultimaSolar){
     const mesesComLeitura = temLeituraNoMes.filter(Boolean).length;

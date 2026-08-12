@@ -215,7 +215,12 @@ const WallaceFinanceService = {
     const dadoCaixa = await respCaixa.json();
     const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
     const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false${filtroData}`, {
+    // CORRIGIDO 12/08/2026 (achado do usuário: assinaturas do Mastercard Black recém-vinculadas via
+    // Pluggy - Netflix/OpenAI/Anthropic/Amazon Prime/etc - contavam aqui E no orçamento de
+    // Assinaturas (cronograma_assinaturas/mbLRSConfirmado, componente separado de Necessidade Total)
+    // ao mesmo tempo, mesma classe de bug já documentada do caso TX000228/Churrasco. Marcadas
+    // ja_orcado_assinaturas=true (ver migração), excluídas daqui pra não contar 2x.
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
       headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
@@ -267,6 +272,28 @@ const WallaceFinanceService = {
       headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_compromisso_cartao_por_pessoa`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 12/08/2026 (fechamento do domínio Cartões — LRC_LIMBO): igual em espírito a
+  // getTransacoesCartaoVariavelDetalhe() (Onda 3 LRW/LRV), mas pro outro "livro item-a-item" que
+  // ainda vivia só em VARS.LRC_LIMBO_TRANSACOES. Achado por auditoria de evidência real: as 5
+  // transações do array V1 já existem 1:1 em `transacoes` (mesmo tx_legado), todas com o mesmo
+  // padrão mecânico — caixa_id = Provisionado Wärtsilä (onde o reembolso corporativo pousa) +
+  // cartao_id preenchido (é sempre uma compra de cartão, nunca PIX/dinheiro). Filtro puro, sem
+  // heurística nova. LRCV (a outra metade do par) ficou de fora de propósito: os 2 itens dela são
+  // pagamentos PIX avulsos sem nenhuma marca própria em `transacoes` que os distinga de aportes/
+  // rendimentos que também caem em Caixa Variável + cartao_id nulo — reconstruir isso exigiria
+  // inventar uma regra sem evidência, não fazer.
+  async getTransacoesCorporativoCartaoDetalhe(){
+    const chave = 'transacoes_corporativo_cartao_detalhe';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const caixaId = '3d7f37e3-f52f-4aad-a611-23fa54810b39'; // Provisionado Wärtsilä (mesmo id fixo já usado em getExtratoCaixaMastercardInfinite/CAIXA_VARIAVEL_ID_V2)
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe LRC_LIMBO (cartão corporativo)`);
     const dado = await resp.json();
     this._cache.set(chave, dado);
     return dado;
@@ -696,14 +723,29 @@ const WallaceBus = (function(){
 })();
 
 // V300 (Etapa 12 - Observabilidade): infraestrutura aditiva, mesmo critério de sempre - só o que é real
-// e testável sem navegador (nao existe backend de logging/telemetria neste sistema estático, entao nao
-// foi inventado envio pra servico externo). 2 partes:
+// e testável sem navegador. 2 partes:
 // 1) Captura de erros nao tratados (window.onerror + unhandledrejection) - antes disso, um erro de JS em
 //    producao nao deixava nenhum registro central, so sumia no console de quem estivesse olhando na hora.
 //    Nao suprime nem re-lanca o erro, so registra e emite via WallaceBus (erroCapturado) pra quem quiser ouvir.
 // 2) Metrica de tempo de carregamento (window 'load'), unico numero real e comparavel sem infra externa.
 // Acesso manual: window.WallaceObs.listarErros() no console do navegador. Nenhuma UI nova criada -
 // mesma decisao de escopo da Etapa 10 (nao inventar card/badge sem criterio definido pelo usuario).
+// ATUALIZADO 11/08/2026 (fecha o ponto cego "erro real e invisivel pra sempre" da auditoria de
+// prontidao operacional): alem de guardar em memoria, cada erro agora tambem e persistido via RPC
+// `registrar_erro_cliente` (SECURITY DEFINER, publica de proposito - erro pode acontecer ANTES do
+// login). Best-effort puro, igual ao heartbeat das automacoes: falha no envio NUNCA derruba nem afeta
+// o app, so cai num catch silencioso. Validado com chamada real (curl, anon key) nesta sessao antes de
+// conectar aqui - a RPC grava certo. Nao inventa retry/fila - se a rede cair no momento do erro, o
+// registro fica só na memória local mesmo, aceitável pro volume de uso deste sistema.
+function __wallaceRegistrarErroRemoto(mensagem, stack, contexto){
+  try {
+    fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/registrar_erro_cliente', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, __wallaceAuthHeader()),
+      body: JSON.stringify({p_mensagem: mensagem, p_stack: stack || null, p_contexto: contexto || null})
+    }).catch(function(){ /* best-effort - silencioso de proposito, mesmo criterio do heartbeat */ });
+  } catch(e) { /* nunca deixar a propria observabilidade quebrar o app */ }
+}
 const WallaceObs = (function(){
   const erros = [];
   window.addEventListener('error', function(e){
@@ -711,6 +753,7 @@ const WallaceObs = (function(){
     erros.push(registro);
     console.error('[Wallace] Erro capturado:', registro);
     WallaceBus.emit('erroCapturado', registro);
+    __wallaceRegistrarErroRemoto(e.message, e.filename + ':' + e.lineno, {tipo:'erro'});
   });
   window.addEventListener('unhandledrejection', function(e){
     const motivo = e.reason && e.reason.message ? e.reason.message : String(e.reason);
@@ -718,6 +761,7 @@ const WallaceObs = (function(){
     erros.push(registro);
     console.error('[Wallace] Promise rejeitada sem tratamento:', registro);
     WallaceBus.emit('erroCapturado', registro);
+    __wallaceRegistrarErroRemoto(motivo, e.reason && e.reason.stack, {tipo:'promise'});
   });
   window.addEventListener('load', function(){
     const tempoMs = Math.round(performance.now());
@@ -867,83 +911,29 @@ Object.assign(VARS, criarVarsOperacional());
 Object.freeze(VARS.CRONOGRAMA_BOLETOS_FIXOS);
 Object.freeze(VARS.ROC_STATUS_LIMITES);
 
-// V169: aplica os dados buscados do Supabase (window.WALLACE_DADOS_REMOTOS, populado pelo script no
-// HTML antes deste arquivo carregar) por cima do VARS estatico - assim as compras/saldos mais recentes
-// que o Claude atualizar no banco aparecem aqui, sem precisar de novo deploy do site inteiro.
-// Se nao houver dados remotos (offline, banco fora do ar), o VARS estatico permanece como esta acima -
-// o site nunca quebra, so mostra os dados de quando foi publicado por ultimo.
-if(typeof window !== 'undefined' && window.WALLACE_DADOS_REMOTOS){
-  const dr = window.WALLACE_DADOS_REMOTOS;
-  // CORRIGIDO 08/08/2026 (mesma classe de bug ja corrigida pra LEGENDAS, ver comentario mais abaixo):
-  // wallace_dados.CICLO_SNAPSHOTS (blob antigo, congelado desde a ultima vez que foi escrito a mao)
-  // seria aplicado por cima da V2 (ciclos_financeiros_snapshots, ja resolvida em VARS.CICLO_SNAPSHOTS
-  // por criarVarsCicloSnapshots() acima) pelo Object.assign abaixo, silenciosamente. Guarda a
-  // referencia ANTES do merge e restaura DEPOIS, so quando a V2 realmente respondeu.
-  const cicloSnapshotsV2Ok = Array.isArray(window.WALLACE_CICLO_SNAPSHOTS_V2) && window.WALLACE_CICLO_SNAPSHOTS_V2.length > 0;
-  const cicloSnapshotsAntesDoMerge = VARS.CICLO_SNAPSHOTS;
-  Object.assign(VARS, dr); // campos de 1o nivel (LRW_TRANSACOES, cartaoMBTotal, etc)
-  if(cicloSnapshotsV2Ok) VARS.CICLO_SNAPSHOTS = cicloSnapshotsAntesDoMerge; // V2 vence, nunca cai de volta pro blob antigo
-  // CORRIGIDO 05/08/2026 (parte 95, usuario apontou "o valor do Mercado Pago nao aparece"): mercadoPagoFatura
-  // ficava travado no valor MANUAL do ultimo pagamento (27/07, gravado como 0 no Supabase) porque nada
-  // atualizava esse campo depois disso. A funcao reconciliarPluggy() ja calculava o valor real da fatura
-  // aberta via Pluggy (resultado.mercadoPagoSaldoAbertoPluggy), mas (1) so roda depois que REG/hydrate ja
-  // tinham renderizado a tela inteira (onDomPronto só dispara apos DOMContentLoaded, e REG nasce no parse
-  // do script, antes disso) e (2) o resultado nunca era escrito de volta em VARS - so ficava numa variavel
-  // local, descartada a cada carga. Corrigido fazendo a MESMA extracao aqui, sincrona, ANTES do REG nascer
-  // (window.WALLACE_DADOS_REMOTOS ja contem VARS.PLUGGY_CONTAS neste ponto, injetado no HTML antes deste
-  // script). Mesmo criterio ja usado em reconciliarPluggy (parte 77): mostra o saldo/fatura ATUAL da
-  // Pluggy sempre, independente do vencimento - nao esconde do usuario so pra evitar falso-positivo de
-  // divergencia (essa e uma preocupacao separada, tratada em reconciliarPluggy). Se a Pluggy estiver fora
-  // do ar ou sem esse cartao mapeado nesta carga, mantem o valor ja existente em VARS (fallback), o site
-  // nunca quebra.
-  if(VARS.PLUGGY_CONTAS && Array.isArray(VARS.PLUGGY_CONTAS.conexoes)){
-    let faturaMPPluggy = null, vencMPPluggy = null;
-    VARS.PLUGGY_CONTAS.conexoes.forEach(conexao=>{
-      (conexao.contas||[]).forEach(conta=>{
-        if(conta.tipo === 'CREDIT' && /mercado\s*pago/i.test(conta.nome||'') && conta.fatura_mes_atual){
-          faturaMPPluggy = conta.fatura_mes_atual.valor_total;
-          vencMPPluggy = conta.fatura_vencimento_atual || conta.fatura_mes_atual.vencimento || null;
-        }
-      });
-    });
-    if(faturaMPPluggy != null){
-      VARS.mercadoPagoFatura = faturaMPPluggy;
-      VARS.mercadoPagoVencimentoPluggy = vencMPPluggy;
-    }
-  }
-  // caixaVariavelComprometido/SaldoReal vivem dentro de CICLO_SNAPSHOTS[cicloAtual], nao no topo do
-  // VARS - precisam ser aplicados no snapshot do ciclo atual especificamente.
-  // BUG CORRIGIDO 26/07/2026 (V181): so caixaVariavelComprometido tinha esse tratamento - o Saldo Real
-  // (ex: TX000162, PIX de R$100 saindo de verdade da Caixa Variavel) ficava so em VARS.caixaVariavelSaldoReal
-  // (nivel superior), nunca chegava no snapshot - aplicarCicloAoVARS() sempre lia o valor estatico antigo
-  // do proprio snapshot, ignorando a atualizacao. Usuario reportou "a Caixa Variavel esta errada" (voltou
-  // a mostrar R$2.000,00 em vez de R$1.900,00).
-  if(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
-    const snapVivo = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
-    if(dr.caixaVariavelSaldoReal !== undefined) snapVivo.caixaVariavelSaldoReal = dr.caixaVariavelSaldoReal;
-    if(dr.caixaVariavelComprometido !== undefined) snapVivo.caixaVariavelComprometido = dr.caixaVariavelComprometido;
-    snapVivo.caixaVariavelDisponivel = Math.round((snapVivo.caixaVariavelSaldoReal - snapVivo.caixaVariavelComprometido)*100)/100;
-    // NOVO 31/07/2026 (V221, pedido explicito do usuario - "nao pode ter valor manual que precise subir
-    // arquivo", credito Netlify curto): GENERALIZADO. Antes so caixaVariavelComprometido/SaldoReal vinham
-    // do Supabase sem redeploy - qualquer outro campo dentro do snapshot do ciclo atual (reembolsoAReceber,
-    // reembolsoRecebido, cascata, tetoOficial/Efetivo, toleranciaTempValor/Motivo, modoOperacional, etc)
-    // exigia editar o app.js e subir zip novo (ex: caso real de hoje, reembolsoAReceber 659,19->7.455,56 e
-    // cascata.faturaWartsila 0->5.768,06 so apareceram apos redeploy manual). A partir de agora, escrever em
-    // dr.cicloAtualOverrides (objeto livre, qualquer chave do snapshot) resolve isso pra sempre - nenhuma
-    // chave nova precisa ser prevista aqui, e cascata e mesclada campo a campo (nao sobrescrita inteira) pra
-    // nao perder pernas nao informadas nesta atualizacao.
-    if(dr.cicloAtualOverrides){
-      const ov = dr.cicloAtualOverrides;
-      Object.keys(ov).forEach(k=>{
-        if(k === 'cascata' && ov.cascata && typeof ov.cascata === 'object'){
-          snapVivo.cascata = Object.assign({}, snapVivo.cascata, ov.cascata);
-        } else {
-          snapVivo[k] = ov[k];
-        }
-      });
-    }
-  }
-}
+// REMOVIDO 12/08/2026 (sepultamento final da V1 — usuário revogou a exceção arquitetural que mantinha
+// este merge vivo e pediu remoção total): até aqui existia `Object.assign(VARS, dr)`, aplicando
+// window.WALLACE_DADOS_REMOTOS (wallace_dados.dados) por cima do VARS estático. Cada campo que esse
+// merge alimentava já tem fonte V2 própria hoje: os ~90 campos de wallace_dados foram auditados nesta
+// sessão — caixas/transações via `transacoes`/`caixas` (Ondas 1-10), headline totals de cartão via
+// `indicadores` (cartaoMBTotal/cartaoInfiniteTotal/mbLRWConfirmado/mbLRVConfirmado, bloco logo abaixo),
+// e os últimos ~15 escalares/objetos isolados (data de nascimento, financiamento da casa, consórcio,
+// reserva/BTG/Necton/FGTS/PGBL, composição tarifária Energisa, overrides pontuais) via
+// `parametros_gerais` (bloco logo abaixo). A busca de `window.WALLACE_DADOS_REMOTOS` também foi
+// removida do HTML de bootstrap (Sistema_Wallace_Lira_Completo.html) — não sobra fetch morto.
+// `__literalAntesDoMerge` (usado como fallback dos blocos de créditos externos/tarifa solar mais abaixo)
+// agora captura direto
+// do literal estático de vars-operacional.js/vars-energia-solar.js, sem nunca ter passado por
+// wallace_dados — mesmo comportamento de antes quando a V2 respondia certo, sem regressão.
+const __literalAntesDoMerge = {
+  creditoUberBalance: VARS.creditoUberBalance, creditoShellBox: VARS.creditoShellBox,
+  creditoKmvIpiranga: VARS.creditoKmvIpiranga, proLaboreFixo: VARS.proLaboreFixo,
+  consumoMinimoComSolarKwh: VARS.consumoMinimoComSolarKwh, faturaEnergisaKwh: VARS.faturaEnergisaKwh,
+  faturaEnergisaValor: VARS.faturaEnergisaValor, taxaMinimaEnergisa: VARS.taxaMinimaEnergisa,
+};
+// visaLRVHistorico confirmado 0 tanto no literal de código quanto no último valor real de wallace_dados
+// (auditoria 11/08/2026) — mantido como constante, não depende de nenhuma fonte externa.
+VARS.visaLRVHistorico = 0;
 
 // NOVO 08/08/2026 (Solar entra na V2 — desligamento da V1): mesmo padrão do bloco LEGENDAS abaixo —
 // window.WALLACE_SOLAR_LEITURAS_V2 (buscado no bootstrap do HTML, tabela energia_solar_leituras)
@@ -999,12 +989,11 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_GERACAO_D
   VARS.SOLAR_GERACAO_DIARIA = [];
 }
 
-// NOVO 08/08/2026 (fecha consumidor de wallace_dados: ACOES_COTACOES/ACOES_COTACOES_ATUALIZADO_EM,
-// mesmo padrao de cartoes/Wave B1 - dominio informativo, nao critico, fallback silencioso permitido):
-// window.WALLACE_COTACOES_ACOES_V2 (bootstrap do HTML, tabela cotacoes_acoes) vence o que veio de
-// wallace_dados via Object.assign acima, se a V2 respondeu com dado. Se falhar/offline, VARS.
-// ACOES_COTACOES/ACOES_COTACOES_ATUALIZADO_EM continuam com o valor que ja veio de wallace_dados -
-// hydrate-roc.js nao muda, so troca a origem do dado.
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
+// domínio ACOES_COTACOES agora V2-exclusivo, mesmo padrão já usado pra Solar (sem fallback
+// silencioso pro literal antigo/wallace_dados). window.WALLACE_COTACOES_ACOES_V2 (bootstrap do HTML,
+// tabela cotacoes_acoes) é a única fonte - se não respondeu, avisa e zera em vez de servir dado
+// potencialmente desatualizado silenciosamente.
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_COTACOES_ACOES_V2) && window.WALLACE_COTACOES_ACOES_V2.length){
   const cotacoesV2 = {};
   let atualizadoEmMaisRecente = null;
@@ -1016,56 +1005,150 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_COTACOES_ACOES_
   });
   VARS.ACOES_COTACOES = cotacoesV2;
   VARS.ACOES_COTACOES_ATUALIZADO_EM = atualizadoEmMaisRecente;
+} else {
+  console.error('Cotações V2: window.WALLACE_COTACOES_ACOES_V2 indisponível — domínio é V2-exclusivo, sem fallback silencioso pro ACOES_COTACOES do wallace_dados.');
+  VARS.ACOES_COTACOES = {};
+  VARS.ACOES_COTACOES_ATUALIZADO_EM = null;
 }
 
-// NOVO 08/08/2026 (fecha consumidor de wallace_dados: HISTORICO_ERP_TODOS_CICLOS, mesmo padrao de
-// cartoes/cotacoes_acoes - dominio auxiliar de reconciliacao/busca, nao critico, fallback
-// silencioso permitido): window.WALLACE_HISTORICO_ERP_V2 (bootstrap do HTML, view
-// vw_historico_erp_completo) vence o literal V1 se a V2 respondeu com dado. Mesmo shape (tx/data/
-// nome/valor) - campo `livro` nao existe mais (confirmado morto, nenhum consumidor le). Se falhar/
-// offline, VARS.HISTORICO_ERP_TODOS_CICLOS continua com o literal V1 (menos completo, nunca quebra
-// reconciliacao Pluggy/Inbox nem a Busca Global).
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
+// remove o fallback pra wallace_dados especificamente - mas HISTORICO_ERP_TODOS_CICLOS TEM um
+// literal de código próprio (snapshot estático em vars-operacional.js, não é dado de wallace_dados),
+// já aplicado por criarVarsOperacional() antes deste ponto - continua valendo se a V2 falhar (não é
+// V1, é o mesmo tipo de fallback já usado pras 4 constantes de tarifa solar/créditos externos, que
+// não são wallace_dados e por isso não foram tocados aqui).
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_HISTORICO_ERP_V2) && window.WALLACE_HISTORICO_ERP_V2.length){
   VARS.HISTORICO_ERP_TODOS_CICLOS = window.WALLACE_HISTORICO_ERP_V2.map(r => ({
     tx: r.tx, data: r.data, nome: r.nome, valor: Number(r.valor),
   }));
+} else {
+  console.error('Histórico ERP V2: window.WALLACE_HISTORICO_ERP_V2 indisponível — usando o literal estático de vars-operacional.js (não é wallace_dados/V1, é o snapshot de código já aplicado).');
 }
 
-// NOVO 11/08/2026 (fecha consumidor de wallace_dados: 4 constantes de tarifa solar - faturaEnergisaValor/
-// Kwh, consumoMinimoComSolarKwh, taxaMinimaEnergisa. Mesmo padrao de cotacoes_acoes/historico_erp acima):
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
 // window.WALLACE_PARAMETROS_SOLARES_V2 (bootstrap do HTML, tabela parametros_solares) vence o literal
-// V1 se a V2 respondeu com dado. Fallback silencioso - se falhar, os literais de vars-energia-solar.js
-// continuam valendo, nunca quebra o calculo solar.
+// de código se respondeu com dado. Se falhar, restaura explicitamente o literal de
+// vars-energia-solar.js capturado em __literalAntesDoMerge (ANTES de qualquer valor de wallace_dados
+// ter tido chance de contaminar via Object.assign(VARS, dr) acima) - nunca serve o resíduo de V1.
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PARAMETROS_SOLARES_V2) && window.WALLACE_PARAMETROS_SOLARES_V2.length){
   window.WALLACE_PARAMETROS_SOLARES_V2.forEach(r => { VARS[r.chave] = Number(r.valor); });
+} else if(__literalAntesDoMerge) {
+  console.error('Parâmetros solares V2: window.WALLACE_PARAMETROS_SOLARES_V2 indisponível — usando o literal de código de vars-energia-solar.js (não wallace_dados/V1).');
+  VARS.consumoMinimoComSolarKwh = __literalAntesDoMerge.consumoMinimoComSolarKwh;
+  VARS.faturaEnergisaKwh = __literalAntesDoMerge.faturaEnergisaKwh;
+  VARS.faturaEnergisaValor = __literalAntesDoMerge.faturaEnergisaValor;
+  VARS.taxaMinimaEnergisa = __literalAntesDoMerge.taxaMinimaEnergisa;
 }
 
-// NOVO 11/08/2026 (fecha consumidor de wallace_dados: PIB_WALLACE_HISTORICO, mesmo padrao acima):
-// window.WALLACE_PIB_HISTORICO_V2 (bootstrap do HTML, tabela pib_wallace_historico) vence o literal
-// V1/wallace_dados se a V2 respondeu com dado. Fallback silencioso.
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
+// PIB_WALLACE_HISTORICO agora V2-exclusivo - não tem literal de código próprio (só existia via
+// wallace_dados), e os 2 consumidores conhecidos (promocoes-financeengine.js,
+// recalcular-indicadores.js) já fazem `VARS.PIB_WALLACE_HISTORICO || {}` defensivamente, então um
+// objeto vazio no fallback não quebra nada.
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PIB_HISTORICO_V2) && window.WALLACE_PIB_HISTORICO_V2.length){
   const pibV2 = {};
   window.WALLACE_PIB_HISTORICO_V2.forEach(r => { pibV2[r.mes] = r.snapshot; });
   VARS.PIB_WALLACE_HISTORICO = pibV2;
+} else {
+  console.error('PIB Wallace V2: window.WALLACE_PIB_HISTORICO_V2 indisponível — domínio é V2-exclusivo, sem fallback silencioso pro PIB_WALLACE_HISTORICO do wallace_dados.');
+  VARS.PIB_WALLACE_HISTORICO = {};
 }
 
-// NOVO 08/08/2026 (fecha consumidores de wallace_dados: creditoUberBalance/creditoShellBox/
-// creditoKmvIpiranga/proLaboreFixo, mesmo padrao de cartoes/cotacoes_acoes - fallback silencioso
-// permitido): window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, indicadores) vence o literal
-// V1 se a V2 respondeu com dado. CRITICO: proLaboreFixo precisa ser sobrescrito AQUI, bem no topo
+// ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
+// window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, tabela indicadores) vence o literal de
+// código se respondeu com dado. CRITICO: proLaboreFixo precisa ser sobrescrito AQUI, bem no topo
 // do arquivo - reg-operacional.js (criarRegOperacional(), Object.assign(REG,...) mais abaixo) copia
 // VARS.proLaboreFixo pra dentro de REG.operacional.proLaboreFixo UMA VEZ; se essa sobrescrita
-// rodasse depois desse Object.assign, REG ficaria com o valor V1 antigo enquanto VARS.proLaboreFixo
-// (lido direto em hydrate-caixas.js/hydrate-qualidade.js) mostraria o valor V2 novo - dessincronia
-// real entre dois lugares que deveriam sempre bater. Todo o fetch V2 ja resolveu antes do app.js
-// carregar (Promise.all no HTML), entao esta leitura e sempre sincrona e segura.
+// rodasse depois desse Object.assign, REG ficaria dessincronizado de VARS.proLaboreFixo. Se a V2
+// não respondeu, restaura o literal de código capturado em __literalAntesDoMerge (não o resíduo de
+// wallace_dados) - mesmo padrão do bloco de tarifa solar logo acima.
+// ATUALIZADO 11/08/2026 (execução da auditoria de eliminação de V1 - bloqueadores Categoria A):
+// cartaoMBTotal/mbLRWConfirmado/mbLRVConfirmado agora também vêm de `indicadores` (mesma tabela,
+// mesmo fetch) - saldo oficial aprovado pelo usuário contra a fatura real do banco (Mastercard
+// Black, print 11/08/2026), gravado direto na V2. Antes só existiam via wallace_dados (bloqueador
+// confirmado na auditoria) - agora `indicadores` é a fonte, sem residir mais em wallace_dados.
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CREDITOS_EXTERNOS_V2) && window.WALLACE_CREDITOS_EXTERNOS_V2.length){
   window.WALLACE_CREDITOS_EXTERNOS_V2.forEach(r => {
     if(r.nome === 'creditoUberBalance') VARS.creditoUberBalance = Number(r.valor);
     else if(r.nome === 'creditoShellBox') VARS.creditoShellBox = Number(r.valor);
     else if(r.nome === 'creditoKmvIpiranga') VARS.creditoKmvIpiranga = Number(r.valor);
     else if(r.nome === 'proLaboreFixo') VARS.proLaboreFixo = Number(r.valor);
+    else if(r.nome === 'cartaoMBTotal') VARS.cartaoMBTotal = Number(r.valor);
+    else if(r.nome === 'mbLRWConfirmado') VARS.mbLRWConfirmado = Number(r.valor);
+    else if(r.nome === 'mbLRVConfirmado') VARS.mbLRVConfirmado = Number(r.valor);
+    // NOVO 12/08/2026 (revogação da exceção arquitetural formal de 08/08 — usuário decidiu eliminar
+    // 100% da dependência de V1, mesmo pra headline totals de cartão): cartaoInfiniteTotal congelado
+    // a partir da fatura real do banco (Visa Infinite, vencimento 28/07/2026, "Total da fatura"
+    // R$9.073,92, PDF conferido linha a linha) e gravado em `indicadores`, mesmo padrão já usado pro
+    // cartaoMBTotal acima. Residual de ~R$3.380 entre este total e a soma item-a-item da V2
+    // (`transacoes` com cartao_id Visa, R$5.693,87 confirmado) é limitação objetiva documentada: a
+    // Pluggy só sincroniza ~6 semanas de histórico, e o restante das compras parceladas da fatura só
+    // existe num PDF com data corrompida por OCR (parcela mesclada com data, sem separador) — sem
+    // outra fonte legível disponível. O headline (valor que o banco cobra) é real e conferido; o que
+    // falta é o detalhamento item-a-item, não o valor agregado.
+    else if(r.nome === 'cartaoInfiniteTotal') VARS.cartaoInfiniteTotal = Number(r.valor);
   });
+} else if(__literalAntesDoMerge) {
+  console.error('Créditos externos V2: window.WALLACE_CREDITOS_EXTERNOS_V2 indisponível — usando o literal de código de vars-operacional.js (não wallace_dados/V1).');
+  VARS.creditoUberBalance = __literalAntesDoMerge.creditoUberBalance;
+  VARS.creditoShellBox = __literalAntesDoMerge.creditoShellBox;
+  VARS.creditoKmvIpiranga = __literalAntesDoMerge.creditoKmvIpiranga;
+  VARS.proLaboreFixo = __literalAntesDoMerge.proLaboreFixo;
+}
+
+// NOVO 12/08/2026 (sepultamento final da V1 — usuário revogou a exceção arquitetural e pediu
+// remoção total de Object.assign(VARS, dr)): últimos ~15 escalares/objetos isolados (data de
+// nascimento, financiamento da casa, consórcio, reserva/BTG/Necton/FGTS/PGBL, composição
+// tarifária Energisa, overrides pontuais) que só existiam em wallace_dados — congelados em
+// `parametros_gerais` com o valor mais recente já confirmado (o mesmo que dr aplicava até agora,
+// só que a partir daqui vem da V2, não do blob). Sem fallback pro literal de vars-*.js aqui de
+// propósito: são valores que mudam raramente e não têm "literal seguro" melhor que o último
+// congelado — se a V2 não responder, o literal estático (potencialmente desatualizado há meses)
+// já é o que os arquivos vars-*.js tinham antes desta migração, sem regressão.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PARAMETROS_GERAIS_V2) && window.WALLACE_PARAMETROS_GERAIS_V2.length){
+  window.WALLACE_PARAMETROS_GERAIS_V2.forEach(r => { VARS[r.nome] = r.valor; });
+} else {
+  console.warn('parametros_gerais (V2) indisponível — usando os literais estáticos de vars-*.js (não wallace_dados/V1).');
+}
+
+// NOVO 11/08/2026 (auditoria de eliminação de dependência de V1, execução): substitui os arrays de
+// transação das 8 caixas cujo saldo V2 foi CONFIRMADO idêntico ao valor real hoje (validado via SQL
+// antes desta migração - ver docs/decisions, seção de execução desta auditoria). window.
+// WALLACE_CAIXAS_TRANSACOES_V2 (bootstrap do HTML, tabela transacoes filtrada por caixa_id) vence os
+// arrays de wallace_dados. Fallback: se a V2 não respondeu, os arrays continuam com o valor que
+// window.WALLACE_DADOS_REMOTOS já aplicou acima (que HOJE bate exato com a V2, confirmado) - não é
+// fallback pra "V1 errado", é fallback pro mesmo valor, só de origem diferente.
+const MAPA_CAIXA_ID_PARA_ARRAY_V2 = {
+  'ffa94985-902c-4e8a-bd31-0a15a054a403': 'ANIVERSARIO_JULIO_TRANSACOES',
+  '782d8722-392a-440d-8b71-4fa7476a5b30': 'COMBUSTIVEL_TRANSACOES',
+  'ecaebc58-8f49-4d85-8ef4-6282ea765c2f': 'EVENTOS_TRANSACOES',
+  'df4c44af-3e30-4592-b0b5-5b863ca91591': 'MANUTENCAO_TRANSACOES',
+  'd15e8cbe-4443-4ee4-9631-06d8d49058fe': 'SAUDE_FAMILIA_TRANSACOES',
+  '8dcfa73a-1560-4b37-9aac-48a499548d2c': 'SEGURO_EMPLACAMENTO_TRANSACOES',
+  '3a1e6765-79d9-42bf-8bc0-c93f9c2b77e4': 'ESCOLA_JULIO_TRANSACOES',
+  '3d7f37e3-f52f-4aad-a611-23fa54810b39': 'WARTSILA_CAIXA_TRANSACOES',
+};
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CAIXAS_TRANSACOES_V2)){
+  const porArray = {};
+  window.WALLACE_CAIXAS_TRANSACOES_V2.forEach(row => {
+    const nomeArray = MAPA_CAIXA_ID_PARA_ARRAY_V2[row.caixa_id];
+    if(!nomeArray) return; // caixa_id fora do mapa (não é uma das 7 confirmadas) - ignora
+    if(!porArray[nomeArray]) porArray[nomeArray] = [];
+    const [ano, mes, dia] = row.data.split('-');
+    porArray[nomeArray].push({
+      tx: row.tx_legado || row.descricao,
+      data: `${dia}/${mes}/${ano}`,
+      nome: row.descricao || '',
+      valor: Number(row.valor),
+      tipo: row.tipo === 'entrada' ? 'Entrada' : 'Saída',
+    });
+  });
+  Object.keys(MAPA_CAIXA_ID_PARA_ARRAY_V2).forEach(id => {
+    const nomeArray = MAPA_CAIXA_ID_PARA_ARRAY_V2[id];
+    if(porArray[nomeArray]) VARS[nomeArray] = porArray[nomeArray];
+  });
+} else {
+  console.warn('Caixas V2 (7 confirmadas): window.WALLACE_CAIXAS_TRANSACOES_V2 indisponível — usando os arrays de wallace_dados (valor já confirmado idêntico ao V2 nesta sessão).');
 }
 
 // NOVO 07/08/2026 (pedido do usuario: "legendas devem vir de uma tabela unica, pra nao precisar
@@ -1636,6 +1719,7 @@ async function atualizarPainelAposLancamento(){
     aplicarOnda3CaixaLance(),
     aplicarOnda3Suavizacao(),
     aplicarOnda3LrwLrv(),
+    aplicarOnda10LrcLimbo(),
     aplicarOnda4Patrimonio(),
     aplicarOnda4Wartsila(),
     aplicarOnda5P2P(),
@@ -1673,6 +1757,8 @@ function hydrate(){
   hydrateVisaMB(); // MODULARIZAÇÃO 07/08/2026: breakdown Visa Infinite + Mastercard Black extraído pra src/modules/hydrate-visa-mb.js — mesma sequência, nenhum id/fórmula alterado.
 
   aplicarOnda3LrwLrv(); // NOVO 08/08/2026 (Onda 3, Prioridade 2): sobrescreve mbLRW/mbLRV com V2 (vw_compromisso_cartao_por_pessoa) — roda depois de hydrateVisaMB() (V1) de propósito, só sobrescreve em caso de sucesso.
+
+  aplicarOnda10LrcLimbo(); // NOVO 12/08/2026 (Onda 10): sobrescreve LRC_LIMBO (cartão corporativo reembolsável) com V2 — mesmo padrão do bloco acima, roda depois de renderLivrosVariaveis() (V1) já ter desenhado a tabela, só sobrescreve em caso de sucesso.
 
   hydrateMercadoPago(); // MODULARIZAÇÃO 07/08/2026: indicadores de Mercado Pago extraídos pra src/modules/hydrate-mercado-pago.js — só renderização, cálculo continua em recalcularAgregadosDerivados(), nenhum id/fórmula alterado.
 

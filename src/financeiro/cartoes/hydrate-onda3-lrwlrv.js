@@ -85,6 +85,13 @@ async function aplicarOnda3LrwLrv(){
       VARS.LRW_TRANSACOES = mapear('Wallace');
       VARS.LRV_TRANSACOES = mapear('Vanessa');
       if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
+      // CORRIGIDO 12/08/2026 (achado do usuário: botão da aba "LRV - Vanessa (16)" não batia com a
+      // tabela real embaixo, 6 linhas) — renderLivrosVariaveis() acima redesenha a tabela, mas o
+      // contador do botão (atualizarContadoresAbasLR(), que conta <tr> do DOM) só rodava 1x no boot,
+      // antes desta atualização assíncrona substituir o array V1 pelo V2. Sem re-chamar aqui, o botão
+      // ficava preso na contagem antiga pra sempre, mesmo com a tabela certa. Mesmo padrão que faltava
+      // em aplicarOnda10LrcLimbo() — corrigido junto.
+      if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
     } else {
       console.warn('Onda3LrwLrv: resposta inesperada de vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).');
     }

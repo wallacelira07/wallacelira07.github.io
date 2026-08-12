@@ -212,6 +212,8 @@ async function carregar(){
 
   if(geracaoDiaria.length && window.Chart){
     const ultimos = geracaoDiaria.slice(-30);
+    // DEFENSIVO (11/08/2026, achado de auditoria): mesma proteção aplicada em todo new Chart() do repo.
+    { const __chartExistente = Chart.getChart(document.getElementById('cGeracaoDiaria')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cGeracaoDiaria'), {
       type: 'bar',
       data: {
@@ -230,6 +232,7 @@ async function carregar(){
   }
 
   if(mesesHistorico.length && window.Chart){
+    { const __chartExistente = Chart.getChart(document.getElementById('cHistoricoMensal')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cHistoricoMensal'), {
       type: 'bar',
       data: {
@@ -253,6 +256,7 @@ async function carregar(){
   }
 
   if(ciclosFechados.length && window.Chart){
+    { const __chartExistente = Chart.getChart(document.getElementById('cRateioSolar')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cRateioSolar'), {
       type: 'bar',
       data: {

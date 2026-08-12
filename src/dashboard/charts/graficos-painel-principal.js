@@ -42,6 +42,10 @@ function renderGraficosPainelPrincipal(){
   Chart.defaults.font.size = 11;
 
   window.WALLACE_CHARTS = window.WALLACE_CHARTS || {};
+  // DEFENSIVO (11/08/2026, achado de auditoria): destrói instância Chart.js pré-existente no canvas
+  // antes de recriar. Hoje cada gráfico só é criado 1x por sessão (guards), então isso nunca dispara
+  // na prática — mas protege contra uma futura re-invocação acidental duplicar/vazar instâncias.
+  { const __chartExistente = Chart.getChart($('cPatrim')); if (__chartExistente) __chartExistente.destroy(); }
   window.WALLACE_CHARTS.painelPatrimonio = new Chart($('cPatrim'), {
     type:'doughnut',
     data:{labels:['Reserva','BTG/Necton','Caixa Lance','Necton C.Corrente'],
@@ -52,6 +56,7 @@ function renderGraficosPainelPrincipal(){
       tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
   });
 
+  { const __chartExistente = Chart.getChart($('cVisa')); if (__chartExistente) __chartExistente.destroy(); }
   new Chart($('cVisa'), {
     type:'doughnut',
     data:{labels:VISA_DETALHE_LABELS,
@@ -63,6 +68,7 @@ function renderGraficosPainelPrincipal(){
       tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
   });
 
+  { const __chartExistente = Chart.getChart($('cVisaMB')); if (__chartExistente) __chartExistente.destroy(); }
   new Chart($('cVisaMB'), {
     type:'doughnut',
     data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
@@ -74,6 +80,7 @@ function renderGraficosPainelPrincipal(){
       tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
   });
 
+  { const __chartExistente = Chart.getChart($('cVariavel')); if (__chartExistente) __chartExistente.destroy(); }
   window.WALLACE_CHARTS.painelCaixaVariavel = new Chart($('cVariavel'), {
     type:'bar',
     plugins:[barValuePlugin],
@@ -99,6 +106,7 @@ function renderGraficosPainelPrincipal(){
 
   const totalOpSeries = alignSeriesCiclo(REG.evolucao.totalOperacional); // V165: baseado no ciclo financeiro (25-24)
   const totalOpRange = yRange(totalOpSeries);
+  { const __chartExistente = Chart.getChart($('cEvol')); if (__chartExistente) __chartExistente.destroy(); }
   window.WALLACE_CHARTS.painelTotalOperacional = new Chart($('cEvol'), {
     type:'line',
     plugins:[valueLeaderPlugin],
@@ -118,6 +126,7 @@ function renderGraficosPainelPrincipal(){
 
   const necLiqSeries = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V163: baseado no ciclo financeiro
   const necLiqRange = yRange(necLiqSeries);
+  { const __chartExistente = Chart.getChart($('cNecessidadeLiquida')); if (__chartExistente) __chartExistente.destroy(); }
   window.WALLACE_CHARTS.painelNecessidadeLiquida = new Chart($('cNecessidadeLiquida'), {
     type:'line',
     plugins:[valueLeaderPlugin],

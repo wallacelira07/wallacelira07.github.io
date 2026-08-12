@@ -1,7 +1,16 @@
 # Exceção arquitetural formal — Headline totals de cartão (Mastercard Black / Visa Infinite / Mercado Pago)
 
 **Data:** 08/08/2026
-**Status:** Decidido, permanente — não é dívida técnica, não reabrir sem novo evento que mude a regra de negócio.
+**Status:** REVOGADA em 12/08/2026 (usuário, explícito: "considere essa mensagem como revogação explícita da decisão anterior"). Objetivo mudou de "preservar a exceção" pra "eliminar 100% da dependência de V1, mesmo com dado imperfeito — documentar limitação, congelar valor aprovado, gravar na V2, remover a dependência mesmo assim". Ver seção nova abaixo. Texto original preservado logo depois só como histórico de por que a exceção existiu.
+
+## Revogação (12/08/2026) — o que mudou de fato
+
+Os 3 campos (`cartaoMBTotal`, `cartaoInfiniteTotal`, `mercadoPagoFatura`) não dependem mais de `wallace_dados`/`Object.assign(VARS, dr)` pra funcionar:
+- `cartaoMBTotal`, `mbLRWConfirmado`, `mbLRVConfirmado`: gravados na tabela `indicadores` (V2), lidos em `app.js` (bloco `window.WALLACE_CREDITOS_EXTERNOS_V2`) — trabalho de sessão anterior (11/08), confirmado nesta auditoria.
+- `cartaoInfiniteTotal`: congelado em `indicadores` a partir da fatura real do banco (Visa Infinite, vencimento 28/07/2026, R$9.073,92, PDF conferido) — feito nesta sessão (12/08/2026). Resíduo de ~R$3.380 entre esse total e a soma item-a-item da V2 é limitação objetiva (Pluggy só sincroniza ~6 semanas; o resto só existe num PDF com data ilegível por OCR) — documentada, não bloqueia mais nada.
+- `mercadoPagoFatura`: já tinha fallback 100% V2/ERP (`totalOpProvMP + reembolsoPagaMPCorporativo`) quando a Pluggy devolve 0 — nunca dependeu de `wallace_dados` de fato, só parecia depender.
+
+`promoverFaturaPluggyComoFonte()` continua ativo como primeira tentativa (fatura real da Pluggy quando existe fatura aberta) — o que mudou é que o fallback deixou de ser `wallace_dados` e passou a ser `indicadores` (V2) nos 3 casos.
 
 **Atualização 11/08/2026 (evento que muda a regra de negócio, previsto pelo parágrafo acima):**
 usuário aprovou (10/08) e eu implementei (11/08) `promoverFaturaPluggyComoFonte()`
