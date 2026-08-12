@@ -233,6 +233,9 @@ A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v
 - [ ] Qualquer decisão de negócio/investigação nova está registrada em `docs/decisions/` (não só na memória da conversa).
 - [ ] Usuário avisado do que será commitado **antes** de rodar `git commit`, mesmo com autorização permanente de commitar sozinho.
 - [ ] Nenhum `UPDATE`/`DELETE` real em dado financeiro sem o dry-run correspondente ter sido revisado antes.
+- [ ] **Antes de editar qualquer dado "vivo"/config que um comentário do código diz vir de outro lugar** (ex: "Supabase sobrescreve isto no carregamento"): confirmar no `app.js`/código ATUAL, não no comentário, qual bloco realmente popula a variável em `window`/`VARS` agora. Comentários descrevem a arquitetura de quando foram escritos, não necessariamente a de agora — ver achado real de 12/08/2026 abaixo.
+
+**Achado real que motivou a regra acima (12/08/2026)**: numa mesma sessão, duas correções de dado real (composição tarifária Energisa) foram feitas em `wallace_dados` seguindo um comentário do código que dizia "essa tabela sobrescreve o VARS local" — mas horas antes, *outra sessão* (mesmo dia, mesmo repositório) tinha removido esse merge por completo (`Object.assign(VARS, dr)`, "sepultamento final da V1") e migrado a fonte viva pra `parametros_gerais`, sem atualizar o comentário. A correção ficou "no ar" por horas até uma validação com login real no painel revelar que os números não tinham mudado. **Duas sessões trabalhando no mesmo repositório no mesmo dia, sem coordenação síncrona, é a situação normal deste projeto** (não uma exceção) — todo agente deve assumir que o código pode ter mudado de arquitetura desde a última vez que leu, e validar contra o estado atual antes de confiar em comentário/documentação.
 
 ---
 
