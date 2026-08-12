@@ -34,7 +34,7 @@ Usuário mandou 2 faturas reais em PDF (Ago/26, NF 009.005.476 Wellida e NF 009.
 | Fase | Escopo | Status |
 |---|---|---|
 | 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
-| 2 | Mobile/responsividade — auditoria + correções pontuais | 🔶 Em andamento — bug do Livro Razão corrigido; painel principal ainda não testado (sem login) |
+| 2 | Mobile/responsividade — auditoria + correções pontuais | ✅ Concluída — scroll horizontal do Livro Razão (LRW/LRV/LRMCI/LREVENTOS testados individualmente no painel logado, 375px, scroll real de mouse, sem overflow horizontal na página) + auto-hide da `.master-tabs` |
 | 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
 | 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | ✅ 6 dos 10 achados aplicados e commitados (`b7b83c4`, `c642dcf`, `6de448e`) — cache granular, Inbox incremental, badges/radius tokens, N+1 do FinanceService, botão `.btn-pill`, form de lançamento manual extraído pra classes. 2 ficam de backlog deliberado (Chart.js `.update()`, `new Function` pra módulos — risco real sem validação com login) |
 
@@ -63,7 +63,7 @@ Usuário mandou print real do celular (barra pill de 5 abas — Painel/Gráficos
 
 ## ✅ Validado com login real no painel (12/08/2026, primeira vez nesta sessão)
 
-Usuário logou manualmente no navegador desta sessão (eu nunca toquei em campo de senha) e eu só li a tela depois. Confirmado funcionando: paleta da Fase 3 (cores/contraste corretas), botão `.btn-pill` "Compartilhar" (Energia Solar), badge `.badge.ba` "Benefícios, não patrimônio", boxes Wallace/Wellida com `var(--green)`/`var(--amber)`, tabela "Residual pós-solar" com os valores reais corretos (ver achado crítico acima), estrutura `data-inbox-id` do Inbox incremental, formulário de lançamento manual com classes `.wallace-field`. **Não testado**: clique real em Aprovar/Rejeitar da Inbox (evitado de propósito — grava de verdade no Supabase, não quis mexer em dado de produção só pra verificar); painéis do Livro Razão em tela mobile de verdade (só testado isolado, Fase 2 segue tecnicamente não confirmada no site real).
+Usuário logou manualmente no navegador desta sessão (eu nunca toquei em campo de senha) e eu só li a tela depois. Confirmado funcionando: paleta da Fase 3 (cores/contraste corretas), botão `.btn-pill` "Compartilhar" (Energia Solar), badge `.badge.ba` "Benefícios, não patrimônio", boxes Wallace/Wellida com `var(--green)`/`var(--amber)`, tabela "Residual pós-solar" com os valores reais corretos (ver achado crítico acima), estrutura `data-inbox-id` do Inbox incremental, formulário de lançamento manual com classes `.wallace-field`. **Não testado**: clique real em Aprovar/Rejeitar da Inbox (evitado de propósito — grava de verdade no Supabase, não quis mexer em dado de produção só pra verificar). Painéis do Livro Razão em mobile real **testados e confirmados** (LRW/LRV/LRMCI/LREVENTOS, 375px, scroll de mouse real, sem overflow horizontal na página) — Fase 2 fechada de verdade.
 
 ## Protocolo de sessão nova
 
