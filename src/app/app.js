@@ -81,13 +81,39 @@ class _CacheComTTL {
   get(chave){ return this.has(chave) ? this._mapa.get(chave).valor : undefined; }
   set(chave, valor){ this._mapa.set(chave, { valor, gravadoEm: Date.now() }); }
   clear(){ this._mapa.clear(); }
+  // NOVO 12/08/2026 (Fase 4 de modernização, pedido do usuário — performance): apaga só as chaves
+  // que começam com um dos prefixos dados, em vez do cache inteiro. Prefixo = chave completa (chaves
+  // estáticas, ex: 'caixas') ou o início de uma chave dinâmica (ex: 'composicao_saldo:' cobre
+  // 'composicao_saldo:Boletos', 'composicao_saldo:Variável', etc, sem listar cada uma).
+  deletarPorPrefixo(prefixos){
+    for(const chave of this._mapa.keys()){
+      if(prefixos.some(p => chave.startsWith(p))) this._mapa.delete(chave);
+    }
+  }
 }
 
 const WallaceFinanceService = {
   _cache: new _CacheComTTL(90000),
   _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
   _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
-  invalidarCache(){ this._cache.clear(); },
+  // NOVO 12/08/2026 (Fase 4, achado da auditoria: invalidarCache() limpava o cache INTEIRO a cada
+  // lançamento manual, forçando refetch de ~20 endpoints mesmo quando só `transacoes`/`caixas`
+  // mudaram). Lista abaixo é exatamente a mesma que o comentário de atualizarPainelAposLancamento()
+  // (mais abaixo) já documentava como "afetado por um lançamento manual" - só passou a ser aplicada
+  // de fato em vez de descartar tudo. Deliberadamente FORA (nunca invalidado aqui, mesmo motivo já
+  // documentado): investimentos_opcoes/indicador:* (tabela investimentos, não transacoes),
+  // vw_ciclo_solar_* (robô SAJ), mercadopago_eventos/pluggy_* (sincronização externa),
+  // cronograma_*/vw_saude_jobs (config fixa/monitoramento de automação, não afetados por 1 lançamento).
+  _CHAVES_CACHE_AFETADAS_POR_LANCAMENTO: [
+    'rpc:dashboard_resumo', 'vw_saldo_v2_por_caixa', 'vw_reconciliacao_v1_v2',
+    'extrato_caixa_mastercard_infinite', 'valores_v2_todos', 'valores_combinados_v2',
+    'comprometido_caixa_variavel_v2', 'transacoes_cartao_variavel_detalhe',
+    'transacoes_por_caixa:', 'vw_compromisso_cartao_por_pessoa',
+    'transacoes_corporativo_cartao_detalhe', 'caixas', 'composicao_saldo:',
+    'vw_patrimonio_v2', 'vw_emprestimos_internos_v2', 'reembolso_wartsila_ciclo',
+    'vw_parcelamentos_v2', 'vw_p2p_v2'
+  ],
+  invalidarCache(){ this._cache.deletarPorPrefixo(this._CHAVES_CACHE_AFETADAS_POR_LANCAMENTO); },
   // NOVO 09/08/2026 (preparação pra fechar a leitura pública do banco - achado da auditoria de
   // segurança: hoje toda leitura usa só a chave anônima, sem token de login nenhum). Passo 1 (este
   // commit): manda o token do Firebase quando existe (obterTokenAuthSupabase(), definida acima),

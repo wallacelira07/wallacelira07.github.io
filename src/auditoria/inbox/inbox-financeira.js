@@ -137,7 +137,7 @@ function inboxAprovar(id){
   item.status = 'APROVADO';
   persistirTriagemItem(item, 'aprovado');
   WallaceBus.emit('inboxItemAprovado', item);
-  renderInboxFinanceira();
+  atualizarInboxItem(id);
   // Aprovar um item da Inbox ABRE e PRE-PREENCHE o form "+ Lancar" (data/descricao/valor) - usuario
   // ainda precisa clicar Salvar pra gravar de verdade na V2 (mantem a proibicao de auto-lancamento sem
   // confirmacao, so reduz o trabalho de digitar de novo).
@@ -161,7 +161,55 @@ function inboxRejeitar(id, motivo){
   item.motivoRejeicao = motivo || null;
   persistirTriagemItem(item, 'rejeitado');
   WallaceBus.emit('inboxItemRejeitado', item);
-  renderInboxFinanceira();
+  atualizarInboxItem(id);
+}
+
+// NOVO 12/08/2026 (Fase 4 de modernização, pedido do usuário — performance): extraído de dentro do
+// .map() de renderInboxFinanceira() pra poder gerar o HTML de 1 linha isolada (usado por
+// atualizarInboxItem(), abaixo), sem duplicar o template. Comportamento idêntico ao que já existia.
+function renderInboxLinha(it){
+  const classeStatus = it.status==='APROVADO' ? 'bg' : (it.status==='REJEITADO' ? 'br' : 'ba');
+  const conf = it.confianca!=null ? Math.round(it.confianca*100)+'%' : '—';
+  const acoes = it.status==='PENDENTE'
+    ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
+    : '—';
+  const descTitle = String(it.descricaoCompleta||it.descricao||'').replace(/"/g,'&quot;');
+  // NOVO 08/08/2026 (correção de usabilidade — itens com mesma origem/valor/data pareciam
+  // duplicados): linha de identificação abaixo da descrição, prioridade pagador > ID externo
+  // (hora/minuto do evento não está disponível na fonte — mercadopago_sync.py só grava a data,
+  // ver auditoria em PLANO_UNIFICACAO_V1_V2.md). Só exibe o que existir, nunca inventa campo.
+  const identPartes = [];
+  if(it.metadata && it.metadata.payer) identPartes.push(`Pagador: ${it.metadata.payer}`);
+  if(it.idExterno) identPartes.push(`ID: ${it.idExterno}`);
+  const identLinha = identPartes.length ? `<div class="inbox-ident-txt" style="color:var(--text-dim);font-size:0.65rem">${identPartes.join(' · ')}</div>` : '';
+  return `<tr data-inbox-id="${it.id}"><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}${identLinha}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
+}
+
+// NOVO 12/08/2026 (Fase 4, achado da auditoria: aprovar/rejeitar 1 item reconstruía a tabela
+// INTEIRA via renderInboxFinanceira(), inclusive as linhas que não mudaram - fluxo usado dezenas de
+// vezes por sessão, sessão aberta por horas). Atualiza só a <tr> do item afetado + o resumo/badge
+// (recontagem O(n) sobre o array, não sobre o DOM - barata). Se a linha não existir no DOM por
+// algum motivo (ex: HTML antigo em cache), cai pro render completo como rede de segurança.
+function atualizarInboxItem(id){
+  const tbody = $('inboxFinanceiraTbody');
+  if(!tbody) return;
+  const item = VARS.INBOX_FINANCEIRA.find(i=>i.id===id);
+  if(!item) return;
+  const trAtual = tbody.querySelector(`tr[data-inbox-id="${id}"]`);
+  if(!trAtual){ renderInboxFinanceira(); return; }
+  trAtual.outerHTML = renderInboxLinha(item);
+  atualizarResumoInbox();
+}
+
+function atualizarResumoInbox(){
+  const itens = VARS.INBOX_FINANCEIRA;
+  const pendentes = itens.filter(i=>i.status==='PENDENTE').length;
+  const aprovados = itens.filter(i=>i.status==='APROVADO').length;
+  const rejeitados = itens.filter(i=>i.status==='REJEITADO').length;
+  const resumoEl = $('inboxFinanceiraResumo');
+  if(resumoEl) resumoEl.textContent = `${pendentes} pendente(s) · ${aprovados} aprovado(s) · ${rejeitados} rejeitado(s)`;
+  const tabBadge = $('inboxFinanceiraBadge');
+  if(tabBadge) tabBadge.textContent = pendentes > 0 ? String(pendentes) : '';
 }
 
 function renderInboxFinanceira(){
@@ -171,29 +219,7 @@ function renderInboxFinanceira(){
   if(!itens.length){
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">' + VARS.LEGENDAS.legInboxVazia + '</td></tr>';
   } else {
-    tbody.innerHTML = itens.slice().reverse().map(it=>{
-      const classeStatus = it.status==='APROVADO' ? 'bg' : (it.status==='REJEITADO' ? 'br' : 'ba');
-      const conf = it.confianca!=null ? Math.round(it.confianca*100)+'%' : '—';
-      const acoes = it.status==='PENDENTE'
-        ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
-        : '—';
-      const descTitle = String(it.descricaoCompleta||it.descricao||'').replace(/"/g,'&quot;');
-      // NOVO 08/08/2026 (correção de usabilidade — itens com mesma origem/valor/data pareciam
-      // duplicados): linha de identificação abaixo da descrição, prioridade pagador > ID externo
-      // (hora/minuto do evento não está disponível na fonte — mercadopago_sync.py só grava a data,
-      // ver auditoria em PLANO_UNIFICACAO_V1_V2.md). Só exibe o que existir, nunca inventa campo.
-      const identPartes = [];
-      if(it.metadata && it.metadata.payer) identPartes.push(`Pagador: ${it.metadata.payer}`);
-      if(it.idExterno) identPartes.push(`ID: ${it.idExterno}`);
-      const identLinha = identPartes.length ? `<div class="inbox-ident-txt" style="color:var(--text-dim);font-size:0.65rem">${identPartes.join(' · ')}</div>` : '';
-      return `<tr><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}${identLinha}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
-    }).join('');
+    tbody.innerHTML = itens.slice().reverse().map(renderInboxLinha).join('');
   }
-  const pendentes = itens.filter(i=>i.status==='PENDENTE').length;
-  const aprovados = itens.filter(i=>i.status==='APROVADO').length;
-  const rejeitados = itens.filter(i=>i.status==='REJEITADO').length;
-  const resumoEl = $('inboxFinanceiraResumo');
-  if(resumoEl) resumoEl.textContent = `${pendentes} pendente(s) · ${aprovados} aprovado(s) · ${rejeitados} rejeitado(s)`;
-  const tabBadge = $('inboxFinanceiraBadge');
-  if(tabBadge) tabBadge.textContent = pendentes > 0 ? String(pendentes) : '';
+  atualizarResumoInbox();
 }
