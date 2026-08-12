@@ -1,0 +1,48 @@
+name: Atualiza versão de deploy (__V automático)
+
+# Resolve um problema real (12/08/2026): __V era um número que um agente/pessoa tinha que lembrar
+# de trocar manualmente a cada deploy. Na prática isso falhou algumas vezes — o código já estava
+# publicado mas o rodapé/cache-buster continuava mostrando a versão antiga, e não tinha como saber
+# isso sem investigar. Esta Action resolve na raiz: toda vez que algo é publicado em `main`, ela
+# mesma sobrescreve __V com o hash real do commit + timestamp — impossível de esquecer, porque não
+# depende de ninguém lembrar.
+on:
+  push:
+    branches: [main]
+
+# Evita loop infinito: o commit que esta Action faz também é um push em main, o que dispararia ela
+# de novo. O guard `if: github.actor != 'github-actions[bot]'` no job abaixo quebra o ciclo.
+permissions:
+  contents: write
+
+jobs:
+  atualizar-versao:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Calcula o novo __V (timestamp UTC + hash curto do commit)
+        id: versao
+        run: |
+          SHA_CURTO=$(git rev-parse --short HEAD)
+          TS=$(date -u +'%Y%m%d-%H%M')
+          echo "novo_v=${TS}-${SHA_CURTO}" >> "$GITHUB_OUTPUT"
+
+      - name: Substitui __V no HTML principal
+        run: |
+          sed -i "s/var __V = '[^']*';/var __V = '${{ steps.versao.outputs.novo_v }}';/" Sistema_Wallace_Lira_Completo.html
+
+      - name: Commita e publica, só se algo mudou de verdade
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Sistema_Wallace_Lira_Completo.html
+          if git diff --cached --quiet; then
+            echo "__V já estava atualizado, nada a commitar."
+          else
+            git commit -m "Atualiza __V automaticamente para ${{ steps.versao.outputs.novo_v }}"
+            git push
+          fi

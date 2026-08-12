@@ -1788,12 +1788,21 @@ var __V = '20260812-1';
 performance.mark('wallace-boot-start');
 // CORRIGIDO 08/08/2026 (usuario apontou: rodape mostrava "v06/08/2026 (parte 140)", travado ha dias -
 // era texto FIXO no HTML, nunca ligado a nada, enquanto __V (o cache-buster real) seguia sendo
-// bumpado normalmente a cada deploy. Corrigido na raiz: o rodape agora deriva do proprio __V (formato
-// 'AAAAMMDD-N'), nunca mais pode ficar dessincronizado do valor real de versao/deploy.
+// bumpado normalmente a cada deploy. Corrigido na raiz: o rodape agora deriva do proprio __V.
+// CORRIGIDO 12/08/2026 (usuario apontou: "isso nao serve pra nada" - __V dependia de um humano/agente
+// lembrar de trocar manualmente a cada deploy, e podia ficar dessincronizado sem ninguem perceber,
+// como aconteceu nesta mesma sessao). __V agora e escrito automaticamente pela Action
+// .github/workflows/atualizar_versao_deploy.yml a cada push em main, no formato
+// 'AAAAMMDD-HHMM-<hash curto do commit>' - o hash e a prova real e conferivel (bate com `git log`)
+// de que o deploy corresponde ao commit que o navegador esta mostrando.
 (function(){
-  var m = __V.match(/^(\d{4})(\d{2})(\d{2})-(\d+)$/);
+  var m = __V.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})-([0-9a-f]+)$/);
   var el = document.getElementById('rodapeVersao');
-  if(m && el) el.textContent = 'Sistema Wallace Lira · v' + m[3] + '/' + m[2] + '/' + m[1] + ' (build ' + m[4] + ')';
+  if(m && el){
+    el.textContent = 'Sistema Wallace Lira · ' + m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5] + ' UTC · commit ' + m[6];
+  } else if(el){
+    el.textContent = 'Sistema Wallace Lira · build ' + __V; // fallback pro formato antigo, so entre o push manual de hoje e a 1a rodada da Action
+  }
 })();
 
 function __carregarScriptsParalelo(caminhos){
