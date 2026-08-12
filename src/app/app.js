@@ -290,7 +290,18 @@ const WallaceFinanceService = {
     const chave = 'transacoes_corporativo_cartao_detalhe';
     if(this._cache.has(chave)) return this._cache.get(chave);
     const caixaId = '3d7f37e3-f52f-4aad-a611-23fa54810b39'; // Provisionado Wärtsilä (mesmo id fixo já usado em getExtratoCaixaMastercardInfinite/CAIXA_VARIAVEL_ID_V2)
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc`, {
+    // CORRIGIDO 12/08/2026 (achado do usuário: aba LRC mostrando 9 lançamentos, 3 deles de
+    // 01-02/07/2026 — ciclo FECHADO anterior, não o ciclo atual 25/07→24/08) — mesma classe de bug já
+    // corrigida em getComprometidoCaixaVariavelV2() (11/08/2026): faltava o filtro de ciclo_inicio_em,
+    // então TODA transação corporativa já confirmada entrava aqui, de qualquer ciclo.
+    const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${caixaId}`, {
+      headers: this._headers()
+    });
+    if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em do Provisionado Wärtsilä`);
+    const dadoCaixa = await respCaixa.json();
+    const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+    const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
       headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe LRC_LIMBO (cartão corporativo)`);

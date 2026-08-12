@@ -69,7 +69,15 @@ function criarVarsMercadoPago(){
   // não um erro de dado. Não itemizado transação a transação por decisão de materialidade (usuário: "não
   // espere uma auditoria perfeita dos 81 lançamentos para avançar") - revisar quando a Pluggy sincronizar
   // o resto do ciclo.
-  mbNaoReconciliado: 2678.41,
+  // CORRIGIDO 12/08/2026: reconciliação completa refeita com a fatura real (PDF/Excel Bradesco,
+  // extrato em aberto de agosto) - wallace/recorrencias/corp/vanessa/assinaturas agora batem com a
+  // fatura linha a linha (ver vars-mercado-pago.js mbLRWConfirmado e cronograma_recorrencias no
+  // Supabase). O resíduo de R$2.678,41 documentado acima era de ANTES dessa reconciliação (defasagem
+  // de sync Pluggy) - mantê-lo agora contaria a mesma diferença 2x. Único resíduo real que sobra é a
+  // diferença de timing de "assinaturas" (VARS.mbLRSConfirmado = compromisso do mês inteiro, R$475,67,
+  // vs R$233,04 já lançados nesta fatura até agora) - aparece sozinho na auditoria, não precisa de
+  // plug aqui.
+  mbNaoReconciliado: 0,
   // V144: footer LRC (Corporativo Visa Infinite) - "6 lancamentos" era texto fixo, valor ja em VARS.livroLRC
   livroLRCQtdLancamentos: 1, // CORRIGIDO 25/07/2026 (V156): so o corporativo do ciclo ATUAL (TX000158, Outback). Os 6 lancamentos antigos do Visa sao do ciclo fechado, ja cobertos no valor separado pra 28/07. Era 7.
   // ===== V154 (25/07/2026): PARCELAMENTOS ESTRUTURADOS - fonte unica de verdade, espelha 1:1 a aba
