@@ -82,6 +82,14 @@ function hydrateSimuladorCiclo(){
   // o que TEM na caixa (saldoReal) e o que ESTA COMPROMETIDO (comprometido) - um numero bem menor.
   // Mostra os 2 lados explicitamente: quanto tem, quanto falta.
   const faltaCobrir = Math.round((cv.comprometido - cv.saldoReal)*100)/100; // positivo = falta, negativo/zero = tem sobra
+  // NOVO 12/08/2026 (pedido do usuário: "mude as legendas, não estão fácil de entender" — achado na
+  // conversa: "Falta para cobrir" e "Disponível real hoje" mostram o MESMO número (comprometido vs.
+  // saldo real na caixa), mas existe um SEGUNDO número, diferente, que nunca aparecia no card: quanto
+  // o comprometido já passou do TETO PLANEJADO do mês (R$2.000, por ex.), que é menor que "falta
+  // cobrir" quando a caixa ainda não recebeu o aporte completo do mês. Os dois são estouros reais,
+  // mas contra bases diferentes (teto planejado × dinheiro que já está de fato na caixa) — deixar os
+  // dois visíveis evita a pergunta "como pode -R$154 virar -R$429?" que já aconteceu no chat.
+  const estouroTeto = Math.round((cv.comprometido - tetoEfetivo)*100)/100; // positivo = já passou do teto do mês
 
   set('diasDecorridos', decorridos);
   set('diasRestantes', restantes);
@@ -135,6 +143,14 @@ function hydrateSimuladorCiclo(){
     folegoEl.textContent = fmt(cv.disponivel); // CORRIGIDO 26/07/2026 (V182, usuario apontou "Folego ate teto errado"): antes mostrava tetoEfetivo-comprometido (fôlego contra o TETO OFICIAL de R$2.000, sempre igual mesmo com saldo real menor) - renomeado para "Disponível real hoje" e agora mostra cv.disponivel (saldoReal-comprometido), a mesma metrica do card Caixa Variavel acima, sem ambiguidade.
     folegoEl.style.color = cv.disponivel >= 0 ? '#34c98a' : '#e2554f';
   }
+  // NOVO 12/08/2026 (ver comentário de estouroTeto acima): quinto valor do card, mostra o estouro
+  // contra o TETO PLANEJADO (sempre <= "Falta cobrir" em módulo, já que o teto pode ser maior que o
+  // saldo real hoje). "Dentro do teto" quando ainda não estourou.
+  const estouroTetoEl = $('simEstouroTeto');
+  if(estouroTetoEl){
+    estouroTetoEl.textContent = estouroTeto > 0 ? fmt(estouroTeto) : 'Dentro do teto';
+    estouroTetoEl.style.color = estouroTeto > 0 ? '#e2554f' : '#34c98a';
+  }
   // NOVO 26/07/2026 (V182): "cadê o valor que possa gastar por dia?" - a descricao do card ja
   // prometia "ritmo sugerido por dia" (Politicas sec.15) mas nunca foi implementado. Disponivel real
   // dividido pelos dias restantes do ciclo, nunca negativo (minimo R$0,00 se ja estourou).
@@ -159,7 +175,13 @@ function hydrateSimuladorCiclo(){
       msgEl.innerHTML = `Tem <strong>${fmt(cv.saldoReal)}</strong> na caixa e o comprometido é <strong>${fmt(cv.comprometido)}</strong> — está coberto, sobra <strong>${fmt(Math.abs(faltaCobrir))}</strong>. Isso dá <strong>${fmt(Math.round(porDiaMsg*100)/100)}/dia</strong> pelos ${restantes} dias restantes do ciclo.`
         + (folego < 0 ? ` (Ainda assim, acima do teto oficial em ${fmt(Math.abs(folego))} — coberto pela tolerância temporária.)` : '');
     } else {
-      msgEl.innerHTML = `<strong style="color:#e2554f">Falta ${fmt(faltaCobrir)}</strong> para cobrir o comprometido — tem ${fmt(cv.saldoReal)} na caixa contra ${fmt(cv.comprometido)} comprometido. Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
+      // CORRIGIDO 12/08/2026 (pedido do usuário: legendas confusas — "Falta cobrir" e "estouro do
+      // teto" são 2 números diferentes, e o texto só citava o primeiro): quando os dois estouraram,
+      // explica os dois separados, pra nunca mais precisar perguntar "como pode -R$154 virar -R$429?".
+      const fraseTeto = estouroTeto > 0
+        ? ` Isso já inclui <strong>${fmt(estouroTeto)}</strong> de estouro do teto do mês (${fmt(tetoEfetivo)}) — o resto (${fmt(Math.round((faltaCobrir-estouroTeto)*100)/100)}) é aporte do mês que ainda não caiu na caixa.`
+        : ` Ainda dentro do teto do mês (${fmt(tetoEfetivo)}) — só falta o aporte cair na caixa.`;
+      msgEl.innerHTML = `<strong style="color:#e2554f">Falta ${fmt(faltaCobrir)}</strong> para cobrir o comprometido — tem ${fmt(cv.saldoReal)} na caixa contra ${fmt(cv.comprometido)} comprometido.${fraseTeto} Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
     }
   }
 

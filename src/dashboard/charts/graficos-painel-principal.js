@@ -85,8 +85,10 @@ function renderGraficosPainelPrincipal(){
     type:'bar',
     plugins:[barValuePlugin],
     data:{labels:['Saldo real','Comprometido','Disponível'],
+      // CORRIGIDO 12/08/2026 (achado do usuário: barra "Disponível" aparecia verde mesmo negativa,
+      // ex: -R$429,27) — cor da 3ª barra era fixa (#34c98a), nunca refletia o sinal do valor.
       datasets:[{data:[REG.caixaVariavel.saldoReal,REG.caixaVariavel.comprometido,REG.caixaVariavel.disponivel],
-      backgroundColor:['#3987e5','#e8a63a','#34c98a'],borderRadius:5}]},
+      backgroundColor:['#3987e5','#e8a63a', REG.caixaVariavel.disponivel < 0 ? '#e2554f' : '#34c98a'],borderRadius:5}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:10}}},

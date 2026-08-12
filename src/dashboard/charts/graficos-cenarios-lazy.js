@@ -194,8 +194,10 @@ window.WALLACE_CHARTS.gCaixaVariavel = new Chart($('g_cVariavel'), {
   type:'bar',
   plugins:[barValuePlugin],
   data:{labels:['Saldo real','Comprometido','Disponível'],
+    // CORRIGIDO 12/08/2026 (mesmo achado do cVariavel em graficos-painel-principal.js): 3ª barra
+    // tinha cor fixa verde, não refletia Disponível negativo.
     datasets:[{data:[REG.caixaVariavel.saldoReal,REG.caixaVariavel.comprometido,REG.caixaVariavel.disponivel],
-    backgroundColor:['#3987e5','#e8a63a','#34c98a'],borderRadius:5}]},
+    backgroundColor:['#3987e5','#e8a63a', REG.caixaVariavel.disponivel < 0 ? '#e2554f' : '#34c98a'],borderRadius:5}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
@@ -367,9 +369,14 @@ function atualizarGraficoTotalOpDetalhe(){
 function atualizarGraficoCaixaVariavel(){
   if(!window.WALLACE_CHARTS) return;
   const dados = [REG.caixaVariavel.saldoReal, REG.caixaVariavel.comprometido, REG.caixaVariavel.disponivel];
+  // CORRIGIDO 12/08/2026 (achado do usuário: barra "Disponível" ficava verde mesmo depois de virar
+  // negativa numa atualização ao vivo) — a cor só era definida na criação do gráfico, nunca
+  // reavaliada aqui. Recalcula a cada update, mesmo sinal usado na criação inicial.
+  const corDisponivel = REG.caixaVariavel.disponivel < 0 ? '#e2554f' : '#34c98a';
   [window.WALLACE_CHARTS.painelCaixaVariavel, window.WALLACE_CHARTS.gCaixaVariavel].forEach(chart => {
     if(!chart) return;
     chart.data.datasets[0].data = dados;
+    chart.data.datasets[0].backgroundColor[2] = corDisponivel;
     chart.update();
   });
   const cLiquidoCV = window.WALLACE_CHARTS.gCartoesLiquidoCV;

@@ -312,11 +312,40 @@ const WallaceFinanceService = {
   async getCaixas(){
     const chave = 'caixas';
     if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal`, {
+    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal,ciclo_inicio_em`, {
       headers: this._headers()
     });
     if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
     const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
+  // NOVO 12/08/2026 (tooltip de composição — pedido do usuário: "quando eu passar o mouse ou o dedo,
+  // mostrar o que se soma pra gerar" o saldo de cada card da seção 05/Caixas Operacionais). Replica
+  // EXATAMENTE o filtro de vw_saldo_v2_por_caixa (ver pg_get_viewdef consultado antes de escrever isto):
+  // status='confirmado' AND coalesce(afeta_saldo_real,true) AND (ciclo_inicio_em IS NULL OR data >=
+  // ciclo_inicio_em OR data IS NULL) — se este filtro divergir do da view, a lista mostrada no hover
+  // não bate com o número do card, reproduzindo o mesmo tipo de bug já corrigido 2x nesta sessão
+  // (Onda 3 LRW/LRV, Comprometido Caixa Variável). Por isso replica em vez de reimplementar.
+  async getTransacoesComposicaoSaldoCaixa(nomeCaixa){
+    const chave = 'composicao_saldo:' + nomeCaixa;
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const caixas = await this.getCaixas();
+    const caixa = caixas.find(c => c.nome === nomeCaixa);
+    if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,afeta_saldo_real&caixa_id=eq.${caixa.id}&status=eq.confirmado&order=data.desc,created_at.desc`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar composição de "${nomeCaixa}"`);
+    const todas = await resp.json();
+    const cicloInicioEm = caixa.ciclo_inicio_em;
+    const linhas = todas.filter(t => {
+      if(t.afeta_saldo_real === false) return false; // coalesce(afeta_saldo_real,true) — só false exclui
+      if(!cicloInicioEm) return true;
+      if(!t.data) return true;
+      return t.data >= cicloInicioEm;
+    });
+    const dado = { caixaId: caixa.id, cicloInicioEm, linhas };
     this._cache.set(chave, dado);
     return dado;
   },

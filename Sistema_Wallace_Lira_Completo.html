@@ -224,10 +224,11 @@
       <div class="kpi"><div class="lbl">Dias restantes</div><div class="val" id="simDiasRestantes">—</div></div>
       <div class="kpi"><div class="lbl">Tem na caixa</div><div class="val v" id="simSaldoReal">—</div></div>
       <div class="kpi"><div class="lbl">Comprometido</div><div class="val v" id="simComprometido">—</div></div>
-      <div class="kpi"><div class="lbl">Falta para cobrir</div><div class="val v" id="simFalta">—</div></div>
-      <div class="kpi"><div class="lbl">Teto efetivo</div><div class="val v" id="simTeto">—</div></div>
+      <div class="kpi"><div class="lbl">Falta cobrir (o que tem na caixa)</div><div class="val v" id="simFalta">—</div></div>
+      <div class="kpi"><div class="lbl">Teto do mês (orçamento)</div><div class="val v" id="simTeto">—</div></div>
       <div class="kpi"><div class="lbl">Disponível real hoje</div><div class="val v" id="simFolego">—</div></div>
       <div class="kpi"><div class="lbl">Dá pra gastar por dia</div><div class="val v" style="color:var(--accent)" id="simPorDia">—</div></div>
+      <div class="kpi"><div class="lbl">Acima do teto do mês</div><div class="val v" id="simEstouroTeto">—</div></div>
     </div>
     <div id="simPendenteBox" class="callout info" style="display:none;margin-top:1rem">
       <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem;letter-spacing:0.04em">📤 Pendente para o próximo ciclo</div>
@@ -1843,6 +1844,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/dashboard/charts/graficos-utilitarios.js',
   'src/financeiro/investimentos/hydrate-roc.js',
   'src/financeiro/caixas/hydrate-caixas.js',
+  'src/ui/tooltip-composicao-caixa.js',
   'src/financeiro/caixas/hydrate-onda1-v2.js',
   'src/financeiro/caixas/hydrate-onda2-v2.js',
   'src/financeiro/caixas/hydrate-onda3-livro-razao.js',
