@@ -96,23 +96,32 @@ async function aplicarOnda9LivrosFixos(){
   // Recalcula os totais que dependiam dos números antigos (mbLRSConfirmado/mbLRRConfirmado/
   // livroLRCON) — mesmo padrão do Onda 5 (livroLRP): atualiza VARS + REG.*Detalhe direto, sem
   // esperar um novo boot.
+  // CORRIGIDO 12/08/2026: assinaturas/consórcios não têm coluna `cartao` na V2 (100% Mastercard
+  // Black por design, ver vars-mercado-pago.js visaLRSConfirmado/livroLRCONVisaOnly zerados em
+  // V159) — só entram em mbDetalhe. Recorrências TÊM `cartao` (era só usado pra estilizar a linha,
+  // nunca pra separar o total): a soma combinada era gravada em visaDetalhe E mbDetalhe ao mesmo
+  // tempo, inflando os dois (achado: auditoria automática acusando "Visa Infinite" e "Mastercard
+  // Black" divergentes — visaDetalhe tinha embutido recorrências que são do MB e vice-versa). A
+  // suposição de V159 ("todas as recorrências migraram pro MB") não é mais real: dados atuais têm
+  // 4 recorrências no Visa Infinite (Vivo/Digna/Campo Santo/Faculdade) e 2 no MB (Brisanet/New Car).
   if(Array.isArray(assinaturas)){
     VARS.mbLRSConfirmado = Math.round(assinaturas.reduce((s,a)=>s+Number(a.valor),0)*100)/100;
-    if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.assinaturas = VARS.mbLRSConfirmado;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.assinaturas = VARS.mbLRSConfirmado;
   }
   if(Array.isArray(recorrencias)){
-    VARS.mbLRRConfirmado = Math.round(recorrencias.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
-    if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.recorrencias = VARS.mbLRRConfirmado;
+    VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black').reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black').reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.recorrencias = VARS.visaLRRConfirmado;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.recorrencias = VARS.mbLRRConfirmado;
   }
   if(Array.isArray(consorcios)){
     VARS.livroLRCON = Math.round(consorcios.reduce((s,c)=>s+Number(c.valor),0)*100)/100;
-    if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.consorcios = VARS.livroLRCON;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.consorcios = VARS.livroLRCON;
   }
   if(typeof REG !== 'undefined' && REG.totalOpDetalhe){
-    REG.totalOpDetalhe.recorrencias = VARS.mbLRRConfirmado;
+    // totalOpDetalhe = necessidade operacional combinada (Visa+MB) — soma os dois lados, ao
+    // contrário de visaDetalhe/mbDetalhe que são o breakdown POR cartão.
+    REG.totalOpDetalhe.recorrencias = Math.round((VARS.mbLRRConfirmado + VARS.visaLRRConfirmado)*100)/100;
     REG.totalOpDetalhe.assinaturas = VARS.mbLRSConfirmado;
     // CORRIGIDO 11/08/2026: faltava sincronizar consorcios aqui (só recorrencias/assinaturas eram
     // resincronizadas) — sem isso, REG.totalOpDetalhe.consorcios ficava preso no valor síncrono do
