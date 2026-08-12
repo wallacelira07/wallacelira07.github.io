@@ -1821,7 +1821,16 @@ function hydrate(){
   // "geração baixa mas está chovendo, aí eu já sei o porque"). Ver hydrate-clima-solar.js.
   if(typeof aplicarClimaSolar === 'function') aplicarClimaSolar();
 }
-onDomPronto(hydrate); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
+// NOVO 12/08/2026: marca o boot como concluído pro aviso de timeout em Sistema_Wallace_Lira_Completo.html
+// (window.__wallaceBootTimeoutId) — hydrate() é síncrona e já deixa o painel com números reais (V1),
+// as Ondas assíncronas que rodam dentro dela são só sobreposição opcional, não bloqueiam este sinal.
+onDomPronto(function(){
+  hydrate();
+  window.WALLACE_BOOT_OK = true;
+  if(window.__wallaceBootTimeoutId) clearTimeout(window.__wallaceBootTimeoutId);
+  const aviso = document.getElementById('bootFalhouAviso');
+  if(aviso) aviso.style.display = 'none';
+}); // V170: corrigido - antes nunca rodava (script injetado dinamicamente, DOMContentLoaded ja tinha disparado)
 // NOVO 09/08/2026 (pedido do usuario: "compartilhar link de uma aba especifica, ex. solar") -
 // le ?aba=... da propria URL deste arquivo (index.html repassa o parametro pro src do iframe,
 // ver loadDashboard() em index.html) e troca de master-pane logo apos o boot sincrono, antes do

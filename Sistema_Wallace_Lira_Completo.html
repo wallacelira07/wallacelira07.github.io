@@ -13,6 +13,26 @@
 <link rel="stylesheet" href="assets/css/styles.css?v=277">
 </head>
 <body>
+<!-- NOVO 12/08/2026 (pedido do usuário: painel travou "carregando" sem nenhum aviso, causa exata
+     não capturada a tempo - a cadeia de boot é ~15 fetches + ~10 <script src> encadeados via
+     Promise.all/onload, sem timeout nem mensagem de erro visível; se qualquer elo falhar
+     silenciosamente (rede, extensão, CDN), a tela fica presa no esqueleto estático pra sempre, sem
+     o usuário saber se é lentidão normal ou quebra real). Timeout de segurança: se o boot não
+     terminar em 20s, mostra aviso com botão de recarregar. Zerado no fim do boot real (ver
+     window.WALLACE_BOOT_OK em app.js, hydrate()/onDomPronto). -->
+<div id="bootFalhouAviso" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#e2554f;color:#fff;padding:0.7rem 1rem;text-align:center;font-weight:600;font-family:system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
+  ⚠️ O painel demorou demais pra carregar os dados.
+  <button onclick="location.reload()" style="margin-left:0.6rem;padding:0.3rem 0.9rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#fff;color:#e2554f">Recarregar página</button>
+</div>
+<script>
+  window.__wallaceBootTimeoutId = setTimeout(function(){
+    if(!window.WALLACE_BOOT_OK){
+      var aviso = document.getElementById('bootFalhouAviso');
+      if(aviso) aviso.style.display = 'block';
+      console.error('Boot do painel não terminou em 20s — algum script/fetch da cadeia de carregamento falhou silenciosamente. Veja a aba Network pra achar o elo que travou.');
+    }
+  }, 20000);
+</script>
 <script>
   // Guarda de acesso (defesa em profundidade, 18/07/2026): este painel hoje nao verifica login
   // se acessado direto pela URL, sem passar pelo index.html. Isso NAO substitui seguranca real

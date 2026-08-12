@@ -138,6 +138,14 @@ async function aplicarOnda9LivrosFixos(){
   if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
   if(typeof hydrateBalanco === 'function') hydrateBalanco();
   if(typeof hydrateCenarios === 'function') hydrateCenarios();
+  // CORRIGIDO 12/08/2026 (achado do usuário: badge "N divergência(s)" no topo mostrava números
+  // antigos mesmo depois do visaDetalhe/mbDetalhe já estarem corrigidos por esta função) —
+  // auditoriaAutomatica() só rodava 1x, dentro de hydrate() síncrono, ANTES desta função assíncrona
+  // (registrada em paralelo via onDomPronto, sem await entre as duas) terminar de buscar a V2 e
+  // corrigir visaDetalhe/mbDetalhe. Sem re-chamar aqui, o texto do badge ficava preso no resultado
+  // antigo pra sempre, mesmo com o REG por baixo já certo — reroda a mesma checagem, mesmo padrão
+  // já usado em atualizarPainelAposLancamento() (app.js).
+  if(typeof auditoriaAutomatica === 'function') auditoriaAutomatica();
 
   window.WALLACE_ONDA9_LIVROS_FIXOS_RELATORIO = {
     assinaturas: assinaturas.length, recorrencias: recorrencias.length,
