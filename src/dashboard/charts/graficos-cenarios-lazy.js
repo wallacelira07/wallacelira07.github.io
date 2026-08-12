@@ -10,6 +10,14 @@
 // observeAndRenderChart — todos já existem a essa altura do carregamento. Nenhuma fórmula,
 // comportamento ou resultado foi alterado, só o arquivo que hospeda o código.
 
+// NOVO 12/08/2026 (pente fino pedido pelo usuário: "os números fazem sentido, são fáceis de
+// interpretar?" — achado real em várias seções da aba Solar): números concatenados direto em
+// string (`valor+' kWh'`) usam PONTO como separador decimal (padrão JS), não vírgula (pt-BR,
+// padrão do resto do site) — "10.7 kWh/dia" em vez de "10,7 kWh/dia". Helper top-level (não local
+// a uma função só) porque o mesmo problema apareceu em pontos que não compartilham escopo entre si
+// (Unidade Geradora × Fluxo 1/Fluxo 2 × Rateio Solar).
+function fmtKwhPtBr(v){ return v.toLocaleString('pt-BR', {maximumFractionDigits:2}); }
+
 // NOVO 10/08/2026: extraída pra escopo top-level (achado do usuário, varredura completa de
 // gráficos) — antes vivia dentro de _lazyRenderGraficosSecao(), inacessível de fora; precisa ser
 // chamável tanto na criação do gráfico g_cCartoesLiquidoCV (dentro daquela função) quanto na
@@ -1416,8 +1424,8 @@ async function _lazyRenderSolarSecao(){
     const setUG = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
     const INSUFICIENTE = 'Dados insuficientes para cálculo.';
 
-    setUG('ugImportado', importadoAcum+' kWh');
-    setUG('ugExportado', exportadoAcum+' kWh');
+    setUG('ugImportado', fmtKwhPtBr(importadoAcum)+' kWh');
+    setUG('ugExportado', fmtKwhPtBr(exportadoAcum)+' kWh');
     // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos): ugSaldoLiquido vira o PRINCIPAL —
     // crédito do CICLO ATUAL (acumulado desde ativação MENOS o baseline do ciclo aberto), não mais
     // o acumulado puro. baselineKwh vem de vw_ciclo_solar_aberto (fetch no topo desta função); se a
@@ -1426,7 +1434,7 @@ async function _lazyRenderSolarSecao(){
     const ugSaldoEl = $('ugSaldoLiquido');
     if(baselineKwh != null){
       const creditoCicloAtual = Math.round((saldoLiquidoAcum - baselineKwh)*100)/100;
-      setUG('ugSaldoLiquido', (creditoCicloAtual>=0?'+':'')+creditoCicloAtual+' kWh');
+      setUG('ugSaldoLiquido', (creditoCicloAtual>=0?'+':'')+fmtKwhPtBr(creditoCicloAtual)+' kWh');
       if(ugSaldoEl) ugSaldoEl.style.color = creditoCicloAtual>=0 ? '#34c98a' : '#e2554f';
     } else {
       setUG('ugSaldoLiquido', '⚠ Indisponível (V2)');
@@ -1434,7 +1442,7 @@ async function _lazyRenderSolarSecao(){
     }
     // Secundário — acumulado desde a ativação (21/07), a mesma métrica que era o número principal
     // antes de hoje. Continua 100% real, só deixou de ser o número em destaque.
-    setUG('ugAcumuladoDesdeAtivacao', 'Acumulado desde 21/07: '+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh');
+    setUG('ugAcumuladoDesdeAtivacao', 'Acumulado desde 21/07: '+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(saldoLiquidoAcum)+' kWh');
 
     // Histórico de ciclos fechados (seção 11) — dado gravado em ciclos_solares, nunca recalculado.
     const historicoEl = $('historicoCiclosSolares');
@@ -1494,7 +1502,7 @@ async function _lazyRenderSolarSecao(){
     if(ugEstimativaEl){
       if(saldoLiquidoEstimado !== null && diasDesdeLeitura > 0){
         ugEstimativaEl.style.display = 'block';
-        ugEstimativaEl.innerHTML = `📊 Estimativa pra hoje: <strong style="color:${saldoLiquidoEstimado>=0?'#34c98a':'#e2554f'}">${saldoLiquidoEstimado>=0?'+':''}${saldoLiquidoEstimado} kWh</strong> (${diasDesdeLeitura} dia(s) desde a última leitura do medidor, calculado automaticamente com base na geração real do inversor − consumo médio da casa) — <strong>é estimativa, não leitura real</strong>; sempre que você mandar uma foto nova do medidor, o valor real substitui essa estimativa. Não precisa mandar leitura todo dia — isso aqui só preenche o intervalo sozinho.`;
+        ugEstimativaEl.innerHTML = `📊 Estimativa pra hoje: <strong style="color:${saldoLiquidoEstimado>=0?'#34c98a':'#e2554f'}">${saldoLiquidoEstimado>=0?'+':''}${fmtKwhPtBr(saldoLiquidoEstimado)} kWh</strong> (${diasDesdeLeitura} dia(s) desde a última leitura do medidor, calculado automaticamente com base na geração real do inversor − consumo médio da casa) — <strong>é estimativa, não leitura real</strong>; sempre que você mandar uma foto nova do medidor, o valor real substitui essa estimativa. Não precisa mandar leitura todo dia — isso aqui só preenche o intervalo sozinho.`;
       } else {
         ugEstimativaEl.style.display = 'none';
       }
@@ -1811,7 +1819,7 @@ async function _lazyRenderSolarSecao(){
     const avisoCicloAberto = idxCicloAbertoAlinhado != null
       ? ' A barra mais CLARA/transparente é o ciclo AINDA ABERTO (estimativa ao vivo, cresce todo dia até fechar de verdade) — as barras sólidas são ciclos já fechados e congelados.'
       : '';
-    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+ultimaSolar.creditoLiquido+' kWh</strong> (Wallace '+ultimaSolar.creditoWallace+' kWh · Irmã '+ultimaSolar.creditoIrma+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa+avisoCicloAberto;
+    legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+fmtKwhPtBr(ultimaSolar.creditoLiquido)+' kWh</strong> (Wallace '+fmtKwhPtBr(ultimaSolar.creditoWallace)+' kWh · Irmã '+fmtKwhPtBr(ultimaSolar.creditoIrma)+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa+avisoCicloAberto;
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
@@ -1873,14 +1881,14 @@ async function _lazyRenderSolarSecao(){
     const set = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
     const barEl = $(prefixo+'Bar');
     if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = status.cor; }
-    set(prefixo+'Fracao', creditoAtual+' / '+meta+' kWh (meta do mês, referência)');
+    set(prefixo+'Fracao', fmtKwhPtBr(creditoAtual)+' / '+fmtKwhPtBr(meta)+' kWh (meta do mês, referência)');
     set(prefixo+'Pct', pct+'%');
     set(prefixo+'Periodo', periodoTxt || '—');
     set(prefixo+'Rateio', rateioTxt || '—');
     set(prefixo+'Dias', diasRestantes+' dias');
-    set(prefixo+'Necessario', mediaNecessaria+' kWh/dia');
-    set(prefixo+'Media', mediaRealizada+' kWh/dia');
-    set(prefixo+'Previsao', previsao+' kWh');
+    set(prefixo+'Necessario', fmtKwhPtBr(mediaNecessaria)+' kWh/dia');
+    set(prefixo+'Media', fmtKwhPtBr(mediaRealizada)+' kWh/dia');
+    set(prefixo+'Previsao', fmtKwhPtBr(previsao)+' kWh');
     const statusEl = $(prefixo+'Status');
     if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto+' (ritmo de geração desta GD)'; statusEl.style.color = status.cor; }
   }
@@ -1893,7 +1901,7 @@ async function _lazyRenderSolarSecao(){
     const barEl = $(prefixo+'Bar');
     if(creditoFechado==null){
       set(prefixo+'Fracao', 'Sem ciclo fechado ainda'); set(prefixo+'Cobertura', '—');
-      set(prefixo+'Data', '—'); set(prefixo+'Meta', meta+' kWh'); set(prefixo+'Faltam', '—');
+      set(prefixo+'Data', '—'); set(prefixo+'Meta', fmtKwhPtBr(meta)+' kWh'); set(prefixo+'Faltam', '—');
       if(barEl) barEl.style.width = '0%';
       return;
     }
@@ -1901,11 +1909,11 @@ async function _lazyRenderSolarSecao(){
     const faltam = Math.round((meta-creditoFechado)*10)/10;
     const pct = Math.min(100, Math.max(0, Math.round(cobertura)));
     if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = faltam<=0 ? '#34c98a' : '#e8a63a'; }
-    set(prefixo+'Fracao', creditoFechado+' / '+meta+' kWh');
-    set(prefixo+'Cobertura', cobertura+'%');
+    set(prefixo+'Fracao', fmtKwhPtBr(creditoFechado)+' / '+fmtKwhPtBr(meta)+' kWh');
+    set(prefixo+'Cobertura', fmtKwhPtBr(cobertura)+'%');
     set(prefixo+'Data', dataFimTxt);
-    set(prefixo+'Meta', meta+' kWh');
-    set(prefixo+'Faltam', faltam>0 ? faltam+' kWh' : 'Cobre com sobra de '+Math.abs(faltam)+' kWh');
+    set(prefixo+'Meta', fmtKwhPtBr(meta)+' kWh');
+    set(prefixo+'Faltam', faltam>0 ? fmtKwhPtBr(faltam)+' kWh' : 'Cobre com sobra de '+fmtKwhPtBr(Math.abs(faltam))+' kWh');
   }
 
   if(ultimaSolar){
