@@ -1,17 +1,17 @@
 :root{
-    --bg: #0b0c0e;
-    --surface: #16181b;
-    --surface-2: #1d2024;
-    --border: #2a2d31;
-    --border-strong: #383c42;
-    --text: #eceae4;
-    --text-mid: #a9a79f;
-    --text-dim: #6f6d66;
-    --accent: #3987e5;
-    --accent-2: #9085e9;
-    --green: #34c98a;
-    --amber: #e8a63a;
-    --red: #e2554f;
+    --bg: #0a0b10;
+    --surface: #14161b;
+    --surface-2: #1a1d24;
+    --border: #262a32;
+    --border-strong: #363b45;
+    --text: #f0eee6;
+    --text-mid: #adaba3;
+    --text-dim: #75736c;
+    --accent: #4c8ef2;
+    --accent-2: #9c8ff2;
+    --green: #35d199;
+    --amber: #eaa83f;
+    --red: #ef5b56;
     --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
     /* V300 Etapa 3 (Design System) — tokens novos, aditivos. Cada um assume exatamente o
        valor que já era usado nos seletores abaixo; nenhum valor mudou, só passou a ter nome. */
@@ -23,15 +23,15 @@
     --radius-3xl: 14px;
     --radius-pill: 100px;
     --shadow-glow-green: 0 0 8px var(--green);
-    --shadow-focus-accent: 0 0 0 2px rgba(57,135,229,0.15);
-    --shadow-focus-accent-lg: 0 0 0 3px rgba(57,135,229,0.18);
-    --shadow-master-tab-active: 0 -2px 0 0 rgba(57,135,229,0.15) inset, 0 2px 8px rgba(57,135,229,0.12);
+    --shadow-focus-accent: 0 0 0 2px rgba(76,142,242,0.15);
+    --shadow-focus-accent-lg: 0 0 0 3px rgba(76,142,242,0.18);
+    --shadow-master-tab-active: 0 -2px 0 0 rgba(76,142,242,0.15) inset, 0 2px 8px rgba(76,142,242,0.12);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     padding: 2.5rem 1.5rem 5rem;
     overflow-x:hidden;
   }
@@ -40,9 +40,9 @@
   .cover{
     position:relative;
     z-index:5; /* NOVO parte 83: garante que o dropdown da busca (dentro deste card) sempre pinte por cima dos cards normais que vêm depois no DOM, sem depender de nuance de stacking context */
-    background: radial-gradient(ellipse at top left, rgba(57,135,229,0.18), transparent 55%),
-                radial-gradient(ellipse at bottom right, rgba(52,201,138,0.12), transparent 50%),
-                linear-gradient(160deg, #0d1420 0%, #0b0c0e 70%);
+    background: radial-gradient(ellipse at top left, rgba(76,142,242,0.18), transparent 55%),
+                radial-gradient(ellipse at bottom right, rgba(53,209,153,0.12), transparent 50%),
+                linear-gradient(160deg, #0d1420 0%, #0a0b10 70%);
     border:1px solid var(--border-strong);
     border-radius:var(--radius-3xl);
     padding:2.5rem 2.2rem;
@@ -58,7 +58,7 @@
   .cover::before{
     content:'';position:absolute;top:-40%;right:-10%;
     width:420px;height:420px;border-radius:50%;
-    background:radial-gradient(circle, rgba(57,135,229,0.15), transparent 70%);
+    background:radial-gradient(circle, rgba(76,142,242,0.15), transparent 70%);
     z-index:0; pointer-events:none;
   }
   /* parte 47 (pedido do usuario): busca movida pro canto vazio do cabecalho - texto (eyebrow/h1/sub)
@@ -137,10 +137,10 @@
     border-radius:var(--radius-pill);border:1px solid transparent;
     background:linear-gradient(120deg,var(--accent),var(--accent-2));
     color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;
-    cursor:pointer;box-shadow:0 4px 14px rgba(57,135,229,0.3);
+    cursor:pointer;box-shadow:0 4px 14px rgba(76,142,242,0.3);
     transition:transform 0.15s ease,box-shadow 0.15s ease;
   }
-  .greeting-modal-ok:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(57,135,229,0.4)}
+  .greeting-modal-ok:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(76,142,242,0.4)}
   .greeting-modal-ok:active{transform:translateY(0)}
   .cover h1{
     font-size:2.3rem;font-weight:700;letter-spacing:-0.02em;
@@ -198,7 +198,7 @@
     transition:color .15s ease, background .15s ease, box-shadow .15s ease;
   }
   .master-tab:hover{color:var(--text-mid);background:rgba(255,255,255,0.035)}
-  .master-tab.active{color:var(--text);background:rgba(57,135,229,0.14);box-shadow:var(--shadow-master-tab-active)}
+  .master-tab.active{color:var(--text);background:rgba(76,142,242,0.14);box-shadow:var(--shadow-master-tab-active)}
   @media (max-width:640px){
     .master-tabs{flex-wrap:wrap;top:0}
     .master-tab{flex:1 1 40%;font-size:0.88rem;padding:0.85rem 0.7rem}
@@ -214,8 +214,8 @@
   }
   .masthead .sub{color:var(--text-mid);font-size:0.85rem;margin-top:0.3rem}
   .status-pill{
-    background: rgba(52,201,138,0.12); color:var(--green);
-    border:1px solid rgba(52,201,138,0.35);
+    background: rgba(53,209,153,0.12); color:var(--green);
+    border:1px solid rgba(53,209,153,0.35);
     padding:0.35rem 0.9rem;border-radius:var(--radius-pill);
     font-size:0.75rem;font-weight:600;letter-spacing:0.02em;
   }
@@ -303,10 +303,10 @@
     display:inline-block;font-size:0.72rem;font-weight:600;
     padding:0.2rem 0.65rem;border-radius:var(--radius-pill);
   }
-  .badge.bg{background:rgba(52,201,138,0.12);color:var(--green)}
-  .badge.ba{background:rgba(232,166,58,0.14);color:var(--amber)}
-  .badge.br{background:rgba(226,85,79,0.14);color:var(--red)}
-  .badge.bb{background:rgba(57,135,229,0.14);color:var(--accent)}
+  .badge.bg{background:rgba(53,209,153,0.12);color:var(--green)}
+  .badge.ba{background:rgba(234,168,63,0.14);color:var(--amber)}
+  .badge.br{background:rgba(239,91,86,0.14);color:var(--red)}
+  .badge.bb{background:rgba(76,142,242,0.14);color:var(--accent)}
 
   .progress{height:6px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:0.55rem}
   .progress .fill{height:100%;border-radius:var(--radius-sm);transition:width 0.6s ease}
@@ -336,9 +336,9 @@
     white-space:normal;line-height:1.3;text-align:center;
     display:flex;align-items:center;justify-content:center;
   }
-  .tab:hover{border-color:rgba(57,135,229,0.5);color:var(--text)}
+  .tab:hover{border-color:rgba(76,142,242,0.5);color:var(--text)}
   .tab.active{
-    background:linear-gradient(135deg, rgba(57,135,229,0.22), rgba(57,135,229,0.10));
+    background:linear-gradient(135deg, rgba(76,142,242,0.22), rgba(76,142,242,0.10));
     color:var(--accent);border-color:var(--accent);
     box-shadow:var(--shadow-focus-accent);
     font-weight:700;
@@ -420,10 +420,10 @@
   .callout{
     padding:0.75rem 1rem;border-radius:var(--radius-lg);font-size:0.82rem;margin-top:0.7rem;
   }
-  .callout.danger{background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.3);color:#f0918d}
-  .callout.warn{background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.3);color:#eec38a}
-  .callout.ok{background:rgba(52,201,138,0.1);border:1px solid rgba(52,201,138,0.3);color:#8bdcb8}
-  .callout.info{background:rgba(57,135,229,0.08);border:1px solid rgba(57,135,229,0.25);color:var(--text-mid)}
+  .callout.danger{background:rgba(239,91,86,0.1);border:1px solid rgba(239,91,86,0.3);color:#f0918d}
+  .callout.warn{background:rgba(234,168,63,0.1);border:1px solid rgba(234,168,63,0.3);color:#eec38a}
+  .callout.ok{background:rgba(53,209,153,0.1);border:1px solid rgba(53,209,153,0.3);color:#8bdcb8}
+  .callout.info{background:rgba(76,142,242,0.08);border:1px solid rgba(76,142,242,0.25);color:var(--text-mid)}
 
   /* parte 44 (pedido do usuario: "essa parte não conversa com o resto do site") — cabecalho de card
      com chip de icone, mesmo padrao visual ja usado em .cm-ico (Capa)/.cover-metrics, agora reutilizado
@@ -519,7 +519,7 @@
     .home-nav-btn{
       flex-direction:row; gap:0.5rem; justify-content:center;
       padding:0.75rem 0.9rem; font-size:1.25rem;
-      background:rgba(57,135,229,0.1); border-color:rgba(57,135,229,0.4);
+      background:rgba(76,142,242,0.1); border-color:rgba(76,142,242,0.4);
     }
     .home-nav-btn span{ font-size:0.78rem; }
   }
@@ -581,7 +581,7 @@
   .ciclo-seletor-wrap {
     display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;
     padding:0.55rem 0.7rem; margin:0 0 1rem 0;
-    background:linear-gradient(135deg, rgba(57,135,229,0.08), rgba(144,133,233,0.05));
+    background:linear-gradient(135deg, rgba(76,142,242,0.08), rgba(156,143,242,0.05));
     border:1px solid var(--border-strong); border-radius:var(--radius-2xl);
   }
   .ciclo-seletor-label {
@@ -608,7 +608,7 @@
   #cicloBannerFechado {
     display:flex; align-items:center; gap:0.5rem;
     font-size:0.74rem; color:var(--amber);
-    background:rgba(232,166,58,0.08); border:1px solid rgba(232,166,58,0.25);
+    background:rgba(234,168,63,0.08); border:1px solid rgba(234,168,63,0.25);
     border-radius:var(--radius-lg); padding:0.45rem 0.7rem; margin-bottom:1rem;
   }
 
@@ -645,7 +645,7 @@
     cursor:pointer; border-bottom:1px solid var(--border);
   }
   .busca-resultado-item:last-child{ border-bottom:none; }
-  .busca-resultado-item:hover{ background:rgba(57,135,229,0.1); color:var(--text); }
+  .busca-resultado-item:hover{ background:rgba(76,142,242,0.1); color:var(--text); }
   .busca-resultado-vazio{ padding:0.6rem 0.9rem; font-size:0.78rem; color:var(--text-dim); }
   /* NOVO parte 76: resultado de transacao (TX/valor) - mesma linha, mais um subtitulo pequeno com
      data/livro/obs. CORRIGIDO 05/08/2026: agora navega ate a aba do livro razao certo quando existe
@@ -663,7 +663,7 @@
   .linha-destacada-busca{ animation: destacarLinhaBusca 0.5s ease-in-out 3; }
   @keyframes destacarLinhaBusca{
     0%, 100%{ background:transparent; }
-    50%{ background:rgba(57,135,229,0.4); }
+    50%{ background:rgba(76,142,242,0.4); }
   }
 
   /* NOVO 06/08/2026 (parte 111, pedido do usuário: "barras mais bonitas, clean e premium").
