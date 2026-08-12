@@ -169,6 +169,33 @@ function toggleBtnVoltarCapa(){
   btn.style.display = window.scrollY > 320 ? 'flex' : 'none';
 }
 
+// NOVO 12/08/2026 (pedido do usuário, print real do celular circulando a barra pill de abas em
+// cima do conteúdo de "Energia Solar": "toma muito espaço fixo, tem que recolher ao rolar como
+// Gmail/Android faz" — esconde ao rolar pra baixo, volta ao rolar pra cima, mesmo um pouco).
+// ACHADO ao investigar ao vivo no painel logado: a barra do print é .master-tabs, NÃO
+// .home-nav-grid (tentativa anterior editou o elemento errado - .home-nav-grid só existe dentro
+// de #home/Dashboard e nem estava visível naquele print). .master-tabs só é renderizada DENTRO das
+// abas (Painel/Gráficos/Energia Solar/Cenários/Balanço - nunca na Home), então não precisa de
+// nenhuma checagem de "ainda estou no Dashboard" - toda vez que ela existe no DOM, já estamos numa
+// aba, contexto onde o usuário quer o auto-hide. _limiarPx evita esconder/mostrar a cada 1px de
+// tremor de scroll do celular.
+let _masterTabsUltimoScrollY = 0;
+function toggleMasterTabsAoRolar(){
+  const tabs = document.querySelector('.master-tabs');
+  if(!tabs) return; // não existe na Home - nada a fazer, .home-nav-grid não é afetada
+  const y = window.scrollY;
+  const limiarPx = 6;
+  const delta = y - _masterTabsUltimoScrollY;
+  if(y <= 0){
+    tabs.classList.remove('master-tabs--escondida'); // topo da página - sempre visível
+  } else if(delta > limiarPx){
+    tabs.classList.add('master-tabs--escondida'); // rolando pra baixo - esconde
+  } else if(delta < -limiarPx){
+    tabs.classList.remove('master-tabs--escondida'); // rolando pra cima - mostra de novo
+  }
+  _masterTabsUltimoScrollY = y;
+}
+
 // V300 (Etapa 6 - Busca Global): indice construido 1x a partir do HTML estatico (49 secoes),
 // nao duplica nenhum dado do VARS - so mapeia texto visivel (titulo de secao + rotulo de linha)
 // pra navegacao rapida entre abas. Nao esconde nenhum elemento (zero risco pro lazy loading das
@@ -568,3 +595,4 @@ onDomPronto(renderCapaNav); // parte 41: monta os cards de navegacao da Capa/Das
 onDomPronto(toggleBtnVoltarCapa); // parte 41: estado inicial do botao flutuante (escondido no topo)
 onDomPronto(()=>renderPageStrip('painel')); // parte 42: estado inicial da faixa "onde estou" (painel e o pane ativo por padrao no HTML)
 window.addEventListener('scroll', toggleBtnVoltarCapa, {passive:true}); // parte 41: mostra/esconde ao rolar
+window.addEventListener('scroll', toggleMasterTabsAoRolar, {passive:true}); // NOVO 12/08/2026: auto-hide da barra .master-tabs dentro das abas

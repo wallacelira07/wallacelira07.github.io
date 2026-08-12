@@ -181,6 +181,15 @@
     background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl);
     padding:0.45rem;box-shadow:0 2px 10px rgba(0,0,0,0.18);
     position:sticky;top:0;z-index:40;
+    transition:transform 0.25s ease, opacity 0.25s ease;
+  }
+  /* NOVO 12/08/2026 (pedido do usuário, print real do celular circulando esta barra: "toma muito
+     espaço fixo, tem que recolher ao rolar como o Gmail/Android faz"). .master-tabs só aparece
+     DENTRO das abas (Painel/Gráficos/Energia Solar/Cenários/Balanço — nunca na Home, que usa
+     .home-nav-grid, elemento separado que continua intocado). Esconde/mostra via JS
+     (toggleMasterTabsAoRolar, dashboard-navegacao.js) conforme a direção do scroll. */
+  .master-tabs.master-tabs--escondida{
+    transform:translateY(-130%); opacity:0; pointer-events:none;
   }
   /* pedido do usuario (04/08/2026, parte 46): ao colar no topo, uma "brecha" mostrava um fiapo do
      conteudo anterior por tras do canto arredondado / durante o repaint do scroll. Este pseudo-elemento
@@ -495,10 +504,13 @@
      aba"). Mesmo grid responsivo ja usado em .grid-3/.grid-4 acima, cards maiores/mais clicaveis
      que os itens finos de .master-tabs.
      CORRIGIDO 11/08/2026, 3ª rodada (pedido do usuário: "as abas na tela Home devem ser fixas e
-     não travar no topo igual nas outras abas") - tentativa anterior (sticky, igual .master-tabs)
-     revertida: na Home o grid fica em fluxo normal (position:static), rola junto com o resto do
-     conteúdo, nunca gruda no topo do viewport. Sticky continua exclusivo de .master-tabs (as 5
-     outras abas), comportamento que o usuário já validou. */
+     não travar no topo igual nas outras abas") - virou position:static, sem sticky.
+     TENTATIVA REVERTIDA 12/08/2026: cheguei a testar auto-hide aqui (achando que era este elemento
+     que o usuário via em cima de "RATEIO SOLAR" no print do celular), mas confirmado ao vivo no
+     painel logado que .home-nav-grid só existe dentro de #home (Dashboard) e nem estava visível
+     naquele print - quem aparece nas outras 5 abas (Painel/Gráficos/Energia Solar/Cenários/Balanço)
+     é .master-tabs (mais abaixo neste arquivo), elemento DIFERENTE. Pedido real do usuário: Home
+     continua exatamente como estava (nada aqui deve se mexer); o auto-hide vai em .master-tabs. */
   .home-nav-grid{
     display:grid; grid-template-columns:repeat(5,1fr); gap:0.8rem; margin:1.2rem 0 1.5rem;
   }
