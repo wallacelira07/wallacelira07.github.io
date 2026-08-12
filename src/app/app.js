@@ -281,12 +281,13 @@ const WallaceFinanceService = {
   // a compras antigas, que passaram a entrar nesta soma de uma vez só assim que ganharam cartao_id.
   async getComprometidoCaixaVariavelV2(){
     return this._cache.obterOuBuscar('comprometido_caixa_variavel_v2', async () => {
-      const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${this.CAIXA_VARIAVEL_ID_V2}`, {
-        headers: this._headers()
-      });
-      if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em da Caixa Variável`);
-      const dadoCaixa = await respCaixa.json();
-      const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+      // CORRIGIDO 12/08/2026 (achado do usuário: "lag pra carregar os valores" - segunda rodada
+      // depois da correção da corrida de cache): esta função fazia sua PRÓPRIA consulta a
+      // `caixas?select=ciclo_inicio_em&id=eq.X`, quando getCaixas() já busca id+ciclo_inicio_em de
+      // TODAS as caixas (e já está cacheado/memoizado) - reusar em vez de refazer o roundtrip.
+      const caixas = await this.getCaixas();
+      const caixaVariavel = caixas.find(c => c.id === this.CAIXA_VARIAVEL_ID_V2);
+      const cicloInicioEm = caixaVariavel && caixaVariavel.ciclo_inicio_em;
       const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
       // CORRIGIDO 12/08/2026 (achado do usuário: assinaturas do Mastercard Black recém-vinculadas via
       // Pluggy - Netflix/OpenAI/Anthropic/Amazon Prime/etc - contavam aqui E no orçamento de
@@ -359,12 +360,12 @@ const WallaceFinanceService = {
       // 01-02/07/2026 — ciclo FECHADO anterior, não o ciclo atual 25/07→24/08) — mesma classe de bug já
       // corrigida em getComprometidoCaixaVariavelV2() (11/08/2026): faltava o filtro de ciclo_inicio_em,
       // então TODA transação corporativa já confirmada entrava aqui, de qualquer ciclo.
-      const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${caixaId}`, {
-        headers: this._headers()
-      });
-      if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em do Provisionado Wärtsilä`);
-      const dadoCaixa = await respCaixa.json();
-      const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+      // CORRIGIDO 12/08/2026 (achado do usuário: "lag pra carregar os valores"): reusa getCaixas()
+      // (já busca id+ciclo_inicio_em de todas, já cacheado) em vez de refazer o roundtrip só pra
+      // esta caixa - mesma correção aplicada em getComprometidoCaixaVariavelV2() logo acima.
+      const caixas = await this.getCaixas();
+      const caixaWartsila = caixas.find(c => c.id === caixaId);
+      const cicloInicioEm = caixaWartsila && caixaWartsila.ciclo_inicio_em;
       const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
       const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
         headers: this._headers()
@@ -476,6 +477,26 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 12/08/2026 (achado do usuário: "lag pra carregar os valores" — confirmado no profiling:
+  // até 9 chamadas separadas pra /rest/v1/indicadores, uma por nome, cada uma seu próprio
+  // roundtrip). A tabela tem só 32 linhas (1 por nome, sem histórico) — busca TODAS de uma vez e
+  // getIndicador(nome) passa a ler do mapa em memória, sem refazer fetch por chamador. Assinatura
+  // de getIndicador() não muda (continua recebendo 1 nome, devolvendo 1 objeto ou null) — nenhum
+  // dos ~8 chamadores precisou ser tocado.
+  async _obterTodosIndicadores(){
+    return this._cache.obterOuBuscar('indicadores_todos', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/indicadores?select=nome,valor,data_calculo&order=data_calculo.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicadores`);
+      const linhas = await resp.json();
+      const mapa = new Map();
+      // order=data_calculo.desc + só grava se ainda não tiver essa chave -> primeira ocorrência de
+      // cada nome é sempre a mais recente (equivalente ao antigo order+limit=1 por nome).
+      linhas.forEach(l => { if(!mapa.has(l.nome)) mapa.set(l.nome, l); });
+      return mapa;
+    });
+  },
   async getIndicador(nome){
     // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
     // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
@@ -483,14 +504,8 @@ const WallaceFinanceService = {
     // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
     // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
     // e retorno agora sempre guardam/devolvem o MESMO valor.
-    return this._cache.obterOuBuscar('indicador:' + nome, async () => {
-      const resp = await fetch(`${this._url}/rest/v1/indicadores?select=valor,data_calculo&nome=eq.${encodeURIComponent(nome)}&order=data_calculo.desc&limit=1`, {
-        headers: this._headers()
-      });
-      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
-      const dado = await resp.json();
-      return dado[0] || null;
-    });
+    const mapa = await this._obterTodosIndicadores();
+    return mapa.get(nome) || null;
   },
   // NOVO 08/08/2026 (Onda 4, domínio 3 — LREI): vw_emprestimos_internos_v2 (mesmo shape de
   // VARS.LREI_ATIVAS — id/data/credora/devedora/valor/origem/status/quitadoEm/quitadoPor).
