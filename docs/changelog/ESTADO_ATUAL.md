@@ -2,7 +2,13 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso). Commits pushed: `2da024b` (Fase 1 — TTL de 90s no cache do `WallaceFinanceService` + scroll horizontal nos 24 painéis do Livro Razão), `821cf31` (Fase 3 — refino de paleta/tipografia do design system).
+Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso). Commits pushed: `2da024b` (Fase 1 — TTL de 90s no cache do `WallaceFinanceService` + scroll horizontal nos 24 painéis do Livro Razão), `821cf31` (Fase 3 — refino de paleta/tipografia do design system), `1a0b583` (composição tarifária real Wellida/Casa da Mãe, com correção também aplicada na cópia viva no Supabase).
+
+## ✅ Correção de dado real — composição tarifária Wellida/Casa da Mãe (12/08/2026)
+
+Usuário mandou 2 faturas reais em PDF (Ago/26, NF 009.005.476 Wellida e NF 009.005.819 Casa da Mãe). A tabela "Residual pós-solar estimado" (seção 10, `graficos-cenarios-lazy.js`) usava uma composição tarifária genérica chutada (28% energia/22% impostos/22% distribuição/12% iluminação/12% encargos/5% transmissão) igual pra todas as unidades. Substituído pelos percentuais reais extraídos da página 2 de cada fatura — **exceto Iluminação Pública (COSIP)**, que não faz parte dessa tabela percentual (é linha separada, nunca compensada por lei): a fórmula agora usa o valor real exato da COSIP (`cosip_valor_real`: R$13,87 Wellida, R$18,12 Casa da Mãe) em vez de estimar por %. Validado batendo o resultado recalculado da Wellida (R$51,93 residual/R$42,52 economia, 45,0%) contra uma estimativa anterior já dada pelo usuário (R$51,68/R$42,77, 45,3%) — muito próximo, valida a abordagem. Casa da Mãe recalculada deu bem diferente da estimativa anterior (R$67,48/R$136,13, 66,9% vs. estimativa antiga de R$87,88/R$115,73) — usuário confirmou que a estimativa antiga também tinha sido calculada por mim (não era uma fonte externa), então o novo número (baseado em dado real da fatura) é o que vale.
+
+**Corrigido tanto localmente (`src/solar/vars-energia-solar.js`) quanto na cópia viva no Supabase** (`wallace_dados.ENERGISA_TARIFA_COMPOSICAO`, que sobrescreve o arquivo local no carregamento — regra permanente do `CLAUDE.md`, não esquecer de novo).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -26,7 +32,7 @@
 | 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
 | 2 | Mobile/responsividade — auditoria + correções pontuais | 🔶 Em andamento — bug do Livro Razão corrigido; painel principal ainda não testado (sem login) |
 | 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
-| 4 | (não definida ainda) | — |
+| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | 🔶 Auditoria de código concluída (10 achados, ver `PASSAGEM_DE_TURNO.md`), aplicação aguardando priorização do usuário |
 
 ## ✅ Fase 3 — refino de paleta e tipografia (12/08/2026)
 
