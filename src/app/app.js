@@ -2377,31 +2377,13 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       promoverCampoV2SeConfiavel('balPassivosTotal', resumoV2.patrimonio_resumo.total_passivo, 5);
     }
 
-    const caixaVariavelV2 = (resumoV2.caixas||[]).find(c => c.nome === 'Caixa Variável');
-    if(caixaVariavelV2 && typeof VARS !== 'undefined' && VARS.CICLO_SNAPSHOTS && VARS.CICLO_SNAPSHOTS[VARS.cicloAtual]){
-      const saldoV1 = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].caixaVariavelSaldoReal;
-      // usa saldo_real_ciclo_atual (campo novo, 05/08/2026 - já respeita saldo_inicial_ciclo e só
-      // conta movimentos com afeta_saldo_real=true), NAO o "saldo" bruto (que soma compra de cartão
-      // junto, medindo outra coisa - ver ESTADO_ATUAL.md pra reconciliação completa desse achado)
-      const saldoV2 = caixaVariavelV2.saldo_real_ciclo_atual;
-      const diff = Math.round(Math.abs(saldoV1 - saldoV2) * 100) / 100;
-      const badgeV2 = document.getElementById('syncV2Badge');
-      if(diff > 0.05){
-        console.warn(`⚠️ Auditoria V1↔V2: Caixa Variável (saldo real do ciclo) diverge - V1(app.js)=R$${saldoV1} vs V2(Supabase relacional)=R$${saldoV2} (diff R$${diff}). Investigar: a V2 costuma estar mais completa (captura toda compra migrada), enquanto o array manual do V1 pode estar incompleto - ver ESTADO_ATUAL.md da sessão 05/08/2026 pra um caso já resolvido assim (diferença de R$22 = TX000190, água mineral, que faltava no V1).`);
-        if(badgeV2){
-          badgeV2.innerHTML = `⚠ V2: diverge <span class="v">R$${diff}</span>`;
-          badgeV2.style.color = '#e2a53d';
-          badgeV2.title = `Caixa Variável (saldo real do ciclo): app.js=R$${saldoV1} vs Supabase V2=R$${saldoV2}. Ver console para detalhe.`;
-        }
-      } else {
-        console.log(`%c✅ Auditoria V1↔V2: Caixa Variável bate (R$${saldoV1}) entre app.js e Supabase relacional.`, 'color:#34c98a');
-        if(badgeV2){
-          badgeV2.textContent = '✓ V2 ativa'; // ATUALIZADO 09/08/2026 (pedido do usuário): "sincronizado" sugeria 2 fontes em paridade - a V2 é a fonte principal hoje, não faz mais sentido descrever como "sincronia" entre iguais.
-          badgeV2.style.color = '#34c98a';
-          badgeV2.title = `Caixa Variável (saldo real do ciclo) bate entre app.js e Supabase V2: R$${saldoV1}.`;
-        }
-      }
-    }
+    // REMOVIDO 12/08/2026 (pedido do usuário, achado real): esta comparação alimentava o selo
+    // `syncV2Badge` ("V2: DIVERGE R$18,15"), que ficou travado numa divergência não-reproduzível —
+    // confirmado por SQL direto que as duas fontes reais (rpc_dashboard_resumo e o snapshot
+    // congelado) já batiam exatas, mas o selo continuava mostrando a mesma diferença antiga mesmo
+    // depois de recarregar com deploy novo confirmado. Migração V1→V2 já encerrada formalmente
+    // nesta sessão (ver docs/decisions/) — este selo de auditoria é obsoleto e só gerava alarme
+    // falso permanente. Elemento #syncV2Badge removido do HTML junto (Sistema_Wallace_Lira_Completo.html).
   } catch(e) {
     // silencioso de propósito - é auditoria opcional, nunca deve quebrar o site nem poluir o
     // console do usuário com erro de rede que ele não pode fazer nada a respeito

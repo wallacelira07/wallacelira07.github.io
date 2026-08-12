@@ -21,7 +21,20 @@ function registrarValidacaoFase(fase, aprovado, motivo){
   console.log(`%c[${fase}] ${aprovado ? 'APROVADA' : 'REPROVADA'}${motivo ? ' — ' + motivo : ''}`, aprovado ? 'color:#34c98a;font-weight:700' : 'color:#e2554f;font-weight:700');
 }
 
-// ===== FASE 2D — primeira substituição operacional controlada (experimental, escopo único: Caixa
+// ===== FASE 2D — REMOVIDA 12/08/2026 =====
+// Usuário pediu remoção após achado real: o selo `syncV2Badge` que esta fase alimentava (indireto,
+// via comparação paralela) ficava travado numa divergência de R$18,15 contra um "V1" (VARS.
+// CICLO_SNAPSHOTS[...].caixaVariavelSaldoReal) que não foi possível reproduzir/explicar em runtime
+// mesmo depois de confirmar por SQL direto que a fonte viva (rpc_dashboard_resumo) e o snapshot
+// congelado já batiam exatos (R$1.886,65 = R$1.886,65). Decisão: a migração V1→V2 já foi encerrada
+// formalmente nesta mesma sessão (ver docs/decisions/) — este gate experimental de 06/08/2026 (fase
+// de transição, "primeira substituição operacional controlada") não tem mais função real: os valores
+// que ele tentava promover (REG.caixaVariavel.saldoReal/disponivel) já são setados corretamente por
+// hydrate-onda1-v2.js/hydrate-comprometido-caixa-variavel-v2.js, que rodam de qualquer forma. Manter
+// um selo de diagnóstico quebrado gerando alarme falso permanente é pior que não ter selo nenhum.
+// Bloco original (comparação FinanceEngine × RPC + substituição condicional de REG.caixaVariavel.*)
+// removido por completo — ver histórico do git pra recuperar se precisar.
+/* ===== FASE 2D — primeira substituição operacional controlada (experimental, escopo único: Caixa
 // Variável) — 06/08/2026 =====
 // Cálculo em paralelo (V1 já existente acima + FinanceEngine via Comparator), sempre registrado no
 // console. Fecha o único critério pendente do marco de transição (ESTADO_ATUAL.md / FASE_2C_SERVICES.md):
@@ -126,7 +139,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     // renderizado desde o boot — nunca quebra, nunca mostra tela quebrada.
     console.warn('[FASE 2D] comparação/substituição experimental da Caixa Variável falhou (não afeta o site — valor V1 permanece exibido):', e);
   }
-})();
+})(); */
 
 // ===== FASE 2F — promoção em lote das 10 caixas reconciliadas (Bens Duráveis, Grupo A x8,
 // Caixa Lance) — 06/08/2026, parte 142 =====
