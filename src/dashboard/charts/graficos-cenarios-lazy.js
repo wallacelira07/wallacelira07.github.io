@@ -1021,7 +1021,11 @@ async function _lazyRenderSolarSecao(){
       const tarifaReal = faturaBase / consumoKwh;
       const custoDisponibilidade = Math.round(u.kwhMinimo * tarifaReal * 100) / 100;
       const fioBValor = Math.round(faturaBase * (pct.distribuicao||0)/100 * fioBFracaoDaDistribuicao * 100) / 100;
-      const iluminacaoValor = Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
+      // CORRIGIDO 12/08/2026: quando existe cosip_valor_real (extraido da fatura real, linha "CONTRIB
+      // ILUM PUBLICA"), usa o valor exato em vez de estimar por pct.iluminacao - a COSIP e uma linha
+      // separada da fatura, nao uma fatia percentual do consumo, entao um % chutado sempre erra o
+      // valor exato que a lei nunca deixa compensar.
+      const iluminacaoValor = d.cosip_valor_real !== undefined ? d.cosip_valor_real : Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
       const encargosValor = Math.round(faturaBase * (pct.encargos||0)/100 * 100) / 100;
       const residual = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
       const economia = Math.round((faturaBase - residual) * 100) / 100;

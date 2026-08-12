@@ -41,8 +41,14 @@ function criarVarsEnergiaSolar(){
   // viva no Supabase (wallace_dados.ENERGISA_TARIFA_COMPOSICAO) já foi atualizada e sempre vence.
   ENERGISA_TARIFA_COMPOSICAO: {
     apartamento_wallace: { uc:'1.994.775.053-05', historico:{ mai26:270.10, jun26:322.99, jul26:367.36 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
-    casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45, ago26:70.12 }, fatura_ago26_valor:70.12, fatura_ago26_consumo_kwh:111, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
-    casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, fatura_ago26_valor:56.11, fatura_ago26_consumo_kwh:145, fatura_ago26_injetada_kwh:339, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
+    // ATUALIZADO 12/08/2026 (fatura real Ago/26 em PDF, NF 009.005.476 casa_wellida / NF 009.005.819
+    // casa_mae, pagina 2, tabela "Servico de distribuicao/Compra de energia/Servico de
+    // transmissao/Encargos setoriais/Impostos diretos e encargos", em % sobre a base pre-credito
+    // (R$80,19 wellida / R$56,11 casa_mae - essa base NAO inclui Contrib. Ilum. Publica, que e uma
+    // linha totalmente separada na fatura, nunca compensada por lei - por isso cosip_valor_real
+    // abaixo, nao um pct.iluminacao chutado). Essas 5 categorias somam ~100% sozinhas.
+    casa_wellida: { uc:'2.064.202.053-60', historico:{ mai26:141.82, jun26:106.23, jul26:94.45, ago26:70.12 }, fatura_ago26_valor:70.12, fatura_ago26_consumo_kwh:111, cosip_valor_real:13.87, composicao_pct:{ energia:24.04, impostos:43.15, distribuicao:18.56, iluminacao:0, encargos:10.15, transmissao:4.10 } },
+    casa_mae: { uc:'573.702.053-77', fatura_jul26_valor:203.61, fatura_jun26_valor:301.54, fatura_ago26_valor:56.11, fatura_ago26_consumo_kwh:145, fatura_ago26_injetada_kwh:339, cosip_valor_real:18.12, composicao_pct:{ energia:15.92, impostos:62.40, distribuicao:12.25, iluminacao:0, encargos:6.72, transmissao:2.71 } },
   },
   // ATUALIZADO 05/08/2026 (parte 99): fatura Energisa real do apartamento do Wallace (UC 1.994.775.053-05,
   // Rua Luzinalda Edite de Araujo Leite 598 Bloco C Apto 806C - Serrotão, leitura dia 21 = bate exato
