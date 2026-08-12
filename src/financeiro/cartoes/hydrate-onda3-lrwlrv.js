@@ -80,6 +80,18 @@ async function aplicarOnda3LrwLrvListaDetalhada(){
         }));
       VARS.LRW_TRANSACOES = mapear('Wallace');
       VARS.LRV_TRANSACOES = mapear('Vanessa');
+      // CORRIGIDO 12/08/2026 (achado do usuário: "faltou na lista os do limbo") — a view
+      // vw_transacoes_cartao_variavel_por_pessoa filtra data >= ciclo_inicio_em (25/07),
+      // corretamente por design (REGRA_LIMBO_FATURA_MB_CICLO), mas isso apaga da lista os 2
+      // lançamentos do limbo (22-24/07) que SÃO do ciclo atual — eles só não têm data >= 25/07
+      // porque a fatura fechou antes. Sem isso, TX000132/TX000154 (que já existem como literal
+      // fixo em vars-mercado-pago.js) sumiam da lista toda vez que a Onda 3 recarregava.
+      if(!VARS.LRW_TRANSACOES.some(t => t.tx === 'TX000132')){
+        VARS.LRW_TRANSACOES.unshift({ tx:'TX000132', data:'22/07', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99 });
+      }
+      if(!VARS.LRV_TRANSACOES.some(t => t.tx === 'TX000154')){
+        VARS.LRV_TRANSACOES.unshift({ tx:'TX000154', data:'24/07', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97 });
+      }
       if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
       // CORRIGIDO 12/08/2026 (achado do usuário: botão da aba "LRV - Vanessa (16)" não batia com a
       // tabela real embaixo, 6 linhas) — renderLivrosVariaveis() acima redesenha a tabela, mas o
