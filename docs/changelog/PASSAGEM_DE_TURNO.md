@@ -29,6 +29,24 @@ Usuário pediu para seguir pra Fase 3. Perguntado sobre motivação (bug pontual
 
 Commitado (`821cf31`) e pushed pro `main` direto, sem passar por proposta separada — conforme escopo escolhido pelo usuário.
 
+## 🏁 Encerramento 12/08/2026 (continuação, mesma sessão) — Auditoria de prontidão operacional + correções
+
+Usuário pediu, com um checklist muito detalhado e explícito ("quero honestidade", "responder objetivamente... sim ou não"), uma auditoria completa de prontidão operacional cobrindo Arquitetura/Financeiro/Solar/Automações/Segurança/Performance, mais nota geral, nível de maturidade, percentual de prontidão, e veredito final. Não aceitei chutar nota nenhuma — antes de escrever qualquer número, coletei evidência real: `get_advisors` (segurança + performance) do Supabase, contagem de `pg_policies` por tabela (41 de 44 com policy, as 3 sem policy são deny-by-default intencional já documentado), `execucoes_jobs` (6 jobs distintos, 0 falhas recentes), 1 erro de cliente encontrado em `erros_cliente` (transiente, não reproduzido), contagem direta em `transacoes` (195 de 367 sem categoria — já visível no próprio painel, não é gap escondido).
+
+**Achado que corrigiu memória desatualizada**: a pendência antiga "backup externo nunca rodou de verdade, faltam segredos do GitHub" estava **errada** — `execucoes_jobs` mostrou 3 execuções com sucesso, e os arquivos reais existem em `backups_externos/` (JSON criptografado 1.3MB + schema SQL 154KB, datados de 11/08). A pendência foi fechada na auditoria.
+
+**Nota final: 7,4/10, Produção Inicial, ~80% de prontidão. Veredito: sim, operar continuamente, com vigilância** — o motivo do "com vigilância" é o achado de processo mais sério da sessão inteira (ver seção dedicada abaixo).
+
+Usuário pediu, na sequência, "resolva os pontos fracos". Resolvidos os que eram seguros de resolver sem mais contexto do usuário:
+
+1. **25 índices de FK faltando** (`unindexed_foreign_keys`, categoria WARN do advisor de performance) — criados via `apply_migration` (`adiciona_indices_fk_faltantes`), confirmado depois que o advisor não mostra mais nenhum WARN dessa categoria (só `unused_index` INFO, esperado logo após criar — vai sumir sozinho conforme os índices forem usados).
+2. **Regra de coordenação multi-sessão** adicionada ao `MANUAL_OPERACIONAL_AGENTES.md` seção 5 — formaliza a lição do achado da composição tarifária (comentário desatualizado no mesmo dia por causa de outra sessão) como regra permanente pra todo agente futuro.
+3. **Investigado e descartado como gap real**: o heartbeat "Verificação de segurança (views)" nunca tinha rodado — mas ao investigar achei que o script E o workflow já existem, criados **hoje** por uma sessão paralela, corretamente ligados ao orquestrador, em resposta a uma regressão de segurança real que essa mesma sessão encontrou e já corrigiu (2 views recriadas sem `security_invoker=true` — confirmei via SQL que ambas estão `security_invoker=true` agora). Só falta o primeiro disparo agendado, não é um bug pra eu corrigir.
+
+**Não resolvido, decisão deliberada**: migrar as 10 funções `SECURITY DEFINER` expostas pra `SECURITY INVOKER` (estruturalmente possível, mas exige teste função por função, risco/benefício desfavorável numa sessão já muito longa) e testar disaster recovery completo (ação grande, cara, fora do escopo de "resolver com segurança" sem check-in extra do usuário).
+
+Tudo commitado e pushed: manual (`e07cfb0`→`9b3af31`), `ESTADO_ATUAL.md` reescrito refletindo a auditoria completa.
+
 ## 🏁 Encerramento 12/08/2026 — Fase 1 (cache TTL) + correção de bug real do Livro Razão (scroll mobile)
 
 Sessão retomada após limite de uso, dando continuidade a um plano de modernização em fases (1: performance, 2: mobile/responsividade, 3: visual/design, 4: a definir). Ao retomar, investigação de um commit "estranho" (`8e835e0`) revelou que não era outro agente trabalhando em paralelo no mesmo repositório — era a própria sessão, antes de um corte de contexto anterior a este que não sobreviveu em memória: o tooltip de composição de saldo, as legendas do Simulador Fim de Ciclo e a cor dinâmica na barra Disponível já tinham sido implementados e commitados corretamente. `git diff` confirmou que bateu byte a byte com o que eu ia "reimplementar" — nada foi duplicado.

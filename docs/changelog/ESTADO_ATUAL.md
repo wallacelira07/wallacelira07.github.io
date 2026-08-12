@@ -2,78 +2,63 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso), agora com login real validado no painel pela primeira vez. Commits pushed: `2da024b` (Fase 1), `821cf31` (Fase 3), `1a0b583`+`36c0939` (composição tarifária real, corrigida em 3 fontes — ver achado crítico abaixo), `b7b83c4`/`c642dcf`/`6de448e` (Fase 4). `__V` atual bate com `36c0939`.
-
-## ✅ Correção adicional de dado real — histórico de consumo Wellida (12/08/2026)
-
-Usuário apontou o card "Fluxo 1" da Wellida (Energia Solar) pedindo pra conferir se os dados batiam com a conta real. Conferido: **já batia** (56,26 kWh, ciclo fechado 07/08, idêntico ao banco). Mas ao cruzar a mesma fatura com `solarConsumoIrmaAnoAnterior` (histórico usado no gráfico "Rateio Solar"), achei um valor errado (Jun/26 mostrava 112, real é 100) e um desalinhamento de mês. **Corrigido em 2 rodadas** — a 1ª tentativa assumiu que a posição "Jul" do array era Jul/2025 (baseado só no comentário do código); validação ao vivo no gráfico (`cSolarRateio`) revelou que o eixo é uma **janela móvel de 12 meses por nome**, e a posição "Jul" hoje é Jul/2026 — corrigido de novo com o valor real (90 kWh), que já estava na mesma fatura. Todos os 12 valores do array agora são reais, nenhuma estimativa. `solarConsumoMaeRecente` também ganhou o registro de Ago/26. Commitado (`b9df4e2`→`8a3d824`) e pushed.
-
-**Não mexido, por falta de dado**: `solarConsumoMaeAnoAnterior` (histórico Mai/25-Abr/26 da Casa da Mãe) — as 2 faturas desta sessão não cobrem esse período, sem base real pra corrigir.
-
-## ⚠️ Achado crítico de processo — fonte viva de dados mudou no meio da sessão (12/08/2026)
-
-Validado o painel logado pela primeira vez nesta sessão: a correção da composição tarifária (abaixo) não estava aparecendo. Causa: uma sessão paralela (mesmo dia, mesmo repositório — commit `143c501`, "Sepulta dependência operacional da V1") removeu `Object.assign(VARS, dr)` (o merge que lia `wallace_dados.dados` ao vivo) e passou a usar a tabela relacional `parametros_gerais`, que **congelou** o valor antigo de `ENERGISA_TARIFA_COMPOSICAO` no momento da migração — sem eu saber, porque o commentário do código (`vars-energia-solar.js`) ainda dizia "wallace_dados sobrescreve isto". Corrigido nas 3 fontes agora (local, `wallace_dados` — obsoleta mas deixada sincronizada por precaução, e `parametros_gerais` — a fonte real). Comentário do código atualizado pra não enganar a próxima sessão. **Lição**: depois de qualquer edição de dado "vivo" via Supabase, validar no painel logado antes de considerar resolvido — não basta confirmar por SQL que o UPDATE rodou, é preciso confirmar que é a tabela que o app de fato lê agora.
-
-## ✅ Correção de dado real — composição tarifária Wellida/Casa da Mãe (12/08/2026)
-
-Usuário mandou 2 faturas reais em PDF (Ago/26, NF 009.005.476 Wellida e NF 009.005.819 Casa da Mãe). A tabela "Residual pós-solar estimado" (seção 10, `graficos-cenarios-lazy.js`) usava uma composição tarifária genérica chutada (28% energia/22% impostos/22% distribuição/12% iluminação/12% encargos/5% transmissão) igual pra todas as unidades. Substituído pelos percentuais reais extraídos da página 2 de cada fatura — **exceto Iluminação Pública (COSIP)**, que não faz parte dessa tabela percentual (é linha separada, nunca compensada por lei): a fórmula agora usa o valor real exato da COSIP (`cosip_valor_real`: R$13,87 Wellida, R$18,12 Casa da Mãe) em vez de estimar por %. Validado batendo o resultado recalculado da Wellida (R$51,93 residual/R$42,52 economia, 45,0%) contra uma estimativa anterior já dada pelo usuário (R$51,68/R$42,77, 45,3%) — muito próximo, valida a abordagem. Casa da Mãe recalculada deu bem diferente da estimativa anterior (R$67,48/R$136,13, 66,9% vs. estimativa antiga de R$87,88/R$115,73) — usuário confirmou que a estimativa antiga também tinha sido calculada por mim (não era uma fonte externa), então o novo número (baseado em dado real da fatura) é o que vale.
-
-**Corrigido tanto localmente (`src/solar/vars-energia-solar.js`) quanto na cópia viva no Supabase** (`wallace_dados.ENERGISA_TARIFA_COMPOSICAO`, que sobrescreve o arquivo local no carregamento — regra permanente do `CLAUDE.md`, não esquecer de novo).
+Última reescrita: 12/08/2026, sessão longa de modernização (Fases 1-4, mobile, paleta, componentes, performance) + correção de dado real solar (2 faturas reais) + **auditoria completa de prontidão operacional pedida pelo usuário**, com correções aplicadas em cima dos achados. `__V` deve bater com o HEAD após o próximo commit.
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
-1. **Migração V1→V2 relacional está formalmente encerrada.** `wallace_dados` não recebe mais nenhuma escrita (confirmado por SQL, `pg_proc`, 0 funções escrevem nela). V1 é legado/fallback. Ver `docs/decisions/PLANO_UNIFICACAO_V1_V2.md` seção 52-54.
-2. **Mastercard Black e Caixa Mastercard/Infinite** — investigados, causa raiz identificada, formalizados como exceção. Não reabrir. Ver seção 51 do mesmo documento.
-3. **Hardening de segurança concluído em 2 rodadas** (11/08/2026). 0 erros (`ERROR`) nos advisors do Supabase. Ver `docs/decisions/HARDENING_SEGURANCA_PRODUCAO.md`.
-4. **`wallace_dados`/`VARS` (V1) não é fonte de verdade** — regra de sessões anteriores, continua valendo.
-5. **Backup/restore interno + continuidade de negócio/DR externo (GitHub)** — implementados e testados em 11/08/2026. Ver seção de pendências abaixo (falta ativação pelo usuário).
+1. **Migração V1→V2 relacional está formalmente encerrada** (e reforçada hoje — "sepultamento final da V1", sessão paralela, ver seção 6.1 do manual). `wallace_dados` não recebe mais nenhuma escrita e a maioria dos consumidores de leitura também já migrou pra `parametros_gerais`/tabelas próprias.
+2. **Mastercard Black e Caixa Mastercard/Infinite** — investigados, causa raiz identificada, formalizados como exceção. Não reabrir.
+3. **Hardening de segurança** — múltiplas rodadas (11/08, 12/08). Ver auditoria fresca abaixo.
+4. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita.
 
-## ✅ Concluído nesta sessão (12/08/2026)
+## ⚠️ Achado crítico de processo (12/08/2026) — comentários do código podem estar desatualizados NO MESMO DIA
 
-1. **Fase 1 (performance)**: `WallaceFinanceService._cache` trocado de `Map` puro (sem expiração) pra `_CacheComTTL` (90s), mesma API (`has/get/set/clear`), nenhum dos ~35 métodos que já chamavam `this._cache.*` precisou mudar. Motivação: sessão longa aberta podia mostrar dado desatualizado até F5 manual ou `invalidarCache()` — causa raiz confirmada de uma confusão real na madrugada anterior (Onda 3 LRW/LRV).
-2. **Fase 2 (mobile/responsividade) — investigação**: testadas de verdade (sem login, 375px) a tela de login e a página pública `solar-compartilhado.html` — ambas OK, sem overflow horizontal. Painel principal não testável (exige login, sem credencial no ambiente).
-3. **Correção de bug real reportado pelo usuário (print)**: os 24 painéis do Livro Razão (`.pane`, classe compartilhada — LRW, LRV, LRB, LRP, LRS, LRR, LRCON, LRC, LRMP, LRCV, LREI, LRDOA, LRPGV, LRPV, LRBD, LRCL, LRMN, LRAJ, LREV, LRSF, LRSE, LRCB, LRCH, LRMI) não tinham `overflow-x:auto`, diferente do Inbox/Opções (que já tinham desde 10/08). Tabela larga ficava cortada pela borda do painel, texto inalcançável. Corrigido com 1 regra CSS (`.pane.active{overflow-x:auto}`) cobrindo os 24 de uma vez. Testado com estrutura isolada real (`.pane`+`table`+CSS de produção) confirmando que o painel rola mas a página não ganha scroll lateral.
-4. **Achado de processo, não de código**: commit `8e835e0` (tooltip de composição de saldo, legendas do Simulador Fim de Ciclo, cor dinâmica na barra Disponível) já existia no repositório antes desta sessão retomar — não era outro agente trabalhando em paralelo, era a mesma sessão antes de um corte de contexto/limite de uso que não sobreviveu em memória. `git diff` confirmou que bateu byte a byte com o que eu ia "reimplementar". **Lição**: depois de retomar após limite de uso, sempre `git log`/`git diff` antes de assumir o que está pendente.
+Uma correção de dado real (composição tarifária solar) foi feita seguindo um comentário do código que dizia "wallace_dados sobrescreve isto" — mas outra sessão, no mesmo dia, já tinha removido esse mecanismo (`Object.assign(VARS, dr)`, "sepultamento final da V1") e migrado a fonte viva pra `parametros_gerais`, sem atualizar o comentário. A correção ficou sem efeito por horas até validação com login real revelar isso. **Regra nova registrada em `MANUAL_OPERACIONAL_AGENTES.md` seção 5**: nunca confiar em comentário sobre "onde o dado vive de verdade" sem confirmar no código atual — duas sessões no mesmo repositório no mesmo dia é o cenário normal deste projeto, não exceção.
 
-## Plano de modernização mobile — fases
+## ✅ Modernização mobile/performance/visual — todas as 4 fases concluídas e validadas com login real
 
 | Fase | Escopo | Status |
 |---|---|---|
-| 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
-| 2 | Mobile/responsividade — auditoria + correções pontuais | ✅ Concluída — scroll horizontal do Livro Razão (LRW/LRV/LRMCI/LREVENTOS testados individualmente no painel logado, 375px, scroll real de mouse, sem overflow horizontal na página) + auto-hide da `.master-tabs` |
-| 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
-| 4 | Performance adicional + consistência de componentes (escopo definido pelo usuário) | ✅ 6 dos 10 achados aplicados e commitados (`b7b83c4`, `c642dcf`, `6de448e`) — cache granular, Inbox incremental, badges/radius tokens, N+1 do FinanceService, botão `.btn-pill`, form de lançamento manual extraído pra classes. 2 ficam de backlog deliberado (Chart.js `.update()`, `new Function` pra módulos — risco real sem validação com login) |
+| 1 | Performance (cache TTL granular) | ✅ Concluída |
+| 2 | Mobile — scroll horizontal Livro Razão (24 painéis) + auto-hide `.master-tabs` | ✅ Concluída, validada ao vivo (login real, scroll de mouse, 4 painéis testados individualmente) |
+| 3 | Visual (paleta/tipografia refinadas) | ✅ Concluída |
+| 4 | Performance adicional + consistência de componentes | ✅ 6 de 10 achados aplicados; 4 investigados e conscientemente descartados (Chart.js `.update()` e `new Function` não deviam ser mexidos — motivos documentados em `PASSAGEM_DE_TURNO.md`) |
 
-## ✅ Fase 3 — refino de paleta e tipografia (12/08/2026)
+Commits principais da sessão (ordem cronológica, todos pushed): `2da024b` `821cf31` `1a0b583`→`36c0939` (tarifa real) `b7b83c4` `c642dcf` `6de448e` `85cd084` (auto-hide) `b9df4e2`→`8a3d824` (histórico consumo Wellida) `e07cfb0`→`9b3af31` (regra de coordenação + índices).
 
-Usuário pediu modernização geral (sem bug pontual) e autorizou aplicar direto nos tokens (`:root` de `assets/css/styles.css`), não só propor. Mudança: fundo mais frio/rico, texto com mais contraste, accent azul/verde/âmbar/vermelho levemente mais vivos (mesma família de matiz, refino de saturação/luminosidade — não é uma repaginação de identidade). `font-family` do `body` ganhou fallback mais completo (`BlinkMacSystemFont`, `Helvetica Neue`, `Arial`).
+## ✅ Auditoria de prontidão operacional (12/08/2026) — pedida explicitamente pelo usuário
 
-**Cuidado tomado**: o CSS tinha ~45 ocorrências de cores repetidas como valores hardcoded (hex/rgba) fora dos tokens (gradientes do `.cover`, sombras, `rgba()` de estados hover/active) — se só os tokens em `:root` fossem trocados, essas duplicatas ficariam com a cor antiga, gerando inconsistência visual (custura entre elementos). Todas foram atualizadas em conjunto (find/replace exato dos mesmos pares hex/RGB), preservando 100% de consistência.
+Auditoria completa (arquitetura, financeiro, solar, automações, segurança, performance) com evidência real coletada ao vivo (advisors do Supabase, `execucoes_jobs`, `pg_policies`, contagens em `transacoes`, não só leitura de código). **Nota geral: 7,4/10 — Produção Inicial, ~80% de prontidão operacional. Veredito: sim, operar continuamente, com vigilância.**
 
-**Validado visualmente** (não só por leitura de código): página de teste isolada dentro do projeto (`_teste_paleta_temp.html`, criada e apagada em seguida), servida pelo servidor local já configurado em `.claude/launch.json` (`wallace-static`), carregando o `assets/css/styles.css` real. Screenshot confirmou hierarquia de texto, cores de status (verde/vermelho/âmbar) e accent/accent-2 legíveis e coerentes. **Painel principal logado segue não testado** — mesma limitação de sempre (sem credencial no ambiente).
+**Achados corrigidos na mesma sessão**:
+1. **25 índices de FK faltando** (advisor de performance, categoria WARN→INFO) — criados via migration (`adiciona_indices_fk_faltantes`), confirmado no advisor que a categoria zerou.
+2. **Regra de coordenação multi-sessão** registrada no manual (ver achado crítico acima).
+3. **Confirmado (não era gap novo)**: o heartbeat "Verificação de segurança (views)" nunca tinha registrado execução no painel — investigado a fundo: o script (`scripts/checks/verificar_seguranca_views.py`) e o workflow (`.github/workflows/verificar_seguranca_views.yml`) já existem e estão corretamente ligados ao orquestrador (`executar_tudo.yml`), criados **hoje mesmo** por uma sessão paralela em resposta a uma regressão de segurança real (2 views recriadas sem `security_invoker=true` por uma migration — já corrigido, confirmado via SQL: `security_invoker=true` presente nas 2 views agora). Só ainda não teve a primeira execução agendada — não é bug, é falta de tempo desde a criação. Deve se resolver sozinho no próximo ciclo do orquestrador (cron-job.org).
+
+**Achados NÃO corrigidos, decisão deliberada**:
+- 10 funções `SECURITY DEFINER` expostas a `anon`/`authenticated` — todas com checagem de auth interna (padrão já aceito em rodada de hardening anterior). Migrar pra `SECURITY INVOKER` estruturalmente é possível mas exige teste função por função; não fiz por risco/benefício desfavorável nesta sessão.
+- Teste de disaster recovery completo (restaurar backup externo num projeto Supabase novo do zero) — ação grande, com custo/risco, não executada autonomamente.
+
+**Achado que corrige memória desatualizada**: o backup externo (`backup_externo.yml`) **já rodou de verdade** — 3 execuções com sucesso confirmadas em `execucoes_jobs` E arquivos reais encontrados em `backups_externos/` (JSON criptografado 1.3MB + schema SQL 154KB, 11/08). A pendência antiga "segredos do GitHub nunca cadastrados" está resolvida — não é mais pendência.
+
+## ✅ Correção de dado real — solar (12/08/2026)
+
+Duas faturas reais em PDF (Wellida NF 009.005.476, Casa da Mãe NF 009.005.819, Ago/26) usadas para corrigir: composição tarifária real (COSIP como valor exato, não %), e histórico de consumo de 12 meses da Wellida (`solarConsumoIrmaAnoAnterior`) — corrigido em 2 rodadas (a 1ª assumiu indexação fixa por calendário; validação ao vivo no gráfico revelou janela móvel por nome de mês, corrigido de novo com o valor real). Card "Fluxo 1" já estava correto, confirmado contra o banco. Tudo commitado e pushed, detalhe completo em `PASSAGEM_DE_TURNO.md`.
 
 ## Pendências antigas, sem decisão do usuário ainda
 
 | Item | Nota |
 |---|---|
-| Fase 4 — 2 achados investigados e descartados (não é backlog, é decisão final) | **Chart.js `.update()`**: investigado a fundo com login real — os 35 gráficos só são criados 1x por sessão (`_graficosECenariosCarregados`, flag única, nunca recriados de novo depois do 1º boot das abas Gráficos/Cenários/Solar). O "destroy+recreate" do audit original quase nunca roda na prática — a suposição de "recriado toda vez que reabre" estava errada. Converter pra `.update()` traria risco real (35 pontos, tipos de gráfico diferentes) por ganho de performance ~zero. Não fazer. **`new Function` pra módulos**: não é falha, é a correção de um bug real documentado no próprio código — `FinanceEngine.js`/`Comparator.js` declaram uma const (`SolarConfig`) que colide com a mesma const já existente em `graficos-cenarios-lazy.js`; carregar como `<script src>` normal quebra o boot inteiro (`SyntaxError`). Não mexer. Formulário de lançamento manual JÁ foi extraído pra classes CSS (`.wallace-field`, mesmas cores, `6de448e`) — só as cores em si (paleta própria, não tokens principais) ficaram como estavam, por decisão deliberada |
 | Visa Infinite — cobertura baixa de `cartao_id`/histórico | Congelado por decisão explícita, não mexer sem evidência nova |
-| Limiares do painel de Saúde Operacional | Estimados, não calibrados contra execução real ainda |
-| Cadastrar `BACKUP_ENCRYPTION_KEY`/`SUPABASE_DB_URL` no GitHub + rodar o workflow `backup_externo.yml` 1x | Bloqueia validação final do backup externo/DR — ver `docs/decisions/CONTINUIDADE_NEGOCIO_DR.md` seção 4 |
-| `cotacoes_acoes` sem heartbeat em `execucoes_jobs` | RPC funciona, mas o heartbeat do job nunca aparece — possível bug isolado, não investigado |
-| Painel principal (`Sistema_Wallace_Lira_Completo.html`) no celular | Usuário precisa testar e reportar o que quebra, OU liberar acesso de login pro agente — nenhuma sessão recente conseguiu testar de verdade |
-
-## ✅ Fase 2 (mobile) — auto-hide da .master-tabs ao rolar (12/08/2026)
-
-Usuário mandou print real do celular (barra pill de 5 abas — Painel/Gráficos/Energia Solar/Cenários/Balanço — tomando espaço fixo em cima do conteúdo). Pedido: esconder ao rolar pra baixo, reaparecer ao rolar pra cima, padrão Gmail/Chrome Android. **Armadilha real durante a implementação**: a 1ª tentativa mexeu em `.home-nav-grid` (grade de botões que só existe na Home) achando que era o elemento do print — confirmado ao vivo no painel logado que era `.master-tabs` (barra pill, só aparece DENTRO das abas), elemento diferente. Revertido e refeito no elemento certo. Usuário foi explícito: a Home (`.home-nav-grid`) não deve ser tocada de jeito nenhum. Implementado com JS simples (`toggleMasterTabsAoRolar`, `dashboard-navegacao.js`) comparando scroll a cada evento, sem necessidade de guard de "ainda na Home" porque `.master-tabs` já só existe fora dela. Testado com scroll real de mouse (não só JS simulado) no painel logado, confirmado funcionando nos dois sentidos, Home confirmada intocada. Commitado (`85cd084`) e pushed.
-
-## ✅ Validado com login real no painel (12/08/2026, primeira vez nesta sessão)
-
-Usuário logou manualmente no navegador desta sessão (eu nunca toquei em campo de senha) e eu só li a tela depois. Confirmado funcionando: paleta da Fase 3 (cores/contraste corretas), botão `.btn-pill` "Compartilhar" (Energia Solar), badge `.badge.ba` "Benefícios, não patrimônio", boxes Wallace/Wellida com `var(--green)`/`var(--amber)`, tabela "Residual pós-solar" com os valores reais corretos (ver achado crítico acima), estrutura `data-inbox-id` do Inbox incremental, formulário de lançamento manual com classes `.wallace-field`. **Não testado**: clique real em Aprovar/Rejeitar da Inbox (evitado de propósito — grava de verdade no Supabase, não quis mexer em dado de produção só pra verificar). Painéis do Livro Razão em mobile real **testados e confirmados** (LRW/LRV/LRMCI/LREVENTOS, 375px, scroll de mouse real, sem overflow horizontal na página) — Fase 2 fechada de verdade.
+| `solarConsumoMaeAnoAnterior` (histórico Mai/25-Abr/26 da Casa da Mãe) | Não corrigido — as faturas desta sessão não cobrem esse período |
+| `cotacoes_acoes` sem heartbeat visível no painel de Saúde Operacional (achado antigo, não confirmado nesta sessão) | Job roda e sincroniza normalmente (`execucoes_jobs` confirma), possível bug isolado no card do painel, não investigado a fundo |
+| Painel principal em mobile real (celular físico do usuário) | Testado apenas via emulação de viewport no navegador desta sessão — nunca confirmado num aparelho físico de verdade |
+| SECURITY DEFINER → SECURITY INVOKER nas 10 funções expostas | Estruturalmente possível, não feito por risco/benefício — ver auditoria acima |
 
 ## Protocolo de sessão nova
 
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
 3. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-4. **Antes de confiar em qualquer comentário do tipo "X sobrescreve Y no carregamento"**: outra sessão pode ter mudado isso no mesmo dia sem atualizar o comentário (aconteceu de verdade nesta sessão, ver achado crítico acima) — confirmar direto no `app.js` atual qual bloco realmente popula `VARS` antes de editar dado "vivo" achando que sabe onde ele mora.
+4. **Antes de editar qualquer dado "vivo"/config**: confirmar no código ATUAL (não em comentário) qual fonte realmente alimenta a tela — ver achado crítico desta sessão, regra formal na seção 5 do manual.
+5. Validar mudanças de CSS/JS no painel logado sempre que possível (login real, não só leitura de código) — esta sessão fez isso extensivamente e pegou 2 bugs reais que a leitura de código sozinha não pegaria.
