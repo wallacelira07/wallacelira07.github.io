@@ -375,6 +375,15 @@
      resto (mesmo padrão de app financeiro em qualquer tabela larga). Desktop (>640px) não muda nada. */
   @media (max-width:640px){
     table{table-layout:auto;width:max-content;min-width:100%}
+    /* CORRIGIDO 12/08/2026 (pedido do usuário, print real do celular: "os dizeres estouram a
+       tela" na aba LRV - Vanessa): a correção acima assumia que toda tabela já vivia dentro de
+       um <div style="overflow-x:auto"> (verdade pro Inbox/Opções, que têm esse wrapper manual)
+       — mas os 24 painéis do Livro Razão (.pane, seção 15) nunca tiveram esse wrapper. Sem ele,
+       width:max-content só empurrava a tabela pra fora da tela sem nenhum jeito de rolar até o
+       resto — texto cortado pela borda, invisível, inalcançável. .pane.active vira o próprio
+       scroller (todos os painéis compartilham a classe — 1 regra resolve os 24 de uma vez, sem
+       precisar adicionar wrapper manual em cada um). */
+    .pane.active{overflow-x:auto;-webkit-overflow-scrolling:touch}
   }
   th{
     text-align:left;font-size:0.68rem;font-weight:600;color:var(--text-dim);

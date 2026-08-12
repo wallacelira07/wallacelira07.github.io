@@ -61,8 +61,30 @@ function obterTokenAuthSupabase(){
 // elimina a duplicacao real que existia (o fetch de rpc_dashboard_resumo abaixo era copiado a mao,
 // diferente do FinanceService.js que nunca era chamado por ninguem) - agora so existe 1 implementacao,
 // reusada. Primeiro passo real e seguro de Fase 5: consolidar antes de expandir.
+// NOVO 12/08/2026 (Fase 1 de modernização, pedido do usuário — performance): _cache era um Map
+// puro, sem expiração, então uma sessão longa (o padrão real de uso deste site, muitas horas
+// abertas) podia mostrar dado desatualizado até alguém lembrar de F5 ou disparar
+// invalidarCache() manualmente (só acontece hoje no fluxo "+ Lançar"). Já foi a causa raiz
+// concreta de confusão real nesta mesma madrugada (Onda 3 LRW/LRV, Comprometido Caixa Variável).
+// _CacheComTTL substitui o Map por um objeto com a MESMA API (has/get/set/clear) — nenhum dos
+// ~35 métodos que já chamam this._cache.has/get/set precisou mudar, só a implementação por trás
+// mudou. TTL de 90s: curto o bastante pra sumir sozinho dentro de 1 clique de navegação, longo o
+// bastante pra não gerar refetch a cada re-render da mesma Onda.
+class _CacheComTTL {
+  constructor(ttlMs){ this._ttlMs = ttlMs; this._mapa = new Map(); }
+  has(chave){
+    const entrada = this._mapa.get(chave);
+    if(!entrada) return false;
+    if(Date.now() - entrada.gravadoEm > this._ttlMs){ this._mapa.delete(chave); return false; }
+    return true;
+  }
+  get(chave){ return this.has(chave) ? this._mapa.get(chave).valor : undefined; }
+  set(chave, valor){ this._mapa.set(chave, { valor, gravadoEm: Date.now() }); }
+  clear(){ this._mapa.clear(); }
+}
+
 const WallaceFinanceService = {
-  _cache: new Map(),
+  _cache: new _CacheComTTL(90000),
   _url: 'https://bakdgacmwlopvrrppwdm.supabase.co',
   _key: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
   invalidarCache(){ this._cache.clear(); },
