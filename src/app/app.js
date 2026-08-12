@@ -2042,6 +2042,9 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         .wallace-lancar-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
         .wallace-lancar-btn:active{transform:translateY(0) scale(0.98)}
         .wallace-panel{position:relative;margin-top:0.6rem;width:100%;max-width:320px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 2px 12px rgba(0,0,0,.25);display:none}
+        .wallace-field{width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box}
+        .wallace-btn-primary{width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600}
+        .wallace-btn-secondary{background:#1a2332;color:#8ab4f8;border:1px dashed #2d3b52;border-radius:5px;padding:0.3rem;cursor:pointer;font-size:0.72rem}
       `;
       document.head.appendChild(wallaceFabCss);
     }
@@ -2090,24 +2093,24 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       const caixaOpts = resumoV2.caixas.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
       form.innerHTML = `
         <div style="font-weight:700;margin-bottom:0.5rem;color:#5fd68a">Lançar transação (V2)</div>
-        <input id="ltxData" type="date" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem">
-        <input id="ltxDescricao" placeholder="Descrição" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
-        <input id="ltxValor" type="number" step="0.01" placeholder="Valor" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box">
-        <select id="ltxTipo" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
+        <input id="ltxData" type="date" class="wallace-field">
+        <input id="ltxDescricao" placeholder="Descrição" class="wallace-field">
+        <input id="ltxValor" type="number" step="0.01" placeholder="Valor" class="wallace-field">
+        <select id="ltxTipo" class="wallace-field"><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
         <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;color:#c8d4e3;margin-bottom:0.3rem;cursor:pointer"><input id="ltxDividir" type="checkbox" style="margin:0"> Dividir entre mais de 1 caixa</label>
-        <select id="ltxCaixa" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem">${caixaOpts}</select>
+        <select id="ltxCaixa" class="wallace-field">${caixaOpts}</select>
         <div id="ltxSplitRows" style="display:none;margin-bottom:0.4rem"></div>
-        <button id="ltxSplitAdd" type="button" style="display:none;width:100%;margin-bottom:0.4rem;background:#1a2332;color:#8ab4f8;border:1px dashed #2d3b52;border-radius:5px;padding:0.3rem;cursor:pointer;font-size:0.72rem">+ Adicionar caixa</button>
+        <button id="ltxSplitAdd" type="button" class="wallace-btn-secondary" style="display:none;width:100%;margin-bottom:0.4rem">+ Adicionar caixa</button>
         <div id="ltxSplitRestante" style="display:none;font-size:0.68rem;margin-bottom:0.4rem"></div>
-        <select id="ltxUsuario" style="width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Usuário (opcional)</option><option value="f70b0f48-9d73-44fd-a05b-6f3248bbea21">Wallace</option><option value="77496938-c875-4578-b6d1-06ffbde3f247">Vanessa</option><option value="89f205ad-2381-4149-b10f-7170aa13f5d5">Júlio</option><option value="3bb93c24-8353-4a4b-91cb-ef055809cc04">Gabriela</option></select>
+        <select id="ltxUsuario" class="wallace-field"><option value="">Usuário (opcional)</option><option value="f70b0f48-9d73-44fd-a05b-6f3248bbea21">Wallace</option><option value="77496938-c875-4578-b6d1-06ffbde3f247">Vanessa</option><option value="89f205ad-2381-4149-b10f-7170aa13f5d5">Júlio</option><option value="3bb93c24-8353-4a4b-91cb-ef055809cc04">Gabriela</option></select>
         <div style="font-size:0.68rem;color:#8ab4f8;margin-bottom:0.15rem">Categoria</div>
-        <select id="ltxCategoria" style="width:100%;margin-bottom:0.3rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem"><option value="">Categoria (opcional)</option><option value="533eef0f-0591-4c23-a248-566b95da7ffd">Alimentação</option><option value="69866dc9-89f9-42e3-b10c-5898287c6dd2">Assinaturas</option><option value="558fb61e-c215-4970-a498-b6fbcf67dd97">Bens Duráveis</option><option value="89557dd0-e475-483d-8d90-7cf698c3103a">Boletos</option><option value="b6576c3a-e74e-4f06-afcf-8b07c42785b0">Consórcios</option><option value="e5f8498f-ec63-41db-a333-3de5e8a9a7e3">Educação</option><option value="99915d56-41d2-4ca5-8d5f-c6188b33dc06">Eventos e Viagens</option><option value="f143d814-3883-4f24-a636-7ff80b9f6d1b">P2P</option><option value="1cc9db18-aec4-4cf1-962d-4d9a36f44f70">Reembolsável Corporativo</option><option value="5937378d-f087-48a4-8815-c1ab8055fdf8">Saúde</option><option value="2f08db6b-a018-471f-ad9c-26cb453e3b87">Transporte</option><option value="__nova__">+ Nova categoria…</option></select>
+        <select id="ltxCategoria" class="wallace-field" style="margin-bottom:0.3rem"><option value="">Categoria (opcional)</option><option value="533eef0f-0591-4c23-a248-566b95da7ffd">Alimentação</option><option value="69866dc9-89f9-42e3-b10c-5898287c6dd2">Assinaturas</option><option value="558fb61e-c215-4970-a498-b6fbcf67dd97">Bens Duráveis</option><option value="89557dd0-e475-483d-8d90-7cf698c3103a">Boletos</option><option value="b6576c3a-e74e-4f06-afcf-8b07c42785b0">Consórcios</option><option value="e5f8498f-ec63-41db-a333-3de5e8a9a7e3">Educação</option><option value="99915d56-41d2-4ca5-8d5f-c6188b33dc06">Eventos e Viagens</option><option value="f143d814-3883-4f24-a636-7ff80b9f6d1b">P2P</option><option value="1cc9db18-aec4-4cf1-962d-4d9a36f44f70">Reembolsável Corporativo</option><option value="5937378d-f087-48a4-8815-c1ab8055fdf8">Saúde</option><option value="2f08db6b-a018-471f-ad9c-26cb453e3b87">Transporte</option><option value="__nova__">+ Nova categoria…</option></select>
         <div id="ltxNovaCategoriaBox" style="display:none;gap:0.3rem;margin-bottom:0.4rem">
-          <input id="ltxNovaCategoriaNome" placeholder="Nome da categoria nova" style="flex:1;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;box-sizing:border-box">
+          <input id="ltxNovaCategoriaNome" placeholder="Nome da categoria nova" class="wallace-field" style="flex:1;margin-bottom:0;min-width:0">
           <button id="ltxNovaCategoriaCriar" type="button" style="background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0 0.6rem;cursor:pointer;font-size:0.72rem">Criar</button>
         </div>
         <div id="ltxSugestao" style="font-size:0.68rem;color:#8ab4f8;margin-bottom:0.4rem;min-height:1em"></div>
-        <button id="ltxSalvar" style="width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600">Salvar</button>
+        <button id="ltxSalvar" class="wallace-btn-primary">Salvar</button>
         <div id="ltxMsg" style="margin-top:0.4rem;font-size:0.72rem"></div>`;
       btnLancar.onclick = () => {
         form.style.display = form.style.display !== 'block' ? 'block' : 'none';
