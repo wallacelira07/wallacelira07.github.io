@@ -694,6 +694,17 @@ const WallaceFinanceService = {
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_assinaturas_confirmadas_v2`);
       return await resp.json();
     });
+  },
+  // NOVO 12/08/2026 (aba Emagrecimento, pedido do usuário): pesagens datadas, ordenadas por data —
+  // fonte do gráfico de evolução de peso. Mesmo padrão de getCronogramaBoletosV2/etc.
+  async getPesagens(){
+    return this._cache.obterOuBuscar('pesagens', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/pesagens?select=data,peso_kg&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pesagens`);
+      return await resp.json();
+    });
   }
 };
 
@@ -1578,7 +1589,9 @@ Object.assign(REG, criarRegBalanco());
 // (secao 05). Antes eram 2 implementacoes separadas da MESMA logica, podendo divergir silenciosamente.
 // Indice 0 = ciclo atual (Jul/26), cada indice seguinte = 1 ciclo financeiro a frente.
 function calcularAporteIncrementalPorCiclo(i){
-  let v = VARS.seguroEmplacamentoAporte + VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO; // continuos, sem data de termino conhecida
+  // ATUALIZADO 12/08/2026: saudeEmagrecimentoAporte (caneta Ozivy Semaglutida) somado aos
+  // contínuos - mesmo tratamento de seguroEmplacamentoAporte, sem data de término conhecida.
+  let v = VARS.seguroEmplacamentoAporte + VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO + VARS.saudeEmagrecimentoAporte; // continuos, sem data de termino conhecida
   if(i < 2) v += 200;                              // Aniversario Julio - completa Set/26 (14/09)
   if(i < 4) v += 500;                               // Escola Julio ciclo atual - completa Nov/26 (01/11)
   if(i < 16) v += 100;                              // Saude Familia - projeta completar ~Nov/27
@@ -1952,6 +1965,8 @@ onDomPronto(aplicarOnda7Pluggy);
 onDomPronto(aplicarOnda8CronogramaBoletos);
 // NOVO 12/08/2026 (Onda 11): extrato real da Caixa Boletos, ver hydrate-onda11-boletos-extrato-v2.js.
 onDomPronto(aplicarOnda11BoletosExtratoV2);
+// NOVA 12/08/2026: aba "Emagrecimento" (peso + custo da caneta), ver hydrate-emagrecimento.js.
+onDomPronto(aplicarEmagrecimento);
 onDomPronto(aplicarOnda9LivrosFixos);
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.

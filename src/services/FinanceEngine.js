@@ -524,13 +524,15 @@ function calcularLiquidoMes({ indice, liquidoReal = {}, mediaPonderada12M, liqui
 
 /**
  * Aporte incremental projetado pro ciclo `i` (meses a partir de hoje) — soma os
- * aportes contínuos (Seguro Emplacamento, Bens Duráveis) com os aportes que têm
- * data de término conhecida (Aniversário Júlio, Escola Júlio ciclo atual, Saúde
- * Família, Escola Júlio 2027), cada um dentro da sua janela de meses. app.js:2707-2714.
- * Cópia fiel — já era pura no original (só lê `VARS`, que aqui são parâmetros).
+ * aportes contínuos (Seguro Emplacamento, Bens Duráveis, Saúde-Emagrecimento) com
+ * os aportes que têm data de término conhecida (Aniversário Júlio, Escola Júlio
+ * ciclo atual, Saúde Família, Escola Júlio 2027), cada um dentro da sua janela de
+ * meses. app.js:2707-2714. Cópia fiel — já era pura no original (só lê `VARS`, que
+ * aqui são parâmetros). ATUALIZADO 12/08/2026: saudeEmagrecimentoAporte (caneta
+ * Ozivy Semaglutida) somado aos contínuos, mesmo tratamento do Seguro Emplacamento.
  */
-function calcularAporteIncrementalPorCiclo(i, { seguroEmplacamentoAporte, bensDuraveisAporteMensalAlvo, escolaJulio2027Aporte }) {
-  let v = seguroEmplacamentoAporte + bensDuraveisAporteMensalAlvo;
+function calcularAporteIncrementalPorCiclo(i, { seguroEmplacamentoAporte, bensDuraveisAporteMensalAlvo, escolaJulio2027Aporte, saudeEmagrecimentoAporte }) {
+  let v = seguroEmplacamentoAporte + bensDuraveisAporteMensalAlvo + saudeEmagrecimentoAporte;
   if (i < 2) v += 200;
   if (i < 4) v += 500;
   if (i < 16) v += 100;

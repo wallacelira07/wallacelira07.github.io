@@ -308,14 +308,15 @@ console.log('\n--- Fase 1C: liquidoMes e calcularAporteIncrementalPorCiclo (fech
   assertEqual('liquidoMes(3), ciclo futuro sem real — sempre média ponderada', calcularLiquidoMes({ ...semReal, indice: 3, diaDoMes: 15 }), 17843.58);
 
   // calcularAporteIncrementalPorCiclo — valores reais: seguroEmplacamentoAporte=425,
-  // BENS_DURAVEIS_APORTE_MENSAL_ALVO=250, escolaJulio2027Aporte=839,64.
-  const aportes = { seguroEmplacamentoAporte: 425, bensDuraveisAporteMensalAlvo: 250, escolaJulio2027Aporte: 839.64 };
-  assertEqual('Aporte incremental ciclo 0 (Aniversário+Escola atual+Saúde Família ativos)', calcularAporteIncrementalPorCiclo(0, aportes), 1475.00);
-  assertEqual('Aporte incremental ciclo 2 (Aniversário já completou)', calcularAporteIncrementalPorCiclo(2, aportes), 1275.00);
-  assertEqual('Aporte incremental ciclo 5 (só Saúde Família + contínuos)', calcularAporteIncrementalPorCiclo(5, aportes), 775.00);
-  assertEqual('Aporte incremental ciclo 6 (Escola Júlio 2027 entra na janela)', calcularAporteIncrementalPorCiclo(6, aportes), 1614.64);
-  assertEqual('Aporte incremental ciclo 16 (Saúde Família some, Escola 2027 ainda ativo)', calcularAporteIncrementalPorCiclo(16, aportes), 1514.64);
-  assertEqual('Aporte incremental ciclo 17 (só contínuos restam)', calcularAporteIncrementalPorCiclo(17, aportes), 675.00);
+  // BENS_DURAVEIS_APORTE_MENSAL_ALVO=250, escolaJulio2027Aporte=839,64,
+  // saudeEmagrecimentoAporte=278,89 (NOVO 12/08/2026, caneta Ozivy Semaglutida).
+  const aportes = { seguroEmplacamentoAporte: 425, bensDuraveisAporteMensalAlvo: 250, escolaJulio2027Aporte: 839.64, saudeEmagrecimentoAporte: 278.89 };
+  assertEqual('Aporte incremental ciclo 0 (Aniversário+Escola atual+Saúde Família ativos)', calcularAporteIncrementalPorCiclo(0, aportes), 1753.89);
+  assertEqual('Aporte incremental ciclo 2 (Aniversário já completou)', calcularAporteIncrementalPorCiclo(2, aportes), 1553.89);
+  assertEqual('Aporte incremental ciclo 5 (só Saúde Família + contínuos)', calcularAporteIncrementalPorCiclo(5, aportes), 1053.89);
+  assertEqual('Aporte incremental ciclo 6 (Escola Júlio 2027 entra na janela)', calcularAporteIncrementalPorCiclo(6, aportes), 1893.53);
+  assertEqual('Aporte incremental ciclo 16 (Saúde Família some, Escola 2027 ainda ativo)', calcularAporteIncrementalPorCiclo(16, aportes), 1793.53);
+  assertEqual('Aporte incremental ciclo 17 (só contínuos restam)', calcularAporteIncrementalPorCiclo(17, aportes), 953.89);
 }
 
 console.log('\n--- Fase 2C: funções genéricas de agregação (pra eliminar duplicação nos Services) ---');

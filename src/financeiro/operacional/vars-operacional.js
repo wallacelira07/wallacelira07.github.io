@@ -146,6 +146,13 @@ function criarVarsOperacional(){
   liquidoSemTrabalhar: 7667.73,            // REGRA_CENARIO_FICOU_EM_CASA
   desvioPadraoSalario: 9273.21,
   seguroEmplacamentoAporte: 425,
+  // NOVO 12/08/2026 (pedido do usuário: aba de emagrecimento, caneta Ozivy Semaglutida): aporte
+  // mensal contínuo, mesmo padrão de seguroEmplacamentoAporte (sem data de término conhecida) —
+  // financia a caixa "Saúde - Emagrecimento". Valor inicial informado pelo usuário ("comece com
+  // esse valor, depois nos adequamos à realidade") - ajustar aqui quando o preço real da farmácia
+  // divergir (reajuste de fabricante, troca de dosagem, etc), mesma prática já usada pra outros
+  // aportes fixos deste arquivo.
+  saudeEmagrecimentoAporte: 278.89,
   escolaJulio2027Aporte: 839.64,
   fluxoSaidas: 14819.89,
   fluxoResultado: 21318.48,
