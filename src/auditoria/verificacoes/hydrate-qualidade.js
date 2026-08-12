@@ -40,10 +40,16 @@ function montarAlertasNegocio(){
   // (lancamento continua manual/confirmado pelo usuario, regra 04 do manual - nunca lancar no escuro).
   // Enquanto negativo, mostra nota neutra confirmando que isso e esperado (nao e erro, nao significa
   // que saiu dinheiro da Caixa Variavel - ver callout da aba LRBD).
-  if(VARS.caixaBensDuraveis > 0){
-    alertas.push({icone:'💡', cor:'#3987e5', txto:`Caixa Bens Duráveis com saldo positivo (${fmt(VARS.caixaBensDuraveis)}) — pode virar empréstimo interno (LREI) pra ajudar a cobrir a fatura do Mastercard, mesmo mecanismo já usado com a Caixa Lance. Precisa de confirmação explícita antes de lançar.`});
-  } else if(VARS.caixaBensDuraveis < 0){
-    alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Caixa Bens Duráveis negativa (${fmt(VARS.caixaBensDuraveis)}) — normal, é só o medidor de quanto falta reservar pra compras já feitas; não significa que saiu dinheiro da Caixa Variável.`});
+  // CORRIGIDO 12/08/2026 (achado do usuário: alerta mostrava R$-355,00, saldo real V2 já é
+  // R$-583,99 — mesma classe de bug do caso PGV/PV acima, só que faltava aqui: esta função lia
+  // VARS.caixaBensDuraveis direto, nunca sabendo que a Onda 2 já tinha promovido o card visível
+  // pra V2. Mesmo padrão: prefere window.WALLACE_ONDA2_V2_RELATORIO quando disponível.
+  const bdV2 = window.WALLACE_ONDA2_V2_RELATORIO?.find(r => r.caixa === 'Caixa Bens Duráveis');
+  const saldoBD = (bdV2 && typeof bdV2.v2 === 'number') ? bdV2.v2 : VARS.caixaBensDuraveis;
+  if(saldoBD > 0){
+    alertas.push({icone:'💡', cor:'#3987e5', txto:`Caixa Bens Duráveis com saldo positivo (${fmt(saldoBD)}) — pode virar empréstimo interno (LREI) pra ajudar a cobrir a fatura do Mastercard, mesmo mecanismo já usado com a Caixa Lance. Precisa de confirmação explícita antes de lançar.`});
+  } else if(saldoBD < 0){
+    alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Caixa Bens Duráveis negativa (${fmt(saldoBD)}) — normal, é só o medidor de quanto falta reservar pra compras já feitas; não significa que saiu dinheiro da Caixa Variável.`});
   }
   // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),
   // uma variavel errada para "quanto passou do teto oficial". O teto oficial e comparado contra o COMPROMETIDO

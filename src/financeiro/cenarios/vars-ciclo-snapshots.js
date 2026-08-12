@@ -204,9 +204,9 @@ function criarVarsCicloSnapshots(){
       fechado: false,
       salario: 16819.56,
       entradasTotais: 17425.79, // ATUALIZADO V146: +R$340 no reembolso
-      caixaVariavelComprometido: 584.48, // ATUALIZADO 26/07/2026 (V178): +R$28,49 (TX000161, Super Bom Supermercado, cartao MB 2244). Era R$555,99.
-      caixaVariavelSaldoReal: 1878.00, // ATUALIZADO 01/08/2026: -R$22,00 (TX000190, PIX água mineral, reclassificado de PV para Caixa Variável - correção do usuário). Era R$1.900,00 (26/07, V180): -R$100,00 (TX000162, PIX poda das bananeiras, saiu de verdade da Caixa Variavel). Era R$2.000,00.
-      caixaVariavelDisponivel: 1315.52, // ATUALIZADO V180: 1900.00 - 584.48 (comprometido)
+      caixaVariavelComprometido: 1459.60, // ATUALIZADO 12/08/2026: backfill real de compras Mastercard Black/Visa via Pluggy (245,84 Vanessa + 1.213,76 Wallace) - ver docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md. Era R$584,48 (26/07/2026).
+      caixaVariavelSaldoReal: 1886.65, // ATUALIZADO 12/08/2026: sincronizado com vw_saldo_v2_por_caixa (fonte viva) - este literal é fallback só-de-rede-falhar, não deve ficar parado enquanto o real muda. Era R$1.878,00 (01/08/2026).
+      caixaVariavelDisponivel: 427.05, // ATUALIZADO 12/08/2026: 1886.65 - 1459.60 (comprometido)
       reembolsoRecebido: 340, // CORRIGIDO 07/08/2026 (bug real apontado pelo usuario): estava 0, mas o R$340 do TX000220 (WARTSILA_CAIXA_TRANSACOES) precisa entrar AQUI pra reembolsoCicloTotal (=reembolsoRecebido+reembolsoAReceber) refletir o recebido de verdade - o comentario antigo dizia "ja esta em reembolsoCicloTotal" mas a formula em app.js so le este campo, nunca o array da caixa. Sem isso, "Recebidos no ciclo" (reembolsoCicloTotal-reembolsosAReceber) dava R$0,00 mesmo com o TED ja confirmado.
       reembolsoAReceber: 6700.61, // ATUALIZADO 07/08/2026: usuario confirmou R$6.700,61 ainda a receber. Com reembolsoRecebido=340 acima, total do ciclo = R$7.040,61. Era R$7.022,76 (05/08, parte 96). NOTA: R$3.280,47 do relatorio anterior ("Company Paid BTA AmEx") ja foi pago direto pela empresa no cartao corporativo, nao e devido ao Wallace - nao soma aqui.
       toleranciaTempValor: 0,
