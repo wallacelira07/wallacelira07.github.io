@@ -72,10 +72,10 @@ async function aplicarOnda8CronogramaBoletos(){
   const v2Total = Math.round(VARS.CRONOGRAMA_BOLETOS_FIXOS.reduce((s,b)=>s+b.valor,0)*100)/100;
   const diverge = v1Qtd !== VARS.CRONOGRAMA_BOLETOS_FIXOS.length || Math.abs(v1Total - v2Total) > 0.01;
 
-  // Re-roda o auto-crédito (V1, inalterada) com o schedule novo — idempotente por construção
-  // (txJaLancados evita duplicar o que a 1ª passada síncrona do boot já tiver creditado).
-  if(typeof aplicarBoletosVencidosAutomaticamente === 'function') aplicarBoletosVencidosAutomaticamente();
-  VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES);
+  // DESLIGADO 12/08/2026 (Onda 11): não rechama mais aplicarBoletosVencidosAutomaticamente() aqui -
+  // essa função está desativada no boot (ver app.js). VARS.BOLETOS_TRANSACOES e VARS.caixaBoletos
+  // agora só são atualizados por aplicarOnda11BoletosExtratoV2() (extrato real da V2), que roda em
+  // paralelo via onDomPronto - não precisa ser chamado daqui.
 
   if(diverge) console.warn(`Onda8CronogramaBoletos: schedule V1 (${v1Qtd} itens, ${fmt(v1Total)}) × V2 (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} itens, ${fmt(v2Total)}) — DIVERGE. Se for uma edição intencional feita direto no Supabase, é esperado; se não, investigar.`);
   else console.log(`Onda8CronogramaBoletos: V1×V2 batem (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} boletos, ${fmt(v2Total)}). V2 é a fonte do schedule a partir de agora.`);

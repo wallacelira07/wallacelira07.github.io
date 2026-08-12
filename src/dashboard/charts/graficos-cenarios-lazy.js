@@ -630,6 +630,30 @@ function _lazyRenderCenariosSuperavit(){
   window.WALLACE_CHARTS.superavitNormal = chartSuperavit;
 
   _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
+  _atualizarLegendaSuperavitNormal(snLabels, snLiquido);
+}
+
+// NOVO 12/08/2026 (pedido do usuário: "não deve ser textos, deve ser automático, deve buscar
+// automaticamente na V2" — a legenda antes era texto estático no HTML com números digitados à
+// mão, que já tinha ficado desatualizada 2x na mesma sessão). Monta a legenda em runtime a partir
+// dos MESMOS valores que o gráfico/tabela acima usam (liquidoMes(0) via snLiquido[0],
+// REG.cenarioHistorico.mediaPonderada12M/media) - nunca mais um número solto pra manter sincronizado
+// à mão. real=true quando REG.superavitNormal.liquidoReal[0] está preenchido (dado real confirmado);
+// caso contrário mostra como Estimador de Salário (projeção via folha de ponto).
+function _atualizarLegendaSuperavitNormal(snLabels, snLiquido){
+  const el = $('legSuperavitNormal');
+  if(!el) return;
+  const CH = REG.cenarioHistorico;
+  const cicloAtual = snLabels[0];
+  const valorCicloAtual = snLiquido[0];
+  const real = REG.superavitNormal.liquidoReal && REG.superavitNormal.liquidoReal[0] != null;
+  const fonteCicloAtual = real
+    ? `usa o líquido REAL já recebido (${fmt(valorCicloAtual)})`
+    : `usa o líquido projetado pelo Estimador de Salário (${fmt(valorCicloAtual)})`;
+  el.innerHTML = 'Cenário normal (paga tudo): confronta o líquido de cada ciclo contra a Necessidade Total <strong>bruta</strong> '
+    + '(boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional) — não o piso essencial. '
+    + `${cicloAtual} ${fonteCicloAtual}. Os meses seguintes usam a média ponderada dos últimos 12 meses (${fmt(CH.mediaPonderada12M)}) como valor conservador — não a média simples (${fmt(CH.media)}), que é puxada para cima por meses excepcionais. `
+    + 'Conforme cada mês real chegar, o valor conservador é substituído pelo real (atualizar REG.superavitNormal.liquidoReal[i]).';
 }
 
 // ===== Operação Déficit Zero e Energia Solar (Cenarios, secoes 06/07) =====

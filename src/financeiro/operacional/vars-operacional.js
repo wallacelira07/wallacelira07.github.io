@@ -126,7 +126,20 @@ function criarVarsOperacional(){
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
   totalOpProvMP: 0,          // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO). Nunca editar diretamente.
   // V140: demais primarios soltos no REG (cenarios/estimador)
-  liquidoProjetadoProximoCiclo: 16048.51,  // Estimador de Salario - ciclo Ago/26
+  // CORRIGIDO 12/08/2026: valor de R$16.396,32 gravado mais cedo no mesmo dia estava ERRADO —
+  // somava só salário bruto + parte dos adicionais brutos (Noturno/Interjornada/HE100/Banco de
+  // Horas), sem Periculosidade Campo II (30% do salário, ~R$3.274/mês), sem Adicional de
+  // Supervisão 5% (~R$546), sem Auxílio Creche (R$445, fixo) e SEM NENHUM desconto (INSS/IRRF/
+  // assistência médica-odonto/PGBL) — resultado não era líquido de verdade, era quase bruto.
+  // Corrigido usando o holerite REAL de julho/2026 (pago 24/07/2026, pós-reajuste pra
+  // R$10.913,66) — o usuário confirmou que essas horas de julho alimentam o pagamento de
+  // 25/08/2026 (ciclo Ago/26), então não é mais projeção, é dado real. Detalhamento completo
+  // (proventos/descontos linha a linha) em `parametros_gerais`
+  // (nome='liquidoProjetadoProximoCiclo_memoria_calculo'); metodologia recalibrada (taxas por
+  // hora pós-reajuste + fórmulas de Periculosidade/Supervisão/PGBL/IRRF marginal) em
+  // `parametros_gerais` (nome='taxasHoraFolhaPontoWartsila'). Este literal é só fallback — a V2
+  // (mesma tabela) já sobrescreve no boot. Era R$16.048,51, depois R$16.396,32 (errado).
+  liquidoProjetadoProximoCiclo: 16819.56,  // Estimador de Salario - ciclo Ago/26 (dado real, TX000136)
   liquidoSemTrabalhar: 7667.73,            // REGRA_CENARIO_FICOU_EM_CASA
   desvioPadraoSalario: 9273.21,
   seguroEmplacamentoAporte: 425,

@@ -172,6 +172,30 @@ Isso tem 2 efeitos práticos que todo agente precisa saber:
 
 Qualquer caixa pode ter gasto no cartão, não só a Caixa Variável — o que muda é só o `caixa_id`. Confirmado em produção (12/08): Caixa Variável, Provisionado Wärtsilä (corp, reembolsável pela Wärtsilä), Caixa Churrasco, Caixa Bens Duráveis já têm compra real no cartão. A lógica é sempre a mesma: **a caixa é de onde o dinheiro sai (orçamento); o cartão é só o meio de pagamento; a transação em `transacoes` é o que liga os dois.** Antes de lançar, perguntar "essa compra é do dia a dia geral (Caixa Variável) ou tem uma caixa temática própria (Churrasco, Bens Duráveis, etc.)?" — nunca assumir Caixa Variável por padrão sem checar.
 
+## 1.4 Estimador de Salário — calcular `liquidoProjetadoProximoCiclo` a partir da folha de ponto (NOVO 12/08/2026)
+
+Todo mês chega uma folha de ponto (PDF da Wärtsilä) com as horas do período e a data de pagamento dos adicionais (~25 do mês seguinte). O usuário pediu esse cálculo antes (via Claude Chat) sem deixar a metodologia documentada — registrado aqui pra nenhum agente precisar reconstruir do zero nem reabrir as mesmas perguntas.
+
+**Fonte da verdade, sempre consultar primeiro:**
+```sql
+select nome, valor from parametros_gerais where nome = 'taxasHoraFolhaPontoWartsila';
+```
+Contém: `salarioBaseFixoMensal`, taxas por hora (`horaExtra50`, `horaExtra100`, `bancoDeHoras50`, `adicionalNoturno20`, `adicionalSobreaviso`), `dsrMultiplicador`, e as 2 decisões já confirmadas pelo usuário (não perguntar de novo):
+- **Hora Interjornada 50%** usa a mesma taxa de Hora Extra 50%.
+- **Periculosidade Campo II** (horas na folha) não tem taxa própria — já embutida nos 30% fixos do salário-base, é só registro.
+
+**Fórmula:**
+```
+liquidoProjetadoProximoCiclo = salarioBaseFixoMensal + (Σ horas_adicional × taxa_adicional) × dsrMultiplicador
+```
+DSR aplica só sobre a soma dos adicionais, nunca sobre o salário-base.
+
+**Ao recalcular pra um mês novo**, gravar em `parametros_gerais`:
+1. `liquidoProjetadoProximoCiclo` (valor final) — já é lido automaticamente pelo boot (`app.js`, bloco `WALLACE_PARAMETROS_GERAIS_V2`), sobrescreve `VARS.liquidoProjetadoProximoCiclo` sem precisar editar código.
+2. `liquidoProjetadoProximoCiclo_memoria_calculo` (objeto com o detalhamento: horas de cada adicional, subtotal com/sem DSR, data do cálculo) — só rastreabilidade, não é lido pelo site, é pra auditoria/próximo agente conferir a conta.
+
+Se `salarioBaseFixoMensal` mudar (reajuste salarial confirmado pelo usuário), atualizar em `taxasHoraFolhaPontoWartsila` — não duplicar o número em outro lugar.
+
 ---
 
 ## 2. Fluxo de lançamento de transações
@@ -182,14 +206,21 @@ Qualquer caixa pode ter gasto no cartão, não só a Caixa Variável — o que m
 
 **Exceção arquitetural formal (não é pendência, ver `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`)**: `cartaoMBTotal`/`cartaoInfiniteTotal`/`mercadoPagoFatura` (headline totals de fatura) nunca serão derivados só da V2 — reconciliados à mão contra extrato real do banco, "a fatura sempre vence". Diferente de Assinaturas/Recorrências (Mastercard Black/Visa), que são pendência real de dado (23 de 27 transações "Assinaturas" sem `cartao_id`), não exceção de negócio.
 
-1. **Usuário confirma antes de lançar.** Regra permanente, sem exceção — nunca aplicar dado financeiro sem confirmação explícita.
+1. **Usuário confirma antes de lançar.** Regra permanente — nunca aplicar dado financeiro sem confirmação explícita. **Exceção única e explícita, pedida pelo usuário em 12/08/2026**: itens da Inbox Financeira (Pluggy/Mercado Pago) — ver regra 6.
 2. **Domínio ainda V1** (ver seção 1 e lista acima): aplicar nos 2 lugares, na mesma operação:
    - Arquivo `.js` local relevante (`src/financeiro/**/vars-*.js`).
    - A linha `wallace_dados` no Supabase (`UPDATE ... SET dados = dados || jsonb_build_object(...)` ou `jsonb_set(...)`).
 3. **Antes de editar uma chave no Supabase, confirmar que ela existe** (`SELECT jsonb_object_keys(dados) FROM wallace_dados WHERE id=1`) — nem toda chave do `VARS` está espelhada lá; se não existir, criar como chave nova em vez de assumir.
 4. **Nunca editar placeholder de saldo direto** (`caixaLance`, `caixaVariavelSaldoReal` etc.) — são sempre recalculados por `calcularSaldoCaixa()`/`recalcularAgregadosDerivados()` a partir dos arrays de transação. Editar o array, nunca o resultado.
 5. **Seguir a cascata/regra de negócio aplicável** antes de decidir o destino (ver Política Interna seções 3-5) — não assumir "vai pra Caixa Lance" sem checar a cascata do reembolso.
-6. **Inbox Financeira nunca lança sozinha.** `inboxAprovar()`/`inboxRejeitar()` só mudam status — o lançamento definitivo é sempre manual, seguindo este mesmo fluxo. Se aprovar um item da Inbox, **confirmar que o formulário "+ Lançar" foi de fato submetido** antes de considerar concluído — aprovar sem lançar deixa a transação "fantasma" (já visto: `TX000652`/PIX R$652, aprovado mas nunca lançado).
+6. **Inbox Financeira: gestão autônoma pelo agente, sem envolver o usuário (decisão de 12/08/2026).** Motivo: o fluxo `inboxAprovar()`/`inboxRejeitar()` da UI nunca lança sozinho — só pré-preenche o formulário "+ Lançar", que precisa de clique manual em Salvar, e isso já causou pelo menos 1 transação "fantasma" (`R$652`, aprovado mas nunca lançado — ver [[project_pendencias_0807]]). O usuário não quer mais clicar aceitar/rejeitar. Nova regra: qualquer agente que abrir uma sessão neste projeto deve, sem perguntar, processar `mercadopago_eventos` (`status_triagem='pendente'`) e os itens novos de `pluggy_transacoes` do mesmo jeito feito em 12/08/2026:
+   - **Duplicata confirmada** (bate por valor absoluto + janela de data com uma transação já existente, ou é mecânica interna do "cofrinho" Mercado Pago — descrições `Dinheiro reservado/retirado Caixa X`, que já são espelhadas pelas transações reais da caixa) → marcar `status_triagem='rejeitado'`, não lançar nada.
+   - **Item novo com evidência forte** (valor+data batem com `cronograma_boletos_fixos`, regra de `regras_classificacao`, ou descrição inequívoca) → `INSERT` direto em `transacoes` (mesmos campos do RPC `lancar_transacao_manual`: `origem='manual'`, `status='confirmado'`) e marcar `status_triagem='aprovado'`.
+   - **Exceção: categoria "Assinaturas" nunca é lançada por esse processo** (regra do usuário, 12/08/2026: "assinaturas eu nunca conto quando são pagas, porque já são gastos fixos" — já orçadas à parte, lançar de novo duplicaria o orçamento). Se o item bater com regra de assinatura conhecida (Netflix/Spotify/Anthropic/MeliMais/etc), marcar `status_triagem='rejeitado'` sem lançar, mesmo que seja cobrança nova/legítima.
+   - **CORRIGIDO 12/08/2026 (mesma sessão, o agente lançou e teve que reverter): os 9 boletos de `cronograma_boletos_fixos` NUNCA são lançados manualmente via V2 por esse processo — banimento total, igual Assinaturas.** Causa: existe `aplicarBoletosVencidosAutomaticamente()` (`src/app/app.js:1361-1385`), rodando **sozinha no boot de toda carga do painel V1**, que já credita esses 9 boletos (mesmos códigos `tx` fixos: `TXB000001` a `TXB000009`) na Caixa Boletos assim que o dia de vencimento passa dentro do ciclo — criado em 31/07/2026 (V214) a pedido explícito do usuário ("quero que o pagamento desses boletos sejam automáticos"). Um item de `mercadopago_eventos`/Pluggy que bate valor+data com um desses 9 é **confirmação de que o V1 já tratou** (rejeitar sem lançar), não um pagamento novo pra registrar em V2. Recorrências fora dessa lista de 9 (parcelamentos, consórcios, assinaturas fora do cronograma) continuam com cuidado redobrado normal de dedup, não banimento — só os 9 nomeados em `cronograma_boletos_fixos` têm esse mecanismo automático V1 específico.
+   - **Genuinamente ambíguo** (sem match de valor, sem regra, descrição não identifica o que é) → não inventar categoria/caixa; documentar o achado pro usuário como achado extraordinário (não como pendência de aprovação) e deixar `status_triagem='pendente'` só nesse caso raro.
+   - Cuidado já identificado: `pt.valor` em `pluggy_transacoes` é **assinado** (negativo pra saída) — comparar sempre por `abs(valor)` contra `transacoes.valor` (sempre positivo), senão a dedup falha silenciosamente.
+   - As RPCs `triar_pluggy_item`/`triar_mercadopago_evento` exigem JWT de usuário autenticado (`auth.role()='service_role'` falha via MCP) — usar `UPDATE` direto nas tabelas (`pluggy_triagem`/`mercadopago_eventos`) quando operando via Supabase MCP.
 7. **Se o dado também fizer sentido na V2 relacional**, replicar via `lancar_transacao_manual()` ou `sincronizar_v1_v2()` (seção 4) — mas isso é adicional, nunca substitui o passo 2.
 
 ---

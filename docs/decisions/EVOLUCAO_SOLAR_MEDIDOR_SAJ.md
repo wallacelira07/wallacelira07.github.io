@@ -1,6 +1,8 @@
 # Evolução do domínio Solar — medidor Chint/SAJ (registrado, não implementado)
 
-**Status: DOCUMENTAÇÃO E PLANEJAMENTO APENAS.** Nada neste documento foi implementado — nenhuma tabela nova criada, nenhum código alterado. Existe pra a próxima sessão (ou a mesma, quando o usuário confirmar a instalação física) ter o desenho pronto em vez de decidir do zero.
+**Status: DOCUMENTAÇÃO E PLANEJAMENTO, com Fase 2 (só schema) antecipada em 12/08/2026.** O medidor comprado é um **DDSU666** (bidirecional, Modbus, homologado SAJ) — não o "Chint" citado no fato original registrado abaixo; o nome do documento ficou desatualizado, mas o desenho de arquitetura vale igual. Instalação física prevista para **15/08/2026** (Casa da Mãe).
+
+Em 12/08/2026, a pedido do usuário, a tabela `energia_solar_medicoes_tempo_real` (seção 4, item 1) foi criada no Supabase — **só o schema**, vazia, RLS igual às demais tabelas do domínio Solar (SELECT restrito a login Firebase válido, escrita só via service_role). Nenhum código foi alterado: `atualizar_geracao_saj.py` continua exatamente como estava, o site não lê essa tabela ainda. Isso é estritamente Fase 2 sem a Fase 1 — a tabela existe com as colunas *sugeridas* neste documento, não confirmadas contra a API real (que só poderá ser inspecionada depois de 15/08). Se os campos reais vierem diferentes, a tabela recebe `ALTER TABLE` depois — baixo custo, já que está vazia.
 
 ## 1. Fato registrado
 

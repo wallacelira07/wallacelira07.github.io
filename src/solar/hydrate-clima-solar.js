@@ -50,6 +50,9 @@ async function aplicarClimaSolar(){
   if(!elBloco) return;
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CLIMA_SOLAR_LAT}&longitude=${CLIMA_SOLAR_LON}&current=temperature_2m,weather_code,is_day&timezone=America%2FSao_Paulo`;
+    // NOVO 12/08/2026 (pedido do usuário: "precisa de data e hora nesse menu do tempo") - current.time
+    // vem no fuso já pedido acima (America/Sao_Paulo), formato 'YYYY-MM-DDTHH:mm' - horário real da
+    // LEITURA (não o horário local do navegador de quem está olhando, que pode estar em outro fuso).
     const resp = await fetch(url);
     if(!resp.ok) throw new Error(`Open-Meteo respondeu ${resp.status}`);
     const dado = await resp.json();
@@ -59,9 +62,14 @@ async function aplicarClimaSolar(){
     // Sol vira lua à noite pro mesmo código "céu limpo/poucas nuvens" (is_day=0) — mais fiel ao momento real.
     const emoji = (atual.is_day === 0 && (atual.weather_code === 0 || atual.weather_code === 1)) ? '🌙' : info.emoji;
     const temp = Math.round(atual.temperature_2m);
-    const elIcone = $('qgClimaIcone'), elTexto = $('qgClimaTexto');
+    const elIcone = $('qgClimaIcone'), elTexto = $('qgClimaTexto'), elLocal = $('qgClimaLocal');
     if(elIcone) elIcone.textContent = emoji;
     if(elTexto) elTexto.textContent = `${temp}°C · ${info.texto}`;
+    if(elLocal && atual.time){
+      const [dataIso, horaIso] = atual.time.split('T');
+      const [ano, mes, dia] = dataIso.split('-');
+      elLocal.textContent = `Campina Grande/PB · ${dia}/${mes} ${horaIso}`;
+    }
     elBloco.style.display = 'flex';
   } catch(err){
     console.warn('aplicarClimaSolar: falha ao buscar clima da Open-Meteo — bloco fica oculto (nunca mostra dado antigo/inventado).', err);

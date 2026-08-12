@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Energia Solar — Sistema Wallace Lira</title>
+<link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/images/favicon-192.png">
 <!-- PÁGINA PÚBLICA, SEM LOGIN, DE PROPÓSITO (10/08/2026) — item aprovado pelo usuário
@@ -26,7 +27,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:1.2rem;max-width:900px;margin-inline:auto}
   header{display:flex;align-items:center;gap:0.7rem;margin-bottom:1.4rem}
-  header .ico{font-size:1.6rem}
+  header .ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg, rgba(57,135,229,0.22), rgba(144,133,233,0.16));border:1px solid rgba(255,255,255,0.09);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);color:#8ab4f8;flex-shrink:0}
   h1{font-size:1.15rem;margin:0}
   .sub{font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1rem}
@@ -39,9 +40,51 @@
   .msg h2{color:var(--text);margin-bottom:0.5rem}
   .footer-note{font-size:0.7rem;color:var(--text-dim);text-align:center;margin-top:1.5rem;line-height:1.5}
   a{color:var(--blue)}
+  /* NOVO 12/08/2026 (pedido do usuário: "coloque a previsão do tempo também") — mesma fonte
+     (Open-Meteo) e coordenadas de src/solar/hydrate-clima-solar.js (painel privado), reimplementado
+     aqui sem dependências porque esta página é autocontida. Fica FORA de #app de propósito: não
+     depende do token/RPC solar, então aparece mesmo se o link for inválido/expirado (clima não é
+     dado sensível) e nunca some se o carregamento principal falhar. */
+  .clima-card{display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:1rem;gap:1rem}
+  .clima-agora{display:flex;align-items:center;gap:0.7rem}
+  .clima-agora .emoji{font-size:1.8rem;line-height:1;display:inline-block;animation:climaFlutuar 3s ease-in-out infinite}
+  .clima-agora .temp{font-size:1.3rem;font-weight:700}
+  .clima-agora .desc{font-size:0.75rem;color:var(--text-dim)}
+  .clima-previsao{display:flex;gap:0.6rem;margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border);overflow-x:auto}
+  .clima-dia{flex:1;min-width:56px;text-align:center;font-size:0.7rem;color:var(--text-dim)}
+  .clima-dia .emoji{font-size:1.15rem;display:inline-block;margin:0.25rem 0;animation:climaFlutuar 3s ease-in-out infinite}
+  .clima-dia .max{color:var(--text);font-weight:600}
+  /* NOVO 12/08/2026 (pedido do usuário: "tem como os emojis se moverem?") — flutuação leve, cada
+     emoji com um atraso levemente diferente (nth-child) pra não balançar tudo em uníssono/robótico. */
+  @keyframes climaFlutuar{ 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-3px); } }
+  .clima-dia:nth-child(1) .emoji{ animation-delay: 0s; }
+  .clima-dia:nth-child(2) .emoji{ animation-delay: 0.3s; }
+  .clima-dia:nth-child(3) .emoji{ animation-delay: 0.6s; }
+  .clima-dia:nth-child(4) .emoji{ animation-delay: 0.9s; }
+  @media (prefers-reduced-motion: reduce){
+    .clima-agora .emoji, .clima-dia .emoji{ animation: none; }
+  }
 </style>
 </head>
 <body>
+  <!-- ATUALIZADO 12/08/2026 (pedido do usuário: "coloque isso no topo") — cabeçalho virou fixo,
+       fora do template dinâmico de #app: antes só aparecia depois da RPC responder (ficava embaixo
+       do clima enquanto carregava/se desse erro). Só o "link válido até" continua dinâmico
+       (depende do dado da RPC), atualizado em #expiraTxt depois que carregar() resolve. -->
+  <header>
+    <span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="4" height="9" rx="0.5"></rect>
+        <rect x="10" y="6" width="4" height="14" rx="0.5"></rect>
+        <rect x="17" y="3" width="4" height="17" rx="0.5"></rect>
+      </svg>
+    </span>
+    <div>
+      <h1>Energia Solar — Sistema Wallace Lira</h1>
+      <div class="sub">Só leitura, dados solares apenas · link válido até <span id="expiraTxt">…</span></div>
+    </div>
+  </header>
+  <div class="clima-card" id="climaCard"></div>
   <div id="app">
     <div class="msg"><h2>Carregando…</h2></div>
   </div>
@@ -57,6 +100,10 @@ function fmtKwh(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleStr
 function fmtPct(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%'; }
 function fmtData(iso){ if(!iso) return '—'; const [a,m,d] = iso.slice(0,10).split('-'); return d+'/'+m+'/'+a; }
 
+// ATUALIZADO 12/08/2026 (pedido do usuário: trocar os emojis soltos ☀️ pelo mesmo ícone de marca do
+// resto do site) — versão inline (vertical-align ajustado pra encaixar no meio de texto de heading).
+const ICONE_MARCA_INLINE = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;color:#8ab4f8"><rect x="3" y="11" width="4" height="9" rx="0.5"></rect><rect x="10" y="6" width="4" height="14" rx="0.5"></rect><rect x="17" y="3" width="4" height="17" rx="0.5"></rect></svg>`;
+
 function renderErro(mensagem){
   const msgs = {
     'link invalido': ['Link inválido', 'Esse link de compartilhamento não existe ou foi digitado errado.'],
@@ -64,7 +111,7 @@ function renderErro(mensagem){
     'link expirado': ['Link expirado', 'A validade desse link já passou — peça um novo link pra quem compartilhou.'],
   };
   const [titulo, texto] = msgs[mensagem] || ['Não foi possível carregar', 'Tente novamente em alguns minutos, ou peça um link novo.'];
-  document.getElementById('app').innerHTML = `<div class="msg"><h2>☀️ ${titulo}</h2><p>${texto}</p></div>`;
+  document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} ${titulo}</h2><p>${texto}</p></div>`;
 }
 
 // CORRIGIDO 11/08/2026 (achado do usuário: "de onde você tirou que o kwh vale 18 centavos? o valor
@@ -76,6 +123,14 @@ function renderErro(mensagem){
 // informada pelo usuário (linha "TE" da fatura Energisa, R$/kWh), e "Valor do kWh gerado" agora
 // mostra essa tarifa diretamente, não mais a média diluída.
 const TARIFA_RS_POR_KWH = 0.8995;
+// NOVO 12/08/2026 (achado do usuário: "R$133,63 pra mim é muito mais") — causa raiz: a fórmula
+// anterior limitava a economia ao que a casa consumiu localmente (autoconsumo direto + importado),
+// ignorando os kWh exportados que viram crédito (net metering, Lei 14.300) e abatem fatura futura.
+// Valor real do Fio B/"Ajuste GD II" tirado de 2 faturas Energisa reais do usuário (conferido:
+// 144kWh×0,1416=R$20,39 e 57kWh×0,1416=R$8,07, ambos batem exato) — cobrado só sobre o kWh
+// COMPENSADO (exportado), nunca sobre o autoconsumo direto. Nível C (fornecido pelo usuário, não
+// consultado ao vivo numa fatura desta sessão) — se a tarifa/Fio B mudar de faixa, atualizar aqui.
+const FIO_B_RS_POR_KWH = 0.14160;
 const INVESTIMENTO_PADRAO = 25000; // mesmo default do simulador do painel privado (simInvestimento)
 
 // Cópia deliberada (mesmo padrão da tarifa acima) de src/solar/vars-energia-solar.js — consumo médio
@@ -113,6 +168,70 @@ const barValuePlugin = {
   }
 };
 
+// Mesmas coordenadas/tabela de códigos WMO de src/solar/hydrate-clima-solar.js (painel privado) —
+// cópia deliberada, não importada, mesma razão da tarifa/consumo acima (página autocontida).
+const CLIMA_LAT = -7.2306;
+const CLIMA_LON = -35.8811;
+const CLIMA_CODIGOS = {
+  0: { emoji: '☀️', texto: 'Céu limpo' }, 1: { emoji: '🌤️', texto: 'Poucas nuvens' },
+  2: { emoji: '⛅', texto: 'Parcialmente nublado' }, 3: { emoji: '☁️', texto: 'Nublado' },
+  45: { emoji: '🌫️', texto: 'Neblina' }, 48: { emoji: '🌫️', texto: 'Neblina com geada' },
+  51: { emoji: '🌦️', texto: 'Garoa fraca' }, 53: { emoji: '🌦️', texto: 'Garoa' }, 55: { emoji: '🌦️', texto: 'Garoa forte' },
+  56: { emoji: '🌦️', texto: 'Garoa gelada' }, 57: { emoji: '🌦️', texto: 'Garoa gelada forte' },
+  61: { emoji: '🌧️', texto: 'Chuva fraca' }, 63: { emoji: '🌧️', texto: 'Chuva' }, 65: { emoji: '🌧️', texto: 'Chuva forte' },
+  66: { emoji: '🌧️', texto: 'Chuva gelada' }, 67: { emoji: '🌧️', texto: 'Chuva gelada forte' },
+  71: { emoji: '🌨️', texto: 'Neve fraca' }, 73: { emoji: '🌨️', texto: 'Neve' }, 75: { emoji: '🌨️', texto: 'Neve forte' }, 77: { emoji: '🌨️', texto: 'Grãos de neve' },
+  80: { emoji: '🌦️', texto: 'Pancada de chuva fraca' }, 81: { emoji: '🌦️', texto: 'Pancada de chuva' }, 82: { emoji: '⛈️', texto: 'Pancada de chuva forte' },
+  85: { emoji: '🌨️', texto: 'Pancada de neve fraca' }, 86: { emoji: '🌨️', texto: 'Pancada de neve forte' },
+  95: { emoji: '⛈️', texto: 'Trovoada' }, 96: { emoji: '⛈️', texto: 'Trovoada com granizo' }, 99: { emoji: '⛈️', texto: 'Trovoada com granizo forte' },
+};
+const CLIMA_DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+async function carregarClima(){
+  const box = document.getElementById('climaCard');
+  if(!box) return;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CLIMA_LAT}&longitude=${CLIMA_LON}&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo&forecast_days=5`;
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error(`Open-Meteo respondeu ${resp.status}`);
+    const dado = await resp.json();
+    const atual = dado.current;
+    const diario = dado.daily;
+    if(!atual || typeof atual.temperature_2m !== 'number' || !diario) throw new Error('resposta incompleta');
+
+    const infoAtual = CLIMA_CODIGOS[atual.weather_code] || { emoji: '🌡️', texto: 'Sem descrição' };
+    const emojiAtual = (atual.is_day === 0 && (atual.weather_code === 0 || atual.weather_code === 1)) ? '🌙' : infoAtual.emoji;
+    const tempAtual = Math.round(atual.temperature_2m);
+
+    // NOVO 12/08/2026 (pedido do usuário: "precisa de data e hora nesse menu do tempo, tanto no
+    // compartilhamento como no site") - atual.time vem no fuso já pedido acima (America/Sao_Paulo).
+    const [dataAtualIso, horaAtualIso] = (atual.time || '').split('T');
+    const dataAtualFmt = dataAtualIso ? (() => { const [a,m,d] = dataAtualIso.split('-'); return `${d}/${m}`; })() : '';
+
+    const diasHtml = diario.time.slice(1, 5).map((iso, i) => {
+      const idx = i + 1;
+      const info = CLIMA_CODIGOS[diario.weather_code[idx]] || { emoji: '🌡️', texto: '' };
+      const diaSemana = CLIMA_DIAS_SEMANA[new Date(iso + 'T12:00:00').getDay()];
+      const dataFmt = (() => { const [a,m,d] = iso.split('-'); return `${d}/${m}`; })();
+      const max = Math.round(diario.temperature_2m_max[idx]);
+      const min = Math.round(diario.temperature_2m_min[idx]);
+      return `<div class="clima-dia"><div>${diaSemana} ${dataFmt}</div><span class="emoji">${info.emoji}</span><div><span class="max">${max}°</span> ${min}°</div></div>`;
+    }).join('');
+
+    box.innerHTML = `
+      <div class="clima-agora">
+        <span class="emoji">${emojiAtual}</span>
+        <div><div class="temp">${tempAtual}°C</div><div class="desc">${infoAtual.texto} · Campina Grande/PB · ${dataAtualFmt} ${horaAtualIso || ''}</div></div>
+      </div>
+      <div class="clima-previsao">${diasHtml}</div>
+    `;
+    box.style.display = 'block';
+  } catch(err){
+    console.warn('carregarClima: falha ao buscar previsão da Open-Meteo — bloco fica oculto (nunca mostra dado antigo/inventado).', err);
+  }
+}
+carregarClima();
+
 async function carregar(){
   const token = new URLSearchParams(location.search).get('token');
   if(!token){ renderErro('link invalido'); return; }
@@ -125,7 +244,7 @@ async function carregar(){
       body: JSON.stringify({ p_token: token }),
     });
   } catch(e){
-    document.getElementById('app').innerHTML = '<div class="msg"><h2>☀️ Sem conexão</h2><p>Não consegui buscar os dados agora. Confira sua internet e recarregue a página.</p></div>';
+    document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} Sem conexão</h2><p>Não consegui buscar os dados agora. Confira sua internet e recarregue a página.</p></div>`;
     return;
   }
   if(!resp.ok){
@@ -171,16 +290,16 @@ async function carregar(){
     dependenciaPct = consumoTotalCasa > 0 ? Math.round((importadoAcum / consumoTotalCasa) * 1000) / 10 : 0;
     exportacaoDaGeracaoPct = geracaoAcum > 0 ? Math.round((exportadoAcum / geracaoAcum) * 1000) / 10 : 0;
 
-    // CORRIGIDO 12/08/2026 (achado do usuário: "esse valor de economia acumulada, está incorreto, 66
-    // reais é pouco") — a versão anterior só valorizava o autoconsumo direto (consumoDiretoAcum), sem
-    // contar o efeito do crédito de exportação (net metering): como a unidade exporta MUITO mais do
-    // que importa (444 x 75 kWh no exemplo que gerou o achado), praticamente toda a importação acaba
-    // sendo compensada por crédito solar — ou seja, quase tudo que a casa consumiu (consumoTotalCasa)
-    // foi, na prática, "pago" pela usina. Fórmula simplificada de propósito (não é o simulador completo
-    // do painel privado, que projeta mês a mês com Fio B/degradação/Lei 14.300): valoriza o mínimo
-    // entre o que foi gerado e o que a casa consumiu, à tarifa média, desde a data de ativação.
-    // Deixado claro na tela que é estimativa, não fatura real.
-    economiaEstimada = Math.round(Math.min(geracaoAcum, consumoTotalCasa) * TARIFA_RS_POR_KWH * 100) / 100;
+    // CORRIGIDO 12/08/2026 (2ª correção, achado do usuário: "R$133,63 pra mim é muito mais") — a
+    // versão anterior (min(geração, consumoTotalCasa) × tarifa) limitava a economia ao que a CASA
+    // sozinha consumiu localmente, descartando por completo os kWh exportados — que na prática viram
+    // crédito de compensação (net metering) e valem quase a tarifa cheia, só descontado o Fio B/"Ajuste
+    // GD II" da Lei 14.300 (cobrado SÓ sobre o kWh compensado, nunca sobre o autoconsumo direto).
+    // Agora: autoconsumo direto vale a tarifa cheia, exportado vale tarifa menos Fio B real (valor
+    // tirado de faturas Energisa reais do usuário, ver FIO_B_RS_POR_KWH acima). Ainda é estimativa
+    // simplificada (não projeta mês a mês, não é o simulador completo do painel privado) — deixado
+    // claro na tela.
+    economiaEstimada = Math.round((consumoDiretoAcum * TARIFA_RS_POR_KWH + exportadoAcum * (TARIFA_RS_POR_KWH - FIO_B_RS_POR_KWH)) * 100) / 100;
     valorKwhGerado = TARIFA_RS_POR_KWH;
     if(ciclo && ciclo.data_inicio){
       const diasDesdeInicio = Math.max(1, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
@@ -215,18 +334,11 @@ async function carregar(){
   const mesesHistorico = Object.keys(historicoMensal).sort();
   const mesLbl = (chave)=>{ const [a,m] = chave.split('-'); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(m,10)-1]+'/'+a.slice(2); };
 
-  const expiraTxt = dados.expiraEm ? fmtData(dados.expiraEm) : '—';
+  const expiraTxtEl = document.getElementById('expiraTxt');
+  if(expiraTxtEl) expiraTxtEl.textContent = dados.expiraEm ? fmtData(dados.expiraEm) : '—';
 
   const app = document.getElementById('app');
   app.innerHTML = `
-    <header>
-      <span class="ico">☀️</span>
-      <div>
-        <h1>Energia Solar — Sistema Wallace Lira</h1>
-        <div class="sub">Só leitura, dados solares apenas · link válido até ${expiraTxt}</div>
-      </div>
-    </header>
-
     <div class="card">
       <div class="grid">
         <div><div class="stat-lbl">Geração hoje</div><div class="stat-val" style="color:var(--amber)">${geracaoHojeReg ? fmtKwh(geracaoHojeReg.kwh) : '—'}</div><div class="stat-sub">${geracaoHojeReg ? fmtData(geracaoHojeReg.data) : 'aguardando leitura do robô'}</div></div>
@@ -245,7 +357,7 @@ async function carregar(){
         <div><div class="stat-lbl">Valor do kWh gerado</div><div class="stat-val">${valorKwhGerado!=null ? fmt(valorKwhGerado) : '—'}</div></div>
         <div><div class="stat-lbl">Payback estimado</div><div class="stat-val">${paybackAnos!=null ? paybackAnos.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos' : '—'}</div><div class="stat-sub">investimento de ${fmt(INVESTIMENTO_PADRAO)} (padrão)</div></div>
       </div>
-      <div class="stat-sub" style="margin-top:0.8rem">Estimativa simplificada (tarifa média, sem projeção mês a mês) — não é a fatura real.</div>
+      <div class="stat-sub" style="margin-top:0.8rem">Autoconsumo direto à tarifa cheia, exportado à tarifa menos Fio B (crédito Lei 14.300) — estimativa simplificada, sem projeção mês a mês, não é a fatura real.</div>
     </div>
 
     <div class="card">

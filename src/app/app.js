@@ -204,6 +204,25 @@ const WallaceFinanceService = {
     this._cache.set(chave, dado);
     return dado;
   },
+  // NOVO 12/08/2026 (Onda 11, pedido do usuário: "V1 não pode haver nada lá" — matar de vez o
+  // palpite por calendário de aplicarBoletosVencidosAutomaticamente()). Extrato real da Caixa
+  // Boletos direto da V2 — mesmo padrão de getExtratoCaixaMastercardInfinite() acima. Substitui
+  // o array VARS.BOLETOS_TRANSACOES (antes populado por palpite de data) pelo que realmente foi
+  // confirmado como pago (via processo de triagem da Inbox, ver MANUAL_OPERACIONAL_AGENTES.md
+  // seção 2 regra 6). Caixa id fixo, mesmo padrão de getExtratoCaixaMastercardInfinite:
+  // '7751575a-6339-4bf2-bda4-60817778551c'.
+  async getExtratoCaixaBoletos(){
+    const chave = 'extrato_caixa_boletos';
+    if(this._cache.has(chave)) return this._cache.get(chave);
+    const caixaId = '7751575a-6339-4bf2-bda4-60817778551c';
+    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
+      headers: this._headers()
+    });
+    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Boletos`);
+    const dado = await resp.json();
+    this._cache.set(chave, dado);
+    return dado;
+  },
   async getValoresConhecidosV2(){
     const chave = 'valores_v2_todos';
     if(this._cache.has(chave)) return this._cache.get(chave);
@@ -1382,8 +1401,15 @@ function aplicarBoletosVencidosAutomaticamente(){
     }
   });
 }
-aplicarBoletosVencidosAutomaticamente();
-VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES); // recalcula apos o auto-credito acima
+// DESLIGADO 12/08/2026 (Onda 11, pedido explícito do usuário: "V1 já cobre isso sozinho, mate V1,
+// não pode haver nada lá"). Motivo real: o palpite por calendário duplicava o que o agente já lança
+// em V2 a partir de dado real confirmado (Pluggy/Mercado Pago), gerando 2 registros pro mesmo boleto
+// (um "acho que já venceu" em V1, outro "confirmei que pagou" em V2) - já causou duplicata real numa
+// sessão (ver MANUAL_OPERACIONAL_AGENTES.md seção 2 regra 6). O saldo exibido (cxBoletosSaldo etc)
+// já é 100% V2 desde a Onda 1, e o array VARS.BOLETOS_TRANSACOES agora vem só do extrato real da V2
+// (ver aplicarOnda11BoletosExtratoV2(), hydrate-onda11-boletos-extrato-v2.js) - nunca mais por palpite.
+// Rollback: descomentar a linha abaixo (volta ao comportamento antigo, mas reintroduz o risco de duplicata).
+// aplicarBoletosVencidosAutomaticamente();
 VARS.caixaPixVanessa = calcularSaldoCaixa(VARS.PV_SALDO_INICIAL, VARS.PV_TRANSACOES);
 VARS.caixaEventos = calcularSaldoCaixa(VARS.EVENTOS_SALDO_INICIAL, VARS.EVENTOS_TRANSACOES);
 VARS.caixaSeguroEmplacamento = calcularSaldoCaixa(VARS.SEGURO_EMPLACAMENTO_SALDO_INICIAL, VARS.SEGURO_EMPLACAMENTO_TRANSACOES);
@@ -1975,6 +2001,8 @@ onDomPronto(aplicarOnda7Pluggy);
 // NOVO 08/08/2026 (Onda 8): CRONOGRAMA_BOLETOS_FIXOS (literal em vars-caixas.js) migrado pra tabela
 // cronograma_boletos_fixos — editável sem deploy de código a partir de agora. Ver hydrate-onda8-cronograma-boletos.js.
 onDomPronto(aplicarOnda8CronogramaBoletos);
+// NOVO 12/08/2026 (Onda 11): extrato real da Caixa Boletos, ver hydrate-onda11-boletos-extrato-v2.js.
+onDomPronto(aplicarOnda11BoletosExtratoV2);
 onDomPronto(aplicarOnda9LivrosFixos);
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.
