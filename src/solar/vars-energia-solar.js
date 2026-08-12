@@ -33,12 +33,17 @@ function criarVarsEnergiaSolar(){
   FIO_B_PCT_DA_DISTRIBUICAO: 28, // fatia do Fio B dentro da categoria "Distribuicao" da fatura (varia 28-30% na Energisa PB, usado o extremo mais conservador)
   FIO_B_COBRANCA_2026_PCT: 60, // confirmado - cronograma da Lei 14.300 pra sistemas conectados apos 07/01/2023 (15%/23, 30%/24, 45%/25, 60%/26, 75%/27, 90%/28-29)
   // NOVO 01/08/2026: fallback estatico da composicao tarifaria por unidade (prints do app Energisa,
-  // 01/08/2026) - o Supabase tem a copia "viva" (ENERGISA_TARIFA_COMPOSICAO) que sobrescreve isto via
-  // Object.assign(VARS, dr) no carregamento; mantido aqui so pra o card nao ficar vazio se o banco
-  // estiver fora do ar. Editar via Supabase normalmente, nao aqui.
+  // 01/08/2026).
   // ATUALIZADO 11/08/2026 (2 faturas oficiais reais em PDF, casa_wellida NF 009.005.476 e casa_mae
-  // NF 009.005.819, ambas emitidas 10/08/2026, período 08/07→07/08/2026) - fallback local só, a copia
-  // viva no Supabase (wallace_dados.ENERGISA_TARIFA_COMPOSICAO) já foi atualizada e sempre vence.
+  // NF 009.005.819, ambas emitidas 10/08/2026, período 08/07→07/08/2026).
+  // CORRIGIDO 12/08/2026 (achado real, causou uma correção inteira ficar órfã por horas): o comentário
+  // acima ("Object.assign(VARS, dr) sobrescreve isto") ficou DESATUALIZADO no mesmo dia — uma sessão
+  // paralela ("sepultamento final da V1") removeu esse merge por completo. A fonte viva HOJE é a
+  // tabela relacional `parametros_gerais` (linha nome='ENERGISA_TARIFA_COMPOSICAO'), aplicada via
+  // window.WALLACE_PARAMETROS_GERAIS_V2.forEach(r => VARS[r.nome] = r.valor) em app.js (~linha 1192),
+  // NÃO mais `wallace_dados.dados`. Editar essa chave exige UPDATE em `parametros_gerais`, não em
+  // `wallace_dados` (que ainda tem uma cópia, mas ninguém mais lê). Isso pode voltar a mudar — antes de
+  // confiar neste comentário, confirmar no app.js atual qual bloco realmente popula VARS.
   ENERGISA_TARIFA_COMPOSICAO: {
     apartamento_wallace: { uc:'1.994.775.053-05', historico:{ mai26:270.10, jun26:322.99, jul26:367.36 }, composicao_pct:{ energia:28, impostos:22, distribuicao:22, iluminacao:12, encargos:12, transmissao:5 } },
     // ATUALIZADO 12/08/2026 (fatura real Ago/26 em PDF, NF 009.005.476 casa_wellida / NF 009.005.819
