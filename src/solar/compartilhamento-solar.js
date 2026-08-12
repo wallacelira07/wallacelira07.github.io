@@ -19,8 +19,13 @@ function _headersCompartilhamentoSolar(){
 }
 
 function _linkCompartilhamentoSolarUrl(token){
-  // Mesma origem do site (funciona em produção e em qualquer preview local) — solar-compartilhado.html
-  // vive na raiz, igual index.html.
+  // CORRIGIDO 12/08/2026 (pedido do usuário: "esses links devem ser amigáveis... algo mais
+  // profissional") — antes gerava a URL técnica solar-compartilhado.html?token=<64 chars>. Agora usa o
+  // caminho bonito /solar/<token>, resolvido em produção pelo truque de 404.html (GitHub Pages não tem
+  // rewrite de servidor — ver comentário em 404.html). Só funciona assim na origem raiz de produção
+  // (wallacelira.com.br); em preview local fora da raiz, cai de volta pra URL técnica de sempre.
+  const naRaizDoSite = location.pathname.replace(/[^/]*$/, '') === '/';
+  if(naRaizDoSite) return location.origin + '/solar/' + token;
   return location.origin + location.pathname.replace(/[^/]*$/, '') + 'solar-compartilhado.html?token=' + token;
 }
 

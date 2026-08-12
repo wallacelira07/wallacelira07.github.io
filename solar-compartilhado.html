@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Energia Solar — Sistema Wallace Lira</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/images/favicon-192.png">
 <!-- PÁGINA PÚBLICA, SEM LOGIN, DE PROPÓSITO (10/08/2026) — item aprovado pelo usuário
      ("compartilhamento público (só leitura) da aba Energia Solar", ver PASSAGEM_DE_TURNO.md e
      ESTADO_ATUAL.md). Acesso controlado só pelo token na URL (?token=...), validado pela RPC
@@ -76,6 +78,41 @@ function renderErro(mensagem){
 const TARIFA_RS_POR_KWH = 0.8995;
 const INVESTIMENTO_PADRAO = 25000; // mesmo default do simulador do painel privado (simInvestimento)
 
+// Cópia deliberada (mesmo padrão da tarifa acima) de src/solar/vars-energia-solar.js — consumo médio
+// diário das 3 casas que dividem a usina (Wallace, Wellida/"Irmã", Mãe/geradora), usado só como linha
+// de referência no gráfico de geração diária (12/08/2026, pedido do usuário).
+const CONSUMO_DIARIO_WALLACE_KWH = 300 / 30;
+const CONSUMO_DIARIO_IRMA_KWH = 112 / 30;
+const CONSUMO_DIARIO_MAE_KWH = 1572 / 213;
+const CONSUMO_MEDIO_3_CASAS_KWH = Math.round((CONSUMO_DIARIO_WALLACE_KWH + CONSUMO_DIARIO_IRMA_KWH + CONSUMO_DIARIO_MAE_KWH) * 100) / 100;
+
+// Plugin Chart.js que escreve o valor numérico acima de cada barra — mesmo padrão visual do
+// barValuePlugin em src/dashboard/charts/graficos-utilitarios.js (painel privado), reimplementado aqui
+// sem dependências porque esta página é autocontida. Ignora datasets do tipo 'line' (ex.: a linha
+// tracejada de consumo médio) — só rotula barras.
+const barValuePlugin = {
+  id: 'barValuePlugin',
+  afterDatasetsDraw(chart){
+    const { ctx } = chart;
+    ctx.save();
+    ctx.fillStyle = '#e8e6df';
+    ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    chart.data.datasets.forEach((ds, di) => {
+      if(ds.type === 'line') return;
+      const meta = chart.getDatasetMeta(di);
+      if(meta.hidden) return;
+      meta.data.forEach((bar, i) => {
+        const v = ds.data[i];
+        if(v==null) return;
+        ctx.fillText(Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
+      });
+    });
+    ctx.restore();
+  }
+};
+
 async function carregar(){
   const token = new URLSearchParams(location.search).get('token');
   if(!token){ renderErro('link invalido'); return; }
@@ -99,11 +136,23 @@ async function carregar(){
   }
   dados = await resp.json();
 
+  // NOVO 12/08/2026 (URL amigável) — se chegamos aqui via redirect de /solar/<token> (feito pelo
+  // 404.html, truque padrão do GitHub Pages pra caminhos "bonitos" numa hospedagem sem rewrite de
+  // servidor), troca a URL visível de volta pra /solar/<token> sem recarregar a página, pra quem olhar
+  // a barra de endereço depois não ver o ?token= cru. Só roda em http(s) real, não em file:// local.
+  if(location.protocol.indexOf('http') === 0){
+    const urlBonita = '/solar/' + encodeURIComponent(token);
+    if(location.pathname + location.search !== urlBonita) history.replaceState(null, '', urlBonita);
+  }
+
   const leituras = dados.leituras || [];
   const geracaoDiaria = dados.geracaoDiaria || [];
   const ciclo = dados.cicloAberto || null;
   const ciclosFechados = dados.ciclosFechados || [];
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
+
+  // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
+  const geracaoHojeReg = geracaoDiaria.length ? geracaoDiaria[geracaoDiaria.length - 1] : null;
 
   const importadoAcum = ultima ? ultima.leitura03 : null;
   const exportadoAcum = ultima ? ultima.leitura103 : null;
@@ -122,10 +171,16 @@ async function carregar(){
     dependenciaPct = consumoTotalCasa > 0 ? Math.round((importadoAcum / consumoTotalCasa) * 1000) / 10 : 0;
     exportacaoDaGeracaoPct = geracaoAcum > 0 ? Math.round((exportadoAcum / geracaoAcum) * 1000) / 10 : 0;
 
-    // Economia estimada — simplificada de propósito (não é o simulador completo do painel privado,
-    // que projeta mês a mês com degradação/Lei 14.300): consumo direto das placas × tarifa média,
-    // desde a data de ativação. Deixado claro na tela que é estimativa, não fatura real.
-    economiaEstimada = Math.round(consumoDiretoAcum * TARIFA_RS_POR_KWH * 100) / 100;
+    // CORRIGIDO 12/08/2026 (achado do usuário: "esse valor de economia acumulada, está incorreto, 66
+    // reais é pouco") — a versão anterior só valorizava o autoconsumo direto (consumoDiretoAcum), sem
+    // contar o efeito do crédito de exportação (net metering): como a unidade exporta MUITO mais do
+    // que importa (444 x 75 kWh no exemplo que gerou o achado), praticamente toda a importação acaba
+    // sendo compensada por crédito solar — ou seja, quase tudo que a casa consumiu (consumoTotalCasa)
+    // foi, na prática, "pago" pela usina. Fórmula simplificada de propósito (não é o simulador completo
+    // do painel privado, que projeta mês a mês com Fio B/degradação/Lei 14.300): valoriza o mínimo
+    // entre o que foi gerado e o que a casa consumiu, à tarifa média, desde a data de ativação.
+    // Deixado claro na tela que é estimativa, não fatura real.
+    economiaEstimada = Math.round(Math.min(geracaoAcum, consumoTotalCasa) * TARIFA_RS_POR_KWH * 100) / 100;
     valorKwhGerado = TARIFA_RS_POR_KWH;
     if(ciclo && ciclo.data_inicio){
       const diasDesdeInicio = Math.max(1, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
@@ -174,6 +229,7 @@ async function carregar(){
 
     <div class="card">
       <div class="grid">
+        <div><div class="stat-lbl">Geração hoje</div><div class="stat-val" style="color:var(--amber)">${geracaoHojeReg ? fmtKwh(geracaoHojeReg.kwh) : '—'}</div><div class="stat-sub">${geracaoHojeReg ? fmtData(geracaoHojeReg.data) : 'aguardando leitura do robô'}</div></div>
         <div><div class="stat-lbl">Geração acumulada</div><div class="stat-val" style="color:var(--amber)">${temGeracao ? fmtKwh(geracaoAcum) : '—'}</div><div class="stat-sub">${temGeracao ? '' : 'aguardando leitura do inversor'}</div></div>
         <div><div class="stat-lbl">Autoconsumo</div><div class="stat-val" style="color:var(--green)">${fmtPct(autoconsumoPct)}</div><div class="stat-sub">${consumoDiretoAcum!=null ? fmtKwh(consumoDiretoAcum)+' direto das placas' : 'dados insuficientes'}</div></div>
         <div><div class="stat-lbl">Dependência da rede</div><div class="stat-val" style="color:var(--blue)">${fmtPct(dependenciaPct)}</div><div class="stat-sub">${importadoAcum!=null ? fmtKwh(importadoAcum)+' importados' : ''}</div></div>
@@ -218,40 +274,57 @@ async function carregar(){
       type: 'bar',
       data: {
         labels: ultimos.map(r => fmtData(r.data)),
-        datasets: [{ data: ultimos.map(r => r.kwh), backgroundColor: '#e8a63a', borderRadius: 3 }],
+        datasets: [
+          { data: ultimos.map(r => r.kwh), backgroundColor: '#e8a63a', borderRadius: 3 },
+          // NOVO 12/08/2026 (pedido do usuário: "gráfico de geração diária precisa da linha de consumo
+          // médio das 3 casas como aparece no meu site") — linha tracejada constante, mesma ideia do
+          // painel privado (graficos-cenarios-lazy.js), aqui como dataset 'line' nativo do Chart.js
+          // (mixed chart bar+line) por ser mais simples numa página autocontida sem plugin customizado.
+          { type: 'line', label: `Consumo médio das 3 casas (${fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)}/dia)`, data: ultimos.map(()=>CONSUMO_MEDIO_3_CASAS_KWH), borderColor: 'rgba(226,85,79,0.85)', borderDash: [5,4], borderWidth: 2, pointRadius: 0, fill: false },
+        ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + ' kWh' } } },
+        layout: { padding: { top: 18 } },
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 8, padding: 10, font: { size: 9.5 } } },
+          tooltip: { callbacks: { label: c => c.dataset.type === 'line' ? c.dataset.label : c.raw + ' kWh' } },
+        },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v, font: { size: 10 } } },
         },
       },
+      plugins: [barValuePlugin],
     });
   }
 
   if(mesesHistorico.length && window.Chart){
     { const __chartExistente = Chart.getChart(document.getElementById('cHistoricoMensal')); if (__chartExistente) __chartExistente.destroy(); }
+    // SIMPLIFICADO 12/08/2026 (achado do usuário: "Histórico mês a mês (kWh) - revise esse gráfico
+    // está muito confuso") — a versão anterior tinha 4 barras por mês (importado, consumo direto
+    // calculado, exportado, saldo líquido positivo/negativo misturados na mesma escala), difícil de
+    // ler. Reduzido às 2 séries que realmente importam pra entender o fluxo com a rede: importado x
+    // exportado (o saldo líquido acumulado já aparece no card de resumo, no topo da página).
     new Chart(document.getElementById('cHistoricoMensal'), {
       type: 'bar',
       data: {
         labels: mesesHistorico.map(mesLbl),
         datasets: [
-          { label:'Importado (código 03)', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].importado*10)/10), backgroundColor:'#e2554f', borderRadius:3 },
-          { label:'Consumo direto (calculado)', data: mesesHistorico.map(m=>historicoMensal[m].temConsumoDireto ? Math.round(historicoMensal[m].consumoDireto*10)/10 : null), backgroundColor:'#e8a63a', borderRadius:3 },
-          { label:'Exportado (código 103)', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].exportado*10)/10), backgroundColor:'#3987e5', borderRadius:3 },
-          { label:'Saldo líquido', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].saldo*10)/10), backgroundColor:'#34c98a', borderRadius:3 },
+          { label:'Importado da rede', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].importado*10)/10), backgroundColor:'#e2554f', borderRadius:3 },
+          { label:'Exportado para a rede', data: mesesHistorico.map(m=>Math.round(historicoMensal[m].exportado*10)/10), backgroundColor:'#3987e5', borderRadius:3 },
         ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.raw==null ? c.dataset.label+': sem dado ainda' : c.dataset.label+': '+c.raw+' kWh' } } },
+        layout: { padding: { top: 18 } },
+        plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw+' kWh' } } },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.9, barPercentage:0.35 },
+          x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.8, barPercentage:0.7 },
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
         },
       },
+      plugins: [barValuePlugin],
     });
   }
 
@@ -268,12 +341,14 @@ async function carregar(){
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 18 } },
         plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw+' kWh' } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
         },
       },
+      plugins: [barValuePlugin],
     });
   }
 }
