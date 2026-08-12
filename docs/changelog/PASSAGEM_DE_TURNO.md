@@ -2,6 +2,14 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 12/08/2026 (continuação, mesma sessão) — Fase 3: refino de paleta e tipografia
+
+Usuário pediu para seguir pra Fase 3. Perguntado sobre motivação (bug pontual vs. modernização geral) e escopo (proposta primeiro vs. aplicar direto): respondeu "modernização geral" + "aplicar direto nos tokens". Auditoria prévia encontrou ~45 ocorrências de cores repetidas como hex/rgba hardcoded fora dos 5 tokens de cor em `:root` (gradientes do `.cover`, sombras de foco, estados hover/active dos botões master-tab) — se só os tokens fossem trocados, essas duplicatas manteriam a cor antiga e criariam inconsistência visual real. Decisão: refinar a paleta mantendo a mesma família de matiz (não trocar identidade de marca, só ganhar contraste/vivacidade — fundo mais frio, texto mais nítido, accent/verde/âmbar/vermelho levemente mais vivos), e atualizar tokens + todas as duplicatas hardcoded juntas via find/replace exato dos mesmos pares hex/RGB, garantindo 100% de consistência. `font-family` do `body` ganhou fallback mais completo.
+
+**Validação real**: como o painel principal exige login (indisponível no ambiente), criei uma página de teste isolada dentro do próprio projeto (`_teste_paleta_temp.html`, removida depois), servida pelo servidor local já configurado no repositório (`.claude/launch.json`, config `wallace-static`) carregando o `assets/css/styles.css` de produção de verdade — não uma cópia. Screenshot confirmou visualmente cores de status, hierarquia de texto e accent/accent-2 legíveis e coerentes antes de commitar. **Nota técnica**: o navegador da sessão bloqueia carregamento de CSS/JS em arquivos `file://` fora da pasta do projeto e recusa `localhost` fora de portas configuradas em `launch.json` — só funcionou testando dentro da pasta real do projeto via o servidor já existente.
+
+Commitado (`821cf31`) e pushed pro `main` direto, sem passar por proposta separada — conforme escopo escolhido pelo usuário.
+
 ## 🏁 Encerramento 12/08/2026 — Fase 1 (cache TTL) + correção de bug real do Livro Razão (scroll mobile)
 
 Sessão retomada após limite de uso, dando continuidade a um plano de modernização em fases (1: performance, 2: mobile/responsividade, 3: visual/design, 4: a definir). Ao retomar, investigação de um commit "estranho" (`8e835e0`) revelou que não era outro agente trabalhando em paralelo no mesmo repositório — era a própria sessão, antes de um corte de contexto anterior a este que não sobreviveu em memória: o tooltip de composição de saldo, as legendas do Simulador Fim de Ciclo e a cor dinâmica na barra Disponível já tinham sido implementados e commitados corretamente. `git diff` confirmou que bateu byte a byte com o que eu ia "reimplementar" — nada foi duplicado.

@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso). Commit `2da024b` (pushed): TTL de 90s no cache do `WallaceFinanceService` (Fase 1 — performance) + scroll horizontal nos 24 painéis do Livro Razão (correção de bug real reportado por print do usuário: tabela larga cortada sem jeito de rolar até o resto).
+Última reescrita: 12/08/2026, sessão de responsividade/modernização mobile (retomada após limite de uso). Commits pushed: `2da024b` (Fase 1 — TTL de 90s no cache do `WallaceFinanceService` + scroll horizontal nos 24 painéis do Livro Razão), `821cf31` (Fase 3 — refino de paleta/tipografia do design system).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -23,10 +23,18 @@
 
 | Fase | Escopo | Status |
 |---|---|---|
-| 1 | Performance (cache TTL) | ✅ Concluída, commitada |
+| 1 | Performance (cache TTL) | ✅ Concluída, commitada (`2da024b`) |
 | 2 | Mobile/responsividade — auditoria + correções pontuais | 🔶 Em andamento — bug do Livro Razão corrigido; painel principal ainda não testado (sem login) |
-| 3 | Visual/design (paleta, tipografia) | Não iniciada — depende de validação visual do painel logado |
+| 3 | Visual/design (paleta, tipografia) | ✅ Concluída, commitada (`821cf31`) — ver detalhe abaixo |
 | 4 | (não definida ainda) | — |
+
+## ✅ Fase 3 — refino de paleta e tipografia (12/08/2026)
+
+Usuário pediu modernização geral (sem bug pontual) e autorizou aplicar direto nos tokens (`:root` de `assets/css/styles.css`), não só propor. Mudança: fundo mais frio/rico, texto com mais contraste, accent azul/verde/âmbar/vermelho levemente mais vivos (mesma família de matiz, refino de saturação/luminosidade — não é uma repaginação de identidade). `font-family` do `body` ganhou fallback mais completo (`BlinkMacSystemFont`, `Helvetica Neue`, `Arial`).
+
+**Cuidado tomado**: o CSS tinha ~45 ocorrências de cores repetidas como valores hardcoded (hex/rgba) fora dos tokens (gradientes do `.cover`, sombras, `rgba()` de estados hover/active) — se só os tokens em `:root` fossem trocados, essas duplicatas ficariam com a cor antiga, gerando inconsistência visual (custura entre elementos). Todas foram atualizadas em conjunto (find/replace exato dos mesmos pares hex/RGB), preservando 100% de consistência.
+
+**Validado visualmente** (não só por leitura de código): página de teste isolada dentro do projeto (`_teste_paleta_temp.html`, criada e apagada em seguida), servida pelo servidor local já configurado em `.claude/launch.json` (`wallace-static`), carregando o `assets/css/styles.css` real. Screenshot confirmou hierarquia de texto, cores de status (verde/vermelho/âmbar) e accent/accent-2 legíveis e coerentes. **Painel principal logado segue não testado** — mesma limitação de sempre (sem credencial no ambiente).
 
 ## Pendências antigas, sem decisão do usuário ainda
 
