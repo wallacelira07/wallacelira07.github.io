@@ -31,7 +31,9 @@ Toda afirmação sobre o sistema carrega um nível de confiança. Classificar me
 
 ## 1. Fonte única da verdade
 
-**Hoje, a fonte que alimenta 100% do painel visível é `wallace_dados` no Supabase** (uma única linha JSON, `id=1`, coluna `dados`) — buscada a cada carregamento e sobreposta ao `VARS` estático via `Object.assign(VARS, dr)`. É isso, e só isso, que o usuário vê na tela.
+**ATUALIZADO 12/08/2026 — `wallace_dados` foi DESLIGADA de vez.** A busca que sobrepunha `wallace_dados` ao `VARS` (`Object.assign(VARS, dr)`) foi **removida do HTML** (`Sistema_Wallace_Lira_Completo.html`, "sepultamento final da V1") — o site **não lê mais essa linha**, em nenhuma hipótese. Editar `wallace_dados` hoje não tem efeito nenhum no que o usuário vê. Se qualquer documento/memória mais antigo disser o contrário, este parágrafo tem precedência.
+
+**A fonte real hoje é a tabela `indicadores`** (par nome/valor, uma linha por indicador — `cartaoMBTotal`, `mbLRWConfirmado`, etc.) para os totais agregados, e `transacoes`/`caixas`/demais tabelas V2 relacionais para tudo que é lançamento individual. Ver seção 1.1 pra tabela completa por domínio.
 
 **Existem DUAS coisas diferentes chamadas "V2" neste projeto — não confundir:**
 
@@ -121,6 +123,57 @@ Se o Claude Chat perguntar se deve "criar" uma caixa que parece não existir (ex
 
 ---
 
+## 1.3 Lançamento de compra em cartão de crédito — procedimento correto (NOVO 12/08/2026)
+
+**Registrado depois de uma madrugada de reconciliação onde Claude Chat e Claude Code editaram os mesmos campos agregados (`indicadores.mbLRWConfirmado`/`cartaoMBTotal`) de formas incompatíveis, sem se coordenar — um sobrescreveu o outro sem aviso, e o usuário não conseguiu confiar no painel por horas. Isso não pode se repetir.**
+
+### 1.3.1 A transação individual é a fonte — o agregado é derivado, nunca editado à mão como atalho
+
+Toda compra de cartão **sempre** vira uma linha nova em `transacoes`, com estes campos preenchidos sempre que a evidência existir (comprovante/print/fatura):
+
+| Campo | Obrigatório? | Regra |
+|---|---|---|
+| `caixa_id` | Sim | Caixa que "paga" essa fatura — normalmente Caixa Variável, mas pode ser Churrasco/Bens Duráveis/Provisionado Wärtsilä/etc (ver seção 1.3.4) |
+| `usuario_id` | Sim, se souber quem comprou | Sem isso, a compra **some** de `vw_compromisso_cartao_por_pessoa` e `vw_transacoes_cartao_variavel_por_pessoa` (o `JOIN usuarios` é interno — filtra fora silenciosamente). Achado real 12/08: 6 lançamentos do Pluggy entraram sem `usuario_id` e sumiram da lista LRW por dias sem erro nenhum. |
+| `cartao_id` | Sim, se souber qual cartão | Idem — sem isso a compra não aparece em nenhuma view por cartão. Cartão virtual avulso/de uso único (ex: cartão temporário do Mastercard Black) ainda é um `cartao_id` real — usar o cartão "MB virtual" existente em `cartoes`, não deixar `NULL` só porque é avulso. |
+| `data` | Sim | Data real da compra (comprovante), não a data do lançamento |
+| `tipo` | Sim | `saida` |
+| `afeta_saldo_real` | Sim | `false` para compra de cartão (é compromisso de fatura futura, não saída de caixa agora) |
+| `ja_orcado_assinaturas` | Sim, se for assinatura já contada em `cronograma_assinaturas` | Evita contar 2x (mesma classe do achado TX000228/Churrasco) |
+| `tx_legado` | Recomendado | Próximo `TX0002XX` sequencial, nunca reutilizar |
+| `origem` | Sim | `'manual'` (você digitou/leu o comprovante agora), `'pluggy'` (sincronização automática), `'reconciliacao'` (lote de reconciliação histórica) |
+
+**Depois disso — nunca antes** — os agregados (`indicadores.mbLRWConfirmado`, `cartaoMBTotal`, etc.) podem ser recalculados. Eles são **espelho** do que já está em `transacoes`, não um número que se edita direto como atalho pra "economizar um passo". Editar só o agregado, sem a linha em `transacoes`, é exatamente o que causou o problema desta madrugada — parece mais rápido, mas quebra toda auditoria futura (o valor existe, mas não tem como provar de onde veio).
+
+### 1.3.2 Antes de editar um `indicadores` agregado, checar se outro agente já mexeu
+
+**`indicadores` agora tem trigger de auditoria** (`trg_audit_indicadores`, criado 12/08/2026, mesmo padrão de `transacoes`/`caixas`) — toda mudança fica em `audit_log`. Antes de atualizar `mbLRWConfirmado`/`cartaoMBTotal`/qualquer indicador financeiro:
+
+```sql
+select campo, valor_anterior, valor_novo, origem, alterado_por, alterado_em
+from audit_log
+where tabela = 'indicadores' and registro_id = (select id from indicadores where nome = '<nome>')
+order by alterado_em desc limit 5;
+```
+
+Se o último registro for de **menos de algumas horas atrás** e a origem/valor não bater com o que você está prestes a escrever, **pare e avise o usuário** antes de sobrescrever — pode ser outro agente (Chat ou Code) no meio de um trabalho, não assuma que seu valor está mais certo só porque é o seu.
+
+**Sempre `set_config('audit.origem', ...)` antes da operação** (mesma regra já valia pra `transacoes`/`caixas`, seção 3) — sem isso o `audit_log` grava `origem='sistema'`, genérico demais pra reconstruir o que aconteceu depois.
+
+### 1.3.3 Limbo (compra entre o fechamento da fatura e a virada do ciclo) sempre pertence ao ciclo da frente
+
+Regra de negócio já existente (`REGRA_LIMBO_FATURA_MB_CICLO`, seção 6), reforçada aqui porque foi a causa de 2 bugs reais na mesma sessão (12/08): uma compra feita entre o **fechamento da fatura** (~dia 22) e a **virada do ciclo financeiro** (dia 25) é do cartão, mas conta **no ciclo que está começando**, não no que está fechando — mesmo a `data` da transação sendo anterior a `ciclo_inicio_em`.
+
+Isso tem 2 efeitos práticos que todo agente precisa saber:
+1. **Nos totais agregados** (`getComprometidoCaixaVariavelV2`, etc.): a transação do limbo não entra na soma automática (filtro `data >= ciclo_inicio_em`, correto por design) — precisa ser **somada à parte, uma vez, na virada do ciclo**. Se isso não for feito manualmente, o valor simplesmente não conta em lugar nenhum (achado real: R$87,96 de 2 compras do limbo ficaram "perdidas" por não terem sido pré-debitadas na virada de 25/07).
+2. **Nas listas detalhadas** (LRW/LRV): mesma exclusão por data — se a transação do limbo for relevante o suficiente pra aparecer na lista (não só no agregado), ela precisa ser reinserida manualmente depois da carga assíncrona da V2 (ver `hydrate-onda3-lrwlrv.js` pra um exemplo já implementado).
+
+### 1.3.4 Nem toda compra de cartão é da Caixa Variável
+
+Qualquer caixa pode ter gasto no cartão, não só a Caixa Variável — o que muda é só o `caixa_id`. Confirmado em produção (12/08): Caixa Variável, Provisionado Wärtsilä (corp, reembolsável pela Wärtsilä), Caixa Churrasco, Caixa Bens Duráveis já têm compra real no cartão. A lógica é sempre a mesma: **a caixa é de onde o dinheiro sai (orçamento); o cartão é só o meio de pagamento; a transação em `transacoes` é o que liga os dois.** Antes de lançar, perguntar "essa compra é do dia a dia geral (Caixa Variável) ou tem uma caixa temática própria (Churrasco, Bens Duráveis, etc.)?" — nunca assumir Caixa Variável por padrão sem checar.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.
@@ -150,7 +203,7 @@ Se o Claude Chat perguntar se deve "criar" uma caixa que parece não existir (ex
 - Regra V135: todo "total" que ganha checagem de auditoria precisa que o detalhamento que o compõe ganhe a mesma checagem — não valida só o agregado final.
 
 **V2 relacional:**
-- `audit_log` — trigger automático em `UPDATE`/`DELETE` de `caixas`/`transacoes`, sempre com `set_config('audit.origem', '<motivo>', true)` antes da operação (`ajuste_manual`, `sincronizacao`, etc.) para o registro sair rastreável.
+- `audit_log` — trigger automático em `UPDATE`/`DELETE`/`INSERT` de `caixas`/`transacoes`/**`indicadores`** (esta última desde 12/08/2026, ver seção 1.3.2), sempre com `set_config('audit.origem', '<motivo>', true)` antes da operação (`ajuste_manual`, `sincronizacao`, etc.) para o registro sair rastreável.
 - `vw_reconciliacao_v1_v2` — reconciliação caixa a caixa, campos `diferenca_absoluta`/`causa_provavel`/`grau_confianca`. Rodar depois de qualquer mudança em `caixas`/`transacoes` que possa afetar saldo.
 - `diagnostico_sync_v1_v2()` — lista o que existe no V1 e ainda não está na V2, restrito a livros com mapeamento confiável.
 
