@@ -134,8 +134,45 @@ async function aplicarOnda5QualidadeGeracao(){
   t('qgPercentual', percentual !== null ? percentual.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%' : 'Sem dias anteriores suficientes');
   const elStatus = $('qgStatus');
   if(elStatus){
-    if(status){ elStatus.textContent = status.emoji+' '+status.texto+` (${dd}/${mm})`; elStatus.style.color = status.cor; }
+    if(status){ elStatus.textContent = 'Dia anterior: '+status.emoji+' '+status.texto+` (${dd}/${mm}, ${percentual.toLocaleString('pt-BR',{maximumFractionDigits:1})}% da média)`; elStatus.style.color = status.cor; }
     else { elStatus.textContent = '—'; elStatus.style.color = ''; }
+  }
+
+  // NOVO 12/08/2026 (pedido do usuário: "quero ver se HOJE está abaixo, normal ou acima do
+  // esperado", não só o último dia completo/ontem). Estimativa por regra de 3 simples: assume
+  // ritmo LINEAR ao longo da janela de geração (05:30-18:00, mesma janela de usinaAindaGerandoHoje
+  // acima) — é uma aproximação grosseira (geração solar real não é linear, é mais baixa de manhã/
+  // fim de tarde e maior perto do meio-dia), documentada como tal na UI ("estimativa"). Só passa a
+  // valer um cálculo mais fiel quando energia_solar_geracao_intraday (NOVO 12/08/2026,
+  // atualizar_geracao_saj.py agora grava um INSERT por execução) acumular dias suficientes pra
+  // construir uma curva real "quanto costuma ter gerado até tal horário" - até lá, linear é a
+  // melhor aproximação disponível sem fabricar dado que não existe.
+  const elStatusHoje = $('qgStatusHoje');
+  if(elStatusHoje){
+    const mediaTodosDiasCompletos = diasCompletos.length
+      ? Math.round((diasCompletos.reduce((s,r)=>s+r.kwh,0) / diasCompletos.length) * 100) / 100
+      : null;
+    const JANELA_INICIO_MIN = 5*60+30, JANELA_FIM_MIN = 18*60;
+    const minutosDecorridos = Math.min(Math.max(minutosDoDia, JANELA_INICIO_MIN), JANELA_FIM_MIN) - JANELA_INICIO_MIN;
+    const fracaoJanela = minutosDecorridos / (JANELA_FIM_MIN - JANELA_INICIO_MIN);
+    const esperadoAteAgora = mediaTodosDiasCompletos !== null ? Math.round(mediaTodosDiasCompletos * fracaoJanela * 100) / 100 : null;
+    if(!registroHoje){
+      elStatusHoje.textContent = 'Hoje: sem leitura ainda';
+      elStatusHoje.style.color = '';
+    } else if(esperadoAteAgora === null || fracaoJanela <= 0){
+      elStatusHoje.textContent = 'Hoje: aguardando dados suficientes pra estimar';
+      elStatusHoje.style.color = '';
+    } else {
+      const percentualHoje = esperadoAteAgora > 0 ? Math.round((registroHoje.kwh / esperadoAteAgora) * 1000) / 10 : null;
+      let statusHoje;
+      if(percentualHoje === null) statusHoje = { emoji:'🟡', texto:'Dentro do esperado' };
+      else if(percentualHoje < limiteBaixo) statusHoje = { emoji:'🔴', texto:'Abaixo do esperado', cor:'#e2554f' };
+      else if(percentualHoje > limiteAlto) statusHoje = { emoji:'🟢', texto:'Acima do esperado', cor:'#34c98a' };
+      else statusHoje = { emoji:'🟡', texto:'Dentro do esperado', cor:'#e8a63a' };
+      const pctTxt = percentualHoje !== null ? ` (${percentualHoje.toLocaleString('pt-BR',{maximumFractionDigits:1})}% do esperado até agora, estimativa)` : '';
+      elStatusHoje.textContent = 'Hoje: '+statusHoje.emoji+' '+statusHoje.texto+pctTxt;
+      elStatusHoje.style.color = statusHoje.cor || '';
+    }
   }
 
   // NOVO 08/08/2026 (legendas dinâmicas, pedido do usuário): texto vem de VARS.LEGENDAS

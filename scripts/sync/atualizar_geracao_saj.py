@@ -15,6 +15,12 @@ O que faz:
    novo. REMOVIDO 10/08/2026: escrevia também em wallace_dados (V1); domínio
    Solar é V2-exclusivo desde outra sessão (app.js não lê mais wallace_dados
    pra isso), a escrita em V1 tinha virado trabalho morto.
+4. NOVO 12/08/2026: também acrescenta (INSERT puro, nunca sobrescreve) uma
+   linha em energia_solar_geracao_intraday a cada execução — constrói aos
+   poucos um histórico real de "quanto a usina costuma ter gerado até tal
+   horário", usado futuramente pelo card "Qualidade da Geração" pra comparar
+   o dia de hoje (em andamento) contra uma curva real, não só uma estimativa
+   linear.
 
 O que NÃO faz (ainda):
 - Não sabe os códigos 03/103 do medidor bidirecional da Energisa — isso
@@ -242,6 +248,29 @@ def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str,
     return True
 
 
+def registrar_leitura_intraday(supabase_url: str, supabase_key: str, data_str: str, geracao_hoje: float) -> None:
+    """NOVO 12/08/2026 (pedido do usuário: "quero ver se hoje está abaixo/normal/acima do
+    esperado", ver docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md pro contexto maior de dado em
+    tempo real do domínio Solar): INSERT puro (nunca upsert) em energia_solar_geracao_intraday a
+    cada execução — ao contrário de atualizar_v2_geracao_diaria (que sobrescreve o valor do dia),
+    esta tabela acumula TODAS as leituras intermediárias, construindo o histórico real de "quanto
+    a usina costuma ter gerado até tal horário". Precisa de alguns dias de acumulação antes de
+    qualquer comparação por curva real fazer sentido - até lá, o frontend usa uma estimativa
+    linear simples. Falha aqui não derruba o script (mesmo padrão de best-effort dos outros
+    registros de observabilidade)."""
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    url = f"{supabase_url}/rest/v1/energia_solar_geracao_intraday"
+    body = json.dumps({"data": data_str, "geracao_acumulada_hoje_kwh": round(geracao_hoje, 3)}).encode("utf-8")
+    req = Request(url, data=body, headers=headers, method="POST")
+    with urlopen(req, timeout=20) as resp:
+        resp.read()
+
+
 def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: float, geracao_hoje: float | None) -> None:
     """Grava a geração da usina só na V2 — energia_solar_geracao_diaria (histórico por dia) e
     energia_solar_leituras.geracao_acumulada (leitura mais recente ainda vazia, dentro de
@@ -258,6 +287,11 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, geracao_total: floa
     if geracao_hoje is not None:
         atualizar_v2_geracao_diaria(supabase_url, supabase_key, hoje_str, geracao_hoje)
         print(f"Supabase V2 (energia_solar_geracao_diaria) sincronizado: {hoje_str}={round(geracao_hoje,2)} kWh")
+        try:
+            registrar_leitura_intraday(supabase_url, supabase_key, hoje_str, geracao_hoje)
+            print(f"Supabase V2 (energia_solar_geracao_intraday) leitura registrada: {round(geracao_hoje,2)} kWh")
+        except Exception as e:
+            print(f"AVISO: falha ao registrar leitura intraday ({e}) - não afeta a geração diária, que já foi gravada.", file=sys.stderr)
     else:
         print("(sem valor de hoje pra registrar em energia_solar_geracao_diaria)")
 
