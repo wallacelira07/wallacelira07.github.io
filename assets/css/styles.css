@@ -512,7 +512,10 @@
      é .master-tabs (mais abaixo neste arquivo), elemento DIFERENTE. Pedido real do usuário: Home
      continua exatamente como estava (nada aqui deve se mexer); o auto-hide vai em .master-tabs. */
   .home-nav-grid{
-    display:grid; grid-template-columns:repeat(5,1fr); gap:0.8rem; margin:1.2rem 0 1.5rem;
+    /* ATUALIZADO 12/08/2026 (aba nova "Emagrecimento", 6º destino): repeat(5,1fr) virou
+       auto-fit/minmax pra não precisar lembrar de bater o número toda vez que um destino for
+       adicionado/removido - largura mínima de 130px por card, cresce pra preencher a linha. */
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.8rem; margin:1.2rem 0 1.5rem;
   }
   .home-nav-btn{
     display:flex; flex-direction:column; align-items:center; gap:0.4rem;
