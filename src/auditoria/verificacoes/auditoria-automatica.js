@@ -153,16 +153,16 @@ function auditoriaAutomatica(){
       console.warn('ℹ️ Auditoria automática: itens não auditáveis (lacuna de dado conhecida, não é divergência):');
       naoAuditaveis.forEach(p => console.warn('  - ' + p));
     }
+    // CORRIGIDO 12/08/2026 (pedido do usuário: "não quero alarme nenhum no painel" — madrugada de
+    // reconciliação, cansaço real): "não auditável" some do texto/cor visível do badge (não é
+    // divergência, não precisa chamar atenção toda vez que a página carrega) — mas continua no
+    // console.warn acima E no title (tooltip ao passar o mouse), pra quem quiser conferir ainda achar.
     if(healthBadge){
-      if(naoAuditaveis.length){
-        healthBadge.textContent = `✅ Sistema íntegro · ⚠️ ${naoAuditaveis.length} não auditável(is)`;
-        healthBadge.style.color = '#e2c46a';
-        healthBadge.title = `0 divergências reais.\n\nNão auditável (lacuna de dado conhecida, não é erro):\n${naoAuditaveis.join('\n')}`;
-      } else {
-        healthBadge.textContent = '✅ Sistema íntegro';
-        healthBadge.style.color = '#34c98a';
-        healthBadge.title = 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
-      }
+      healthBadge.textContent = '✅ Sistema íntegro';
+      healthBadge.style.color = '#34c98a';
+      healthBadge.title = naoAuditaveis.length
+        ? `0 divergências reais.\n\nNão auditável (lacuna de dado conhecida, não é erro — ver console):\n${naoAuditaveis.join('\n')}`
+        : 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
     }
   } else {
     console.warn('⚠️ Auditoria automática encontrou divergências:');
