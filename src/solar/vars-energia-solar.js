@@ -96,9 +96,19 @@ function criarVarsEnergiaSolar(){
   SOLAR_CREDITO_MENSAL_REAL: {},
   // NOVO 01/08/2026: consumo mensal REAL dos ultimos 12 meses da Wellida (irma), extraido da fatura
   // Energisa (UC 2.064.202.053-60, Rua Jose Palmeira Filho 580, Jd America), grafico "Consumo Faturado"
-  // da propria fatura Jul/2026. Conferido visualmente (rasterizado + ampliado, nao so texto extraido,
-  // ordem: Jul/25 a Jun/26). Substitui a media fixa (119) usada como placeholder ate agora.
-  solarConsumoIrmaAnoAnterior: [74,70,82,103,127,122,138,142,172,140,100,112], // Jul/25..Jun/26 kWh
+  // da propria fatura Jul/2026. Substitui a media fixa (119) usada como placeholder ate agora.
+  // CORRIGIDO 12/08/2026 (fatura real Ago/26 em PDF, NF 009.005.476, tabela "Consumo Faturado" pagina
+  // 2 - 13 meses, Ago/25 a Ago/26). Validado AO VIVO no gráfico "Rateio Solar" (canvas cSolarRateio,
+  // painel logado): o eixo usa uma janela MÓVEL de 12 meses por NOME de mês (hoje: Ago→Jul, sempre os
+  // 12 meses mais recentes antes de hoje) - o valor de cada posição vem daqui por busca por NOME
+  // (mesesPares[i] = nome do mês desta posição), não por índice fixo de calendário. Isso significa
+  // que a posição "Jul" hoje é Jul/2026 (mês mais recente antes de hoje), NÃO Jul/2025 como o
+  // comentário antigo (e minha 1ª tentativa de correção) assumiu errado - achado ao conferir o
+  // dado renderizado de verdade, não só o array. Os 11 valores restantes (Ago/25..Jun/26) batem
+  // exatos com a fatura nova - o array antigo só tinha 1 valor errado (112 no lugar de Jun/26=100) e
+  // a posição de Jul preenchida com um valor de Ago (bug de desalinhamento). Todos os 12 valores
+  // abaixo são reais, confirmados pela fatura NF 009.005.476 - nenhuma estimativa.
+  solarConsumoIrmaAnoAnterior: [90,74,70,82,103,127,122,138,142,172,140,100], // Jul/26,Ago/25..Jun/26 (todos reais, fatura Energisa)
   // NOVO 02/08/2026 (pedido do usuario, 2 faturas Energisa da Casa da Mae): consumo historico da
   // unidade geradora (Casa da Mae), mesma janela de 12 meses das outras 2 unidades. Confirmado pelo
   // usuario: Mai/25..Abr/26. Media: 195 kWh/mes.
@@ -106,7 +116,10 @@ function criarVarsEnergiaSolar(){
   // Dados mais recentes (fora da janela de 12 meses acima, guardados a parte): Jun/26 foi o mes de
   // transferencia de titularidade pro nome do usuario (por isso o ciclo de 40 dias, fora do padrao) -
   // nao usado no calculo do consumo medio, so como referencia/contexto.
-  solarConsumoMaeRecente: { jun26: {kwh:284, dias:40}, jul26: {kwh:194, dias:30} },
+  // ATUALIZADO 12/08/2026 (fatura real Ago/26 em PDF, NF 009.005.819): ago26 adicionado (145 kWh/30
+  // dias, mesmo valor ja usado em fatura_ago26_consumo_kwh acima - aqui so pra manter este log
+  // cronologico completo).
+  solarConsumoMaeRecente: { jun26: {kwh:284, dias:40}, jul26: {kwh:194, dias:30}, ago26: {kwh:145, dias:30} },
   SOLAR_LEITURAS: [
     // Cada leitura nova enviada pelo usuario (leitura_03 + leitura_103 + data) vira uma linha aqui.
     // dias = data_leitura - solarDataAtivacao. creditoLiquido = leitura103 - leitura03. Resto deriva
