@@ -131,7 +131,6 @@ async function aplicarOnda5QualidadeGeracao(){
     else if(percentual > limiteAlto) status = { emoji:'🟢', texto:'Acima do esperado', cor:'#34c98a' };
     else status = { emoji:'🟡', texto:'Dentro do esperado', cor:'#e8a63a' };
   }
-  t('qgPercentual', percentual !== null ? percentual.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%' : 'Sem dias anteriores suficientes');
   const elStatus = $('qgStatus');
   if(elStatus){
     if(status){ elStatus.textContent = 'Dia anterior: '+status.emoji+' '+status.texto+` (${dd}/${mm}, ${percentual.toLocaleString('pt-BR',{maximumFractionDigits:1})}% da média)`; elStatus.style.color = status.cor; }

@@ -81,6 +81,27 @@ class _CacheComTTL {
   get(chave){ return this.has(chave) ? this._mapa.get(chave).valor : undefined; }
   set(chave, valor){ this._mapa.set(chave, { valor, gravadoEm: Date.now() }); }
   clear(){ this._mapa.clear(); }
+  // NOVO 12/08/2026 (achado do usuário: "valores numéricos estão demorando muito para carregar" —
+  // confirmado via performance.getEntriesByType('resource') no navegador: a MESMA query batendo em
+  // vw_reconciliacao_v1_v2/caixas/vw_transacoes_cartao_variavel_por_pessoa/etc 5-7 VEZES cada, ~25ms
+  // uma da outra, cada uma levando 1-2s = dezenas de segundos de espera acumulada). Causa raiz: o
+  // padrão `if(has(chave)) return get(chave); ...await fetch...; set(chave,dado)` só evita refetch
+  // pra chamadas SEQUENCIAIS - quando vários módulos hydrate-*.js chamam o mesmo método do
+  // WallaceFinanceService quase ao mesmo tempo (comum, já que onDomPronto dispara dezenas deles em
+  // paralelo), todos passam pelo `has(chave)` ANTES do primeiro terminar o fetch e preencher o cache
+  // - corrida clássica de cache-miss concorrente. Esta função resolve cacheando a PROMESSA em voo
+  // (não só o valor resolvido), de forma síncrona, antes de qualquer await - chamadas concorrentes
+  // que chegarem enquanto a 1ª ainda está em voo reusam a MESMA promessa em vez de disparar fetch
+  // novo. Em erro, remove a entrada do cache (não deixa uma falha cacheada travar retentativas).
+  async obterOuBuscar(chave, fabricaAsync){
+    if(this.has(chave)) return this.get(chave);
+    const promessa = (async () => {
+      try { return await fabricaAsync(); }
+      catch(err){ this._mapa.delete(chave); throw err; }
+    })();
+    this.set(chave, promessa);
+    return promessa;
+  }
   // NOVO 12/08/2026 (Fase 4 de modernização, pedido do usuário — performance): apaga só as chaves
   // que começam com um dos prefixos dados, em vez do cache inteiro. Prefixo = chave completa (chaves
   // estáticas, ex: 'caixas') ou o início de uma chave dinâmica (ex: 'composicao_saldo:' cobre
@@ -127,17 +148,15 @@ const WallaceFinanceService = {
     return { apikey: this._key, Authorization: `Bearer ${token}` };
   },
   async getDashboardResumo(){
-    const chave = 'rpc:dashboard_resumo';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
-      method:'POST',
-      headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
-      body:'{}'
+    return this._cache.obterOuBuscar('rpc:dashboard_resumo', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_dashboard_resumo`, {
+        method:'POST',
+        headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
+        body:'{}'
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dashboard`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 1 da migração V2 → Painel): saldo por caixa via vw_saldo_v2_por_caixa —
   // NÃO usar rpc_dashboard_resumo().caixas[].saldo pra isso (achado ao vivo: soma TODA transação
@@ -146,31 +165,27 @@ const WallaceFinanceService = {
   // é a mesma usada e validada a sessão inteira em PLANO_UNIFICACAO_V1_V2.md — v2_saldo_calculado
   // bate exato com vw_reconciliacao_v1_v2 pras 4 caixas já sincronizadas.
   async getSaldosPorCaixa(){
-    const chave = 'vw_saldo_v2_por_caixa';
-    if(this._cache.has(chave)) return this._cache.get(chave);
     // NOVO 09/08/2026: caixa_tipo adicionado ao select (era so caixa_nome,v2_saldo_calculado) - precisa
     // pra filtrar so caixas operacionais no calculo de deficit sem LREI (hydrate-deficit-caixas-sem-lrei.js).
-    const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,caixa_tipo,v2_saldo_calculado`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_saldo_v2_por_caixa', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_saldo_v2_por_caixa?select=caixa_nome,caixa_tipo,v2_saldo_calculado`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saldo_v2_por_caixa`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
   // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
   // validada a sessão inteira, em vez de somar arrays na mão no cliente.
   async getReconciliacaoPorCaixa(){
-    const chave = 'vw_reconciliacao_v1_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_reconciliacao_v1_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_reconciliacao_v1_v2?select=caixa_nome,v1_saldo,v2_saldo,diferenca_absoluta,v1_qtd_transacoes,v2_qtd_transacoes,valor_transacoes_so_no_v1,valor_transacoes_so_na_v2,causa_provavel`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_reconciliacao_v1_v2`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 09/08/2026 (achado do usuário: INBX000001 "Medidor De Energia" R$79,79 apareceu como
   // PENDENTE na Inbox, mas já existe lançado como TX000226 em Bens Duráveis - duplicata real que
@@ -193,16 +208,14 @@ const WallaceFinanceService = {
   // (número e legenda) de uma vez, nunca mais dessincroniza. Caixa id fixo (singleton, mesmo padrão
   // de outros ids já hardcoded no projeto, ex: CARTAO_PLUGGY_MAPA) - '748b8612-b854-44e3-8834-542ec7f1ff7c'.
   async getExtratoCaixaMastercardInfinite(){
-    const chave = 'extrato_caixa_mastercard_infinite';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const caixaId = '748b8612-b854-44e3-8834-542ec7f1ff7c';
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('extrato_caixa_mastercard_infinite', async () => {
+      const caixaId = '748b8612-b854-44e3-8834-542ec7f1ff7c';
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Mastercard/Infinite`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Mastercard/Infinite`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 12/08/2026 (Onda 11, pedido do usuário: "V1 não pode haver nada lá" — matar de vez o
   // palpite por calendário de aplicarBoletosVencidosAutomaticamente()). Extrato real da Caixa
@@ -212,28 +225,24 @@ const WallaceFinanceService = {
   // seção 2 regra 6). Caixa id fixo, mesmo padrão de getExtratoCaixaMastercardInfinite:
   // '7751575a-6339-4bf2-bda4-60817778551c'.
   async getExtratoCaixaBoletos(){
-    const chave = 'extrato_caixa_boletos';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const caixaId = '7751575a-6339-4bf2-bda4-60817778551c';
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('extrato_caixa_boletos', async () => {
+      const caixaId = '7751575a-6339-4bf2-bda4-60817778551c';
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Boletos`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Boletos`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   async getValoresConhecidosV2(){
-    const chave = 'valores_v2_todos';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=eq.confirmado`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('valores_v2_todos', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=eq.confirmado`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
+      const dado = await resp.json();
+      return dado.map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
-    const dado = await resp.json();
-    const valores = dado.map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
-    this._cache.set(chave, valores);
-    return valores;
   },
   // NOVO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" pendente na Inbox era a MESMA
   // compra já lançada, só desmembrada em 3 partes - TX000159 196,01 + TX000159-A 319,90 +
@@ -241,18 +250,16 @@ const WallaceFinanceService = {
   // função nova valores_combinados_v2() (soma de até 3 transações da mesma caixa, janela de 5
   // dias) pra fechar essa classe de falso-negativo.
   async getValoresCombinadosV2(){
-    const chave = 'valores_combinados_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/rpc/valores_combinados_v2`, {
-      method: 'POST',
-      headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
-      body: '{}'
+    return this._cache.obterOuBuscar('valores_combinados_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/rpc/valores_combinados_v2`, {
+        method: 'POST',
+        headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
+        body: '{}'
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores combinados da V2`);
+      const dado = await resp.json();
+      return dado.map(r => Math.round(Math.abs(Number(r.valor_combinado))*100)/100);
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores combinados da V2`);
-    const dado = await resp.json();
-    const valores = dado.map(r => Math.round(Math.abs(Number(r.valor_combinado))*100)/100);
-    this._cache.set(chave, valores);
-    return valores;
   },
   // NOVO 09/08/2026 (achado do usuário: "Comprometido" da Caixa Variável estava inflado, misturando
   // compras que JÁ têm caixa própria - ex: TX000228, carne pro Churrasco, entrou tanto no saldo da
@@ -273,28 +280,26 @@ const WallaceFinanceService = {
   // Provável gatilho: a classificação retroativa de ~106 transações (sessão anterior) deu cartao_id
   // a compras antigas, que passaram a entrar nesta soma de uma vez só assim que ganharam cartao_id.
   async getComprometidoCaixaVariavelV2(){
-    const chave = 'comprometido_caixa_variavel_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${this.CAIXA_VARIAVEL_ID_V2}`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('comprometido_caixa_variavel_v2', async () => {
+      const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${this.CAIXA_VARIAVEL_ID_V2}`, {
+        headers: this._headers()
+      });
+      if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em da Caixa Variável`);
+      const dadoCaixa = await respCaixa.json();
+      const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+      const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+      // CORRIGIDO 12/08/2026 (achado do usuário: assinaturas do Mastercard Black recém-vinculadas via
+      // Pluggy - Netflix/OpenAI/Anthropic/Amazon Prime/etc - contavam aqui E no orçamento de
+      // Assinaturas (cronograma_assinaturas/mbLRSConfirmado, componente separado de Necessidade Total)
+      // ao mesmo tempo, mesma classe de bug já documentada do caso TX000228/Churrasco. Marcadas
+      // ja_orcado_assinaturas=true (ver migração), excluídas daqui pra não contar 2x.
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
+      const dado = await resp.json();
+      return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
     });
-    if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em da Caixa Variável`);
-    const dadoCaixa = await respCaixa.json();
-    const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
-    const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
-    // CORRIGIDO 12/08/2026 (achado do usuário: assinaturas do Mastercard Black recém-vinculadas via
-    // Pluggy - Netflix/OpenAI/Anthropic/Amazon Prime/etc - contavam aqui E no orçamento de
-    // Assinaturas (cronograma_assinaturas/mbLRSConfirmado, componente separado de Necessidade Total)
-    // ao mesmo tempo, mesma classe de bug já documentada do caso TX000228/Churrasco. Marcadas
-    // ja_orcado_assinaturas=true (ver migração), excluídas daqui pra não contar 2x.
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
-    const dado = await resp.json();
-    const total = Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
-    this._cache.set(chave, total);
-    return total;
   },
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
   // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
@@ -304,44 +309,38 @@ const WallaceFinanceService = {
   // preenchido + ciclo atual) — garante que a lista detalhada e o card resumido nunca mais divergem,
   // os dois vêm da mesma fonte.
   async getTransacoesCartaoVariavelDetalhe(){
-    const chave = 'transacoes_cartao_variavel_detalhe';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('transacoes_cartao_variavel_detalhe', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_transacoes_cartao_variavel_por_pessoa`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_transacoes_cartao_variavel_por_pessoa`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 3, Livro Razão): transações confirmadas de uma lista de caixas, numa
   // única chamada (in.(id1,id2,...)) em vez de N requests separados.
   async getTransacoesPorCaixaIds(caixaIds){
-    const chave = 'transacoes_por_caixa:' + caixaIds.join(',');
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const lista = caixaIds.join(',');
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('transacoes_por_caixa:' + caixaIds.join(','), async () => {
+      const lista = caixaIds.join(',');
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes por caixa`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes por caixa`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 3, Prioridade 2 — LRW/LRV): compromisso de cartão por pessoa
   // (equivalente a VARS.mbLRWConfirmado/mbLRVConfirmado), via vw_compromisso_cartao_por_pessoa —
   // agregação pura de `transacoes` já existentes (Caixa Variável, afeta_saldo_real=false), sem
   // lógica de negócio nova.
   async getCompromissoCartaoPorPessoa(){
-    const chave = 'vw_compromisso_cartao_por_pessoa';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_compromisso_cartao_por_pessoa?select=usuario_nome,total_comprometido,qtd_transacoes`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_compromisso_cartao_por_pessoa', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_compromisso_cartao_por_pessoa?select=usuario_nome,total_comprometido,qtd_transacoes`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_compromisso_cartao_por_pessoa`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_compromisso_cartao_por_pessoa`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 12/08/2026 (fechamento do domínio Cartões — LRC_LIMBO): igual em espírito a
   // getTransacoesCartaoVariavelDetalhe() (Onda 3 LRW/LRV), mas pro outro "livro item-a-item" que
@@ -354,38 +353,34 @@ const WallaceFinanceService = {
   // rendimentos que também caem em Caixa Variável + cartao_id nulo — reconstruir isso exigiria
   // inventar uma regra sem evidência, não fazer.
   async getTransacoesCorporativoCartaoDetalhe(){
-    const chave = 'transacoes_corporativo_cartao_detalhe';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const caixaId = '3d7f37e3-f52f-4aad-a611-23fa54810b39'; // Provisionado Wärtsilä (mesmo id fixo já usado em getExtratoCaixaMastercardInfinite/CAIXA_VARIAVEL_ID_V2)
-    // CORRIGIDO 12/08/2026 (achado do usuário: aba LRC mostrando 9 lançamentos, 3 deles de
-    // 01-02/07/2026 — ciclo FECHADO anterior, não o ciclo atual 25/07→24/08) — mesma classe de bug já
-    // corrigida em getComprometidoCaixaVariavelV2() (11/08/2026): faltava o filtro de ciclo_inicio_em,
-    // então TODA transação corporativa já confirmada entrava aqui, de qualquer ciclo.
-    const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${caixaId}`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('transacoes_corporativo_cartao_detalhe', async () => {
+      const caixaId = '3d7f37e3-f52f-4aad-a611-23fa54810b39'; // Provisionado Wärtsilä (mesmo id fixo já usado em getExtratoCaixaMastercardInfinite/CAIXA_VARIAVEL_ID_V2)
+      // CORRIGIDO 12/08/2026 (achado do usuário: aba LRC mostrando 9 lançamentos, 3 deles de
+      // 01-02/07/2026 — ciclo FECHADO anterior, não o ciclo atual 25/07→24/08) — mesma classe de bug já
+      // corrigida em getComprometidoCaixaVariavelV2() (11/08/2026): faltava o filtro de ciclo_inicio_em,
+      // então TODA transação corporativa já confirmada entrava aqui, de qualquer ciclo.
+      const respCaixa = await fetch(`${this._url}/rest/v1/caixas?select=ciclo_inicio_em&id=eq.${caixaId}`, {
+        headers: this._headers()
+      });
+      if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em do Provisionado Wärtsilä`);
+      const dadoCaixa = await respCaixa.json();
+      const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
+      const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe LRC_LIMBO (cartão corporativo)`);
+      return await resp.json();
     });
-    if(!respCaixa.ok) throw new Error(`WallaceFinanceService: erro ${respCaixa.status} ao buscar ciclo_inicio_em do Provisionado Wärtsilä`);
-    const dadoCaixa = await respCaixa.json();
-    const cicloInicioEm = dadoCaixa[0] && dadoCaixa[0].ciclo_inicio_em;
-    const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe LRC_LIMBO (cartão corporativo)`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   async getCaixas(){
-    const chave = 'caixas';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal,ciclo_inicio_em`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('caixas', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/caixas?select=id,nome,tipo,teto_mensal,ciclo_inicio_em`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 12/08/2026 (tooltip de composição — pedido do usuário: "quando eu passar o mouse ou o dedo,
   // mostrar o que se soma pra gerar" o saldo de cada card da seção 05/Caixas Operacionais). Replica
@@ -395,26 +390,24 @@ const WallaceFinanceService = {
   // não bate com o número do card, reproduzindo o mesmo tipo de bug já corrigido 2x nesta sessão
   // (Onda 3 LRW/LRV, Comprometido Caixa Variável). Por isso replica em vez de reimplementar.
   async getTransacoesComposicaoSaldoCaixa(nomeCaixa){
-    const chave = 'composicao_saldo:' + nomeCaixa;
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const caixas = await this.getCaixas();
-    const caixa = caixas.find(c => c.nome === nomeCaixa);
-    if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
-    const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,afeta_saldo_real&caixa_id=eq.${caixa.id}&status=eq.confirmado&order=data.desc,created_at.desc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('composicao_saldo:' + nomeCaixa, async () => {
+      const caixas = await this.getCaixas();
+      const caixa = caixas.find(c => c.nome === nomeCaixa);
+      if(!caixa) throw new Error(`WallaceFinanceService: caixa "${nomeCaixa}" nao encontrada`);
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,afeta_saldo_real&caixa_id=eq.${caixa.id}&status=eq.confirmado&order=data.desc,created_at.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar composição de "${nomeCaixa}"`);
+      const todas = await resp.json();
+      const cicloInicioEm = caixa.ciclo_inicio_em;
+      const linhas = todas.filter(t => {
+        if(t.afeta_saldo_real === false) return false; // coalesce(afeta_saldo_real,true) — só false exclui
+        if(!cicloInicioEm) return true;
+        if(!t.data) return true;
+        return t.data >= cicloInicioEm;
+      });
+      return { caixaId: caixa.id, cicloInicioEm, linhas };
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar composição de "${nomeCaixa}"`);
-    const todas = await resp.json();
-    const cicloInicioEm = caixa.ciclo_inicio_em;
-    const linhas = todas.filter(t => {
-      if(t.afeta_saldo_real === false) return false; // coalesce(afeta_saldo_real,true) — só false exclui
-      if(!cicloInicioEm) return true;
-      if(!t.data) return true;
-      return t.data >= cicloInicioEm;
-    });
-    const dado = { caixaId: caixa.id, cicloInicioEm, linhas };
-    this._cache.set(chave, dado);
-    return dado;
   },
   async getSaldoCaixa(nomeCaixa){
     const caixas = await this.getCaixas();
@@ -433,167 +426,141 @@ const WallaceFinanceService = {
   // vw_patrimonio_v2 (patrimonio + financiamentos, rotulados) — mesma agregação que
   // recalcularPatrimonio() já fazia em VARS, só lendo da V2 estruturada.
   async getPatrimonioV2(){
-    const chave = 'vw_patrimonio_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_patrimonio_v2?select=*`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_patrimonio_v2`);
-    const dado = await resp.json();
     // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
     // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
     // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
     // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
     // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
     // e retorno agora sempre guardam/devolvem o MESMO valor.
-    const resultado = dado[0] || null;
-    this._cache.set(chave, resultado);
-    return resultado;
+    return this._cache.obterOuBuscar('vw_patrimonio_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_patrimonio_v2?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_patrimonio_v2`);
+      const dado = await resp.json();
+      return dado[0] || null;
+    });
   },
   // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): ciclo aberto atual
   // (vw_ciclo_solar_aberto, sempre 0 ou 1 linha) e histórico de ciclos já fechados
   // (vw_ciclo_solar_historico) — ver docs/decisions para o desenho completo do domínio.
   async getCicloSolarAbertoV2(){
-    const chave = 'vw_ciclo_solar_aberto';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_aberto?select=*`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_ciclo_solar_aberto', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_aberto?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_aberto`);
+      const dado = await resp.json();
+      return dado[0] || null;
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_aberto`);
-    const dado = await resp.json();
-    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
-    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
-    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
-    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
-    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
-    // e retorno agora sempre guardam/devolvem o MESMO valor.
-    const resultado = dado[0] || null;
-    this._cache.set(chave, resultado);
-    return resultado;
   },
   async getCiclosSolarHistoricoV2(){
-    const chave = 'vw_ciclo_solar_historico';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_historico?select=*`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_ciclo_solar_historico', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_ciclo_solar_historico?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_historico`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_ciclo_solar_historico`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 4, domínio 2 — Investimentos/ROC): posições de opções direto de
   // `investimentos` (tipo=opcoes) — campos crus, mesmo shape que VARS.opcoesVendidasDetalhe usava
   // (ticker/ativo/strike/vencimento/prêmios/etc). O cálculo de ROC continua 100% em
   // calcularROCOpcoes() (opcoes-roc.js, inalterado) — aqui só troca a origem do dado bruto.
   async getInvestimentosOpcoesV2(){
-    const chave = 'investimentos_opcoes';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/investimentos?select=ticker,ativo_subjacente,quantidade,valor_atual,preco_exercicio,data_vencimento,premio_bruto,custo_operacional,premio_recebido,preco_medio,nota_corretagem,exercida&tipo=eq.opcoes`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('investimentos_opcoes', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/investimentos?select=ticker,ativo_subjacente,quantidade,valor_atual,preco_exercicio,data_vencimento,premio_bruto,custo_operacional,premio_recebido,preco_medio,nota_corretagem,exercida&tipo=eq.opcoes`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar investimentos (opções)`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar investimentos (opções)`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   async getIndicador(nome){
-    const chave = 'indicador:' + nome;
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/indicadores?select=valor,data_calculo&nome=eq.${encodeURIComponent(nome)}&order=data_calculo.desc&limit=1`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
-    const dado = await resp.json();
     // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
     // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
     // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
     // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
     // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
     // e retorno agora sempre guardam/devolvem o MESMO valor.
-    const resultado = dado[0] || null;
-    this._cache.set(chave, resultado);
-    return resultado;
+    return this._cache.obterOuBuscar('indicador:' + nome, async () => {
+      const resp = await fetch(`${this._url}/rest/v1/indicadores?select=valor,data_calculo&nome=eq.${encodeURIComponent(nome)}&order=data_calculo.desc&limit=1`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar indicador "${nome}"`);
+      const dado = await resp.json();
+      return dado[0] || null;
+    });
   },
   // NOVO 08/08/2026 (Onda 4, domínio 3 — LREI): vw_emprestimos_internos_v2 (mesmo shape de
   // VARS.LREI_ATIVAS — id/data/credora/devedora/valor/origem/status/quitadoEm/quitadoPor).
   async getEmprestimosInternosV2(){
-    const chave = 'vw_emprestimos_internos_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_emprestimos_internos_v2?select=*`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_emprestimos_internos_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_emprestimos_internos_v2?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_emprestimos_internos_v2`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_emprestimos_internos_v2`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 4, domínio 4 — Cascata Wärtsilá): quebra por perna do ciclo mais recente
   // (reembolso_wartsila_ciclo) — não existia tabela nenhuma com essa granularidade antes.
   async getReembolsoWartsilaCicloV2(){
-    const chave = 'reembolso_wartsila_ciclo';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&order=ciclo_referencia.desc&limit=1`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
-    const dado = await resp.json();
     // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
     // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
     // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
     // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
     // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
     // e retorno agora sempre guardam/devolvem o MESMO valor.
-    const resultado = dado[0] || null;
-    this._cache.set(chave, resultado);
-    return resultado;
+    return this._cache.obterOuBuscar('reembolso_wartsila_ciclo', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&order=ciclo_referencia.desc&limit=1`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
+      const dado = await resp.json();
+      return dado[0] || null;
+    });
   },
   // NOVO 08/08/2026 (Onda 5, domínio 1 — Parcelamentos): vw_parcelamentos_v2 — `parcelas` já tinha
   // as 22 linhas (16 Visa + 6 MP) sincronizadas 1:1 com VARS.PARCELAMENTOS_VISA/MP, só faltava a view.
   async getParcelamentosV2(){
-    const chave = 'vw_parcelamentos_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_parcelamentos_v2?select=*`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('vw_parcelamentos_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_parcelamentos_v2?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_parcelamentos_v2`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_parcelamentos_v2`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (Onda 5, domínio 2 — P2P): vw_p2p_v2, 7 escalares "verdade externa" (mesmo
   // padrão do CDI) agora em `indicadores`.
   async getP2PV2(){
-    const chave = 'vw_p2p_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_p2p_v2?select=*`, {
-      headers: this._headers()
-    });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_p2p_v2`);
-    const dado = await resp.json();
     // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
     // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
     // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
     // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
     // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
     // e retorno agora sempre guardam/devolvem o MESMO valor.
-    const resultado = dado[0] || null;
-    this._cache.set(chave, resultado);
-    return resultado;
+    return this._cache.obterOuBuscar('vw_p2p_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_p2p_v2?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_p2p_v2`);
+      const dado = await resp.json();
+      return dado[0] || null;
+    });
   },
   // NOVO 08/08/2026 (migração wallace_dados.MERCADOPAGO_EVENTOS -> tabela mercadopago_eventos):
   // mesmo shape de VARS.MERCADOPAGO_EVENTOS (id/origem/tipo/descricao/valor/data/status/metadata),
   // + status_triagem. Ver hydrate-onda6-mercadopago.js.
   async getMercadoPagoEventosV2(){
-    const chave = 'mercadopago_eventos';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/mercadopago_eventos?select=id,origem,tipo,descricao,valor,data,status,status_triagem,metadata&order=data.desc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('mercadopago_eventos', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/mercadopago_eventos?select=id,origem,tipo,descricao,valor,data,status,status_triagem,metadata&order=data.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar mercadopago_eventos`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar mercadopago_eventos`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (migração wallace_dados.PLUGGY_CONTAS -> tabelas pluggy_conexoes/pluggy_contas/
   // pluggy_transacoes): busca as 3 tabelas e reconstrói localmente o MESMO shape aninhado que
@@ -602,132 +569,116 @@ const WallaceFinanceService = {
   // reconciliarTransacoesPluggy() (V1, inalteradas) continuam lendo esse shape sem saber que a fonte
   // mudou. Ver hydrate-onda7-pluggy.js.
   async getPluggyContasV2(){
-    const chave = 'pluggy_contas_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const [respConexoes, respContas, respTransacoes] = await Promise.all([
-      fetch(`${this._url}/rest/v1/pluggy_conexoes?select=item_id,banco,status,atualizado_em`, { headers: this._headers() }),
-      fetch(`${this._url}/rest/v1/pluggy_contas?select=id,conexao_id,numero,tipo,subtipo,nome,saldo,moeda,limite_total,limite_disponivel,fatura_vencimento_atual,fatura_valor_total,fatura_pagamento_minimo,qtd_transacoes_sincronizadas`, { headers: this._headers() }),
-      fetch(`${this._url}/rest/v1/pluggy_transacoes?select=id,conta_id,data,descricao,valor,categoria,status`, { headers: this._headers() }),
-    ]);
-    if(!respConexoes.ok) throw new Error(`WallaceFinanceService: erro ${respConexoes.status} ao buscar pluggy_conexoes`);
-    if(!respContas.ok) throw new Error(`WallaceFinanceService: erro ${respContas.status} ao buscar pluggy_contas`);
-    if(!respTransacoes.ok) throw new Error(`WallaceFinanceService: erro ${respTransacoes.status} ao buscar pluggy_transacoes`);
-    const [conexoesRaw, contasRaw, transacoesRaw] = await Promise.all([respConexoes.json(), respContas.json(), respTransacoes.json()]);
+    return this._cache.obterOuBuscar('pluggy_contas_v2', async () => {
+      const [respConexoes, respContas, respTransacoes] = await Promise.all([
+        fetch(`${this._url}/rest/v1/pluggy_conexoes?select=item_id,banco,status,atualizado_em`, { headers: this._headers() }),
+        fetch(`${this._url}/rest/v1/pluggy_contas?select=id,conexao_id,numero,tipo,subtipo,nome,saldo,moeda,limite_total,limite_disponivel,fatura_vencimento_atual,fatura_valor_total,fatura_pagamento_minimo,qtd_transacoes_sincronizadas`, { headers: this._headers() }),
+        fetch(`${this._url}/rest/v1/pluggy_transacoes?select=id,conta_id,data,descricao,valor,categoria,status`, { headers: this._headers() }),
+      ]);
+      if(!respConexoes.ok) throw new Error(`WallaceFinanceService: erro ${respConexoes.status} ao buscar pluggy_conexoes`);
+      if(!respContas.ok) throw new Error(`WallaceFinanceService: erro ${respContas.status} ao buscar pluggy_contas`);
+      if(!respTransacoes.ok) throw new Error(`WallaceFinanceService: erro ${respTransacoes.status} ao buscar pluggy_transacoes`);
+      const [conexoesRaw, contasRaw, transacoesRaw] = await Promise.all([respConexoes.json(), respContas.json(), respTransacoes.json()]);
 
-    const transacoesPorConta = new Map();
-    transacoesRaw.forEach(t => {
-      if(!transacoesPorConta.has(t.conta_id)) transacoesPorConta.set(t.conta_id, []);
-      transacoesPorConta.get(t.conta_id).push({
-        id: t.id, data: t.data, descricao: t.descricao,
-        valor: t.valor !== null ? Number(t.valor) : null, categoria: t.categoria, status: t.status,
+      const transacoesPorConta = new Map();
+      transacoesRaw.forEach(t => {
+        if(!transacoesPorConta.has(t.conta_id)) transacoesPorConta.set(t.conta_id, []);
+        transacoesPorConta.get(t.conta_id).push({
+          id: t.id, data: t.data, descricao: t.descricao,
+          valor: t.valor !== null ? Number(t.valor) : null, categoria: t.categoria, status: t.status,
+        });
       });
-    });
-    const contasPorConexao = new Map();
-    contasRaw.forEach(a => {
-      if(!contasPorConexao.has(a.conexao_id)) contasPorConexao.set(a.conexao_id, []);
-      contasPorConexao.get(a.conexao_id).push({
-        numero: a.numero, tipo: a.tipo, subtipo: a.subtipo, nome: a.nome,
-        saldo: a.saldo !== null ? Number(a.saldo) : null, moeda: a.moeda,
-        limite_total: a.limite_total !== null ? Number(a.limite_total) : null,
-        limite_disponivel: a.limite_disponivel !== null ? Number(a.limite_disponivel) : null,
-        fatura_vencimento_atual: a.fatura_vencimento_atual,
-        fatura_mes_atual: (a.fatura_valor_total !== null) ? {
-          valor_total: Number(a.fatura_valor_total),
-          vencimento: a.fatura_vencimento_atual,
-          pagamento_minimo: a.fatura_pagamento_minimo !== null ? Number(a.fatura_pagamento_minimo) : null,
-        } : null,
-        qtd_transacoes: a.qtd_transacoes_sincronizadas,
-        transacoes_recentes: transacoesPorConta.get(a.id) || [],
+      const contasPorConexao = new Map();
+      contasRaw.forEach(a => {
+        if(!contasPorConexao.has(a.conexao_id)) contasPorConexao.set(a.conexao_id, []);
+        contasPorConexao.get(a.conexao_id).push({
+          numero: a.numero, tipo: a.tipo, subtipo: a.subtipo, nome: a.nome,
+          saldo: a.saldo !== null ? Number(a.saldo) : null, moeda: a.moeda,
+          limite_total: a.limite_total !== null ? Number(a.limite_total) : null,
+          limite_disponivel: a.limite_disponivel !== null ? Number(a.limite_disponivel) : null,
+          fatura_vencimento_atual: a.fatura_vencimento_atual,
+          fatura_mes_atual: (a.fatura_valor_total !== null) ? {
+            valor_total: Number(a.fatura_valor_total),
+            vencimento: a.fatura_vencimento_atual,
+            pagamento_minimo: a.fatura_pagamento_minimo !== null ? Number(a.fatura_pagamento_minimo) : null,
+          } : null,
+          qtd_transacoes: a.qtd_transacoes_sincronizadas,
+          transacoes_recentes: transacoesPorConta.get(a.id) || [],
+        });
       });
+      return {
+        conexoes: conexoesRaw.map(c => ({
+          item_id: c.item_id, banco: c.banco, status: c.status, atualizado_em: c.atualizado_em,
+          contas: contasPorConexao.get(c.item_id) || [],
+        })),
+      };
     });
-    const dado = {
-      conexoes: conexoesRaw.map(c => ({
-        item_id: c.item_id, banco: c.banco, status: c.status, atualizado_em: c.atualizado_em,
-        contas: contasPorConexao.get(c.item_id) || [],
-      })),
-    };
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 08/08/2026 (migração wallace_dados/vars-caixas.js.CRONOGRAMA_BOLETOS_FIXOS -> tabela
   // cronograma_boletos_fixos): schedule dos 9 boletos fixos recorrentes, editável sem deploy de
   // código (mesmo padrão já usado pela tabela `legendas`). Ver hydrate-onda8-cronograma-boletos.js.
   async getCronogramaBoletosV2(){
-    const chave = 'cronograma_boletos_fixos';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=tx,nome,dia_vencimento,valor&ativo=eq.true&order=dia_vencimento.asc`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('cronograma_boletos_fixos', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=tx,nome,dia_vencimento,valor&ativo=eq.true&order=dia_vencimento.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_boletos_fixos`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_boletos_fixos`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 11/08/2026 (hardening de produção: "eliminar falha silenciosa" das automações agendadas).
   // vw_saude_jobs = última execução (sucesso/erro) de cada job Python, gravada por _heartbeat.py
   // ao final de toda execução (scripts/sync/). Ver hydrate-saude-operacional.js.
   async getSaudeJobs(){
-    const chave = 'vw_saude_jobs';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_saude_jobs?select=job_nome,ultima_execucao,ultimo_status,ultimo_detalhe,horas_desde_ultima_execucao`, { headers: this._headers() });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saude_jobs`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
+    return this._cache.obterOuBuscar('vw_saude_jobs', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_saude_jobs?select=job_nome,ultima_execucao,ultimo_status,ultimo_detalhe,horas_desde_ultima_execucao`, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saude_jobs`);
+      return await resp.json();
+    });
   },
   // NOVO 11/08/2026 (achado do usuário: "confira se isso tudo é V2" — LRS/LRR/LRCON/LRDOA eram HTML
   // estático, nunca lido do banco) — mesmo padrão de getCronogramaBoletosV2() acima, 4 tabelas novas
   // (cronograma_assinaturas/recorrencias/consorcios/doacoes). Ver hydrate-onda9-livros-fixos.js.
   async getCronogramaAssinaturasV2(){
-    const chave = 'cronograma_assinaturas';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor&ativo=eq.true&order=data.asc`, { headers: this._headers() });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
+    return this._cache.obterOuBuscar('cronograma_assinaturas', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor&ativo=eq.true&order=data.asc`, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
+      return await resp.json();
+    });
   },
   async getCronogramaRecorrenciasV2(){
-    const chave = 'cronograma_recorrencias';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
+    return this._cache.obterOuBuscar('cronograma_recorrencias', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
+      return await resp.json();
+    });
   },
   async getCronogramaConsorciosV2(){
-    const chave = 'cronograma_consorcios';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/cronograma_consorcios?select=tx,nome,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_consorcios`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
+    return this._cache.obterOuBuscar('cronograma_consorcios', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_consorcios?select=tx,nome,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_consorcios`);
+      return await resp.json();
+    });
   },
   async getCronogramaDoacoesV2(){
-    const chave = 'cronograma_doacoes';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/cronograma_doacoes?select=tx,descricao,responsavel,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_doacoes`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
+    return this._cache.obterOuBuscar('cronograma_doacoes', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_doacoes?select=tx,descricao,responsavel,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_doacoes`);
+      return await resp.json();
+    });
   },
   // NOVO 10/08/2026 (fecha o último escritor ativo de wallace_dados disparado por clique do
   // usuário — ver PLANO_UNIFICACAO_V1_V2.md seção 44): decisões de Aprovar/Rejeitar da Inbox pra
   // itens de origem Pluggy, antes só em wallace_dados.PLUGGY_TRIAGEM. Tabela nova, mesmo padrão de
   // `legendas`/`cronograma_boletos_fixos` (schema pequeno, sem dependência de outra tabela).
   async getPluggyTriagemV2(){
-    const chave = 'pluggy_triagem';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/pluggy_triagem?select=id_externo,status_triagem,atualizado_em`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('pluggy_triagem', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/pluggy_triagem?select=id_externo,status_triagem,atualizado_em`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pluggy_triagem`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pluggy_triagem`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   },
   // NOVO 10/08/2026 (item aprovado, ver ESTADO_ATUAL.md: "filtro de assinatura/recorrência
   // conhecida na Inbox"): descrições de transações já confirmadas na categoria "Assinaturas" (V2,
@@ -736,15 +687,13 @@ const WallaceFinanceService = {
   // lista hardcoded de nomes de serviço — a fonte é a categorização real já feita em `transacoes`,
   // sempre atualizada conforme o usuário classifica itens novos.
   async getAssinaturasConfirmadasV2(){
-    const chave = 'assinaturas_confirmadas_v2';
-    if(this._cache.has(chave)) return this._cache.get(chave);
-    const resp = await fetch(`${this._url}/rest/v1/vw_assinaturas_confirmadas_v2?select=descricao`, {
-      headers: this._headers()
+    return this._cache.obterOuBuscar('assinaturas_confirmadas_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_assinaturas_confirmadas_v2?select=descricao`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_assinaturas_confirmadas_v2`);
+      return await resp.json();
     });
-    if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_assinaturas_confirmadas_v2`);
-    const dado = await resp.json();
-    this._cache.set(chave, dado);
-    return dado;
   }
 };
 

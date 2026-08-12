@@ -79,7 +79,10 @@ function criarVarsOperacional(){
     legInboxVazia: `Nenhum item pendente no momento — a Inbox já recebe automaticamente via Pluggy e Mercado Pago. Captura por Email/Telegram/OCR ainda não implementada.`,
     // NOVA 09/08/2026 (política nova, pedido do usuário): fallback local — a versão ao vivo desta
     // legenda vem da tabela `legendas` (Supabase), mesmo padrão da PGV corrigida hoje.
-    legQgHojeParcial: `"Hoje até agora" é parcial — o dado é atualizado automaticamente a cada 10 minutos (última captura: {hora}, horário de Brasília). O dia ainda não terminou, por isso não recebe selo de status; o selo acima usa sempre o último dia JÁ FECHADO. Produção por hora e previsão intradiária ainda não existem no sistema (o robô só registra o total acumulado do dia).`,
+    // CORRIGIDO 12/08/2026: dizia "não recebe selo de status", mas o card de Qualidade da Geração
+    // ganhou um selo próprio pra hoje (badge "Hoje: 🔴/🟡/🟢", estimativa por regra de 3 linear) —
+    // texto ficava contradizendo o que a tela mostrava. Ver hydrate-onda5-qualidade-geracao.js.
+    legQgHojeParcial: `"Hoje até agora" é parcial — o dado é atualizado automaticamente a cada 10 minutos (última captura: {hora}, horário de Brasília). O selo "Hoje" acima é uma ESTIMATIVA (regra de 3 sobre a janela 05:30-18:00, geração solar real não é linear) — o selo "Dia anterior" é o único baseado em dado 100% real, do último dia JÁ FECHADO. Produção por hora ainda não existe no sistema (o robô só registra o total acumulado do dia); um histórico intraday real começou a ser coletado agora, mas ainda não tem dias suficientes pra substituir a estimativa linear.`,
     legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa (ex: comprou algo no cartão pra um bolsão temático sem saldo suficiente) e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
   },
   // Salario (cenarios de emergencia) - RECALCULADO 22/07/2026 (V132) com 12 contracheques reais,
