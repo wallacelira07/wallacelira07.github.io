@@ -23,8 +23,11 @@
 // (reserva/btg/nectonCC/financiamentoCasa/consorcioAuto), só que nunca foram ligados —
 // bfinReserva/bfinBTG/bfinNectonCC/bpFinanciamentoCasa/bpConsorcioAuto. Os TOTAIS compostos
 // dessa mesma seção (balFinanceiroTotal, balAtivosTotal, balPatrimonioLiquido/TotalGeral) ficam
-// de fora de propósito — misturam componentes sem V2 ainda (físico, PGBL, FGTS, consórcio casa
+// de fora desta lista — misturam componentes sem V2 ainda (físico, PGBL, FGTS, consórcio casa
 // pelo valor pago), não são um "mesmo valor, id duplicado" simples como os 5 abaixo.
+// CORRIGIDO 13/08/2026 (achado de auditoria: comentário desatualizado dizia que balAtivosTotal/
+// balPatrimonioLiquido ficavam "de fora de propósito" da promoção V2 — na verdade SÃO promovidos,
+// só que por outro pipeline (promoverCampoV2SeConfiavel em app.js), não por este módulo da Onda 4).
 const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto'];
 
 async function aplicarOnda4Patrimonio(){
