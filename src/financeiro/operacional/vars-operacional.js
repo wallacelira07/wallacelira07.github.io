@@ -199,6 +199,9 @@ function criarVarsOperacional(){
   // divergir (reajuste de fabricante, troca de dosagem, etc), mesma prática já usada pra outros
   // aportes fixos deste arquivo.
   saudeEmagrecimentoAporte: 278.89,
+  // NOVO 13/08/2026 (pedido do usuário: meta de peso pra aba Emagrecimento, antes deliberadamente
+  // sem meta - "só peso pra começar"). Usada em hydrate-emagrecimento.js pra calcular quanto falta.
+  emagrecimentoMetaKg: 110,
   escolaJulio2027Aporte: 839.64,
   fluxoSaidas: 14819.89,
   fluxoResultado: 21318.48,

@@ -33,9 +33,16 @@ async function aplicarEmagrecimento(){
     return;
   }
 
+  // NOVO 13/08/2026 (pedido do usuário: meta de 110kg). VARS.emagrecimentoMetaKg fica visível mesmo
+  // sem pesagem nenhuma ainda; "falta pra meta" só calcula quando há pelo menos 1 pesagem real.
+  const metaKg = VARS.emagrecimentoMetaKg;
+  const elMetaKg = $('emgMetaKg');
+  if(elMetaKg) elMetaKg.textContent = fmtKg(metaKg);
+
   if(!Array.isArray(pesagens) || !pesagens.length){
     $('emgPesoAtual').textContent = 'Sem pesagem ainda';
     $('emgVariacaoTotal').textContent = '—';
+    $('emgFaltaMeta').textContent = '—';
     if(elAviso) elAviso.textContent = 'Nenhuma pesagem registrada ainda — assim que a primeira chegar, o gráfico aparece aqui.';
   } else {
     const primeira = pesagens[0];
@@ -52,6 +59,19 @@ async function aplicarEmagrecimento(){
       const corPositiva = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#34c98a';
       const corNegativa = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
       elVar.style.color = variacao <= 0 ? corPositiva : corNegativa;
+    }
+
+    // Falta pra meta = peso atual - meta (0 ou negativo = meta batida)
+    const faltaMeta = Math.round((Number(ultima.peso_kg) - metaKg)*10)/10;
+    const elFalta = $('emgFaltaMeta');
+    if(elFalta){
+      if(faltaMeta <= 0){
+        elFalta.textContent = 'Meta batida! 🎉';
+        elFalta.style.color = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#34c98a';
+      } else {
+        elFalta.textContent = fmtKg(faltaMeta);
+        elFalta.style.color = '';
+      }
     }
     if(elAviso) elAviso.textContent = `${pesagens.length} pesagem(ns) registrada(s). Sem meta definida — só evolução real, por enquanto.`;
 
