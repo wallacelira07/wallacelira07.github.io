@@ -13,23 +13,27 @@
 
 ## 1. Pendências abertas AGORA (retomar por aqui)
 
-### 1.1/1.2 Pluggy — saldo reservado (cofrinhos MP) BLOQUEADO por limite de conta, não é bug nosso (investigado a fundo 13/08, 7 caminhos testados)
-Sistema Pluggy (`sincronizar_pluggy.py`) foi implementado em **02/08/2026** (commit `97092ac`) — mesma data em que as 5 conexões originais (Bradesco, Itaú, Necton, BTG, Mercado Pago) foram criadas no `meu.pluggy.ai`.
+### 1.1/1.2 Pluggy — RESOLVIDO 13/08 (depois de uma exclusão acidental de conta e recriação completa)
 
-**O que É bug nosso e já foi corrigido**: a captura de `bankData.reservedBalances` (commit `4fd661d`) está correta — testada com fallback pro detalhe da conta (`GET /accounts/{id}`) também. A tabela `pluggy_saldos_reservados` continua vazia porque **o valor real hoje é R$0** nas duas contas Mercado Pago (confirmado direto no dashboard da Pluggy, "Reservado: R$0" com histórico de reservas zerando — bate com a cascata do reembolso Wärtsilä já fechada). Não é falha de captura.
+Sistema Pluggy (`sincronizar_pluggy.py`) foi implementado em **02/08/2026** (commit `97092ac`).
 
-**O que É bloqueio real da Pluggy, não corrigível por nós**: usuário removeu o BTG e conectou uma conta Mercado Pago NOVA (`wallace.servidor@gmail.com`, onde estão as caixas Bens Duráveis/Emagrecimento/Suavização) direto no portal `meu.pluggy.ai`. Não existe caminho de autoatendimento pra descobrir o `item_id` real dessa conexão nova pra API — testado e descartado hoje:
-1. `GET /items` sem ID — não existe, API da Pluggy bloqueia listagem por decisão de segurança deles (doc oficial).
-2. ID da URL do dashboard `meu.pluggy.ai/connections/{id}` — **não é o item_id real** (confirmado 2x, `HTTP 404 item not found` ao consultar via API, mesmo com IDs corretos copiados da URL).
-3. Widget Pluggy Connect hospedado por nós (`pluggy-reconectar.html`, criado hoje) — bloqueado: **"Contas de teste só podem conectar conectores sandbox (Pluggy Bank). Solicite acesso a dados reais."** — nossa aplicação (`Atualizar Claude`, client id `302c9ff8-7aa4-415a-971a-a99b90ee3a33`) está em tier trial/desenvolvimento na Pluggy, sem produção liberada. Liberar exigiria due diligence formal (dados de empresa/representante legal) — não se aplica a projeto pessoal, não vale a pena perseguir.
-4. Webhook de conta (`item/created`/`item/updated`, evento `all`) registrado com sucesso (Edge Function `pluggy-webhook` + tabela `pluggy_webhook_eventos`, testados e funcionando ponta a ponta) — mas a Pluggy simplesmente **não disparou nenhum evento ainda** pra essas 2 conexões, mesmo com o usuário clicando "Atualizar" 2x no dashboard deles.
-5. Forçar resincronização via `PATCH /items/{id}` — recusado pela própria API: `"MeuPluggy item cant be updated"`. Esse conector (id 200, "MeuPluggy" — usado pelo portal pessoal) não aceita comando de update nenhum, nem nas 3 conexões que já funcionam. Só atualiza sozinho no ciclo automático da Pluggy.
-6. Seção "Apps Parceiros" dentro do `meu.pluggy.ai` (compartilhar conexão com uma aplicação específica) — vazia, nenhuma conexão compartilhada com nenhum app, sem botão visível pra vincular retroativamente.
-7. Histórico de sessões anteriores (`Cópia de backup/HISTORICO_PASSAGENS_DE_TURNO.md` e outros) — não documenta como as 5 conexões originais foram vinculadas à aplicação em 02/08; provavelmente feito manualmente pelo usuário antes de qualquer sessão de Claude Code.
+**Saga completa desta sessão**: pendência original era só "saldo reservado (cofrinhos MP) não aparece". Investigação mostrou que **não era bug** — o valor reservado real é R$0 hoje nas 2 contas Mercado Pago (confirmado no dashboard da Pluggy, histórico de reservas zerando, bate com a cascata do reembolso Wärtsilä já fechada). O problema real era outro: o usuário tinha conectado 2 contas Mercado Pago novas direto no portal `meu.pluggy.ai`, e não existia como descobrir o `item_id` real delas pra colocar no secret `PLUGGY_ITEM_IDS` — 7 caminhos técnicos testados e descartados (sem endpoint de listagem, ID da URL do dashboard não é o `item_id` real, widget bloqueado por conta trial, webhook de conta sem disparar, `PATCH /items` recusado pelo conector "MeuPluggy", sem opção de compartilhar conexão com app no `meu.pluggy.ai`, sem registro em sessões anteriores de como isso foi feito originalmente).
 
-**Estado atual, sem regressão**: as 3 conexões que já funcionavam (Bradesco, Itaú, Necton — `item_id` `faa29e73...`/`7a747d7d...`/`6cab9354...`) continuam sincronizando normal. O secret `PLUGGY_ITEM_IDS` foi limpo de volta pra só esses 3 (os 2 IDs chutados do Mercado Pago novo, que só geravam erro 404 inofensivo no log, foram removidos). BTG e o Mercado Pago antigo (mortos desde 02/08, antes desta sessão) seguem fora, não há como reativá-los (ponto 5 acima).
+**No meio da investigação, o usuário excluiu a conta inteira da Pluggy por engano** (achou que estava excluindo só o app de demo) — isso invalidou `PLUGGY_CLIENT_ID`/`PLUGGY_CLIENT_SECRET` e quebrou a sincronização por completo (não só o Mercado Pago, Bradesco/Itaú/Necton também pararam). Confirmado com o suporte oficial via WhatsApp: **irreversível**, precisa recriar conta.
 
-**Próximo passo real, se retomar**: esperar a Pluggy disparar o ciclo automático de sincronização das 2 conexões Mercado Pago novas (webhook já está pronto pra capturar o `item_id` assim que isso acontecer, sem precisar de mais nenhuma ação) — ou o usuário contatar o suporte da Pluggy diretamente perguntando o `item_id` das conexões pelo CPF (`096.396.684-78`). Não vale reabrir a investigação técnica, os 7 caminhos acima já foram esgotados.
+**Resolvido**: usuário recriou a conta na Pluggy (mesmo e-mail), criou aplicação nova, gerou `PLUGGY_CLIENT_ID`/`PLUGGY_CLIENT_SECRET` novos (atualizados no GitHub Secrets). As 5 conexões bancárias em si (`meu.pluggy.ai`) sobreviveram à exclusão da conta de desenvolvedor — só precisou vincular a aplicação nova a elas, o que apareceu automaticamente na aba **"Demo"** do dashboard novo (`dashboard.pluggy.ai` → aplicação → "Conecte um item demo" → lista "Itens Conectados", cada um mostra o `item_id` real no topo do painel de detalhe — **este é o método correto pra pegar `item_id`, documentar pra próxima vez**). Novos `item_id` (todos testados, workflow rodou com sucesso #240):
+
+| Conta | item_id |
+|---|---|
+| Mercado Pago 01 (`8574022051-6`, wallace.termica@) | `fa0d9464-d700-41e2-8edf-cadabbb8bff7` |
+| Mercado Pago 02 (`6426567142-2`, wallace.servidor@, tem as caixas Bens Duráveis/Emagrecimento/Suavização) | `4b6c0e77-f007-4249-a614-15dc3bce026b` |
+| Necton | `37d5b1f6-07bd-4a93-80ee-5aeb7d6a0b64` |
+| Itaú | `d7808e04-7ab1-47b2-bfa0-71a94b824e3e` |
+| Bradesco | `33b80bf0-92c9-4a54-bc8c-d34ff3765ae8` |
+
+BTG não foi reconectado (decisão antiga do usuário, não trazia investimento de valor). Webhook de conta (`pluggy-webhook` Edge Function + tabela `pluggy_webhook_eventos`) continua registrado e ativo na aplicação nova — útil pra descobrir automaticamente o `item_id` de qualquer conexão futura, sem repetir a investigação de hoje.
+
+**Limpeza pendente pra próxima sessão** (não crítico): o script `sincronizar_pluggy.py` acumulou bastante log de debug (`[debug reservedBalances]`, `[debug item_id]`, `[debug item completo]`, `[debug forcar update]`, `[connect_token base64]`) desta investigação — pode ser removido agora que está tudo resolvido, deixando só os prints essenciais. `pluggy-reconectar.html` (página utilitária criada hoje) pode ser removida do repo também, não é mais necessária.
 
 ### 1.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
 Ver seção 3.1. Quando chegar: atualizar `reembolso_wartsila_recebimentos` (nova linha) e decidir destino (provavelmente Caixa Lance, sobra final do ciclo).

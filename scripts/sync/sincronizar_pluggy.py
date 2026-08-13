@@ -15,9 +15,17 @@ IMPORTANTE - modelo de uso:
 
 Fluxo de autenticacao:
   1. POST /auth com clientId+clientSecret -> apiKey (validade 2 horas)
-  2. GET /items (com header X-API-KEY) -> lista as conexoes ja existentes
+  2. Para cada item_id (lista fixa, ver PLUGGY_ITEM_IDS abaixo): GET /items/{id} -> detalhes
   3. Para cada item: GET /accounts?itemId=X -> saldos
   4. Para cada item: GET /investments?itemId=X -> investimentos (se houver)
+
+  COMO PEGAR O item_id DE UMA CONEXAO NOVA (achado real 13/08/2026, depois de varias
+  tentativas erradas): a API da Pluggy NAO tem endpoint de listar items (GET /items sem id
+  nao existe, por decisao de seguranca deles), e o ID que aparece na URL do dashboard
+  meu.pluggy.ai/connections/{id} NAO e o item_id real (da 404 se tentar usar). O jeito certo:
+  dashboard.pluggy.ai -> abrir a aplicacao -> aba "Demo" (ou "Conecte um item demo") -> lista
+  "Itens Conectados" mostra cada conexao existente (mesmo as feitas fora do nosso app, via
+  meu.pluggy.ai) - clicar numa mostra o item_id real no topo do painel de detalhe.
 
 USO:
   python3 sincronizar_pluggy.py
@@ -77,34 +85,6 @@ def autenticar(client_id: str, client_secret: str) -> str:
         raise RuntimeError(f"Resposta de /auth sem apiKey: {resp}")
     print(f"[debug] apiKey recebida: {len(api_key)} caracteres, começa com '{api_key[:6]}...'")
     return api_key
-
-
-def criar_connect_token(api_key: str) -> str | None:
-    """POST /connect_token -> token de curta duracao pro widget PluggyConnect no navegador.
-
-    NOVO 13/08/2026: resolve o problema de descobrir item_id de contas que so existem no
-    portal meu.pluggy.ai (webhook de conta nao disparou nada mesmo apos "Atualizar" - ver
-    ESTADO_ATUAL.md 1.1/1.2). Reconectando a MESMA conta pelo widget que O NOSSO app controla
-    (nao o portal deles), o onSuccess do widget devolve o itemId direto no navegador, sem
-    depender de webhook nenhum. So GERA o token aqui - o uso real e manual, numa pagina HTML
-    separada (pluggy-reconectar.html), token colado por quem estiver operando.
-    """
-    try:
-        resp = _request(f"{PLUGGY_BASE}/connect_token", method="POST", headers={"X-API-KEY": api_key}, body={})
-        token = resp.get("accessToken")
-        # CORRIGIDO 13/08/2026: o log do GitHub Actions mascara automaticamente o token cru
-        # (formato JWT "eyJ..." bate com o filtro generico de segredo deles, mesmo sem ser um
-        # secret configurado no repo). Manda em base64 pra escapar do filtro - a pagina
-        # pluggy-reconectar.html decodifica sozinha (atob) antes de usar.
-        if token:
-            import base64
-            print(f"[connect_token base64] {base64.b64encode(token.encode()).decode()}")
-        else:
-            print(f"[connect_token] resposta sem accessToken: {json.dumps(resp, ensure_ascii=False)}")
-        return token
-    except RuntimeError as e:
-        print(f"[connect_token] falha ao gerar: {e}")
-        return None
 
 
 def testar_conectividade(api_key: str) -> None:
@@ -250,7 +230,6 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
     api_key = autenticar(client_id, client_secret)
     testar_conectividade(api_key)
     garantir_webhook_registrado(api_key, supabase_url, webhook_secret)
-    criar_connect_token(api_key)
 
     resultado = {"conexoes": [], "erros": []}
 
@@ -263,28 +242,6 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
 
         nome_banco = item.get("connector", {}).get("name", "desconhecido")
         status = item.get("status")
-        # DEBUG 13/08/2026: investigando se PLUGGY_ITEM_IDS (secret) esta desatualizado -
-        # usuario viu no dashboard 5 conexoes com item_id diferentes dos que estao gravados
-        # no Supabase. Este log mostra, pra cada item_id do secret, o que a API realmente
-        # devolve (status + nomes das contas), pra casar (ou nao) com o dashboard.
-        print(f"[debug item_id] {item_id} -> banco={nome_banco} status={status} "
-              f"lastUpdatedAt={item.get('lastUpdatedAt') or item.get('updatedAt')}")
-        # DEBUG 13/08/2026: item_id 70ea0f11 (Mercado Pago original) e a50c7ebf (BTG) pararam
-        # de trazer contas desde 02/08 - investigando o motivo real (executionStatus/error/
-        # statusDetail), pra ver se da pra reativar a MESMA conexao em vez de precisar de uma
-        # nova (a nova esbarrou em limite de conta trial - ver ESTADO_ATUAL.md 1.1/1.2).
-        if item.get("status") != "UPDATED" or not (item.get("lastUpdatedAt") or "").startswith("2026-08-13"):
-            print(f"[debug item completo] {item_id} -> {json.dumps(item, ensure_ascii=False)}")
-            # DEBUG 13/08/2026: tenta forcar uma resincronizacao (PATCH /items/{id}, corpo vazio
-            # reusa as credenciais ja salvas) - se o item so precisava de um empurrao, isso
-            # reativa sozinho; se pedir acao do usuario (MFA/credenciais), aparece no proprio
-            # retorno (campo userAction/error).
-            try:
-                atualizado = _request(f"{PLUGGY_BASE}/items/{item_id}", method="PATCH",
-                                       headers={"X-API-KEY": api_key}, body={})
-                print(f"[debug forcar update] {item_id} -> {json.dumps(atualizado, ensure_ascii=False)}")
-            except RuntimeError as e:
-                print(f"[debug forcar update] {item_id} -> falha: {e}")
 
         entrada = {
             "item_id": item_id,
@@ -297,8 +254,6 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
 
         try:
             contas = listar_contas(api_key, item_id)
-            print(f"[debug item_id] {item_id} -> {len(contas)} conta(s): "
-                  f"{[(c.get('name'), c.get('type'), c.get('number')) for c in contas]}")
             for c in contas:
                 conta_info = {
                     # CORRIGIDO 08/08/2026 (migracao V1 wallace_dados -> V2 relacional): id real da
@@ -322,22 +277,14 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
                 # /investments (onde eu procurei antes, errado) nem aqui.
                 bank_data = c.get("bankData") or {}
                 reservas = bank_data.get("reservedBalances") or []
-                if c.get("type") == "BANK":
-                    # DEBUG 13/08/2026: log bruto pra confirmar o formato real que a Pluggy manda
-                    # pra esta conta especifica (ver hipoteses em ESTADO_ATUAL.md secao 1.1).
-                    print(f"[debug reservedBalances] conta={c.get('name')} ({c.get('id')}) "
-                          f"bankData={json.dumps(bank_data, ensure_ascii=False)}")
-                    if not reservas:
-                        try:
-                            detalhe = buscar_conta_detalhe(api_key, c["id"])
-                            bank_data_detalhe = detalhe.get("bankData") or {}
-                            reservas_detalhe = bank_data_detalhe.get("reservedBalances") or []
-                            print(f"[debug reservedBalances] fallback GET /accounts/{c.get('id')} "
-                                  f"bankData={json.dumps(bank_data_detalhe, ensure_ascii=False)}")
-                            if reservas_detalhe:
-                                reservas = reservas_detalhe
-                        except RuntimeError as e:
-                            print(f"[debug reservedBalances] fallback GET /accounts/{c.get('id')} falhou: {e}")
+                # Confirmado 13/08/2026: a listagem (GET /accounts?itemId=X) as vezes nao traz
+                # reservedBalances mesmo quando existe - fallback pro detalhe da conta cobre isso.
+                if c.get("type") == "BANK" and not reservas:
+                    try:
+                        detalhe = buscar_conta_detalhe(api_key, c["id"])
+                        reservas = (detalhe.get("bankData") or {}).get("reservedBalances") or []
+                    except RuntimeError:
+                        pass
                 if reservas:
                     conta_info["saldos_reservados"] = [
                         {
