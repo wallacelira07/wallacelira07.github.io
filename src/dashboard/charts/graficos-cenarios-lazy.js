@@ -1082,8 +1082,11 @@ async function _lazyRenderSolarSecao(){
     const linhas = unidades.map(u => {
       const d = comp[u.chave];
       if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
-      const faturaBase = d.historico ? d.historico.jul26 : d.fatura_jul26_valor;
-      const consumoKwh = d.consumo_kwh || d.fatura_jul26_consumo_kwh;
+      // CORRIGIDO 13/08/2026 (achado de auditoria + conferido à mão pelo usuário: a base seguia presa
+      // em Jul/26 mesmo com a fatura real de Ago/26 já carregada há 1 dia — violava a regra "valor
+      // final substitui estimativa". Prioriza sempre o mês mais recente disponível: Ago/26 real > d.consumo_kwh solto > histórico Jul/26.
+      const faturaBase = d.fatura_ago26_valor ?? (d.historico ? d.historico.jul26 : d.fatura_jul26_valor);
+      const consumoKwh = d.fatura_ago26_consumo_kwh || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
       const pct = d.composicao_pct || {};
       if(faturaBase === undefined || !consumoKwh) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
       const tarifaReal = faturaBase / consumoKwh;
