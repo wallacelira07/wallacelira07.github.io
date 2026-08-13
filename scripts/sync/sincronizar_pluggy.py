@@ -269,6 +269,22 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
         # devolve (status + nomes das contas), pra casar (ou nao) com o dashboard.
         print(f"[debug item_id] {item_id} -> banco={nome_banco} status={status} "
               f"lastUpdatedAt={item.get('lastUpdatedAt') or item.get('updatedAt')}")
+        # DEBUG 13/08/2026: item_id 70ea0f11 (Mercado Pago original) e a50c7ebf (BTG) pararam
+        # de trazer contas desde 02/08 - investigando o motivo real (executionStatus/error/
+        # statusDetail), pra ver se da pra reativar a MESMA conexao em vez de precisar de uma
+        # nova (a nova esbarrou em limite de conta trial - ver ESTADO_ATUAL.md 1.1/1.2).
+        if item.get("status") != "UPDATED" or not (item.get("lastUpdatedAt") or "").startswith("2026-08-13"):
+            print(f"[debug item completo] {item_id} -> {json.dumps(item, ensure_ascii=False)}")
+            # DEBUG 13/08/2026: tenta forcar uma resincronizacao (PATCH /items/{id}, corpo vazio
+            # reusa as credenciais ja salvas) - se o item so precisava de um empurrao, isso
+            # reativa sozinho; se pedir acao do usuario (MFA/credenciais), aparece no proprio
+            # retorno (campo userAction/error).
+            try:
+                atualizado = _request(f"{PLUGGY_BASE}/items/{item_id}", method="PATCH",
+                                       headers={"X-API-KEY": api_key}, body={})
+                print(f"[debug forcar update] {item_id} -> {json.dumps(atualizado, ensure_ascii=False)}")
+            except RuntimeError as e:
+                print(f"[debug forcar update] {item_id} -> falha: {e}")
 
         entrada = {
             "item_id": item_id,
