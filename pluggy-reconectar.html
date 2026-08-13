@@ -18,9 +18,9 @@
 </head>
 <body>
   <h1>Reconectar conta Pluggy</h1>
-  <p>Página utilitária temporária - existe só pra descobrir o <code>item_id</code> real de uma conexão feita fora do nosso app (ex: pelo portal meu.pluggy.ai). Cole abaixo o Connect Token gerado pelo workflow "Sincronizar Pluggy" (linha <code>[connect_token]</code> no log), clique em Conectar e faça login normalmente na instituição. Ao final, o <code>item_id</code> aparece na tela - copie e informe.</p>
+  <p>Página utilitária temporária - existe só pra descobrir o <code>item_id</code> real de uma conexão feita fora do nosso app (ex: pelo portal meu.pluggy.ai). Cole abaixo o valor da linha <code>[connect_token base64]</code> do log do workflow "Sincronizar Pluggy" (vem codificado em base64 - o GitHub mascara o token cru no log), clique em Conectar e faça login normalmente na instituição. Ao final, o <code>item_id</code> aparece na tela - copie e informe.</p>
 
-  <input type="text" id="token" placeholder="Cole o accessToken aqui">
+  <input type="text" id="token" placeholder="Cole o valor de [connect_token base64] aqui">
   <button id="btnConectar">Conectar</button>
 
   <div id="resultado"></div>
@@ -37,9 +37,16 @@
     }
 
     btn.addEventListener('click', () => {
-      const token = document.getElementById('token').value.trim();
-      if (!token) {
-        mostrar('Cole o Connect Token antes de continuar.', 'erro');
+      const bruto = document.getElementById('token').value.trim();
+      if (!bruto) {
+        mostrar('Cole o valor de [connect_token base64] antes de continuar.', 'erro');
+        return;
+      }
+      let token;
+      try {
+        token = atob(bruto);
+      } catch (e) {
+        mostrar('Valor colado não parece base64 válido: ' + e.message, 'erro');
         return;
       }
       btn.disabled = true;
