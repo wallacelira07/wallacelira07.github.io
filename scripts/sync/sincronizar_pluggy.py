@@ -98,6 +98,17 @@ def listar_contas(api_key: str, item_id: str) -> list[dict]:
     return resp.get("results", [])
 
 
+def buscar_conta_detalhe(api_key: str, account_id: str) -> dict:
+    """GET /accounts/{id} -> detalhe de UMA conta especifica.
+
+    DEBUG 13/08/2026 (investigando pluggy_saldos_reservados vazia): hipotese (b) do
+    ESTADO_ATUAL.md - bankData.reservedBalances pode so vir no detalhe da conta, nao na
+    listagem usada por listar_contas(). Usado como fallback abaixo quando a listagem nao
+    trouxer reservedBalances pra uma conta BANK.
+    """
+    return _request(f"{PLUGGY_BASE}/accounts/{account_id}", headers={"X-API-KEY": api_key})
+
+
 def listar_investimentos(api_key: str, item_id: str) -> list[dict]:
     """GET /investments?itemId=X -> investimentos de uma conexao, se houver."""
     resp = _request(f"{PLUGGY_BASE}/investments?itemId={item_id}", headers={"X-API-KEY": api_key})
@@ -217,6 +228,22 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                 # /investments (onde eu procurei antes, errado) nem aqui.
                 bank_data = c.get("bankData") or {}
                 reservas = bank_data.get("reservedBalances") or []
+                if c.get("type") == "BANK":
+                    # DEBUG 13/08/2026: log bruto pra confirmar o formato real que a Pluggy manda
+                    # pra esta conta especifica (ver hipoteses em ESTADO_ATUAL.md secao 1.1).
+                    print(f"[debug reservedBalances] conta={c.get('name')} ({c.get('id')}) "
+                          f"bankData={json.dumps(bank_data, ensure_ascii=False)}")
+                    if not reservas:
+                        try:
+                            detalhe = buscar_conta_detalhe(api_key, c["id"])
+                            bank_data_detalhe = detalhe.get("bankData") or {}
+                            reservas_detalhe = bank_data_detalhe.get("reservedBalances") or []
+                            print(f"[debug reservedBalances] fallback GET /accounts/{c.get('id')} "
+                                  f"bankData={json.dumps(bank_data_detalhe, ensure_ascii=False)}")
+                            if reservas_detalhe:
+                                reservas = reservas_detalhe
+                        except RuntimeError as e:
+                            print(f"[debug reservedBalances] fallback GET /accounts/{c.get('id')} falhou: {e}")
                 if reservas:
                     conta_info["saldos_reservados"] = [
                         {
