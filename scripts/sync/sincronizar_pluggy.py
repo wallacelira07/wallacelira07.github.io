@@ -193,6 +193,12 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
 
         nome_banco = item.get("connector", {}).get("name", "desconhecido")
         status = item.get("status")
+        # DEBUG 13/08/2026: investigando se PLUGGY_ITEM_IDS (secret) esta desatualizado -
+        # usuario viu no dashboard 5 conexoes com item_id diferentes dos que estao gravados
+        # no Supabase. Este log mostra, pra cada item_id do secret, o que a API realmente
+        # devolve (status + nomes das contas), pra casar (ou nao) com o dashboard.
+        print(f"[debug item_id] {item_id} -> banco={nome_banco} status={status} "
+              f"lastUpdatedAt={item.get('lastUpdatedAt') or item.get('updatedAt')}")
 
         entrada = {
             "item_id": item_id,
@@ -205,6 +211,8 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
 
         try:
             contas = listar_contas(api_key, item_id)
+            print(f"[debug item_id] {item_id} -> {len(contas)} conta(s): "
+                  f"{[(c.get('name'), c.get('type'), c.get('number')) for c in contas]}")
             for c in contas:
                 conta_info = {
                     # CORRIGIDO 08/08/2026 (migracao V1 wallace_dados -> V2 relacional): id real da
