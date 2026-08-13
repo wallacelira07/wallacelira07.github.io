@@ -461,6 +461,25 @@ const WallaceFinanceService = {
       return dado[0] || null;
     });
   },
+  // NOVO 13/08/2026 (pedido do usuário: saldo real da Reserva de Emergência via Pluggy, não só o
+  // valor manual travado em R$100.000,00 - patrimonio.reserva, ver vw_patrimonio_v2). Fonte: tabela
+  // pluggy_investimentos (persistência nova de 13/08/2026, antes os dados de /investments da Pluggy
+  // eram buscados e descartados). Filtro por nome (CDB Itaú) porque pluggy_conexoes.banco vem
+  // genérico "MeuPluggy" pra todas as 5 conexões (não distingue banco real) - único jeito confiável
+  // hoje de isolar a posição certa.
+  async getReservaEmergenciaPluggy(){
+    return this._cache.obterOuBuscar('pluggy_reserva_emergencia', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/pluggy_investimentos?select=valor,atualizado_em&nome=ilike.*ITAU*&tipo=eq.FIXED_INCOME`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pluggy_investimentos (reserva)`);
+      const linhas = await resp.json();
+      if(!Array.isArray(linhas) || !linhas.length) return null;
+      const total = Math.round(linhas.reduce((s,l)=>s+Number(l.valor||0),0)*100)/100;
+      const atualizadoEm = linhas.reduce((max,l)=>!max || l.atualizado_em>max ? l.atualizado_em : max, null);
+      return { total, atualizadoEm, qtdPosicoes: linhas.length };
+    });
+  },
   // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): ciclo aberto atual
   // (vw_ciclo_solar_aberto, sempre 0 ou 1 linha) e histórico de ciclos já fechados
   // (vw_ciclo_solar_historico) — ver docs/decisions para o desenho completo do domínio.

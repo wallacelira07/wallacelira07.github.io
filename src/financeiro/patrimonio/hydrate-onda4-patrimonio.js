@@ -90,6 +90,31 @@ async function aplicarOnda4Patrimonio(){
   t('patPctBadge', metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
   { const el=$('patPctBar'); if(el) el.style.width = metaMilhaoPct+'%'; }
 
+  // NOVO 13/08/2026 (pedido do usuário: saldo real da Reserva de Emergência via Pluggy - estratégia
+  // é sempre manter R$100.000,00 lá e sacar o rendimento acumulado do mês pra Caixa Lance). Não
+  // altera 'reserva'/patReserva/bfinReserva acima (o valor âncora R$100k que entra no patrimônio
+  // total) - só um informativo a mais, lido de pluggy_investimentos (CDBs Itaú).
+  {
+    const elPluggy = $('bfinReservaPluggy');
+    if(elPluggy){
+      try {
+        const r = await WallaceFinanceService.getReservaEmergenciaPluggy();
+        if(!r){
+          elPluggy.textContent = 'Saldo real via Pluggy indisponível (nenhuma posição encontrada ainda).';
+        } else {
+          const rendimento = Math.round((r.total - reserva)*100)/100;
+          elPluggy.innerHTML = `Saldo real (Pluggy, ${r.qtdPosicoes} posição/ões CDB Itaú): <strong>${fmt(r.total)}</strong> — `
+            + (rendimento > 0
+              ? `rendimento acumulado este mês a sacar pra Caixa Lance: <strong style="color:var(--green)">${fmt(rendimento)}</strong>`
+              : 'sem rendimento acima do piso de R$100.000,00 ainda.');
+        }
+      } catch(err){
+        console.error('Onda4Patrimonio: falha ao buscar reserva via Pluggy.', err);
+        elPluggy.textContent = '⚠ Indisponível (Pluggy) — não foi possível carregar o saldo real.';
+      }
+    }
+  }
+
   // NOVO 08/08/2026 (fecha consumidor de wallace_dados: consorcioCasaProximaAssembleia): mesmo dado
   // ja vem em `p` (vw_patrimonio_v2.consorcio_casa_proxima_assembleia), so nunca tinha sido ligado -
   // hydrateMetas() (V1) roda ANTES desta funcao no hydrate(), entao sobrescrever so VARS aqui seria
