@@ -26,7 +26,11 @@ function hydrateEstimadorSalario(){
     const cicloTxt = diaIni+'/'+mesIni+' a '+MESES_ABREV[Number(mesFim)-1]+'/'+anoFim.slice(-2);
     t('estStatusFonte', 'Ciclo '+cicloTxt+' · '+fonteLabel);
   }
-  t('estNecLiquida', fmt(R.estimador.necessidadeLiquidaProximoCiclo));
-  const excedenteEst = liquidoMes(0) - R.estimador.necessidadeLiquidaProximoCiclo;
+  // CORRIGIDO 13/08/2026 (achado de auditoria: comparava periodos diferentes) - estLiquido usa
+  // liquidoMes(0) = ciclo ATUAL (ja real), mas necessidadeLiquidaProximoCiclo = evolucao.necessidadeLiquida[1]
+  // = ciclo SEGUINTE. Excedente estimado tem que comparar o mesmo periodo: troca pra
+  // evolucao.necessidadeLiquida[0], que e o mesmo ciclo atual usado em liquidoMes(0).
+  t('estNecLiquida', fmt(R.evolucao.necessidadeLiquida[0]));
+  const excedenteEst = liquidoMes(0) - R.evolucao.necessidadeLiquida[0];
   t('estExcedente', fmt(excedenteEst)+' · Modo Normal');
 }

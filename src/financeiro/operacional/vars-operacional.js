@@ -78,7 +78,9 @@ function criarVarsOperacional(){
     // nunca é cortado (seção 03, mesmo valor de pisoTotal). Os 2 valores são constantes mês a mês
     // (diferente do gráfico de cima, que usa a Evolução real do Total Operacional) — a diferença se
     // repete igual nos 12 meses, é o esperado, não é bug.
-    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>R$8.109,64/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
+    // CORRIGIDO 13/08/2026 (achado de auditoria: R$0,10 de discrepancia entre este texto e a conta
+    // real - ver comentario de liquidoSemTrabalhar mais abaixo). Era R$8.109,64/mes.
+    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>R$8.109,74/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
     legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     // CORRIGIDO 07/08/2026 (mudança de regra de negócio): a legenda antiga condicionava o
@@ -167,15 +169,18 @@ function criarVarsOperacional(){
   // Supervisão(5%) + Creche, sem Periculosidade, com todos os descontos por cima, mesma
   // metodologia usada em liquidoProjetadoProximoCiclo). Fórmula: 10913,66 (base) + 545,68
   // (Supervisão 5%) + 445,00 (Creche fixo) = R$11.904,34 proventos; descontos = INSS R$988,07
-  // (teto de contribuição, constante) + IRRF R$1.738,66 (base R$2.639,04 sem adicionais — residual
+  // (teto de contribuição, constante) + IRRF R$1.738,56 (base R$2.639,04 sem adicionais — residual
   // de IRRF total R$5.055,57 menos a parcela marginal 27,5% dos adicionais de hora extra do
-  // holerite real — MENOS 27,5% sobre a Periculosidade R$3.274,10 que não entra neste cenário, já
-  // que ele já está no teto de faixa) + Saúde/Dental fixo R$413,15 + PGBL R$654,82 (6% da base) =
-  // R$3.794,70. Líquido = R$11.904,34 − R$3.794,70 = R$8.109,64. Fonte dos valores-base:
+  // holerite real — MENOS 27,5% sobre a Periculosidade R$3.274,10 (=R$900,48) que não entra neste
+  // cenário, já que ele já está no teto de faixa) + Saúde/Dental fixo R$413,15 + PGBL R$654,82 (6%
+  // da base) = R$3.794,60. Líquido = R$11.904,34 − R$3.794,60 = R$8.109,74. Fonte dos valores-base:
   // `parametros_gerais` (nome='taxasHoraFolhaPontoWartsila' e
   // 'liquidoProjetadoProximoCiclo_memoria_calculo'). Era R$7.667,73 (formula antiga, pré-reajuste
   // de 12/08/2026, não recalibrada com os valores reais do holerite de julho).
-  liquidoSemTrabalhar: 8109.64,            // REGRA_CENARIO_FICOU_EM_CASA
+  // CORRIGIDO 13/08/2026 (achado de auditoria: discrepancia de R$0,10 na conta do comentario acima
+  // - 0,275 x 3274,10 = 900,4775 (nao 900,00), IRRF = 2639,04-900,4775 = 1738,5625≈1738,56 (nao
+  // 1738,66); descontos totais = 3794,60 (nao 3794,70); liquido = 11904,34-3794,60 = 8109,74).
+  liquidoSemTrabalhar: 8109.74,            // REGRA_CENARIO_FICOU_EM_CASA
   desvioPadraoSalario: 9273.21,
   seguroEmplacamentoAporte: 425,
   // NOVO 12/08/2026 (pedido do usuário: aba de emagrecimento, caneta Ozivy Semaglutida): aporte

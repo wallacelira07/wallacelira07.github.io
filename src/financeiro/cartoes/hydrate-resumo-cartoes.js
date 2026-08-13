@@ -61,5 +61,9 @@ function hydrateResumoCartoes(){
   t('pisoRecorrencias', fmt(D.recorrencias));
   t('pisoMP', fmt(D.provMP));
   t('pisoAssinaturas', fmt(D.assinaturas));
-  t('pisoTotal', fmt(R.reserva.piso));
+  // CORRIGIDO 13/08/2026 (achado de auditoria: literal fixo desatualizavel) - pisoTotal mostrava
+  // R.reserva.piso (= VARS.reservaPiso, literal fixo) em vez da soma real dos 6 itens listados
+  // acima. Deriva ao vivo pra nunca dessincronizar quando um dos 6 itens mudar.
+  const pisoTotalReal = Math.round((D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.provMP + D.assinaturas) * 100) / 100;
+  t('pisoTotal', fmt(pisoTotalReal));
 }
