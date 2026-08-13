@@ -86,6 +86,16 @@ def testar_conectividade(api_key: str) -> None:
     total = resp.get("total", len(resp.get("results", [])))
     print(f"[debug] GET /connectors OK - {total} conectores disponíveis (confirma que a API Key funciona em geral)")
 
+    # DEBUG 13/08/2026: investigando como descobrir item_id de conexoes feitas direto no
+    # portal meu.pluggy.ai (sem passar pelo nosso app) - a Pluggy nao tem endpoint de listar
+    # todos os items, so webhook de conta resolve isso pra frente. Checando se ja existe algum
+    # webhook configurado antes de propor criar um novo.
+    try:
+        webhooks_resp = _request(f"{PLUGGY_BASE}/webhooks", headers={"X-API-KEY": api_key})
+        print(f"[debug webhooks] {json.dumps(webhooks_resp, ensure_ascii=False)}")
+    except RuntimeError as e:
+        print(f"[debug webhooks] falha ao consultar: {e}")
+
 
 def buscar_item(api_key: str, item_id: str) -> dict:
     """GET /items/{id} -> detalhes de UM item especifico."""
