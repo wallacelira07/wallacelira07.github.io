@@ -32,12 +32,18 @@ async function aplicarEmagrecimento(){
   } else {
     const primeira = pesagens[0];
     const ultima = pesagens[pesagens.length-1];
-    const variacao = Math.round((ultima.peso_kg - primeira.peso_kg)*10)/10;
-    $('emgPesoAtual').textContent = fmtKg(ultima.peso_kg);
+    // CORRIGIDO 13/08/2026 (achado de auditoria: peso_kg sem Number() em 2 dos 3 usos, só o array
+    // do gráfico já convertia — API pode devolver string, aplicando Number() nos 3 uniformemente)
+    const variacao = Math.round((Number(ultima.peso_kg) - Number(primeira.peso_kg))*10)/10;
+    $('emgPesoAtual').textContent = fmtKg(Number(ultima.peso_kg));
     const elVar = $('emgVariacaoTotal');
     if(elVar){
       elVar.textContent = (variacao>0?'+':'')+fmtKg(variacao)+` (desde ${primeira.data.split('-').reverse().join('/')})`;
-      elVar.style.color = variacao <= 0 ? '#34c98a' : '#e2554f';
+      // CORRIGIDO 13/08/2026 (achado de auditoria: cor de status hardcoded em hex em vez de var(--green)/
+      // var(--red) — mesma função já lê --border via getComputedStyle, replicado o padrão aqui)
+      const corPositiva = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#34c98a';
+      const corNegativa = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
+      elVar.style.color = variacao <= 0 ? corPositiva : corNegativa;
     }
     if(elAviso) elAviso.textContent = `${pesagens.length} pesagem(ns) registrada(s). Sem meta definida — só evolução real, por enquanto.`;
 
@@ -48,11 +54,15 @@ async function aplicarEmagrecimento(){
       const existente = Chart.getChart(canvas);
       if(existente) existente.destroy();
       const grid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#262a32';
+      // CORRIGIDO 13/08/2026 (achado de auditoria: cores do Chart.js hardcoded em vez de ler
+      // var(--accent)/var(--bg) via getComputedStyle, mesmo padrão já usado acima pra --border)
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4c8ef2';
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#16181b';
       new Chart(canvas, {
         type:'line',
         data:{labels, datasets:[{data:dados,
-          borderColor:'#4c8ef2', backgroundColor:'rgba(76,142,242,0.08)',
-          borderWidth:2.5, pointBackgroundColor:'#4c8ef2', pointBorderColor:'#16181b',
+          borderColor:accent, backgroundColor:accent+'15',
+          borderWidth:2.5, pointBackgroundColor:accent, pointBorderColor:bg,
           pointBorderWidth:2, pointRadius:4, fill:true, tension:0.3}]},
         options:{responsive:true, maintainAspectRatio:false,
           plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmtKg(c.raw)}}},
