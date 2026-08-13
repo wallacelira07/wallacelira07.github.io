@@ -16,6 +16,11 @@ function hydrateReembolsos(){
   t('reembPagaCartao', fmt(R.visaDetalhe.corp + R.mbDetalhe.corp)); // CORRIGIDO 31/07/2026 (V223): so mostrava visaDetalhe.corp (Visa), sumindo com o corporativo do MB (R$297,31 este ciclo) mesmo o card se chamando "Infinite/MB".
   t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
   t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // CORRIGIDO 20/07/2026: agora e literalmente o item 4 da cascata (usado no calculo de reembolsoSobraPessoal), nao mais um campo paralelo "so informativo".
+  // NOVAS 12/08/2026 (linhas 6/7 da cascata, ver recalcular-necessidade.js pra fórmula real):
+  // Manejo = VARS.reembolsoManejo (manual). Sobra Disponível = R.operacional.coberturaGarantida,
+  // que agora É literalmente esse valor (Sobra Total - Manejo) - mesmo número, 2 nomes/contextos.
+  t('reembManejo', fmt(VARS.reembolsoManejo || 0));
+  t('reembSobraDisponivel', fmt(R.operacional.coberturaGarantida));
   t('metaInvTotal', fmt(R.metaInvestimento.investido));
   t('metaInvExcedente', fmt(R.metaInvestimento.excedente));
   t('metaInvMensal', fmt(R.metaInvestimento.meta));

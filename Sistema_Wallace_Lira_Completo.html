@@ -938,19 +938,38 @@
 
   <!-- 19 -->
   <div class="section-num"><span class="n">19</span><h2>Reembolsos Wärtsilä</h2></div>
+  <!-- REORGANIZADA 12/08/2026 (pedido do usuário: "letras e espaçamentos brigando por espaço") —
+       rótulos das 7 linhas da cascata eram frases longas com explicação embutida (ex: "4. MP pessoal
+       (o que você deve na fatura)", "7. Sobra disponível (= Cobertura Garantida)"), competindo com o
+       valor em R$ pelo mesmo espaço de linha (.row é flex, .v não quebra — .k espremia). Encurtados
+       pro essencial; a explicação completa vira title="" (tooltip nativo no hover/toque longo), sem
+       perder informação nenhuma. Números 1-4 (destinos que consomem o reembolso) e 5-7 (resultado da
+       conta) ganham leve recuo visual pra marcar a hierarquia cascata → resultado sem precisar de
+       texto extra na tela. -->
   <div class="card">
     <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)" id="reembRecebidos">—</span></div>
     <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600" id="reembAReceber">—</span></div>
     <div class="row" style="border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k" style="font-weight:700">Total do ciclo</span><span class="v" style="font-weight:700" id="reembCicloTotal">—</span></div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos no ciclo = Total do ciclo − A receber (sobe automaticamente conforme reembolsos são confirmados). A receber é a última solicitação pendente (Amount Due Employee), ainda sem data de pagamento. Reembolso não tem dia fixo pra entrar — depende do trabalho/aprovação.</div>
-    <div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.7rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
-    <div class="row" style="margin-top:0.3rem"><span class="k">1. Fatura do cartão Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
-    <div class="row"><span class="k">2. Corporativo Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
-    <div class="row"><span class="k">3. Corporativo cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
-    <div class="row" style="border-top:1px solid var(--border);margin-top:0.3rem;padding-top:0.3rem"><span class="k" style="font-weight:700">4. MP pessoal (o que você deve na fatura)</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
-    <div class="row" style="margin-top:0.3rem"><span class="k" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
-    <div class="v" id="legLinha4vs5MP" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">—</div>
-    <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos = Total do ciclo − A receber (sobe conforme reembolsos são confirmados). A receber é a última solicitação pendente, ainda sem data de pagamento.</div>
+
+    <div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.8rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
+    <div style="padding-left:0.7rem;border-left:2px solid var(--border);margin-top:0.4rem">
+      <div class="row" style="padding:0.35rem 0"><span class="k">1. Fatura Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
+      <div class="row" style="padding:0.35rem 0"><span class="k">2. Corp. Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
+      <div class="row" style="padding:0.35rem 0"><span class="k">3. Corp. cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
+      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="O que você mesmo deve na fatura do Mercado Pago, depois da parte corporativa (linha 2)" style="font-weight:700">4. MP pessoal</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
+    </div>
+    <div style="padding-left:0.7rem;border-left:2px solid var(--green);margin-top:0.5rem">
+      <div class="row" style="padding:0.35rem 0"><span class="k" title="Tudo que sobra do reembolso depois das linhas 1-4" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+      <!-- NOVA 12/08/2026 (pedido do usuário): "Manejo/Movimentação" — quanto da Sobra Total (linha 5)
+           já foi usado ou reservado pelo usuário pra outra coisa este ciclo, fora da cascata. Manual
+           (VARS.reembolsoManejo, hydrate-reembolsos.js), zerado por padrão. Abate da sobra ANTES dela
+           virar Cobertura Garantida — mantém a Necessidade Líquida automática (linha 7) mas dá controle
+           explícito sobre o que já foi de fato tirado da sobra. -->
+      <div class="row" style="padding:0.35rem 0"><span class="k" title="Quanto da Sobra Total (linha 5) você já confirmou ter usado ou reservado pra outra coisa este ciclo">6. Manejo/Movimentação</span><span class="v" style="color:var(--amber)" id="reembManejo">—</span></div>
+      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="Linha 5 − linha 6 = o que de fato abate a Necessidade Total, vira Necessidade Líquida (Cobertura Garantida)" style="font-weight:700">7. Sobra disponível</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraDisponivel">—</span></div>
+    </div>
+    <div class="v" id="legLinha4vs5MP" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
   <!-- 20 -->
@@ -2158,8 +2177,15 @@ var __promisePibHistoricoV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/re
 // creditoKmvIpiranga/proLaboreFixo - "verdade externa" atualizada manualmente, mesmo padrao
 // do CDI_MENSAL_ATUAL): busca de uma vez em `indicadores`. Fallback silencioso permitido -
 // se falhar, os literais V1 continuam valendo (nunca quebra calculo nenhum).
-window.WALLACE_CREDITOS_EXTERNOS_V2 = null;
-var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor&nome=in.(creditoUberBalance,creditoShellBox,creditoKmvIpiranga,proLaboreFixo,cartaoMBTotal,mbLRWConfirmado,mbLRVConfirmado,cartaoInfiniteTotal)', {
+// AMPLIADO 12/08/2026 (achado do usuário: lag no boot ainda alto — auditoria de agrupamento de
+// chamadas encontrou 2 fetches distintos batendo na MESMA tabela `indicadores`: este aqui, com
+// filtro pros 8 nomes de "verdade externa", e _obterTodosIndicadores() em app.js, que busca TODA a
+// tabela na primeira vez que algum hydrate chama getIndicador(). Unificado: agora busca TUDO (mesma
+// query de _obterTodosIndicadores, mesmo select/order) e app.js reusa este mesmo resultado pra
+// pré-popular o cache de _obterTodosIndicadores() — nunca mais refaz o fetch. Variável renomeada
+// (WALLACE_CREDITOS_EXTERNOS_V2 -> WALLACE_TODOS_INDICADORES_V2) pra refletir o escopo novo.
+window.WALLACE_TODOS_INDICADORES_V2 = null;
+var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/indicadores?select=nome,valor,data_calculo&order=data_calculo.desc', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2167,7 +2193,7 @@ var __promiseCreditosExternosV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.c
   return null;
 }).then(function(rows){
   if(Array.isArray(rows) && rows.length){
-    window.WALLACE_CREDITOS_EXTERNOS_V2 = rows;
+    window.WALLACE_TODOS_INDICADORES_V2 = rows;
   }
 }).catch(function(e){
   console.warn('Nao consegui buscar creditos externos (V2) do Supabase, usando literais V1:', e);

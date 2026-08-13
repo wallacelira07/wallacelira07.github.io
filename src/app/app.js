@@ -742,6 +742,21 @@ const WallaceFinanceService = {
   }
 };
 
+// CORRIGIDO 12/08/2026 (achado do usuário: "tempo pra dados aparecerem ainda demorando" — auditoria
+// de agrupamento de chamadas): window.WALLACE_TODOS_INDICADORES_V2 (bootstrap síncrono no HTML, ver
+// __promiseCreditosExternosV2/Sistema_Wallace_Lira_Completo.html) já busca TODA a tabela `indicadores`
+// pra alimentar creditoUberBalance/mbLRWConfirmado/etc logo no topo deste arquivo — a MESMA tabela que
+// _obterTodosIndicadores() (linha ~505) busca de novo, na primeira vez que algum hydrate chama
+// getIndicador(), sem saber que o bootstrap já trouxe tudo. Pré-popula o cache aqui com o resultado do
+// bootstrap (mesmo formato de Map que _obterTodosIndicadores() monta) — 1 fetch de indicadores no
+// boot inteiro, não 2. Se o bootstrap falhou (array vazio/ausente), não popula nada — próxima chamada
+// de getIndicador() cai no caminho normal (fetch dela mesma), sem regressão.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_TODOS_INDICADORES_V2) && window.WALLACE_TODOS_INDICADORES_V2.length){
+  const __mapaIndicadoresBootstrap = new Map();
+  window.WALLACE_TODOS_INDICADORES_V2.forEach(l => { if(!__mapaIndicadoresBootstrap.has(l.nome)) __mapaIndicadoresBootstrap.set(l.nome, l); });
+  WallaceFinanceService._cache.set('indicadores_todos', Promise.resolve(__mapaIndicadoresBootstrap));
+}
+
 // NOVO 08/08/2026 (diretriz arquitetural: "V2 é a fonte real, V1 é legado" — não perpetuar
 // convivência silenciosa): usada pelos módulos Onda 4/5 já migrados quando a busca na V2 falha.
 // ANTES: catch só logava e retornava, deixando o valor V1 (síncrono, já renderizado) na tela sem
@@ -1152,7 +1167,7 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PIB_HISTORICO_V
 }
 
 // ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
-// window.WALLACE_CREDITOS_EXTERNOS_V2 (bootstrap do HTML, tabela indicadores) vence o literal de
+// window.WALLACE_TODOS_INDICADORES_V2 (bootstrap do HTML, tabela indicadores) vence o literal de
 // código se respondeu com dado. CRITICO: proLaboreFixo precisa ser sobrescrito AQUI, bem no topo
 // do arquivo - reg-operacional.js (criarRegOperacional(), Object.assign(REG,...) mais abaixo) copia
 // VARS.proLaboreFixo pra dentro de REG.operacional.proLaboreFixo UMA VEZ; se essa sobrescrita
@@ -1164,8 +1179,8 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PIB_HISTORICO_V
 // mesmo fetch) - saldo oficial aprovado pelo usuário contra a fatura real do banco (Mastercard
 // Black, print 11/08/2026), gravado direto na V2. Antes só existiam via wallace_dados (bloqueador
 // confirmado na auditoria) - agora `indicadores` é a fonte, sem residir mais em wallace_dados.
-if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CREDITOS_EXTERNOS_V2) && window.WALLACE_CREDITOS_EXTERNOS_V2.length){
-  window.WALLACE_CREDITOS_EXTERNOS_V2.forEach(r => {
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_TODOS_INDICADORES_V2) && window.WALLACE_TODOS_INDICADORES_V2.length){
+  window.WALLACE_TODOS_INDICADORES_V2.forEach(r => {
     if(r.nome === 'creditoUberBalance') VARS.creditoUberBalance = Number(r.valor);
     else if(r.nome === 'creditoShellBox') VARS.creditoShellBox = Number(r.valor);
     else if(r.nome === 'creditoKmvIpiranga') VARS.creditoKmvIpiranga = Number(r.valor);
@@ -1186,7 +1201,7 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_CREDITOS_EXTERN
     else if(r.nome === 'cartaoInfiniteTotal') VARS.cartaoInfiniteTotal = Number(r.valor);
   });
 } else if(__literalAntesDoMerge) {
-  console.error('Créditos externos V2: window.WALLACE_CREDITOS_EXTERNOS_V2 indisponível — usando o literal de código de vars-operacional.js (não wallace_dados/V1).');
+  console.error('Créditos externos V2: window.WALLACE_TODOS_INDICADORES_V2 indisponível — usando o literal de código de vars-operacional.js (não wallace_dados/V1).');
   VARS.creditoUberBalance = __literalAntesDoMerge.creditoUberBalance;
   VARS.creditoShellBox = __literalAntesDoMerge.creditoShellBox;
   VARS.creditoKmvIpiranga = __literalAntesDoMerge.creditoKmvIpiranga;
@@ -1436,7 +1451,14 @@ calcularROCOpcoes();
 // V175). Agora SEMPRE derivado do mesmo totalOperacionalHeld + Orcamento Operacional - Cobertura Garantida
 // real, igual a formula que ja vale pro ciclo atual (necessidadeLiquida = necessidadeTotalBruta -
 // coberturaGarantida) - nunca mais 2 numeros independentes podendo divergir.
-VARS.necessidadeLiquidaHeld = Math.round((VARS.totalOperacionalHeld + VARS.orcamentoOperacional - VARS.coberturaGarantidaConfirmada) * 100) / 100;
+// ATUALIZADO 12/08/2026 (Cobertura Garantida voltou a ser automatica = Sobra Total da cascata -
+// Manejo, ver recalcular-necessidade.js): "Held" representa o PATAMAR FINAL de uma projecao de 12
+// ciclos a frente, onde Cobertura Garantida e SEMPRE 0 por regra propria da projecao ("cobertura
+// garantida so existe confirmada pro ciclo atual, nunca projetada pra frente" - recalcular-necessidade.js,
+// loop de evolucao). Usar aqui o valor automatico do ciclo ATUAL seria aplicar a sobra de hoje a um
+// ciclo futuro que a propria formula de projecao trata como sem cobertura - mantido 0 literal, nao
+// mais VARS.coberturaGarantidaConfirmada (campo agora vestigial, ver vars-operacional.js).
+VARS.necessidadeLiquidaHeld = Math.round((VARS.totalOperacionalHeld + VARS.orcamentoOperacional - 0) * 100) / 100;
 // NOVO 01/08/2026 (V255, pedido do usuário): trava de consistência pras leituras solares. O medidor
 // bidirecional NUNCA zera e os codigos 03/103 SO PODEM subir de uma leitura pra outra (nunca descer) -
 // se um valor novo vier menor que o anterior, e quase certamente erro de leitura/digitacao (nao um

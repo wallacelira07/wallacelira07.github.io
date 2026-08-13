@@ -681,12 +681,25 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   //   REG.evolucao.totalOperacional — a MESMA fonte viva do gráfico "Evolução do Total Operacional"
   //   (aba Gráficos), nunca mais duas séries divergentes pro mesmo conceito.
   // - "Líquido" (era REG.deficitZero.liquidoSemTrabalhar, R$7.667,73) agora é o piso mínimo
-  //   GARANTIDO por lei sempre que há pelo menos 1 dia trabalhado no ciclo: Periculosidade (30%) +
-  //   Supervisão (5%) = 35% de adicionais fixos, não dependem de hora extra/banco de horas.
-  //   Salário base R$10.913,66 informado pelo usuário × 1,35 = R$14.733,44.
+  //   LÍQUIDO GARANTIDO por lei sempre que há pelo menos 1 dia trabalhado no ciclo.
+  // RECALCULADO 12/08/2026 (pedido do usuário: "salário seco sem hora extra" — Base + 30% + 5% +
+  // Creche, COM todos os descontos por cima, não só o bruto ×1,35 de antes): mesma metodologia de
+  // liquidoSemTrabalhar (VARS.liquidoSemTrabalhar, ver vars-operacional.js), mas COM Periculosidade
+  // (só entra quando há pelo menos 1 dia trabalhado). Fonte dos valores-base: `parametros_gerais`
+  // (nome='taxasHoraFolhaPontoWartsila' e 'liquidoProjetadoProximoCiclo_memoria_calculo').
   const dzLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
   const SALARIO_BASE_GARANTIDO = 10913.66;
-  const dzLiquido = Math.round(SALARIO_BASE_GARANTIDO * 1.35 * 100) / 100; // R$14.733,44
+  const PERICULOSIDADE_30PCT = 3274.10;   // 30% da base, provento fixo sempre que há ao menos 1 dia trabalhado
+  const SUPERVISAO_5PCT = 545.68;         // 5% da base, fixo desde que virou Supervisor
+  const AUXILIO_CRECHE = 445.00;          // fixo, não escala com o salário
+  const INSS_TETO = 988.07;               // no teto de contribuição, constante
+  const IRRF_BASE_SEM_ADICIONAIS = 2639.04; // residual: IRRF total do holerite (R$5.055,57) menos a parcela marginal 27,5% dos adicionais de hora extra
+  const SAUDE_DENTAL_FIXO = 413.15;       // dependente médica + odonto + dependente odonto
+  const PGBL_6PCT = 654.82;               // 6% da base
+  const dzLiquido = Math.round((
+    (SALARIO_BASE_GARANTIDO + PERICULOSIDADE_30PCT + SUPERVISAO_5PCT + AUXILIO_CRECHE)
+    - (INSS_TETO + IRRF_BASE_SEM_ADICIONAIS + SAUDE_DENTAL_FIXO + PGBL_6PCT)
+  ) * 100) / 100; // R$10.483,36
   const dzPiso = alignSeriesCiclo(REG.evolucao.totalOperacional);
   const dzDeficit = dzPiso.map(p=>Math.round((dzLiquido-p)*100)/100);
 
@@ -790,7 +803,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
-        label:c=>{const i=c.dataIndex; return ['Piso mínimo garantido (base+35%): '+fmt(dzLiquido),'Total Operacional: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(dzDeficit[i]))];}
+        label:c=>{const i=c.dataIndex; return ['Piso mínimo líquido garantido (base+30%+5%+creche−descontos): '+fmt(dzLiquido),'Total Operacional: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(dzDeficit[i]))];}
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}

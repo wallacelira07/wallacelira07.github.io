@@ -22,7 +22,19 @@ function recalcularNecessidade(){
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir
 
   // Total Operacional = soma literal dos 7 componentes (mesma formula documentada na Politica sec.13/TOTAL_OPERACIONAL)
-  REG.operacional.coberturaGarantida = VARS.coberturaGarantidaConfirmada || 0; // CORRIGIDO 26/07/2026 (V175): usuario esclareceu a regra - "o valor so deve constar como garantido quando eu por na caixa e informar o que vai cobrir". Antes era FORMULA automatica (totalOpProvMP + reembolsoPagaCartaoCorporativo) somando dividas que ja vao ser pagas de qualquer jeito (nao dinheiro reservado cobrindo algo) - conceitualmente errado. Agora fica em R$0,00 ate o usuario confirmar um valor especifico e o que ele cobre.
+  // CORRIGIDO 12/08/2026 (achado do usuario: a tela dizia "so a sobra total [linha 5 da cascata]
+  // abate a Necessidade Total e vira Necessidade Liquida" mas o codigo usava VARS.coberturaGarantidaConfirmada,
+  // campo manual desconectado da Sobra Total desde a V175 (26/07) - texto e formula dessincronizados
+  // havia mais de 2 semanas. Cobertura Garantida volta a ser automatica = Sobra Total da cascata de
+  // reembolso (REG.operacional.reembolsoSobraPessoal, ja calculado por recalcularReembolsos(), chamada
+  // logo antes desta funcao) MENOS o "Manejo/Movimentacao" (VARS.reembolsoManejo, manual) - quanto da
+  // sobra o usuario ja confirmou ter usado/reservado pra outra coisa este ciclo. Diferente da FORMULA
+  // antiga rejeitada em V175 (totalOpProvMP + reembolsoPagaCartaoCorporativo, que somava DIVIDAS que
+  // iam ser pagas de qualquer jeito) - Sobra Total ja e dinheiro que sobrou DEPOIS das 4 pernas da
+  // cascata, nao uma divida disfarcada. Math.max(0,...) evita Cobertura Garantida negativa se o
+  // usuario registrar mais Manejo do que a sobra disponivel (sinal de erro de digitacao, nunca deixa
+  // a Necessidade Liquida "subir" por causa disso).
+  REG.operacional.coberturaGarantida = r2(Math.max(0, REG.operacional.reembolsoSobraPessoal - (VARS.reembolsoManejo || 0)));
   const snapAtual = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
   if(snapAtual && snapAtual.fechado){
     // V177 (26/07/2026, pedido do usuario): "esses dados nao sao os corretos para o ciclo anterior" -

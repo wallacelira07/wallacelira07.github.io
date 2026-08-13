@@ -76,12 +76,20 @@ function hydrateResumoExecutivo(){
   // fato". Diferente das outras ~28 legendas estáticas (hydrate-roc.js, tabela `legendas`), esta
   // agora é COMPUTADA a cada hydrateResumoExecutivo() — nunca mais fica presa a um número antigo,
   // acompanha automaticamente qualquer futura confirmação real de Cobertura Garantida.
+  // ATUALIZADO 12/08/2026 (achado do usuário: a Necessidade Líquida do topo — R$13.896,02 — não
+  // batia com a "Sobra total" da cascata de reembolso — R$1.357,01 —, que a própria tela da seção 19
+  // já dizia ser o que abate a Bruta virando Líquida. Causa raiz: Cobertura Garantida usava um campo
+  // manual desconectado (VARS.coberturaGarantidaConfirmada, travado em R$0 desde 26/07/V175) em vez
+  // da Sobra Total real. Corrigido na fonte (recalcular-necessidade.js) — Cobertura Garantida volta a
+  // ser automática = Sobra Total da cascata (linha 5, seção 19) menos "Manejo/Movimentação" (linha 6,
+  // manual — quanto da sobra já foi usado/reservado pra outra coisa). Esta legenda só reflete o
+  // resultado, não inventa mais a explicação "manual/nunca automática".
   const legNecBrutaLiquidaEl = $('legNecessidadeBrutaLiquida');
   if(legNecBrutaLiquidaEl){
     const cg = R.operacional.coberturaGarantida;
     legNecBrutaLiquidaEl.innerHTML = cg > 0
-      ? `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Cobertura Garantida confirmada: <span class="v">${fmt(cg)}</span> — só conta quando você coloca o valor numa caixa e informa o que ele cobre (nunca calculada automática pela cascata de reembolso).`
-      : `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Cobertura Garantida — hoje <span class="v">R$0,00</span> (nada confirmado ainda), então Bruta e Líquida são o mesmo valor. Só passa a divergir quando você confirmar que colocou um valor numa caixa cobrindo uma fatura específica (nunca calculada automática pela cascata de reembolso Wärtsilä).`;
+      ? `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Sobra Disponível da cascata de reembolso Wärtsilä (seção 19, linha 7): <span class="v">${fmt(cg)}</span>.`
+      : `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Sobra Disponível da cascata de reembolso Wärtsilä (seção 19, linha 7) — hoje <span class="v">R$0,00</span>, então Bruta e Líquida são o mesmo valor. Sobe automaticamente quando a cascata do ciclo tiver sobra real.`;
   }
 
   // CORRIGIDO 12/08/2026 (achado de auditoria: legenda tinha "Custos Variáveis R$2.000,00 + PIX

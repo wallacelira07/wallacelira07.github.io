@@ -31,6 +31,15 @@ function criarVarsReembolsos(){
   faturaMPCorporativoPendente: 1544.11, // NOTA 27/07/2026 (V187): a fatura MP em si JÁ FOI PAGA (boleto R$2.015,58, 27/07) - mas esses R$1.544,11 continuam pendentes de REEMBOLSO da Wärtsilä (Recife ida+volta R$1.277,88 + Aeroporto JP R$266,23), independente do pagamento da fatura. Zerar quando a Wärtsilä efetivamente reembolsar, não quando a fatura for paga.
   // V141 (23/07/2026, fechamento da varredura): ultimos primarios soltos encontrados
   reembolsoCicloTotal: 5254.98,       // Recebidos (ja inclui TED 21/07 + TX000220 de 07/08, R$340,00, transferido pelo usuario pra Caixa Wartsila) + A Receber (0) - regra V50. Confirmado pelo usuario: o R$340 foi transferido de verdade pra dentro da Caixa Wartsila (ver WARTSILA_CAIXA_TRANSACOES abaixo), NAO direto pra Caixa Lance - segue a cascata da politica (secao 5): Cartao Wartsila -> corporativo Mastercard -> corporativo Mercado Pago -> Pessoal Mercado Pago -> so a sobra vai pra Lance. reembolsoCicloTotal e a UNICA variavel indicadora a atualizar (SSOT, V137) - sobraPessoal e recalculado automaticamente pela cascata.
+  // NOVO 12/08/2026 (pedido do usuario, achado real: a tela dizia "so a sobra total abate a
+  // Necessidade Total" mas o codigo usava um campo manual desconectado, "Cobertura Garantida",
+  // travado em R$0 desde 26/07 - texto e codigo dessincronizados). Necessidade Liquida passou a ser
+  // automatica de novo (Necessidade Bruta - Sobra Total da cascata, ver recalcular-necessidade.js),
+  // mas o usuario quis manter controle: "Manejo/Movimentacao" e quanto da Sobra Total ele ja usou ou
+  // reservou pra outra coisa este ciclo (fora da cascata) - abate da sobra ANTES dela virar Cobertura
+  // Garantida. Manual, zerado por padrao (nada foi movido ainda) - preencher so quando o usuario
+  // confirmar que de fato tirou parte da sobra pra outro destino.
+  reembolsoManejo: 0,
   // MIGRADO 27/07/2026 (V193): provisionadoWartsila migrada para saldo derivado. Historico do saldo
   // do ciclo antigo (R$683,04, confirmado pelo usuario) usado no pagamento de hoje - documentado em
   // V188 apos correcao do erro de V171 (zerada indevida).

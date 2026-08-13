@@ -39,7 +39,7 @@ function criarVarsOperacional(){
     // histórico/fallback morto — nunca mais renderizado.
     legPGVSaldoResidual: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.caixasOperacionais.pixGeralVanessa.saldo)`,
     legOpcoesReconstruido: `3 posições confirmadas via extrato da corretora: PETRT379 R$154,84 · PETRS368W5 R$39,97 · ITUBT424 R$177,04. <strong>Total de prêmios: R$371,85</strong>, já garantido mesmo com posições ativas. Estratégia: deixar vencer.`,
-    legLinha4vs5MP: `Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali. Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino. Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.`,
+    legLinha4vs5MP: `Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali. Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino. Linha 6 (Manejo) é quanto dessa sobra você já confirmou ter usado/reservado pra outra coisa — o que resta (linha 7, Sobra Disponível) é o que de fato abate a Necessidade Total.`,
     legPGBLDefinicao: `6% do salário (Wallace) + 6% de contrapartida (Wärtsilä), gestão da empresa. Saque apenas em caso de demissão ou aposentadoria — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, que consideram só patrimônio líquido/investível. Conta separada da BTG/Necton (LFTS11) acima.`,
     // CORRIGIDO 12/08/2026 (achado de auditoria: os 2 valores da composição — teto da Caixa Variável
     // e meta da PIX Vanessa — estavam escritos fixos na string, sem ler os números reais). Esta
@@ -64,21 +64,21 @@ function criarVarsOperacional(){
     legMPCorporativoImpacto: `Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, R$9.223,66 têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.`,
     legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
     legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Não há fórmula CLT/convenção implementada como derivado — atualizar manualmente se o salário-base mudar.`,
-    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$7.667,73/mês</strong>.`,
+    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$8.109,64/mês</strong>.`,
     // ATUALIZADO 11/08/2026 (pedido do usuário: gráfico 06 "Operação Déficit Zero" virou o gráfico
     // 04, atrelado à seção "O que NUNCA é cortado" — trocou o que compara: antes era líquido fixo
     // sem trabalhar × piso absoluto de gastos fixos, agora é o piso mínimo GARANTIDO por lei sempre
     // que há pelo menos 1 dia trabalhado no ciclo (salário base + Periculosidade 30% + Supervisão
     // 5% = base×1,35, nunca cai abaixo disso) × a Evolução real do Total Operacional (mesma série
     // viva do gráfico gêmeo da aba Gráficos, cai conforme parcelas terminam).
-    legDeficitSemEmbarque: `Compara o piso mínimo que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo (salário base R$10.913,66 + Periculosidade 30% + Supervisão 5% = <strong>R$14.733,44/mês</strong>, nunca cai abaixo disso) contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`,
+    legDeficitSemEmbarque: `Compara o piso mínimo líquido que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo — salário seco, sem hora extra: Base R$10.913,66 + Periculosidade 30% + Supervisão 5% + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL = <strong>R$10.483,36/mês</strong>, nunca cai abaixo disso — contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`,
     // NOVO 11/08/2026 (pedido do usuário, gráfico idêntico ao de cima com 2 eixos diferentes):
     // compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" já
     // usada na seção 01, base+5%+creche, sem periculosidade) contra o piso absoluto de gastos que
     // nunca é cortado (seção 03, mesmo valor de pisoTotal). Os 2 valores são constantes mês a mês
     // (diferente do gráfico de cima, que usa a Evolução real do Total Operacional) — a diferença se
     // repete igual nos 12 meses, é o esperado, não é bug.
-    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche, sem periculosidade — <strong>R$7.667,73/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
+    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>R$8.109,64/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
     legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     // CORRIGIDO 07/08/2026 (mudança de regra de negócio): a legenda antiga condicionava o
@@ -135,7 +135,12 @@ function criarVarsOperacional(){
   // Operacional causada pela variacao do salario (media R$20.084 / mediana R$18.283 / minimo R$7.649).
   proLaboreFixo: 11600.00, // ATUALIZADO 03/08/2026: era 11000.00
   coberturaGarantida: 0, // OBSOLETO (V175) - nunca mais usado diretamente, ver coberturaGarantidaConfirmada abaixo.
-  coberturaGarantidaConfirmada: 0, // NOVO 26/07/2026 (V175): so preenchido quando o USUARIO confirmar explicitamente "coloquei R$X na caixa Y cobrindo Z" - nunca calculado por formula automatica. Zerado por padrao ate essa confirmacao existir.
+  // OBSOLETO 12/08/2026: Cobertura Garantida deixou de depender deste campo manual - voltou a ser
+  // automatica (Sobra Total da cascata de reembolso - Manejo/Movimentacao, ver
+  // REG.operacional.reembolsoSobraPessoal e VARS.reembolsoManejo em vars-reembolsos.js, formula em
+  // recalcular-necessidade.js). Mantido aqui só pra não quebrar nenhuma leitura antiga esquecida -
+  // nunca mais escrito nem lido pelo cálculo real.
+  coberturaGarantidaConfirmada: 0,
   tetoOficial: 2000.00,                    // meta oficial (Aporte=Meta-Saldo), nao muda com tolerancia temporaria
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
   caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
@@ -158,7 +163,19 @@ function criarVarsOperacional(){
   // `parametros_gerais` (nome='taxasHoraFolhaPontoWartsila'). Este literal é só fallback — a V2
   // (mesma tabela) já sobrescreve no boot. Era R$16.048,51, depois R$16.396,32 (errado).
   liquidoProjetadoProximoCiclo: 16819.56,  // Estimador de Salario - ciclo Ago/26 (dado real, TX000136)
-  liquidoSemTrabalhar: 7667.73,            // REGRA_CENARIO_FICOU_EM_CASA
+  // RECALCULADO 12/08/2026 (pedido do usuário: simular "salário seco sem hora extra" — Base +
+  // Supervisão(5%) + Creche, sem Periculosidade, com todos os descontos por cima, mesma
+  // metodologia usada em liquidoProjetadoProximoCiclo). Fórmula: 10913,66 (base) + 545,68
+  // (Supervisão 5%) + 445,00 (Creche fixo) = R$11.904,34 proventos; descontos = INSS R$988,07
+  // (teto de contribuição, constante) + IRRF R$1.738,66 (base R$2.639,04 sem adicionais — residual
+  // de IRRF total R$5.055,57 menos a parcela marginal 27,5% dos adicionais de hora extra do
+  // holerite real — MENOS 27,5% sobre a Periculosidade R$3.274,10 que não entra neste cenário, já
+  // que ele já está no teto de faixa) + Saúde/Dental fixo R$413,15 + PGBL R$654,82 (6% da base) =
+  // R$3.794,70. Líquido = R$11.904,34 − R$3.794,70 = R$8.109,64. Fonte dos valores-base:
+  // `parametros_gerais` (nome='taxasHoraFolhaPontoWartsila' e
+  // 'liquidoProjetadoProximoCiclo_memoria_calculo'). Era R$7.667,73 (formula antiga, pré-reajuste
+  // de 12/08/2026, não recalibrada com os valores reais do holerite de julho).
+  liquidoSemTrabalhar: 8109.64,            // REGRA_CENARIO_FICOU_EM_CASA
   desvioPadraoSalario: 9273.21,
   seguroEmplacamentoAporte: 425,
   // NOVO 12/08/2026 (pedido do usuário: aba de emagrecimento, caneta Ozivy Semaglutida): aporte
@@ -178,7 +195,7 @@ function criarVarsOperacional(){
   pisoHeld: 6979.37,
   necessidadeHeld: 11581.08,
   totalOperacionalHeld: 8381.08,
-  necessidadeLiquidaHeld: 0, // PLACEHOLDER - sobrescrito por VARS.necessidadeLiquidaHeld = totalOperacionalHeld + orcamentoOperacional - coberturaGarantidaConfirmada (V225). Nunca editar aqui direto. Era R$10.626,18 fixo (editado em sessao separada de totalOperacionalHeld, 25/07 vs 19/07 - embutia Cobertura Garantida futura de ~R$954,90 que nunca existiu de fato, ver achado do usuario 31/07/2026).
+  necessidadeLiquidaHeld: 0, // PLACEHOLDER - sobrescrito por VARS.necessidadeLiquidaHeld = totalOperacionalHeld + orcamentoOperacional - 0 (V225, ATUALIZADO 12/08/2026 - Cobertura Garantida projetada sempre 0, nunca mais coberturaGarantidaConfirmada). Nunca editar aqui direto. Era R$10.626,18 fixo (editado em sessao separada de totalOperacionalHeld, 25/07 vs 19/07 - embutia Cobertura Garantida futura de ~R$954,90 que nunca existiu de fato, ver achado do usuario 31/07/2026).
   // TX000164/165 (27/07/2026): Conduta pediátrica de Júlio. PIX de R$300,00 saiu direto do
   // Mercado Pago do Wallace para Vanessa (NÃO passou pela PIX Geral Vanessa/PGV - correção de erro
   // anterior, onde eu tinha inventado um passo intermediário de reforço de R$222 via Caixa Variável
