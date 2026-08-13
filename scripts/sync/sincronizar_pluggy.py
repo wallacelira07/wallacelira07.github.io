@@ -10,8 +10,12 @@ IMPORTANTE - modelo de uso:
   nominais) - NAO o plano comercial pago. A conexao com cada banco ja foi
   feita por voce direto em meu.pluggy.ai + autorizada uma vez no Dashboard
   (fluxo OAuth do "Conector 200"). Este script so LE os dados das conexoes
-  que ja existem - ele NUNCA cria conexao nova nem move dinheiro (somente
-  leitura, GET em todos os endpoints).
+  que ja existem na Pluggy (somente GET la) - ele NUNCA cria conexao nova
+  nem move dinheiro de verdade. A UNICA escrita fora do proprio blob Pluggy
+  e `lancar_reservas_pluggy()` (ver DESTINO NO SUPABASE abaixo): registra no
+  ERP, como transacao normal de caixa, uma movimentacao de "saldo reservado"
+  que JA aconteceu dentro do Mercado Pago - nao inicia nem altera nenhuma
+  transferencia real, so espelha no ERP o que ja e fato consumado no banco.
 
 Fluxo de autenticacao:
   1. POST /auth com clientId+clientSecret -> apiKey (validade 2 horas)
@@ -46,6 +50,19 @@ DESTINO NO SUPABASE (ATUALIZADO 08/08/2026 - migracao V1 wallace_dados -> V2 rel
   (decisoes de aprovar/rejeitar da Inbox) fica FORA desta migracao por enquanto - continua em
   wallace_dados, tratada como etapa posterior separada. Ver docs/changelog/PASSAGEM_DE_TURNO.md
   (08/08/2026) para o registro completo desta migracao.
+
+NOVO 13/08/2026 - lancamento automatico das caixinhas do Mercado Pago (ver
+extrair_reservas_pluggy()/lancar_reservas_pluggy()/CAIXA_PLUGGY_MAPA/CAIXA_PLUGGY_CUTOFF):
+  Pedido explicito do usuario - nunca mais precisar avisar manualmente/print quando um
+  reembolso ou reserva acontece no Mercado Pago. A cada sync, varre as transacoes recentes das
+  contas MP procurando "Dinheiro reservado X"/"Dinheiro retirado X" (movimentacoes do recurso de
+  "saldo reservado" do proprio Mercado Pago), traduz pro caixa_id real via CAIXA_PLUGGY_MAPA, e
+  grava via RPC `lancar_reservas_pluggy` (SECURITY DEFINER, idempotente por
+  transacoes.pluggy_tx_id - unique constraint, ON CONFLICT DO NOTHING). So processa movimentacoes
+  DEPOIS de CAIXA_PLUGGY_CUTOFF (13/08/2026 23:59:59 UTC) - tudo antes disso ja foi lancado
+  manualmente na cascata de reconciliacao do reembolso Wartsila desta mesma sessao, ligar sem
+  esse corte duplicaria os valores. Se uma caixa nova aparecer sem estar em CAIXA_PLUGGY_MAPA, o
+  script AVISA no log (nao lanca sozinho) - precisa adicionar a entrada manualmente.
 """
 import json
 import os
@@ -55,6 +72,29 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 PLUGGY_BASE = "https://api.pluggy.ai"
+
+# NOVO 13/08/2026 (pedido explicito do usuario: nunca mais precisar avisar manualmente quando um
+# reembolso/reserva acontece no Mercado Pago) - mapa nome da reserva (como a Pluggy descreve, ex.
+# "Dinheiro reservado Caixa Churrasco") -> caixa_id real do ERP (tabela public.caixas). Confirmado
+# um por um com o usuario em 13/08/2026.
+CAIXA_PLUGGY_MAPA = {
+    "caixa churrasco": "f18e248e-182b-42ec-9d04-f1bf5cb0a749",
+    "caixa lance": "ff0cd9af-c5a9-4a9b-8cdd-c379e167275e",
+    "mastercard_infinite": "748b8612-b854-44e3-8834-542ec7f1ff7c",
+    "fatura mercado pago": "7ddff812-d54a-4df6-b6bf-ae3351c9fcfe",
+    "fatura wartsila": "3d7f37e3-f52f-4aad-a611-23fa54810b39",
+    "fatura wärtsilä": "3d7f37e3-f52f-4aad-a611-23fa54810b39",
+    "caixa de boletos fixos": "7751575a-6339-4bf2-bda4-60817778551c",
+    "emagrecimento": "d6be6a08-9d7b-4664-9c85-1e367aa620b9",
+    "bens duráveis": "eeaf926e-07df-479c-b0bc-1071410a5298",
+    "bens duraveis": "eeaf926e-07df-479c-b0bc-1071410a5298",
+}
+
+# So processa movimentacoes de reserva DEPOIS deste corte - tudo antes disso ja foi lancado
+# manualmente (cascata de reconciliacao do reembolso Wartsila, mesma sessao 13/08/2026). Ligar a
+# automacao pegando o historico inteiro duplicaria esses valores (ja conferido: os nomes/valores
+# batem centavo a centavo com o que ja esta em transacoes origem='reconciliacao').
+CAIXA_PLUGGY_CUTOFF = datetime(2026, 8, 13, 23, 59, 59, tzinfo=timezone.utc)
 
 
 def _request(url: str, method: str = "GET", headers: dict | None = None, body: dict | None = None) -> dict:
@@ -445,6 +485,73 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, resultado: dict) ->
     print(f"Supabase atualizado via RPC: {resposta}")
 
 
+def extrair_reservas_pluggy(resultado: dict) -> list[dict]:
+    """Varre as transacoes recentes das contas Mercado Pago (BANK) procurando movimentacoes de
+    "saldo reservado" ("Dinheiro reservado X" / "Dinheiro retirado X") e traduz pra um lancamento
+    na caixa real do ERP (ver CAIXA_PLUGGY_MAPA). So considera movimentacoes depois de
+    CAIXA_PLUGGY_CUTOFF (ver comentario na constante) - protege contra duplicar o que ja foi
+    lancado manualmente antes da automacao existir.
+
+    Sinal: "Dinheiro reservado X" (valor negativo na conta MP) = dinheiro ENTRANDO na caixa X.
+    "Dinheiro retirado X" (valor positivo na conta MP) = dinheiro SAINDO da caixa X. O sinal e
+    relativo a conta MP (de onde sai/entra o saldo geral), invertido aqui pra refletir o que
+    acontece do ponto de vista da caixa (que e o que importa pro ERP).
+    """
+    reservas = []
+    for conexao in resultado.get("conexoes", []):
+        for conta in conexao.get("contas", []):
+            if conta.get("tipo") != "BANK" or "mercado pago" not in (conta.get("nome") or "").lower():
+                continue
+            for t in conta.get("transacoes_recentes", []):
+                descricao = (t.get("descricao") or "").strip()
+                if descricao.lower().startswith("dinheiro reservado "):
+                    nome_caixa = descricao[len("dinheiro reservado "):].strip()
+                    tipo = "entrada"
+                elif descricao.lower().startswith("dinheiro retirado "):
+                    nome_caixa = descricao[len("dinheiro retirado "):].strip()
+                    tipo = "saida"
+                else:
+                    continue
+
+                caixa_id = CAIXA_PLUGGY_MAPA.get(nome_caixa.lower())
+                if not caixa_id:
+                    print(f"[reservas] AVISO: caixa \"{nome_caixa}\" nao mapeada em CAIXA_PLUGGY_MAPA - "
+                          f"movimentacao ignorada (tx {t.get('id')}), precisa adicionar no mapa.")
+                    continue
+
+                data_tx = t.get("data")
+                try:
+                    dt = datetime.fromisoformat((data_tx or "").replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if dt <= CAIXA_PLUGGY_CUTOFF:
+                    continue
+
+                valor = t.get("valor")
+                if valor is None or t.get("status") != "POSTED":
+                    continue
+
+                reservas.append({
+                    "pluggy_tx_id": t.get("id"),
+                    "data": data_tx[:10] if data_tx else None,
+                    "descricao": f"Pluggy: {descricao}",
+                    "valor": abs(valor),
+                    "tipo": tipo,
+                    "caixa_id": caixa_id,
+                })
+    return reservas
+
+
+def lancar_reservas_pluggy(supabase_url: str, supabase_key: str, reservas: list[dict]) -> None:
+    if not reservas:
+        print("[reservas] nenhuma movimentacao de saldo reservado nova pra lancar.")
+        return
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    rpc_url = f"{supabase_url}/rest/v1/rpc/lancar_reservas_pluggy"
+    resposta = _request(rpc_url, method="POST", headers=headers, body={"reservas": reservas})
+    print(f"[reservas] {len(reservas)} movimentacao(oes) processada(s), {resposta} (ja lancadas antes sao ignoradas, idempotente).")
+
+
 def main() -> int:
     client_id = os.environ.get("PLUGGY_CLIENT_ID")
     client_secret = os.environ.get("PLUGGY_CLIENT_SECRET")
@@ -484,6 +591,10 @@ def main() -> int:
         if supabase_url and supabase_key:
             print("\nAtualizando Supabase...")
             atualizar_supabase(supabase_url, supabase_key, resultado)
+
+            print("\nProcessando movimentações de saldo reservado (cofrinhos MP) pras caixas reais...")
+            reservas = extrair_reservas_pluggy(resultado)
+            lancar_reservas_pluggy(supabase_url, supabase_key, reservas)
 
             print("\nConferindo transações contra o ERP...")
             valores_conhecidos = buscar_valores_conhecidos(supabase_url, supabase_key)
