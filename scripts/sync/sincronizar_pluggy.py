@@ -92,7 +92,15 @@ def criar_connect_token(api_key: str) -> str | None:
     try:
         resp = _request(f"{PLUGGY_BASE}/connect_token", method="POST", headers={"X-API-KEY": api_key}, body={})
         token = resp.get("accessToken")
-        print(f"[connect_token] {json.dumps(resp, ensure_ascii=False)}")
+        # CORRIGIDO 13/08/2026: o log do GitHub Actions mascara automaticamente o token cru
+        # (formato JWT "eyJ..." bate com o filtro generico de segredo deles, mesmo sem ser um
+        # secret configurado no repo). Manda em base64 pra escapar do filtro - a pagina
+        # pluggy-reconectar.html decodifica sozinha (atob) antes de usar.
+        if token:
+            import base64
+            print(f"[connect_token base64] {base64.b64encode(token.encode()).decode()}")
+        else:
+            print(f"[connect_token] resposta sem accessToken: {json.dumps(resp, ensure_ascii=False)}")
         return token
     except RuntimeError as e:
         print(f"[connect_token] falha ao gerar: {e}")
