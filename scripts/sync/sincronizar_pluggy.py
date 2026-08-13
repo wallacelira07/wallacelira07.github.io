@@ -86,15 +86,44 @@ def testar_conectividade(api_key: str) -> None:
     total = resp.get("total", len(resp.get("results", [])))
     print(f"[debug] GET /connectors OK - {total} conectores disponíveis (confirma que a API Key funciona em geral)")
 
-    # DEBUG 13/08/2026: investigando como descobrir item_id de conexoes feitas direto no
-    # portal meu.pluggy.ai (sem passar pelo nosso app) - a Pluggy nao tem endpoint de listar
-    # todos os items, so webhook de conta resolve isso pra frente. Checando se ja existe algum
-    # webhook configurado antes de propor criar um novo.
+
+def garantir_webhook_registrado(api_key: str, supabase_url: str, webhook_secret: str) -> None:
+    """Registra um webhook de CONTA (nao por item) na Pluggy, evento 'all', apontando pra
+    Edge Function pluggy-webhook - idempotente (so cria se GET /webhooks vier vazio).
+
+    NOVO 13/08/2026: resolve um problema real - conexoes feitas direto no portal
+    meu.pluggy.ai (fora do nosso app, ex: as 2 do Mercado Pago) nunca nos entregam o
+    item_id, e a API da Pluggy NAO tem endpoint pra listar todos os items - so um webhook
+    de conta nos avisa automaticamente (evento item/created ou item/updated, payload
+    inclui itemId) de qualquer conexao nova ou atualizada, mesmo feita fora do nosso app.
+    O segredo (X-Webhook-Secret) e o mesmo hardcoded na Edge Function - nunca commitado
+    aqui no repo (publico), so existe como GitHub Secret (PLUGGY_WEBHOOK_SECRET) + hardcoded
+    direto no deploy da function via MCP Supabase.
+    """
+    if not supabase_url or not webhook_secret:
+        print("[webhook] SUPABASE_URL ou PLUGGY_WEBHOOK_SECRET ausentes - pulando registro.")
+        return
     try:
         webhooks_resp = _request(f"{PLUGGY_BASE}/webhooks", headers={"X-API-KEY": api_key})
-        print(f"[debug webhooks] {json.dumps(webhooks_resp, ensure_ascii=False)}")
     except RuntimeError as e:
-        print(f"[debug webhooks] falha ao consultar: {e}")
+        print(f"[webhook] falha ao consultar webhooks existentes: {e}")
+        return
+
+    if webhooks_resp.get("total", 0) > 0:
+        print(f"[webhook] já existe {webhooks_resp['total']} webhook(s) registrado(s), não recriando.")
+        return
+
+    url_destino = f"{supabase_url}/functions/v1/pluggy-webhook"
+    body = {
+        "event": "all",
+        "url": url_destino,
+        "headers": {"X-Webhook-Secret": webhook_secret},
+    }
+    try:
+        criado = _request(f"{PLUGGY_BASE}/webhooks", method="POST", headers={"X-API-KEY": api_key}, body=body)
+        print(f"[webhook] registrado com sucesso: {json.dumps(criado, ensure_ascii=False)}")
+    except RuntimeError as e:
+        print(f"[webhook] falha ao registrar: {e}")
 
 
 def buscar_item(api_key: str, item_id: str) -> dict:
@@ -188,9 +217,11 @@ def listar_transacoes(api_key: str, account_id: str, dias: int = 40, max_paginas
     return transacoes_recentes
 
 
-def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict:
+def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
+                 supabase_url: str = "", webhook_secret: str = "") -> dict:
     api_key = autenticar(client_id, client_secret)
     testar_conectividade(api_key)
+    garantir_webhook_registrado(api_key, supabase_url, webhook_secret)
 
     resultado = {"conexoes": [], "erros": []}
 
@@ -433,6 +464,7 @@ def main() -> int:
     email_from = os.environ.get("EMAIL_FROM")
     email_password = os.environ.get("EMAIL_PASSWORD")
     email_to = os.environ.get("EMAIL_TO")
+    webhook_secret = os.environ.get("PLUGGY_WEBHOOK_SECRET", "")
 
     if not client_id or not client_secret:
         print("ERRO: PLUGGY_CLIENT_ID e/ou PLUGGY_CLIENT_SECRET não definidos.", file=sys.stderr)
@@ -445,7 +477,7 @@ def main() -> int:
 
     try:
         print("Autenticando na Pluggy...")
-        resultado = sincronizar(client_id, client_secret, item_ids)
+        resultado = sincronizar(client_id, client_secret, item_ids, supabase_url or "", webhook_secret)
         print(f"Conexões encontradas: {resultado['total_conexoes']}")
         for c in resultado["conexoes"]:
             print(f"  {c['banco']} ({c['status']}): {len(c['contas'])} conta(s), {len(c['investimentos'])} investimento(s)")

@@ -24,6 +24,7 @@ jobs:
           PLUGGY_CLIENT_ID: ${{ secrets.PLUGGY_CLIENT_ID }}
           PLUGGY_CLIENT_SECRET: ${{ secrets.PLUGGY_CLIENT_SECRET }}
           PLUGGY_ITEM_IDS: ${{ secrets.PLUGGY_ITEM_IDS }}
+          PLUGGY_WEBHOOK_SECRET: ${{ secrets.PLUGGY_WEBHOOK_SECRET }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
