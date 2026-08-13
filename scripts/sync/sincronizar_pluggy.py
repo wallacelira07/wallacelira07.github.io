@@ -79,6 +79,26 @@ def autenticar(client_id: str, client_secret: str) -> str:
     return api_key
 
 
+def criar_connect_token(api_key: str) -> str | None:
+    """POST /connect_token -> token de curta duracao pro widget PluggyConnect no navegador.
+
+    NOVO 13/08/2026: resolve o problema de descobrir item_id de contas que so existem no
+    portal meu.pluggy.ai (webhook de conta nao disparou nada mesmo apos "Atualizar" - ver
+    ESTADO_ATUAL.md 1.1/1.2). Reconectando a MESMA conta pelo widget que O NOSSO app controla
+    (nao o portal deles), o onSuccess do widget devolve o itemId direto no navegador, sem
+    depender de webhook nenhum. So GERA o token aqui - o uso real e manual, numa pagina HTML
+    separada (pluggy-reconectar.html), token colado por quem estiver operando.
+    """
+    try:
+        resp = _request(f"{PLUGGY_BASE}/connect_token", method="POST", headers={"X-API-KEY": api_key}, body={})
+        token = resp.get("accessToken")
+        print(f"[connect_token] {json.dumps(resp, ensure_ascii=False)}")
+        return token
+    except RuntimeError as e:
+        print(f"[connect_token] falha ao gerar: {e}")
+        return None
+
+
 def testar_conectividade(api_key: str) -> None:
     """GET /connectors -> teste de diagnostico recomendado pela propria doc da Pluggy
     pra confirmar se a API Key funciona, SEM depender de nenhum item ja existir."""
@@ -222,6 +242,7 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
     api_key = autenticar(client_id, client_secret)
     testar_conectividade(api_key)
     garantir_webhook_registrado(api_key, supabase_url, webhook_secret)
+    criar_connect_token(api_key)
 
     resultado = {"conexoes": [], "erros": []}
 

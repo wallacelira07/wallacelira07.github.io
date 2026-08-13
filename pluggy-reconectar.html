@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Reconectar conta Pluggy</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 20px; background: #0f1620; color: #c8d4e3; }
+  h1 { font-size: 1.3rem; }
+  p { line-height: 1.5; }
+  input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #2d3b52; background: #16202e; color: #c8d4e3; box-sizing: border-box; }
+  button { padding: 10px 20px; border-radius: 6px; border: none; background: #5fd68a; color: #0f1620; font-weight: bold; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #resultado { margin-top: 20px; padding: 12px; border-radius: 6px; background: #16202e; white-space: pre-wrap; word-break: break-all; font-family: monospace; font-size: 0.9rem; display: none; }
+  #resultado.erro { border-left: 4px solid #e05a5a; }
+  #resultado.sucesso { border-left: 4px solid #5fd68a; }
+</style>
+</head>
+<body>
+  <h1>Reconectar conta Pluggy</h1>
+  <p>Página utilitária temporária - existe só pra descobrir o <code>item_id</code> real de uma conexão feita fora do nosso app (ex: pelo portal meu.pluggy.ai). Cole abaixo o Connect Token gerado pelo workflow "Sincronizar Pluggy" (linha <code>[connect_token]</code> no log), clique em Conectar e faça login normalmente na instituição. Ao final, o <code>item_id</code> aparece na tela - copie e informe.</p>
+
+  <input type="text" id="token" placeholder="Cole o accessToken aqui">
+  <button id="btnConectar">Conectar</button>
+
+  <div id="resultado"></div>
+
+  <script src="https://cdn.pluggy.ai/pluggy-connect/latest/pluggy-connect.js"></script>
+  <script>
+    const btn = document.getElementById('btnConectar');
+    const resultado = document.getElementById('resultado');
+
+    function mostrar(texto, classe) {
+      resultado.textContent = texto;
+      resultado.className = classe;
+      resultado.style.display = 'block';
+    }
+
+    btn.addEventListener('click', () => {
+      const token = document.getElementById('token').value.trim();
+      if (!token) {
+        mostrar('Cole o Connect Token antes de continuar.', 'erro');
+        return;
+      }
+      btn.disabled = true;
+      const pluggyConnect = new PluggyConnect({
+        connectToken: token,
+        includeSandbox: false,
+        onSuccess: (itemData) => {
+          btn.disabled = false;
+          mostrar('CONECTADO COM SUCESSO\n\nitem_id: ' + itemData.item.id +
+            '\nconector: ' + (itemData.item.connector ? itemData.item.connector.name : '?') +
+            '\n\nCopie o item_id acima.', 'sucesso');
+        },
+        onError: (error) => {
+          btn.disabled = false;
+          mostrar('ERRO: ' + JSON.stringify(error), 'erro');
+        },
+        onClose: () => {
+          btn.disabled = false;
+        },
+      });
+      pluggyConnect.init();
+    });
+  </script>
+</body>
+</html>
