@@ -37,7 +37,13 @@
     }
 
     btn.addEventListener('click', () => {
-      const bruto = document.getElementById('token').value.trim();
+      // Aceita colar so o valor OU a linha inteira do log (com o prefixo "[connect_token
+      // base64]") - remove qualquer coisa antes do ultimo "]" antes de decodificar.
+      let bruto = document.getElementById('token').value.trim();
+      const posColchete = bruto.lastIndexOf(']');
+      if (posColchete !== -1) {
+        bruto = bruto.slice(posColchete + 1).trim();
+      }
       if (!bruto) {
         mostrar('Cole o valor de [connect_token base64] antes de continuar.', 'erro');
         return;
