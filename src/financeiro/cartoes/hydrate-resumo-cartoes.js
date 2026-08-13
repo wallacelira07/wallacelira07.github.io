@@ -21,8 +21,22 @@ function hydrateResumoCartoes(){
   // Novo 19/07/2026 (V89, pedido do usuario): Visa+MB liquido de Caixa Variavel.
   // A Caixa Variavel ja cobre 100% de LRW+LRV (REGRA_FUNCAO_CAIXA_VARIAVEL) - este card mostra
   // quanto da obrigacao dos 2 cartoes NAO esta coberto por ela (parcelas/assinaturas/recorrencias/consorcios/corp).
-  const cartoesTotal = Math.round((R.cartaoInfinite.total + R.cartaoMB.total)*100)/100;
-  const cartoesLiquidoCV = Math.round((cartoesTotal - R.caixaVariavel.comprometido)*100)/100;
+  // CORRIGIDO 13/08/2026 (achado de auditoria: esta função e _calcularCartoesLiquidoCV()
+  // (graficos-cenarios-lazy.js) implementavam a MESMA fórmula (cartoesTotal - caixaVariavel.comprometido)
+  // de forma independente). Reusa a função compartilhada quando ela já existe — mas
+  // graficos-cenarios-lazy.js é módulo LAZY que só termina de baixar bem depois de hydrate() rodar no
+  // boot síncrono (ver cabeçalho daquele arquivo), então guard com fallback idêntico é necessário pra
+  // não quebrar a 1ª renderização (typeof indefinido nesse momento). Em qualquer chamada depois do
+  // boot completo (ex: re-hydrate manual), já usa a função compartilhada de verdade.
+  let cartoesTotal, cartoesLiquidoCV;
+  if(typeof _calcularCartoesLiquidoCV === 'function'){
+    const [, , , liquido] = _calcularCartoesLiquidoCV();
+    cartoesTotal = Math.round((R.cartaoInfinite.total + R.cartaoMB.total)*100)/100;
+    cartoesLiquidoCV = liquido;
+  } else {
+    cartoesTotal = Math.round((R.cartaoInfinite.total + R.cartaoMB.total)*100)/100;
+    cartoesLiquidoCV = Math.round((cartoesTotal - R.caixaVariavel.comprometido)*100)/100;
+  }
   t('gCartoesTotalLine', fmt(cartoesTotal));
   t('gCartoesPessoalLine', fmt(R.visa.pessoal)); // mesma logica ja usada em gVisaPessoalLine - so o Visa tem corporativo, MB nao
   t('gCVComprometidoLine', '− '+fmt(R.caixaVariavel.comprometido));
@@ -32,17 +46,23 @@ function hydrateResumoCartoes(){
   // (recomposicao via salario do dia 25 ou sobra do reembolso Wartsila).
   const cvDisponivel = R.caixaVariavel.disponivel;
   const reposicaoNecessaria = cvDisponivel < 0 ? Math.round(Math.abs(cvDisponivel)*100)/100 : 0;
+  // CORRIGIDO 13/08/2026 (achado de auditoria: hex hardcoded #e2554f/#34c98a em vez dos design
+  // tokens var(--red)/var(--green) definidos em :root de styles.css) - lidos via getComputedStyle
+  // no :root pra continuar funcionando com style.color direto (inline), sem precisar de classe nova.
+  const rootStyle = getComputedStyle(document.documentElement);
+  const corRed = rootStyle.getPropertyValue('--red').trim() || '#e2554f';
+  const corGreen = rootStyle.getPropertyValue('--green').trim() || '#34c98a';
   t('gCVDisponivelLine', fmt(cvDisponivel));
   const elDisp = $('gCVDisponivelLine');
-  if(elDisp) elDisp.style.color = cvDisponivel < 0 ? '#e2554f' : '#34c98a';
+  if(elDisp) elDisp.style.color = cvDisponivel < 0 ? corRed : corGreen;
   const elRepo = $('gCVReposicaoLine');
   if(reposicaoNecessaria > 0){
     t('gCVReposicaoLine', fmt(reposicaoNecessaria));
-    if(elRepo) elRepo.style.color = '#e2554f';
+    if(elRepo) elRepo.style.color = corRed;
     t('gCVReposicaoFonte', `Fonte prevista: salário do dia 25 ou sobra do reembolso Wärtsilä (${fmt(R.operacional.reembolsoSobraPessoal)} disponível hoje) — mesmo mecanismo já usado para o LREI0001.`);
   } else {
     t('gCVReposicaoLine', 'Nenhuma');
-    if(elRepo) elRepo.style.color = '#34c98a';
+    if(elRepo) elRepo.style.color = corGreen;
     t('gCVReposicaoFonte', 'Caixa Variável está dentro do previsto — sem necessidade de reposição externa agora.');
   }
   t('s03TituloPat', fmt(R.patrimonio.total));

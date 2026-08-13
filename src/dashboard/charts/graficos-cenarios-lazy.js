@@ -123,7 +123,11 @@ new Chart($('g_cVisa'), {
 // CORRIGIDO 26/07/2026 (V166, pedido do usuario): "Composição da fatura Mastercard Black e Visa
 // Infinite" so mostrava dados do Visa (visaDetalhe) - titulo prometia os 2 cartoes, grafico so
 // entregava 1. Novo dataset COMBINADO: cada categoria soma o componente do Visa + o do Mastercard.
-const FATURA_COMBINADA_LABELS = ['Parcelas','Consórcios','Wallace/MB','Recorrências','Corp.','Assinaturas','Vanessa/MB'];
+// CORRIGIDO 13/08/2026 (achado de auditoria: soma so cobria 7 categorias, omitindo
+// "naoReconciliado" de visaDetalhe/mbDetalhe - quando esse residuo e maior que zero (ja aconteceu,
+// R$49,81 e R$2.678,41 no historico) a soma das barras nao batia com o Total comprometido ao lado).
+// 8a categoria adicionada, mesmo par de campos ja usado em VISA_DETALHE_LABELS/CORES.
+const FATURA_COMBINADA_LABELS = ['Parcelas','Consórcios','Wallace/MB','Recorrências','Corp.','Assinaturas','Vanessa/MB','Não Reconciliado'];
 const FATURA_COMBINADA_VALORES = [
   REG.visaDetalhe.parcelas, // parcelas so existem no Visa (MB nunca recebe parcela, regra fixa)
   REG.visaDetalhe.consorcios + REG.mbDetalhe.consorcios,
@@ -132,6 +136,7 @@ const FATURA_COMBINADA_VALORES = [
   REG.visaDetalhe.corp + REG.mbDetalhe.corp,
   REG.visaDetalhe.assinaturas + REG.mbDetalhe.assinaturas,
   REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa,
+  REG.visaDetalhe.naoReconciliado + REG.mbDetalhe.naoReconciliado,
 ];
 { const __chartExistente = Chart.getChart($('g_cVisaBar')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('g_cVisaBar'), {
@@ -429,7 +434,11 @@ const CAIXAS_OPERACIONAIS_INFO = {
   aniversarioJulio:   { label:'Aniversário Júlio',    nota:'50% da meta · aporte R$200/mês até 14/09' },
   seguroEmplacamento: { label:'Seguro/Emplacamento',  nota:'Aporte R$425/mês (permanente)' },
   bensDuraveis:       { label:'Bens Duráveis',        nota:'Nasceu em -R$355,00 (fone + cortador de pelo, comprados antes da caixa existir) · aporte R$250/mês' },
-  escolaJulio:        { label:'Escola Júlio',         nota:'5,5% da meta · meta R$9.236,00, fora da Meta do Milhão (P5)' }
+  escolaJulio:        { label:'Escola Júlio',         nota:'5,5% da meta · meta R$9.236,00, fora da Meta do Milhão (P5)' },
+  // CORRIGIDO 13/08/2026 (achado de auditoria: mapa mapeava só 9 das 10 chaves de
+  // REG.caixasOperacionais — pixGeralVanessa, criada 07/08/2026, faltava aqui. A 10ª barra do
+  // gráfico aparecia com o nome cru da variável em vez de um rótulo legível).
+  pixGeralVanessa:    { label:'PIX Geral Vanessa',    nota:'Conta autônoma da Vanessa (distinta da PIX Vanessa/reserva do Wallace) · meta R$300' }
 };
 const caixasChaves = Object.keys(REG.caixasOperacionais);
 const caixasLabels = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].label) || k);
