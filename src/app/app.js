@@ -739,6 +739,19 @@ const WallaceFinanceService = {
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pesagens`);
       return await resp.json();
     });
+  },
+  // NOVO 13/08/2026 (aba Emagrecimento, pedido do usuário: "preciso desse controle" — 1ª aplicação
+  // da caneta Ozivy Semaglutida em 13/08/2026, dose 0,25mg de titulação). Tabela `aplicacoes_ozivy`
+  // (mesmo padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert
+  // feito manualmente/via agente conforme cada aplicação acontece de verdade).
+  async getAplicacoesOzivy(){
+    return this._cache.obterOuBuscar('aplicacoes_ozivy', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/aplicacoes_ozivy?select=data,dose_mg,observacao&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar aplicacoes_ozivy`);
+      return await resp.json();
+    });
   }
 };
 

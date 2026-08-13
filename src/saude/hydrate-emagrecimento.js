@@ -5,8 +5,16 @@
 // do usuário ("só peso pra começar") — podem entrar depois sem quebrar o que já existe (tabela
 // `pesagens` só ganharia colunas novas, nunca precisa recriar).
 //
-// Fonte: tabela `pesagens` (V2, 1 linha por data) via WallaceFinanceService.getPesagens(), e
-// vw_saldo_v2_por_caixa (já usada em todo o resto do site) filtrada pelo nome da caixa nova.
+// AMPLIADO 13/08/2026 (pedido do usuário: "crie um gráfico com tabela para controlar as aplicações
+// do Ozivy, apliquei a primeira hoje, preciso desse controle" — 1ª aplicação 13/08/2026, 0,25mg,
+// dose inicial de titulação): tabela `aplicacoes_ozivy` (mesmo padrão de `pesagens`, 1 linha por
+// data, RLS só leitura — insert feito manualmente/via agente conforme cada aplicação real acontece,
+// não existe formulário no painel pra digitar isso). Semaglutida é aplicação SEMANAL — "Próxima
+// prevista" é só a última data +7 dias, não uma confirmação médica.
+//
+// Fonte: tabela `pesagens` (V2, 1 linha por data) via WallaceFinanceService.getPesagens(), tabela
+// `aplicacoes_ozivy` via WallaceFinanceService.getAplicacoesOzivy(), e vw_saldo_v2_por_caixa (já
+// usada em todo o resto do site) filtrada pelo nome da caixa nova.
 //
 // Rollback: comentar a chamada aplicarEmagrecimento() em app.js — a aba fica com "—" em tudo,
 // nenhum outro módulo depende deste.
@@ -62,6 +70,9 @@ async function aplicarEmagrecimento(){
     }
   }
 
+  // Aplicações do Ozivy — controle de doses aplicadas (semanal), separado das pesagens.
+  await aplicarOzivyAplicacoes();
+
   // Custo do tratamento (caneta Ozivy Semaglutida) — caixa dedicada, mesmo padrão de leitura de
   // saldo já usado em todo o resto do site (vw_saldo_v2_por_caixa).
   $('emgAporteMensal').textContent = fmt(VARS.saudeEmagrecimentoAporte)+'/mês';
@@ -89,4 +100,79 @@ async function aplicarEmagrecimento(){
     aporteMensal: VARS.saudeEmagrecimentoAporte,
   };
   console.log('Emagrecimento: relatório completo em window.WALLACE_EMAGRECIMENTO_RELATORIO', window.WALLACE_EMAGRECIMENTO_RELATORIO);
+}
+
+// NOVO 13/08/2026 (pedido do usuário: controle das aplicações da caneta Ozivy Semaglutida, separado
+// do controle de peso). Mesmo padrão de fetch/erro da função aplicarEmagrecimento() acima. Semaglutida
+// é aplicação semanal — "próxima prevista" é só a última data +7 dias, não confirmação médica real.
+async function aplicarOzivyAplicacoes(){
+  const fmtDose = v => (v==null ? '—' : v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' mg');
+  const fmtDataBR = iso => iso.split('-').reverse().join('/');
+  const elAviso = $('ozAviso');
+
+  let aplicacoes;
+  try {
+    aplicacoes = await WallaceFinanceService.getAplicacoesOzivy();
+  } catch(err){
+    console.error('Emagrecimento: falha ao buscar aplicações do Ozivy.', err);
+    if(elAviso) elAviso.textContent = '⚠ Indisponível (V2) — não foi possível carregar as aplicações.';
+    window.WALLACE_OZIVY_RELATORIO = { status: 'erro_aplicacoes', erro: String(err) };
+    return;
+  }
+
+  if(!Array.isArray(aplicacoes) || !aplicacoes.length){
+    $('ozTotalAplicacoes').textContent = '0';
+    $('ozUltimaAplicacao').textContent = '—';
+    $('ozProximaPrevista').textContent = '—';
+    if(elAviso) elAviso.textContent = 'Nenhuma aplicação registrada ainda.';
+    window.WALLACE_OZIVY_RELATORIO = { qtdAplicacoes: 0 };
+    return;
+  }
+
+  const ultima = aplicacoes[aplicacoes.length-1];
+  $('ozTotalAplicacoes').textContent = String(aplicacoes.length);
+  $('ozUltimaAplicacao').textContent = fmtDataBR(ultima.data) + (ultima.dose_mg!=null ? ' ('+fmtDose(Number(ultima.dose_mg))+')' : '');
+  const proxima = new Date(ultima.data+'T00:00:00');
+  proxima.setDate(proxima.getDate()+7);
+  $('ozProximaPrevista').textContent = proxima.toLocaleDateString('pt-BR');
+  if(elAviso) elAviso.textContent = `${aplicacoes.length} aplicação(ões) registrada(s) — semaglutida é semanal, "próxima prevista" é só a última data +7 dias, não é confirmação médica.`;
+
+  const ozTbody = $('ozTableBody');
+  if(ozTbody){
+    ozTbody.innerHTML = aplicacoes.slice().reverse().map(a => (
+      '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+fmtDataBR(a.data)+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmtDose(a.dose_mg!=null ? Number(a.dose_mg) : null)+'</td>'+
+      '<td style="padding:0.3rem 0.5rem;color:var(--text-dim)">'+(a.observacao||'—')+'</td>'+
+      '</tr>'
+    )).join('');
+  }
+
+  const canvas = $('cOzivyDose');
+  if(canvas && typeof Chart !== 'undefined'){
+    const existente = Chart.getChart(canvas);
+    if(existente) existente.destroy();
+    const grid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#262a32';
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4c8ef2';
+    const labels = aplicacoes.map(a => fmtDataBR(a.data));
+    const doses = aplicacoes.map(a => a.dose_mg!=null ? Number(a.dose_mg) : null);
+    new Chart(canvas, {
+      type:'line',
+      data:{labels, datasets:[{data:doses, label:'Dose (mg)',
+        borderColor:accent, backgroundColor:accent+'15',
+        borderWidth:2.5, pointBackgroundColor:accent, pointRadius:4,
+        stepped:'before', spanGaps:true, fill:true}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmtDose(c.raw)}}},
+        scales:{x:{grid:{display:false}, ticks:{font:{size:10}}},
+          y:{grid:{color:grid}, ticks:{font:{size:10}}, beginAtZero:true}}}
+    });
+  }
+
+  window.WALLACE_OZIVY_RELATORIO = {
+    qtdAplicacoes: aplicacoes.length,
+    ultimaAplicacao: ultima,
+    proximaPrevista: proxima.toISOString().slice(0,10),
+  };
+  console.log('Emagrecimento: relatório de aplicações do Ozivy em window.WALLACE_OZIVY_RELATORIO', window.WALLACE_OZIVY_RELATORIO);
 }

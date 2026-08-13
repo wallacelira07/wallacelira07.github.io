@@ -329,6 +329,10 @@ function atualizarGraficosNecessidade(){
   if(cSuperavit && typeof _calcularSuperavitNormal === 'function'){
     const { snLabels, snLiquido, snNecessidade, snDiferenca } = _calcularSuperavitNormal();
     cSuperavit.data.datasets[0].data = snDiferenca;
+    // CORRIGIDO 13/08/2026 (achado de auditoria): backgroundColor não era recalculado num update
+    // posterior — se a diferença virasse negativa depois da criação inicial do chart, a barra
+    // continuaria verde pra sempre (só a posição/altura mudava, nunca a cor).
+    cSuperavit.data.datasets[0].backgroundColor = snDiferenca.map(v=>v<0?'#e2554f':'#34c98a');
     cSuperavit._snLiquido = snLiquido;
     cSuperavit._snNecessidade = snNecessidade;
     cSuperavit.update();
@@ -565,23 +569,37 @@ function _calcularSuperavitNormal(){
   // helper global liquidoMes(i), em vez de ler um array hardcoded. "Vivo" no sentido pedido pelo
   // usuario: qualquer edicao em REG.superavitNormal.liquidoProjetado/liquidoReal se reflete aqui
   // sem precisar recalcular a mao os 12 valores - so o(s) mes(es) com dado novo precisa(m) de entrada.
+  // CORRIGIDO 12/08/2026 (pedido do usuário: "já tendo os valores oficiais, não tem porque usar
+  // estimado" — regra geral do sistema, valor final sempre substitui estimativa quando disponível):
+  // era REG.superavitNormal.necessidade (= Necessidade Total BRUTA, "paga tudo", ignora Cobertura
+  // Garantida). Agora usa REG.evolucao.necessidadeLiquida — mesmo array, mas desconta a Cobertura
+  // Garantida (Sobra Total da cascata de reembolso - Manejo, ver recalcular-necessidade.js, corrigida
+  // hoje pra automática/real). Só o índice 0 (ciclo atual, único com Cobertura Garantida confirmada)
+  // muda de valor — índices 1-11 continuam idênticos (Cobertura Garantida projetada é sempre 0, nunca
+  // chutada pra frente, ver comentário em recalcularNecessidade()).
   const snLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
   const snLiquido = alignSeriesCiclo(snLabels.map((_,i)=>liquidoMes(i)));
-  const snNecessidade = alignSeriesCiclo(REG.superavitNormal.necessidade);
+  const snNecessidade = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
   const snDiferenca = snNecessidade.map((n,i)=>Math.round((snLiquido[i]-n)*100)/100);
   return { snLabels, snLiquido, snNecessidade, snDiferenca };
 }
 
+// CORRIGIDO 13/08/2026 (achado de auditoria: diferença negativa aparecia como "+-1.234" em verde —
+// esta tabela era a única das 3 irmãs (ps/dz/sn) que não tratava o sinal condicionalmente, mesmo
+// padrão já usado em _renderTabelaSuperavitNormal's vizinhas psTableBody/dzTableBody).
 function _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca){
   function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const snTbody = $('snTableBody');
   if(!snTbody) return;
   snTbody.innerHTML = snLabels.map((m,i)=>{
+    const d = snDiferenca[i];
+    const cor = d<0 ? 'var(--red)' : 'var(--green)';
+    const sinal = d<0 ? '−' : '+';
     return '<tr style="border-bottom:1px solid var(--border)">'+
       '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
       '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
       '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
-      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:var(--green)">+'+fmt0b(snDiferenca[i])+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0b(Math.abs(d))+'</td>'+
       '</tr>';
   }).join('');
 }
@@ -593,7 +611,9 @@ function _lazyRenderCenariosSuperavit(){
   // Rotulo compacto em "k" (em vez de milhar completo) - o valor de Julho (salario real) e bem maior que
   // os demais (media), o que gerava sobreposicao de texto com o formato anterior "+13.371" (7 caracteres
   // largos demais para 12 barras). Formato "+19,4k" e fixo e mais estreito.
-  const fmtK = v => '+'+(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'k';
+  // CORRIGIDO 13/08/2026 (achado de auditoria): sinal e cor eram fixos ('+' e verde), mesmo bug da
+  // tabela acima — agora condicional ao valor real, mesmo padrão de dzDataLabelPlugin/psDataLabelPlugin.
+  const fmtK = v => (v<0?'−':'+')+(Math.abs(v)/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'k';
 
   // CORRIGIDO 10/08/2026: le de chart.data.datasets[0].data (a fonte que atualizarGraficosNecessidade()
   // atualiza) em vez do array `snDiferenca` capturado por closure — senão o rótulo continuaria mostrando
@@ -608,7 +628,7 @@ function _lazyRenderCenariosSuperavit(){
       ctx.textAlign = 'center';
       ctx.font = "700 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       meta.data.forEach((bar,i)=>{
-        ctx.fillStyle = '#34c98a';
+        ctx.fillStyle = diferenca[i]<0 ? '#e2554f' : '#34c98a';
         ctx.fillText(fmtK(diferenca[i]), bar.x, bar.y - 7);
       });
       ctx.restore();
@@ -622,13 +642,13 @@ function _lazyRenderCenariosSuperavit(){
     plugins:[snDataLabelPlugin],
     data:{labels:snLabels,
       datasets:[{data:snDiferenca,
-        backgroundColor:'#34c98a',
+        backgroundColor: snDiferenca.map(v=>v<0?'#e2554f':'#34c98a'),
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24,bottom:6}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
         // le de chart._snLiquido/_snNecessidade (atualizados junto com os dados) em vez do closure —
         // mesmo motivo do datalabel acima.
-        label:c=>{const i=c.dataIndex; const liq=c.chart._snLiquido; const nec=c.chart._snNecessidade; return ['Líquido: '+fmt(liq[i]),'Necessidade Total (paga tudo): '+fmt(nec[i]),'Superávit: '+fmt(c.chart.data.datasets[0].data[i])];}
+        label:c=>{const i=c.dataIndex; const liq=c.chart._snLiquido; const nec=c.chart._snNecessidade; return ['Líquido: '+fmt(liq[i]),'Necessidade Líquida: '+fmt(nec[i]),'Superávit: '+fmt(c.chart.data.datasets[0].data[i])];}
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
         y:{grid:{color:grid2b},ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:9.5}}}}}
@@ -648,6 +668,9 @@ function _lazyRenderCenariosSuperavit(){
 // REG.cenarioHistorico.mediaPonderada12M/media) - nunca mais um número solto pra manter sincronizado
 // à mão. real=true quando REG.superavitNormal.liquidoReal[0] está preenchido (dado real confirmado);
 // caso contrário mostra como Estimador de Salário (projeção via folha de ponto).
+// CORRIGIDO 12/08/2026 (pedido do usuário: valor final sempre substitui estimativa): trocado
+// "Necessidade Total bruta" por "Necessidade Líquida" no texto — mesma mudança de fonte de dado do
+// snNecessidade acima (agora desconta a Cobertura Garantida real do ciclo atual, não mais "paga tudo").
 function _atualizarLegendaSuperavitNormal(snLabels, snLiquido){
   const el = $('legSuperavitNormal');
   if(!el) return;
@@ -658,8 +681,8 @@ function _atualizarLegendaSuperavitNormal(snLabels, snLiquido){
   const fonteCicloAtual = real
     ? `usa o líquido REAL já recebido (${fmt(valorCicloAtual)})`
     : `usa o líquido projetado pelo Estimador de Salário (${fmt(valorCicloAtual)})`;
-  el.innerHTML = 'Cenário normal (paga tudo): confronta o líquido de cada ciclo contra a Necessidade Total <strong>bruta</strong> '
-    + '(boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional) — não o piso essencial. '
+  el.innerHTML = 'Cenário normal (paga tudo): confronta o líquido de cada ciclo contra a Necessidade <strong>Líquida</strong> '
+    + '(boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional, menos a Cobertura Garantida real do ciclo atual — sobra da cascata de reembolso Wärtsilä) — não o piso essencial. '
     + `${cicloAtual} ${fonteCicloAtual}. Os meses seguintes usam a média ponderada dos últimos 12 meses (${fmt(CH.mediaPonderada12M)}) como valor conservador — não a média simples (${fmt(CH.media)}), que é puxada para cima por meses excepcionais. `
     + 'Conforme cada mês real chegar, o valor conservador é substituído pelo real (atualizar REG.superavitNormal.liquidoReal[i]).';
 }
