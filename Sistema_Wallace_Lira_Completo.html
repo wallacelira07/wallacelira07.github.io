@@ -1711,12 +1711,12 @@
       <div class="v" id="legMPCorporativoRetorno" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">—</div>
       <!-- NOVO 07/08/2026: indicador separado, informativo — NÃO participa do Mercado Pago líquido,
            da Fatura do Ciclo, do Corporativo do Ciclo, nem de nenhuma necessidade do ciclo. -->
-      <div class="row" style="margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)"><span class="k" style="color:var(--text-dim)">Reembolso Wärtsilá pendente acumulado <span class="badge bg" style="background:rgba(226,165,61,0.12);color:#e2a53d;border:1px solid rgba(226,165,61,0.3);margin-left:0.4rem;font-size:0.62rem">Só informativo</span></span><span class="v" id="balReembolsoWartsilaAcumulado" style="color:var(--text-dim)">—</span></div>
+      <div class="row" style="margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)"><span class="k" style="color:var(--text-dim)">Reembolso Wärtsilá pendente acumulado <!-- CORRIGIDO 13/08/2026 (achado de auditoria: cor hardcoded #e2a53d trocada por var(--amber) via classe .badge.ba ja existente) --><span class="badge ba" style="margin-left:0.4rem;font-size:0.62rem">Só informativo</span></span><span class="v" id="balReembolsoWartsilaAcumulado" style="color:var(--text-dim)">—</span></div>
       <div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.2rem">Histórico, não escopado a ciclo — zera só quando a Wärtsilá reembolsar de fato. Não entra em nenhuma conta acima.</div>
       <!-- NOVO 09/08/2026: apontamento pedido pelo usuário, Backlog de Produto / aguardando validação
            manual - sem impacto operacional, sem correção aplicada (falta evidência do detalhamento
            real do sistema da Wärtsilá pra saber se já está contido no Amount Due Employee). -->
-      <div style="font-size:0.66rem;color:#e2a53d;margin-top:0.3rem">⚠ Valor histórico acumulado. Necessita confirmação futura se as despesas de transporte Recife (ida/volta) e Aeroporto João Pessoa já estão contempladas no Amount Due Employee da Wärtsilá.</div>
+      <div style="font-size:0.66rem;color:var(--amber);margin-top:0.3rem">⚠ Valor histórico acumulado. Necessita confirmação futura se as despesas de transporte Recife (ida/volta) e Aeroporto João Pessoa já estão contempladas no Amount Due Employee da Wärtsilá.</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Migração para o Mastercard Black concluída (25/07/2026) — assinaturas, recorrências e consórcios já estão 100% no MB. Visa Infinite mantém só as parcelas em andamento, até quitar.</div>
     </div>
 

@@ -40,6 +40,14 @@ function recalcularPatrimonio(){
   // com patrimonio liquido de verdade distorceria a Meta do Milhao). Este e um total PARALELO, separado,
   // so pra responder "quanto eu tenho no total, contando tudo" - nao substitui nem afeta os outros.
   REG.balanco.patrimonioTotalGeral = r2(REG.balanco.ativosTotal + REG.balanco.pgbl + REG.balanco.fgts - bp.total);
+  // LIMITAÇÃO CONHECIDA (achado de auditoria 13/08/2026, não corrigido - risco maior que o benefício):
+  // este cálculo roda no motor síncrono (recalcularAgregadosDerivados), ANTES da promoção V2 assíncrona
+  // (promoverCampoV2SeConfiavel em app.js, que só roda depois que resumoV2 chega da rede). Por isso
+  // patrimonioTotalGeral usa sempre os valores V1 de ativosTotal/patrimonioLiquido, mesmo quando a
+  // promoção V2 já trocou os ids exibidos na tela por valores ligeiramente diferentes (trava <R$5).
+  // Divergência esperada: até ~R$10 em cenários raros. Reordenar exigiria mover a promoção V2 pra
+  // dentro do motor de cálculo síncrono (mudança estrutural maior, fora do escopo desta correção) -
+  // deixado documentado aqui em vez de arriscar side effect em outros campos que dependem desta função.
 
   // V137: metas percentuais derivadas - milhaoPct estava TRAVADO em 11,54% (nao acompanhava
   // patrimonio.metaMilhaoPct, ja corrigido pra 11,57% na V135) e alimentava o grafico de metas.

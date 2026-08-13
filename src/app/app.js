@@ -2474,11 +2474,17 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // e so leitura adicional, nao mexe no calculo V1 existente). Zero fetch extra (resumoV2 ja veio).
     const elPatV2 = document.getElementById('balPatrimonioLiquidoV2');
     if(elPatV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.liquido != null){
-      elPatV2.textContent = `V2 (Supabase relacional): R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      // CORRIGIDO 13/08/2026 (achado de auditoria: texto continha jargao tecnico "V2 (Supabase
+      // relacional)" exposto na tela pro usuario final - trocado por texto neutro; o detalhe tecnico
+      // continua disponivel no atributo title, definido em promoverCampoV2SeConfiavel).
+      elPatV2.textContent = `✓ confirmado: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
       // PROMOVIDO 06/08/2026 (parte 136, refatorado parte 137 pra usar promoverCampoV2SeConfiavel -
       // funcao com hoisting, definida mais abaixo neste mesmo bloco, ja disponivel aqui). Patrimonio
       // Liquido foi o primeiro campo promovido a fonte EXIBIDA (trava de seguranca <R$5 de diferenca).
       promoverCampoV2SeConfiavel('balPatrimonioLiquido', resumoV2.patrimonio_resumo.liquido, 5);
+      // CORRIGIDO 13/08/2026 (achado de auditoria: promocao nao propagava pro id irmao da secao 09,
+      // mesmo conceito hidratado por hydrate-balanco.js - podiam divergir apos a promocao acima).
+      promoverCampoV2SeConfiavel('bal4qPatrimonio', resumoV2.patrimonio_resumo.liquido, 5);
     }
     // NOVO 06/08/2026 (parte 137): extraida a logica de "promover com trava de seguranca" da parte 136
     // pra uma funcao reutilizavel - evita reescrever o mesmo bloco de comparacao 3x (Liquido, Ativo,
@@ -2524,6 +2530,9 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     if(elPassivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_passivo != null){
       elPassivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_passivo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
       promoverCampoV2SeConfiavel('balPassivosTotal', resumoV2.patrimonio_resumo.total_passivo, 5);
+      // CORRIGIDO 13/08/2026 (achado de auditoria: id irmao 'balPassivosTotal2' da secao 04, mesmo
+      // REG.balanco.passivos.total, nunca era promovido junto - podiam divergir ate R$5 apos a promocao acima).
+      promoverCampoV2SeConfiavel('balPassivosTotal2', resumoV2.patrimonio_resumo.total_passivo, 5);
     }
 
     // REMOVIDO 12/08/2026 (pedido do usuário, achado real): esta comparação alimentava o selo

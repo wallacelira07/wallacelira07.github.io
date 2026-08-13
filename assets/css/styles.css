@@ -12,6 +12,10 @@
     --green: #35d199;
     --amber: #eaa83f;
     --red: #ef5b56;
+    /* CORRIGIDO 13/08/2026 (achado de auditoria: --purple nunca foi definida em :root, então todo
+       var(--purple, #9085e9) espalhado pelo HTML sempre caía no fallback hardcoded - definindo aqui
+       com o mesmo valor do fallback, zero mudança visual, só nomeando o token que já estava em uso). */
+    --purple: #9085e9;
     --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
     /* V300 Etapa 3 (Design System) — tokens novos, aditivos. Cada um assume exatamente o
        valor que já era usado nos seletores abaixo; nenhum valor mudou, só passou a ter nome. */

@@ -10,7 +10,10 @@
 function recalcularBalanco(){
   const r2 = x => Math.round(x*100)/100;
 
-  REG.balanco.reservas.total = r2(REG.balanco.reservas.boletos + REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
+  // CORRIGIDO 13/08/2026 (achado de auditoria: reservas.boletos removido da soma - a linha Caixa
+  // Boletos migrou da secao 05 pra secao 06 (operacional.caixaBoletos, ja somada la embaixo); somar
+  // aqui tambem inflava o Total reservado da secao 05 em ~R$1.648,55, em duplicidade com a secao 06.
+  REG.balanco.reservas.total = r2(REG.balanco.reservas.escolaJulio + REG.balanco.reservas.caixaLance +
     REG.balanco.reservas.manutencao + REG.balanco.reservas.eventos + REG.balanco.reservas.churrasco +
     REG.balanco.reservas.saudeFamilia + REG.balanco.reservas.seguroEmplacamento + REG.balanco.reservas.aniversarioJulio +
     REG.balanco.reservas.pixVanessa + REG.balanco.reservas.combustivel + REG.balanco.reservas.bensDuraveis + REG.balanco.reservas.suavizacao);
