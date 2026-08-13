@@ -485,6 +485,14 @@
   .chart-box{position:relative;width:100%;height:190px;margin-top:0.5rem}
   .chart-box.tall{height:280px}
   .chart-box.wide{height:230px}
+  /* CORRIGIDO 13/08/2026 (achado de auditoria: 2 chart-box da aba Gráficos - g_cCaixas/g_cAlivio -
+     usavam height:340px inline, sem nenhuma redução em telas pequenas, diferente de .tall/.wide
+     acima que já reduzem via layout responsivo do grid). Classe dedicada substitui o inline,
+     mesma altura em telas normais, reduzida em mobile pra não dominar a tela toda. */
+  .chart-box.tall-lg{height:340px}
+  @media(max-width:640px){
+    .chart-box.tall-lg{height:260px}
+  }
 
   footer{
     display:flex;justify-content:space-between;margin-top:3rem;
