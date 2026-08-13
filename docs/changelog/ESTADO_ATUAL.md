@@ -2,63 +2,71 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 12/08/2026, sessão longa de modernização (Fases 1-4, mobile, paleta, componentes, performance) + correção de dado real solar (2 faturas reais) + **auditoria completa de prontidão operacional pedida pelo usuário**, com correções aplicadas em cima dos achados. `__V` deve bater com o HEAD após o próximo commit.
+Última reescrita: 13/08/2026, sessão longa (herdou contexto de sessão anterior do mesmo dia) — auditoria completa das 6 abas (2 workflows multi-agente), reconciliação real do reembolso Wärtsilä ciclo 2026-07, controle de aplicações do Ozivy + meta de peso, e investigação Pluggy (investimentos + saldo reservado/cofrinhos). Encerrada por limite de crédito da sessão — **retomar direto pelas pendências da seção 2 abaixo**.
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
-1. **Migração V1→V2 relacional está formalmente encerrada** (e reforçada hoje — "sepultamento final da V1", sessão paralela, ver seção 6.1 do manual). `wallace_dados` não recebe mais nenhuma escrita e a maioria dos consumidores de leitura também já migrou pra `parametros_gerais`/tabelas próprias.
-2. **Mastercard Black e Caixa Mastercard/Infinite** — investigados, causa raiz identificada, formalizados como exceção. Não reabrir.
-3. **Hardening de segurança** — múltiplas rodadas (11/08, 12/08). Ver auditoria fresca abaixo.
-4. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita.
+1. **Migração V1→V2 relacional está formalmente encerrada** — não reabrir.
+2. **Mastercard Black e Caixa Mastercard/Infinite** — exceção formalizada, não reabrir.
+3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. **ATUALIZADO 13/08**: cartão 4845 é da Vanessa e está **ATIVO** (não aposentado) — confirmado contra `pluggy-reconciliacao.js` (fonte real), corrigido em legendas + cabeçalho seção 08 do Painel. Só o 4844 (Wallace) está aposentado.
+4. **"Estimado só na ausência de valor final — tendo o valor final, não usa mais estimado"** — regra geral nova (13/08), aplicada hoje em pelo menos 3 lugares (ver seção 3). Ao destravar qualquer campo antes manual/estimado, **auditar quem mais consumia a versão antiga** antes de considerar resolvido.
 
-## ⚠️ Achado crítico de processo (12/08/2026) — comentários do código podem estar desatualizados NO MESMO DIA
+## 1. Pendências abertas AGORA (retomar por aqui)
 
-Uma correção de dado real (composição tarifária solar) foi feita seguindo um comentário do código que dizia "wallace_dados sobrescreve isto" — mas outra sessão, no mesmo dia, já tinha removido esse mecanismo (`Object.assign(VARS, dr)`, "sepultamento final da V1") e migrado a fonte viva pra `parametros_gerais`, sem atualizar o comentário. A correção ficou sem efeito por horas até validação com login real revelar isso. **Regra nova registrada em `MANUAL_OPERACIONAL_AGENTES.md` seção 5**: nunca confiar em comentário sobre "onde o dado vive de verdade" sem confirmar no código atual — duas sessões no mesmo repositório no mesmo dia é o cenário normal deste projeto, não exceção.
+### 1.1 Pluggy — saldo reservado (cofrinhos MP) NÃO está funcionando ainda
+Achado real (usuário viu no dashboard `meu.pluggy.ai`): contas BANK têm `bankData.reservedBalances` — é onde ficam os cofrinhos nomeados do Mercado Pago (confirmado pela doc oficial `docs.pluggy.ai/reference/accounts-list`). Implementado em `scripts/sync/sincronizar_pluggy.py` (captura `bankData.reservedBalances`) + tabela nova `pluggy_saldos_reservados` + RPC `atualizar_pluggy_contas` atualizada (commit `4fd661d`). **Usuário rodou o workflow depois deste commit e a tabela continua vazia** — não depurado ainda por falta de tempo/crédito. Hipóteses a checar primeiro: (a) o campo pode vir em maiúsculas diferentes ou aninhado diferente do que a doc mostra — inspecionar o JSON bruto de verdade (adicionar um `print(json.dumps(c))` temporário no script e rodar via workflow_dispatch, olhar o log); (b) pode ser que só apareça no detalhe de UMA conta específica (`GET /accounts/{id}`) e não na listagem (`GET /accounts?itemId=X`) usada hoje; (c) o campo pode só existir quando a conta tem `hasReservedBalance:true` e a lib está pegando isso mas o parsing de `availableAmounts[0]` está errado (índice/chave).
 
-## ✅ Modernização mobile/performance/visual — todas as 4 fases concluídas e validadas com login real
+### 1.2 2ª conta Mercado Pago + remoção do BTG (ação do usuário, não código)
+Usuário vai: (a) remover a conexão BTG do Pluggy (não trazia investimento nenhum de valor — só ações zeradas e o LFTS11 que já é rastreado manualmente em `investimentos`), (b) conectar a conta nova do Mercado Pago (onde ele moveu as caixas Bens Duráveis/Emagrecimento/Suavização) no lugar. **Quando ele passar o novo `item_id`**, atualizar o GitHub Secret `PLUGGY_ITEM_IDS` (repositório → Settings → Secrets → Actions) removendo o item_id do BTG (`a50c7ebf-8ff5-451e-80dd-3c9b5b27a50c`) e adicionando o novo, separados por vírgula. Não tenho acesso a Secrets do GitHub por aqui (nem `gh` CLI disponível no ambiente) — é ação manual do usuário ou de uma sessão com acesso.
 
-| Fase | Escopo | Status |
-|---|---|---|
-| 1 | Performance (cache TTL granular) | ✅ Concluída |
-| 2 | Mobile — scroll horizontal Livro Razão (24 painéis) + auto-hide `.master-tabs` | ✅ Concluída, validada ao vivo (login real, scroll de mouse, 4 painéis testados individualmente) |
-| 3 | Visual (paleta/tipografia refinadas) | ✅ Concluída |
-| 4 | Performance adicional + consistência de componentes | ✅ 6 de 10 achados aplicados; 4 investigados e conscientemente descartados (Chart.js `.update()` e `new Function` não deviam ser mexidos — motivos documentados em `PASSAGEM_DE_TURNO.md`) |
+### 1.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
+Ver seção 3.1. Quando chegar: atualizar `reembolso_wartsila_recebimentos` (nova linha) e decidir destino (provavelmente Caixa Lance, sobra final do ciclo).
 
-Commits principais da sessão (ordem cronológica, todos pushed): `2da024b` `821cf31` `1a0b583`→`36c0939` (tarifa real) `b7b83c4` `c642dcf` `6de448e` `85cd084` (auto-hide) `b9df4e2`→`8a3d824` (histórico consumo Wellida) `e07cfb0`→`9b3af31` (regra de coordenação + índices).
+### 1.4 LREI0003 (R$266,23) e LREI0004 (R$103,55) seguem ativas
+LREI0003: aguardando reembolso de um ciclo Wärtsilä ANTERIOR a 2026-07 (a tabela `reembolso_wartsila_ciclo` só tem registro a partir de 2026-07, esse ciclo anterior não tem registro formal). LREI0004: aguardando Caixa Manutenção acumular saldo (hoje R$0,72, precisa R$103,55).
 
-## ✅ Auditoria de prontidão operacional (12/08/2026) — pedida explicitamente pelo usuário
+### 1.5 Divergência V1×V2 nova no console (esperada, não é bug)
+`Onda2V2 [Provisionado Wärtsilä]: V1=R$4.275,21 × V2=R$5.055,95 — DIVERGE R$780.74`. É esperada — reflete a reconciliação real de hoje (ver seção 3.1), mas o sistema tem uma trava de segurança que não promove automaticamente divergências grandes/não explicadas, então ainda mostra o V1 (fallback) nessa caixa específica. Vai resolver sozinho quando um valor V1 mais recente for gravado, ou pode ser resolvido manualmente numa próxima sessão se o usuário quiser ver V2 já.
 
-Auditoria completa (arquitetura, financeiro, solar, automações, segurança, performance) com evidência real coletada ao vivo (advisors do Supabase, `execucoes_jobs`, `pg_policies`, contagens em `transacoes`, não só leitura de código). **Nota geral: 7,4/10 — Produção Inicial, ~80% de prontidão operacional. Veredito: sim, operar continuamente, com vigilância.**
+## 2. O que foi feito nesta sessão (13/08/2026)
 
-**Achados corrigidos na mesma sessão**:
-1. **25 índices de FK faltando** (advisor de performance, categoria WARN→INFO) — criados via migration (`adiciona_indices_fk_faltantes`), confirmado no advisor que a categoria zerou.
-2. **Regra de coordenação multi-sessão** registrada no manual (ver achado crítico acima).
-3. **Confirmado (não era gap novo)**: o heartbeat "Verificação de segurança (views)" nunca tinha registrado execução no painel — investigado a fundo: o script (`scripts/checks/verificar_seguranca_views.py`) e o workflow (`.github/workflows/verificar_seguranca_views.yml`) já existem e estão corretamente ligados ao orquestrador (`executar_tudo.yml`), criados **hoje mesmo** por uma sessão paralela em resposta a uma regressão de segurança real (2 views recriadas sem `security_invoker=true` por uma migration — já corrigido, confirmado via SQL: `security_invoker=true` presente nas 2 views agora). Só ainda não teve a primeira execução agendada — não é bug, é falta de tempo desde a criação. Deve se resolver sozinho no próximo ciclo do orquestrador (cron-job.org).
+### 2.1 Auditoria completa das 6 abas — 2 workflows multi-agente + aplicação
+Pedido do usuário: 6 agentes (1 por aba: Painel/Gráficos/Solar/Cenários/Balanço/Emagrecimento) auditando estética+legendas, depois outra rodada de 6 auditando fórmulas+matemática. Total ~60 achados reais (não genéricos). Destaques corrigidos:
+- **Solar**: tabela "Quanto você ainda vai pagar" usava fatura de Jul/26 em vez da real de Ago/26 já carregada — corrigido, mais o texto do aviso que descrevia a fórmula errada ("maior valor entre" quando o código sempre soma os 4 componentes — o código estava certo, o texto que estava desatualizado). **Conferido à mão pelo usuário e por mim, bate exato.**
+- **Cenários**: bug de sinal real no gráfico/tabela "Superávit Normal" (mostrava "+-1.234" em verde pra diferença negativa) — corrigido antes da auditoria formal, replicando padrão já usado nas tabelas irmãs. Estimador de Salário comparava 2 ciclos diferentes (líquido do ciclo atual × necessidade do ciclo seguinte) — corrigido pra mesmo ciclo. `pisoTotal` (seção 03) era um literal fixo, virou soma real dos 6 componentes.
+- **Balanço**: Caixa Boletos contada 2x em "Total reservado" (migrou de seção mas fórmula antiga não foi atualizada) — corrigido. Jargão técnico "V2 (Supabase relacional)" removido da UI do usuário final.
+- **Painel**: badge de Modo Operacional só trocava texto, não cor/classe — corrigido. Legenda/cabeçalho Visa Infinite corrigidos (ver regra 3 da seção anterior).
+- Uma rodada da Workflow bateu no limite de gasto mensal da conta no meio do caminho (5 de 6 agentes falharam) — resumida depois com sucesso (`resumeFromRunId`), sem perda de trabalho.
+- Merge das 6 worktrees: 5 limpas via `git merge`, 1 (Painel) tinha um estado de working-tree corrompido (git status mostrava todo arquivo como deleted+untracked simultaneamente, causa não investigada — possível artefato do isolamento de worktree) — reaplicado manualmente arquivo por arquivo em vez de confiar no merge automático.
+- Todas as 6 abas validadas visualmente (login real, zero erro de console) antes do commit.
+- Commits: `6f62cc9`/`c7d970f`/`be5112d`/`b20e1c7` (fix por aba) → `e5f6d4e`/`b0c81f1`/`598bb32`/`d03b9f9` (merges) → `af02cad` (Painel manual + Pluggy investimentos). Todos pushed.
 
-**Achados NÃO corrigidos, decisão deliberada**:
-- 10 funções `SECURITY DEFINER` expostas a `anon`/`authenticated` — todas com checagem de auth interna (padrão já aceito em rodada de hardening anterior). Migrar pra `SECURITY INVOKER` estruturalmente é possível mas exige teste função por função; não fiz por risco/benefício desfavorável nesta sessão.
-- Teste de disaster recovery completo (restaurar backup externo num projeto Supabase novo do zero) — ação grande, com custo/risco, não executada autonomamente.
+### 3.1 Reconciliação real do reembolso Wärtsilä — ciclo 2026-07
+TED de R$6.682,76 recebido 13/08 (mais R$340,00 recebidos 07/08 = R$7.022,76 até agora). **Total bruto do ciclo corrigido pelo usuário: R$7.362,76** (não R$7.380,61 como estava gravado) — falta receber R$340,00.
 
-**Achado que corrige memória desatualizada**: o backup externo (`backup_externo.yml`) **já rodou de verdade** — 3 execuções com sucesso confirmadas em `execucoes_jobs` E arquivos reais encontrados em `backups_externos/` (JSON criptografado 1.3MB + schema SQL 154KB, 11/08). A pendência antiga "segredos do GitHub nunca cadastrados" está resolvida — não é mais pendência.
+Cascata final registrada em `transacoes` (TX000280 a TX000302, todas `origem='reconciliacao'`, `status='confirmado'`):
+- Perna 1 (Fatura Wärtsilä, R$5.056,95): fica em "Provisionado Wärtsilä" (não é transação separada, é a reserva implícita)
+- Perna 2 (MP corporativo, R$266,23) + Perna 4 (MP pessoal, R$403,11) = R$669,34 → Caixa "Mercado Pago" (fatura que vence 04/09)
+- Perna 3 (Cartão corp. pessoal, R$297,31) → Caixa "Mastercard/Infinite" (reembolsa 5 compras reais idênticas: Outback+Super Bom+Capuaba+2 lanchonetes, 25-29/07)
+- Sobra (R$999,16 de R$1.339,16 total, falta R$340) → Caixa Lance
+- Da sobra, R$971,51 repassados como **aporte (não empréstimo)** pras 3 caixas negativas sem LREI: Bens Duráveis (R$583,99), Emagrecimento (R$278,89), Churrasco (R$108,63) — todas zeraram exato
+- LREI0005 (R$1.950,77, consórcios Porto) quitada separadamente, com saldo PRÓPRIO da Caixa Boletos (não related ao Wärtsilä)
+- LREI0003 foi erroneamente marcada quitada e depois revertida — origem real é uma fatura MP corporativo de um ciclo ANTERIOR (24/07), não deste ciclo. Fica ativa (ver pendência 1.4).
 
-## ✅ Correção de dado real — solar (12/08/2026)
+**Achado colateral corrigido**: 5 transações reais (Outback/Super Bom/Capuaba/2 lanchonetes) tinham `cartao_id` certo (Mastercard Black) mas `caixa_id` errado apontando pra "Caixa Variável" — na verdade `caixa_id=Provisionado Wärtsilä + cartao_id preenchido` é o mecanismo PROPOSITAL que alimenta o LRC (Livro Razão Corporativo, ver `getTransacoesCorporativoCartaoDetalhe()` em app.js). Corrigido de volta (eu mesmo tinha corrigido errado antes, revertido depois de o usuário apontar).
 
-Duas faturas reais em PDF (Wellida NF 009.005.476, Casa da Mãe NF 009.005.819, Ago/26) usadas para corrigir: composição tarifária real (COSIP como valor exato, não %), e histórico de consumo de 12 meses da Wellida (`solarConsumoIrmaAnoAnterior`) — corrigido em 2 rodadas (a 1ª assumiu indexação fixa por calendário; validação ao vivo no gráfico revelou janela móvel por nome de mês, corrigido de novo com o valor real). Card "Fluxo 1" já estava correto, confirmado contra o banco. Tudo commitado e pushed, detalhe completo em `PASSAGEM_DE_TURNO.md`.
+### 3.2 Aba Emagrecimento — controle de Ozivy + meta de peso
+- Nova seção "Aplicações do Ozivy" (semaglutida, aplicação semanal): tabela `aplicacoes_ozivy` nova no Supabase, gráfico de dose ao longo do tempo, "próxima prevista" = última +7 dias. 1ª aplicação registrada (13/08, 0,25mg).
+- Pesagem registrada: 139,6kg (13/08, primeira pesagem real).
+- Meta de peso adicionada: **110kg** (`VARS.emagrecimentoMetaKg`), card "Falta pra meta" mostra 29,6kg restantes ou "Meta batida! 🎉".
+- Commits: `adec7eb` (Ozivy), `e2c7b25` (meta).
 
-## Pendências antigas, sem decisão do usuário ainda
+### 3.3 Pluggy — investimentos (funcionando) + Reserva de Emergência
+- **Investimentos**: `sincronizar_pluggy.py` já buscava `/investments` mas descartava o resultado (nenhuma tabela salvava). Criada `pluggy_investimentos` + RPC atualizada — testado ao vivo pelo usuário, funcionou: capturou 3 CDBs reais do Itaú (R$50.571,64 + R$49.628,96 + R$1,01) e ações do BTG (LFTS11 R$14.823,80 + 3 ações zeradas). **Confirmado: cofrinho Mercado Pago e previdência BTG NÃO vêm por `/investments`** — não existe nenhum registro pra essas 2 conexões, mesmo com o endpoint sendo chamado corretamente. Não é bug nosso, é a Pluggy que não expõe esses 2 produtos específicos por esse endpoint (ver 1.1 pra saldo reservado, que é o caminho certo pro cofrinho MP).
+- **Reserva de Emergência**: os 3 CDBs do Itaú **são** a Reserva de Emergência (confirmado pelo usuário). Estratégia dele: manter sempre R$100.000,00 lá, sacar o rendimento acumulado no fim do mês pra Caixa Lance. `patrimonio.reserva` continua manual/travado em R$100.000,00 (usado no cálculo do patrimônio total, não deve variar com o rendimento) — adicionado um card informativo novo na seção 02 do Balanço (`#bfinReservaPluggy`) mostrando o saldo real via Pluggy e o rendimento a sacar (hoje R$201,61). Commits: `af02cad` (investimentos), `20ac7a3` (card Reserva).
 
-| Item | Nota |
-|---|---|
-| Visa Infinite — cobertura baixa de `cartao_id`/histórico | Congelado por decisão explícita, não mexer sem evidência nova |
-| `solarConsumoMaeAnoAnterior` (histórico Mai/25-Abr/26 da Casa da Mãe) | Não corrigido — as faturas desta sessão não cobrem esse período |
-| `cotacoes_acoes` sem heartbeat visível no painel de Saúde Operacional (achado antigo, não confirmado nesta sessão) | Job roda e sincroniza normalmente (`execucoes_jobs` confirma), possível bug isolado no card do painel, não investigado a fundo |
-| Painel principal em mobile real (celular físico do usuário) | Testado apenas via emulação de viewport no navegador desta sessão — nunca confirmado num aparelho físico de verdade |
-| SECURITY DEFINER → SECURITY INVOKER nas 10 funções expostas | Estruturalmente possível, não feito por risco/benefício — ver auditoria acima |
-
-## Protocolo de sessão nova
-
+## 3. Protocolo de sessão nova
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
 3. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-4. **Antes de editar qualquer dado "vivo"/config**: confirmar no código ATUAL (não em comentário) qual fonte realmente alimenta a tela — ver achado crítico desta sessão, regra formal na seção 5 do manual.
-5. Validar mudanças de CSS/JS no painel logado sempre que possível (login real, não só leitura de código) — esta sessão fez isso extensivamente e pegou 2 bugs reais que a leitura de código sozinha não pegaria.
+4. Retomar direto pela seção 1 (pendências) — a 1.1 (saldo reservado Pluggy) é a mais provável de ser o próximo pedido do usuário.
