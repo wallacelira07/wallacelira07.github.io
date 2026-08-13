@@ -209,6 +209,25 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
                     "saldo": c.get("balance"),
                     "moeda": c.get("currencyCode"),
                 }
+                # NOVO 13/08/2026 (achado do usuário via dashboard da própria Pluggy: contas BANK têm
+                # bankData.reservedBalances - "saldo reservado"/caixinhas nomeadas, ex. cofrinhos do
+                # Mercado Pago. Confirmado na doc oficial (docs.pluggy.ai/reference/accounts-list):
+                # bankData.hasReservedBalance + bankData.reservedBalances[].{name, identification,
+                # availableAmounts[].{amount,currencyCode}}. Isso NUNCA tinha sido capturado - nem
+                # /investments (onde eu procurei antes, errado) nem aqui.
+                bank_data = c.get("bankData") or {}
+                reservas = bank_data.get("reservedBalances") or []
+                if reservas:
+                    conta_info["saldos_reservados"] = [
+                        {
+                            "nome": r.get("name"),
+                            "identificacao": r.get("identification"),
+                            "valor": (r.get("availableAmounts") or [{}])[0].get("amount"),
+                            "moeda": (r.get("availableAmounts") or [{}])[0].get("currencyCode"),
+                        }
+                        for r in reservas
+                    ]
+
                 if c.get("type") == "CREDIT":
                     conta_info["saldo_significado"] = "limite total usado (não é a fatura do mês)"
                     cd = c.get("creditData") or {}
