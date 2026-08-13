@@ -21,12 +21,11 @@
 // consequência esperada da transição (lançamentos que só nascem na V2 hoje). Usuário decidiu
 // que a PGV não é mais exceção técnica — sai da lista `false`, entra na `true`.
 //
-// Provisionado Wärtsilä fica de fora deste mapa, mas NÃO por falta de cobertura V2 — achado
-// 09/08/2026 (investigação "matar V1"): o comentário abaixo estava desatualizado. A caixa já
-// é 100% V2 desde a Onda 4 (hydrate-onda4-wartsila.js:50, `REG.wartsilaCaixa.provisionado =
-// caixaWartsila.v2_saldo_calculado`), que também resincroniza o card de 4 estados de texto
-// via hydrateWartsilaCaixasTextos(). O item log-only abaixo só existe pra comparação/log,
-// nunca escreveu no DOM mesmo antes — inofensivo, mas mantido só por rastreabilidade.
+// Provisionado Wärtsilä fica de fora deste mapa — é 100% V2 desde a Onda 4
+// (hydrate-onda4-wartsila.js:50, `REG.wartsilaCaixa.provisionado = caixaWartsila.v2_saldo_calculado`).
+// CORRIGIDO 13/08/2026 (pedido explícito do usuário): removida a entrada log-only que comparava
+// contra VARS.provisionadoWartsila (V1) só pra imprimir aviso de divergência no console — a
+// migração V1→V2 está formalmente encerrada, V1 não é mais referência nenhuma pra essa caixa.
 //
 // Rollback: comentar a chamada aplicarOnda2V2() em app.js — nada mais muda.
 
@@ -113,18 +112,15 @@ const ONDA2_V2_MAPA = [
   { idHtml: 'cxAnivSaldo', caixaNome: 'Caixa Aniversário Júlio', getValorV1: () => REG.caixasOperacionais.aniversarioJulio.saldo, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResChurrasco', caixaNome: 'Caixa Churrasco', getValorV1: () => REG.balanco.reservas.churrasco, aceitarDivergenciaConhecida: true },
   { idHtml: 'balResCombustivel', caixaNome: 'Caixa Combustível', getValorV1: () => REG.balanco.reservas.combustivel, aceitarDivergenciaConhecida: true },
-  // log-only: sem idHtml -> nunca escreve no DOM, mesmo com aceitarDivergenciaConhecida=true (falta ESTRUTURA, não só divergência)
-  { idHtml: null, caixaNome: 'Provisionado Wärtsilä', getValorV1: () => VARS.provisionadoWartsila, aceitarDivergenciaConhecida: false },
 ];
 
 const TOLERANCIA_CENTAVOS = 0.01;
 
 // ENDURECIDO (08/08/2026, Wave A): só os itens com aceitarDivergenciaConhecida=true (já
 // exibem V2 hoje) viram "⚠ Indisponível (V2)" em caso de falha — são domínio V2-exclusivo
-// de fato. Os 4 com aceitarDivergenciaConhecida=false (PGV, Saúde Família, Manutenção,
-// Aniversário Júlio) e o Provisionado Wärtsilä (log-only) NÃO são tocados aqui: divergência
-// não confirmada, usuário proibiu reabrir essa investigação — continuam em V1 silencioso
-// até uma decisão explícita mudar o status deles na tabela acima.
+// de fato. Itens com aceitarDivergenciaConhecida=false NÃO são tocados aqui: divergência não
+// confirmada, continuam em V1 silencioso até uma decisão explícita mudar o status deles na
+// tabela acima (hoje nenhum item está nesse estado — todos os restantes já foram promovidos).
 const ONDA2_HARDEN_IDS = ONDA2_V2_MAPA.filter(m => m.aceitarDivergenciaConhecida && m.idHtml)
   .flatMap(m => m.extraId ? [m.idHtml, m.extraId] : [m.idHtml]);
 

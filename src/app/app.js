@@ -1912,6 +1912,7 @@ function hydrate(){
   // MODULARIZAÇÃO 07/08/2026: seção 05 (Caixas Operacionais) extraída pra src/modules/hydrate-caixas.js
   // — mesma sequência, nenhum id/fórmula alterado.
   hydrateCaixas();
+  preencherCaixasOperacionaisExtra(); // NOVO 13/08/2026: completa a seção 05 com as caixas que não têm card estático (ver hydrate-caixas.js)
 
   aplicarOnda3Suavizacao(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
 

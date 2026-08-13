@@ -431,7 +431,7 @@
   </div>
 
   <!-- 5 -->
-  <div class="section-num"><span class="n">05</span><h2>Caixas operacionais</h2></div>
+  <div class="section-num"><span class="n">05</span><h2>📦 Todas as Caixas</h2></div>
   <div class="grid-3">
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Caixa boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxBoletosPct">—</span><span class="v" id="cxBoletosMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
@@ -446,6 +446,12 @@
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" id="cxSeguroBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroAporteTxt">—</span><span class="v" id="cxSeguroMeta">—</span></div></div>
     <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxEscolaPct">—</span><span class="v" id="cxEscolaMeta">—</span></div></div>
   </div>
+  <!-- NOVO 13/08/2026 (pedido do usuário: "todas as caixas nesse lugar", sem nunca faltar nenhuma):
+       preenchido dinamicamente por preencherCaixasOperacionaisExtra() (hydrate-caixas.js) com
+       qualquer caixa real (vw_saldo_v2_por_caixa) que NÃO esteja no grid acima - garante
+       completude automática mesmo se uma caixa nova for criada no futuro, sem precisar lembrar de
+       editar este HTML de novo. -->
+  <div class="grid-3" id="caixasExtraGrid" style="margin-top:0.6rem"></div>
 
   <!-- 6 -->
   <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>

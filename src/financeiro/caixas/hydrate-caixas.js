@@ -75,3 +75,39 @@ function hydrateCaixas(){
   t('cxEscolaPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=$('cxEscolaBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
 }
+
+// NOVO 13/08/2026 (pedido do usuário: "todas as caixas nesse lugar, pra não faltar nenhuma") —
+// completa a seção 05 com QUALQUER caixa real (vw_saldo_v2_por_caixa) que não esteja nos 12 cards
+// estáticos acima de hydrateCaixas() (Boletos, PIX Vanessa, PGV, Wärtsilä, Manutenção, Bens
+// Duráveis, Eventos, Suavização, Saúde, Aniversário, Seguro, Escola). Dinâmico de propósito -
+// nomes exatos aqui, não são chutados. Se uma caixa nova for criada no banco, aparece sozinha
+// aqui sem precisar editar este arquivo.
+const CAIXAS_JA_COBERTAS_ESTATICAMENTE = [
+  'Caixa Boletos', 'PIX Vanessa', 'PIX Geral Vanessa', 'Provisionado Wärtsilä',
+  'Caixa Manutenção', 'Caixa Bens Duráveis', 'Caixa Eventos', 'Conta Suavização (CC-304)',
+  'Caixa Saúde Família', 'Caixa Aniversário Júlio', 'Caixa Seguro Emplacamento', 'Escola de Júlio',
+];
+
+async function preencherCaixasOperacionaisExtra(){
+  const grid = $('caixasExtraGrid');
+  if(!grid) return;
+  let saldos;
+  try {
+    saldos = await WallaceFinanceService.getSaldosPorCaixa();
+  } catch(err){
+    console.error('CaixasExtra: falha ao buscar vw_saldo_v2_por_caixa.', err);
+    grid.innerHTML = '<div class="card" style="color:var(--red)">⚠ Não foi possível carregar as demais caixas.</div>';
+    return;
+  }
+  if(!Array.isArray(saldos)){
+    console.warn('CaixasExtra: resposta inesperada de getSaldosPorCaixa().');
+    return;
+  }
+  const extras = saldos.filter(c => !CAIXAS_JA_COBERTAS_ESTATICAMENTE.includes(c.caixa_nome));
+  grid.innerHTML = extras.map(c => {
+    const saldo = Number(c.v2_saldo_calculado);
+    const cor = saldo < 0 ? 'var(--red)' : 'var(--green)';
+    return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${c.caixa_nome}</div><div class="v" style="font-weight:600;color:${cor}">${fmt(saldo)}</div></div>`;
+  }).join('');
+  console.log(`CaixasExtra: ${extras.length} caixa(s) adicional(is) renderizada(s) (${extras.map(c=>c.caixa_nome).join(', ')}).`);
+}
