@@ -13,7 +13,12 @@ function hydrateReembolsos(){
   t('reembCicloTotal', fmt(R.operacional.reembolsoCicloTotal));
   t('reembPagaWartsila', fmt(R.faturaWartsila));
   t('reembPagaMP', fmt(R.operacional.reembolsoPagaMPCorporativo));
-  t('reembPagaCartao', fmt(R.visaDetalhe.corp + R.mbDetalhe.corp)); // CORRIGIDO 31/07/2026 (V223): so mostrava visaDetalhe.corp (Visa), sumindo com o corporativo do MB (R$297,31 este ciclo) mesmo o card se chamando "Infinite/MB".
+  // CORRIGIDO 13/08/2026 (achado de auditoria: este card lia R.visaDetalhe.corp+R.mbDetalhe.corp,
+  // fonte V1/limbo do LRC do ciclo atual — mas o cálculo REAL de Sobra Pessoal/Cobertura Garantida
+  // usa REG.operacional.reembolsoPagaCartaoCorporativo (V2/Supabase, sobrescrito pela Onda4 desde
+  // 08/08/2026). O número exibido aqui podia divergir do que o sistema de fato subtraiu na cascata
+  // logo abaixo, na mesma tela. Trocado pra ler a MESMA fonte usada no cálculo real.
+  t('reembPagaCartao', fmt(R.operacional.reembolsoPagaCartaoCorporativo));
   t('reembSobraPessoal', fmt(R.operacional.reembolsoSobraPessoal));
   t('reembMPPessoal', fmt(R.totalOpDetalhe.provMP)); // CORRIGIDO 20/07/2026: agora e literalmente o item 4 da cascata (usado no calculo de reembolsoSobraPessoal), nao mais um campo paralelo "so informativo".
   // NOVAS 12/08/2026 (linhas 6/7 da cascata, ver recalcular-necessidade.js pra fórmula real):

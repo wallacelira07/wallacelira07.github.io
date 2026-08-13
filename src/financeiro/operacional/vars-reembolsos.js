@@ -27,7 +27,11 @@ function criarVarsReembolsos(){
   // 17/07/2026, mais completo/recente que MERCADO_PAGO_FATURA de 16/07 R$1.749,35).
   faturaWartsila: 0, // PAGA 27/07/2026 (V187): R$656,67 via boleto Mercado Pago (Cartão Corporativo B, comprovante #170856844164, 27/07 22:43:39, vencimento 28/07/2026). Era R$656,67 (pendente).
   reembolsoPagaCartaoCorporativo: 483.83,  // extrato real cofrinho "Fatura Visa Infinit" (V128)
-  reembolsoPagaMPCorporativo: 1277.88,     // PLACEHOLDER, sobrescrito por snap.cascata.mpCorporativo (variavel por ciclo) - usado na Cascata do Reembolso, sobrescrito por ciclo (zera no ciclo novo, ver CICLO_SNAPSHOTS)
+  // CORRIGIDO 13/08/2026 (achado de auditoria: comentário citava "snap.cascata.mpCorporativo",
+  // caminho que não existe em nenhum lugar do código-fonte). PLACEHOLDER — sobrescrito de fato por
+  // REG.operacional.reembolsoPagaMPCorporativo = Number(ciclo.perna_mp_corporativo) em
+  // hydrate-onda4-wartsila.js (V2/Supabase, variável por ciclo).
+  reembolsoPagaMPCorporativo: 1277.88,
   faturaMPCorporativoPendente: 1544.11, // NOTA 27/07/2026 (V187): a fatura MP em si JÁ FOI PAGA (boleto R$2.015,58, 27/07) - mas esses R$1.544,11 continuam pendentes de REEMBOLSO da Wärtsilä (Recife ida+volta R$1.277,88 + Aeroporto JP R$266,23), independente do pagamento da fatura. Zerar quando a Wärtsilä efetivamente reembolsar, não quando a fatura for paga.
   // V141 (23/07/2026, fechamento da varredura): ultimos primarios soltos encontrados
   reembolsoCicloTotal: 5254.98,       // Recebidos (ja inclui TED 21/07 + TX000220 de 07/08, R$340,00, transferido pelo usuario pra Caixa Wartsila) + A Receber (0) - regra V50. Confirmado pelo usuario: o R$340 foi transferido de verdade pra dentro da Caixa Wartsila (ver WARTSILA_CAIXA_TRANSACOES abaixo), NAO direto pra Caixa Lance - segue a cascata da politica (secao 5): Cartao Wartsila -> corporativo Mastercard -> corporativo Mercado Pago -> Pessoal Mercado Pago -> so a sobra vai pra Lance. reembolsoCicloTotal e a UNICA variavel indicadora a atualizar (SSOT, V137) - sobraPessoal e recalculado automaticamente pela cascata.

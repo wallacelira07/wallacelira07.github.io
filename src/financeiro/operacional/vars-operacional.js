@@ -15,8 +15,12 @@ function criarVarsOperacional(){
   // Para editar uma legenda no futuro: mudar SO o texto aqui, nunca precisa tocar no HTML.
   LEGENDAS: {
     legEscolaJulioForaPatrimonio: `Escola de Júlio NÃO entra no Patrimônio Financeiro/Meta do Milhão — regra oficial (P5): só Reserva+BTG/Necton+Caixa Lance+Necton Conta Corrente contam como patrimônio. Escola de Júlio segue existindo como caixa/reserva própria, acompanhada separadamente.`,
-    legVisaAposentado: `Wallace aposentou o cartão físico Visa Infinite (4844) — usa só o Mastercard Black agora. Assinaturas, recorrências, consórcios e o corporativo antigo já migraram 100% para o Mastercard Black — o que resta aqui é só as <strong>parcelas em andamento</strong>, que continuam no Visa até quitar (nunca migram, é regra fixa). Nenhuma compra variável nova acontece mais neste cartão — Visa Infinite é só do Wallace.`,
-    legVisaCorrecaoV207: `Cartão 6351 é o Mastercard Black da Vanessa, não o Visa Infinite — o Visa Infinite é só do Wallace.`,
+    // CORRIGIDO 13/08/2026 (achado de auditoria: legenda dizia "Visa Infinite é só do Wallace", mas
+    // o cabeçalho da seção 08 e o mapa real de cartões Pluggy (src/integrations/pluggy/pluggy-
+    // reconciliacao.js, cartão 4845) marcam o Visa Infinite da Vanessa como ATIVO — reconciliado
+    // contra a fonte viva (Pluggy), que reflete a integração financeira real, não texto escrito à mão.
+    legVisaAposentado: `Wallace aposentou o cartão físico Visa Infinite (4844) — usa só o Mastercard Black agora. Assinaturas, recorrências, consórcios e o corporativo antigo já migraram 100% para o Mastercard Black — o que resta aqui é só as <strong>parcelas em andamento</strong>, que continuam no Visa até quitar (nunca migram, é regra fixa). Nenhuma compra variável nova acontece mais neste cartão do Wallace. A Vanessa segue com Visa Infinite ativo (cartão 4845) — ver mapa Pluggy.`,
+    legVisaCorrecaoV207: `Cartão 6351 é o Mastercard Black da Vanessa, não o Visa Infinite — o Visa Infinite da Vanessa é o 4845 (ativo).`,
     legAguaGasMedintech: `Água e Gás são cobrados pela Medintech (medição individualizada) e variam todo mês — mantêm o valor do mês anterior até a leitura ser atualizada. Retiradas em dinheiro da Caixa Boletos usadas para pagar essas contas são reconciliadas contra o extrato bancário, não entram como lançamento duplicado. Rendimento do cofrinho (CDI) no período é incluído no total abaixo.`,
     legParcelamentosVisaAuto: `Tabela gerada automaticamente a partir de VARS.PARCELAMENTOS_VISA (aba PARCELAMENTOS_ATIVOS do ERP) — a cada virada de ciclo, cada parcela avança +1; ao ultrapassar o total, o item some da lista sozinho (status QUITADO). Nunca mais editar esta tabela na mão.`,
     // legAlivioAgosto REMOVIDA daqui em V219 - virou calculo dinamico real (ver aplicarAlivioAgosto()

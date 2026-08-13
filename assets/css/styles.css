@@ -281,7 +281,9 @@
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
     padding:0.15rem 0.4rem;
   }
-  .section-num h2{font-size:0.95rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em}
+  /* CORRIGIDO 13/08/2026 (achado de auditoria: sem min-width:0, h2 podia espremer título longo
+     contra o botão de print em telas <=640px, já que .section-num é flex row) */
+  .section-num h2{font-size:0.95rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em;min-width:0}
   .btn-print-secao{
     margin-left:auto;flex-shrink:0;
     width:1.7rem;height:1.7rem;border-radius:var(--radius-md);
@@ -302,6 +304,10 @@
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
   .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+  /* CORRIGIDO 13/08/2026 (achado de auditoria: div.cv-legend-row, seção 06 do Painel, não tinha
+     NENHUMA regra CSS neste arquivo — os 3 blocos empilhavam verticalmente em vez de ficar lado a
+     lado como todo outro agrupamento de 3 KPIs, que usa .grid-3) */
+  .cv-legend-row{display:flex;justify-content:space-between;gap:1rem}
 
   .row{
     display:flex;justify-content:space-between;align-items:center;

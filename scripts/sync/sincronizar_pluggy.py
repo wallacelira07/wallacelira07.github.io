@@ -253,13 +253,18 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str]) -> dict
             investimentos = listar_investimentos(api_key, item_id)
             for inv in investimentos:
                 entrada["investimentos"].append({
+                    "id": inv.get("id"),
                     "tipo": inv.get("type"),
                     "nome": inv.get("name"),
                     "valor": inv.get("balance") or inv.get("value"),
                     "instituicao": inv.get("institution", {}).get("name") if inv.get("institution") else None,
                 })
-        except RuntimeError:
-            pass
+        except RuntimeError as e:
+            # CORRIGIDO 13/08/2026 (achado do usuario: cofrinho MP e previdencia BTG nao apareciam
+            # em lugar nenhum): erro aqui era engolido em silencio (except: pass), sem log nenhum -
+            # impossivel saber se a Pluggy simplesmente nao tem esse dado pra essa conexao ou se a
+            # chamada estava falhando. Agora reporta no resultado pra aparecer nos logs do workflow.
+            resultado["erros"].append(f"{nome_banco} (investimentos): {e}")
 
         resultado["conexoes"].append(entrada)
 

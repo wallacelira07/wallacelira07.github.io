@@ -32,22 +32,31 @@ function hydrateResumoExecutivo(){
   // CORRIGIDO 25/07/2026 (V143→V144): este card era 100% texto fixo ("Salário Alto", badge "Alto",
   // texto de "cumprir aportes") - nunca mudava mesmo quando o Modo Operacional real era outro. Agora
   // reage de verdade as 4 faixas da secao 10 das Politicas.
+  // CORRIGIDO 13/08/2026 (achado de auditoria: badge 's02ModoBadge' só trocava o texto, nunca a
+  // classe/cor — ficava com a classe "badge bg" (verde, fixa no HTML) mesmo em modo Crítico/Baixo,
+  // enganando quem olhasse só o badge. Também trocadas as cores hardcoded em hex (#e2554f/#e2a13f/
+  // #e8d34f) pelos tokens reais do design system (var(--red)/var(--amber), ver :root em
+  // assets/css/styles.css) — "Normal" usava um amarelo (#e8d34f) que não é token nenhum, mapeado
+  // agora pro mesmo --amber do badge "ba" (mesma faixa de atenção que "Baixo"). Classe do badge
+  // agora usa as classes bg/ba/br já definidas em styles.css (.badge), trocada junto com cfg.cor.
   (function(){
     const modo = R.operacional.modoOperacional;
     const cfg = {
-      'Crítico': {cor:'#e2554f', badge:'Crítico', titulo:'Salário Crítico', faixa:'(< R$ 0)', texto:'Suspender aportes patrimoniais.'},
-      'Baixo':   {cor:'#e2a13f', badge:'Baixo',   titulo:'Salário Baixo',   faixa:'(R$ 0 – R$ 2.999)', texto:'Reduzir gastos na ordem: Churrasco → Combustível → Eventos → Manutenção.'},
-      'Normal':  {cor:'#e8d34f', badge:'Normal',  titulo:'Salário Normal',  faixa:'(R$ 3.000 – R$ 7.999)', texto:'Cumprir aportes normalmente.'},
-      'Alto':    {cor:'var(--green)', badge:'Alto', titulo:'Salário Alto',  faixa:'(≥ R$ 8.000)', texto:'Cumprir todos os aportes e direcionar todo excedente para Caixa Lance e BTG/Necton.'},
-    }[modo] || {cor:'var(--green)', badge:'—', titulo:'Modo Operacional', faixa:'', texto:''};
+      'Crítico': {cor:'var(--red)',   badgeClasse:'br', badge:'Crítico', titulo:'Salário Crítico', faixa:'(< R$ 0)', texto:'Suspender aportes patrimoniais.'},
+      'Baixo':   {cor:'var(--amber)', badgeClasse:'ba', badge:'Baixo',   titulo:'Salário Baixo',   faixa:'(R$ 0 – R$ 2.999)', texto:'Reduzir gastos na ordem: Churrasco → Combustível → Eventos → Manutenção.'},
+      'Normal':  {cor:'var(--amber)', badgeClasse:'ba', badge:'Normal',  titulo:'Salário Normal',  faixa:'(R$ 3.000 – R$ 7.999)', texto:'Cumprir aportes normalmente.'},
+      'Alto':    {cor:'var(--green)', badgeClasse:'bg', badge:'Alto', titulo:'Salário Alto',  faixa:'(≥ R$ 8.000)', texto:'Cumprir todos os aportes e direcionar todo excedente para Caixa Lance e BTG/Necton.'},
+    }[modo] || {cor:'var(--green)', badgeClasse:'bg', badge:'—', titulo:'Modo Operacional', faixa:'', texto:''};
     t('s02ModoTitulo', cfg.titulo);
     t('s02ModoBadge', cfg.badge);
     t('s02ModoFaixa', cfg.faixa);
     t('s02ModoTexto', cfg.texto);
     const tituloEl = $('s02ModoTitulo');
     const cardEl = $('s02ModoCard');
+    const badgeEl = $('s02ModoBadge');
     if(tituloEl) tituloEl.style.color = cfg.cor;
     if(cardEl) cardEl.style.borderLeftColor = cfg.cor;
+    if(badgeEl) badgeEl.className = 'badge ' + cfg.badgeClasse;
   })();
 
   t('s20TotalOp', fmt(R.operacional.totalOperacional));

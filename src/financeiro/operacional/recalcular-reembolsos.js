@@ -23,7 +23,10 @@ function recalcularReembolsos(){
   // V135: Recebidos no ciclo = Total do ciclo - A receber (sempre a diferenca, nunca mais numero fixo
   // que "esquece" de subir quando uma nova TED e confirmada e A_RECEBER zera).
   REG.reembolsos.recebidosNoCiclo = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsosAReceber);
-  // Sobra da cascata de reembolso Wartsila = Total - as 4 pernas de deducao (regra da Politica sec.5, 5 pernas). V128: campos nomeados, nao mais numeros magicos.
+  // CORRIGIDO 13/08/2026 (achado de auditoria: comentário dizia "4 pernas... (regra da Politica
+  // sec.5, 5 pernas)" - contraditório). Sobra da cascata de reembolso Wartsila = Total - as 4 pernas
+  // de deducao (Wartsila, MP Corporativo, Cartao Corporativo, provMP). V128: campos nomeados, nao
+  // mais numeros magicos.
   REG.operacional.reembolsoSobraPessoal = r2(REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPagaWartsila - REG.operacional.reembolsoPagaMPCorporativo - REG.operacional.reembolsoPagaCartaoCorporativo - REG.totalOpDetalhe.provMP);
   // V137: excedente do investimento derivado (elimina a classe de erro que gerou a correcao V107, um
   // erro de subtracao manual de R$1,00).
