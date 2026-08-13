@@ -25,7 +25,7 @@
     cxBoletosSaldo: 'Caixa Boletos',
     cxPixSaldo: 'PIX Vanessa',
     cxPgvSaldo: 'PIX Geral Vanessa',
-    cxWartsila: 'Provisionado Wärtsilä',
+    cxWartsila: 'Caixa Wartsila',
     cxManutSaldo: 'Caixa Manutenção',
     cxBensDuraveisSaldo: 'Caixa Bens Duráveis',
     cxEventosSaldo: 'Caixa Eventos',
@@ -34,6 +34,12 @@
     cxAnivSaldo: 'Caixa Aniversário Júlio',
     cxSeguroSaldo: 'Caixa Seguro Emplacamento',
     cxEscolaSaldo: 'Escola de Júlio',
+  };
+
+  // NOVO 13/08/2026 (pedido do usuário: nota do LREI0001 saiu do card, foi pra dentro do
+  // popover) - notas fixas por caixa, sem relação com a lista de transações real.
+  const NOTAS_EXTRA_CAIXA = {
+    'Caixa Manutenção': 'LREI0001 quitado em 21/07/2026 (depósito direto do reembolso Wärtsilä).',
   };
 
   let popoverEl = null;
@@ -158,8 +164,10 @@
           </div>`).join('')
       : `<div class="tcc-vazio">Nenhuma transação neste ciclo.</div>`;
 
+    const notaExtra = NOTAS_EXTRA_CAIXA[caixaNome];
     pop.innerHTML = `
       <div class="tcc-titulo">${caixaNome} · ${linhas.length} transação(ões) do ciclo atual</div>
+      ${notaExtra ? `<div class="tcc-rodape" style="border-top:none;padding-top:0">${notaExtra}</div>` : ''}
       <div class="tcc-lista">${listaHtml}</div>
       <div class="tcc-rodape">Soma da lista: <span class="tcc-total">${totalTxt}</span></div>
       ${divergeDoCard ? `<div class="tcc-aviso">⚠ Diverge do valor mostrado no card (${valorCardTxt}) — pode ser saldo inicial de ciclo não vindo de transação individual. Não ajustado automaticamente.</div>` : ''}
@@ -172,26 +180,34 @@
     hoverTimer = setTimeout(() => abrirPopover(el, caixaNome), ATRASO_HOVER_MS);
   }
 
+  // Extraído 13/08/2026 pra reusar nos cards dinâmicos da seção 05 (ver
+  // preencherCaixasOperacionaisExtra() em hydrate-caixas.js) - mesma lógica de
+  // hover/toque/estilo dos 12 cards estáticos, sem duplicar código.
+  function anexarCard(card, caixaNome){
+    if(!card || card.dataset.caixaNome) return; // já anexado (evita duplicar em re-hidratação)
+    card.dataset.caixaNome = caixaNome;
+
+    // Desktop: hover com pequeno atraso. mouseenter cancela fechamento pendente (ex: usuário
+    // saiu do popover e voltou pro card rápido) além de agendar abertura se ainda fechado.
+    card.addEventListener('mouseenter', () => { cancelarFechamento(); if(cardAberto !== card) agendarAbertura(card, caixaNome); });
+    card.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); if(cardAberto === card) agendarFechamento(); });
+
+    // Mobile/touch: toque alterna abrir/fechar (hover não existe de verdade em touch).
+    card.addEventListener('click', (ev) => {
+      if(cardAberto === card){ fecharPopover(); return; }
+      ev.stopPropagation();
+      abrirPopover(card, caixaNome);
+    });
+  }
+  window.anexarTooltipComposicaoCaixa = anexarCard; // API pública pra cards gerados dinamicamente
+
   function anexarListeners(){
     Object.keys(MAPA_CAIXA_ID_CARD).forEach(idHtml => {
       const valorEl = document.getElementById(idHtml);
       if(!valorEl) return;
       const card = valorEl.closest('.card');
-      if(!card || card.dataset.caixaNome) return; // já anexado (evita duplicar em re-hidratação)
-      const caixaNome = MAPA_CAIXA_ID_CARD[idHtml];
-      card.dataset.caixaNome = caixaNome;
-
-      // Desktop: hover com pequeno atraso. mouseenter cancela fechamento pendente (ex: usuário
-      // saiu do popover e voltou pro card rápido) além de agendar abertura se ainda fechado.
-      card.addEventListener('mouseenter', () => { cancelarFechamento(); if(cardAberto !== card) agendarAbertura(card, caixaNome); });
-      card.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); if(cardAberto === card) agendarFechamento(); });
-
-      // Mobile/touch: toque alterna abrir/fechar (hover não existe de verdade em touch).
-      card.addEventListener('click', (ev) => {
-        if(cardAberto === card){ fecharPopover(); return; }
-        ev.stopPropagation();
-        abrirPopover(card, caixaNome);
-      });
+      if(!card) return;
+      anexarCard(card, MAPA_CAIXA_ID_CARD[idHtml]);
     });
   }
 

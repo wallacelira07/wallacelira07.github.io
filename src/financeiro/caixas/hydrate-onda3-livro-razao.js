@@ -29,7 +29,7 @@ const ONDA3_LR_MAPA = [
   { tbodyId: 'lrseguroTbody', tfId: 'tf_lrseguro', qtdId: 'qtd_lrseguro', caixaId: '8dcfa73a-1560-4b37-9aac-48a499548d2c', caixaNome: 'Caixa Seguro Emplacamento', varsArray: 'SEGURO_EMPLACAMENTO_TRANSACOES' },
   { tbodyId: 'lrcombTbody', tfId: 'tf_lrcomb', qtdId: 'qtd_lrcomb', caixaId: '782d8722-392a-440d-8b71-4fa7476a5b30', caixaNome: 'Caixa Combustível', varsArray: 'COMBUSTIVEL_TRANSACOES' },
   { tbodyId: 'lrchurrascoTbody', tfId: 'tf_lrchurrasco', qtdId: 'qtd_lrchurrasco', caixaId: 'f18e248e-182b-42ec-9d04-f1bf5cb0a749', caixaNome: 'Caixa Churrasco', varsArray: 'CHURRASCO_TRANSACOES' },
-  { tbodyId: 'lrmciTbody', tfId: 'tf_lrmci', qtdId: 'qtd_lrmci', caixaId: '748b8612-b854-44e3-8834-542ec7f1ff7c', caixaNome: 'Caixa Mastercard/Infinite', varsArray: 'MASTERCARD_INFINITE_TRANSACOES' },
+  { tbodyId: 'lrmciTbody', tfId: 'tf_lrmci', qtdId: 'qtd_lrmci', caixaId: '748b8612-b854-44e3-8834-542ec7f1ff7c', caixaNome: 'Caixa Mastercard_Infinite', varsArray: 'MASTERCARD_INFINITE_TRANSACOES' },
   { tbodyId: 'lrbdTbody', tfId: 'tfBD', qtdId: 'qtdBD', caixaId: 'eeaf926e-07df-479c-b0bc-1071410a5298', caixaNome: 'Caixa Bens Duráveis', varsArray: 'BENS_DURAVEIS_TRANSACOES' },
   { tbodyId: 'lrpvsaldoTbody', tfId: 'tfPV', qtdId: 'qtdPV', caixaId: '6c6546fa-5b83-4db6-aa33-ac1bf35370d9', caixaNome: 'PIX Vanessa', varsArray: 'PV_TRANSACOES' },
   // NOVO 09/08/2026 (achado do usuário: 3 lançamentos gravados direto na V2 pelo Chat - Sabão Júlio,

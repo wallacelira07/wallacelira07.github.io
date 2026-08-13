@@ -82,7 +82,7 @@ const ONDA1_V2_MAPA = [
       if(typeof atualizarGraficoPainelCaixaVariavel === 'function') atualizarGraficoPainelCaixaVariavel();
     },
   },
-  { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard/Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
+  { idHtml: 'balOpMastercardInfinite', caixaNome: 'Caixa Mastercard_Infinite', getValorV1: () => VARS.caixaMastercardInfinite },
 ];
 
 const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos', 'balOpCaixaVariavel', 'cxPixPct', 'balResPixVanessa']); // cxBoletosBar/cxPixBar têm style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo

@@ -175,6 +175,18 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 13/08/2026 (seção "Todas as Caixas" no Painel): teto_mensal não está na view
+  // vw_saldo_v2_por_caixa (só nome/saldo), precisa buscar direto da tabela caixas pra montar a
+  // barra de progresso dos cards gerados dinamicamente (ver preencherCaixasOperacionaisExtra()).
+  async getTetoMensalCaixas(){
+    return this._cache.obterOuBuscar('caixas_teto_mensal', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/caixas?select=nome,teto_mensal&teto_mensal=not.is.null`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas.teto_mensal`);
+      return await resp.json();
+    });
+  },
   // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
   // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
   // validada a sessão inteira, em vez de somar arrays na mão no cliente.
@@ -1913,6 +1925,7 @@ function hydrate(){
   // — mesma sequência, nenhum id/fórmula alterado.
   hydrateCaixas();
   preencherCaixasOperacionaisExtra(); // NOVO 13/08/2026: completa a seção 05 com as caixas que não têm card estático (ver hydrate-caixas.js)
+  aplicarMetasV2CaixasEstaticas(); // NOVO 13/08/2026: metas dos 12 cards estáticos passam a vir de caixas.teto_mensal (V2), não mais fixas no JS
 
   aplicarOnda3Suavizacao(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
 

@@ -27,6 +27,11 @@ function hydrateCaixas(){
   t('cxPixPct', pctOf(C.pixVanessa.saldo,C.pixVanessa.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=$('cxPixBar'); if(el) el.style.width = pctOf(C.pixVanessa.saldo,C.pixVanessa.meta)+'%'; }
   t('cxManutSaldo', fmt(C.manutencao.saldo));       t('cxManutMeta', fmtInt(C.manutencao.meta));
+  // CORRIGIDO 13/08/2026 (achado do usuário): cxManutPct nunca era escrito aqui - o HTML tinha
+  // texto fixo "LREI0001: QUITADO 21/07" no lugar do span, então promoverCaixaComBarraSeConfiavel
+  // (app.js) tentava atualizar um id que não existia, sem erro visível (silenciosamente ignorado).
+  // Nota do LREI0001 movida pro tooltip de composição (tooltip-composicao-caixa.js).
+  t('cxManutPct', pctOf(C.manutencao.saldo, C.manutencao.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=$('cxManutBar'); if(el) el.style.width = pctOf(C.manutencao.saldo, C.manutencao.meta)+'%'; }
   // NOVO 05/08/2026: card Bens Duraveis - saldo pode ficar NEGATIVO (compra ja feita sem reserva
   // previa) - cor muda pra vermelho nesse caso, barra fica em 0% (pctOf ja trata negativo como 0 via
@@ -83,7 +88,7 @@ function hydrateCaixas(){
 // nomes exatos aqui, não são chutados. Se uma caixa nova for criada no banco, aparece sozinha
 // aqui sem precisar editar este arquivo.
 const CAIXAS_JA_COBERTAS_ESTATICAMENTE = [
-  'Caixa Boletos', 'PIX Vanessa', 'PIX Geral Vanessa', 'Provisionado Wärtsilä',
+  'Caixa Boletos', 'PIX Vanessa', 'PIX Geral Vanessa', 'Caixa Wartsila',
   'Caixa Manutenção', 'Caixa Bens Duráveis', 'Caixa Eventos', 'Conta Suavização (CC-304)',
   'Caixa Saúde Família', 'Caixa Aniversário Júlio', 'Caixa Seguro Emplacamento', 'Escola de Júlio',
 ];
@@ -91,11 +96,14 @@ const CAIXAS_JA_COBERTAS_ESTATICAMENTE = [
 async function preencherCaixasOperacionaisExtra(){
   const grid = $('caixasExtraGrid');
   if(!grid) return;
-  let saldos;
+  let saldos, tetos;
   try {
-    saldos = await WallaceFinanceService.getSaldosPorCaixa();
+    [saldos, tetos] = await Promise.all([
+      WallaceFinanceService.getSaldosPorCaixa(),
+      WallaceFinanceService.getTetoMensalCaixas(),
+    ]);
   } catch(err){
-    console.error('CaixasExtra: falha ao buscar vw_saldo_v2_por_caixa.', err);
+    console.error('CaixasExtra: falha ao buscar vw_saldo_v2_por_caixa/caixas.teto_mensal.', err);
     grid.innerHTML = '<div class="card" style="color:var(--red)">⚠ Não foi possível carregar as demais caixas.</div>';
     return;
   }
@@ -104,10 +112,88 @@ async function preencherCaixasOperacionaisExtra(){
     return;
   }
   const extras = saldos.filter(c => !CAIXAS_JA_COBERTAS_ESTATICAMENTE.includes(c.caixa_nome));
-  grid.innerHTML = extras.map(c => {
+  // CORRIGIDO 13/08/2026 (achado do usuário: cards novos destoando visualmente dos 12 estáticos -
+  // cor sempre verde, sem "CC-XXX", sem tooltip de composição, sem a barra de progresso/meta que
+  // dá a mesma altura dos outros cards). Mesmo padrão de cor dos outros cards (ex: Bens Duráveis):
+  // só vermelho se negativo. Barra de progresso usa caixas.teto_mensal quando existe (hoje só
+  // Caixa Variável R$2.000 e Emagrecimento R$278,89 têm) - sem meta, mostra barra vazia cinza em
+  // vez de esconder o bloco inteiro, pra manter a mesma altura de card em toda a grade.
+  // CC-209 atribuído 13/08/2026 (pedido do usuário: "crie" um código pra Emagrecimento, mesma
+  // faixa 200 dos custos operacionais mensais pessoais - Saúde=206/Aniversário=207/Seguro=208).
+  const PREFIXO_CC = { 'Caixa Lance': 'CC-303 · ', 'Emagrecimento': 'CC-209 · ' };
+  const mapaTeto = {};
+  (Array.isArray(tetos) ? tetos : []).forEach(t => { mapaTeto[t.nome] = Number(t.teto_mensal); });
+  // NAO usar $() aqui - $(id) memoiza (DOM[id] ||= document.getElementById(id)) e fica com
+  // referencia orfa se este grid for recriado de novo (ex: re-hidratacao); acesso posicional via
+  // grid.children[i] sempre pega o elemento vivo da renderizacao atual.
+  grid.innerHTML = extras.map((c) => {
     const saldo = Number(c.v2_saldo_calculado);
-    const cor = saldo < 0 ? 'var(--red)' : 'var(--green)';
-    return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${c.caixa_nome}</div><div class="v" style="font-weight:600;color:${cor}">${fmt(saldo)}</div></div>`;
+    const estiloValor = saldo < 0 ? 'style="color:var(--red)"' : '';
+    const titulo = (PREFIXO_CC[c.caixa_nome] || '') + c.caixa_nome;
+    const teto = mapaTeto[c.caixa_nome];
+    const temMeta = teto > 0;
+    const pct = temMeta ? Math.max(0, Math.min(100, saldo/teto*100)) : 0;
+    const corBarra = temMeta ? 'var(--accent)' : 'var(--border)';
+    const labelEsquerda = temMeta ? pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : 'sem meta definida';
+    const labelDireita = temMeta ? fmt(teto) : '';
+    return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${titulo}</div><div class="v" style="font-weight:600" ${estiloValor}>${fmt(saldo)}</div><div class="progress"><div class="fill" style="width:${pct}%;background:${corBarra}"></div></div><div class="progress-lbl"><span class="v">${labelEsquerda}</span><span class="v">${labelDireita}</span></div></div>`;
   }).join('');
+  // Liga o mesmo tooltip de composição (hover/toque) que os 12 cards estáticos já têm - função
+  // exposta por tooltip-composicao-caixa.js pra evitar duplicar a lógica de popover.
+  if(typeof window.anexarTooltipComposicaoCaixa === 'function'){
+    extras.forEach((c, i) => {
+      const card = grid.children[i];
+      if(card) window.anexarTooltipComposicaoCaixa(card, c.caixa_nome);
+    });
+  }
   console.log(`CaixasExtra: ${extras.length} caixa(s) adicional(is) renderizada(s) (${extras.map(c=>c.caixa_nome).join(', ')}).`);
+}
+
+// NOVO 13/08/2026 (pedido do usuário: "OK se isso for V2" - metas dos 12 cards estáticos
+// deixam de vir de constante fixa no JS e passam a ler caixas.teto_mensal, mesma fonte única
+// que os cards dinâmicos (preencherCaixasOperacionaisExtra) já usam desde o início. Só
+// SOBRESCREVE quando a caixa tem teto_mensal cadastrado - sem meta no banco, mantém o texto
+// que hydrateCaixas() (V1/constante) já escreveu, sem quebrar nada.
+const METAS_V2_CARDS_ESTATICOS = {
+  'Caixa Boletos':            { idPct: 'cxBoletosPct',  idBarra: 'cxBoletosBar',  idMeta: 'cxBoletosMeta' },
+  'PIX Vanessa':               { idPct: 'cxPixPct',      idBarra: 'cxPixBar',      idMeta: 'cxPixMeta' },
+  'Caixa Manutenção':          { idPct: 'cxManutPct',    idBarra: 'cxManutBar',    idMeta: 'cxManutMeta' },
+  'Caixa Eventos':             { idPct: 'cxEventosPct',  idBarra: 'cxEventosBar',  idMeta: 'cxEventosMeta' },
+  'Escola de Júlio':           { idPct: 'cxEscolaPct',   idBarra: 'cxEscolaBar',   idMeta: 'cxEscolaMeta' },
+  // Estes 4 mostram um texto de "aporte alvo" à esquerda (conceito diferente de %) - só a
+  // barra e o valor da meta à direita são atualizados, o texto da esquerda fica intocado.
+  'Caixa Bens Duráveis':       { idBarra: 'cxBensDuraveisBar', idMeta: 'cxBensDuraveisMeta' },
+  'Caixa Saúde Família':       { idBarra: 'cxSaudeBar',        idMeta: 'cxSaudeMeta' },
+  'Caixa Aniversário Júlio':   { idBarra: 'cxAnivBar',         idMeta: 'cxAnivMeta' },
+  'Caixa Seguro Emplacamento': { idBarra: 'cxSeguroBar',       idMeta: 'cxSeguroMeta' },
+};
+
+async function aplicarMetasV2CaixasEstaticas(){
+  let saldos, tetos;
+  try {
+    [saldos, tetos] = await Promise.all([
+      WallaceFinanceService.getSaldosPorCaixa(),
+      WallaceFinanceService.getTetoMensalCaixas(),
+    ]);
+  } catch(err){
+    console.error('MetasV2CaixasEstaticas: falha ao buscar dados - mantendo metas fixas do JS.', err);
+    return;
+  }
+  if(!Array.isArray(saldos) || !Array.isArray(tetos)) return;
+  const mapaSaldo = {};
+  saldos.forEach(s => { mapaSaldo[s.caixa_nome] = Number(s.v2_saldo_calculado); });
+  const pctOfLocal = (s,m) => m>0 ? Math.max(0, Math.min(100, s/m*100)) : 0;
+  let atualizadas = 0;
+  tetos.forEach(({nome, teto_mensal}) => {
+    const cfg = METAS_V2_CARDS_ESTATICOS[nome];
+    const teto = Number(teto_mensal);
+    if(!cfg || !(teto > 0) || !(nome in mapaSaldo)) return;
+    const saldo = mapaSaldo[nome];
+    const pct = pctOfLocal(saldo, teto);
+    if(cfg.idPct){ const el = document.getElementById(cfg.idPct); if(el) el.textContent = pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+    if(cfg.idBarra){ const el = document.getElementById(cfg.idBarra); if(el) el.style.width = pct+'%'; }
+    if(cfg.idMeta){ const el = document.getElementById(cfg.idMeta); if(el) el.textContent = 'R$ '+Math.round(teto).toLocaleString('pt-BR'); }
+    atualizadas++;
+  });
+  console.log(`MetasV2CaixasEstaticas: ${atualizadas} card(s) com meta atualizada via caixas.teto_mensal (V2).`);
 }

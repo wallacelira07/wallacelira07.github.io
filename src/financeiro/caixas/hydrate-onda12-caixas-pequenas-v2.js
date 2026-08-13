@@ -26,7 +26,7 @@ const ONDA12_CAIXAS_MAPA = [
   { caixaNome: 'Caixa Bens Duráveis', varArr: 'BENS_DURAVEIS_TRANSACOES', varSaldo: 'caixaBensDuraveis', saldoInicial: () => VARS.BENS_DURAVEIS_SALDO_INICIAL },
   { caixaNome: 'Caixa Churrasco', varArr: 'CHURRASCO_TRANSACOES', varSaldo: 'caixaChurrasco', saldoInicial: () => VARS.CHURRASCO_SALDO_INICIAL },
   { caixaNome: 'PIX Vanessa', varArr: 'PV_TRANSACOES', varSaldo: 'caixaPixVanessa', saldoInicial: () => VARS.PV_SALDO_INICIAL },
-  { caixaNome: 'Caixa Mastercard/Infinite', varArr: 'MASTERCARD_INFINITE_TRANSACOES', varSaldo: 'caixaMastercardInfinite', saldoInicial: () => VARS.MASTERCARD_INFINITE_SALDO_INICIAL },
+  { caixaNome: 'Caixa Mastercard_Infinite', varArr: 'MASTERCARD_INFINITE_TRANSACOES', varSaldo: 'caixaMastercardInfinite', saldoInicial: () => VARS.MASTERCARD_INFINITE_SALDO_INICIAL },
 ];
 
 async function aplicarOnda12CaixasPequenasV2(){

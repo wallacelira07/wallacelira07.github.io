@@ -215,7 +215,7 @@ async function aplicarOnda2V2(){
 // validada a sessão inteira, sem reimplementar comparação que já existe no banco.
 const LIVRO_RAZAO_FASE1_CAIXAS = [
   'Caixa Lance','Caixa Manutenção','Caixa Aniversário Júlio','Caixa Eventos','Caixa Saúde Família',
-  'Caixa Seguro Emplacamento','Caixa Combustível','Caixa Churrasco','Caixa Mastercard/Infinite',
+  'Caixa Seguro Emplacamento','Caixa Combustível','Caixa Churrasco','Caixa Mastercard_Infinite',
   'PIX Vanessa','PIX Geral Vanessa','Caixa Bens Duráveis','Caixa Boletos','Caixa Variável','Escola de Júlio'
 ];
 

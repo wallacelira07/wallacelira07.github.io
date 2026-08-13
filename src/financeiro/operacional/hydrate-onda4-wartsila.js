@@ -34,7 +34,7 @@ async function aplicarOnda4Wartsila(){
     window.WALLACE_ONDA4_WARTSILA_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
-  const caixaWartsila = Array.isArray(saldosV2) ? saldosV2.find(c => c.caixa_nome === 'Provisionado Wärtsilä') : null;
+  const caixaWartsila = Array.isArray(saldosV2) ? saldosV2.find(c => c.caixa_nome === 'Caixa Wartsila') : null;
   if(!ciclo || !caixaWartsila || caixaWartsila.v2_saldo_calculado === null || caixaWartsila.v2_saldo_calculado === undefined){
     console.warn('Onda4Wartsila: dado incompleto na V2.');
     marcarIndisponivelV2(ONDA4_WARTSILA_IDS, 'dado incompleto na V2');
