@@ -18,6 +18,7 @@ async function aplicarOnda10LrcLimbo(){
     if(!Array.isArray(detalhe)){
       console.warn('Onda10LrcLimbo: resposta inesperada de transacoes_corporativo_cartao_detalhe — LRC_LIMBO mantido em V1.');
       window.WALLACE_ONDA10_LRCLIMBO_RELATORIO = { status: 'sem_dado_v2' };
+      exibirAvisoFallbackLrcLimbo(true);
       return;
     }
     VARS.LRC_LIMBO_TRANSACOES = detalhe.map(l => ({
@@ -42,10 +43,28 @@ async function aplicarOnda10LrcLimbo(){
     // Recontagem explícita depois do redraw — mesmo achado do usuário no LRV (botão da aba ficava
     // preso na contagem do boot, sem refletir a tabela redesenhada acima).
     if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
+    // CORRIGIDO 12/08/2026 (achado da auditoria de inconsistências: este módulo reescreve
+    // VARS.livroLRC/mbLRCConfirmado acima, mas nunca re-rodava auditoriaAutomatica() depois — mesmo
+    // padrão já corrigido em hydrate-onda9-livros-fixos.js (badge "N divergência(s)" preso no
+    // resultado do boot, antes da V2 corrigir o valor). Se LRC entrar em alguma das relações que a
+    // auditoria confere, o badge ficaria desatualizado sem este re-cálculo.
+    if(typeof auditoriaAutomatica === 'function') auditoriaAutomatica();
     window.WALLACE_ONDA10_LRCLIMBO_RELATORIO = { status: 'ok', exibindo: 'V2', qtd: detalhe.length };
     console.log('Onda10LrcLimbo: LRC_LIMBO agora V2 — relatório em window.WALLACE_ONDA10_LRCLIMBO_RELATORIO', window.WALLACE_ONDA10_LRCLIMBO_RELATORIO);
+    // Sucesso confirmado contra a V2 nesta carga — apaga o aviso de fallback, se estava aceso de uma
+    // tentativa anterior (12/08/2026, auditoria: fallback não podia ficar "grudado" na tela).
+    exibirAvisoFallbackLrcLimbo(false);
   } catch(err){
     console.error('Onda10LrcLimbo: falha ao buscar detalhe do cartão corporativo — LRC_LIMBO mantido em V1.', err);
     window.WALLACE_ONDA10_LRCLIMBO_RELATORIO = { status: 'erro_v2', erro: String(err) };
+    exibirAvisoFallbackLrcLimbo(true);
   }
+}
+
+// 12/08/2026 (auditoria: fallback V2→V1 silencioso, usuário não abre o console) — liga/desliga o
+// callout de aviso na aba LRC (limbo). Só aparece quando o fallback realmente acontece (erro/formato
+// inesperado); some sozinho assim que uma carga seguinte tiver sucesso.
+function exibirAvisoFallbackLrcLimbo(mostrar){
+  const el = $('legLRCLimboFallbackAviso');
+  if(el) el.style.display = mostrar ? '' : 'none';
 }

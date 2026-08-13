@@ -30,11 +30,26 @@ function criarVarsOperacional(){
     // relacao com os dados reais. Migration da view vw_saldo_v2_por_caixa (Supabase) fechou a
     // dependencia do array V1: agora usa caixas.ciclo_inicio_em, sem tx_legado como criterio de
     // existencia. Fallback local - a versao ao vivo desta legenda vem da tabela `legendas` (Supabase).
-    legPGVSaldoResidual: `Saldo real da Caixa Pix Geral: <strong>R$ 306,73</strong>. Fonte: V2 pura (tabela transações), sem depender do array V1 — qualquer lançamento confirmado dentro do ciclo aparece aqui automaticamente, sem sincronização manual.`,
+    // CORRIGIDO 12/08/2026 (achado de auditoria: texto tinha R$306,73 fixo, congelado do dia em que
+    // foi escrito — nunca mais acompanhava o saldo real da PGV depois disso). Esta chave PAROU de
+    // ser usada como texto fixo — hydrateResumoExecutivo() agora calcula o conteúdo real de
+    // #legPGVSaldoResidual a cada render, a partir de REG.caixasOperacionais.pixGeralVanessa.saldo
+    // (mesma fonte do card cxPgvSaldo, ver hydrate-caixas.js) — excluída do loop genérico em
+    // hydrate-roc.js de propósito (ver LEGENDAS_CALCULADAS). Literal abaixo mantido só como
+    // histórico/fallback morto — nunca mais renderizado.
+    legPGVSaldoResidual: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.caixasOperacionais.pixGeralVanessa.saldo)`,
     legOpcoesReconstruido: `3 posições confirmadas via extrato da corretora: PETRT379 R$154,84 · PETRS368W5 R$39,97 · ITUBT424 R$177,04. <strong>Total de prêmios: R$371,85</strong>, já garantido mesmo com posições ativas. Estratégia: deixar vencer.`,
     legLinha4vs5MP: `Linha 4 ≠ linha 5 — não confundir. Linha 4 = total da fatura Mercado Pago menos a parte corporativa (linha 2) = o que você mesmo deve pagar ali. Linha 5 = o que sobra do reembolso da Wärtsilä depois de cobrir tudo (linhas 1-3), vira crédito seu no Mercado Pago — dinheiro diferente, mesmo destino. Só a sobra total (linha 5) abate a Necessidade Total e vira Necessidade Líquida — Wärtsilä e corporativo já eram custos da empresa, não seus.`,
     legPGBLDefinicao: `6% do salário (Wallace) + 6% de contrapartida (Wärtsilä), gestão da empresa. Saque apenas em caso de demissão ou aposentadoria — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, que consideram só patrimônio líquido/investível. Conta separada da BTG/Necton (LFTS11) acima.`,
-    legOrcamentoOperacionalComposicao: `Orçamento livre do dia a dia: Custos Variáveis R$2.000,00 + PIX Vanessa R$1.200,00.`,
+    // CORRIGIDO 12/08/2026 (achado de auditoria: os 2 valores da composição — teto da Caixa Variável
+    // e meta da PIX Vanessa — estavam escritos fixos na string, sem ler os números reais). Esta
+    // chave PAROU de ser usada como texto fixo — hydrateResumoExecutivo() agora calcula o conteúdo
+    // real de #legOrcamentoOperacionalComposicao a cada render, a partir de
+    // REG.caixaVariavel.tetoOficial + REG.caixasOperacionais.pixVanessa.meta (mesma dupla que soma
+    // VARS.orcamentoOperacional) — excluída do loop genérico em hydrate-roc.js de propósito (ver
+    // LEGENDAS_CALCULADAS). Literal abaixo mantido só como histórico/fallback morto — nunca mais
+    // renderizado.
+    legOrcamentoOperacionalComposicao: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.caixaVariavel.tetoOficial + REG.caixasOperacionais.pixVanessa.meta)`,
     // CORRIGIDO 10/08/2026 (achado do usuário: texto estático com números de julho/2026, nunca
     // atualizado, e descrevendo uma regra de Cobertura Garantida já substituída em 26/07/2026 por
     // valor 100% manual): esta chave PAROU de ser usada como texto fixo — hydrate-resumo-executivo.js
@@ -148,7 +163,7 @@ function criarVarsOperacional(){
   seguroEmplacamentoAporte: 425,
   // NOVO 12/08/2026 (pedido do usuário: aba de emagrecimento, caneta Ozivy Semaglutida): aporte
   // mensal contínuo, mesmo padrão de seguroEmplacamentoAporte (sem data de término conhecida) —
-  // financia a caixa "Saúde - Emagrecimento". Valor inicial informado pelo usuário ("comece com
+  // financia a caixa "Emagrecimento". Valor inicial informado pelo usuário ("comece com
   // esse valor, depois nos adequamos à realidade") - ajustar aqui quando o preço real da farmácia
   // divergir (reajuste de fabricante, troca de dosagem, etc), mesma prática já usada pra outros
   // aportes fixos deste arquivo.

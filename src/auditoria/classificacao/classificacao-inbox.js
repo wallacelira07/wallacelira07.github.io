@@ -162,25 +162,40 @@ async function sincronizarMercadoPagoParaInbox(){
   // fixa pra manter atualizada na mao). Falha de rede nao trava a sincronizacao (item so fica sem
   // o aviso de "possivel duplicidade" nesse caso raro, nunca escondido da Inbox) - log alto pra
   // nao passar despercebido.
+  // CORRIGIDO 12/08/2026 (mesmo achado do diagnóstico de lag, gêmeo do fix em
+  // pluggy-reconciliacao.js — 2ª rodada, achado da auditoria completa de boot: as 4 buscas abaixo
+  // são todas independentes entre si, mas 2 delas rodavam atrás do Promise.all em vez de dentro
+  // dele). 1 único Promise.all com as 4.
   const valoresConhecidos = new Set();
-  try {
-    (await WallaceFinanceService.getValoresConhecidosV2()).forEach(v => valoresConhecidos.add(v));
-  } catch(err){
-    console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).', err);
-  }
-  // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já lançada,
-  // desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma caixa fecha
-  // essa classe de falso-negativo. Mesmo tratamento de falha silenciosa (nunca esconde item real).
-  try {
-    (await WallaceFinanceService.getValoresCombinadosV2()).forEach(v => valoresConhecidos.add(v));
-  } catch(err){
-    console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
-  }
-  // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida): fecha o caso que
-  // o dedup por valor nunca pegava — mesma assinatura, valor diferente (reajuste/câmbio). Ver
-  // obterPalavrasChaveAssinaturasConhecidas() acima.
-  const palavrasChaveAssinaturas = await obterPalavrasChaveAssinaturasConhecidas('sincronizarMercadoPagoParaInbox');
+  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] = await Promise.all([
+    WallaceFinanceService.getValoresConhecidosV2().catch(err => {
+      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).', err);
+      return null;
+    }),
+    // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já
+    // lançada, desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma
+    // caixa fecha essa classe de falso-negativo. Mesmo tratamento de falha silenciosa.
+    WallaceFinanceService.getValoresCombinadosV2().catch(err => {
+      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
+      return null;
+    }),
+    // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida): fecha o caso que
+    // o dedup por valor nunca pegava — mesma assinatura, valor diferente (reajuste/câmbio). Ver
+    // obterPalavrasChaveAssinaturasConhecidas() acima (já trata a própria falha internamente).
+    obterPalavrasChaveAssinaturasConhecidas('sincronizarMercadoPagoParaInbox'),
+    // NOVO 12/08/2026 (pedido explícito do usuário: "não me interessa compra de ciclos passados,
+    // compra já informadas manualmente" — mesmo ajuste do gêmeo Pluggy em pluggy-reconciliacao.js).
+    // Este sincronizador nunca teve filtro de data nenhum — qualquer evento histórico do Mercado
+    // Pago virava item pendente na Inbox pra sempre. Ciclo atual real da Caixa Variável.
+    WallaceFinanceService.getCicloAtualInicio().catch(err => {
+      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar ciclo atual — filtro de ciclo DESATIVADO nesta rodada (itens de ciclos antigos podem aparecer).', err);
+      return null;
+    })
+  ]);
+  if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
+  if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
+  let ignoradosPorCicloAntigo = 0, ignoradosPorDuplicidade = 0;
   let novos = 0;
   eventos.forEach(ev=>{
     if(!ev || !ev.id || jaImportados.has(ev.id)) return; // ja esta na Inbox, nao duplica
@@ -191,11 +206,15 @@ async function sincronizarMercadoPagoParaInbox(){
     // cache) e tratada como 'pendente', pra nao esconder nada por engano.
     if(ev.status_triagem && ev.status_triagem !== 'pendente') return;
     if(typeof ev.valor !== 'number') return; // evento sem valor normalizado, nao entra (nada a conciliar)
+    if(cicloAtualInicio && ev.data && ev.data < cicloAtualInicio){ ignoradosPorCicloAntigo++; return; }
     const valorAbs = Math.round(Math.abs(ev.valor)*100)/100;
+    // CORRIGIDO 12/08/2026 (pedido explícito do usuário: "não quero que apareça na Inbox nada que já
+    // foi lançada" — antes, valor já conhecido só ganhava um aviso na descrição e ENTRAVA MESMO ASSIM
+    // como pendente, diferente do gêmeo Pluggy que já pulava. Unifica: se já existe (confirmado ou
+    // pendente_classificacao, ver getValoresConhecidosV2), não vira item de Inbox.
+    if(valoresConhecidos.has(valorAbs)){ ignoradosPorDuplicidade++; return; }
     const bateAssinatura = descricaoBateAssinaturaConhecida(ev.descricao, palavrasChaveAssinaturas);
-    const avisoDuplicidade = valoresConhecidos.has(valorAbs)
-      ? ' — ⚠ possível duplicidade (valor já existe em algum livro do ERP)'
-      : (bateAssinatura ? ' — ⚠ estabelecimento já é uma assinatura confirmada (valor pode ter mudado — reajuste/câmbio)' : '');
+    const avisoDuplicidade = bateAssinatura ? ' — ⚠ estabelecimento já é uma assinatura confirmada (valor pode ter mudado — reajuste/câmbio)' : '';
     const sugestao = classificarItemMercadoPago(ev.descricao) || {};
     // CORRIGIDO 04/08/2026 (parte 54): idExterno agora vai direto na criacao (idExterno: ev.id) em vez
     // de um VARS.INBOX_FINANCEIRA.find(...) logo depois pra "achar de volta" o item e so entao setar -
@@ -212,7 +231,7 @@ async function sincronizarMercadoPagoParaInbox(){
     });
     novos++;
   });
-  console.log('sincronizarMercadoPagoParaInbox:', novos, 'evento(s) novo(s) levado(s) pra Inbox.');
+  console.log(`sincronizarMercadoPagoParaInbox: ${novos} evento(s) novo(s) levado(s) pra Inbox, ${ignoradosPorDuplicidade} ignorado(s) por já estar lançado(a), ${ignoradosPorCicloAntigo} ignorado(s) por ser de ciclo anterior ao atual.`);
   renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por evento
   return {novos};
 }

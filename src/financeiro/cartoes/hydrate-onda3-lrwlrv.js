@@ -100,10 +100,25 @@ async function aplicarOnda3LrwLrvListaDetalhada(){
       // ficava preso na contagem antiga pra sempre, mesmo com a tabela certa. Mesmo padrão que faltava
       // em aplicarOnda10LrcLimbo() — corrigido junto.
       if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
+      // Sucesso confirmado contra a V2 nesta carga — apaga o aviso de fallback, se estava aceso de
+      // uma tentativa anterior (12/08/2026, auditoria: fallback não podia ficar "grudado" na tela).
+      exibirAvisoFallbackLrwLrv(false);
     } else {
       console.warn('Onda3LrwLrv: resposta inesperada de vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).');
+      exibirAvisoFallbackLrwLrv(true);
     }
   } catch(err){
     console.error('Onda3LrwLrv: falha ao buscar vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).', err);
+    exibirAvisoFallbackLrwLrv(true);
   }
+}
+
+// 12/08/2026 (auditoria: fallback V2→V1 silencioso, usuário não abre o console) — liga/desliga o
+// callout de aviso nas abas LRW/LRV. Só aparece quando o fallback realmente acontece (erro/formato
+// inesperado); some sozinho assim que uma carga seguinte tiver sucesso.
+function exibirAvisoFallbackLrwLrv(mostrar){
+  ['legLRWFallbackAviso', 'legLRVFallbackAviso'].forEach(id => {
+    const el = $(id);
+    if(el) el.style.display = mostrar ? '' : 'none';
+  });
 }

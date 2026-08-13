@@ -30,6 +30,10 @@ function hydrateResumoP2P(){
   t('cvSaldoReal', fmt(R.caixaVariavel.saldoReal));
   t('cvComprometido', fmt(R.caixaVariavel.comprometido));
   t('cvDisponivel', fmt(R.caixaVariavel.disponivel));
+  // CORRIGIDO 12/08/2026 (mesmo achado do usuário, 3º card com o mesmo bug): style inline
+  // "color:var(--green)" fixo no HTML nunca trocava pra vermelho quando negativo.
+  const cvDisponivelEl = $('cvDisponivel');
+  if(cvDisponivelEl) cvDisponivelEl.style.color = R.caixaVariavel.disponivel < 0 ? 'var(--red)' : 'var(--green)';
 
   // NOVO 23/07/2026: Operacoes P2P (secao 18) - antes 100% hardcoded, agora vem do REG.p2p
   t('p2pCapitalTotal', fmt(R.p2p.capitalTotal));

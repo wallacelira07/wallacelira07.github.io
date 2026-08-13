@@ -40,7 +40,7 @@ const snapshots = {
     mercadoPagoFaturaCongelada: 1791.93,
     LRW_TRANSACOES: [{ tx: 'exemplo', valor: 1 }],
     LRV_TRANSACOES: [],
-    LRPV_TRANSACOES: [],
+    LRPGV_TRANSACOES: [],
     // array real do ciclo 2026-06 (mesmo usado na validação da correção do bug)
     LRC_LIMBO_TRANSACOES: [
       { tx: 'TX22001', valor: 102.96 }, { tx: 'TX22002', valor: 42.56 }, { tx: 'TX22003', valor: 150.0 },
@@ -66,7 +66,7 @@ const estadoVivo = {
   mercadoPagoFatura: 0,
   LRW_TRANSACOES: [],
   LRV_TRANSACOES: [],
-  LRPV_TRANSACOES: [],
+  LRPGV_TRANSACOES: [],
   LRC_LIMBO_TRANSACOES: [{ tx: 'TX000158', valor: 215.86 }, { tx: 'TX000161', valor: 28.49 }, { tx: 'outros', valor: 52.96 }], // soma = 297.31
 };
 

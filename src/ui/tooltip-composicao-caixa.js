@@ -38,7 +38,23 @@
 
   let popoverEl = null;
   let hoverTimer = null;
+  let hideTimer = null;
   let cardAberto = null;
+
+  // CORRIGIDO 12/08/2026 (achado do usuário: "não consigo entrar pra navegar, ela fecha em qualquer
+  // movimento") — mouseleave do card disparava fechamento IMEDIATO assim que o mouse saía em
+  // direção ao popover, porque o popover é um elemento separado (position:fixed, filho de
+  // document.body, fora do card no DOM) — mover o mouse do card pro popover conta como "saiu do
+  // card". Fix: fechamento vira agendado com pequeno atraso, cancelado se o mouse entrar no card OU
+  // no popover — só fecha de verdade quando sai dos dois.
+  function cancelarFechamento(){
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+  function agendarFechamento(){
+    cancelarFechamento();
+    hideTimer = setTimeout(fecharPopover, 200);
+  }
 
   function garantirEstilo(){
     if(document.getElementById('estiloTooltipComposicaoCaixa')) return;
@@ -86,6 +102,7 @@
     if(popoverEl){ popoverEl.remove(); popoverEl = null; }
     if(cardAberto){ cardAberto.classList.remove('tcc-aberto'); cardAberto = null; }
     clearTimeout(hoverTimer);
+    cancelarFechamento();
   }
 
   function posicionar(el, pop){
@@ -109,6 +126,8 @@
     const pop = document.createElement('div');
     pop.className = 'tcc-popover';
     pop.innerHTML = `<div class="tcc-titulo">${caixaNome} · transações do ciclo atual</div><div class="tcc-vazio">Carregando…</div>`;
+    pop.addEventListener('mouseenter', cancelarFechamento);
+    pop.addEventListener('mouseleave', () => { if(cardAberto) agendarFechamento(); });
     popoverEl = pop;
     posicionar(el, pop);
 
@@ -162,9 +181,10 @@
       const caixaNome = MAPA_CAIXA_ID_CARD[idHtml];
       card.dataset.caixaNome = caixaNome;
 
-      // Desktop: hover com pequeno atraso.
-      card.addEventListener('mouseenter', () => agendarAbertura(card, caixaNome));
-      card.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); if(cardAberto === card) fecharPopover(); });
+      // Desktop: hover com pequeno atraso. mouseenter cancela fechamento pendente (ex: usuário
+      // saiu do popover e voltou pro card rápido) além de agendar abertura se ainda fechado.
+      card.addEventListener('mouseenter', () => { cancelarFechamento(); if(cardAberto !== card) agendarAbertura(card, caixaNome); });
+      card.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); if(cardAberto === card) agendarFechamento(); });
 
       // Mobile/touch: toque alterna abrir/fechar (hover não existe de verdade em touch).
       card.addEventListener('click', (ev) => {

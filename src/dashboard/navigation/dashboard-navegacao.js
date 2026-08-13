@@ -315,20 +315,23 @@ function irParaSecaoBusca(item){
 // `_TRANSACOES: [` em src/financeiro/**/vars-*.js + TRANSACOES_CORPORATIVAS_MP/PARCELAMENTOS_*, que
 // têm o mesmo formato tx/nome/valor). Agora cobre todos.
 const LIVROS_BUSCAVEIS = ['LRW_TRANSACOES','LRV_TRANSACOES','LRC_LIMBO_TRANSACOES','LRCV_TRANSACOES',
-  'PV_TRANSACOES','LRPV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS','BENS_DURAVEIS_TRANSACOES',
+  'PV_TRANSACOES','LRPGV_TRANSACOES','BOLETOS_TRANSACOES','HISTORICO_ERP_TODOS_CICLOS','BENS_DURAVEIS_TRANSACOES',
   'CAIXA_LANCE_TRANSACOES','MANUTENCAO_TRANSACOES','ANIVERSARIO_JULIO_TRANSACOES','EVENTOS_TRANSACOES',
   'SEGURO_EMPLACAMENTO_TRANSACOES','COMBUSTIVEL_TRANSACOES','CHURRASCO_TRANSACOES','ESCOLA_JULIO_TRANSACOES',
   'MASTERCARD_INFINITE_TRANSACOES','SUAVIZACAO_TRANSACOES','SAUDE_FAMILIA_TRANSACOES','WARTSILA_CAIXA_TRANSACOES',
-  'TRANSACOES_CORPORATIVAS_MP','PARCELAMENTOS_VISA','PARCELAMENTOS_MP'];
+  'TRANSACOES_CORPORATIVAS_MP','PARCELAMENTOS_VISA','PARCELAMENTOS_MP','EMAGRECIMENTO_TRANSACOES'];
 let _buscaGlobalIndiceTransacoes = null;
 
 // CORRIGIDO 09/08/2026 (achado do usuário: buscar "LRPGV" dava "Nada encontrado" mesmo depois de
-// consertar o match por código de livro) - o array interno se chama LRPV_TRANSACOES (sem G), mas a
-// aba visível na tela mostra "LRPGV - PIX Geral Vanessa" (com G) - nomes de código e de exibição
-// DIVERGEM, "LRPGV" nunca seria substring de "lrpv_transacoes". Em vez de corrigir só esse caso
-// (remendo pontual), busca o texto REAL do botão da aba no DOM (via LIVRO_PARA_TAB_LR, já existe)
-// pra cada livro - resolve essa classe inteira de mismatch código-interno × rótulo-visível de uma vez,
-// pra qualquer livro que tenha essa mesma divergência, sem precisar descobrir um por um.
+// consertar o match por código de livro) - na época o array interno se chamava LRPV_TRANSACOES (sem
+// G), mas a aba visível na tela mostra "LRPGV - PIX Geral Vanessa" (com G) - nomes de código e de
+// exibição DIVERGIAM, "LRPGV" nunca seria substring de "lrpv_transacoes". Em vez de corrigir só esse
+// caso (remendo pontual), passou a buscar o texto REAL do botão da aba no DOM (via LIVRO_PARA_TAB_LR,
+// já existe) pra cada livro - resolve essa classe inteira de mismatch código-interno × rótulo-visível
+// de uma vez, pra qualquer livro que tenha essa mesma divergência, sem precisar descobrir um por um.
+// RENOMEADO 12/08/2026 (auditoria de nomenclatura): o array em si foi renomeado de LRPV_TRANSACOES
+// para LRPGV_TRANSACOES (bate com o rótulo visível "LRPGV"), então essa divergência específica não
+// existe mais - a busca por texto do DOM continua valendo pra qualquer outro livro no mesmo caso.
 function construirIndiceTransacoesBusca(){
   const indice = [];
   const vistos = new Set(); // evita duplicar a mesma TX se aparecer em 2 arrays (ex: ciclo atual + historico)
@@ -371,7 +374,7 @@ const LIVRO_PARA_TAB_LR = {
   'LRC_LIMBO_TRANSACOES': 'lrc',
   'LRCV_TRANSACOES': 'lrcv',
   'PV_TRANSACOES': 'lrpvsaldo',
-  'LRPV_TRANSACOES': 'lrpv',
+  'LRPGV_TRANSACOES': 'lrpv',
   'BENS_DURAVEIS_TRANSACOES': 'lrbd',
   'BOLETOS_TRANSACOES': 'lrb',
   'CAIXA_LANCE_TRANSACOES': 'lrlance',
@@ -384,7 +387,8 @@ const LIVRO_PARA_TAB_LR = {
   'SAUDE_FAMILIA_TRANSACOES': 'lrsaude',
   'MASTERCARD_INFINITE_TRANSACOES': 'lrmci',
   'PARCELAMENTOS_VISA': 'lrp',
-  'PARCELAMENTOS_MP': 'lrmp'
+  'PARCELAMENTOS_MP': 'lrmp',
+  'EMAGRECIMENTO_TRANSACOES': 'lremag'
 };
 
 function irParaTransacaoNoLivro(t, livro){
@@ -534,7 +538,7 @@ function buscaGlobalDados(termo){
     .slice(0, 5);
   // NOVO 09/08/2026 (achado do usuário: buscar "LRPV" dava "Nada encontrado" mesmo com o livro
   // existindo) - antes só comparava contra TX/nome/valor de CADA transação, nunca contra o código do
-  // livro em si. Agora também casa pelo nome do array (ex: "LRPV_TRANSACOES") - digitar o código do
+  // livro em si. Agora também casa pelo nome do array (ex: "LRPGV_TRANSACOES") - digitar o código do
   // livro mostra as transações dele, mesmo sem saber nenhum nome/valor específico.
   const transacoesOriginais = t.length >= 2 ? _buscaGlobalIndiceTransacoes.filter(it=>{
     if(it.tx.includes(t) || (tSemTx && it.tx.includes(tSemTx))) return true;

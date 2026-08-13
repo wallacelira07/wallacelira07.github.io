@@ -31,7 +31,7 @@ pares.push({ nome: 'Caixa Variável — disponível', antigo: 1293.52, novo: 187
       reembolsoRecebido: 4914.98, reembolsoAReceber: 0, toleranciaTempValor: 1500,
       cascata: { faturaWartsila: 656.67, mpCorporativo: 1277.88 },
       visaInfiniteComprometido: 9160.07, mastercardBlackComprometido: 1937.18, mercadoPagoFaturaCongelada: 1791.93,
-      LRW_TRANSACOES: [], LRV_TRANSACOES: [], LRPV_TRANSACOES: [],
+      LRW_TRANSACOES: [], LRV_TRANSACOES: [], LRPGV_TRANSACOES: [],
       LRC_LIMBO_TRANSACOES: [
         { valor: 102.96 }, { valor: 42.56 }, { valor: 150.0 }, { valor: 146.62 }, { valor: 19.8 }, { valor: 21.49 },
       ],

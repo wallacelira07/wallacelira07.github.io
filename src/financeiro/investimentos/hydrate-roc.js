@@ -71,7 +71,10 @@ function hydrateROC(){
   // existe como fallback local em vars-operacional.js) sobrescreveria o texto dinâmico logo depois,
   // já que hydrateROC() roda DEPOIS de quem calcula essas legendas (hydrateResumoExecutivo(), no
   // início de hydrate()). Ver hydrate-resumo-executivo.js pra legNecessidadeBrutaLiquida.
-  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida']);
+  // ADICIONADAS 12/08/2026 (achado de auditoria, mesmo tratamento): legOrcamentoOperacionalComposicao
+  // (teto Caixa Variável + meta PIX Vanessa) e legPGVSaldoResidual (saldo real da PGV) tinham valores
+  // R$ fixos na string — agora calculadas em hydrateResumoExecutivo() a cada render.
+  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida', 'legOrcamentoOperacionalComposicao', 'legPGVSaldoResidual']);
   Object.keys(VARS.LEGENDAS).forEach(id => {
     if(LEGENDAS_CALCULADAS.has(id)) return;
     const el = $(id);

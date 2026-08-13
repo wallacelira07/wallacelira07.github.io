@@ -234,15 +234,34 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // CORRIGIDO 12/08/2026 (achado do usuário, print real: Inbox mostrando "H57Store" R$6,50 e "DRIVE
+  // CAMPINA GRANDE" R$131,50 como "não encontrada em nenhum livro do ERP" — as duas JÁ existiam em
+  // `transacoes`, só que com status='pendente_classificacao' (lote de 18 itens do Pluggy, já com
+  // categoria/caixa sugerida, só faltando confirmação final), não 'confirmado'. Este filtro só
+  // olhava confirmado, então a Inbox nunca via que o item já estava capturado e reoferecia como
+  // novo. Pedido explícito do usuário: "não quero que apareça na Inbox nada que já foi lançada" —
+  // amplia pra incluir pendente_classificacao (já é uma linha real em transacoes, só falta
+  // classificação final, não é "não lançada"). 'estornado' fica de fora de propósito: uma transação
+  // estornada foi desfeita, não conta como "já existe" pra fins de dedup.
   async getValoresConhecidosV2(){
     return this._cache.obterOuBuscar('valores_v2_todos', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=eq.confirmado`, {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&status=in.(confirmado,pendente_classificacao)`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar valores confirmados da V2`);
       const dado = await resp.json();
       return dado.map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
     });
+  },
+  // NOVO 12/08/2026 (mesmo achado acima, pedido explícito do usuário: "não me interessa compra de
+  // ciclos passados" — a Inbox de Pluggy/Mercado Pago só deveria apontar compra não lançada DO CICLO
+  // ATUAL, não gasto antigo). Reusa o mesmo ciclo_inicio_em da Caixa Variável (getCaixas() já busca
+  // id+ciclo_inicio_em de todas as caixas, cacheado) — mesma fonte de verdade usada em
+  // getComprometidoCaixaVariavelV2() acima, não duplica lógica nova.
+  async getCicloAtualInicio(){
+    const caixas = await this.getCaixas();
+    const caixaVariavel = caixas.find(c => c.id === this.CAIXA_VARIAVEL_ID_V2);
+    return (caixaVariavel && caixaVariavel.ciclo_inicio_em) || null;
   },
   // NOVO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" pendente na Inbox era a MESMA
   // compra já lançada, só desmembrada em 3 partes - TX000159 196,01 + TX000159-A 319,90 +
@@ -1335,10 +1354,10 @@ VARS.alivioProximoMes = Math.round((
   VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO' && p.parcelaAtual>=p.totalParcelas).reduce((s,p)=>s+p.valor,0) +
   VARS.PARCELAMENTOS_MP.filter(p=>p.status==='ATIVO' && p.parcelaAtual>=p.totalParcelas).reduce((s,p)=>s+p.valor,0)
 ) * 100) / 100;
-VARS.livroLRPV = Math.round(VARS.LRPV_TRANSACOES.reduce((s,t)=>s+(t.tipo==='Entrada'?t.valor:-t.valor),0)*100)/100; // V172: derivado do array, nunca mais numero fixo dessincronizado
+VARS.livroLRPV = Math.round(VARS.LRPGV_TRANSACOES.reduce((s,t)=>s+(t.tipo==='Entrada'?t.valor:-t.valor),0)*100)/100; // V172: derivado do array, nunca mais numero fixo dessincronizado
 VARS.caixaSaudeFamilia = calcularSaldoCaixa(VARS.SAUDE_FAMILIA_SALDO_INICIAL_CICLO, VARS.SAUDE_FAMILIA_TRANSACOES); // V192: 1a caixa migrada para saldo derivado - nunca mais numero fixo dessincronizado do array de transacoes
 VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO = 0.04; // V192: diferenca documentada entre soma das transacoes (R$78,04) e saldo real confirmado pelo usuario 26/07 (R$78,00) - rendimento CDI do cofrinho, nao um erro (Politica secao 6). Nao ajustado silenciosamente (P1) - somado explicitamente abaixo.
-VARS.pixGeralVanessaSaldo = calcularSaldoCaixa(VARS.PGV_SALDO_INICIAL_CICLO, VARS.LRPV_TRANSACOES) - VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO; // V192: derivado do array LRPV_TRANSACOES, nunca mais numero fixo dessincronizado
+VARS.pixGeralVanessaSaldo = calcularSaldoCaixa(VARS.PGV_SALDO_INICIAL_CICLO, VARS.LRPGV_TRANSACOES) - VARS.PGV_RENDIMENTO_CDI_NAO_RASTREADO; // V192: derivado do array LRPGV_TRANSACOES, nunca mais numero fixo dessincronizado
 VARS.caixaLance = calcularSaldoCaixa(VARS.CAIXA_LANCE_SALDO_INICIAL_CICLO, VARS.CAIXA_LANCE_TRANSACOES); // V192: derivado do array CAIXA_LANCE_TRANSACOES, nunca mais numero fixo dessincronizado
 VARS.caixaManutencao = calcularSaldoCaixa(VARS.MANUTENCAO_SALDO_INICIAL, VARS.MANUTENCAO_TRANSACOES);
 VARS.caixaBensDuraveis = calcularSaldoCaixa(VARS.BENS_DURAVEIS_SALDO_INICIAL, VARS.BENS_DURAVEIS_TRANSACOES);
@@ -1494,7 +1513,7 @@ VARS.CICLO_SNAPSHOTS['2026-07'].caixaVariavelDisponivel = Math.round((VARS.CICLO
 const LRW_TRANSACOES_CICLO_ATUAL = VARS.LRW_TRANSACOES;
 const LRV_TRANSACOES_CICLO_ATUAL = VARS.LRV_TRANSACOES;
 const LRC_LIMBO_TRANSACOES_CICLO_ATUAL = VARS.LRC_LIMBO_TRANSACOES;
-const LRPV_TRANSACOES_CICLO_ATUAL = VARS.LRPV_TRANSACOES;
+const LRPGV_TRANSACOES_CICLO_ATUAL = VARS.LRPGV_TRANSACOES;
 const CARTAO_INFINITE_CICLO_ATUAL = VARS.cartaoInfiniteTotal;
 const CARTAO_MB_CICLO_ATUAL = VARS.cartaoMBTotal;
 const MERCADO_PAGO_CICLO_ATUAL = VARS.mercadoPagoFatura;
@@ -1522,7 +1541,7 @@ function aplicarCicloAoVARS(cicloKey){
     VARS.LRW_TRANSACOES = snap.LRW_TRANSACOES;
     VARS.LRV_TRANSACOES = snap.LRV_TRANSACOES;
     VARS.LRC_LIMBO_TRANSACOES = snap.LRC_LIMBO_TRANSACOES;
-    VARS.LRPV_TRANSACOES = snap.LRPV_TRANSACOES;
+    VARS.LRPGV_TRANSACOES = snap.LRPGV_TRANSACOES;
   } else {
     VARS.cartaoInfiniteTotal = CARTAO_INFINITE_CICLO_ATUAL;
     VARS.cartaoMBTotal = CARTAO_MB_CICLO_ATUAL;
@@ -1530,7 +1549,7 @@ function aplicarCicloAoVARS(cicloKey){
     VARS.LRW_TRANSACOES = LRW_TRANSACOES_CICLO_ATUAL;
     VARS.LRV_TRANSACOES = LRV_TRANSACOES_CICLO_ATUAL;
     VARS.LRC_LIMBO_TRANSACOES = LRC_LIMBO_TRANSACOES_CICLO_ATUAL;
-    VARS.LRPV_TRANSACOES = LRPV_TRANSACOES_CICLO_ATUAL;
+    VARS.LRPGV_TRANSACOES = LRPGV_TRANSACOES_CICLO_ATUAL;
   }
 
   // CORRIGIDO 06/08/2026 (BUG_CONFIRMADO_V1_LRC_OBSOLETO, ver AUDITORIA_IMPACTO_BUG_LRC.md):
@@ -1807,6 +1826,7 @@ async function atualizarPainelAposLancamento(){
     aplicarOnda3Suavizacao(),
     aplicarOnda3LrwLrv(),
     aplicarOnda10LrcLimbo(),
+    typeof aplicarOnda12CaixasPequenasV2 === 'function' ? aplicarOnda12CaixasPequenasV2() : null,
     aplicarOnda4Patrimonio(),
     aplicarOnda4Wartsila(),
     aplicarOnda5P2P(),
@@ -1980,6 +2000,10 @@ onDomPronto(aplicarOnda7Pluggy);
 onDomPronto(aplicarOnda8CronogramaBoletos);
 // NOVO 12/08/2026 (Onda 11): extrato real da Caixa Boletos, ver hydrate-onda11-boletos-extrato-v2.js.
 onDomPronto(aplicarOnda11BoletosExtratoV2);
+// NOVO 12/08/2026 (Onda 12): lista de lançamentos das 5 últimas caixas pequenas cujo CARD já era V2
+// mas a tabela detalhada por baixo ainda vinha do literal fixo (Caixa Lance, Bens Duráveis,
+// Churrasco, PIX Vanessa, Mastercard/Infinite) — ver hydrate-onda12-caixas-pequenas-v2.js.
+onDomPronto(aplicarOnda12CaixasPequenasV2);
 // NOVA 12/08/2026: aba "Emagrecimento" (peso + custo da caneta), ver hydrate-emagrecimento.js.
 onDomPronto(aplicarEmagrecimento);
 onDomPronto(aplicarOnda9LivrosFixos);

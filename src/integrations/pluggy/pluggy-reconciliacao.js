@@ -339,7 +339,7 @@ async function classificarViaV2(descricaoBruta, origem){
 async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   valorMinimo = typeof valorMinimo === 'number' ? valorMinimo : 5.0;
   janelaDias = typeof janelaDias === 'number' ? janelaDias : 45;
-  const dataCorte = new Date(Date.now() - janelaDias*86400000);
+  let dataCorte = new Date(Date.now() - janelaDias*86400000);
   const pc = VARS.PLUGGY_CONTAS;
   const resultado = {suspeitas:[], semDados:true, ignoradasPorData:0};
   if(!pc || !pc.conexoes) return resultado;
@@ -352,19 +352,35 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   // precisar manter lista na mao) - ja cobre historico completo tambem, sem precisar somar
   // HISTORICO_ERP_TODOS_CICLOS a parte. Falha de rede so desativa o aviso de duplicidade nesta
   // rodada (nunca esconde a transacao da Inbox) - log alto pra nao passar despercebido.
+  // CORRIGIDO 12/08/2026 (achado do usuário via diagnóstico de lag: os 3 fetches abaixo não têm
+  // dependência entre si, mas rodavam em série (2 num Promise.all à parte, o 3º — ciclo atual —
+  // atrás de tudo isso). Promise.all único deixa os 3 dispararem juntos.
   const valoresConhecidos = new Set();
-  try {
-    (await WallaceFinanceService.getValoresConhecidosV2()).forEach(v => valoresConhecidos.add(v));
-  } catch(err){
-    console.error('reconciliarTransacoesPluggy: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada.', err);
+  const [resValoresConhecidos, resValoresCombinados, resCicloAtualInicio] = await Promise.all([
+    WallaceFinanceService.getValoresConhecidosV2().catch(err => {
+      console.error('reconciliarTransacoesPluggy: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada.', err);
+      return null;
+    }),
+    WallaceFinanceService.getValoresCombinadosV2().catch(err => {
+      console.error('reconciliarTransacoesPluggy: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
+      return null;
+    }),
+    // NOVO 12/08/2026 (pedido explícito do usuário: "não me interessa compra de ciclos passados,
+    // compra já informadas manualmente" — o propósito único desta Inbox é apontar compra NÃO
+    // lançada DO CICLO ATUAL). janelaDias (45 dias corridos) é mais largo que 1 ciclo financeiro
+    // (~30 dias) e deixava passar item de ciclo já fechado. Usa o ciclo_inicio_em real da Caixa
+    // Variável como piso quando é mais restritivo que a janela — nunca o contrário.
+    WallaceFinanceService.getCicloAtualInicio().catch(err => {
+      console.error('reconciliarTransacoesPluggy: falha ao buscar ciclo atual — mantendo janela de dias como piso.', err);
+      return null;
+    })
+  ]);
+  if(resCicloAtualInicio){
+    const dataCicloAtual = new Date(resCicloAtualInicio + 'T00:00:00');
+    if(dataCicloAtual > dataCorte) dataCorte = dataCicloAtual;
   }
-  // CORRIGIDO 09/08/2026 (achado do usuário: compra desmembrada em 3 partes não batia por valor
-  // exato). Ver getValoresCombinadosV2() em app.js.
-  try {
-    (await WallaceFinanceService.getValoresCombinadosV2()).forEach(v => valoresConhecidos.add(v));
-  } catch(err){
-    console.error('reconciliarTransacoesPluggy: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
-  }
+  if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
+  if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
   // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida na Inbox — antes
   // dedup só comparava valor exato, uma cobrança recorrente da Pluggy com valor levemente diferente
   // do mês anterior (reajuste/câmbio) reaparecia como "suspeita" todo ciclo). Mesma função

@@ -42,7 +42,7 @@ function transformarLinhasCicloSnapshotsV2(linhas){
       obj[r.ciclo_key].LRW_TRANSACOES = arquivo.LRW_TRANSACOES || [];
       obj[r.ciclo_key].LRV_TRANSACOES = arquivo.LRV_TRANSACOES || [];
       obj[r.ciclo_key].LRC_LIMBO_TRANSACOES = arquivo.LRC_LIMBO_TRANSACOES || [];
-      obj[r.ciclo_key].LRPV_TRANSACOES = arquivo.LRPV_TRANSACOES || [];
+      obj[r.ciclo_key].LRPGV_TRANSACOES = arquivo.LRPV_TRANSACOES || [];
     }
   });
   return obj;
@@ -177,7 +177,7 @@ function criarVarsCicloSnapshots(){
         { tx:'TX22005', data:'02/07', nome:'CACAU_SHOW_CAFE', valor:19.8 },
         { tx:'TX22006', data:'02/07', nome:'CACAU_SHOW_SORVETE', valor:21.49 },
       ],
-      LRPV_TRANSACOES: [
+      LRPGV_TRANSACOES: [
         { tx:'TX000042', data:'04/07', nome:'Transferência Pix Geral (autonomia)', tipo:'Entrada', valor:300.00 },
         { tx:'TX000043', data:'05/07', nome:'PIX diversos Vanessa', tipo:'Entrada', valor:30.00 },
         { tx:'TX000055', data:'13/07', nome:'Recebido de Wallace (pediatra Júlio)', tipo:'Entrada', valor:50.00 },

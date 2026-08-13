@@ -31,7 +31,7 @@ const { calcularReembolsos } = require('./FinanceEngine.js');
  * @param {object} contexto.snapshots - equivalente a VARS.CICLO_SNAPSHOTS
  * @param {object} contexto.estadoVivo - os 7 campos "*_CICLO_ATUAL" (cartaoInfiniteTotal,
  *   cartaoMBTotal, mercadoPagoFatura, LRW_TRANSACOES, LRV_TRANSACOES,
- *   LRC_LIMBO_TRANSACOES, LRPV_TRANSACOES) — só usados se o ciclo NÃO estiver fechado
+ *   LRC_LIMBO_TRANSACOES, LRPGV_TRANSACOES) — só usados se o ciclo NÃO estiver fechado
  * @param {number} [contexto.livroLRCVisaOnly] - parte do LRC que é do Visa (hoje sempre 0, V159)
  * @returns {{ erro: string }|object} EstadoDoCiclo, ou { erro } se cicloKey não existir
  */
@@ -51,7 +51,7 @@ function resolverCiclo(cicloKey, { snapshots, estadoVivo, livroLRCVisaOnly = 0 }
         LRW_TRANSACOES: snap.LRW_TRANSACOES,
         LRV_TRANSACOES: snap.LRV_TRANSACOES,
         LRC_LIMBO_TRANSACOES: snap.LRC_LIMBO_TRANSACOES,
-        LRPV_TRANSACOES: snap.LRPV_TRANSACOES,
+        LRPGV_TRANSACOES: snap.LRPGV_TRANSACOES,
       }
     : {
         cartaoInfiniteTotal: estadoVivo.cartaoInfiniteTotal,
@@ -60,7 +60,7 @@ function resolverCiclo(cicloKey, { snapshots, estadoVivo, livroLRCVisaOnly = 0 }
         LRW_TRANSACOES: estadoVivo.LRW_TRANSACOES,
         LRV_TRANSACOES: estadoVivo.LRV_TRANSACOES,
         LRC_LIMBO_TRANSACOES: estadoVivo.LRC_LIMBO_TRANSACOES,
-        LRPV_TRANSACOES: estadoVivo.LRPV_TRANSACOES,
+        LRPGV_TRANSACOES: estadoVivo.LRPGV_TRANSACOES,
       };
 
   // livroLRC SEMPRE recalculado a partir do array já resolvido pra este ciclo
@@ -95,7 +95,7 @@ function resolverCiclo(cicloKey, { snapshots, estadoVivo, livroLRCVisaOnly = 0 }
     LRW_TRANSACOES: fonte.LRW_TRANSACOES,
     LRV_TRANSACOES: fonte.LRV_TRANSACOES,
     LRC_LIMBO_TRANSACOES: fonte.LRC_LIMBO_TRANSACOES,
-    LRPV_TRANSACOES: fonte.LRPV_TRANSACOES,
+    LRPGV_TRANSACOES: fonte.LRPGV_TRANSACOES,
     livroLRC, // extra, exposto pra quem precisar (não existia como campo próprio no VARS original)
   };
 }

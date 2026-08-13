@@ -35,9 +35,9 @@ const ONDA3_LR_MAPA = [
   // NOVO 09/08/2026 (achado do usuário: 3 lançamentos gravados direto na V2 pelo Chat - Sabão Júlio,
   // Fruta, Abastecimento PGV R$300 - nunca apareciam aqui porque esta aba ficou de fora da Onda 3
   // original por engano: o saldo da PGV já lia V2 desde a promoção desta sessão, mas o Livro Razão
-  // (lançamento por lançamento) continuava preso em VARS.LRPV_TRANSACOES). Mesma arquitetura das
+  // (lançamento por lançamento) continuava preso em VARS.LRPGV_TRANSACOES). Mesma arquitetura das
   // demais caixas acima - corrige a origem do problema, não um remendo pontual nos 3 lançamentos.
-  { tbodyId: 'lrpvTbody', tfId: 'tfLRPV', qtdId: 'qtdLRPGV', caixaId: 'fb779cdc-ab92-492d-a172-8d147d1380ea', caixaNome: 'PIX Geral Vanessa', varsArray: 'LRPV_TRANSACOES' },
+  { tbodyId: 'lrpvTbody', tfId: 'tfLRPV', qtdId: 'qtdLRPGV', caixaId: 'fb779cdc-ab92-492d-a172-8d147d1380ea', caixaNome: 'PIX Geral Vanessa', varsArray: 'LRPGV_TRANSACOES' },
   // NOVO 09/08/2026 (investigação "matar V1"): Caixa Manutenção promovida no saldo (Onda 2,
   // ver hydrate-onda2-v2.js) depois de achar a causa raiz real da divergência — mesma regra
   // das outras caixas acima: card e Livro Razão têm que mostrar a mesma fonte.
@@ -49,6 +49,12 @@ const ONDA3_LR_MAPA = [
   // no saldo (Onda 2, ver hydrate-onda2-v2.js), resíduo R$0,00 nas duas.
   { tbodyId: 'lrsaudeTbody', tfId: 'tf_lrsaude', qtdId: 'qtd_lrsaude', caixaId: 'd15e8cbe-4443-4ee4-9631-06d8d49058fe', caixaNome: 'Caixa Saúde Família', varsArray: 'SAUDE_FAMILIA_TRANSACOES' },
   { tbodyId: 'lranivTbody', tfId: 'tf_lraniv', qtdId: 'qtd_lraniv', caixaId: 'ffa94985-902c-4e8a-bd31-0a15a054a403', caixaNome: 'Caixa Aniversário Júlio', varsArray: 'ANIVERSARIO_JULIO_TRANSACOES' },
+  // NOVA 12/08/2026 (pedido repetido do usuário: "sempre que houver caixa deve haver um livro, é lá
+  // que haverá auditoria"). Caixa Emagrecimento nasceu direto na V2 (criada 12/08/2026, ver
+  // hydrate-emagrecimento.js) — nunca teve array V1, então sem fallback CAIXAS_LR_SIMPLES
+  // correspondente em render-livros-variaveis.js (não existe VARS.EMAGRECIMENTO_TRANSACOES V1 pra
+  // cair de volta); o pane HTML já nasce com "Carregando…" em vez do texto padrão de fallback vazio.
+  { tbodyId: 'lremagTbody', tfId: 'tf_lremag', qtdId: 'qtd_lremag', caixaId: 'd6be6a08-9d7b-4664-9c85-1e367aa620b9', caixaNome: 'Emagrecimento', varsArray: 'EMAGRECIMENTO_TRANSACOES' },
 ];
 
 function onda3FormatarDataV2(dataIso){

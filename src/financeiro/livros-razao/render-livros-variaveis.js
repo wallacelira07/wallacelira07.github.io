@@ -29,17 +29,17 @@ function renderLivrosVariaveis(){
   // LRPV tem formato proprio (Entrada/Saida colorida) - renderizacao especifica, nao usa preencher() generico
   const lrpvTbody = $('lrpvTbody');
   if(lrpvTbody){
-    if(!VARS.LRPV_TRANSACOES.length){
+    if(!VARS.LRPGV_TRANSACOES.length){
       lrpvTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
     } else {
-      lrpvTbody.innerHTML = VARS.LRPV_TRANSACOES.map(t=>{
+      lrpvTbody.innerHTML = VARS.LRPGV_TRANSACOES.map(t=>{
         const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
         return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
     const tfLRPVEl = $('tfLRPV');
     if(tfLRPVEl){
-      const liquido = VARS.LRPV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
+      const liquido = VARS.LRPGV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
       tfLRPVEl.textContent = fmt(Math.round(liquido*100)/100);
     }
   }

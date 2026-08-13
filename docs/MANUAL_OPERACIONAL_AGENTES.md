@@ -198,6 +198,23 @@ Se `salarioBaseFixoMensal` mudar (reajuste salarial confirmado pelo usuário), a
 
 ---
 
+## 1.5 Criar uma caixa nova — toda caixa tem que nascer com Livro Razão (NOVO 12/08/2026)
+
+**Regra permanente do usuário, pedida mais de uma vez** (05/08/2026, comentário "parte 99, pedido repetido do usuario" em `render-livros-variaveis.js`; repetida de novo em 12/08/2026 quando a caixa Emagrecimento nasceu só com card de saldo). Motivo, nas palavras do usuário: **"sempre que houver caixa deve haver um livro, é lá que haverá auditoria"** — pra ele, o Livro Razão não é cosmético, é onde a auditoria lançamento-a-lançamento acontece. Uma caixa só com saldo agregado, sem LR, fica sem rastreabilidade individual mesmo que o número esteja certo.
+
+Sempre que uma caixa nova for criada (`INSERT INTO caixas` ou equivalente), entregar **na mesma sessão**, sem esperar o usuário pedir de novo:
+
+1. **A caixa em si** (`caixas`, ver seção 2 pra domínio V2).
+2. **Aba de Livro Razão dedicada** em `Sistema_Wallace_Lira_Completo.html`, seção "Livros razão":
+   - Botão: `<button class="tab" id="lrTabBtn_<id>" onclick="showLR('<id>',this)">LR?? - Nome</button>`
+   - Pane: `<div id="<id>" class="pane"><table>...</table><div class="tfoot">...</div></div>`, mesma estrutura de colunas (TX/Data/Descrição/Tipo/Valor) das demais.
+3. **Entrada em `ONDA3_LR_MAPA`** (`src/financeiro/caixas/hydrate-onda3-livro-razao.js`) — busca as transações reais da caixa na V2 automaticamente, sem precisar reescrever a lógica de novo.
+4. **Se fizer sentido pra Busca Global**, registrar em `LIVROS_BUSCAVEIS` e `LIVRO_PARA_TAB_LR` (`src/dashboard/navigation/dashboard-navegacao.js`) — permite clicar numa TX e cair direto na aba certa.
+
+Exemplo de referência (feito certo): caixa Emagrecimento, 12/08/2026 — commit que criou a aba LREM junto com a caixa.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.

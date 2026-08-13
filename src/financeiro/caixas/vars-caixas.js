@@ -132,11 +132,11 @@ function criarVarsCaixas(){
   // PV_TRANSACOES ja existe mais abaixo (array proprio criado em V176) - reutilizado aqui, nao duplicado.
   caixaPixVanessa: 900.00,              // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(PV_SALDO_INICIAL, VARS.PV_TRANSACOES). Nunca editar direto.
   // MIGRADO 27/07/2026 (V192): pixGeralVanessaSaldo deixou de ser numero fixo editado a mao - agora e
-  // SEMPRE calcularSaldoCaixa(PGV_SALDO_INICIAL_CICLO, VARS.LRPV_TRANSACOES). Conferido por execucao real:
+  // SEMPRE calcularSaldoCaixa(PGV_SALDO_INICIAL_CICLO, VARS.LRPGV_TRANSACOES). Conferido por execucao real:
   // 0 - R$182,96 - R$39,00 + R$300,00 = R$78,04, vs R$78,00 confirmado pelo usuario em 26/07 - diferenca
   // de R$0,04 e residuo de rendimento CDI ja documentado (Politica secao 6), nao ajustado silenciosamente.
   PGV_SALDO_INICIAL_CICLO: 0, // ancora do ciclo 2026-07 (25/07-24/08) - PGV comecou zerada (reduzida ao ciclo atual em V177)
-  pixGeralVanessaSaldo: 78.00, // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar LRPV_TRANSACOES. Mantido 78.00 aqui so como fallback caso o array mude antes do recalculo rodar.
+  pixGeralVanessaSaldo: 78.00, // PLACEHOLDER - sobrescrito logo apos o VARS fechar por calcularSaldoCaixa(). Nunca editar este numero diretamente - editar LRPGV_TRANSACOES. Mantido 78.00 aqui so como fallback caso o array mude antes do recalculo rodar.
   EVENTOS_SALDO_INICIAL: 0,
   EVENTOS_TRANSACOES: [
     { tx:'TX000144', data:'24/07', nome:'Aporte mensal (salário Wärtsilä)', tipo:'Entrada', valor:166.67 },
@@ -247,7 +247,7 @@ function criarVarsCaixas(){
   ],
   // V176 (26/07/2026): NOVO livro PV (PIX Vanessa, reserva do Wallace) - pedido do usuario: "voce colocou
   // PGV mas nao tem PV no Livro Razao, e tem que registrar a saida de um para entrar na outra". Antes so
-  // existia LRPV_TRANSACOES (na verdade sempre foi a PGV) - a PV (aportes do Wallace + reforcos a PGV)
+  // existia LRPGV_TRANSACOES (na verdade sempre foi a PGV) - a PV (aportes do Wallace + reforcos a PGV)
   // nunca teve painel proprio, mesmo tendo saldo e regra de reposicao dedicados (secao 7 Politicas).
   PV_TRANSACOES: [
     { tx:'TX000141', data:'24/07', nome:'Aporte mensal (direto do salário Wärtsilä)', tipo:'Entrada', valor:1200.00 },
@@ -267,7 +267,7 @@ function criarVarsCaixas(){
   // contrapartida do TX000150 (R$300, PV->PGV, 24/07) - antes so a SAIDA da PV estava registrada, sem
   // o correspondente na PGV (erro apontado pelo usuario: "voce colocou que saiu 300 da PV mas nao
   // registrou que entrou na PGV").
-  LRPV_TRANSACOES: [
+  LRPGV_TRANSACOES: [
     { tx:'TX000153', data:'24/07', nome:'PIX Dupomar Hortifruti (Banco do Brasil)', tipo:'Saída', valor:182.96 },
     { tx:'TX000155', data:'24/07', nome:'PIX Romário Nogueira Cunha - Hortifruti', tipo:'Saída', valor:39.00 },
     { tx:'TX000150', data:'24/07', nome:'Reforço da PV (contrapartida de TX000150 na PV)', tipo:'Entrada', valor:300.00 },

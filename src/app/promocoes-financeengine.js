@@ -203,16 +203,34 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     if (!respCaixas.ok) throw new Error(`erro ${respCaixas.status} ao buscar caixas`);
     const caixasV2 = await respCaixas.json();
 
-    const relatorio = [];
-    for (const cfg of CAIXAS_PROMOCAO) {
+    // CORRIGIDO 12/08/2026 (achado do usuário via auditoria de lag: este loop fazia até 11
+    // `await fetch(...)` de transações EM SÉRIE, um de cada vez — provavelmente o maior gargalo
+    // isolado do boot, mesmo padrão do bug já corrigido em pluggy-reconciliacao.js/
+    // classificacao-inbox.js (await X; await Y sem dependência real entre eles), só que 10x maior
+    // aqui. As 10 buscas de transação são todas independentes entre si (caixas diferentes) —
+    // Promise.all dispara todas juntas; o processamento (cálculo/comparação/log) continua
+    // sequencial depois, porque é síncrono e rápido (não é rede).
+    const _authHeaderPromocao = { apikey: _key, Authorization: `Bearer ${(typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || _key}` };
+    const buscasTx = await Promise.all(CAIXAS_PROMOCAO.map(async (cfg) => {
       const caixa = caixasV2.find(c => c.nome === cfg.nomeV2);
-      if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); continue; }
+      if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); return null; }
+      try {
+        const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
+          headers: _authHeaderPromocao
+        });
+        if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); return null; }
+        const transacoes = await respTx.json();
+        return { cfg, caixa, transacoes };
+      } catch(err) {
+        console.warn(`[FASE 2F] falha de rede buscando transações de "${cfg.nomeV2}" — pulada.`, err);
+        return null;
+      }
+    }));
 
-      const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
-        headers: { apikey: _key, Authorization: `Bearer ${(typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || _key}` }
-      });
-      if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); continue; }
-      const transacoes = await respTx.json();
+    const relatorio = [];
+    for (const item of buscasTx) {
+      if (!item) continue;
+      const { cfg, caixa, transacoes } = item;
       const transacoesAdaptadas = transacoes.map(t => ({ tipo: t.tipo === 'entrada' ? 'Entrada' : 'Saída', valor: Number(t.valor) }));
       const saldoV2 = WallaceFinanceEngine.calcularSaldoCaixa(Number(caixa.saldo_inicial_ciclo || 0), transacoesAdaptadas);
       const saldoV1 = VARS[cfg.varsField];
