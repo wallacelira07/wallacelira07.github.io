@@ -156,11 +156,11 @@ async function aplicarOnda4Patrimonio(){
   // carregada) cobre o gráfico do Painel principal nesse caso.
   if(typeof atualizarGraficoPainelPatrimonio === 'function') atualizarGraficoPainelPatrimonio();
 
-  // Auditoria: confere contra o que hydratePatrimonio() (V1) já tinha escrito antes desta função rodar
-  const diverge = Math.abs(v1Total - total) > 0.01;
-  if(diverge) console.warn(`Onda4Patrimonio: V1=${fmt(v1Total)} × V2=${fmt(total)} — DIVERGE (inesperado, investigar antes de confiar na V2 aqui).`);
-  else console.log(`Onda4Patrimonio: V1×V2 batem (${fmt(total)}). V2 é a fonte exibida.`);
+  // CORRIGIDO 13/08/2026 (pedido explícito do usuário): removida a comparação/aviso contra
+  // hydratePatrimonio() (V1) — a migração V1→V2 está formalmente encerrada, V2 é a fonte de
+  // verdade sem condição. v1Total mantido só de referência no relatório de diagnóstico abaixo.
+  console.log(`Onda4Patrimonio: V2 é a fonte exibida (${fmt(total)}).`);
 
-  window.WALLACE_ONDA4_PATRIMONIO_RELATORIO = { v1: v1Total, v2: total, diverge, caixaLanceFonte: 'V1 (exceção deliberada, ver comentário no topo do arquivo)', exibindo: 'V2' };
+  window.WALLACE_ONDA4_PATRIMONIO_RELATORIO = { v1: v1Total, v2: total, caixaLanceFonte: 'V1 (exceção deliberada, ver comentário no topo do arquivo)', exibindo: 'V2' };
   console.log('Onda4Patrimonio: relatório completo em window.WALLACE_ONDA4_PATRIMONIO_RELATORIO', window.WALLACE_ONDA4_PATRIMONIO_RELATORIO);
 }
