@@ -969,8 +969,9 @@
             '.wwi-scope .cover-grade{margin-top:2.2rem;display:inline-flex;align-items:baseline;gap:.9rem;border-left:2px solid #CBA968;padding-left:1rem;}' +
             '.wwi-scope .cover-grade b{font-family:var(--font-display);font-size:2rem;color:#ECEAE0;}' +
             '.wwi-scope .cover-grade span{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#B9BFCE;max-width:24ch;line-height:1.5;}' +
-            '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;}' +
-            '.wwi-scope .toc span{flex:0 0 auto;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:.85rem 1rem;white-space:nowrap;}' +
+            '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;position:sticky;top:0;z-index:5;}' +
+            '.wwi-scope .toc a{flex:0 0 auto;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--ink-faint);padding:.85rem 1rem;border-bottom:2px solid transparent;white-space:nowrap;}' +
+            '.wwi-scope .toc a:hover{color:var(--ink);}' +
             '.wwi-scope section{padding:2.2rem 2.6rem;}' +
             '.wwi-scope section:nth-of-type(odd){background:var(--surface);}' +
             '.wwi-scope section:nth-of-type(even){background:var(--surface-2);}' +
@@ -1179,10 +1180,19 @@
                 }).join('') : '';
 
             // Numera as seções dinamicamente (mesmo padrão "01/02/03..." do eyebrow do artefato).
+            // ADICIONADO 14/08/2026 (pedido do usuário: "por que não gera um HTML idêntico ao do
+            // link?"): agora que o relatório é uma página HTML de verdade (não mais convertido pra
+            // PDF automaticamente), cada seção ganha um id âncora e entra na lista `navSecoes` — usada
+            // logo abaixo pra montar a barra de navegação `.toc` (mesma classe/comportamento sticky do
+            // artefato original, "01 CFO · 02 PAINEL · ...").
             let numSecao = 0;
+            const navSecoes = [];
             function proximoNum() { numSecao++; return numSecao < 10 ? '0' + numSecao : '' + numSecao; }
             function secaoEyebrowTitulo(titulo, h2) {
-                return '<div class="eyebrow"><span class="num">' + proximoNum() + '</span><span>' + _wwiRelEsc(titulo) + '</span><span class="hairline"></span></div>' +
+                const num = proximoNum();
+                const id = 'wwi-s' + num;
+                navSecoes.push({ num: num, titulo: titulo, id: id });
+                return '<div id="' + id + '" class="eyebrow"><span class="num">' + num + '</span><span>' + _wwiRelEsc(titulo) + '</span><span class="hairline"></span></div>' +
                     (h2 ? '<h2 class="sec-title">' + _wwiRelEsc(h2) + '</h2>' : '');
             }
 
@@ -1308,56 +1318,47 @@
                 '</div>' +
                 (score !== null ? '<div class="cover-grade"><b>' + nivel + '</b><span>Wealth Score ' + score + '/100 &mdash; ver detalhamento completo por eixo neste relatório.</span></div>' : '') +
                 '</header>' +
+                '<nav class="toc">' + navSecoes.map(function (s) {
+                    return '<a href="#' + s.id + '">' + s.num + ' ' + _wwiRelEsc(_wwiRelTituloSemEmoji(s.titulo).toUpperCase()) + '</a>';
+                }).join('') + '</nav>' +
                 blocos.join('') +
                 '<footer class="report-foot">Tactical Wealth Report &middot; Sistema Wallace Lira &middot; gerado automaticamente pelo módulo WWI &middot; documento de uso pessoal.</footer>' +
                 '</div>';
         }
 
-        // REESCRITO 14/08/2026, 3ª vez (achado do usuário: "reprovado, não é o mesmo arquivo, eu
-        // quero exatamente o mesmo... pode tentar em outro formato, que preserve 100%"). As duas
-        // tentativas anteriores usavam html2canvas pra rasterizar o HTML numa imagem e colar essa
-        // imagem no jsPDF — por mais fiel que o CSS/classes fiquem, um rasterizador de terceiros
-        // NUNCA renderiza fonte/anti-aliasing 100% igual ao motor de renderização real do navegador
-        // (foi exatamente o que causou as reprovações de qualidade de fonte). MUDANÇA DE ARQUITETURA:
-        // não gera mais um arquivo PDF programaticamente — abre o relatório como uma página HTML real
-        // numa aba nova e chama window.print(), deixando o PRÓPRIO NAVEGADOR converter pra PDF (mesmo
-        // mecanismo que o usuário já usa manualmente pra salvar o artefato aprovado via Ctrl+P). Isso
-        // elimina o intermediário (html2canvas/jsPDF) por completo — o texto que sai é texto de
-        // verdade renderizado pelo Chrome, não uma foto de tela. Trade-off aceito: em vez de baixar
-        // sozinho, abre o diálogo de impressão do navegador (usuário escolhe "Salvar como PDF" e
-        // marca "Gráficos de fundo" — mesmas 2 instruções já dadas pro artefato original).
+        // REESCRITO 14/08/2026, 4ª vez (achado do usuário: 2 problemas na versão anterior — "fica
+        // apertado e demora pra baixar" + "os dados voltaram a demorar carregar" [painel inteiro,
+        // não só o botão]. Causa raiz: `window.print()` é BLOQUEANTE em vários navegadores — trava a
+        // aba (e, dependendo do navegador, a UI inteira) até o usuário interagir com o diálogo de
+        // impressão, o que também deixa a aba original do painel "presa" enquanto isso. E o usuário
+        // perguntou direto: "por que não gera um HTML idêntico ao do link?"). MUDANÇA: não chama mais
+        // print() automaticamente. Abre o relatório como página HTML real numa aba nova — idêntica ao
+        // artefato aprovado (mesmo CSS verbatim, agora com a barra de navegação `.toc` também) — e
+        // para de mexer em qualquer coisa. Se o usuário quiser PDF, um botão flutuante DENTRO dessa
+        // aba (currentPage.print(), clique manual e real do usuário, sem bloquear a aba original) faz
+        // a mesma coisa que Ctrl+P — mas nada dispara sozinho.
         function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela) {
             const htmlRel = construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo);
             if (!janela || janela.closed) {
-                alert('O navegador bloqueou a janela de impressão — permite pop-ups pra este site e tenta de novo.');
+                alert('O navegador bloqueou a aba do relatório — permite pop-ups pra este site e tenta de novo.');
                 return Promise.resolve();
             }
             const docHtml = '<!doctype html><html><head><meta charset="utf-8">' +
                 '<title>Tactical Wealth Report — Wallace Lira</title>' +
                 '<style>' +
-                '@page{margin:0;}' +
                 'html,body{margin:0;padding:0;background:#F1F1EB;}' +
-                '@media print{.wwi-scope .toc{display:none;}.wwi-scope section{break-inside:avoid;}.wwi-scope .proj{break-inside:avoid;}.wwi-scope .rank li{break-inside:avoid;}}' +
-                '</style></head><body>' + htmlRel + '</body></html>';
+                '@page{margin:0;}' +
+                '@media print{.wwi-scope .toc{display:none;}.wwi-print-btn{display:none;}.wwi-scope section{break-inside:avoid;}.wwi-scope .proj{break-inside:avoid;}.wwi-scope .rank li{break-inside:avoid;}}' +
+                '.wwi-print-btn{position:fixed;right:1.4rem;bottom:1.4rem;z-index:50;background:#8C6D2F;color:#fff;border:none;padding:.8rem 1.3rem;font-size:.85rem;font-family:Seravek,"Segoe UI",-apple-system,sans-serif;border-radius:100px;cursor:pointer;box-shadow:0 4px 14px rgba(30,26,10,.25);}' +
+                '.wwi-print-btn:hover{background:#6B4F1E;}' +
+                '</style></head><body>' + htmlRel +
+                '<button class="wwi-print-btn" onclick="window.print()">Salvar como PDF</button>' +
+                '</body></html>';
             janela.document.open();
             janela.document.write(docHtml);
             janela.document.close();
-            return new Promise(function (resolve) {
-                let disparado = false;
-                function dispararImpressao() {
-                    if (disparado) return;
-                    disparado = true;
-                    janela.focus();
-                    janela.print();
-                    resolve();
-                }
-                // espera o layout assentar (fontes/imagens) antes de abrir o diálogo — onload cobre o
-                // caso normal, o setTimeout é rede de segurança se onload não disparar (documento já
-                // pronto no momento do write, em alguns navegadores). Guard `disparado` evita chamar
-                // print() duas vezes se os dois gatilhos dispararem.
-                janela.addEventListener('load', dispararImpressao, { once: true });
-                setTimeout(dispararImpressao, 600);
-            });
+            janela.focus();
+            return Promise.resolve();
         }
 
         // REESCRITO 14/08/2026 (WWI — Wallace Wealth Intelligence). Fluxo (ver
@@ -1371,14 +1372,16 @@
         //      no PDF (gerarAnaliseFinanceira) — não persiste; quem persiste de verdade é o job mensal.
         //   5. compararComHistorico() — frases de evolução vs. ciclo(s) anterior(es), degrada sem
         //      histórico (1º relatório da série).
-        //   6. construirHtmlRelatorioWWI() + window.print() numa aba nova — ver comentário acima de
-        //      gerarPdfRelatorioFechamento(). Não depende mais de jsPDF/html2canvas.
+        //   6. construirHtmlRelatorioWWI() abre uma aba nova com a página HTML real do relatório —
+        //      ver comentário acima de gerarPdfRelatorioFechamento(). Não depende mais de
+        //      jsPDF/html2canvas, e não chama print() sozinho (só se o usuário clicar no botão
+        //      flutuante dentro da própria aba do relatório).
         // CORRIGIDO 14/08/2026 (achado ao testar): window.open() chamado DEPOIS de um fetch
         // assíncrono (busca de histórico) é bloqueado por popup blocker em vários navegadores — o
         // "gesto do usuário" (o clique no botão) só cobre chamadas síncronas ou logo no próximo
         // microtask, não sobrevive a uma ida-e-volta de rede. Fix: abre a janela (com uma tela de
         // "gerando...") SÍNCRONO, no primeiro tick do clique, antes de qualquer await — e só
-        // preenche o conteúdo final/chama print() depois que os dados chegam.
+        // preenche o conteúdo final depois que os dados chegam.
         function gerarRelatorioFechamentoPDF() {
             const btn = document.getElementById('btnRelatorioPdfHeader');
             const iframe = document.getElementById('mainIframe');
