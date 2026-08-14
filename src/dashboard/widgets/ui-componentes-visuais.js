@@ -52,6 +52,12 @@ function inicializarBotoesPrintSecao(){
     var classesCard = card.className || '';
     var elegivel = /\bcard\b/.test(classesCard) || /\bgrid-\d/.test(classesCard);
     if (!elegivel) return;
+    // CORRIGIDO 14/08/2026 (achado do usuário, print real: botão de download duplicado na seção
+    // "Geração diária") — quando o PRIMEIRO card da seção já tem seu próprio botão manual embutido
+    // (data-print-titulo, ver inicializarBotoesPrintCardAvulso() logo abaixo — usado pra cards que
+    // não são o primeiro da seção), o botão automático injetado aqui captura o MESMO card e baixa a
+    // MESMA imagem — redundante sempre que a seção tiver só esse 1 card. Pula a injeção nesse caso.
+    if (card.querySelector('.btn-print-secao[data-print-titulo]')) return;
 
     var num = header.querySelector('.n') ? header.querySelector('.n').textContent.trim() : '';
     var titulo = header.querySelector('h2') ? header.querySelector('h2').textContent.trim() : ('secao-' + num);

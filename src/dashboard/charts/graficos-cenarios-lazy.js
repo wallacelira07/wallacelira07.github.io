@@ -1662,6 +1662,33 @@ async function _lazyRenderSolarSecao(){
       }
     }
 
+    // NOVO 14/08/2026 (pedido do usuário: "sempre que fechar o ciclo já deixe o do próximo ciclo ir
+    // aparecendo e somando o próximo" — até agora, assim que um ciclo fechava, o mês do ciclo NOVO
+    // (ainda em formação) ficava com as 4 barras vazias até ELE TAMBÉM fechar; só o gráfico "Rateio
+    // Solar" (seção 05) já mostrava o ciclo aberto crescendo ao vivo). Popula o mês do ciclo aberto
+    // (idxCicloAberto, mesmo índice que o gráfico Rateio Solar já usa) com os valores REAIS desde a
+    // abertura DESTE ciclo — nunca desde a ativação: leitura_03_inicio/leitura_103_inicio/baseline_kwh
+    // vêm de vw_ciclo_solar_aberto (os códigos exatos do medidor no momento em que este ciclo abriu),
+    // mesma fonte já usada pra "creditoCicloAtual" (ugSaldoLiquido) mais acima. Consumo direto usa a
+    // geração real do robô SAJ (VARS.SOLAR_GERACAO_DIARIA) somada só dos dias deste ciclo — mesma
+    // fonte já usada em diasComDadoRealSolar/diasProjetadosSolar, sem estimativa nova.
+    if(idxCicloAberto != null && cicloSolarAberto && temGeracao){
+      const importadoDesdeAbertura = Math.round((importadoAcum - Number(cicloSolarAberto.leitura_03_inicio))*100)/100;
+      const exportadoDesdeAbertura = Math.round((exportadoAcum - Number(cicloSolarAberto.leitura_103_inicio))*100)/100;
+      const saldoLiquidoDesdeAbertura = Math.round((saldoLiquidoAcum - Number(cicloSolarAberto.baseline_kwh))*100)/100;
+      const geracaoDesdeAbertura = (VARS.SOLAR_GERACAO_DIARIA||[])
+        .filter(r => r.data >= cicloSolarAberto.data_inicio)
+        .reduce((s,r) => s + (typeof r.kwh === 'number' ? r.kwh : 0), 0);
+      const consumoDiretoDesdeAbertura = Math.round((geracaoDesdeAbertura - exportadoDesdeAbertura)*100)/100;
+      importadoMensal[idxCicloAberto] = importadoDesdeAbertura;
+      exportadoMensal[idxCicloAberto] = exportadoDesdeAbertura;
+      saldoLiquidoMensal[idxCicloAberto] = saldoLiquidoDesdeAbertura;
+      // consumo direto negativo é fisicamente impossível (mesma checagem já feita no loop histórico
+      // acima) — só acontece se a geração do robô ainda não tiver dado nenhum dia deste ciclo ainda
+      // (geracaoDesdeAbertura=0 no 1º dia); nesse caso deixa null (sem barra) em vez de mostrar negativo.
+      consumoDiretoMensal[idxCicloAberto] = consumoDiretoDesdeAbertura >= 0 ? consumoDiretoDesdeAbertura : null;
+    }
+
     // Historico mes a mes (03, 103, consumo direto real, saldo liquido) - so plota consumo direto
     // quando existir geracaoAcumulada real naquele mes (senao fica null, sem barra - mesmo padrao
     // ja usado pros meses sem leitura de credito).
@@ -1677,7 +1704,6 @@ async function _lazyRenderSolarSecao(){
         ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
         chart.data.datasets.forEach((ds,di)=>{
           const meta = chart.getDatasetMeta(di);
-          ctx.fillStyle = ds.backgroundColor;
           meta.data.forEach((bar,i)=>{
             const v = ds.data[i];
             if(v===null || v===undefined) return;
@@ -1685,21 +1711,32 @@ async function _lazyRenderSolarSecao(){
             // os números... igual os outros gráficos" - com "kWh" no texto e 4 barras finas lado a
             // lado, os rótulos de barras vizinhas coladas/iguais (ex: 69/69) se sobrepunham e
             // ficavam ilegíveis. Mesmo padrão sem unidade já usado em energiaBarLabelPlugin.
+            // CORRIGIDO 14/08/2026 (mesmo bug já documentado em solarBarLabelPlugin, 11/08/2026):
+            // backgroundColor virou uma FUNÇÃO (corBarraUG(), pinta a barra do ciclo aberto mais
+            // clara) — ctx.fillStyle=ds.backgroundColor atribuía a função inteira em vez de uma cor,
+            // canvas ignora silenciosamente um fillStyle inválido. Resolve a cor por barra.
+            ctx.fillStyle = typeof ds.backgroundColor === 'function' ? ds.backgroundColor({dataIndex:i, chart}) : ds.backgroundColor;
             ctx.fillText(String(Math.round(v)), bar.x, bar.y - 4);
           });
         });
         ctx.restore();
       }
     };
+    // Mesmo truque de opacidade do gráfico "Rateio Solar" (corBarraCredito, definido mais abaixo
+    // neste arquivo — não dá pra reusar direto aqui, TDZ, ainda não foi declarado neste ponto do
+    // código) pra distinguir visualmente a barra do ciclo AINDA ABERTO (mais transparente) das
+    // fechadas — reforça o mesmo indicador "▼ ciclo atual" que o outro gráfico já tem.
+    const idxCicloAbertoAlinhadoUG = idxCicloAberto != null ? idxCicloAberto - OFFSET_SOLAR : null;
+    const corBarraUG = (corFechado) => (ctx) => ctx.dataIndex === idxCicloAbertoAlinhadoUG ? corFechado + '66' : corFechado;
     observeAndRenderChart($('cUnidadeGeradora'), () => { const __chartExistente = Chart.getChart($('cUnidadeGeradora')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cUnidadeGeradora'), {
       type:'bar',
       plugins:[unidadeGeradoraBarLabelPlugin],
       data:{labels:mesesParesSolar,
         datasets:[
-          {label:'Importado (código 03)', data:alignSolar(importadoMensal), backgroundColor:'#e2554f', borderRadius:3},
-          {label:'Consumo direto (calculado)', data:alignSolar(consumoDiretoMensal), backgroundColor:'#e8a63a', borderRadius:3},
-          {label:'Exportado (código 103)', data:alignSolar(exportadoMensal), backgroundColor:'#3987e5', borderRadius:3},
-          {label:'Saldo líquido', data:alignSolar(saldoLiquidoMensal), backgroundColor:'#34c98a', borderRadius:3}
+          {label:'Importado (código 03)', data:alignSolar(importadoMensal), backgroundColor:corBarraUG('#e2554f'), borderRadius:3},
+          {label:'Consumo direto (calculado)', data:alignSolar(consumoDiretoMensal), backgroundColor:corBarraUG('#e8a63a'), borderRadius:3},
+          {label:'Exportado (código 103)', data:alignSolar(exportadoMensal), backgroundColor:corBarraUG('#3987e5'), borderRadius:3},
+          {label:'Saldo líquido', data:alignSolar(saldoLiquidoMensal), backgroundColor:corBarraUG('#34c98a'), borderRadius:3}
         ]},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
         plugins:{legend:legendStd2,tooltip:{callbacks:{
