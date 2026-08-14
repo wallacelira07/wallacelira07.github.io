@@ -987,7 +987,39 @@
             return linha ? linha.valor : null;
         }
 
-        function gerarPdfRelatorioFechamento(dados) {
+        // NOVO 14/08/2026 (WWI — Wallace Wealth Intelligence): desenha um card de texto corrido/lista
+        // com o mesmo header colorido já usado pros cards de seção — reaproveitado pros blocos de
+        // narrativa (Resumo do CFO, Oportunidades, Matriz de Riscos, Parecer Final) e pro comparativo
+        // histórico (Evolução Patrimonial). `itens` vazio não desenha nada (bloco inteiro omitido —
+        // nunca mostra um card vazio "sem dados" pra narrativa, só pra seções numéricas do coletor).
+        function pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, yInicial, titulo, itens, corHeader) {
+            if (!itens || !itens.length) return yInicial;
+            let y = yInicial;
+            function novaPaginaSeNecessario(alturaBloco) {
+                if (y + alturaBloco > alturaPagina - margem) { doc.addPage(); y = margem; }
+            }
+            novaPaginaSeNecessario(46);
+            doc.setFillColor.apply(doc, corHeader || [238, 243, 252]);
+            doc.roundedRect(margem, y, larguraUtil, 24, 4, 4, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor.apply(doc, PDF_COR_MARCA_ESCURA);
+            doc.text(pdfSanitizarTexto(titulo), margem + 10, y + 16);
+            y += 32;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+            itens.forEach(function (texto) {
+                const linhas = doc.splitTextToSize('•  ' + pdfSanitizarTexto(texto), larguraUtil - 16);
+                const altura = linhas.length * 13 + 6;
+                novaPaginaSeNecessario(altura);
+                linhas.forEach(function (l, i) { doc.text(l, margem + 8, y + 11 + i * 13); });
+                y += altura;
+            });
+            return y + 14;
+        }
+
+        function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo) {
             const jsPDF = window.jspdf.jsPDF;
             const doc = new jsPDF({ unit: 'pt', format: 'a4' });
             const margem = 40;
@@ -1050,6 +1082,48 @@
                 y += altKpi + 26;
             }
 
+            // ===== Wealth Score em destaque (WWI) =====
+            if (indicadores && indicadores.wealthScore !== null && indicadores.wealthScore !== undefined) {
+                doc.setFillColor(249, 250, 252);
+                doc.setDrawColor(226, 230, 236);
+                doc.roundedRect(margem, y, larguraUtil, 40, 6, 6, 'FD');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(18);
+                doc.setTextColor.apply(doc, PDF_COR_MARCA);
+                doc.text('Wealth Score: ' + indicadores.wealthScore + '/100', margem + 14, y + 25);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
+                const eixos = Object.keys(indicadores.subscores || {})
+                    .filter(function (k) { return indicadores.subscores[k] !== null; })
+                    .map(function (k) { return k + ': ' + Math.round(indicadores.subscores[k]); })
+                    .join('   ·   ');
+                doc.text(doc.splitTextToSize(pdfSanitizarTexto(eixos), larguraUtil - 28)[0] || '', margem + 14, y + 36);
+                doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+                y += 40 + 20;
+            }
+
+            // ===== Resumo do CFO (narrativa WWI) =====
+            if (narrativa) {
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Resumo Executivo do CFO', narrativa.parecerFinalTexto ? [narrativa.parecerFinalTexto] : [], [225, 232, 245]);
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Pontos Fortes', narrativa.pontosFortesTexto, [224, 245, 235]);
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Pontos Fracos', narrativa.pontosFracosTexto, [252, 235, 224]);
+            }
+
+            // ===== Evolução Patrimonial (comparativo histórico WWI) =====
+            if (comparativo && comparativo.temHistorico) {
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Evolução Patrimonial', comparativo.frases, [225, 232, 245]);
+            } else if (comparativo) {
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Evolução Patrimonial',
+                    ['Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.'],
+                    [225, 232, 245]);
+            }
+
             // ===== Cards de seção =====
             dados.secoes.forEach(function (secao) {
                 novaPaginaSeNecessario(46);
@@ -1095,6 +1169,16 @@
                 y += 18;
             });
 
+            // ===== Oportunidades de Crescimento + Matriz de Riscos + Parecer Final (WWI) =====
+            if (narrativa) {
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Oportunidades de Crescimento', (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []), [224, 245, 235]);
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Matriz de Riscos', narrativa.riscosTexto, [252, 235, 224]);
+                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
+                    'Parecer Final', narrativa.parecerFinalTexto ? [narrativa.parecerFinalTexto] : [], [219, 226, 245]);
+            }
+
             // ===== Rodapé (todas as páginas) =====
             const totalPaginas = doc.internal.getNumberOfPages();
             for (let p = 1; p <= totalPaginas; p++) {
@@ -1112,6 +1196,21 @@
             doc.save(nomeArquivo);
         }
 
+        // REESCRITO 14/08/2026 (WWI — Wallace Wealth Intelligence, pedido do usuário: "transformar o
+        // botão de download num gerador automático de relatórios executivos patrimoniais, com
+        // narrativa estável durante o ciclo e comparação com meses anteriores"). Fluxo novo, passo a
+        // passo (ver docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md):
+        //   1. coletarDadosRelatorioFechamento() — reaproveitado, sem mudança de assinatura.
+        //   2. calcularIndicadoresEScores(dados) — Wealth Score + 4 índices, dentro do iframe.
+        //   3. wwiBuscarHistoricoRelatorios(competencia) — lê historico_relatorios (leitura pública,
+        //      chave anon — a ESCRITA continua exclusiva do job mensal com service_role, nunca daqui).
+        //   4. SE já existe relatório desta competência: reaproveita a narrativa salva (analise_ia) —
+        //      requisito do usuário "narrativa igual durante o mês". SENÃO: gera na hora só pra EXIBIR
+        //      no PDF (gerarAnaliseFinanceira) — não persiste; quem persiste de verdade é o job mensal.
+        //   5. compararComHistorico() — frases de evolução vs. ciclo(s) anterior(es), degrada sem
+        //      histórico (1º relatório da série).
+        // Se algum dos módulos novos ainda não carregou por qualquer motivo, cai pro comportamento
+        // antigo (só dados.secoes, sem narrativa/score) em vez de travar o download inteiro.
         function gerarRelatorioFechamentoPDF() {
             const btn = document.getElementById('btnRelatorioPdfHeader');
             const iframe = document.getElementById('mainIframe');
@@ -1121,8 +1220,24 @@
             }
             if (btn) btn.disabled = true;
             _carregarJsPdfSobDemanda().then(function () {
-                const dados = iframe.contentWindow.coletarDadosRelatorioFechamento();
-                gerarPdfRelatorioFechamento(dados);
+                const win = iframe.contentWindow;
+                const dados = win.coletarDadosRelatorioFechamento();
+                const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados) : null;
+                const promessaHistorico = (typeof win.wwiBuscarHistoricoRelatorios === 'function' && dados.competencia)
+                    ? win.wwiBuscarHistoricoRelatorios(dados.competencia)
+                    : Promise.resolve({ atual: null, anteriores: [] });
+                return promessaHistorico.then(function (historico) {
+                    let narrativa = null;
+                    if (historico.atual && historico.atual.analise_ia) {
+                        narrativa = historico.atual.analise_ia; // reutiliza — mesma narrativa da criação da competência
+                    } else if (typeof win.gerarAnaliseFinanceira === 'function') {
+                        narrativa = win.gerarAnaliseFinanceira(dados); // gerada na hora só pra exibir, não persiste
+                    }
+                    const comparativo = (typeof win.compararComHistorico === 'function')
+                        ? win.compararComHistorico(indicadores, historico.anteriores)
+                        : { frases: [], temHistorico: false };
+                    gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo);
+                });
             }).catch(function (err) {
                 console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);
                 alert('Não consegui gerar o relatório — confere sua conexão e tenta de novo.');

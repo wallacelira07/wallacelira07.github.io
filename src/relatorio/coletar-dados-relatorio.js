@@ -19,12 +19,32 @@
 // heading (em vez de um id novo em cada section-num) significa que se o texto do título mudar num
 // refino futuro, este arquivo para de achar a seção (falha visível/óbvia, "seção não encontrada" no
 // relatório) em vez de silenciosamente pegar a seção errada.
+// AMPLIADO 14/08/2026 (WWI — Wallace Wealth Intelligence, pedido do usuário: "transformar o botão de
+// download num gerador automático de relatórios executivos"): de 6 pra 15 seções, título por título
+// conferido contra o HTML real (`Sistema_Wallace_Lira_Completo.html`) antes de adicionar — não copiado
+// de suposição. `calcularIndicadoresEScores()`/`gerarAnaliseFinanceira()` (novos) dependem de boa parte
+// destas seções novas pra ter dado suficiente pros scores/narrativa. "💰 Taxa de Poupança" NÃO entra
+// como título próprio na lista abaixo, mas não falta dado: é um `<h2>` ANINHADO dentro do mesmo `.card`
+// de "📈 Crescimento Patrimonial" (sub-seção visual, não uma `.section-num` irmã no nível do resto) —
+// `_extrairLinhasSecao` já varre todos os descendentes de cada irmão até o próximo `.section-num` de
+// verdade, então as linhas de Taxa de Poupança (Receitas/Despesas/Sobrou) já vêm incluídas dentro do
+// resultado de "📈 Crescimento Patrimonial" sem precisar de entrada separada (testado lendo o HTML
+// real, não assumido).
 const SECOES_RELATORIO_FECHAMENTO = [
   'Resumo executivo',
   '🔄 Obrigações Operacionais',
   '📦 Todas as Caixas',
   '🏦 Balanço Patrimonial',
   '🏛️ Patrimônio Financeiro',
+  '🏛️ Patrimônio Físico',
+  '📉 Passivos Patrimoniais',
+  'Passivos patrimoniais',
+  'Meta do milhão',
+  'Projeto casa nova',
+  'Consórcio casa nova (I0464 · Cota 12)',
+  'Reserva de Emergência — quanto tempo aguenta',
+  '📊 Fluxo Financeiro do Ciclo',
+  '📈 Crescimento Patrimonial',
   'Reembolsos Wärtsilä',
 ];
 
@@ -78,6 +98,32 @@ function _extrairLinhasCards(elSectionNum){
   return linhas;
 }
 
+// NOVO 14/08/2026 (WWI, achado ao mapear as 9 seções novas antes de adicionar): boa parte delas
+// (Meta do milhão, Passivos patrimoniais, Consórcio/Projeto casa nova, Reserva de Emergência) usa um
+// 3º formato, diferente dos dois já existentes — um rótulo em `<div style="...color:var(--text-mid)">`
+// seguido do valor no PRÓXIMO IRMÃO direto com classe `.v` (`<div>Rótulo</div><div class="v">Valor</div>`,
+// sem `.row` nem `.card` achatado). Extrator dedicado, mesmo padrão de seletor já usado pelo indexador
+// da Busca Global (`dashboard-navegacao.js`, `.card [style*="color:var(--text-mid)"]`) pra achar esse
+// tipo de rótulo. Pula rótulos que já têm classe `.v` (evita reprocessar valor como se fosse rótulo) e
+// rótulos dentro de `.progress-lbl` (são %/meta da barra, não o dado principal da linha).
+function _extrairLinhasRotulosInline(elSectionNum){
+  const linhas = [];
+  let el = elSectionNum.nextElementSibling;
+  while(el && !el.classList.contains('section-num')){
+    el.querySelectorAll('[style*="color:var(--text-mid)"]').forEach(labelEl => {
+      if(labelEl.classList.contains('v')) return;
+      if(labelEl.closest('.progress-lbl')) return;
+      const valEl = labelEl.nextElementSibling;
+      if(!valEl || !valEl.classList.contains('v')) return;
+      const label = labelEl.textContent.trim().replace(/\s+/g, ' ');
+      const valor = valEl.textContent.trim().replace(/\s+/g, ' ');
+      if(label && valor && valor !== '—') linhas.push({ label, valor });
+    });
+    el = el.nextElementSibling;
+  }
+  return linhas;
+}
+
 function coletarDadosRelatorioFechamento(){
   const secoes = SECOES_RELATORIO_FECHAMENTO.map(titulo => {
     // busca em TODO o documento (não só a aba ativa) - os headings são únicos o suficiente
@@ -87,18 +133,35 @@ function coletarDadosRelatorioFechamento(){
     if(!heading){
       return { titulo, linhas: [], erro: 'Seção não encontrada no DOM (título pode ter mudado).' };
     }
-    // tenta o padrão .row/.k/.v primeiro (maioria das seções); só cai pro padrão de cards "achatados"
-    // (Todas as Caixas) se o primeiro não achar nada — evita ter que hardcodar qual seção usa qual
-    // formato, e continua funcionando se outra seção futura tiver a mesma estrutura de cards.
-    let linhas = _extrairLinhasSecao(heading.closest('.section-num'));
-    if(!linhas.length) linhas = _extrairLinhasCards(heading.closest('.section-num'));
+    // AMPLIADO 14/08/2026 (WWI): rodar os 3 extratores e UNIR os resultados (dedupe por label) em vez
+    // de só cair pro próximo se o anterior não achar nada — várias seções novas combinam mais de um
+    // formato no mesmo bloco (ex: "Consórcio casa nova" tem um cabeçalho no formato rótulo-inline e
+    // 4 linhas no formato .row logo abaixo). Continua sem custo pras seções antigas, que só têm um
+    // formato — os outros 2 extratores simplesmente não acham nada ali.
+    const secaoNum = heading.closest('.section-num');
+    const vistos = new Set();
+    const linhas = [];
+    [_extrairLinhasSecao(secaoNum), _extrairLinhasCards(secaoNum), _extrairLinhasRotulosInline(secaoNum)]
+      .forEach(grupo => grupo.forEach(l => {
+        const chave = l.label + '|' + l.valor;
+        if(vistos.has(chave)) return;
+        vistos.add(chave);
+        linhas.push(l);
+      }));
     return { titulo, linhas };
   });
 
   const cicloEl = document.getElementById('cicloRange');
+  // NOVO 14/08/2026 (WWI): `competencia` é a CHAVE real do ciclo financeiro ('2026-07', mesmo valor
+  // de VARS.cicloAtual/ciclo_key em ciclos_financeiros_snapshots) — não o texto de exibição
+  // "25/07 → 24/08/2026" de #cicloRange (cicloAtual, mantido só pra exibição/compat). É essa chave
+  // que vira a PK de `historico_relatorios`, decisão explícita do usuário: competência = ciclo
+  // financeiro (25→24), não mês calendário.
+  const competencia = (typeof VARS !== 'undefined' && VARS.cicloAtual) ? VARS.cicloAtual : null;
   return {
     geradoEm: new Date().toLocaleString('pt-BR'),
     cicloAtual: cicloEl ? cicloEl.textContent.trim() : '—',
+    competencia,
     secoes,
   };
 }

@@ -1,0 +1,29 @@
+name: WWI — Regenerar Relatório Mensal
+# NOVO 14/08/2026 (Wallace Wealth Intelligence, pedido do usuário: "relatório vivo, regenerado
+# automaticamente a cada mês"). Mesmo padrão dos outros jobs deste repositório: SEM "schedule"
+# nativo (nunca disparou sozinho neste repo, mesmo configurado certo — ver comentário em
+# atualizar_geracao_saj.yml). Disparo real é externo: cron-job.org agendado pro dia 25 de cada mês
+# (virada do ciclo financeiro, ver _competencia_atual() no script) -> API do GitHub -> este workflow.
+# Continua reutilizável (workflow_call) e disparável sozinho (workflow_dispatch) pra testar isolado.
+#
+# wwi_gerar_relatorio_mensal.py é IDEMPOTENTE (a RPC faz upsert) — rodar de novo no mesmo ciclo só
+# atualiza os números, nunca sobrescreve a narrativa já persistida. Seguro disparar manualmente
+# quantas vezes for preciso pra testar.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+jobs:
+  gerar-relatorio-wwi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Gerar/atualizar relatório mensal WWI
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/wwi_gerar_relatorio_mensal.py

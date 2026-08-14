@@ -2516,7 +2516,8 @@ Promise.all([
        'src/dashboard/charts/graficos-cenarios-lazy.js',
        'src/dashboard/navigation/filtro-livros-razao.js',
        'src/dashboard/widgets/contagem-abas-livros-razao.js',
-       'src/relatorio/coletar-dados-relatorio.js'].map(function(src){
+       'src/relatorio/coletar-dados-relatorio.js',
+       'src/relatorio/gerar-analise-financeira.js'].map(function(src){
         return new Promise(function(resolve){
           const s = document.createElement('script');
           s.src = src + '?v=' + __V;
