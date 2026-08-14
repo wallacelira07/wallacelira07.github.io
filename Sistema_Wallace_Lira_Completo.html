@@ -1475,7 +1475,7 @@
         </div>
         <div>
           <label style="font-size:var(--fs-label);color:var(--text-mid)">Investimento total (R$)</label>
-          <input type="number" id="simInvestimento" value="25000" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
+          <input type="number" id="simInvestimento" value="14800" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
           <label style="font-size:var(--fs-label);color:var(--text-mid)">Período de forecast</label>
@@ -2507,7 +2507,8 @@ Promise.all([
        'src/dashboard/widgets/ui-componentes-visuais.js',
        'src/dashboard/charts/graficos-cenarios-lazy.js',
        'src/dashboard/navigation/filtro-livros-razao.js',
-       'src/dashboard/widgets/contagem-abas-livros-razao.js'].map(function(src){
+       'src/dashboard/widgets/contagem-abas-livros-razao.js',
+       'src/relatorio/coletar-dados-relatorio.js'].map(function(src){
         return new Promise(function(resolve){
           const s = document.createElement('script');
           s.src = src + '?v=' + __V;

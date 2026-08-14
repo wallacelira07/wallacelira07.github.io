@@ -649,6 +649,45 @@
             box-shadow: 0 0 0 3px rgba(226, 85, 79, 0.35);
         }
 
+        /* NOVO 14/08/2026 (pedido do usuário: botão de baixar relatório de fechamento em PDF, "no
+           topo do painel, acessível de qualquer aba" — por isso vive aqui fora do #mainIframe, mesmo
+           padrão de esconder-valores/sair, e não dentro de uma aba específica). Mesmo estilo de
+           botão redondo já usado pelos outros ícones do cabeçalho (34px, hover/active/focus-visible),
+           cor azul de marca por ser ação neutra (não é destrutiva como sair, nem um estado ligado/
+           desligado como esconder valores). */
+        #dashboardScreen header .pdf-report-btn {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #a9a79f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+        #dashboardScreen header .pdf-report-btn:hover {
+            background: rgba(57, 135, 229, 0.1);
+            border-color: rgba(57, 135, 229, 0.55);
+            color: #8ab4f8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(57, 135, 229, 0.18);
+        }
+        #dashboardScreen header .pdf-report-btn:active {
+            transform: translateY(0) scale(0.94);
+        }
+        #dashboardScreen header .pdf-report-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+        }
+        #dashboardScreen header .pdf-report-btn:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
         @media (max-width: 560px) {
             #dashboardScreen header {
                 padding: 8px 14px;
@@ -677,6 +716,7 @@
             }
             #dashboardScreen header .eye-toggle-btn,
             #dashboardScreen header .logout-btn,
+            #dashboardScreen header .pdf-report-btn,
             #dashboardScreen header .header-search-toggle-btn,
             #dashboardScreen header .user-avatar-initial {
                 /* CORRIGIDO 14/08/2026 (achado de auditoria mobile: eram 28x28px neste breakpoint -
@@ -819,6 +859,13 @@
                     </div>
                     <div class="header-divider" aria-hidden="true"></div>
                     <div class="header-actions">
+                        <button id="btnRelatorioPdfHeader" onclick="gerarRelatorioFechamentoPDF()" title="Baixar relatório de fechamento (PDF)" aria-label="Baixar relatório PDF" class="pdf-report-btn">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </button>
                         <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
                             <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
@@ -873,6 +920,104 @@
         // com a senha real da conta (mesmo endpoint Firebase do login, signInWithPassword) - nao um PIN
         // novo/paralelo, que seria mais uma senha pra lembrar e mais facil de descobrir por tentativa.
         // Usa window.authObj.email (ja setado no login) + reusa firebaseAuth() ja existente.
+        // NOVO 14/08/2026 (pedido do usuário: "botão de link pra baixar relatório em PDF com um
+        // resumo e fechamento de tudo" — escopo definido com o usuário: Resumo Executivo +
+        // Obrigações Operacionais (Total Operacional/Cartões/MP) + Todas as Caixas + Balanço
+        // Patrimonial/Patrimônio Financeiro + Reembolsos Wärtsilä). jsPDF carregado sob demanda, só
+        // no 1º clique — mesmo padrão de carregarHtml2CanvasSobDemanda() (ui-componentes-visuais.js,
+        // dentro do iframe), nunca baixa no boot pra quem nunca usa. Os dados vêm de
+        // coletarDadosRelatorioFechamento() (src/relatorio/coletar-dados-relatorio.js, dentro do
+        // iframe) — lê o texto já renderizado dos cards, nunca recalcula nada (fonte única, mesmo
+        // valor que a tela mostra, não pode dessincronizar).
+        var _promiseJsPDF = null;
+        function _carregarJsPdfSobDemanda() {
+            if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+            if (_promiseJsPDF) return _promiseJsPDF;
+            _promiseJsPDF = new Promise(function (resolve, reject) {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = function () { resolve(); };
+                script.onerror = function () { _promiseJsPDF = null; reject(new Error('falha ao carregar jsPDF')); };
+                document.head.appendChild(script);
+            });
+            return _promiseJsPDF;
+        }
+
+        function gerarRelatorioFechamentoPDF() {
+            const btn = document.getElementById('btnRelatorioPdfHeader');
+            const iframe = document.getElementById('mainIframe');
+            if (!iframe || !iframe.contentWindow || typeof iframe.contentWindow.coletarDadosRelatorioFechamento !== 'function') {
+                alert('O painel ainda não terminou de carregar — espera alguns segundos e tenta de novo.');
+                return;
+            }
+            if (btn) btn.disabled = true;
+            _carregarJsPdfSobDemanda().then(function () {
+                const dados = iframe.contentWindow.coletarDadosRelatorioFechamento();
+                const jsPDF = window.jspdf.jsPDF;
+                const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+                const margem = 40;
+                const larguraPagina = doc.internal.pageSize.getWidth();
+                const alturaPagina = doc.internal.pageSize.getHeight();
+                const larguraLabel = (larguraPagina - margem * 2) * 0.62;
+                let y = margem;
+
+                function novaLinha(altura) {
+                    y += altura;
+                    if (y > alturaPagina - margem) {
+                        doc.addPage();
+                        y = margem;
+                    }
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.text('Sistema Wallace Lira — Relatório de Fechamento', margem, y);
+                novaLinha(20);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(120);
+                doc.text('Ciclo ' + dados.cicloAtual + ' · gerado em ' + dados.geradoEm, margem, y);
+                doc.setTextColor(0);
+                novaLinha(24);
+
+                dados.secoes.forEach(function (secao) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.text(secao.titulo, margem, y);
+                    novaLinha(6);
+                    doc.setDrawColor(210);
+                    doc.line(margem, y, larguraPagina - margem, y);
+                    novaLinha(14);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9.5);
+                    if (!secao.linhas.length) {
+                        doc.setTextColor(150);
+                        doc.text(secao.erro || 'Sem dados.', margem, y);
+                        doc.setTextColor(0);
+                        novaLinha(18);
+                        return;
+                    }
+                    secao.linhas.forEach(function (linha) {
+                        const labelLinhas = doc.splitTextToSize(linha.label, larguraLabel);
+                        labelLinhas.forEach(function (l, i) {
+                            doc.text(l, margem, y);
+                            if (i === 0) doc.text(linha.valor, larguraPagina - margem, y, { align: 'right' });
+                            novaLinha(12.5);
+                        });
+                    });
+                    novaLinha(8);
+                });
+
+                const nomeArquivo = 'relatorio-fechamento-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
+                doc.save(nomeArquivo);
+            }).catch(function (err) {
+                console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);
+                alert('Não consegui gerar o relatório — confere sua conexão e tenta de novo.');
+            }).finally(function () {
+                if (btn) btn.disabled = false;
+            });
+        }
+
         function toggleEsconderValoresHeader() {
             const iframe = document.getElementById('mainIframe');
             const btn = document.getElementById('btnEsconderValoresHeader');

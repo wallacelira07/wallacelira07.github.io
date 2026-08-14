@@ -231,7 +231,7 @@ function calcularSimulacaoRegulatoria(){
   const consumo = Number($('simConsumo')?.value) || 300;
   const tipoLigacao = $('simLigacao')?.value || 'TRI';
   const geracao = Number($('simGeracao')?.value) || 850;
-  const investimento = Number($('simInvestimento')?.value) || 25000;
+  const investimento = Number($('simInvestimento')?.value) || 14800;
   const mesesForecast = Number($('simMeses')?.value) || 60;
   const anoInicial = new Date().getFullYear();
 
