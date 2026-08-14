@@ -957,6 +957,13 @@
             return Number.isNaN(n) ? null : n;
         }
 
+        // Formata number puro em texto BR com vírgula decimal — mesmo padrão de _wwiFmtNum() em
+        // gerar-analise-financeira.js, duplicado aqui pelo mesmo motivo de _wwiNumLocal() acima.
+        function _wwiFmtNumLocal(n, casas) {
+            if (n === null || n === undefined) return '';
+            return n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+        }
+
         // Procura uma linha específica (por label) dentro de uma seção coletada — não recalcula nada,
         // só reaproveita o mesmo par label/valor que coletarDadosRelatorioFechamento() já leu do DOM.
         function pdfPegarKpi(secoes, tituloSecao, labelLinha) {
@@ -1201,15 +1208,29 @@
             const capacidadeInvestimento = (indicadores && indicadores.indicadoresBrutos && indicadores.indicadoresBrutos.poupancaSobrou != null)
                 ? _wwiFmtR(indicadores.indicadoresBrutos.poupancaSobrou) : null;
 
+            // ADICIONADO 14/08/2026 (achado do usuário: "sem vida, sem beleza, feio" — os KPIs só
+            // tinham rótulo+valor; o artefato tem também uma legenda explicativa (.kpi-sub) e um selo
+            // semafórico (.chip) em cada card). `sc`/`ib` reaproveitam os sub-scores e números brutos
+            // já calculados por calcularIndicadoresEScores() — nenhuma classificação nova inventada,
+            // só usa o que já existe pra decidir a cor do selo (verde/amarelo/vermelho).
+            const sc = (indicadores && indicadores.subscores) || {};
+            const ib = (indicadores && indicadores.indicadoresBrutos) || {};
+            function _wwiChip(score) {
+                if (score === null || score === undefined) return null;
+                return score >= 70 ? { cls: 'g', txt: 'Verde' } : score >= 40 ? { cls: 'a', txt: 'Amarelo' } : { cls: 'r', txt: 'Vermelho' };
+            }
+            const pctPassivos = (ib.passivosTotal != null && ib.ativosTotal) ? _wwiFmtNumLocal((ib.passivosTotal / ib.ativosTotal) * 100, 1) : null;
+            const metaMilhaoAcumulado = pdfPegarKpi(dados.secoes, 'Meta do milhão', 'Acumulado');
+
             const kpis = [
-                { lbl: 'Patrimônio Financeiro', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total') },
-                { lbl: 'Patrimônio Total', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido') },
-                { lbl: 'Passivos Externos', val: pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total') },
-                { lbl: 'Reserva Emergencial', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência') },
-                { lbl: 'Liquidez Imediata', val: liquidezImediata },
-                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão') },
-                { lbl: 'Geração de Caixa (PIB Wallace)', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais') },
-                { lbl: 'Capacidade de Investimento', val: capacidadeInvestimento },
+                { lbl: 'Patrimônio Financeiro', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total'), sub: 'Reserva + investimentos + Caixa Lance', chip: _wwiChip(sc.investimentos) },
+                { lbl: 'Patrimônio Total', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido'), sub: 'Líquido de todas as dívidas externas', chip: _wwiChip(sc.protecaoPatrimonial) },
+                { lbl: 'Passivos Externos', val: pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total'), sub: pctPassivos !== null ? (pctPassivos + '% do ativo total — alavancagem ' + (sc.endividamento >= 70 ? 'baixa' : sc.endividamento >= 40 ? 'moderada' : 'alta')) : null, chip: _wwiChip(sc.endividamento) },
+                { lbl: 'Reserva Emergencial', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência'), sub: ib.liquidezCiclos != null ? (_wwiFmtNumLocal(ib.liquidezCiclos, 1) + ' ciclos de compromisso fixo guardados') : null, chip: _wwiChip(sc.liquidez) },
+                { lbl: 'Liquidez Imediata', val: liquidezImediata, sub: 'Reserva + Caixa Lance + Caixa Variável', chip: _wwiChip(sc.liquidez) },
+                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão'), sub: metaMilhaoAcumulado ? (metaMilhaoAcumulado + ' de R$ 1.000.000') : null, chip: _wwiChip(ib.metaMilhaoPct != null ? (ib.metaMilhaoPct >= 50 ? 90 : 55) : null) },
+                { lbl: 'Geração de Caixa (PIB Wallace)', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais'), sub: 'Salário líquido + reembolsos + rendimentos', chip: _wwiChip(sc.organizacaoFinanceira) },
+                { lbl: 'Capacidade de Investimento', val: capacidadeInvestimento, sub: 'Capacidade de aporte do ciclo, após despesas fixas', chip: _wwiChip(sc.execucaoDeMetas) },
             ].filter(function (k) { return k.val; });
 
             // CORRIGIDO 14/08/2026 (achado do usuário: rótulos do Wealth Score saindo crus —
@@ -1279,7 +1300,10 @@
             if (kpis.length || score !== null) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Painel Executivo', 'Números que resumem o ciclo') +
                     (kpis.length ? '<div class="kpi-grid">' + kpis.map(function (k) {
-                        return '<div class="kpi"><div class="kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="kpi-val">' + _wwiRelEsc(k.val) + '</div></div>';
+                        return '<div class="kpi"><div class="kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="kpi-val">' + _wwiRelEsc(k.val) + '</div>' +
+                            (k.sub ? '<div class="kpi-sub">' + _wwiRelEsc(k.sub) + '</div>' : '') +
+                            (k.chip ? '<span class="chip ' + k.chip.cls + '">' + k.chip.txt + '</span>' : '') +
+                            '</div>';
                     }).join('') + '</div>' : '') +
                     '</section>');
             }
