@@ -49,17 +49,6 @@ function hydrateBalanco(){
   hydrateIndicadores();
   t('balResBoletos', fmt(B.operacional.caixaBoletos)); // V85: movida de reservas pra operacional
   t('balOpMastercardInfinite', fmt(B.operacional.mastercardInfinite)); // V139: nova caixa (24/07/2026), guarda valor a pagar dos 2 cartoes ate 28/07
-  { // NOVO 01/08/2026 (V245, usuario apontou "nao tem nada" nessa caixa - nao havia detalhamento
-    // visivel de onde o numero vinha, mesmo a formula ja sendo automatica). Gera o extrato curto a
-    // partir do proprio array MASTERCARD_INFINITE_TRANSACOES, nunca escrito a mao.
-    const detEl = $('balOpMastercardInfiniteDetalhe');
-    if(detEl){
-      const partes = [fmt(VARS.MASTERCARD_INFINITE_SALDO_INICIAL)+' inicial'].concat(
-        VARS.MASTERCARD_INFINITE_TRANSACOES.map(t=>(t.tipo==='Entrada'?'+':'−')+fmt(t.valor)+' ('+t.nome+')')
-      );
-      detEl.textContent = partes.join(' ') + ' = ' + fmt(VARS.caixaMastercardInfinite);
-    }
-  }
   t('balResEscola', fmt(B.reservas.escolaJulio));
   t('balResLance', fmt(B.reservas.caixaLance));
   t('balResManut', fmt(B.reservas.manutencao));

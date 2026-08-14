@@ -312,35 +312,11 @@ const WallaceFinanceService = {
   // lista) nunca entrava na comparação, então um valor já lançado lá sempre parecia "novo". Esta
   // função busca TODO valor confirmado da V2 (todas as caixas), pra somar à checagem existente -
   // não substitui os arrays V1 (mantidos por resiliência offline), só fecha o buraco de cobertura.
-  // NOVO 11/08/2026 (achado do usuário: "o valor da caixa Mastercard/Visa está desatualizado, veja
-  // se esse bloco não tem hardcode" — confirmado: balOpMastercardInfinite (o número grande) já era
-  // V2 via getSaldosPorCaixa(), mas a LEGENDA de detalhe embaixo (extrato "R$0 inicial + X (nome) +
-  // Y (nome) = total") vinha inteira de VARS.MASTERCARD_INFINITE_TRANSACOES, um array literal nunca
-  // atualizado depois do saldo virar V2 — mesma classe de bug de outras vezes nesta sessão (número
-  // exibido é V2, texto explicativo embaixo continua V1). Estas caixas de reserva de cartão não têm
-  // como vir automaticamente via Pluggy (não são conta bancária de verdade, são um bolso interno só
-  // deste ERP) — a "solução possível" pedida pelo usuário é esta: já que o aporte/juros É lançado
-  // manualmente em `transacoes` mesmo assim (não tem outro jeito sem Pluggy), a legenda passa a ler
-  // dali directly, no lugar do array solto - editar/lançar um aporte novo atualiza os DOIS
-  // (número e legenda) de uma vez, nunca mais dessincroniza. Caixa id fixo (singleton, mesmo padrão
-  // de outros ids já hardcoded no projeto, ex: CARTAO_PLUGGY_MAPA) - '748b8612-b854-44e3-8834-542ec7f1ff7c'.
-  async getExtratoCaixaMastercardInfinite(){
-    return this._cache.obterOuBuscar('extrato_caixa_mastercard_infinite', async () => {
-      const caixaId = '748b8612-b854-44e3-8834-542ec7f1ff7c';
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor,tipo&caixa_id=eq.${caixaId}&status=eq.confirmado&order=data.asc`, {
-        headers: this._headers()
-      });
-      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar extrato da Caixa Mastercard/Infinite`);
-      return await resp.json();
-    });
-  },
   // NOVO 12/08/2026 (Onda 11, pedido do usuário: "V1 não pode haver nada lá" — matar de vez o
   // palpite por calendário de aplicarBoletosVencidosAutomaticamente()). Extrato real da Caixa
-  // Boletos direto da V2 — mesmo padrão de getExtratoCaixaMastercardInfinite() acima. Substitui
-  // o array VARS.BOLETOS_TRANSACOES (antes populado por palpite de data) pelo que realmente foi
-  // confirmado como pago (via processo de triagem da Inbox, ver MANUAL_OPERACIONAL_AGENTES.md
-  // seção 2 regra 6). Caixa id fixo, mesmo padrão de getExtratoCaixaMastercardInfinite:
-  // '7751575a-6339-4bf2-bda4-60817778551c'.
+  // Boletos direto da V2. Substitui o array VARS.BOLETOS_TRANSACOES (antes populado por palpite de
+  // data) pelo que realmente foi confirmado como pago (via processo de triagem da Inbox, ver
+  // MANUAL_OPERACIONAL_AGENTES.md seção 2 regra 6). Caixa id fixo: '7751575a-6339-4bf2-bda4-60817778551c'.
   async getExtratoCaixaBoletos(){
     return this._cache.obterOuBuscar('extrato_caixa_boletos', async () => {
       const caixaId = '7751575a-6339-4bf2-bda4-60817778551c';

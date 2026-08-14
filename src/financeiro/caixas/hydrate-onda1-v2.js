@@ -88,19 +88,6 @@ const ONDA1_V2_MAPA = [
 const ONDA1_V2_IDS = ONDA1_V2_MAPA.map(m => m.idHtml).concat(['cxBoletosPct', 'balResBoletos', 'balOpCaixaVariavel', 'cxPixPct', 'balResPixVanessa']); // cxBoletosBar/cxPixBar têm style.width, não textContent — marcarIndisponivelV2 cuida só de texto, ver abaixo
 
 async function aplicarOnda1V2(){
-  // CORRIGIDO 14/08/2026 (auditoria de performance: as 2 requisições desta função — saldos (Onda 1
-  // inteira depende dela) e o extrato da Mastercard/Infinite (só a legenda de detalhe, comentário
-  // "assíncrono à parte" logo abaixo já dizia a intenção) — eram 100% independentes uma da outra
-  // (nenhuma usa o resultado da outra) mas rodavam em SÉRIE, await após await: um `await` bloqueia
-  // a função inteira até resolver antes do próximo começar a baixar. Disparada aqui, ANTES do
-  // primeiro await, a segunda já sai baixando em paralelo com a primeira — cada catch continua
-  // isolado exatamente como antes (erro num não derruba o outro), só o tempo de rede deixou de
-  // somar em série.
-  const promessaExtratoMastercardInfinite = WallaceFinanceService.getExtratoCaixaMastercardInfinite();
-  // handler "vazio" só pra não gerar unhandled promise rejection nos 2 `return` antecipados abaixo
-  // (falha/formato inesperado de saldosV2) — o catch de verdade continua no `await` mais abaixo,
-  // este aqui não consome/oculta o erro real, só evita o warning solto no console nesse caminho.
-  promessaExtratoMastercardInfinite.catch(function(){});
   let saldosV2;
   try {
     saldosV2 = await WallaceFinanceService.getSaldosPorCaixa();
@@ -160,24 +147,4 @@ async function aplicarOnda1V2(){
     if(chave && r.v2 !== undefined && REG.caixasOperacionais[chave]) REG.caixasOperacionais[chave].saldo = r.v2;
   });
   if(typeof atualizarGraficoCaixas === 'function') atualizarGraficoCaixas();
-
-  // NOVO 11/08/2026 (achado do usuário: legenda de detalhe da Caixa Mastercard/Infinite
-  // hardcoded — ver comentário completo em getExtratoCaixaMastercardInfinite(), app.js).
-  // Assíncrono à parte (não bloqueia o resto da Onda 1) - falha aqui não derruba nada, só deixa
-  // a legenda antiga (V1) visível, o número grande acima já está correto de qualquer forma.
-  try {
-    const extrato = await promessaExtratoMastercardInfinite;
-    const detEl = $('balOpMastercardInfiniteDetalhe');
-    if(detEl && Array.isArray(extrato)){
-      if(!extrato.length){
-        detEl.textContent = 'Sem lançamentos neste ciclo.';
-      } else {
-        const partes = extrato.map(t => (t.tipo === 'entrada' ? '+' : '−') + fmt(Number(t.valor)) + ' (' + t.descricao + ')');
-        const total = extrato.reduce((s,t) => s + (t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor)), 0);
-        detEl.textContent = partes.join(' ') + ' = ' + fmt(Math.round(total*100)/100);
-      }
-    }
-  } catch(err){
-    console.warn('Onda1V2: falha ao buscar extrato da Caixa Mastercard/Infinite — legenda de detalhe fica na versão V1 antiga.', err);
-  }
 }
