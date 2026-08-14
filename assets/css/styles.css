@@ -429,6 +429,9 @@
        — em ~256px úteis de largura o título grande força quebras de linha ruins). */
     .cover{padding:1.6rem 1.3rem}
     .cover h1{font-size:1.7rem}
+    /* NOVO 14/08/2026 (achado de auditoria mobile: padding lateral/inferior do body era fixo em
+       todas as larguras — 48px de padding lateral é ~12,8% de desperdício numa tela de 375px). */
+    body{padding:1.6rem 1rem 3.5rem}
   }
 
   .row{
