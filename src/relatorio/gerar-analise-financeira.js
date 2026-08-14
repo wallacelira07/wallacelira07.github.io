@@ -62,6 +62,13 @@ function _wwiArredonda(n, casas){
   return Math.round(n * f) / f;
 }
 
+// Formata número BR sem o prefixo "R$" (a narrativa já escreve "R$" na frase) — usado nos
+// parágrafos analíticos pra citar valores em moeda de forma legível ("R$ 471.458,31").
+function _wwiFmtMoeda(n){
+  if(n === null || n === undefined) return '';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // ---------------------------------------------------------------------------------------------
 // calcularIndicadoresEScores(dados) — Wealth Score (0-100) + 4 índices dedicados + indicadores brutos
 // usados tanto pelo PDF quanto pela comparação histórica. Cada sub-score só entra na média se o dado
@@ -195,56 +202,109 @@ function gerarAnaliseFinanceira(dados){
   const recomendacoesTexto = [];
   const regrasAplicadas = [];
 
+  // Campos adicionais lidos direto do coletor (fora de calcularIndicadoresEScores porque são
+  // usados só pra narrativa, não entram em nenhum sub-score hoje) — cobrem os temas que o motor
+  // de análise precisa comentar por pedido explícito do usuário: Escola de Júlio, Projeto Casa
+  // Nova, capacidade de investimento, centros de custo. Mesma regra de sempre: null quando a
+  // seção/linha não existe, nunca fabricado.
+  const escolaJulioPct = _wwiNum(_wwiLinha(dados, 'Resumo executivo', 'Escola de Júlio'));
+  const projetoCasaNovaPct = _wwiNum(_wwiLinha(dados, 'Resumo executivo', 'Projeto Casa Nova'));
+  const capitalCasaNova = _wwiNum(_wwiLinha(dados, 'Projeto casa nova', 'Capital disponível'));
+  const metaInvestimentoTexto = _wwiLinha(dados, 'Resumo executivo', 'Meta investimento');
+  const totalCaixasSecao = _wwiSecao(dados, '📦 Todas as Caixas');
+  const qtdCaixas = totalCaixasSecao ? totalCaixasSecao.linhas.length : null;
+  const caixasZeradas = totalCaixasSecao ? totalCaixasSecao.linhas.filter(l => _wwiNum(l.valor) === 0).length : null;
+
   function regra(nome, condicao, fn){
     if(!condicao) return;
     regrasAplicadas.push(nome);
     fn();
   }
 
+  // ===== Liquidez =====
   regra('liquidez_forte', subscores.liquidez !== null && subscores.liquidez >= 80, () => {
-    pontosFortesTexto.push(`Liquidez de nível muito forte: a Reserva de Emergência cobre cerca de ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha.`);
+    pontosFortesTexto.push(`Liquidez de nível muito forte: a Reserva de Emergência (R$ ${_wwiFmtMoeda(b.reserva)}) cobre sozinha cerca de ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo — bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta).`);
+  });
+  regra('liquidez_media', subscores.liquidez !== null && subscores.liquidez >= 40 && subscores.liquidez < 80, () => {
+    pontosFortesTexto.push(`Liquidez em nível saudável: a Reserva de Emergência cobre cerca de ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo, dentro da faixa considerada segura para o perfil.`);
   });
   regra('liquidez_fraca', subscores.liquidez !== null && subscores.liquidez < 40, () => {
-    pontosFracosTexto.push(`Liquidez abaixo do recomendável: a Reserva cobriria só ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo.`);
-    riscosTexto.push('Um imprevisto grande encontraria o sistema com pouca folga de caixa disponível.');
-    recomendacoesTexto.push('Priorizar reforço da Reserva de Emergência antes de qualquer novo aporte discricionário.');
+    pontosFracosTexto.push(`Liquidez abaixo do recomendável: a Reserva cobriria só ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.`);
+    riscosTexto.push('Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.');
+    recomendacoesTexto.push('Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.');
   });
 
+  // ===== Endividamento / alavancagem =====
   regra('alavancagem_baixa', subscores.endividamento !== null && subscores.endividamento >= 80, () => {
-    pontosFortesTexto.push(`Alavancagem controlada: passivos representam ${_wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total — bem abaixo de qualquer linha de alerta.`);
+    const pctAlav = _wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1);
+    pontosFortesTexto.push(`Alavancagem controlada: os passivos (financiamento da casa + consórcio do carro) representam apenas ${pctAlav}% do ativo total (R$ ${_wwiFmtMoeda(b.passivosTotal)} sobre R$ ${_wwiFmtMoeda(b.ativosTotal)}) — bem abaixo de qualquer linha de alerta para o perfil, e ambas as dívidas têm condições conhecidas e estáveis, não exigindo antecipação.`);
+  });
+  regra('alavancagem_media', subscores.endividamento !== null && subscores.endividamento >= 40 && subscores.endividamento < 80, () => {
+    pontosFracosTexto.push(`Alavancagem moderada: passivos representam ${_wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total — não é crítico, mas merece acompanhamento nos próximos ciclos.`);
   });
   regra('alavancagem_alta', subscores.endividamento !== null && subscores.endividamento < 40, () => {
     pontosFracosTexto.push(`Alavancagem elevada: passivos já representam ${_wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total.`);
-    riscosTexto.push('Nível de dívida sobre ativos merece monitoramento antes de assumir novos compromissos de longo prazo.');
+    riscosTexto.push('Nível de dívida sobre ativos merece monitoramento antes de assumir novos compromissos financeiros de longo prazo.');
   });
 
+  // ===== Composição do patrimônio (financeiro vs. físico) =====
   regra('concentracao_fisica', subscores.investimentos !== null && subscores.investimentos < 50, () => {
-    pontosFracosTexto.push('Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos, com pouca proporção em capital financeiro alocável.');
-    oportunidadesTexto.push('Redirecionar o próximo ciclo de aportes para ativos líquidos ajuda a equilibrar a composição do patrimônio.');
+    const pctFinanceiro = b.patrimonioLiquido ? _wwiArredonda((b.patrimonioFinanceiro / b.patrimonioLiquido) * 100, 1) : null;
+    pontosFracosTexto.push(`Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos (casa, apartamento, carro, jazigo)${pctFinanceiro !== null ? ` — só ${pctFinanceiro}% do patrimônio líquido está em capital financeiro realmente alocável` : ''}. Não é um erro por si só (é típico de quem construiu patrimônio via consumo disciplinado), mas concentra o risco numa única classe de ativo.`);
+    oportunidadesTexto.push('Redirecionar o próximo ciclo de aportes para ativos financeiros líquidos ajuda a equilibrar a composição do patrimônio e reduz a dependência de valorização imobiliária/veicular.');
   });
   regra('investimentos_bem_alocados', subscores.investimentos !== null && subscores.investimentos >= 90, () => {
-    pontosFortesTexto.push('Boa proporção de patrimônio financeiro/líquido frente ao total — alocação madura para o perfil.');
+    pontosFortesTexto.push('Boa proporção de patrimônio financeiro/líquido frente ao total — alocação madura para o perfil, com capital disponível para realocar sem depender de vender um bem físico.');
   });
 
+  // ===== Meta do Milhão =====
   regra('meta_milhao_inicial', b.metaMilhaoPct !== null && b.metaMilhaoPct < 25, () => {
-    pontosFracosTexto.push(`Meta do Milhão ainda em fase inicial: ${_wwiArredonda(b.metaMilhaoPct, 1)}% do caminho percorrido.`);
+    const faltaMilhao = b.patrimonioLiquido !== null ? _wwiArredonda(1000000 - b.patrimonioLiquido, 2) : null;
+    pontosFracosTexto.push(`Meta do Milhão ainda em fase inicial: ${_wwiArredonda(b.metaMilhaoPct, 1)}% do caminho percorrido${faltaMilhao !== null ? ` (faltam R$ ${_wwiFmtMoeda(faltaMilhao)})` : ''}. É esperado nesta fase — o que importa mais que o percentual isolado é o ritmo de aporte se manter constante ciclo a ciclo.`);
   });
-  regra('meta_milhao_avancada', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 50, () => {
-    pontosFortesTexto.push(`Meta do Milhão já em ${_wwiArredonda(b.metaMilhaoPct, 1)}% — mais da metade do caminho percorrido.`);
+  regra('meta_milhao_avancada', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 25 && b.metaMilhaoPct < 50, () => {
+    pontosFortesTexto.push(`Meta do Milhão em ${_wwiArredonda(b.metaMilhaoPct, 1)}% do caminho percorrido — progresso real, mesmo que ainda distante da metade.`);
+  });
+  regra('meta_milhao_mais_da_metade', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 50, () => {
+    pontosFortesTexto.push(`Meta do Milhão já em ${_wwiArredonda(b.metaMilhaoPct, 1)}% — mais da metade do caminho percorrido, ritmo consolidado.`);
   });
 
+  // ===== Escola de Júlio =====
+  regra('escola_julio_baixo', escolaJulioPct !== null && escolaJulioPct < 30, () => {
+    riscosTexto.push(`Escola de Júlio em ${_wwiArredonda(escolaJulioPct, 1)}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte, não só o que sobrar do mês.`);
+  });
+  regra('escola_julio_ok', escolaJulioPct !== null && escolaJulioPct >= 30, () => {
+    pontosFortesTexto.push(`Escola de Júlio com ${_wwiArredonda(escolaJulioPct, 1)}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.`);
+  });
+
+  // ===== Projeto/Consórcio Casa Nova =====
   regra('casa_nova_pre_contemplacao', b.consorcioCasaPagoPct !== null && b.consorcioCasaPagoPct < 5, () => {
-    riscosTexto.push('Consórcio Casa Nova ainda em fase pré-contemplação: parcela mensal é um compromisso certo para um benefício (contemplação) ainda incerto.');
+    riscosTexto.push(`Consórcio Casa Nova ainda em fase pré-contemplação (${_wwiArredonda(b.consorcioCasaPagoPct, 2)}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo. Vale já ter uma política definida de quando/se usar lance para acelerar, em vez de depender só do sorteio.`);
+  });
+  regra('projeto_casa_nova_capital', projetoCasaNovaPct !== null, () => {
+    oportunidadesTexto.push(`Projeto Casa Nova em ${_wwiArredonda(projetoCasaNovaPct, 1)}% de maturidade${capitalCasaNova !== null ? `, com R$ ${_wwiFmtMoeda(capitalCasaNova)} de capital hoje disponível (LFTS11 + Caixa Lance) para eventual lance` : ''}.`);
   });
 
+  // ===== Reembolsos Wärtsilä =====
   regra('wartsila_pendencia', b.reembAReceber !== null && b.reembAReceber > 0, () => {
-    oportunidadesTexto.push(`Reembolso Wärtsilä do ciclo tem R$ ${_wwiArredonda(b.reembAReceber, 2).toLocaleString('pt-BR', {minimumFractionDigits: 2})} ainda pendente de confirmação.`);
+    const pctPendente = b.reembTotalCiclo ? _wwiArredonda((b.reembAReceber / b.reembTotalCiclo) * 100, 1) : null;
+    oportunidadesTexto.push(`Reembolso Wärtsilä do ciclo tem R$ ${_wwiFmtMoeda(b.reembAReceber)} ainda pendente de confirmação${pctPendente !== null ? ` (${pctPendente}% do total do ciclo)` : ''} — não trava nenhuma obrigação (a cascata de adiantamento via Caixa Lance já cobre isso), mas vale acompanhar até a confirmação definitiva.`);
   });
   regra('wartsila_recuperacao_alta', (b.reembRecebidos !== null && b.reembTotalCiclo), () => {
     const eficiencia = b.reembTotalCiclo ? (b.reembRecebidos / b.reembTotalCiclo) * 100 : null;
     if(eficiencia !== null && eficiencia >= 90){
-      pontosFortesTexto.push(`Eficiência de recuperação do reembolso Wärtsilä em ${_wwiArredonda(eficiencia, 1)}% no ciclo.`);
+      pontosFortesTexto.push(`Eficiência de recuperação do reembolso Wärtsilä em ${_wwiArredonda(eficiencia, 1)}% no ciclo (R$ ${_wwiFmtMoeda(b.reembRecebidos)} de R$ ${_wwiFmtMoeda(b.reembTotalCiclo)} já confirmados) — a unidade de negócio "reembolso corporativo" está operando com eficiência alta e previsível.`);
     }
+  });
+
+  // ===== Capacidade de investimento (Meta investimento, Resumo executivo) =====
+  regra('capacidade_investimento', !!metaInvestimentoTexto, () => {
+    oportunidadesTexto.push(`Capacidade de investimento do ciclo: ${metaInvestimentoTexto}.`);
+  });
+
+  // ===== Centros de custo =====
+  regra('caixas_zeradas', qtdCaixas !== null && caixasZeradas !== null && caixasZeradas > 0, () => {
+    pontosFracosTexto.push(`${caixasZeradas} de ${qtdCaixas} centros de custo estão com saldo zerado neste ciclo — pode ser normal (caixa recém-criada ou já totalmente utilizada), mas vale conferir se algum deles deveria ter recebido aporte e não recebeu.`);
   });
 
   regra('poupanca_alta', subscores.execucaoDeMetas !== null || (b.poupancaReceitas && b.poupancaSobrou !== null), () => {
@@ -260,13 +320,35 @@ function gerarAnaliseFinanceira(dados){
     pontosFracosTexto.push('Dados insuficientes no momento da coleta para uma leitura completa — algumas seções do painel podem não ter sido encontradas (ver "erro" em cada seção do relatório).');
   }
 
-  const parecerFinalTexto = wealthScore !== null
-    ? `Wealth Score do ciclo: ${wealthScore}/100. ` +
-      (wealthScore >= 90 ? 'Nível Elite — base institucional consolidada em praticamente todos os eixos avaliados.' :
-       wealthScore >= 75 ? 'Nível Avançado — disciplina e proteção patrimonial sólidas; a próxima fronteira normalmente é alocação/diversificação, não segurança.' :
-       wealthScore >= 55 ? 'Nível Estável — fundamentos presentes, com espaço real de melhoria em pelo menos um eixo crítico (ver Pontos Fracos).' :
-       'Nível de Atenção — recomenda-se revisão de prioridades antes de assumir novos compromissos.')
-    : 'Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta.';
+  // Parecer Final como PARÁGRAFO analítico completo (não uma frase telegráfica) — mesmo espírito
+  // do CFO Summary do Tactical Wealth Report original: sintetiza patrimônio, ritmo, risco e a
+  // próxima fronteira, tudo ancorado nos números já coletados. Cada trecho só entra se o dado que
+  // ele descreve existir (nunca fabrica um número pra completar a frase).
+  const nivelTexto = wealthScore === null ? null :
+    wealthScore >= 90 ? 'Nível Elite — a base institucional está consolidada em praticamente todos os eixos avaliados.' :
+    wealthScore >= 75 ? 'Nível Avançado — disciplina e proteção patrimonial sólidas; a próxima fronteira normalmente é alocação e diversificação, não segurança.' :
+    wealthScore >= 55 ? 'Nível Estável — os fundamentos estão presentes, com espaço real de melhoria em pelo menos um eixo crítico (ver Pontos Fracos).' :
+    'Nível de Atenção — recomenda-se revisão de prioridades antes de assumir novos compromissos financeiros.';
+
+  const frasesParecer = [];
+  if(wealthScore !== null){
+    frasesParecer.push(`Wealth Score do ciclo: ${wealthScore}/100. ${nivelTexto}`);
+  } else {
+    frasesParecer.push('Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta.');
+  }
+  if(b.patrimonioLiquido !== null){
+    frasesParecer.push(`O patrimônio líquido do ciclo está em R$ ${_wwiFmtMoeda(b.patrimonioLiquido)}${b.ativosTotal !== null && b.passivosTotal !== null ? `, resultado de R$ ${_wwiFmtMoeda(b.ativosTotal)} em ativos menos R$ ${_wwiFmtMoeda(b.passivosTotal)} em passivos` : ''}.`);
+  }
+  if(pontosFortesTexto.length){
+    frasesParecer.push(`Do lado positivo, ${pontosFortesTexto.length === 1 ? 'o destaque do ciclo é' : 'os destaques do ciclo são'}: ${pontosFortesTexto.map(t => t.split(':')[0].split(' —')[0].toLowerCase()).join('; ')}.`);
+  }
+  if(pontosFracosTexto.length){
+    frasesParecer.push(`O ponto que mais pede atenção é ${pontosFracosTexto[0].charAt(0).toLowerCase() + pontosFracosTexto[0].slice(1).replace(/\.$/, '')}.`);
+  }
+  if(riscosTexto.length){
+    frasesParecer.push('Nenhum risco identificado neste ciclo é de ruptura — todos são de monitoramento, não de ação emergencial.');
+  }
+  const parecerFinalTexto = frasesParecer.join(' ');
 
   return {
     pontosFortesTexto, pontosFracosTexto, riscosTexto, oportunidadesTexto, recomendacoesTexto,
