@@ -1996,7 +1996,14 @@ async function _lazyRenderSolarSecao(){
       const diasDesdeInicioCiclo = Math.max(0, Math.round((hojeBrasilia - new Date(cicloSolarAberto.data_inicio)) / 86400000));
       const fmtDataBr = iso => iso ? iso.split('-').reverse().join('/') : '—';
       const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → em aberto';
-      renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WALLACE, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a', periodoTxt, Math.round(VARS.solarRateioWallace*1000)/10+'%');
+      // CORRIGIDO 14/08/2026 (achado do usuário: "o dia deve ser sempre dia 08 que é o da leitura do
+      // GD" — DIA_LEITURA_WALLACE (21) é a leitura do APARTAMENTO do Wallace pela Energisa, sobre
+      // CONSUMO, sem nenhuma relação com quando o ciclo de GERAÇÃO (a usina, na Casa da Mãe) fecha.
+      // "Dias restantes (GD)" tem que refletir quando o ciclo de crédito realmente fecha, não a
+      // leitura de consumo de cada apartamento — por isso as DUAS previsões (Wallace e Wellida) usam
+      // DIA_LEITURA_WELLIDA (dia 8, mesmo dia da leitura da Casa da Mãe onde fica a usina), mesmo
+      // essa constante tendo "Wellida" no nome (nome antigo, o dia em si é da GD, não da irmã).
+      renderPrevisao('prevWallace', META_WALLACE, DIA_LEITURA_WELLIDA, creditoWallacePrevisao, diasDesdeInicioCiclo, '#34c98a', periodoTxt, Math.round(VARS.solarRateioWallace*1000)/10+'%');
       renderPrevisao('prevWellida', META_WELLIDA, DIA_LEITURA_WELLIDA, creditoIrmaPrevisao, diasDesdeInicioCiclo, '#e8a63a', periodoTxt, Math.round(VARS.solarRateioIrma*1000)/10+'%');
 
       // Fluxo 1: crédito do último ciclo JÁ FECHADO (congelado, não recalcula) - o que de fato vai
