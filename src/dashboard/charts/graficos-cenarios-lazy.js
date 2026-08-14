@@ -1796,6 +1796,10 @@ async function _lazyRenderSolarSecao(){
   }
 
 
+  // Índice da barra do ciclo AINDA ABERTO já ajustado pro mesmo deslocamento (OFFSET_SOLAR) aplicado
+  // aos dados/rótulos via alignSolar() — sem isso, a barra "diferente" apontaria pro mês errado assim
+  // que a janela de 12 meses começar a rolar.
+  const idxCicloAbertoAlinhado = idxCicloAberto != null ? idxCicloAberto - OFFSET_SOLAR : null;
   const solarBarLabelPlugin = {
     id:'solarBarLabelPlugin',
     afterDatasetsDraw(chart){
@@ -1818,13 +1822,24 @@ async function _lazyRenderSolarSecao(){
           ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
         });
       });
+      // NOVO 14/08/2026 (pedido do usuário: "quero que coloque sobre o ciclo atual um marcador, tem
+      // que mudar automaticamente" — a única indicação do ciclo aberto até agora era a barra ~40%
+      // mais transparente, achado do usuário como pouco visível). Marcador de texto acima da coluna
+      // inteira do mês, usando o MESMO idxCicloAbertoAlinhado que já pinta a barra translúcida — ele
+      // vem de cicloSolarAberto (dado real do banco), não de um índice fixo, então já é automático:
+      // quando o ciclo fecha e um novo abre, idxCicloAberto muda sozinho no próximo carregamento e o
+      // marcador acompanha, sem precisar editar nada aqui.
+      if(idxCicloAbertoAlinhado != null && idxCicloAbertoAlinhado >= 0 && chart.scales && chart.scales.x){
+        const xPos = chart.scales.x.getPixelForValue(idxCicloAbertoAlinhado);
+        if(typeof xPos === 'number' && !isNaN(xPos)){
+          ctx.font = "700 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
+          ctx.fillStyle = '#34c98a';
+          ctx.fillText('▼ ciclo atual', xPos, chart.chartArea.top - 8);
+        }
+      }
       ctx.restore();
     }
   };
-  // Índice da barra do ciclo AINDA ABERTO já ajustado pro mesmo deslocamento (OFFSET_SOLAR) aplicado
-  // aos dados/rótulos via alignSolar() — sem isso, a barra "diferente" apontaria pro mês errado assim
-  // que a janela de 12 meses começar a rolar.
-  const idxCicloAbertoAlinhado = idxCicloAberto != null ? idxCicloAberto - OFFSET_SOLAR : null;
   const corBarraCredito = (corFechado) => (ctx) => ctx.dataIndex === idxCicloAbertoAlinhado ? corFechado + '66' : corFechado; // '66' = ~40% opacidade em hex, só na barra do ciclo aberto
   observeAndRenderChart($('cSolarRateio'), () => { const __chartExistente = Chart.getChart($('cSolarRateio')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cSolarRateio'), {
     type:'bar',
@@ -1899,8 +1914,15 @@ async function _lazyRenderSolarSecao(){
   // Setembro, porque já passamos do corte de dia 8 dele. offsetMesesCicloGD() é o mesmo cálculo do
   // offsetMesesCalendario() (linha ~905), só que a virada de mês acontece no dia 8, não no dia 1.
   const DIA_CORTE_CICLO_GD = DIA_LEITURA_WELLIDA; // 8 — mesmo dia usado como "Dias restantes (GD)" acima
-  function offsetMesesCicloGD(){
-    const hoje = new Date();
+  // CORRIGIDO 14/08/2026 (achado real, auditoria própria depois do pedido "tudo automático, mudou o
+  // ciclo mudou tudo"): esta função aceita uma data de referência opcional — SEM isso, tanto o
+  // Fluxo 1 (ciclo JÁ FECHADO, histórico, deveria ficar CONGELADO na meta do mês em que fechou) quanto
+  // o Fluxo 2 (ciclo aberto, meta tem que acompanhar hoje) acabariam usando a MESMA meta baseada em
+  // "hoje" — assim que o ciclo virasse de novo, o card do ciclo já fechado (que não deveria mudar mais
+  // nunca) mudaria de meta junto, incorretamente. Fluxo 1 passa `ultimoFechado.data_fim` (trava no mês
+  // em que aquele ciclo específico fechou, pra sempre); Fluxo 2 usa o padrão (hoje).
+  function offsetMesesCicloGD(dataRef){
+    const hoje = dataRef ? new Date(dataRef+'T00:00:00') : new Date();
     let ano = hoje.getFullYear(), mes = hoje.getMonth()+1; // 1-indexed
     if(hoje.getDate() >= DIA_CORTE_CICLO_GD){
       mes += 1;
@@ -2043,8 +2065,15 @@ async function _lazyRenderSolarSecao(){
       // (vw_ciclo_solar_historico), então [0] é sempre o fechamento mais recente.
       const ultimoFechado = Array.isArray(ciclosSolarFechados) && ciclosSolarFechados.length ? ciclosSolarFechados[0] : null;
       if(ultimoFechado){
-        renderFluxo1Fechado('fechWallace', META_WALLACE, Number(ultimoFechado.credito_wallace_kwh), fmtDataBr(ultimoFechado.data_fim));
-        renderFluxo1Fechado('fechWellida', META_WELLIDA, Number(ultimoFechado.credito_irma_kwh), fmtDataBr(ultimoFechado.data_fim));
+        // CORRIGIDO 14/08/2026 (achado real, ver comentário em offsetMesesCicloGD acima): meta do
+        // Fluxo 1 (fechado) usa a data REAL de fechamento DESTE ciclo, não "hoje" — fica travada pra
+        // sempre no mês certo, mesmo depois que o próximo ciclo virar e META_WALLACE/META_WELLIDA
+        // (que seguem "hoje") já tiverem avançado pro mês seguinte.
+        const offsetFechado = Math.max(0, Math.min(11, offsetMesesCicloGD(ultimoFechado.data_fim)));
+        const metaWallaceFechado = kwhAnoAnterior[offsetFechado];
+        const metaWellidaFechado = consumoMensalIrma[offsetFechado];
+        renderFluxo1Fechado('fechWallace', metaWallaceFechado, Number(ultimoFechado.credito_wallace_kwh), fmtDataBr(ultimoFechado.data_fim));
+        renderFluxo1Fechado('fechWellida', metaWellidaFechado, Number(ultimoFechado.credito_irma_kwh), fmtDataBr(ultimoFechado.data_fim));
       } else {
         renderFluxo1Fechado('fechWallace', META_WALLACE, null, null);
         renderFluxo1Fechado('fechWellida', META_WELLIDA, null, null);
