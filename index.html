@@ -943,71 +943,35 @@
             return _promiseJsPDF;
         }
 
-        // NOVO 14/08/2026 (pedido do usuário, depois de ver o resultado: "o pdf que você fez está
-        // muito pobre" — mandou um print de referência, relatório corporativo com faixa de cabeçalho
-        // colorida, cards de KPI com número grande e cards de seção com header colorido). Reescrito
-        // do zero: era só texto corrido (título + linhas label/valor soltas), agora usa as primitivas
-        // de desenho do jsPDF (rect/roundedRect com fill) pra montar faixa de cabeçalho, 3 cards de
-        // KPI em destaque (extraídos das próprias seções coletadas — mesmo dado, só resaltado) e cada
-        // seção como um card com barra de título colorida + linhas com fundo alternado. Paleta clara
-        // (fundo branco, acentos na mesma cor de marca do site — --accent #4c8ef2, --green #34c98a)
-        // porque é um documento pra imprimir/ler fora da tela, não o tema escuro do painel.
-        // REDESENHADO 14/08/2026 (WWI, achado do usuário: "o que você gerou antes foi perfeito... esse
-        // pdf não é o relatório que eu aprovei" — o "antes" é o artefato "Tactical Wealth Report",
-        // paleta navy/marfim + dourado, tipografia serifada, cards com borda de destaque colorida,
-        // blocos de narrativa com barra lateral em vez de fundo sólido pastel). Paleta abaixo é a
-        // MESMA do artefato (:root do HTML), só traduzida pra RGB 0-255 (jsPDF não aceita hex/CSS
-        // vars) — --bg/--accent/--ink/etc de lá viram PDF_COR_* aqui, 1 pra 1, pra nunca mais divergir
-        // visualmente do que foi aprovado.
-        const PDF_COR_FUNDO = [241, 241, 235];          // --bg (marfim/bone paper)
-        const PDF_COR_SURFACE = [255, 255, 255];        // --surface (card)
-        const PDF_COR_SURFACE_2 = [247, 246, 240];       // --surface-2 (linha alternada)
-        const PDF_COR_CAPA_FUNDO = [16, 20, 28];         // capa: ink navy fixo (mesmo espírito do artefato: capa sempre escura, independente de tema)
-        const PDF_COR_ACCENT = [140, 109, 47];           // --accent (brass, sobre fundo claro)
-        const PDF_COR_ACCENT_ESCURO = [107, 79, 30];     // --accent-strong
-        const PDF_COR_ACCENT_CLARO = [203, 169, 104];    // dourado mais vivo, só pra texto sobre a capa escura
-        const PDF_COR_TEXTO = [22, 26, 34];              // --ink
-        const PDF_COR_TEXTO_DIM = [82, 89, 104];         // --ink-soft
-        const PDF_COR_TEXTO_FAINT = [139, 143, 152];     // --ink-faint
-        const PDF_COR_LINHA = [222, 220, 209];           // --line (hairline)
-        const PDF_COR_BOM = [46, 125, 91];               // --good
-        const PDF_COR_RUIM = [177, 67, 56];              // --bad
-        const PDF_COR_ALERTA = [180, 121, 31];           // --warn
-        // mantidos por compat (código antigo que ainda referencia esses nomes)
-        const PDF_COR_MARCA = PDF_COR_ACCENT;
-        const PDF_COR_MARCA_ESCURA = PDF_COR_CAPA_FUNDO;
-        const PDF_COR_VERDE = PDF_COR_BOM;
-        const PDF_COR_LINHA_PAR = PDF_COR_SURFACE_2;
-
-        // Pinta o fundo marfim da página inteira — jsPDF começa cada página em branco puro, e o
-        // artefato aprovado nunca usa branco puro de fundo (bone paper, --bg). Chamada 1x no início e
-        // de novo toda vez que uma página nova é criada (addPage não herda o fundo da anterior).
-        function pdfPintarFundo(doc, larguraPagina, alturaPagina) {
-            doc.setFillColor.apply(doc, PDF_COR_FUNDO);
-            doc.rect(0, 0, larguraPagina, alturaPagina, 'F');
+        // REESCRITO 14/08/2026, 2ª vez no mesmo dia (achado do usuário: "eu quero idêntico ao primeiro
+        // que você fez, esses estão horríveis" — as duas tentativas anteriores desenhavam o PDF com
+        // primitivas do jsPDF (rect/text), e por mais que a paleta batesse, tipografia/espaçamento/
+        // proporção NUNCA ficam idênticos a um HTML/CSS de verdade só copiando cor por cor). Mudança de
+        // abordagem: monta o relatório como HTML real (mesmas classes/paleta do artefato "Tactical
+        // Wealth Report" aprovado), injeta fora da tela, rasteriza com html2canvas (mesma lib já usada
+        // pelo botão de "baixar seção como JPEG" dentro do iframe) e fatia o resultado em páginas do
+        // jsPDF. Isso garante fidelidade visual real — é literalmente o mesmo CSS, não uma imitação.
+        var _promiseHtml2CanvasHeader = null;
+        function _carregarHtml2CanvasHeaderSobDemanda() {
+            if (typeof html2canvas !== 'undefined') return Promise.resolve();
+            if (_promiseHtml2CanvasHeader) return _promiseHtml2CanvasHeader;
+            _promiseHtml2CanvasHeader = new Promise(function (resolve, reject) {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = function () { resolve(); };
+                script.onerror = function () { _promiseHtml2CanvasHeader = null; reject(new Error('falha ao carregar html2canvas')); };
+                document.head.appendChild(script);
+            });
+            return _promiseHtml2CanvasHeader;
         }
 
-        // CORRIGIDO 14/08/2026 (achado ao testar visualmente, antes de publicar: emojis dos títulos
-        // de seção — "🔄", "📦" etc — e a seta "→" do período do ciclo viravam lixo/mojibake no PDF
-        // ("Ø=Ý", "!'"). Causa: as fontes padrão do jsPDF (Helvetica/Times/Courier, WinAnsiEncoding)
-        // não têm glifo pra emoji nem pra alguns símbolos Unicode fora do latin-1 — cada caractere
-        // sem glifo é desenhado como bytes soltos em vez de ser ignorado. Sanitiza removendo emoji
-        // (todas as faixas Unicode comuns de emoji/símbolo/seta) antes de qualquer doc.text(), só na
-        // hora de desenhar — os dados originais (usados pra achar KPI por título exato, por exemplo)
-        // continuam intactos.
-        function pdfSanitizarTexto(txt) {
-            if (txt == null) return '';
-            return String(txt)
-                .replace(/→/g, '->')
-                .replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '')
-                .replace(/\s+/g, ' ')
-                .trim();
+        function _wwiRelEsc(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
-        // Procura uma linha específica (por label) dentro de uma seção coletada, pra destacar como
-        // KPI — não recalcula nada, só reaproveita o mesmo par label/valor que coletarDadosRelatorio
-        // Fechamento() já leu do DOM. Retorna null se a seção/linha não existir (relatório nunca
-        // quebra por um KPI faltando, só deixa de mostrar aquele card).
+        // Procura uma linha específica (por label) dentro de uma seção coletada — não recalcula nada,
+        // só reaproveita o mesmo par label/valor que coletarDadosRelatorioFechamento() já leu do DOM.
         function pdfPegarKpi(secoes, tituloSecao, labelLinha) {
             const secao = secoes.find(function (s) { return s.titulo === tituloSecao; });
             if (!secao) return null;
@@ -1015,261 +979,200 @@
             return linha ? linha.valor : null;
         }
 
-        // Desenha o cabeçalho "eyebrow" de uma seção — mesmo padrão visual do artefato aprovado
-        // (`.eyebrow`: numeral/ícone + texto em destaque + hairline esticando até a margem direita),
-        // em vez do bloco de fundo sólido pastel usado antes. `corAccent` é a cor do traço vertical à
-        // esquerda do título (marca a natureza do bloco: dourado = neutro, verde = positivo, vermelho =
-        // risco/negativo) — mesma linguagem de "borda lateral colorida" já usada no ranking de risco e
-        // nos cards de projeto do artefato HTML.
-        function pdfDesenharEyebrow(doc, margem, larguraUtil, larguraPagina, y, titulo, corAccent) {
-            doc.setDrawColor.apply(doc, corAccent || PDF_COR_ACCENT);
-            doc.setLineWidth(2.4);
-            doc.line(margem, y + 3, margem, y + 15);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(12.5);
-            doc.setTextColor.apply(doc, PDF_COR_TEXTO);
-            doc.text(pdfSanitizarTexto(titulo), margem + 9, y + 13);
-            const larguraTitulo = doc.getTextWidth(pdfSanitizarTexto(titulo));
-            doc.setDrawColor.apply(doc, PDF_COR_LINHA);
-            doc.setLineWidth(0.6);
-            doc.line(margem + 16 + larguraTitulo, y + 9, margem + larguraUtil, y + 9);
-            return y + 24;
+        // Monta 1 bloco de narrativa no mesmo padrão visual do artefato aprovado (`.rank li`): barra
+        // lateral colorida por item, sem fundo pastel sólido. `tipo` decide a cor (bom/ruim/neutro).
+        // Item vazio = bloco inteiro omitido (nunca mostra card vazio "sem dados" pra narrativa).
+        function _wwiRelBlocoNarrativa(titulo, itens, tipo) {
+            if (!itens || !itens.length) return '';
+            const cls = tipo === 'bom' ? 'wwirel-bd-bom' : tipo === 'ruim' ? 'wwirel-bd-ruim' : 'wwirel-bd-neutro';
+            return '<div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num ' + cls + '"></span><h3>' + _wwiRelEsc(titulo) + '</h3></div>' +
+                '<ul class="wwirel-rank ' + cls + '">' +
+                itens.map(function (t) { return '<li>' + _wwiRelEsc(t) + '</li>'; }).join('') +
+                '</ul>';
         }
 
-        // NOVO 14/08/2026 (WWI — Wallace Wealth Intelligence), REDESENHADO no mesmo dia (achado do
-        // usuário: versão anterior usava bloco de fundo pastel sólido, não batia com o artefato
-        // aprovado). Agora: eyebrow + lista com barra lateral colorida por item (mesmo padrão visual
-        // de `.rank li` no artefato HTML — borda esquerda verde/vermelha/dourada conforme o tipo do
-        // bloco). `itens` vazio não desenha nada (bloco inteiro omitido).
-        function pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, yInicial, titulo, itens, corAccent) {
-            if (!itens || !itens.length) return yInicial;
-            let y = yInicial;
-            function novaPaginaSeNecessario(alturaBloco) {
-                if (y + alturaBloco > alturaPagina - margem) { doc.addPage(); pdfPintarFundo(doc, larguraPagina, alturaPagina); y = margem; }
+        // Monta 1 seção genérica do coletor (dados.secoes) como tabela label/valor — mesmo padrão
+        // visual de tabela do artefato aprovado (linhas com hairline, valor à direita em tabular-nums).
+        function _wwiRelBlocoSecaoDados(secao) {
+            let corpo;
+            if (!secao.linhas.length) {
+                corpo = '<div class="wwirel-vazio">' + _wwiRelEsc(secao.erro || 'Sem dados.') + '</div>';
+            } else {
+                corpo = '<table class="wwirel-tabela"><tbody>' +
+                    secao.linhas.map(function (l) {
+                        return '<tr><td class="wwirel-td-label">' + _wwiRelEsc(l.label) + '</td><td class="wwirel-td-valor">' + _wwiRelEsc(l.valor) + '</td></tr>';
+                    }).join('') +
+                    '</tbody></table>';
             }
-            novaPaginaSeNecessario(40);
-            y = pdfDesenharEyebrow(doc, margem, larguraUtil, larguraPagina, y, titulo, corAccent);
-            y += 4;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9.5);
-            itens.forEach(function (texto) {
-                const linhas = doc.splitTextToSize(pdfSanitizarTexto(texto), larguraUtil - 22);
-                const altura = linhas.length * 13 + 8;
-                novaPaginaSeNecessario(altura);
-                doc.setFillColor.apply(doc, corAccent || PDF_COR_ACCENT);
-                doc.rect(margem, y + 2, 2.2, altura - 6, 'F');
-                doc.setTextColor.apply(doc, PDF_COR_TEXTO);
-                linhas.forEach(function (l, i) { doc.text(l, margem + 12, y + 10 + i * 13); });
-                y += altura;
-            });
-            return y + 12;
+            return '<div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num wwirel-bd-neutro"></span><h3>' + _wwiRelEsc(secao.titulo.replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '').trim()) + '</h3></div>' + corpo;
         }
 
-        function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo) {
-            const jsPDF = window.jspdf.jsPDF;
-            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-            const margem = 44;
-            const larguraPagina = doc.internal.pageSize.getWidth();
-            const alturaPagina = doc.internal.pageSize.getHeight();
-            const larguraUtil = larguraPagina - margem * 2;
+        // Monta o HTML completo do relatório — mesma paleta/tipografia/estrutura do artefato "Tactical
+        // Wealth Report" aprovado pelo usuário (capa navy fixa + dourado, KPIs com borda de destaque,
+        // score em anel dourado, blocos de narrativa com barra lateral colorida). CSS 100% inline
+        // (self-contido), largura fixa de 800px pensada pra virar página A4 depois do html2canvas.
+        function construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo) {
+            const score = indicadores && indicadores.wealthScore != null ? indicadores.wealthScore : null;
+            const nivel = score === null ? null : score >= 90 ? 'ELITE' : score >= 75 ? 'AVANÇADO' : score >= 55 ? 'ESTÁVEL' : 'ATENÇÃO';
+            const circunferencia = 263.9;
+            const offset = score === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, score)) / 100);
 
-            function novaPaginaSeNecessario(alturaBloco) {
-                if (y + alturaBloco > alturaPagina - margem) {
-                    doc.addPage();
-                    pdfPintarFundo(doc, larguraPagina, alturaPagina);
-                    y = margem;
-                }
-            }
-
-            pdfPintarFundo(doc, larguraPagina, alturaPagina);
-
-            // ===== Capa (mesmo padrão do artefato aprovado: navy fixo, dourado, independente de
-            // tema — a "capa" do relatório é sempre escura, como a folha de rosto de um relatório
-            // impresso de private bank) =====
-            const alturaCapa = 118;
-            doc.setFillColor.apply(doc, PDF_COR_CAPA_FUNDO);
-            doc.rect(0, 0, larguraPagina, alturaCapa, 'F');
-            doc.setDrawColor.apply(doc, PDF_COR_ACCENT_CLARO);
-            doc.setLineWidth(0.6);
-            doc.line(margem, 26, margem, alturaCapa - 26);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor.apply(doc, PDF_COR_ACCENT_CLARO);
-            doc.text('SISTEMA WALLACE LIRA  ·  WALLACE WEALTH INTELLIGENCE', margem + 14, 32);
-
-            doc.setFont('times', 'bold');
-            doc.setFontSize(25);
-            doc.setTextColor(236, 234, 224);
-            doc.text('Tactical Wealth Report', margem + 14, 62);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9.5);
-            doc.setTextColor(180, 185, 198);
-            doc.text('Gestão Patrimonial, Liquidez e Construção de Capital', margem + 14, 80);
-
-            doc.setFontSize(8.5);
-            doc.setTextColor.apply(doc, PDF_COR_ACCENT_CLARO);
-            doc.text(pdfSanitizarTexto('Ciclo ' + dados.cicloAtual + '  ·  gerado em ' + dados.geradoEm), margem + 14, alturaCapa - 16);
-            if (indicadores && indicadores.wealthScore !== null && indicadores.wealthScore !== undefined) {
-                doc.text('Wealth Score ' + indicadores.wealthScore + '/100', larguraPagina - margem - 14, alturaCapa - 16, { align: 'right' });
-            }
-
-            let y = alturaCapa + 32;
-
-            // ===== KPIs em destaque — cards claros com borda dourada (mesmo padrão .kpi do artefato) =====
             const kpis = [
                 { lbl: 'Patrimônio Líquido', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') },
-                { lbl: 'Modo operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional') },
-                { lbl: 'Total obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações') },
+                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações') },
+                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional') },
             ].filter(function (k) { return k.val; });
 
-            if (kpis.length) {
-                const gap = 12;
-                const largKpi = (larguraUtil - gap * (kpis.length - 1)) / kpis.length;
-                const altKpi = 56;
-                kpis.forEach(function (k, i) {
-                    const x = margem + i * (largKpi + gap);
-                    doc.setFillColor.apply(doc, PDF_COR_SURFACE);
-                    doc.setDrawColor.apply(doc, PDF_COR_LINHA);
-                    doc.setLineWidth(0.7);
-                    doc.rect(x, y, largKpi, altKpi, 'FD');
-                    doc.setFillColor.apply(doc, PDF_COR_ACCENT);
-                    doc.rect(x, y, 3, altKpi, 'F');
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(7.5);
-                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_FAINT);
-                    doc.text(pdfSanitizarTexto(k.lbl).toUpperCase(), x + 14, y + 19);
-                    doc.setFont('times', 'bold');
-                    doc.setFontSize(15);
-                    doc.setTextColor.apply(doc, PDF_COR_TEXTO);
-                    const valorAjustado = doc.splitTextToSize(pdfSanitizarTexto(k.val), largKpi - 22)[0];
-                    doc.text(valorAjustado, x + 14, y + 42);
-                });
-                y += altKpi + 24;
-            }
+            const subscoresHtml = (indicadores && indicadores.subscores) ? Object.keys(indicadores.subscores)
+                .filter(function (k) { return indicadores.subscores[k] !== null; })
+                .map(function (k) {
+                    const v = Math.round(indicadores.subscores[k]);
+                    return '<div class="wwirel-score-row"><span class="wwirel-sr-label">' + _wwiRelEsc(k) + '</span>' +
+                        '<div class="wwirel-sr-track"><div class="wwirel-sr-fill" style="width:' + v + '%"></div></div>' +
+                        '<span class="wwirel-sr-val">' + v + '</span></div>';
+                }).join('') : '';
 
-            // ===== Wealth Score em destaque (WWI) — painel navy com número dourado, TODOS os
-            // sub-scores disponíveis listados (CORRIGIDO 14/08/2026: versão anterior só desenhava a
-            // 1ª linha do texto quebrado — [0] descartava o resto, sumindo com "construcaoPatrimonial"
-            // sempre que os 7 eixos não cabiam numa linha só; agora desenha todas as linhas). =====
-            if (indicadores && indicadores.wealthScore !== null && indicadores.wealthScore !== undefined) {
-                const eixos = Object.keys(indicadores.subscores || {})
-                    .filter(function (k) { return indicadores.subscores[k] !== null; })
-                    .map(function (k) { return k + ': ' + Math.round(indicadores.subscores[k]); })
-                    .join('   ·   ');
-                const linhasEixos = doc.setFont('helvetica', 'normal').setFontSize(8.5) && doc.splitTextToSize(pdfSanitizarTexto(eixos), larguraUtil - 28);
-                const alturaPainel = 34 + linhasEixos.length * 12 + 12;
-                novaPaginaSeNecessario(alturaPainel);
-                doc.setFillColor.apply(doc, PDF_COR_CAPA_FUNDO);
-                doc.rect(margem, y, larguraUtil, alturaPainel, 'F');
-                doc.setFillColor.apply(doc, PDF_COR_ACCENT_CLARO);
-                doc.rect(margem, y, 3, alturaPainel, 'F');
-                doc.setFont('times', 'bold');
-                doc.setFontSize(17);
-                doc.setTextColor.apply(doc, PDF_COR_ACCENT_CLARO);
-                doc.text('Wealth Score: ' + indicadores.wealthScore + '/100', margem + 16, y + 24);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8.5);
-                doc.setTextColor(180, 185, 198);
-                linhasEixos.forEach(function (l, i) { doc.text(l, margem + 16, y + 42 + i * 12); });
-                y += alturaPainel + 22;
-            }
+            const evolucaoHtml = (comparativo && comparativo.temHistorico && comparativo.frases.length)
+                ? _wwiRelBlocoNarrativa('Evolução Patrimonial', comparativo.frases, 'neutro')
+                : _wwiRelBlocoNarrativa('Evolução Patrimonial', ['Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.'], 'neutro');
 
-            // ===== Resumo do CFO (narrativa WWI) =====
-            if (narrativa) {
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Resumo Executivo do CFO', narrativa.parecerFinalTexto ? [narrativa.parecerFinalTexto] : [], PDF_COR_ACCENT);
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Pontos Fortes', narrativa.pontosFortesTexto, PDF_COR_BOM);
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Pontos Fracos', narrativa.pontosFracosTexto, PDF_COR_RUIM);
-            }
-
-            // ===== Evolução Patrimonial (comparativo histórico WWI) =====
-            if (comparativo && comparativo.temHistorico) {
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Evolução Patrimonial', comparativo.frases, PDF_COR_ACCENT);
-            } else if (comparativo) {
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Evolução Patrimonial',
-                    ['Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.'],
-                    PDF_COR_ACCENT);
-            }
-
-            // ===== Cards de seção — eyebrow + linhas com fundo alternado marfim (sem faixa azul) =====
-            dados.secoes.forEach(function (secao) {
-                novaPaginaSeNecessario(36);
-                y = pdfDesenharEyebrow(doc, margem, larguraUtil, larguraPagina, y, secao.titulo, PDF_COR_ACCENT);
-                y += 6;
-
-                if (!secao.linhas.length) {
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
-                    doc.text(pdfSanitizarTexto(secao.erro || 'Sem dados.'), margem, y + 10);
-                    y += 24;
-                    return;
-                }
-
-                const larguraLabel = larguraUtil * 0.62;
-                doc.setFontSize(9);
-                secao.linhas.forEach(function (linha, idx) {
-                    doc.setFont('helvetica', 'normal');
-                    const labelLinhas = doc.splitTextToSize(pdfSanitizarTexto(linha.label), larguraLabel - 12);
-                    const alturaLinha = Math.max(16, labelLinhas.length * 11 + 5);
-                    novaPaginaSeNecessario(alturaLinha);
-                    if (idx % 2 === 0) {
-                        doc.setFillColor.apply(doc, PDF_COR_SURFACE_2);
-                        doc.rect(margem, y, larguraUtil, alturaLinha, 'F');
-                    }
-                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
-                    labelLinhas.forEach(function (l, i) {
-                        doc.text(l, margem + 2, y + 11 + i * 11);
-                    });
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor.apply(doc, PDF_COR_TEXTO);
-                    doc.text(pdfSanitizarTexto(linha.valor), larguraPagina - margem - 2, y + 11, { align: 'right' });
-                    y += alturaLinha;
-                });
-                doc.setDrawColor.apply(doc, PDF_COR_LINHA);
-                doc.setLineWidth(0.5);
-                doc.line(margem, y + 4, larguraPagina - margem, y + 4);
-                y += 22;
-            });
-
-            // ===== Oportunidades de Crescimento + Matriz de Riscos + Parecer Final (WWI) =====
-            if (narrativa) {
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Oportunidades de Crescimento', (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []), PDF_COR_BOM);
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Matriz de Riscos', narrativa.riscosTexto, PDF_COR_RUIM);
-                y = pdfDesenharBlocoTexto(doc, margem, larguraUtil, larguraPagina, alturaPagina, y,
-                    'Parecer Final', narrativa.parecerFinalTexto ? [narrativa.parecerFinalTexto] : [], PDF_COR_ACCENT_ESCURO);
-            }
-
-            // ===== Rodapé (todas as páginas) =====
-            const totalPaginas = doc.internal.getNumberOfPages();
-            for (let p = 1; p <= totalPaginas; p++) {
-                doc.setPage(p);
-                doc.setDrawColor.apply(doc, PDF_COR_LINHA);
-                doc.setLineWidth(0.5);
-                doc.line(margem, alturaPagina - 34, larguraPagina - margem, alturaPagina - 34);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7.5);
-                doc.setTextColor.apply(doc, PDF_COR_TEXTO_FAINT);
-                doc.text('Tactical Wealth Report · Sistema Wallace Lira — gerado automaticamente, só leitura.', margem, alturaPagina - 20);
-                doc.text('Página ' + p + ' de ' + totalPaginas, larguraPagina - margem, alturaPagina - 20, { align: 'right' });
-            }
-
-            const nomeArquivo = 'tactical-wealth-report-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
-            doc.save(nomeArquivo);
+            return '' +
+                '<style>' +
+                '.wwirel-report{width:800px;font-family:Georgia,"Times New Roman",serif;background:#F1F1EB;color:#161A22;}' +
+                '.wwirel-report *{box-sizing:border-box;}' +
+                '.wwirel-cover{background:#10141C;color:#ECEAE0;padding:44px 48px 40px;position:relative;}' +
+                '.wwirel-cover::after{content:"";position:absolute;inset:12px;border:1px solid rgba(203,169,104,.28);}' +
+                '.wwirel-cover-eyebrow{font-family:Arial,sans-serif;font-size:11px;letter-spacing:1.5px;color:#CBA968;text-transform:uppercase;margin-bottom:34px;}' +
+                '.wwirel-cover-title{font-size:40px;font-weight:700;margin:0 0 10px;color:#ECEAE0;}' +
+                '.wwirel-cover-title em{font-style:italic;color:#CBA968;}' +
+                '.wwirel-cover-sub{font-family:Arial,sans-serif;font-size:14px;color:#B9BFCE;font-weight:300;margin-bottom:30px;}' +
+                '.wwirel-cover-rule{height:1px;background:linear-gradient(90deg,#CBA968,transparent 75%);margin-bottom:16px;}' +
+                '.wwirel-cover-foot{display:flex;justify-content:space-between;font-family:Arial,sans-serif;font-size:11px;color:#9AA1B2;}' +
+                '.wwirel-cover-foot b{display:block;color:#ECEAE0;font-family:Georgia,serif;font-size:13px;margin-bottom:2px;}' +
+                '.wwirel-cover-grade{margin-top:22px;border-left:2px solid #CBA968;padding-left:14px;display:flex;align-items:baseline;gap:12px;}' +
+                '.wwirel-cover-grade b{font-size:26px;color:#ECEAE0;}' +
+                '.wwirel-cover-grade span{font-family:Arial,sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#B9BFCE;max-width:420px;line-height:1.5;}' +
+                '.wwirel-section{padding:28px 48px;background:#FFFFFF;}' +
+                '.wwirel-section:nth-of-type(even){background:#F7F6F0;}' +
+                '.wwirel-eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:14px;}' +
+                '.wwirel-eyebrow-num{width:4px;height:16px;display:inline-block;}' +
+                '.wwirel-bd-neutro{background:#8C6D2F;}' +
+                '.wwirel-bd-bom{background:#2E7D5B;}' +
+                '.wwirel-bd-ruim{background:#B14338;}' +
+                '.wwirel-eyebrow h3{font-family:Georgia,serif;font-size:16px;font-weight:700;color:#161A22;margin:0;flex:0 0 auto;}' +
+                '.wwirel-eyebrow::after{content:"";flex:1;height:1px;background:#DEDCD1;margin-left:4px;}' +
+                '.wwirel-kpi-grid{display:flex;gap:12px;margin-bottom:4px;}' +
+                '.wwirel-kpi{flex:1;background:#FFFFFF;border:1px solid #DEDCD1;border-left:3px solid #8C6D2F;padding:14px 16px;}' +
+                '.wwirel-kpi-label{font-family:Arial,sans-serif;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8B8F98;margin-bottom:8px;}' +
+                '.wwirel-kpi-val{font-family:Georgia,serif;font-weight:700;font-size:20px;color:#161A22;}' +
+                '.wwirel-score-wrap{display:flex;gap:36px;align-items:center;margin-top:20px;}' +
+                '.wwirel-gauge{position:relative;width:150px;height:150px;flex:0 0 auto;}' +
+                '.wwirel-gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}' +
+                '.wwirel-gauge-num b{font-family:Georgia,serif;font-size:34px;color:#161A22;line-height:1;}' +
+                '.wwirel-gauge-num span{font-family:Arial,sans-serif;font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:#8B8F98;margin-top:4px;}' +
+                '.wwirel-score-list{flex:1;display:flex;flex-direction:column;gap:10px;}' +
+                '.wwirel-score-row{display:grid;grid-template-columns:150px 1fr 30px;gap:10px;align-items:center;}' +
+                '.wwirel-sr-label{font-family:Arial,sans-serif;font-size:11px;color:#525968;}' +
+                '.wwirel-sr-track{height:6px;background:#F7F6F0;border:1px solid #DEDCD1;}' +
+                '.wwirel-sr-fill{height:100%;background:#8C6D2F;}' +
+                '.wwirel-sr-val{font-family:Arial,sans-serif;font-weight:700;font-size:11px;text-align:right;}' +
+                '.wwirel-rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;}' +
+                '.wwirel-rank li{background:#FFFFFF;padding:10px 14px;border-left:3px solid #8C6D2F;font-family:Arial,sans-serif;font-size:12px;line-height:1.55;color:#161A22;margin-bottom:6px;}' +
+                '.wwirel-rank.wwirel-bd-bom li{border-left-color:#2E7D5B;}' +
+                '.wwirel-rank.wwirel-bd-ruim li{border-left-color:#B14338;}' +
+                '.wwirel-tabela{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:11.5px;}' +
+                '.wwirel-tabela tr{border-bottom:1px solid #DEDCD1;}' +
+                '.wwirel-tabela tr:nth-child(even){background:#F7F6F0;}' +
+                '.wwirel-td-label{padding:7px 4px;color:#525968;}' +
+                '.wwirel-td-valor{padding:7px 4px;text-align:right;font-weight:700;color:#161A22;}' +
+                '.wwirel-vazio{font-family:Arial,sans-serif;font-size:11px;color:#8B8F98;padding:8px 0;}' +
+                '.wwirel-prose{font-family:Arial,sans-serif;font-size:12.5px;line-height:1.65;color:#161A22;}' +
+                '.wwirel-final{background:#10141C;color:#ECEAE0;padding:26px 30px;}' +
+                '.wwirel-final .wwirel-eyebrow h3{color:#ECEAE0;}' +
+                '.wwirel-final .wwirel-eyebrow::after{background:#3A4152;}' +
+                '.wwirel-final .wwirel-prose{color:#D7D9E0;}' +
+                '.wwirel-footer{padding:18px 48px;text-align:center;font-family:Arial,sans-serif;font-size:9.5px;color:#8B8F98;background:#FFFFFF;border-top:1px solid #DEDCD1;}' +
+                '</style>' +
+                '<div class="wwirel-report">' +
+                '<div class="wwirel-cover">' +
+                '<div class="wwirel-cover-eyebrow">Sistema Wallace Lira &middot; Wallace Wealth Intelligence</div>' +
+                '<h1 class="wwirel-cover-title">Tactical Wealth <em>Report</em></h1>' +
+                '<div class="wwirel-cover-sub">Gest&atilde;o Patrimonial, Liquidez e Constru&ccedil;&atilde;o de Capital</div>' +
+                '<div class="wwirel-cover-rule"></div>' +
+                '<div class="wwirel-cover-foot">' +
+                '<div><b>Wallace Lira</b>Executivo Industrial</div>' +
+                '<div><b>Ciclo</b>' + _wwiRelEsc(dados.cicloAtual) + '</div>' +
+                '<div><b>Gerado em</b>' + _wwiRelEsc(dados.geradoEm) + '</div>' +
+                '</div>' +
+                (score !== null ? '<div class="wwirel-cover-grade"><b>' + nivel + '</b><span>Wealth Score ' + score + '/100 &mdash; ver detalhamento completo por eixo na se&ccedil;&atilde;o de Wealth Score deste relat&oacute;rio.</span></div>' : '') +
+                '</div>' +
+                '<div class="wwirel-section">' +
+                (kpis.length ? '<div class="wwirel-kpi-grid">' + kpis.map(function (k) {
+                    return '<div class="wwirel-kpi"><div class="wwirel-kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="wwirel-kpi-val">' + _wwiRelEsc(k.val) + '</div></div>';
+                }).join('') + '</div>' : '') +
+                (score !== null ? '<div class="wwirel-eyebrow" style="margin-top:22px"><span class="wwirel-eyebrow-num wwirel-bd-neutro"></span><h3>Wealth Score</h3></div>' +
+                    '<div class="wwirel-score-wrap"><div class="wwirel-gauge"><svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg)">' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="#F7F6F0" stroke-width="10"/>' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="#8C6D2F" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
+                    '</svg><div class="wwirel-gauge-num"><b>' + score + '</b><span>de 100</span></div></div>' +
+                    '<div class="wwirel-score-list">' + subscoresHtml + '</div></div>' : '') +
+                '</div>' +
+                (narrativa && narrativa.parecerFinalTexto ? '<div class="wwirel-section">' + _wwiRelBlocoNarrativa('Resumo Executivo do CFO', [narrativa.parecerFinalTexto], 'neutro').replace('wwirel-rank', 'wwirel-rank wwirel-prose-list') + '</div>' : '') +
+                (narrativa ? '<div class="wwirel-section">' +
+                    _wwiRelBlocoNarrativa('Pontos Fortes', narrativa.pontosFortesTexto, 'bom') +
+                    _wwiRelBlocoNarrativa('Pontos Fracos', narrativa.pontosFracosTexto, 'ruim') +
+                    '</div>' : '') +
+                '<div class="wwirel-section">' + evolucaoHtml + '</div>' +
+                dados.secoes.map(function (secao, i) {
+                    return '<div class="wwirel-section">' + _wwiRelBlocoSecaoDados(secao) + '</div>';
+                }).join('') +
+                (narrativa ? '<div class="wwirel-section">' +
+                    _wwiRelBlocoNarrativa('Oportunidades de Crescimento', (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []), 'bom') +
+                    _wwiRelBlocoNarrativa('Matriz de Riscos', narrativa.riscosTexto, 'ruim') +
+                    '</div>' : '') +
+                (narrativa && narrativa.parecerFinalTexto ? '<div class="wwirel-final"><div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num" style="background:#CBA968"></span><h3>Parecer Final</h3></div><div class="wwirel-prose">' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</div></div>' : '') +
+                '<div class="wwirel-footer">Tactical Wealth Report &middot; Sistema Wallace Lira &mdash; gerado automaticamente, s&oacute; leitura.</div>' +
+                '</div>';
         }
 
-        // REESCRITO 14/08/2026 (WWI — Wallace Wealth Intelligence, pedido do usuário: "transformar o
-        // botão de download num gerador automático de relatórios executivos patrimoniais, com
-        // narrativa estável durante o ciclo e comparação com meses anteriores"). Fluxo novo, passo a
-        // passo (ver docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md):
+        // Rasteriza o HTML montado acima e fatia em páginas A4 do jsPDF — técnica padrão
+        // html2canvas+jsPDF (1 canvas alto, recortado por página via offset Y negativo). Só assim o
+        // resultado é de fato o MESMO CSS do artefato aprovado, não uma reconstrução aproximada.
+        function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo) {
+            const container = document.createElement('div');
+            container.style.cssText = 'position:absolute;left:-9999px;top:0;background:#F1F1EB;';
+            container.innerHTML = construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo);
+            document.body.appendChild(container);
+
+            return html2canvas(container, { scale: 2, backgroundColor: '#F1F1EB', useCORS: true }).then(function (canvas) {
+                document.body.removeChild(container);
+                const jsPDF = window.jspdf.jsPDF;
+                const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const imgWidth = pageWidth;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                const imgData = canvas.toDataURL('image/jpeg', 0.94);
+                let heightLeft = imgHeight;
+                let position = 0;
+                doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    doc.addPage();
+                    doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                const nomeArquivo = 'tactical-wealth-report-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
+                doc.save(nomeArquivo);
+            }).catch(function (err) {
+                if (container.parentNode) document.body.removeChild(container);
+                throw err;
+            });
+        }
+
+        // REESCRITO 14/08/2026 (WWI — Wallace Wealth Intelligence). Fluxo (ver
+        // docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md):
         //   1. coletarDadosRelatorioFechamento() — reaproveitado, sem mudança de assinatura.
         //   2. calcularIndicadoresEScores(dados) — Wealth Score + 4 índices, dentro do iframe.
         //   3. wwiBuscarHistoricoRelatorios(competencia) — lê historico_relatorios (leitura pública,
@@ -1279,8 +1182,7 @@
         //      no PDF (gerarAnaliseFinanceira) — não persiste; quem persiste de verdade é o job mensal.
         //   5. compararComHistorico() — frases de evolução vs. ciclo(s) anterior(es), degrada sem
         //      histórico (1º relatório da série).
-        // Se algum dos módulos novos ainda não carregou por qualquer motivo, cai pro comportamento
-        // antigo (só dados.secoes, sem narrativa/score) em vez de travar o download inteiro.
+        //   6. construirHtmlRelatorioWWI() + html2canvas + jsPDF — ver comentário acima.
         function gerarRelatorioFechamentoPDF() {
             const btn = document.getElementById('btnRelatorioPdfHeader');
             const iframe = document.getElementById('mainIframe');
@@ -1289,7 +1191,7 @@
                 return;
             }
             if (btn) btn.disabled = true;
-            _carregarJsPdfSobDemanda().then(function () {
+            Promise.all([_carregarJsPdfSobDemanda(), _carregarHtml2CanvasHeaderSobDemanda()]).then(function () {
                 const win = iframe.contentWindow;
                 const dados = win.coletarDadosRelatorioFechamento();
                 const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados) : null;
@@ -1306,7 +1208,7 @@
                     const comparativo = (typeof win.compararComHistorico === 'function')
                         ? win.compararComHistorico(indicadores, historico.anteriores)
                         : { frases: [], temHistorico: false };
-                    gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo);
+                    return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo);
                 });
             }).catch(function (err) {
                 console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);
