@@ -1922,11 +1922,19 @@
   // de verdade. wallaceEhReload() distingue os dois casos via Performance Navigation Timing API:
   // 'reload' (F5) restaura a aba salva; qualquer outro tipo ('navigate' etc, entrada nova) ignora
   // o valor salvo e cai no padrão de sempre (home/Dashboard).
+  // CORRIGIDO 14/08/2026 (achado real, usuário reportou "quando recarrego a página sempre volta
+  // pro dashboard" - a restauração acima NUNCA disparava): a checagem usava `performance` deste
+  // próprio documento, mas este HTML só existe dentro de um <iframe> recriado do zero pelo
+  // index.html a cada carregamento (ver loadDashboard() em index.html) - do ponto de vista do
+  // IFRAME, isso é sempre 'navigate', nunca 'reload', mesmo quando o usuário aperta F5 de verdade.
+  // Quem sofre o reload real é o index.html (topo) - checa window.top.performance em vez da
+  // própria (mesma origem, sem problema de acesso cross-frame).
   function wallaceEhReload(){
     try {
-      var navs = performance.getEntriesByType('navigation');
+      var perf = (window.top && window.top.performance) ? window.top.performance : performance;
+      var navs = perf.getEntriesByType('navigation');
       if(navs && navs.length) return navs[0].type === 'reload';
-      return !!(performance.navigation && performance.navigation.type === 1);
+      return !!(perf.navigation && perf.navigation.type === 1);
     } catch(e){ return false; }
   }
   (function(){
