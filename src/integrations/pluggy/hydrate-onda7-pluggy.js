@@ -30,6 +30,14 @@ async function aplicarOnda7Pluggy(){
   // de fato. Promise.allSettled dispara os 2 juntos e preserva o mesmo tratamento de erro de antes:
   // falha em PLUGGY_CONTAS é fatal (domínio V2-exclusivo, sem fallback V1), falha em PLUGGY_TRIAGEM
   // é tolerada (degrada pra "nenhum item marcado como já triado", não perde dado real).
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot — 3ª rodada: esta onda media ~1,7s
+  // no boot em produção, empatada como maior custo individual junto com Onda6MercadoPago). O
+  // contexto de dedupe que reconciliarTransacoesPluggy() precisa (4 buscas independentes, ver
+  // dispararContextoDedupeInbox() em classificacao-inbox.js) só era disparado DEPOIS de
+  // getPluggyContasV2()/getPluggyTriagemV2() já terem resolvido — nenhuma dessas buscas depende do
+  // resultado da outra até o momento de ler. Disparado aqui, junto com o Promise.allSettled abaixo,
+  // os 3 fetches saem baixando ao mesmo tempo.
+  const promessaContextoDedupe = dispararContextoDedupeInbox('aplicarOnda7Pluggy');
   const [resContas, resTriagem] = await Promise.allSettled([
     WallaceFinanceService.getPluggyContasV2(),
     WallaceFinanceService.getPluggyTriagemV2(),
@@ -70,7 +78,7 @@ async function aplicarOnda7Pluggy(){
   // ela existir de verdade (aberta, não-zero, não-vencida) — nunca sobrescreve com dado ruim, cai pro
   // valor manual/fallback ERP já existente em caso contrário.
   const resultadoPromocao = typeof promoverFaturaPluggyComoFonte === 'function' ? promoverFaturaPluggyComoFonte() : { promovidos: [] };
-  const resultadoTransacoes = await reconciliarTransacoesPluggy();
+  const resultadoTransacoes = await reconciliarTransacoesPluggy(undefined, undefined, promessaContextoDedupe);
   // Mesmo cuidado já aplicado a Onda6MercadoPago/LREI: itens novos da Inbox só existem depois do
   // await acima resolver, então o classificador genérico (que já rodava síncrono antes) precisa ser
   // re-chamado aqui pra ter a chance de classificá-los.

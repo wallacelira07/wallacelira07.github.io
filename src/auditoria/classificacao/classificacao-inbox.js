@@ -146,7 +146,39 @@ async function obterPalavrasChaveAssinaturasConhecidas(origemLog){
   }
 }
 
-async function sincronizarMercadoPagoParaInbox(){
+// NOVO 14/08/2026 (achado real, auditoria de lag do boot — 3ª rodada): extraído do início de
+// sincronizarMercadoPagoParaInbox() pra poder ser disparado MAIS CEDO, em paralelo com a busca
+// principal (getMercadoPagoEventosV2()/getPluggyContasV2()) em vez de só depois dela resolver —
+// nenhuma das 4 buscas abaixo depende do resultado da busca principal, só é LIDA depois que as
+// duas terminam. Compartilhada entre Mercado Pago (aplicarOnda6MercadoPago) e Pluggy
+// (reconciliarTransacoesPluggy), mesmo conjunto de checagens de dedupe nos dois.
+function dispararContextoDedupeInbox(origemLog){
+  return Promise.all([
+    WallaceFinanceService.getValoresConhecidosV2().catch(err => {
+      console.error(`${origemLog}: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).`, err);
+      return null;
+    }),
+    // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já
+    // lançada, desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma
+    // caixa fecha essa classe de falso-negativo. Mesmo tratamento de falha silenciosa.
+    WallaceFinanceService.getValoresCombinadosV2().catch(err => {
+      console.error(`${origemLog}: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.`, err);
+      return null;
+    }),
+    // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida): fecha o caso que
+    // o dedup por valor nunca pegava — mesma assinatura, valor diferente (reajuste/câmbio). Ver
+    // obterPalavrasChaveAssinaturasConhecidas() acima (já trata a própria falha internamente).
+    obterPalavrasChaveAssinaturasConhecidas(origemLog),
+    // NOVO 12/08/2026 (pedido explícito do usuário: "não me interessa compra de ciclos passados,
+    // compra já informadas manualmente"). Ciclo atual real da Caixa Variável.
+    WallaceFinanceService.getCicloAtualInicio().catch(err => {
+      console.error(`${origemLog}: falha ao buscar ciclo atual — filtro de ciclo DESATIVADO nesta rodada (itens de ciclos antigos podem aparecer).`, err);
+      return null;
+    })
+  ]);
+}
+
+async function sincronizarMercadoPagoParaInbox(promessaContexto){
   const eventos = VARS.MERCADOPAGO_EVENTOS;
   if(!Array.isArray(eventos) || !eventos.length){
     console.warn('sincronizarMercadoPagoParaInbox: VARS.MERCADOPAGO_EVENTOS ainda nao chegou (offline, Supabase sem esse campo, ou mercadopago_sync.py ainda nao rodou nesta conta).');
@@ -166,32 +198,13 @@ async function sincronizarMercadoPagoParaInbox(){
   // pluggy-reconciliacao.js — 2ª rodada, achado da auditoria completa de boot: as 4 buscas abaixo
   // são todas independentes entre si, mas 2 delas rodavam atrás do Promise.all em vez de dentro
   // dele). 1 único Promise.all com as 4.
+  // CORRIGIDO 14/08/2026 (3ª rodada): as 4 buscas (agora em dispararContextoDedupeInbox()) também
+  // não dependem de VARS.MERCADOPAGO_EVENTOS já ter chegado — aplicarOnda6MercadoPago() dispara
+  // essa promessa ANTES do fetch dos eventos, em paralelo, e repassa aqui via `promessaContexto`.
+  // Se chamada sem o parâmetro (uso avulso/futuro), dispara na hora do jeito antigo — nunca quebra.
   const valoresConhecidos = new Set();
-  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] = await Promise.all([
-    WallaceFinanceService.getValoresConhecidosV2().catch(err => {
-      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).', err);
-      return null;
-    }),
-    // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já
-    // lançada, desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma
-    // caixa fecha essa classe de falso-negativo. Mesmo tratamento de falha silenciosa.
-    WallaceFinanceService.getValoresCombinadosV2().catch(err => {
-      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
-      return null;
-    }),
-    // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida): fecha o caso que
-    // o dedup por valor nunca pegava — mesma assinatura, valor diferente (reajuste/câmbio). Ver
-    // obterPalavrasChaveAssinaturasConhecidas() acima (já trata a própria falha internamente).
-    obterPalavrasChaveAssinaturasConhecidas('sincronizarMercadoPagoParaInbox'),
-    // NOVO 12/08/2026 (pedido explícito do usuário: "não me interessa compra de ciclos passados,
-    // compra já informadas manualmente" — mesmo ajuste do gêmeo Pluggy em pluggy-reconciliacao.js).
-    // Este sincronizador nunca teve filtro de data nenhum — qualquer evento histórico do Mercado
-    // Pago virava item pendente na Inbox pra sempre. Ciclo atual real da Caixa Variável.
-    WallaceFinanceService.getCicloAtualInicio().catch(err => {
-      console.error('sincronizarMercadoPagoParaInbox: falha ao buscar ciclo atual — filtro de ciclo DESATIVADO nesta rodada (itens de ciclos antigos podem aparecer).', err);
-      return null;
-    })
-  ]);
+  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] =
+    await (promessaContexto || dispararContextoDedupeInbox('sincronizarMercadoPagoParaInbox'));
   if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
   if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));

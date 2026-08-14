@@ -336,7 +336,7 @@ async function classificarViaV2(descricaoBruta, origem){
     return { caixaNome }; // categoria em si nao e exibida separada aqui - so a sugestao de destino final (o que a Inbox precisa pra agilizar aprovacao)
   } catch(e){ return null; } // falha de rede/offline - item continua pendente normal, so sem sugestao V2
 }
-async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
+async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaContexto){
   valorMinimo = typeof valorMinimo === 'number' ? valorMinimo : 5.0;
   janelaDias = typeof janelaDias === 'number' ? janelaDias : 45;
   let dataCorte = new Date(Date.now() - janelaDias*86400000);
@@ -355,40 +355,23 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
   // CORRIGIDO 12/08/2026 (achado do usuário via diagnóstico de lag: os 3 fetches abaixo não têm
   // dependência entre si, mas rodavam em série (2 num Promise.all à parte, o 3º — ciclo atual —
   // atrás de tudo isso). Promise.all único deixa os 3 dispararem juntos.
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot — 2ª rodada: uma 4ª busca
+  // independente, palavrasChaveAssinaturas/obterPalavrasChaveAssinaturasConhecidas, ainda rodava
+  // com `await` separado DEPOIS deste Promise.all terminar, mesmo não dependendo de nada aqui —
+  // exatamente o mesmo padrão já corrigido nas outras 3. Extraído junto com as outras 3 pra
+  // dispararContextoDedupeInbox() (classificacao-inbox.js, compartilhada com
+  // sincronizarMercadoPagoParaInbox). CORRIGIDO 14/08/2026 (3ª rodada): aplicarOnda7Pluggy() dispara
+  // essa promessa ANTES de getPluggyContasV2()/getPluggyTriagemV2(), em paralelo, e repassa aqui via
+  // `promessaContexto` — se chamada sem o parâmetro, dispara na hora do jeito antigo.
   const valoresConhecidos = new Set();
-  const [resValoresConhecidos, resValoresCombinados, resCicloAtualInicio] = await Promise.all([
-    WallaceFinanceService.getValoresConhecidosV2().catch(err => {
-      console.error('reconciliarTransacoesPluggy: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada.', err);
-      return null;
-    }),
-    WallaceFinanceService.getValoresCombinadosV2().catch(err => {
-      console.error('reconciliarTransacoesPluggy: falha ao buscar valores combinados da V2 — checagem de compra desmembrada DESATIVADA nesta rodada.', err);
-      return null;
-    }),
-    // NOVO 12/08/2026 (pedido explícito do usuário: "não me interessa compra de ciclos passados,
-    // compra já informadas manualmente" — o propósito único desta Inbox é apontar compra NÃO
-    // lançada DO CICLO ATUAL). janelaDias (45 dias corridos) é mais largo que 1 ciclo financeiro
-    // (~30 dias) e deixava passar item de ciclo já fechado. Usa o ciclo_inicio_em real da Caixa
-    // Variável como piso quando é mais restritivo que a janela — nunca o contrário.
-    WallaceFinanceService.getCicloAtualInicio().catch(err => {
-      console.error('reconciliarTransacoesPluggy: falha ao buscar ciclo atual — mantendo janela de dias como piso.', err);
-      return null;
-    })
-  ]);
+  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, resCicloAtualInicio] =
+    await (promessaContexto || dispararContextoDedupeInbox('reconciliarTransacoesPluggy'));
   if(resCicloAtualInicio){
     const dataCicloAtual = new Date(resCicloAtualInicio + 'T00:00:00');
     if(dataCicloAtual > dataCorte) dataCorte = dataCicloAtual;
   }
   if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
   if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
-  // NOVO 10/08/2026 (item aprovado: filtro de assinatura/recorrência conhecida na Inbox — antes
-  // dedup só comparava valor exato, uma cobrança recorrente da Pluggy com valor levemente diferente
-  // do mês anterior (reajuste/câmbio) reaparecia como "suspeita" todo ciclo). Mesma função
-  // compartilhada com sincronizarMercadoPagoParaInbox (classificacao-inbox.js), fonte real (V2), sem
-  // lista hardcoded de nomes de serviço.
-  const palavrasChaveAssinaturas = typeof obterPalavrasChaveAssinaturasConhecidas === 'function'
-    ? await obterPalavrasChaveAssinaturasConhecidas('reconciliarTransacoesPluggy')
-    : new Set();
 
   // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
   // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as

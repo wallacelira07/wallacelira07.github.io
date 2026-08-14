@@ -15,6 +15,13 @@
 // V1 simplesmente não roda mais, já que wallace_dados.MERCADOPAGO_EVENTOS parou de ser atualizado).
 
 async function aplicarOnda6MercadoPago(){
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot — 3ª rodada: esta onda media
+  // ~1,7s no boot em produção, 2º maior custo depois do carregamento de scripts). Causa: o contexto
+  // de dedupe (4 buscas independentes, ver dispararContextoDedupeInbox()) só era disparado DEPOIS
+  // de getMercadoPagoEventosV2() já ter resolvido por completo — 2 round-trips em série quando
+  // nenhuma das duas depende da outra até o momento de ler o resultado. Disparado aqui, ANTES do
+  // primeiro await, os dois saem baixando juntos.
+  const promessaContexto = dispararContextoDedupeInbox('aplicarOnda6MercadoPago');
   let eventosV2;
   try {
     eventosV2 = await WallaceFinanceService.getMercadoPagoEventosV2();
@@ -43,7 +50,7 @@ async function aplicarOnda6MercadoPago(){
   // mesma lógica de classificação/dedupe, dado novo. sincronizarMercadoPagoParaInbox() já chama
   // renderInboxFinanceira() no final; renderMercadoPagoDashboard() lê VARS.INBOX_FINANCEIRA (não
   // MERCADOPAGO_EVENTOS diretamente), então precisa ser re-chamada aqui pra refletir os itens novos.
-  const resultado = await sincronizarMercadoPagoParaInbox();
+  const resultado = await sincronizarMercadoPagoParaInbox(promessaContexto);
   // Mesmo cuidado já aplicado ao encadeamento reconciliarTransacoesPluggy() em app.js (parte 115):
   // classificarInboxPendentes() já rodou de forma síncrona ANTES deste fetch assíncrono resolver,
   // então os itens novos desta rodada nunca tiveram a chance do classificador genérico — re-chama
