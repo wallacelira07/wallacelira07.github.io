@@ -68,9 +68,31 @@ function irParaPrimeiraSecao(id){
   }, 30);
 }
 
+// CORRIGIDO 14/08/2026 (pedido do usuário: "no início e quando eu clicar fora dos LRs não aparece
+// nenhuma lista aberta, os livros fecham, aí quando eu clicar abre a lista"). Duas mudanças: 1)
+// clicar na aba já aberta agora FECHA em vez de continuar ativa (toggle); 2) clicar em qualquer
+// lugar fora da barra de abas/tabela de um Livro Razão fecha a lista aberta, ver listener no fim do
+// arquivo. Nenhum id de pane/aba mudou, só o comportamento de abrir/fechar.
 function showLR(id, btn){
+  const jaEstavaAberto = btn.classList.contains('active');
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(jaEstavaAberto) return; // clicou na mesma aba que já estava aberta - só fecha, não reabre
   $(id).classList.add('active');
   btn.classList.add('active');
 }
+
+// Clicar fora do bloco "Livros razão" (barra de abas #lrTabs + a tabela do livro aberto) fecha
+// qualquer lista aberta, mesmo padrão de UX de um dropdown/accordion. `#lrTabs` e cada `.pane` são
+// filhos diretos do mesmo `.card` (ver Sistema_Wallace_Lira_Completo.html, seção 07) - usa esse
+// `.card` como referência de "dentro"; clique em qualquer outro lugar da página fecha.
+document.addEventListener('click', function(ev){
+  const lrTabs = document.getElementById('lrTabs');
+  if(!lrTabs) return;
+  const cardLR = lrTabs.closest('.card');
+  if(cardLR && cardLR.contains(ev.target)) return; // clique dentro do bloco (aba ou conteúdo do livro) - não fecha
+  const algumAberto = cardLR ? cardLR.querySelector('.tab.active, .pane.active') : null;
+  if(!algumAberto) return; // já estava tudo fechado, nada a fazer
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+});

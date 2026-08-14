@@ -476,7 +476,7 @@
   <div class="card">
     <!-- V174: botao de filtro "historico completo/ciclo atual" removido - o seletor de ciclo no topo do painel (Jul/26 🟢 | Jun/26 🔒) agora e a UNICA forma de navegar entre periodos, controlando tambem os Livros Razao. -->
     <div class="tabs" id="lrTabs">
-      <button class="tab active" id="lrTabBtn_lrw" onclick="showLR('lrw',this)">LRW - Wallace</button>
+      <button class="tab" id="lrTabBtn_lrw" onclick="showLR('lrw',this)">LRW - Wallace</button>
       <button class="tab" id="lrTabBtn_lrv" onclick="showLR('lrv',this)">LRV - Vanessa</button>
       <button class="tab" id="lrTabBtn_lrb" onclick="showLR('lrb',this)">LRB - Boletos</button>
       <button class="tab" id="lrTabBtn_lrp" onclick="showLR('lrp',this)">LRP - Parcelas</button>
@@ -506,7 +506,7 @@
       <button class="tab" id="lrTabBtn_lremag" onclick="showLR('lremag',this)">LREM - Emagrecimento</button>
     </div>
 
-    <div id="lrw" class="pane active">
+    <div id="lrw" class="pane">
       <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrwTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRW_TRANSACOES -->
       </tbody></table>
