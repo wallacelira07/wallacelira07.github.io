@@ -102,7 +102,6 @@ function criarVarsOperacional(){
     // corporativo do ciclo ao pagamento da fatura anterior — o usuário pediu pra eliminar essa
     // mistura. Regra nova: conta por competência (data real da despesa dentro do ciclo 25→24),
     // independente do status de pagamento de qualquer fatura.
-    legMPCorporativoRetorno: `Soma as despesas corporativas do Mercado Pago cuja data cai dentro do ciclo atual (25→24), por competência — independe de fatura paga ou não. O reembolso Wärtsilá acumulado (histórico, todas as pendências) é mostrado separado, mais abaixo.`,
     legDestinoExcedente: `Destino do excedente: Caixa Lance (quando ≥R$500, avaliar ETF LFTS11) e BTG/Necton.`,
     // NOVA 05/08/2026 (parte 106, pedido do usuario: legenda da Inbox vazia estava desatualizada -
     // dizia "nenhuma automacao implementada" quando Pluggy e Mercado Pago ja capturam de verdade.
@@ -208,6 +207,10 @@ function criarVarsOperacional(){
   // NOVO 13/08/2026 (pedido do usuário: meta de peso pra aba Emagrecimento, antes deliberadamente
   // sem meta - "só peso pra começar"). Usada em hydrate-emagrecimento.js pra calcular quanto falta.
   emagrecimentoMetaKg: 110,
+  // NOVO 14/08/2026 (pedido do usuário: "coloque minha altura aqui"). Usada em
+  // hydrate-emagrecimento.js pro 4º card da seção 01 (antes vazio, grid fixa de 4 colunas) e pro
+  // cálculo de IMC (peso da última pesagem / altura²).
+  alturaWallaceM: 1.87,
   escolaJulio2027Aporte: 839.64,
   fluxoSaidas: 14819.89,
   fluxoResultado: 21318.48,

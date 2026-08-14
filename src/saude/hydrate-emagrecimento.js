@@ -51,6 +51,12 @@ async function aplicarEmagrecimento(){
   const elMetaKg = $('emgMetaKg');
   if(elMetaKg) elMetaKg.textContent = fmtKg(metaKg);
 
+  // NOVO 14/08/2026 (pedido do usuário: "coloque minha altura aqui, 1.87") - fixa, independe de
+  // pesagem existir. IMC só calcula com pelo menos 1 pesagem real (precisa do peso), ver abaixo.
+  const alturaM = VARS.alturaWallaceM;
+  const elAltura = $('emgAltura');
+  if(elAltura) elAltura.textContent = alturaM.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' m';
+
   if(!Array.isArray(pesagens) || !pesagens.length){
     $('emgPesoAtual').textContent = 'Sem pesagem ainda';
     $('emgVariacaoTotal').textContent = '—';
@@ -63,6 +69,12 @@ async function aplicarEmagrecimento(){
     // do gráfico já convertia — API pode devolver string, aplicando Number() nos 3 uniformemente)
     const variacao = Math.round((Number(ultima.peso_kg) - Number(primeira.peso_kg))*10)/10;
     $('emgPesoAtual').textContent = fmtKg(Number(ultima.peso_kg));
+    const elImc = $('emgImc');
+    if(elImc){
+      const imc = Math.round((Number(ultima.peso_kg) / (alturaM*alturaM)) * 10) / 10;
+      const classificacaoImc = imc < 18.5 ? 'Abaixo do peso' : imc < 25 ? 'Peso normal' : imc < 30 ? 'Sobrepeso' : imc < 35 ? 'Obesidade grau I' : imc < 40 ? 'Obesidade grau II' : 'Obesidade grau III';
+      elImc.textContent = 'IMC '+imc.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' · '+classificacaoImc;
+    }
     const elVar = $('emgVariacaoTotal');
     if(elVar){
       elVar.textContent = (variacao>0?'+':'')+fmtKg(variacao)+` (desde ${primeira.data.split('-').reverse().join('/')})`;

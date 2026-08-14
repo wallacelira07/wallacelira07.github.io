@@ -143,6 +143,18 @@ async function preencherCaixasOperacionaisExtra(){
   };
   const mapaTeto = {};
   (Array.isArray(tetos) ? tetos : []).forEach(t => { mapaTeto[t.nome] = Number(t.teto_mensal); });
+  // NOVO 14/08/2026 (achado do usuário: CC-211/CC-212 sem barra/%/meta, únicas 2 caixas da grade
+  // sem esse bloco) — não fazem sentido com teto_mensal fixo no Supabase (não são meta de poupança,
+  // são "reserva pra pagar a fatura deste ciclo", valor que muda todo ciclo). Meta = o mesmo
+  // comprometido já usado nos cards de Cartões/Mercado Pago (REG.mercadoPago = fatura MP do ciclo;
+  // REG.cartaoInfinite.total + REG.cartaoMB.total = os 2 cartões que a Mastercard_Infinite existe
+  // pra cobrir, mesmo texto da legenda do card "guarda o valor para pagar os 2 cartões"). Tem
+  // prioridade sobre mapaTeto (nenhuma das 2 tem teto_mensal cadastrado hoje, mas não faria sentido
+  // mesmo se tivesse — comprometido do ciclo é a meta certa aqui, não um teto fixo).
+  const METAS_COMPUTADAS_CAIXAS_RESERVA = {
+    'Caixa Mercado Pago': () => REG.mercadoPago,
+    'Caixa Mastercard_Infinite': () => Math.round((REG.cartaoInfinite.total + REG.cartaoMB.total) * 100) / 100,
+  };
   // NAO usar $() aqui - $(id) memoiza (DOM[id] ||= document.getElementById(id)) e fica com
   // referencia orfa se este grid for recriado de novo (ex: re-hidratacao); acesso posicional via
   // grid.children[i] sempre pega o elemento vivo da renderizacao atual.
@@ -150,7 +162,8 @@ async function preencherCaixasOperacionaisExtra(){
     const saldo = Number(c.v2_saldo_calculado);
     const estiloValor = saldo < 0 ? 'style="color:var(--red)"' : '';
     const titulo = (PREFIXO_CC[c.caixa_nome] || '') + c.caixa_nome;
-    const teto = mapaTeto[c.caixa_nome];
+    const metaComputada = METAS_COMPUTADAS_CAIXAS_RESERVA[c.caixa_nome];
+    const teto = metaComputada ? metaComputada() : mapaTeto[c.caixa_nome];
     const temMeta = teto > 0;
     // CORRIGIDO 13/08/2026 (achado do usuário: sem barra o card fica mais baixo que os outros,
     // grade com alturas desiguais - visibility:hidden reserva o mesmo espaço sem mostrar nada,
