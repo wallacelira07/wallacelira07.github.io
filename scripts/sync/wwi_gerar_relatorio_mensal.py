@@ -91,9 +91,13 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         ativos_total = patrimonio_financeiro + fisico_total + consorcio_casa_pago
         patrimonio_liquido = ativos_total - passivos_total
 
+    # CORRIGIDO 14/08/2026 (achado real testando o job pela 1ª vez, "Test Run" real disparado pelo
+    # usuário via cron-job.org): vw_patrimonio_v2.consorcio_casa_pago_pct já vem como percentual
+    # PRONTO (0.42 = 0,42%, não uma fração 0-1 que precisa multiplicar por 100 — confirmado contra
+    # o mesmo padrão em consorcio_auto_pago_pct = 75.22, que também já é literal). A heurística
+    # anterior (`*100 se <=1`) quebrava exatamente o caso real de um percentual pequeno de verdade
+    # (Consórcio Casa Nova, 0,42% pago) gravando 42% — 100x maior que o real. Removida.
     consorcio_casa_pago_pct = patrimonio.get("consorcio_casa_pago_pct")
-    if consorcio_casa_pago_pct is not None:
-        consorcio_casa_pago_pct = round(consorcio_casa_pago_pct * 100, 2) if consorcio_casa_pago_pct <= 1 else consorcio_casa_pago_pct
 
     # NOTA: total_operacional (compromisso fixo do ciclo) não tem fonte SQL confiável hoje pra este
     # script - ver limitação documentada no topo do arquivo. liquidez/independenciaFinanceira/
