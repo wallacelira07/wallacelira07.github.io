@@ -1438,21 +1438,15 @@
                 alert('O navegador bloqueou a aba do relatório — permite pop-ups pra este site e tenta de novo.');
                 return Promise.resolve();
             }
-            // ADICIONADO 14/08/2026 (pedido do usuário: "coloque também o ícone da aba do
-            // navegador") — favicon inline (data URI, sem depender de arquivo externo): monograma
-            // "W" dourado sobre fundo escuro, mesma paleta da capa do relatório (#0C1017/#CBA968).
-            // CORRIGIDO 14/08/2026 (achado do usuário: "não foi" — o favicon não aparecia, ficava o
-            // ícone genérico do navegador): o SVG usava ASPAS DUPLAS nos atributos (viewBox="...",
-            // fill="...") dentro de um atributo HTML href="..." TAMBÉM delimitado por aspas duplas —
-            // o parser fechava o href na primeira aspa dupla do SVG (logo depois de xmlns=), cortando
-            // a tag inteira no meio. Fix: aspas simples dentro do SVG, que não colidem com o
-            // delimitador duplo do href.
-            const faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>" +
-                "<rect width='100' height='100' rx='18' fill='%230C1017'/>" +
-                "<text x='50' y='70' font-family='Georgia,serif' font-size='58' fill='%23CBA968' text-anchor='middle'>W</text>" +
-                "</svg>";
+            // CORRIGIDO 14/08/2026, 2ª vez (achado do usuário: "o ícone tem que ser o meu padrão" —
+            // eu tinha inventado um monograma "W" dourado só pra este relatório, diferente do
+            // favicon real do site). Fix: reaproveita o MESMO favicon.svg já usado em index.html —
+            // consistência de marca entre a aba do painel e a aba do relatório. URL absoluta
+            // (new URL(...).href) porque a aba nova é aberta com window.open('', '_blank') + document.write()
+            // — caminho relativo não tem garantia de resolver contra a mesma base em todo navegador.
+            const faviconUrl = new URL('assets/images/favicon.svg', window.location.href).href;
             const docHtml = '<!doctype html><html><head><meta charset="utf-8">' +
-                '<link rel="icon" href="data:image/svg+xml,' + faviconSvg + '">' +
+                '<link rel="icon" type="image/svg+xml" href="' + faviconUrl + '">' +
                 '<title>Tactical Wealth Report — Wallace Lira</title>' +
                 '<style>' +
                 'html,body{margin:0;padding:0;background:#F1F1EB;}' +
