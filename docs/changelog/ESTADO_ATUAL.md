@@ -2,71 +2,65 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 14/08/2026, sessão longa (herdou contexto de sessão anterior do mesmo dia/dia anterior) — reconciliação Wärtsilä concluída, renomeação/padronização de caixas, correção do bug do rodapé SSOT, sincronização multi-conta Mercado Pago, contagem regressiva de metas com prazo, investigação de rendimento por cofrinho (bloqueio confirmado), **auditoria + correção da governança de documentação** (manual apontava pra pasta errada no Google Drive, cópia real 5 dias desatualizada), e mais 2 correções pontuais ainda não commitadas (auditoria de Reservas com fórmula desatualizada, painel Solar buscando clima 13x no boot).
+Última reescrita: 14/08/2026, sessão muito longa (herdou contexto do dia anterior) — bloco 1: reconciliação Wärtsilä, padronização de caixas, correções pontuais e governança de documentação (ver seção 2.1-2.9, resumo herdado). Bloco 2 (o grosso desta reescrita): **investigação e correção de performance do boot** (~6s → ~2,5s medido em produção), **refino visual "premium"** da identidade existente, produzidos por um workflow de 10 agentes especializados (5 performance + 5 design) em worktrees isoladas, revisados/integrados manualmente e publicados em produção (`wallacelira.com.br`) em 6 commits sequenciais. Também corrigido: bug de infraestrutura real (Google Drive sincronizando `.git/` inteiro, injetando `desktop.ini` até dentro de `refs/`, causando o mesmo tipo de corrupção de worktree já visto em sessões anteriores).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
 1. **Migração V1→V2 relacional está formalmente encerrada** — não reabrir.
-2. **Mastercard Black e Caixa Mastercard_Infinite** (renomeada 13/08, era "Caixa Mastercard/Infinite") — exceção formalizada, não reabrir.
-3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. Cartão 4845 (Vanessa) está **ATIVO**; só o 4844 (Wallace) está aposentado.
-4. **"Estimado só na ausência de valor final"** — regra permanente: ao destravar qualquer campo antes manual/estimado, auditar quem mais consumia a versão antiga antes de considerar resolvido.
-5. **Rendimento por cofrinho do Mercado Pago não é automatizável** (confirmado 14/08/2026, ver seção 1 abaixo) — não reabrir essa investigação sem uma pista nova concreta (ex: Pluggy lançar um campo novo na API).
+2. **Mastercard Black e Caixa Mastercard_Infinite** (renomeada 13/08) — exceção formalizada, não reabrir.
+3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. Cartão 4845 (Vanessa) **ATIVO**; só o 4844 (Wallace) aposentado.
+4. **"Estimado só na ausência de valor final"** — ao destravar campo antes manual/estimado, auditar quem mais consumia a versão antiga.
+5. **Rendimento por cofrinho do Mercado Pago não é automatizável** (confirmado 14/08/2026) — não reabrir sem pista nova concreta.
+6. **NOVO 14/08/2026 — Nunca deixar o Google Drive sincronizar a pasta `.git/`**: causou corrupção real (ver seção 1.1 abaixo). Se aparecer de novo o erro `fatal: bad object refs/desktop.ini` ou uma worktree "toda deletada" no `git status`, a causa é essa — solução é `find .git -iname "desktop.ini" -delete` (seguro, são só resíduos do Explorer/Drive, não objetos git reais), NUNCA tentar recuperar via `git reflog`/`fsck` primeiro.
+7. **NOVO 14/08/2026 — Boot do painel: ~1,7-1,8s de `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy` NÃO é bug de código** (investigado a fundo, ver seção 1.2) — é competição pelo mesmo thread JS com as ~18 outras ondas concorrentes. Não reabrir como "achado novo" sem medir de novo primeiro.
 
 ## 1. Pendências abertas AGORA (retomar por aqui)
 
-### 1.1 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
-Bruto do ciclo R$7.362,76, recebido até agora R$7.022,76 (R$340 em 07/08 + R$6.682,76 em 13/08). Confirmado com o usuário em 14/08 que ainda não chegou. Quando chegar: nova linha em `reembolso_wartsila_recebimentos`, destino provável Caixa Lance (sobra final do ciclo, já era o plano original).
+### 1.1 Google Drive sincronizando `.git/` — mitigado, não resolvido na raiz
+Removidos os `desktop.ini` que já tinham se infiltrado em `.git/refs/` (bloqueava `git fetch`/`push`) e em todas as pastas de `.git/objects/`. **Não configurado ainda** para o Drive parar de sincronizar `.git/` no futuro (precisa adicionar a pasta à lista de exclusão do Google Drive for Desktop, ação fora do alcance de um agente — só o usuário tem acesso à configuração do cliente Drive). Enquanto isso não for feito, o problema pode voltar. Se voltar: mesmo comando de limpeza da regra 6 acima.
 
-### 1.2 LREI0004 (R$103,55) segue ativa
-Aguardando Caixa Manutenção acumular saldo suficiente (não conferido de novo nesta sessão — checar saldo atual antes de assumir que já resolveu sozinha).
+### 1.2 Boot do painel: 2,5s em produção, gargalo residual identificado mas não resolvido
+Depois de 3 rodadas de correção or (paralelização de fetches → RPC batch desenhada → paralelização de contexto de dedupe → correção de lookup O(n) que não era o problema real), o boot caiu de ~6,1s (medido no servidor local, ambiente enganoso) pra **2.486ms reais em produção** (medido com login real, `wallacelira.com.br`). Breakdown real:
+- `wallace-boot-start → modulos-base-loaded`: 517ms (carregamento dos ~93 scripts, já paralelizado ao máximo sem bundler)
+- `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy`: ~1,7-1,8s cada, mas **investigado a fundo e confirmado que não é bug de código** — o trabalho síncrono real dentro delas é rápido (~130-140ms, instrumentado e depois removido). A causa é que essas 2 só começam a rodar ~1,2s após o boot iniciar e competem pelo mesmo thread JS com as ~18 outras ondas concorrentes até o fim do boot.
+- Resto do boot: rápido (10-70ms por onda).
 
-### 1.3 Backlog não crítico do `sincronizar_pluggy.py`
-Nenhum log de debug residual identificado nesta sessão (já limpo em sessão anterior, commit `f3df757`). Se aparecer print `[debug ...]` numa sessão futura, é sinal de regressão, remover.
+**Próximo passo real, se o usuário quiser continuar**: não é mais "achar outro bug", é uma mudança estrutural — throttling de quantas ondas rodam ao mesmo tempo, ou mover processamento pro servidor (RPC). Backlog, não pendência urgente.
 
-### 1.4 2 arquivos com correção pronta, ainda não commitados
-`src/auditoria/verificacoes/auditoria-automatica.js` e `src/solar/hydrate-clima-solar.js` — ver 2.8/2.9 abaixo. Testar e commitar (avisando antes) assim que retomar a sessão.
+### 1.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
+Bruto do ciclo R$7.362,76, recebido até agora R$7.022,76. Confirmado com o usuário em 14/08 que ainda não chegou. Quando chegar: nova linha em `reembolso_wartsila_recebimentos`, destino provável Caixa Lance.
+
+### 1.4 LREI0004 (R$103,55) segue ativa
+Aguardando Caixa Manutenção acumular saldo suficiente (não conferido de novo nesta sessão).
 
 ### 1.5 Data-limite de metas — só 2 de N caixas têm hoje
-`caixas.meta_data_limite` (coluna nova 14/08/2026) só está preenchida para Escola de Júlio (01/11/2026) e Caixa Aniversário Júlio (25/08/2026). Se o usuário quiser prazo em outras metas no futuro, é só popular a coluna — o card já lê e mostra automaticamente (`aplicarMetasV2CaixasEstaticas()`, `hydrate-caixas.js`), não precisa de código novo.
+`caixas.meta_data_limite` só preenchida pra Escola de Júlio (01/11/2026) e Caixa Aniversário Júlio (25/08/2026). Card já lê e mostra automaticamente quando populada, sem precisar de código novo.
 
 ## 2. O que foi feito nesta sessão (13-14/08/2026)
 
-### 2.1 Reconciliação Wärtsilä — fechamento total (ver PASSAGEM_DE_TURNO.md pro passo a passo com os 2 erros corrigidos)
-Cascata completa registrada (TX000280-302 + calibração de 14 caixas). Todas as 27 transações de `origem='reconciliacao'` de 13/08 confirmadas categorizadas (nenhuma com `categoria_id` nulo) — pendência que parecia aberta na verdade já tinha sido concluída antes do bug do rodapé aparecer.
+### 2.1-2.9 (bloco 1, resumo herdado — detalhe completo em PASSAGEM_DE_TURNO.md)
+Reconciliação Wärtsilä fechada, recalibração/renomeação de 17 caixas, bug do rodapé SSOT corrigido, sync multi-conta Mercado Pago, contagem regressiva de metas, investigação de rendimento por cofrinho (bloqueio confirmado), auditoria de governança de documentação (Drive), correção de falso-positivo "1 divergência" na auditoria de Reservas, fix do clima solar buscando 13x no boot.
 
-### 2.2 Recalibração de 17 caixas + renomeação + CC-codes
-17 caixas recalibradas para valores reais fornecidos pelo usuário. 3 renomeadas (`Provisionado Wärtsilä`→`Caixa Wartsila`, `Mercado Pago`→`Caixa Mercado Pago`, `Caixa Mastercard/Infinite`→`Caixa Mastercard_Infinite`) — propagado em DB (`caixas.nome`, `v1_v2_caixa_mapa` limpo antes por FK) + todo JS/HTML que referenciava o nome antigo. CC-205 (Bens Duráveis) e CC-209 (Emagrecimento) atribuídos. Todas as metas dos 12 cards estáticos + os dinâmicos consolidadas pra ler só de `caixas.teto_mensal` (fonte única V2).
+### 2.10 Workflow de 10 agentes — performance + design "premium" (pedido explícito do usuário)
+Usuário pediu explicitamente multi-agente ("coloque 10 agentes, 5 senior em programação e 5 designer gráfico"). Rodado como Workflow (5 performance + 5 design, cada um em worktree isolada, sem tocar `main`, sem aplicar migration no Supabase). 9/10 agentes concluíram (1 falhou na criação da worktree por causa do bug do Drive/`.git`, seção 1.1). Resultado revisado e integrado manualmente (2 conflitos de merge resolvidos combinando as duas mudanças; 1 arquivo com corrupção de worktree — mesmo bug do Drive — descartado em favor de reaplicação manual dos 4 arquivos reais alterados, verificados por leitura direta em vez de `git diff`).
 
-### 2.3 Bug do rodapé "N divergência(s) SSOT" — corrigido
-Causa raiz: `auditoriaAutomatica()` roda 3x por carregamento, e o aviso anterior nunca era removido do rodapé antes de decidir o que mostrar de novo (append sem cleanup) — por isso o badge "1 divergência" persistia mesmo depois do dado subjacente já ter resolvido. Corrigido em `src/auditoria/verificacoes/auditoria-automatica.js`: os dois branches (0 e N problemas) agora removem `.aviso-ssot-divergencia` antes de decidir o que exibir.
+**Performance entregue**: paralelização de fetches sequenciais em Onda 1/3/7/12 e na classificação de transações suspeitas da Pluggy; cache em `sessionStorage` pra endpoints pouco voláteis; RPC nova desenhada (`rpc_composicao_saldo_caixas_batch`, `supabase/migrations/`, **não aplicada** — cliente já tem fallback automático); instrumentação de boot por módulo (`window.WALLACE_BOOT_TIMING`, permanente, útil pra diagnóstico futuro); `defer` na tag do Chart.js (só script bloqueante do `<head>`).
 
-### 2.4 Sincronização multi-conta Mercado Pago
-`scripts/sync/mercadopago_sync.py` reescrito pra aceitar lista de tokens (`MERCADO_PAGO_ACCESS_TOKEN` = `token1,token2`, mesma convenção de `PLUGGY_ITEM_IDS`), com checkpoint isolado por `collector_id` (campo `metadata->>collector_id` em `mercadopago_eventos`) — sincronizar a conta 2 nunca risca corromper o checkpoint da conta 1. Nova aplicação de produção criada no Mercado Pago (conta `wallace.servidor@gmail.com`, app "Sistema Wallace Lira", Checkout Pro), Access Token obtido via Browser pane (usuário resolveu os 2 reCAPTCHA/2FA que apareceram, agente não pode resolver captcha). Secret do GitHub atualizado com os 2 tokens. Testado ao vivo (workflow run #45): conta 1/2 sincronizou incremental (7 eventos), conta 2/2 sincronizou histórico completo pela 1ª vez (3 eventos) — heartbeat sucesso.
+**Visual entregue**: tipografia/espaçamento (escala modular de `--fs-*`/`--lh-*`/`--ls-*`), sombras/elevação em camadas (`--shadow-card`/`--shadow-card-hover`), gradientes de 2 tons na paleta já existente (badges, `.ciclo-btn`, `.btn-pill`, header), estados de hover/focus/active consistentes entre botões. Paleta base, layout e todos os ids/onclick usados por JS preservados intactos (verificado por leitura, não só confiado no relatório dos agentes).
 
-### 2.5 Contagem regressiva em metas com prazo
-Coluna nova `caixas.meta_data_limite` (date, nullable). Populada pra Escola de Júlio (01/11/2026) e Caixa Aniversário Júlio (25/08/2026) — as duas únicas datas que o usuário informou. Card mostra "faltam N dias (DD/MM/AAAA)" abaixo da barra de meta, cor vermelha quando faltam ≤7 dias. Lógica em `aplicarMetasV2CaixasEstaticas()` (`hydrate-caixas.js`), IDs `cxEscolaPrazo`/`cxAnivPrazo` no HTML.
+**Bug real achado durante a integração** (não veio de nenhum agente isolado, só apareceu ao combinar os patches): sintaxe de objeto literal (`chave: valor,`) inserida dentro do corpo de uma `class` (`_CacheComTTL`, `app.js`) — quebrava o parse do arquivo inteiro, painel não carregava nada. Corrigido convertendo pra sintaxe de classe (`campo = valor;`).
 
-### 2.6 Rendimento por cofrinho Mercado Pago — investigado, confirmado bloqueio real da Pluggy
-Pedido do usuário: capturar automaticamente o rendimento de cada cofrinho MP (mesma automação de saldo reservado, feita em sessão anterior). Investigação: as transações "Rendimentos"/"Proceeds interests and dividends" que a Pluggy já sincroniza são da **conta corrente** (irrisórias, ~R$0,10-0,70, esporádicas — usuário identificou isso corretamente ao ver o valor), não dos cofrinhos individuais. Verificação da documentação oficial da Pluggy (`docs.pluggy.ai/docs/accounts.md`, via `llms.txt`) confirmou que `bankData` só documenta `transferNumber`/`closingBalance`/`automaticallyInvestedBalance`/`overdraftContractedLimit`/`overdraftUsedLimit`/`unarrangedOverdraftAmount` — nenhum campo de juros/remuneração/indexador pra `reservedBalances`. **Não é falta de tentativa, é limitação real e documentada da API** — mesma classe do bloqueio já confirmado pra `/investments` (cofrinho MP e previdência BTG não aparecem lá também). Decisão: manter calibração manual mensal, sem previsão de automação total.
+### 2.11 Correção real de performance pós-deploy (achado ao vivo, não do workflow)
+Depois de medir em produção, achado que `reconciliarTransacoesPluggy` tinha uma 4ª busca (`palavrasChaveAssinaturas`) rodando fora do `Promise.all` das outras 3 (mesma classe de bug já corrigida 2x nesta sessão) — corrigido. Também paralelizado o "contexto de dedupe" (4 buscas) com o fetch principal em Onda 6/7 (`dispararContextoDedupeInbox()`, nova função compartilhada em `classificacao-inbox.js`). Essas correções são válidas e ficaram no código, mas **não foram a causa dominante do tempo de Onda 6/7** (ver 1.2 acima) — medido antes/depois, tempo não mudou significativamente, o que levou à investigação mais funda que concluiu ser contenção de thread, não bug de sequenciamento.
 
-### 2.7 Auditoria e correção da governança de documentação (achado real, não é feature)
-Usuário relatou "muito problema para o Claude Chat atualizar as coisas, ele se perde todo". Investigação encontrou 2 problemas reais e independentes:
-1. **`MANUAL_OPERACIONAL_AGENTES.md` (seção 11.5) apontava pra pasta errada do Google Drive** (`Livro Razão/Sistema Wallace Lira - Claude Chat/`, abandonada em 09/08 e hoje vazia) em vez da pasta real (`Livro Razão/Agentes/`, confirmada pelo próprio `ONDE_LER.md` da pasta certa). Corrigido — seção 11.5 agora documenta o endereço certo e registra o achado pra não se perder de novo.
-2. **A cópia real (`Agentes/MANUAL_OPERACIONAL_AGENTES.md`) estava 5 dias desatualizada** (última sincronização 09/08, ainda descrevia `wallace_dados` como fonte viva do painel — desligada em 12/08) — sobrescrita com o conteúdo atual do repositório.
-3. `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE (1).md` — arquivo duplicado com sufixo "(1)" (proibido pela própria regra de manutenção do `ONDE_LER.md`), também desatualizado desde 12/08. Reescrito como `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (sem sufixo), cobrindo tudo que mudou entre 12/08 e 14/08 (Pluggy 100% V2, renomeação de caixas, metas com prazo, sync multi-conta MP, bloqueio de rendimento cofrinho). Arquivo "(1)" antigo apagado.
-4. `.gdoc` órfão (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md.gdoc`) solto na raiz do Drive, resíduo da tentativa antiga de usar Google Doc — apagado.
-5. **Checklist de Encerramento de Sessão (seção 10 do manual) endurecido**: antes só citava `ESTADO_ATUAL.md`/`PASSAGEM_DE_TURNO.md`; agora exige explicitamente sobrescrever os 2 arquivos do Drive sempre que o manual ou algo que o Claude Chat precisa saber mudar, e checar que não sobrou arquivo `(1)`/`.gdoc` órfão. **Esse é o padrão que deve valer daqui pra frente sempre que o usuário pedir "atualizar a passagem de turno"** — não é só este arquivo + PASSAGEM_DE_TURNO.md, é a lista completa da seção 10.
-
-### 2.8 Auditoria automática: falso-positivo "1 divergência" nas Reservas (achado real)
-`auditoriaAutomatica()` (`src/auditoria/verificacoes/auditoria-automatica.js`, checagem 7) somava `r.boletos` na conferência de Reservas, mas `recalcularBalanco()` (`recalcular-balanco.js`) parou de somar Boletos no total em 13/08 (Caixa Boletos migrou da seção 05/reservas pra seção 06/operacional). A checagem nunca foi atualizada junto — passou a acusar "1 divergência" em todo carregamento desde então (~R$1.648,55 de diferença, o valor da Caixa Boletos). Não era o bug do rodapé de novo (2.3, já corrigido), era a própria auditoria comparando contra fórmula desatualizada. Corrigido: soma agora é só das 12 caixas de reserva de fato (`r.boletos` continua existindo no objeto como linha informativa, só não entra mais nesta soma — igual já não entra em `recalcularBalanco()`). **Ainda não commitado.**
-
-### 2.9 Painel Solar buscando o clima 13x no boot (achado real, ~7s de atraso)
-`aplicarClimaSolar()` (`src/solar/hydrate-clima-solar.js`) rodava sem nenhuma proteção contra chamada repetida. `hydrate()` é chamado de novo até 13x durante o boot (`promocoes-financeengine.js` promove cada caixa V1→V2 individualmente, re-hidratando a cada uma), e cada chamada disparava a mesma requisição pra Open-Meteo — 13 requisições sequenciais pro mesmo dado (limite de conexões por host do navegador as enfileira), somando ~7s sozinho no fim da fila de carregamento. Clima é só contexto visual (nunca usado em cálculo). Corrigido com uma flag de módulo (`__climaSolarJaBuscado`) que faz a função retornar cedo depois da 1ª busca bem-sucedida da carga de página. **Ainda não commitado.**
+### 2.12 `inboxAdicionarItem()` — lookup O(n) trocado por índice O(1) (correção válida, mas não era o gargalo)
+`VARS.INBOX_FINANCEIRA.find(...)` (O(n) por chamada, ~1.057 chamadas no boot) trocado por `Map` (`_inboxIndicePorIdExterno`). Correção legítima (mesma classe de bug documentada 2x no próprio código), mantida — mas medição pós-deploy confirmou que a Inbox real só tem 12 itens, então não era isso que causava os 1,7-1,8s.
 
 ## 3. Protocolo de sessão nova
 
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
-3. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-4. Retomar direto pela seção 1 (pendências) — nenhuma delas depende de código, são só acompanhamento de dinheiro real (1.1/1.2) ou dado a popular quando o usuário decidir (1.4).
-5. **Sempre que "atualizar passagem de turno" for pedido**: seguir a checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md` — inclui os 2 arquivos do Google Drive (`Livro Razão/Agentes/`), não só os 2 arquivos deste repositório.
+3. Se `git fetch`/`push`/worktree falhar com erro de ref/objeto corrompido: ver regra 6 (seção 🎯) antes de qualquer outra investigação.
+4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
+5. Retomar pela seção 1 — nenhuma pendência depende de código urgente.
+6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`, inclui os 2 arquivos do Google Drive (`Livro Razão/Agentes/`).

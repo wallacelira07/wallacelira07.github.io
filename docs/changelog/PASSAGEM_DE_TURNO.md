@@ -2,7 +2,32 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
-## ▶️ Continuação 14/08/2026 — 2 correções pontuais achadas em auditoria de código, ainda não commitadas
+## 🏁 Encerramento 14/08/2026 (bloco 2) — Workflow de 10 agentes (performance + design premium), 6 commits publicados, boot 6,1s→2,5s
+
+Continuação direta do bloco 1 abaixo (mesmo dia). Usuário pediu explicitamente ("coloque 10 agentes, 5 senior em programação e 5 designer gráfico, torne esse site profissional e premium") — antes de disparar, alinhado com o usuário via 3 perguntas: escopo visual (refino da identidade atual, não redesign amplo), escopo performance (client-side + backend/RPC liberado), isolamento (worktrees + revisão antes do merge). Rodado como `Workflow`, 5 agentes performance + 5 design, cada um em worktree isolada, instruídos a NUNCA commitar/pushar/aplicar migration.
+
+**Resultado do workflow**: 9/10 concluíram. O 10º (`design-iconografia-hierarquia`) falhou ao criar a worktree com `fatal: ... git metadata that could not be resolved` — investigado e achado o problema real: **o Google Drive estava sincronizando a pasta `.git/` inteira**, injetando `desktop.ini` em toda subpasta, inclusive `.git/refs/`, quebrando a resolução de refs do Git. Mesma causa raiz de um bug de "worktree corrompida" documentado numa sessão anterior (13/08) que nunca tinha sido explicado até agora. Removidos todos os `desktop.ini` de dentro de `.git/` (~150 arquivos, seguro — resíduos do Explorer, não objetos git reais) — desbloqueou `git fetch`/`push` que também estavam falhando pelo mesmo motivo.
+
+**Integração manual dos 9 resultados** (não foi um merge automático — cada worktree revisada e integrada com cuidado):
+- 3 agentes de performance tocavam `app.js` — aplicados via `git apply --3way` sequencial, sem conflito.
+- 4 agentes de design tocavam `assets/css/styles.css` — aplicados via `git apply --3way` sequencial, **2 conflitos reais** (2 agentes diferentes editando a mesma regra `.home-nav-btn`/`.cm-card` com propósitos complementares — sombra vs. cor) — resolvidos combinando as duas mudanças, não escolhendo uma só.
+- 1 worktree (`perf-sweep-continuacao`) veio com o **mesmo bug de corrupção do Drive** — `git diff` mostrava 210 arquivos "deletados" (o repo inteiro). Descartado o diff automático; os 4 arquivos realmente alterados por esse agente foram identificados pelo próprio relatório, lidos diretamente do disco da worktree (bypassando git) e reaplicados manualmente no `main`.
+- 1 agente (`perf-lazy-load-abas`) não fez nenhuma mudança de código — investigou e concluiu, corretamente, que lazy-loading das abas do Livro Razão quebraria os contadores "(N)" nos botões (dependem de contagem de `<tr>` no DOM, não de `VARS`), documentou a abordagem seg futura sem implementar às cegas.
+
+**Bug real achado só na integração** (nenhum agente isolado o cometeu — só apareceu ao combinar): sintaxe de objeto (`chave: valor,`) dentro do corpo de uma `class` (`_CacheComTTL`, `app.js`) — `SyntaxError` quebrava o parse do arquivo inteiro, painel carregava a tela mas "não carregava nada" (relato do usuário). Corrigido convertendo pra sintaxe de classe.
+
+**Publicação em produção, 6 commits sequenciais** (cada um com merge do bump automático de `__V` que o GitHub Action gera a cada push, sempre avisando o usuário antes de commitar/pushar):
+1. `ec0b4e2`/`b1dec7e` (com merge) — todas as 9 mudanças do workflow integradas + fixes de hoje do bloco 1.
+2. `8ea29e7`/`e96cf5b` — achado ao vivo (medição real em produção): `reconciliarTransacoesPluggy` tinha uma 4ª busca fora do `Promise.all`; contexto de dedupe (Onda 6/7) passou a rodar em paralelo com o fetch principal, não mais depois.
+3. `90003c6`/`e96cf5b` — `inboxAdicionarItem()` tinha um lookup O(n) (`VARS.INBOX_FINANCEIRA.find`) rodando ~1.057x no boot — trocado por índice `Map` O(1).
+4. `08a7665`/`bacf111` — instrumentação temporária de diagnóstico (breakdown de tempo dentro de Onda 6/7), pra investigar por que as correções 2-3 não mudaram o tempo medido.
+5. `32c9c2c`/`614570f` — instrumentação removida, achado documentado: **não era mais bug de código**. O trabalho síncrono real dentro de Onda 6/7 é rápido (~130-140ms); o tempo de ~1,7-1,8s vem de essas 2 ondas começarem tarde (~1,2s após o boot) e disputarem o mesmo thread JS com as ~18 outras ondas concorrentes até o fim. Corrigir isso de verdade exigiria throttling de concorrência ou mover processamento pro servidor — fora do escopo de hoje, documentado como backlog.
+
+**Resultado medido, com o usuário testando ao vivo em produção via DevTools** (não só localhost — usuário confirmou que o servidor local de teste estava inflando o número): boot caiu de ~6,1s (medido erroneamente no servidor PowerShell local, sem HTTP/2) pra **2.486ms reais em `wallacelira.com.br`**, com breakdown completo por módulo capturado via a instrumentação `window.WALLACE_BOOT_TIMING` (mantida permanente, não é diagnóstico temporário).
+
+**Lição de processo**: a decisão de "investigar até o fim em vez de aceitar a 1ª hipótese" (usuário pediu "ataque" 2x depois de resultados que pareciam não ter funcionado) levou a descobrir que 2 das "correções" aplicadas (paralelização do contexto + índice O(1) da Inbox) eram legítimas mas não eram a causa real do gargalo residual — só ficou claro depois de instrumentar e medir de verdade, não adivinhar. Ambas as correções foram mantidas (não são erradas, só não resolveram o problema que motivou a investigação).
+
+## ▶️ Continuação 14/08/2026 (bloco 1) — 2 correções pontuais achadas em auditoria de código, ainda não commitadas
 
 Retomada da sessão de 14/08 abaixo (mesmo dia). 2 arquivos com correção pronta no working tree, pendentes de commit:
 
