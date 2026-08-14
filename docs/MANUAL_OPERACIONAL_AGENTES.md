@@ -172,6 +172,18 @@ Isso tem 2 efeitos práticos que todo agente precisa saber:
 
 Qualquer caixa pode ter gasto no cartão, não só a Caixa Variável — o que muda é só o `caixa_id`. Confirmado em produção (12/08): Caixa Variável, Provisionado Wärtsilä (corp, reembolsável pela Wärtsilä), Caixa Churrasco, Caixa Bens Duráveis já têm compra real no cartão. A lógica é sempre a mesma: **a caixa é de onde o dinheiro sai (orçamento); o cartão é só o meio de pagamento; a transação em `transacoes` é o que liga os dois.** Antes de lançar, perguntar "essa compra é do dia a dia geral (Caixa Variável) ou tem uma caixa temática própria (Churrasco, Bens Duráveis, etc.)?" — nunca assumir Caixa Variável por padrão sem checar.
 
+### 1.3.5 Regra permanente — compra no cartão NUNCA reduz o saldo real da caixa, em NENHUMA caixa (NOVO 14/08/2026)
+
+**Decisão explícita do usuário, generalizando um princípio que antes só valia pra Caixa Variável.** Origem: achado real — TX000227/TX000226 (Bens Duráveis), TX000228 (Churrasco) e TX000277 (Emagrecimento) tinham `cartao_id` preenchido mas `afeta_saldo_real=true`, fazendo o saldo dessas caixas cair na hora da compra, quando deveria só cair quando a fatura for paga de verdade. Corrigidas nesta data (as 6 transações + TX000159-A/TX000159-B, que tinham perdido o vínculo do cartão numa divisão anterior).
+
+**Regra, nas palavras do usuário**: *"as compras foram feitas no cartão, tem registro no LR e as caixas são apenas referências como uma coleção para viabilizar a compra"* — ou seja, **em QUALQUER caixa** (não só Variável), uma compra com `cartao_id` preenchido é **sempre** `afeta_saldo_real=false`. A caixa é o "pulmão" que autoriza/orça a compra, não a origem literal do dinheiro agora — o dinheiro só sai de verdade quando a fatura vence e é paga.
+
+**O que fazer quando a caixa não tem saldo suficiente pro comprometido** (ex: caixa tem R$100, compra de R$150 no cartão): **não é uma regra fixa, é decisão do usuário caso a caso** — pode virar um LREI (empréstimo interno de uma caixa habilitada) ou pode ficar em posição negativa de "Disponível Real" aguardando o recurso chegar (mesmo padrão que Churrasco e Bens Duráveis já ficaram antes de serem reforçadas). **Nunca decidir isso sozinho** — perguntar ao usuário qual caminho ele quer nesse caso específico.
+
+**Efeito prático já implementado**: `hydrate-comprometido-caixas-tematicas-v2.js` (ver `docs/decisions/GENERALIZACAO_COMPROMETIDO_CAIXAS_TEMATICAS.md`) mostra "(−) Comprometido no cartão / (=) Disponível Real" pras 6 caixas temáticas (Churrasco, Bens Duráveis, Manutenção, Eventos e Viagens, Saúde Família, Emagrecimento) sem nunca reduzir o "Tem na Caixa" — esse número só reduz quando a transação NÃO tem cartão (PIX/boleto/TED direto) ou quando a fatura é efetivamente paga (ver pendência ainda em aberto na seção 1.3, sobre o procedimento de baixa da fatura).
+
+**Ao lançar/corrigir qualquer transação de cartão daqui pra frente, em qualquer caixa**: `cartao_id` preenchido → `afeta_saldo_real=false`, sempre, sem exceção — não é mais uma regra só da Caixa Variável.
+
 ## 1.4 Estimador de Salário — calcular `liquidoProjetadoProximoCiclo` a partir da folha de ponto (NOVO 12/08/2026)
 
 Todo mês chega uma folha de ponto (PDF da Wärtsilä) com as horas do período e a data de pagamento dos adicionais (~25 do mês seguinte). O usuário pediu esse cálculo antes (via Claude Chat) sem deixar a metodologia documentada — registrado aqui pra nenhum agente precisar reconstruir do zero nem reabrir as mesmas perguntas.

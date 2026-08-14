@@ -37,6 +37,20 @@ Generalizar o comportamento da Caixa Variável (servir de "pulmão" pro cartão 
 
 Testado com dados simulados (DOM + `WallaceFinanceService` mockados) cobrindo os 6 casos: caixa estática com comprometido (Bens Duráveis, replicando o caso real de R$104,30), caixa estática sem comprometido (Manutenção/Eventos, bloco corretamente omitido), caixa estática com disponível negativo (Saúde Família), caixa dinâmica com comprometido (Churrasco) e caixa dinâmica sem comprometido (Emagrecimento) — todos os 6 resultados bateram com o esperado.
 
+## Correção de dado histórico (mesma data, depois do achado do usuário)
+
+O usuário generalizou o princípio além da exibição: **"as compras foram feitas no cartão... as caixas são apenas referências como uma coleção para viabilizar a compra"** — ou seja, em qualquer caixa, compra com `cartao_id` preenchido é sempre `afeta_saldo_real=false`, ponto final (ver seção 1.3.5 do `MANUAL_OPERACIONAL_AGENTES.md`, criada nesta mesma rodada). Auditoria encontrou 6 transações mal classificadas (`cartao_id` preenchido mas `afeta_saldo_real=true`) nas 3 caixas que já tinham compra real no cartão:
+
+| Caixa | TX corrigidas | Saldo antes | Saldo depois |
+|---|---|---|---|
+| Caixa Bens Duráveis | TX000227, TX000226, TX000159-A, TX000159-B | R$583,99 | R$1.167,98 |
+| Caixa Churrasco | TX000228 | R$359,56 | R$718,43 |
+| Emagrecimento | TX000277 | R$278,89 | R$557,78 |
+
+TX000159-A/TX000159-B também receberam de volta o `cartao_id` (MB virtual) que haviam perdido quando TX000159 original foi dividida entre Caixa Variável e Bens Duráveis. Confirmado com o usuário item a item antes da correção; valores pós-correção validados contra `vw_saldo_v2_por_caixa`.
+
+Manutenção/Eventos/Saúde Família não tinham nenhuma transação de cartão mal classificada nesta auditoria.
+
 ## Pendência em aberto (não resolvida nesta rodada)
 
 **Procedimento pra quando a fatura do cartão vence e é paga de verdade** (dinheiro sai do banco), sem contar a saída duas vezes (uma como "Comprometido", outra como pagamento real). Não existe hoje nenhum mecanismo automático (trigger/RPC) nem procedimento manual documentado — precisa ser decidido e registrado antes da próxima virada de fatura. Caminhos possíveis, nenhum implementado ainda:
