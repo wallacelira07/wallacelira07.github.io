@@ -188,13 +188,109 @@ function calcularIndicadoresEScores(dados){
 }
 
 // ---------------------------------------------------------------------------------------------
+// AMPLIADO 14/08/2026 (achado do usuário: o PDF gerado "não é o que aprovei" — a estrutura de
+// seções ficou genérica demais frente ao artefato aprovado, que tem Projetos Estratégicos em
+// cards, Centros de Custo agrupados em 4 famílias e Análise de Patrimônio com gauge de 5 eixos).
+// As 5 funções abaixo montam esses blocos ESTRUTURADOS — mesma regra de sempre: só usam número já
+// coletado por coletar-dados-relatorio.js, nunca fabricam texto/valor novo. Ao contrário da
+// narrativa do artefato original (que é prosa de exemplo, escrita à mão), aqui cada projeto/passivo
+// exibe só os pares label/valor reais já coletados — sem inventar frases de "risco"/"próximo
+// passo" que não teriam como ser derivadas de forma determinística e verdadeira.
+// ---------------------------------------------------------------------------------------------
+
+// Projetos Estratégicos (proj-grid do artefato) — 1 card por seção de projeto já coletada.
+function _wwiMontarProjetos(dados){
+  const titulos = ['Meta do milhão', 'Projeto casa nova', 'Consórcio casa nova (I0464 · Cota 12)'];
+  return titulos.map(titulo => {
+    const secao = _wwiSecao(dados, titulo);
+    if(!secao || !secao.linhas.length) return null;
+    const linhaPct = secao.linhas.find(l => /%/.test(l.valor));
+    const pct = linhaPct ? _wwiClamp(_wwiNum(linhaPct.valor) || 0, 0, 100) : null;
+    return { nome: titulo, pct, linhas: secao.linhas };
+  }).filter(Boolean);
+}
+
+// Análise dos Passivos (rank do artefato) — heurística de risco por PADRÃO DE NOME, não um dado
+// coletado (documentado como tal): LREI* (empréstimo interno) = risco baixíssimo; consórcio =
+// risco médio (fluxo certo, contemplação incerta); resto = risco baixo (condições conhecidas).
+function _wwiMontarPassivosRank(dados){
+  const secao = _wwiSecao(dados, '📉 Passivos Patrimoniais') || _wwiSecao(dados, 'Passivos patrimoniais');
+  if(!secao) return [];
+  return secao.linhas.map(l => {
+    const lower = l.label.toLowerCase();
+    let risco = 'baixo';
+    if(lower.includes('lrei')) risco = 'baixo';
+    else if(lower.includes('consórcio') || lower.includes('consorcio')) risco = 'medio';
+    return { nome: l.label, valor: l.valor, risco };
+  });
+}
+
+// Centros de Custo agrupados em 4 famílias (mesma divisão do artefato) — agrupamento por padrão de
+// nome da caixa, saldo agregado somado a partir dos valores já coletados (nunca recalculado).
+const WWI_FAMILIAS_CAIXA = [
+  { nome: 'Estratégicos', padrao: /lance|w[aä]rtsil[aä]|suaviza/i },
+  { nome: 'Operacionais', padrao: /vari[aá]vel|boleto|mercado pago|mastercard|combust[ií]vel|manuten[cç][aã]o|seguro/i },
+  { nome: 'Familiares', padrao: /sa[uú]de|pix|anivers[aá]rio|emagrecimento|churrasco|evento/i },
+  { nome: 'De Objetivos', padrao: /escola|dur[aá]vel|duravel/i },
+];
+function _wwiMontarCentrosDeCusto(dados){
+  const secao = _wwiSecao(dados, '📦 Todas as Caixas');
+  if(!secao || !secao.linhas.length) return [];
+  const grupos = WWI_FAMILIAS_CAIXA.map(f => ({ nome: f.nome, padrao: f.padrao, caixas: [], total: 0 }));
+  const outros = { nome: 'Outros', caixas: [], total: 0 };
+  secao.linhas.forEach(l => {
+    const valor = _wwiNum(l.valor) || 0;
+    const grupo = grupos.find(g => g.padrao.test(l.label)) || outros;
+    grupo.caixas.push(l.label);
+    grupo.total += valor;
+  });
+  return grupos.concat(outros.caixas.length ? [outros] : []).filter(g => g.caixas.length);
+}
+
+// Análise de Patrimônio (grid-2 + gauge de 5 eixos do artefato) — tabela = linhas já coletadas do
+// Balanço Patrimonial; gauge = média dos sub-scores já calculados por calcularIndicadoresEScores,
+// remapeados pros 5 rótulos do artefato (mesmo conceito, nomes iguais aos do relatório aprovado).
+function _wwiMontarComposicaoPatrimonio(dados, indicadores){
+  const secao = _wwiSecao(dados, '🏦 Balanço Patrimonial');
+  const s = indicadores.subscores;
+  const eixos = [
+    { label: 'Eficiência patrimonial', val: s.organizacaoFinanceira },
+    { label: 'Liquidez', val: s.liquidez },
+    { label: 'Concentração (diversificação)', val: s.investimentos },
+    { label: 'Proteção patrimonial', val: s.protecaoPatrimonial },
+    { label: 'Geração futura', val: s.construcaoPatrimonial },
+  ].filter(e => e.val !== null);
+  const nota = eixos.length ? _wwiArredonda(eixos.reduce((a, e) => a + e.val, 0) / eixos.length, 0) : null;
+  return { linhas: secao ? secao.linhas : [], eixos, nota };
+}
+
+// Análise de Liquidez (grid-2 do artefato) — tabela = linhas já coletadas da Reserva de Emergência;
+// cards = classificação textual derivada do sub-score de liquidez já calculado (mesmos limiares
+// documentados no comentário do subscore) + índice de independência financeira já calculado.
+function _wwiMontarLiquidez(dados, indicadores){
+  const secao = _wwiSecao(dados, 'Reserva de Emergência — quanto tempo aguenta');
+  const b = indicadores.indicadoresBrutos;
+  const classificacao = indicadores.subscores.liquidez === null ? null :
+    indicadores.subscores.liquidez >= 80 ? 'Muito Forte' :
+    indicadores.subscores.liquidez >= 60 ? 'Forte' :
+    indicadores.subscores.liquidez >= 40 ? 'Adequada' : 'Abaixo do recomendado';
+  return {
+    linhas: secao ? secao.linhas : [],
+    classificacao,
+    liquidezCiclos: b.liquidezCiclos,
+    independenciaFinanceira: indicadores.indices.independenciaFinanceira,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 // gerarAnaliseFinanceira(dados) — narrativa determinística (pontos fortes/fracos, riscos,
 // oportunidades, recomendações, parecer final). Chamada só na CRIAÇÃO de uma competência nova —
 // nunca recalculada dentro do mesmo ciclo (garantia de "narrativa estável", pedido do usuário).
 // ---------------------------------------------------------------------------------------------
 
 function gerarAnaliseFinanceira(dados){
-  const { wealthScore, subscores, indicadoresBrutos: b } = calcularIndicadoresEScores(dados);
+  const indicadoresCompletos = calcularIndicadoresEScores(dados);
+  const { wealthScore, subscores, indicadoresBrutos: b } = indicadoresCompletos;
   const pontosFortesTexto = [];
   const pontosFracosTexto = [];
   const riscosTexto = [];
@@ -353,6 +449,11 @@ function gerarAnaliseFinanceira(dados){
   return {
     pontosFortesTexto, pontosFracosTexto, riscosTexto, oportunidadesTexto, recomendacoesTexto,
     parecerFinalTexto, regrasAplicadas,
+    projetos: _wwiMontarProjetos(dados),
+    passivosRank: _wwiMontarPassivosRank(dados),
+    centrosDeCusto: _wwiMontarCentrosDeCusto(dados),
+    composicaoPatrimonio: _wwiMontarComposicaoPatrimonio(dados, indicadoresCompletos),
+    liquidezAnalise: _wwiMontarLiquidez(dados, indicadoresCompletos),
   };
 }
 

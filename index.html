@@ -1046,7 +1046,25 @@
             '.wwi-scope .rank li.risk-alto{border-left-color:var(--bad);}' +
             '.wwi-scope .rank li.risk-medio{border-left-color:var(--warn);}' +
             '.wwi-scope .rank li.risk-baixo{border-left-color:var(--good);}' +
-            '.wwi-scope .rank .rk-desc{color:var(--ink-soft);font-size:.92rem;}' +
+            '.wwi-scope .rank .rk-name{font-weight:700;}' +
+            '.wwi-scope .rank .rk-val{font-weight:600;float:right;}' +
+            '.wwi-scope .rank .rk-desc{color:var(--ink-soft);font-size:.92rem;display:block;margin-top:.2rem;}' +
+            // ADICIONADO 14/08/2026 (achado do usuário: "não é o que aprovei" — o gerador tinha
+            // seções inteiras faltando frente ao artefato). Classes verbatim copiadas do arquivo-fonte
+            // real do artefato (baixado direto do frame do Claude, não reconstruído de memória):
+            // grid-2 (layout 2 colunas de "Análise de Patrimônio"/"Análise de Liquidez") e o conjunto
+            // proj-grid/proj/... (cards de "Projetos Estratégicos").
+            '.wwi-scope .grid-2{display:grid;grid-template-columns:1.2fr 1fr;gap:2.4rem;}' +
+            '.wwi-scope .proj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.1rem;margin-top:1.8rem;}' +
+            '.wwi-scope .proj{background:var(--surface);border:1px solid var(--line);padding:1.4rem 1.5rem;}' +
+            '.wwi-scope .proj h3{font-size:1.15rem;margin-bottom:.2rem;}' +
+            '.wwi-scope .proj .proj-obj{font-size:.85rem;color:var(--ink-soft);margin-bottom:1rem;}' +
+            '.wwi-scope .bar-track{height:7px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin:.5rem 0 .4rem;}' +
+            '.wwi-scope .bar-fill{height:100%;background:var(--accent);}' +
+            '.wwi-scope .proj-pct{font-weight:700;font-size:1.3rem;}' +
+            '.wwi-scope .proj-meta{display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink-faint);margin-top:.2rem;}' +
+            '.wwi-scope .proj-risks{margin:.9rem 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--ink-soft);}' +
+            '.wwi-scope .proj-risks li{margin-bottom:.3rem;}' +
             '.wwi-scope .score-wrap{display:flex;gap:2.4rem;align-items:center;margin-top:1.8rem;flex-wrap:wrap;}' +
             '.wwi-scope .gauge{position:relative;width:180px;height:180px;flex:0 0 auto;}' +
             '.wwi-scope .gauge svg{width:100%;height:100%;transform:rotate(-90deg);}' +
@@ -1095,6 +1113,78 @@
 
         function _wwiRelTituloSemEmoji(titulo) {
             return titulo.replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '').trim();
+        }
+
+        // ADICIONADO 14/08/2026 (achado do usuário: "não é o que aprovei" — faltavam seções inteiras
+        // frente ao artefato). As 5 funções abaixo renderizam os blocos estruturados que
+        // gerar-analise-financeira.js passou a montar (narrativa.projetos/passivosRank/
+        // centrosDeCusto/composicaoPatrimonio/liquidezAnalise) usando as classes verbatim do artefato.
+
+        function _wwiRelProjetos(projetos) {
+            if (!projetos || !projetos.length) return '';
+            return '<div class="proj-grid">' + projetos.map(function (p) {
+                return '<div class="proj"><h3>' + _wwiRelEsc(p.nome) + '</h3>' +
+                    (p.pct !== null ? '<div class="proj-pct">' + _wwiRelEsc(String(p.pct).replace('.', ',')) + '%</div>' +
+                        '<div class="bar-track"><div class="bar-fill" style="width:' + p.pct + '%"></div></div>' : '') +
+                    '<ul class="proj-risks">' + p.linhas.map(function (l) {
+                        return '<li><strong>' + _wwiRelEsc(l.label) + ':</strong> ' + _wwiRelEsc(l.valor) + '</li>';
+                    }).join('') + '</ul></div>';
+            }).join('') + '</div>';
+        }
+
+        function _wwiRelPassivosRank(itens) {
+            if (!itens || !itens.length) return '';
+            return '<ol class="rank">' + itens.map(function (it, i) {
+                const cls = it.risco === 'alto' ? 'risk-alto' : it.risco === 'medio' ? 'risk-medio' : 'risk-baixo';
+                return '<li class="' + cls + '"><span class="rk-name">' + (i + 1) + '. ' + _wwiRelEsc(it.nome) + '</span>' +
+                    '<span class="rk-val">' + _wwiRelEsc(it.valor) + '</span></li>';
+            }).join('') + '</ol>';
+        }
+
+        function _wwiRelCentrosDeCusto(grupos) {
+            if (!grupos || !grupos.length) return '';
+            return '<div class="tbl-wrap"><table><thead><tr><th>Fundo</th><th>Centros de custo</th><th class="num">Saldo agregado</th></tr></thead><tbody>' +
+                grupos.map(function (g) {
+                    return '<tr><td style="font-weight:700">' + _wwiRelEsc(g.nome) + '</td><td>' + _wwiRelEsc(g.caixas.join(' &middot; ')) +
+                        '</td><td class="num">R$ ' + g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td></tr>';
+                }).join('') + '</tbody></table></div>';
+        }
+
+        function _wwiRelComposicaoPatrimonio(comp) {
+            if (!comp || (!comp.linhas.length && !comp.eixos.length)) return '';
+            const circunferencia = 263.9;
+            const offset = comp.nota === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, comp.nota)) / 100);
+            return '<div class="grid-2">' +
+                '<div class="tbl-wrap"><table><tbody>' + comp.linhas.map(function (l) {
+                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
+                }).join('') + '</tbody></table></div>' +
+                '<div>' +
+                (comp.nota !== null ? '<div class="gauge" style="margin:0 auto;"><svg viewBox="0 0 100 100">' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-2)" stroke-width="10"/>' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
+                    '</svg><div class="gauge-num"><b>' + comp.nota + '</b><span>Nota Patrimonial</span></div></div>' : '') +
+                '<div class="score-list" style="margin-top:1.2rem;">' + comp.eixos.map(function (e) {
+                    const v = Math.round(e.val);
+                    return '<div class="score-row"><span class="sr-label">' + _wwiRelEsc(e.label) + '</span>' +
+                        '<div class="sr-track"><div class="sr-fill" style="width:' + v + '%"></div></div><span class="sr-val">' + v + '</span></div>';
+                }).join('') + '</div>' +
+                '</div></div>';
+        }
+
+        function _wwiRelLiquidez(liq) {
+            if (!liq || (!liq.linhas.length && liq.classificacao === null)) return '';
+            return '<div class="grid-2">' +
+                '<div class="tbl-wrap"><table><tbody>' + liq.linhas.map(function (l) {
+                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
+                }).join('') + '</tbody></table></div>' +
+                '<div>' +
+                (liq.classificacao ? '<div class="kpi" style="border:1px solid var(--line)"><div class="kpi-label">Classificação de Liquidez</div>' +
+                    '<div class="kpi-val">' + _wwiRelEsc(liq.classificacao) + '</div>' +
+                    (liq.liquidezCiclos !== null ? '<div class="kpi-sub">Reserva cobre ~' + _wwiRelEsc(liq.liquidezCiclos.toFixed(1).replace('.', ',')) + ' ciclos de compromisso fixo</div>' : '') +
+                    '</div>' : '') +
+                (liq.independenciaFinanceira !== null ? '<div class="kpi" style="border:1px solid var(--line);border-top:none;"><div class="kpi-label">Grau de Independência Financeira</div>' +
+                    '<div class="kpi-val">' + _wwiRelEsc(liq.independenciaFinanceira.toFixed(1).replace('.', ',')) + '%</div></div>' : '') +
+                '</div></div>';
         }
 
         // Monta o HTML completo do relatório reaproveitando o CSS VERBATIM (WWI_CSS_ARTEFATO) e as
@@ -1167,8 +1257,40 @@
                     '<p class="lede">Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.</p>') +
                 '</section>');
 
-            // 6+. Dados do sistema, 1 seção por bloco coletado
+            // ADICIONADO 14/08/2026 (achado do usuário: "não é o que aprovei" — faltavam seções
+            // inteiras frente ao artefato aprovado). 6-9: blocos ESTRUTURADOS (não tabela genérica),
+            // mesmas classes/layout do artefato — Análise de Patrimônio (grid-2+gauge), Análise dos
+            // Passivos (rank), Centros de Custo (agrupado), Projetos Estratégicos (cards).
+            if (narrativa && narrativa.composicaoPatrimonio) {
+                const html = _wwiRelComposicaoPatrimonio(narrativa.composicaoPatrimonio);
+                if (html) blocos.push('<section>' + secaoEyebrowTitulo('Análise de Patrimônio', 'Composição e capacidade de geração') + html + '</section>');
+            }
+            if (narrativa && narrativa.passivosRank && narrativa.passivosRank.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Análise dos Passivos', 'Ranking de risco') +
+                    _wwiRelPassivosRank(narrativa.passivosRank) + '</section>');
+            }
+            if (narrativa && narrativa.centrosDeCusto && narrativa.centrosDeCusto.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Centros de Custo', 'Caixas agrupadas por propósito') +
+                    _wwiRelCentrosDeCusto(narrativa.centrosDeCusto) + '</section>');
+            }
+            if (narrativa && narrativa.projetos && narrativa.projetos.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Projetos Estratégicos', 'Objetivos em curso') +
+                    _wwiRelProjetos(narrativa.projetos) + '</section>');
+            }
+            if (narrativa && narrativa.liquidezAnalise) {
+                const html = _wwiRelLiquidez(narrativa.liquidezAnalise);
+                if (html) blocos.push('<section>' + secaoEyebrowTitulo('Análise de Liquidez', 'Quanto tempo o sistema sobrevive sem renda') + html + '</section>');
+            }
+
+            // 10+. Dados do sistema restantes — exclui as seções já consumidas nos blocos estruturados
+            // acima, pra não duplicar a mesma informação em dois formatos diferentes no mesmo relatório.
+            const WWI_SECOES_JA_USADAS = [
+                'Resumo executivo', '🏦 Balanço Patrimonial', '📉 Passivos Patrimoniais', 'Passivos patrimoniais',
+                '📦 Todas as Caixas', 'Meta do milhão', 'Projeto casa nova', 'Consórcio casa nova (I0464 · Cota 12)',
+                'Reserva de Emergência — quanto tempo aguenta',
+            ];
             dados.secoes.forEach(function (secao) {
+                if (WWI_SECOES_JA_USADAS.indexOf(secao.titulo) !== -1) return;
                 blocos.push('<section>' + secaoEyebrowTitulo(_wwiRelTituloSemEmoji(secao.titulo), null) +
                     _wwiRelTabelaSecao(secao) + '</section>');
             });
