@@ -935,6 +935,14 @@
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
+        // Formata número puro (já vindo de indicadoresBrutos, sem "R$") em moeda BR — usado pela
+        // seção Reembolsos Wärtsilä (ADICIONADO 14/08/2026), que lê valor numérico direto em vez de
+        // string já formatada pelo coletor (diferente do resto do relatório).
+        function _wwiFmtR(n) {
+            if (n === null || n === undefined) return null;
+            return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         // Procura uma linha específica (por label) dentro de uma seção coletada — não recalcula nada,
         // só reaproveita o mesmo par label/valor que coletarDadosRelatorioFechamento() já leu do DOM.
         function pdfPegarKpi(secoes, tituloSecao, labelLinha) {
@@ -969,7 +977,7 @@
             '.wwi-scope .cover-grade{margin-top:2.2rem;display:inline-flex;align-items:baseline;gap:.9rem;border-left:2px solid #CBA968;padding-left:1rem;}' +
             '.wwi-scope .cover-grade b{font-family:var(--font-display);font-size:2rem;color:#ECEAE0;}' +
             '.wwi-scope .cover-grade span{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#B9BFCE;max-width:24ch;line-height:1.5;}' +
-            '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;position:sticky;top:0;z-index:5;}' +
+            '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;scrollbar-width:thin;position:sticky;top:0;z-index:5;}' +
             '.wwi-scope .toc a{flex:0 0 auto;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--ink-faint);padding:.85rem 1rem;border-bottom:2px solid transparent;white-space:nowrap;}' +
             '.wwi-scope .toc a:hover{color:var(--ink);}' +
             '.wwi-scope section{padding:2.2rem 2.6rem;}' +
@@ -1163,18 +1171,36 @@
             const circunferencia = 263.9;
             const offset = score === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, score)) / 100);
 
+            // AMPLIADO 14/08/2026 (achado do usuário: "quero uma cópia idêntica do arquivo que
+            // aceitei" — o artefato tem 8 KPIs no Painel Executivo, o gerador só tinha 4). Candidatos
+            // extras cobrindo os mesmos temas do artefato (Patrimônio Financeiro/Total/Passivos/
+            // Reserva/Meta do Milhão/Geração de Caixa) — cada um só entra se o dado realmente existir
+            // (mesmo filtro de sempre, nunca mostra KPI vazio).
             const kpis = [
-                { lbl: 'Patrimônio Líquido', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido'), chip: null },
-                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações'), chip: null },
-                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional'), chip: null },
-                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão'), chip: null },
+                { lbl: 'Patrimônio Financeiro', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total') },
+                { lbl: 'Patrimônio Total', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido') },
+                { lbl: 'Passivos Externos', val: pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total') },
+                { lbl: 'Reserva Emergencial', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência') },
+                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações') },
+                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão') },
+                { lbl: 'Entradas do Ciclo', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais') },
+                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional') },
             ].filter(function (k) { return k.val; });
 
+            // CORRIGIDO 14/08/2026 (achado do usuário: rótulos do Wealth Score saindo crus —
+            // "liquidez", "protecaoPatrimonial" — em vez de texto legível). Mapa fixo dos 7 eixos já
+            // calculados por calcularIndicadoresEScores() pros mesmos nomes em português usados no
+            // artefato aprovado (seção "Score Wallace Lira").
+            const WWI_LABELS_SUBSCORES = {
+                liquidez: 'Liquidez', protecaoPatrimonial: 'Proteção Patrimonial', investimentos: 'Investimentos',
+                endividamento: 'Endividamento', organizacaoFinanceira: 'Organização Financeira',
+                execucaoDeMetas: 'Execução de Metas', construcaoPatrimonial: 'Construção Patrimonial',
+            };
             const subscoresHtml = (indicadores && indicadores.subscores) ? Object.keys(indicadores.subscores)
                 .filter(function (k) { return indicadores.subscores[k] !== null; })
                 .map(function (k) {
                     const v = Math.round(indicadores.subscores[k]);
-                    return '<div class="score-row"><span class="sr-label">' + _wwiRelEsc(k) + '</span>' +
+                    return '<div class="score-row"><span class="sr-label">' + _wwiRelEsc(WWI_LABELS_SUBSCORES[k] || k) + '</span>' +
                         '<div class="sr-track"><div class="sr-fill" style="width:' + v + '%"></div></div>' +
                         '<span class="sr-val">' + v + '</span></div>';
                 }).join('') : '';
@@ -1196,15 +1222,30 @@
                     (h2 ? '<h2 class="sec-title">' + _wwiRelEsc(h2) + '</h2>' : '');
             }
 
+            // REESCRITO 14/08/2026 (achado do usuário: "quero que faça uma cópia idêntica do arquivo
+            // que eu aceitei, como você vai fazer não importa" — o gerador tinha 20 seções, muitas
+            // delas tabelas genéricas despejando dado cru; o artefato aprovado tem 11 seções
+            // curadas). A partir daqui, a lista de seções bate 1:1 com o artefato — 01 CFO / 02 Painel
+            // / 03 Patrimônio / 04 Passivos / 05 Centros de Custo / 06 Projetos / 07 Liquidez /
+            // 08 Wärtsilä / 09 Aceleração / 10 Score / 11 Parecer. Nenhuma tabela genérica de "dado
+            // cru restante" — cada número real já coletado entra em algum desses 11 blocos
+            // estruturados, ou fica de fora (nunca sobra como seção solta despejada).
             const blocos = [];
 
-            // 1. Resumo do CFO
-            if (narrativa && narrativa.parecerFinalTexto) {
+            // 01. Resumo do CFO — prosa em vários parágrafos (parecer + pontos fortes + pontos fracos
+            // + evolução vs. ciclo anterior, quando existir), em vez de seções separadas em lista —
+            // mesmo espírito de "carta do CFO" do artefato original.
+            const paragrafosCfo = [];
+            if (narrativa && narrativa.parecerFinalTexto) paragrafosCfo.push(narrativa.parecerFinalTexto);
+            if (narrativa && narrativa.pontosFortesTexto && narrativa.pontosFortesTexto.length) paragrafosCfo.push(narrativa.pontosFortesTexto.join(' '));
+            if (narrativa && narrativa.pontosFracosTexto && narrativa.pontosFracosTexto.length) paragrafosCfo.push(narrativa.pontosFracosTexto.join(' '));
+            if (comparativo && comparativo.temHistorico && comparativo.frases.length) paragrafosCfo.push(comparativo.frases.join(' '));
+            if (paragrafosCfo.length) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Resumo do CFO', 'Leitura executiva do ciclo') +
-                    '<div class="prose"><p>' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</p></div></section>');
+                    '<div class="prose">' + paragrafosCfo.map(function (p) { return '<p>' + _wwiRelEsc(p) + '</p>'; }).join('') + '</div></section>');
             }
 
-            // 2. Painel Executivo
+            // 02. Painel Executivo
             if (kpis.length || score !== null) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Painel Executivo', 'Números que resumem o ciclo') +
                     (kpis.length ? '<div class="kpi-grid">' + kpis.map(function (k) {
@@ -1213,29 +1254,7 @@
                     '</section>');
             }
 
-            // 3. Pontos Fortes
-            if (narrativa && narrativa.pontosFortesTexto && narrativa.pontosFortesTexto.length) {
-                blocos.push('<section>' + secaoEyebrowTitulo('Pontos Fortes', 'O que está funcionando bem') +
-                    _wwiRelLista(narrativa.pontosFortesTexto, 'bom') + '</section>');
-            }
-
-            // 4. Pontos Fracos
-            if (narrativa && narrativa.pontosFracosTexto && narrativa.pontosFracosTexto.length) {
-                blocos.push('<section>' + secaoEyebrowTitulo('Pontos Fracos', 'O que merece atenção') +
-                    _wwiRelLista(narrativa.pontosFracosTexto, 'ruim') + '</section>');
-            }
-
-            // 5. Evolução Patrimonial
-            const temHistorico = comparativo && comparativo.temHistorico && comparativo.frases.length;
-            blocos.push('<section>' + secaoEyebrowTitulo('Evolução Patrimonial', 'Comparação com ciclos anteriores') +
-                (temHistorico ? _wwiRelLista(comparativo.frases, 'neutro') :
-                    '<p class="lede">Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.</p>') +
-                '</section>');
-
-            // ADICIONADO 14/08/2026 (achado do usuário: "não é o que aprovei" — faltavam seções
-            // inteiras frente ao artefato aprovado). 6-9: blocos ESTRUTURADOS (não tabela genérica),
-            // mesmas classes/layout do artefato — Análise de Patrimônio (grid-2+gauge), Análise dos
-            // Passivos (rank), Centros de Custo (agrupado), Projetos Estratégicos (cards).
+            // 03-06. Blocos ESTRUTURADOS (não tabela genérica), mesmas classes/layout do artefato.
             if (narrativa && narrativa.composicaoPatrimonio) {
                 const html = _wwiRelComposicaoPatrimonio(narrativa.composicaoPatrimonio);
                 if (html) blocos.push('<section>' + secaoEyebrowTitulo('Análise de Patrimônio', 'Composição e capacidade de geração') + html + '</section>');
@@ -1252,40 +1271,47 @@
                 blocos.push('<section>' + secaoEyebrowTitulo('Projetos Estratégicos', 'Objetivos em curso') +
                     _wwiRelProjetos(narrativa.projetos) + '</section>');
             }
+
+            // 07. Análise de Liquidez
             if (narrativa && narrativa.liquidezAnalise) {
                 const html = _wwiRelLiquidez(narrativa.liquidezAnalise);
                 if (html) blocos.push('<section>' + secaoEyebrowTitulo('Análise de Liquidez', 'Quanto tempo o sistema sobrevive sem renda') + html + '</section>');
             }
 
-            // 10+. Dados do sistema restantes — exclui as seções já consumidas nos blocos estruturados
-            // acima, pra não duplicar a mesma informação em dois formatos diferentes no mesmo relatório.
-            const WWI_SECOES_JA_USADAS = [
-                'Resumo executivo', '🏦 Balanço Patrimonial', '📉 Passivos Patrimoniais', 'Passivos patrimoniais',
-                '📦 Todas as Caixas', 'Meta do milhão', 'Projeto casa nova', 'Consórcio casa nova (I0464 · Cota 12)',
-                'Reserva de Emergência — quanto tempo aguenta',
-            ];
-            dados.secoes.forEach(function (secao) {
-                if (WWI_SECOES_JA_USADAS.indexOf(secao.titulo) !== -1) return;
-                blocos.push('<section>' + secaoEyebrowTitulo(_wwiRelTituloSemEmoji(secao.titulo), null) +
-                    _wwiRelTabelaSecao(secao) + '</section>');
-            });
-
-            // Oportunidades de Crescimento
-            const oportunidades = narrativa ? (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []) : [];
-            if (oportunidades.length) {
-                blocos.push('<section>' + secaoEyebrowTitulo('Oportunidades de Crescimento', 'Onde o capital pode trabalhar mais') +
-                    _wwiRelLista(oportunidades, 'bom') + '</section>');
+            // 08. Reembolsos Wärtsilä — ADICIONADO 14/08/2026 (era despejado como tabela genérica
+            // antes; agora kpi-grid estruturado, mesma classe/layout da seção homônima do artefato),
+            // usando os números já calculados por calcularIndicadoresEScores() (indicadoresBrutos).
+            const b = (indicadores && indicadores.indicadoresBrutos) ? indicadores.indicadoresBrutos : {};
+            if (b.reembTotalCiclo != null) {
+                const eficiencia = b.reembTotalCiclo ? Math.round((b.reembRecebidos || 0) / b.reembTotalCiclo * 1000) / 10 : null;
+                blocos.push('<section>' + secaoEyebrowTitulo('Reembolsos Wärtsilä', 'Tratado como unidade de negócio própria') +
+                    '<div class="kpi-grid">' +
+                    '<div class="kpi"><div class="kpi-label">Valor Bruto do Ciclo</div><div class="kpi-val">' + _wwiRelEsc(_wwiFmtR(b.reembTotalCiclo)) + '</div></div>' +
+                    (b.reembRecebidos != null ? '<div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-val" style="color:var(--good)">' + _wwiRelEsc(_wwiFmtR(b.reembRecebidos)) + '</div></div>' : '') +
+                    (b.reembAReceber != null ? '<div class="kpi"><div class="kpi-label">Pendente</div><div class="kpi-val" style="color:var(--warn)">' + _wwiRelEsc(_wwiFmtR(b.reembAReceber)) + '</div></div>' : '') +
+                    (eficiencia !== null ? '<div class="kpi"><div class="kpi-label">Eficiência de Recuperação</div><div class="kpi-val" style="color:var(--good)">' + eficiencia + '%</div></div>' : '') +
+                    '</div></section>');
             }
 
-            // Matriz de Riscos
-            if (narrativa && narrativa.riscosTexto && narrativa.riscosTexto.length) {
-                blocos.push('<section>' + secaoEyebrowTitulo('Matriz de Riscos', 'Pontos de atenção monitorados') +
-                    _wwiRelLista(narrativa.riscosTexto, 'ruim') + '</section>');
+            // 09. Oportunidades de Aceleração — CONSOLIDADO 14/08/2026 (antes eram 2 seções separadas,
+            // "Oportunidades de Crescimento" + "Matriz de Riscos"; o artefato tem só 1 seção "Oportu-
+            // nidades de Aceleração" cobrindo os dois temas).
+            const itensAceleracao = narrativa ? [].concat(
+                (narrativa.riscosTexto || []).map(function (t) { return { tag: 'Risco', texto: t }; }),
+                (narrativa.oportunidadesTexto || []).map(function (t) { return { tag: 'Oportunidade', texto: t }; }),
+                (narrativa.recomendacoesTexto || []).map(function (t) { return { tag: 'Recomendação', texto: t }; })
+            ) : [];
+            if (itensAceleracao.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Oportunidades de Aceleração', 'Onde o capital pode trabalhar mais') +
+                    '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Tipo</th><th>Leitura</th></tr></thead><tbody>' +
+                    itensAceleracao.map(function (it, i) {
+                        return '<tr><td>' + (i + 1) + '</td><td>' + _wwiRelEsc(it.tag) + '</td><td>' + _wwiRelEsc(it.texto) + '</td></tr>';
+                    }).join('') + '</tbody></table></div></section>');
             }
 
-            // Wealth Score (gauge — mesma classe do artefato)
+            // 10. Score Wallace Lira (gauge — mesma classe do artefato)
             if (score !== null) {
-                blocos.push('<section>' + secaoEyebrowTitulo('Wealth Score', 'Nota consolidada do ciclo') +
+                blocos.push('<section>' + secaoEyebrowTitulo('Score Wallace Lira', 'Nota consolidada do ciclo') +
                     '<div class="score-wrap"><div class="gauge"><svg viewBox="0 0 100 100">' +
                     '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-2)" stroke-width="10"/>' +
                     '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
@@ -1293,10 +1319,25 @@
                     '<div class="score-list">' + subscoresHtml + '</div></div></section>');
             }
 
-            // Parecer Final (mesma classe .final-verdict do artefato)
+            // 11. Parecer Final — REESCRITO 14/08/2026 em formato pergunta/resposta (.fv-q + p), mesmo
+            // padrão do artefato ("Qual é o principal risco?" / "Qual é a principal oportunidade?" /
+            // "Leitura de encerramento"), em vez de um único bloco "Parecer" genérico. Cada pergunta só
+            // aparece se houver dado real pra responder — nunca fabrica resposta sem base em `narrativa`.
+            const perguntasParecer = [];
+            if (narrativa && narrativa.riscosTexto && narrativa.riscosTexto.length) {
+                perguntasParecer.push({ q: 'Qual é o principal risco?', r: narrativa.riscosTexto.join(' ') });
+            }
+            if (narrativa && narrativa.oportunidadesTexto && narrativa.oportunidadesTexto.length) {
+                perguntasParecer.push({ q: 'Qual é a principal oportunidade?', r: narrativa.oportunidadesTexto.join(' ') });
+            }
             if (narrativa && narrativa.parecerFinalTexto) {
+                perguntasParecer.push({ q: 'Leitura de encerramento', r: narrativa.parecerFinalTexto });
+            }
+            if (perguntasParecer.length) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Parecer Final', 'Leitura de encerramento') +
-                    '<div class="final-verdict"><div class="fv-q">Parecer</div><p>' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</p></div>' +
+                    '<div class="final-verdict">' + perguntasParecer.map(function (qa) {
+                        return '<div class="fv-q">' + _wwiRelEsc(qa.q) + '</div><p>' + _wwiRelEsc(qa.r) + '</p>';
+                    }).join('') + '</div>' +
                     (score !== null ? '<div class="cover-grade" style="margin-top:2rem;border-color:var(--accent);"><b style="color:var(--ink)">' + score + '/100 &mdash; ' + nivel + '</b></div>' : '') +
                     '</section>');
             }
