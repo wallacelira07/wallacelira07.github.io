@@ -43,11 +43,20 @@ campos de PIX enviado/recebido e saldo de conta — mesma regra ja aplicada aqui
 (Politica secao 26): nunca assumir doc de terceiro como definitiva sem validar na hora.
 
 Credenciais (env vars, NUNCA hardcoded — GitHub Secrets no workflow):
-  MERCADO_PAGO_ACCESS_TOKEN
+  MERCADO_PAGO_ACCESS_TOKEN    (lista separada por virgula, 1 token por conta - mesmo padrao ja
+                                usado em PLUGGY_ITEM_IDS. 1 token so continua funcionando normal.)
   MERCADO_PAGO_CLIENT_ID       (opcional, so se for renovar token via OAuth2)
   MERCADO_PAGO_CLIENT_SECRET   (opcional, idem)
   SUPABASE_URL
   SUPABASE_KEY                 (service_role — mesmo secret que os outros 3 workflows ja usam)
+
+NOVO 13/08/2026 (pedido do usuario: cobrir a 2a conta Mercado Pago, wallace.servidor@gmail.com,
+onde estao as caixas Bens Duraveis/Emagrecimento/Suavizacao): suporte a N contas via lista de
+tokens separada por virgula. Cada conta roda em sequencia, com o PROPRIO checkpoint (nunca um
+checkpoint global compartilhado) - GET /users/me identifica a conta (collector_id), usado como
+prefixo do id do evento (MP{collector_id}_{payment_id}) e como filtro na hora de ler o checkpoint
+de VOLTA. Sem isso, sincronizar a conta 2 logo depois da conta 1 avancaria o checkpoint da conta 1
+e faria a conta 2 comecar a busca da janela errada (podendo perder historico dela).
 """
 
 import os
@@ -103,14 +112,25 @@ class MercadoPagoGateway:
         """Saldo/consumo da conta MP — endpoint a confirmar (ex: /v1/account/settings ou equivalente atual da doc oficial)."""
         return self._get("/v1/account/settings")
 
+    def identificar_conta(self):
+        """GET /users/me -> identifica QUAL conta MP este token pertence (collector_id). Usado pra
+        separar o checkpoint de cada conta quando ha mais de um token configurado - ver nota no
+        topo do arquivo (NOVO 13/08/2026)."""
+        resp = self._get("/users/me")
+        return resp.get("id")
 
-def normalizar_evento(pagamento_bruto):
+
+def normalizar_evento(pagamento_bruto, collector_id):
     """Etapa 2 do brief V450: payload bruto da API -> FinancialEvent (unico formato guardado).
     Estrutura fixa pedida no brief: {id, origem, tipo, descricao, valor, data, status, metadata}.
     Nunca guarda o payload bruto inteiro — so os campos abaixo (metadata fica enxuto, so o essencial
     pra rastreio/dedupe, nao o JSON completo da API).
     'status_triagem' NAO e definido aqui de proposito — quem decide isso e a RPC no merge (preserva
     o que ja existe, default 'pendente' pro que e novo)."""
+    # CORRIGIDO 13/08/2026: id continua SEM prefixo de conta (MP{payment_id}) - payment_id ja e
+    # globalmente unico entre contas MP diferentes (garantido pela propria Mercado Pago), e mudar
+    # o formato quebraria o merge-por-id (upsert) dos eventos ja sincronizados da conta 1, criando
+    # duplicatas no proximo sync. collector_id vai so no metadata, usado pra separar checkpoint.
     return {
         "id": f"MP{pagamento_bruto.get('id')}",
         "origem": "Mercado Pago",
@@ -122,6 +142,7 @@ def normalizar_evento(pagamento_bruto):
         "metadata": {
             "payment_method": pagamento_bruto.get("payment_method_id"),
             "payer": (pagamento_bruto.get("payer") or {}).get("email"),
+            "collector_id": collector_id,
         },
     }
 
@@ -130,17 +151,25 @@ class MercadoPagoSyncService:
     """Etapa 4 do brief V450: orquestra Gateway -> normalizacao -> grava no Supabase (RPC), sem tocar
     em LR*/PV/PGV em nenhum momento."""
 
-    def __init__(self, gateway, supabase_url, supabase_key):
+    def __init__(self, gateway, supabase_url, supabase_key, collector_id):
         self.gateway = gateway
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
+        self.collector_id = collector_id
 
     def obter_checkpoint(self):
         """CORRIGIDO 08/08/2026: le o maior atualizado_em direto da tabela mercadopago_eventos (V2) em vez
         de VARS.MERCADOPAGO_ATUALIZADO_EM em wallace_dados (V1, aposentado nesta migracao - ver
         docs/decisions/ e o novo destino da RPC atualizar_mercadopago_eventos, que agora grava na tabela
-        propria em vez de wallace_dados). Retorna None se a tabela ainda esta vazia (1o run)."""
-        url = f"{self.supabase_url}/rest/v1/mercadopago_eventos?select=atualizado_em&order=atualizado_em.desc&limit=1"
+        propria em vez de wallace_dados). Retorna None se a tabela ainda esta vazia (1o run).
+
+        CORRIGIDO 13/08/2026 (suporte a 2a conta MP): filtra por metadata->>collector_id=eq.{id} -
+        sem isso, sincronizar a conta 2 logo depois da conta 1 leria o checkpoint MAIS RECENTE da
+        conta 1 (tabela compartilhada) e comecaria a busca da conta 2 na janela errada, podendo
+        perder historico dela. Cada conta so enxerga o proprio checkpoint agora."""
+        url = (f"{self.supabase_url}/rest/v1/mercadopago_eventos"
+               f"?select=atualizado_em&metadata->>collector_id=eq.{self.collector_id}"
+               f"&order=atualizado_em.desc&limit=1")
         req = urllib.request.Request(url, headers={
             "apikey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
@@ -185,7 +214,7 @@ class MercadoPagoSyncService:
             resultados = pagina.get("results", [])
             if not resultados:
                 break
-            eventos.extend(normalizar_evento(p) for p in resultados)
+            eventos.extend(normalizar_evento(p, self.collector_id) for p in resultados)
             offset += PAGE_LIMIT
             if offset >= pagina.get("paging", {}).get("total", 0):
                 break
@@ -225,9 +254,25 @@ def main():
         print(f"mercadopago_sync: variavel(is) de ambiente ausente(s): {', '.join(faltando)}. Abortando.", file=sys.stderr)
         sys.exit(1)
 
-    gateway = MercadoPagoGateway(access_token)
-    servico = MercadoPagoSyncService(gateway, supabase_url, supabase_key)
-    servico.rodar()
+    # NOVO 13/08/2026: MERCADO_PAGO_ACCESS_TOKEN aceita lista separada por virgula (1+ contas),
+    # mesmo padrao ja usado em PLUGGY_ITEM_IDS - continua funcionando igual com 1 token so.
+    tokens = [t.strip() for t in access_token.split(",") if t.strip()]
+    erros = []
+    for i, token in enumerate(tokens, start=1):
+        try:
+            gateway = MercadoPagoGateway(token)
+            collector_id = gateway.identificar_conta()
+            print(f"mercadopago_sync: conta {i}/{len(tokens)} identificada (collector_id={collector_id}).")
+            servico = MercadoPagoSyncService(gateway, supabase_url, supabase_key, collector_id)
+            servico.rodar()
+        except Exception as e:
+            # Uma conta falhar nao deve impedir a outra de sincronizar - mesma filosofia do
+            # orquestrador executar_tudo.yml (falha isolada, nao trava o resto).
+            print(f"mercadopago_sync: conta {i}/{len(tokens)} falhou: {e}", file=sys.stderr)
+            erros.append(str(e))
+    if erros and len(erros) == len(tokens):
+        # TODAS as contas falharam - isso sim e um erro real do job inteiro.
+        raise RuntimeError(f"mercadopago_sync: todas as {len(tokens)} conta(s) falharam: {'; '.join(erros)}")
 
 
 if __name__ == "__main__":
