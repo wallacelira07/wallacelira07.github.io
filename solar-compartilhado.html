@@ -152,6 +152,7 @@ const INVESTIMENTO_PADRAO = 14800; // mesmo default do simulador do painel priva
 const KWH_ANO_ANTERIOR_WALLACE = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul/26..Jun/27
 const CONSUMO_MENSAL_IRMA = [90,74,70,82,103,127,122,138,142,172,140,100]; // Jul/26..Jun/27
 const ANCHOR_ENERGIA_ANO = 2026, ANCHOR_ENERGIA_MES = 7; // mesmo VARS.solarDataAtivacao (2026-07-21)
+const SOLAR_DATA_ATIVACAO = '2026-07-21'; // mesmo VARS.solarDataAtivacao (data real de ativação do sistema)
 const DIA_LEITURA_GD = 8; // dia da leitura/fechamento da GD (Casa da Mãe, onde fica a usina)
 
 function offsetMesesCicloGD(dataRef){
@@ -342,11 +343,14 @@ async function carregar(){
     // claro na tela.
     economiaEstimada = Math.round((consumoDiretoAcum * TARIFA_RS_POR_KWH + exportadoAcum * (TARIFA_RS_POR_KWH - FIO_B_RS_POR_KWH)) * 100) / 100;
     valorKwhGerado = TARIFA_RS_POR_KWH;
-    if(ciclo && ciclo.data_inicio){
-      const diasDesdeInicio = Math.max(1, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
-      const economiaAnualEstimada = (economiaEstimada / diasDesdeInicio) * 365;
-      paybackAnos = economiaAnualEstimada > 0 ? Math.round((INVESTIMENTO_PADRAO / economiaAnualEstimada) * 10) / 10 : null;
-    }
+    // CORRIGIDO 14/08/2026 (achado do usuário, "como vou pegar 14800 em 7 meses?" — bug real): usava
+    // ciclo.data_inicio (início do ciclo GD ATUAL, só ~7-15 dias) em vez da data de ATIVAÇÃO do
+    // sistema (2026-07-21, ~3-4 semanas) — "economiaEstimada" já é acumulada desde a ativação (soma
+    // toda leitura desde o início, não só o ciclo aberto), então dividir por um número de dias muito
+    // menor inflava a economia anualizada e encolhia o payback artificialmente.
+    const diasDesdeAtivacao = Math.max(1, Math.round((Date.now() - new Date(SOLAR_DATA_ATIVACAO).getTime()) / 86400000));
+    const economiaAnualEstimada = (economiaEstimada / diasDesdeAtivacao) * 365;
+    paybackAnos = economiaAnualEstimada > 0 ? Math.round((INVESTIMENTO_PADRAO / economiaAnualEstimada) * 10) / 10 : null;
   }
 
   // NOVO 14/08/2026 (pedido do usuário: "acrescente na aba compartilhada o menu 03 Crédito garantido
