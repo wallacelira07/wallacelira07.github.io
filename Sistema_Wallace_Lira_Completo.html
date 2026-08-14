@@ -2167,6 +2167,28 @@ var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase
   console.warn('Nao consegui buscar energia_solar_geracao_diaria (V2) do Supabase:', e);
 });
 
+// NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,
+// quando chegar as faturas eu envio e você joga no supabase e a mágica acontece"). Consumo diário de
+// referência de cada casa (Wallace/irmã/mãe), até agora hardcoded em vars-energia-solar.js. Domínio
+// COM fallback (diferente do Solar acima): se a tabela estiver vazia/offline,
+// window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2 fica null e VARS.solarConsumoDiarioWallace/Irma/Mae
+// continuam com o valor local já existente (ver app.js) — nunca quebra, só deixa de refletir a
+// fatura mais recente até o fetch funcionar de novo.
+window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2 = null;
+var __promiseSolarConsumoReferenciaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_consumo_referencia?select=casa,consumo_diario_kwh,fonte', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar energia_solar_consumo_referencia (V2) do Supabase, mantendo valor local de vars-energia-solar.js:', e);
+});
+
 // NOVO 08/08/2026 (Wave B1 — desligamento da V1, tabela `cartoes` V2): busca a tabela `cartoes`
 // em paralelo, mesma segurança do padrão `legendas` acima (falha/offline -> window.WALLACE_CARTOES_V2
 // fica null, pluggy-reconciliacao.js usa o literal CARTAO_PLUGGY_MAPA_DEFAULT como fallback, nunca quebra).
@@ -2386,6 +2408,7 @@ Promise.all([
   __promiseCartoesV2,
   __promiseSolarLeiturasV2,
   __promiseSolarGeracaoDiariaV2,
+  __promiseSolarConsumoReferenciaV2,
   __promiseCotacoesAcoesV2,
   __promiseHistoricoErpV2,
   __promiseParametrosSolaresV2,

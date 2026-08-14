@@ -1309,6 +1309,28 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_GERACAO_D
   VARS.SOLAR_GERACAO_DIARIA = [];
 }
 
+// NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,
+// quando chegar as faturas eu envio e você joga no supabase e a mágica acontece"). Consumo diário de
+// referência de cada casa (VARS.solarConsumoDiarioWallace/Irma/Mae, usado em 6 lugares do código —
+// gráficos de energia, alerta de cobertura das 3 casas, projeção de consumo esperado) — até agora
+// só existia hardcoded em vars-energia-solar.js (linha "300/30" etc, comentário citando a fatura de
+// origem). Tabela nova energia_solar_consumo_referencia (supabase/migrations/) guarda o mesmo valor
+// já com a fatura de origem registrada — atualizar é 1 UPDATE na tabela em vez de editar código.
+// COM fallback (diferente do domínio Solar acima, que é V2-exclusivo sem fallback): se a tabela
+// estiver vazia/offline, os 3 campos de VARS já setados por vars-energia-solar.js continuam valendo
+// — esses 3 números mudam raríssimo (só quando chega fatura nova), não vale a pena arriscar quebrar
+// o site inteiro por causa deles.
+if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2) && window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2.length){
+  const CASA_PARA_CAMPO_VARS = { wallace: 'solarConsumoDiarioWallace', irma: 'solarConsumoDiarioIrma', mae: 'solarConsumoDiarioMae' };
+  window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2.forEach(r => {
+    const campo = CASA_PARA_CAMPO_VARS[r.casa];
+    if(campo && r.consumo_diario_kwh != null) VARS[campo] = Number(r.consumo_diario_kwh);
+  });
+  console.log('Solar: consumo diário de referência (Wallace/irmã/mãe) atualizado via energia_solar_consumo_referencia (V2).', window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2);
+} else {
+  console.warn('Solar: energia_solar_consumo_referencia (V2) indisponível — mantendo o valor local de vars-energia-solar.js (não quebra, só pode estar desatualizado se uma fatura nova não foi lançada na tabela ainda).');
+}
+
 // ATUALIZADO 11/08/2026 (auditoria de prontidão operacional, eliminação de dependência de V1):
 // domínio ACOES_COTACOES agora V2-exclusivo, mesmo padrão já usado pra Solar (sem fallback
 // silencioso pro literal antigo/wallace_dados). window.WALLACE_COTACOES_ACOES_V2 (bootstrap do HTML,
