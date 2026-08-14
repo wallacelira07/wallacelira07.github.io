@@ -943,6 +943,20 @@
             return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        // Converte texto BR ("R$ 2.630,00", "12,0%") em número — mesma lógica de _wwiNum() em
+        // gerar-analise-financeira.js, duplicada aqui (sem módulos ES6 neste projeto, cada script
+        // clássico precisa da própria cópia) — ADICIONADO 14/08/2026 pra montar KPIs que somam mais
+        // de 1 valor já coletado (ex: Liquidez Imediata = Reserva + Caixa Lance + Caixa Variável).
+        function _wwiNumLocal(texto) {
+            if (texto === null || texto === undefined) return null;
+            let limpo = String(texto).replace(/−/g, '-').replace(/\s/g, '');
+            const soDigitos = limpo.replace(/[^\d,.-]/g, '');
+            if (!soDigitos || soDigitos === '-') return null;
+            const normalizado = soDigitos.replace(/\./g, '').replace(',', '.');
+            const n = parseFloat(normalizado);
+            return Number.isNaN(n) ? null : n;
+        }
+
         // Procura uma linha específica (por label) dentro de uma seção coletada — não recalcula nada,
         // só reaproveita o mesmo par label/valor que coletarDadosRelatorioFechamento() já leu do DOM.
         function pdfPegarKpi(secoes, tituloSecao, labelLinha) {
@@ -1171,20 +1185,31 @@
             const circunferencia = 263.9;
             const offset = score === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, score)) / 100);
 
-            // AMPLIADO 14/08/2026 (achado do usuário: "quero uma cópia idêntica do arquivo que
-            // aceitei" — o artefato tem 8 KPIs no Painel Executivo, o gerador só tinha 4). Candidatos
-            // extras cobrindo os mesmos temas do artefato (Patrimônio Financeiro/Total/Passivos/
-            // Reserva/Meta do Milhão/Geração de Caixa) — cada um só entra se o dado realmente existir
-            // (mesmo filtro de sempre, nunca mostra KPI vazio).
+            // REESCRITO 14/08/2026 (achado do usuário, repetido: "faça exatamente igual" — os 8 KPIs
+            // precisam ser os MESMOS 8 do artefato aprovado, não aproximações equivalentes). Os 8
+            // exatos: Patrimônio Financeiro, Patrimônio Total, Passivos Externos, Reserva Emergencial,
+            // Liquidez Imediata, Meta do Milhão, Geração de Caixa (PIB Wallace), Capacidade de
+            // Investimento. "Liquidez Imediata" no artefato é uma SOMA de 3 valores (Reserva + Caixa
+            // Lance + Caixa Variável) — nenhuma seção coletada tem esse total pronto, então é somado
+            // aqui a partir dos 3 números já coletados (nunca um valor novo/estimado).
+            const caixaLance = _wwiNumLocal(pdfPegarKpi(dados.secoes, '📦 Todas as Caixas', 'Caixa Lance'));
+            const caixaVariavel = _wwiNumLocal(pdfPegarKpi(dados.secoes, '📦 Todas as Caixas', 'Caixa Variável'));
+            const reservaNum = _wwiNumLocal(pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência'));
+            const partesLiquidezImediata = [reservaNum, caixaLance, caixaVariavel].filter(function (v) { return v !== null; });
+            const liquidezImediata = partesLiquidezImediata.length ? _wwiFmtR(partesLiquidezImediata.reduce(function (a, v) { return a + v; }, 0)) : null;
+
+            const capacidadeInvestimento = (indicadores && indicadores.indicadoresBrutos && indicadores.indicadoresBrutos.poupancaSobrou != null)
+                ? _wwiFmtR(indicadores.indicadoresBrutos.poupancaSobrou) : null;
+
             const kpis = [
                 { lbl: 'Patrimônio Financeiro', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total') },
                 { lbl: 'Patrimônio Total', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido') },
                 { lbl: 'Passivos Externos', val: pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total') },
                 { lbl: 'Reserva Emergencial', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência') },
-                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações') },
+                { lbl: 'Liquidez Imediata', val: liquidezImediata },
                 { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão') },
-                { lbl: 'Entradas do Ciclo', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais') },
-                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional') },
+                { lbl: 'Geração de Caixa (PIB Wallace)', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais') },
+                { lbl: 'Capacidade de Investimento', val: capacidadeInvestimento },
             ].filter(function (k) { return k.val; });
 
             // CORRIGIDO 14/08/2026 (achado do usuário: rótulos do Wealth Score saindo crus —
