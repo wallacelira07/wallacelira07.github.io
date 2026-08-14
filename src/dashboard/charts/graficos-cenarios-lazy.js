@@ -1888,8 +1888,29 @@ async function _lazyRenderSolarSecao(){
   // kwhAnoAnterior[0]/consumoMensalIrma[0] fixo - sempre o valor de JULHO (mês de ativação), mesmo já
   // estando em agosto+. Igual ao bug do gráfico 09 (mesma classe: índice fixo em vez de acompanhar o
   // mês real) - agora usa OFFSET_ENERGIA (mesmo índice corrigido no gráfico 09, calendário puro, dia 1).
-  const META_WALLACE = kwhAnoAnterior[OFFSET_ENERGIA];       // kWh, consumo real do mesmo mes no ano anterior (Wallace)
-  const META_WELLIDA = consumoMensalIrma[OFFSET_ENERGIA];    // kWh, consumo real do mesmo mes no ano anterior (Wellida)
+  // CORRIGIDO 14/08/2026 (achado do usuário: "os valores de referência de agosto... o ciclo já fechou
+  // dia 8, então deve mudar automaticamente" — OFFSET_ENERGIA vira só na virada de MÊS CALENDÁRIO
+  // (dia 1), por decisão explícita e documentada pro gráfico 09 (comentário linha ~899). Mas o Fluxo 2
+  // segue o ciclo da GD, que fecha no dia 8 (mesmo dia pras duas previsões, ver DIA_LEITURA_WELLIDA
+  // acima) — a meta dele tem que virar junto com ESSE fechamento, não esperar o dia 1 do mês seguinte.
+  // Ciclo fechado em 07/08 usou a meta de Agosto (262) corretamente (fechou dentro da janela "ainda é
+  // Agosto pro calendário E pro corte de dia 8" — os dois offsets convergem nesse caso); o ciclo NOVO
+  // (aberto 07/08, ainda dentro de Agosto no calendário) já devia estar comparando contra a meta de
+  // Setembro, porque já passamos do corte de dia 8 dele. offsetMesesCicloGD() é o mesmo cálculo do
+  // offsetMesesCalendario() (linha ~905), só que a virada de mês acontece no dia 8, não no dia 1.
+  const DIA_CORTE_CICLO_GD = DIA_LEITURA_WELLIDA; // 8 — mesmo dia usado como "Dias restantes (GD)" acima
+  function offsetMesesCicloGD(){
+    const hoje = new Date();
+    let ano = hoje.getFullYear(), mes = hoje.getMonth()+1; // 1-indexed
+    if(hoje.getDate() >= DIA_CORTE_CICLO_GD){
+      mes += 1;
+      if(mes > 12){ mes = 1; ano += 1; }
+    }
+    return (ano-ANCHOR_ENERGIA_ANO)*12 + (mes-ANCHOR_ENERGIA_MES);
+  }
+  const OFFSET_ENERGIA_GD = Math.max(0, Math.min(11, offsetMesesCicloGD()));
+  const META_WALLACE = kwhAnoAnterior[OFFSET_ENERGIA_GD];       // kWh, consumo real do mesmo mes no ano anterior (Wallace)
+  const META_WELLIDA = consumoMensalIrma[OFFSET_ENERGIA_GD];    // kWh, consumo real do mesmo mes no ano anterior (Wellida)
 
   function calcularDiasRestantes(diaLeituraAlvo, hojeRef){
     const hj = hojeRef || new Date();
@@ -1995,7 +2016,18 @@ async function _lazyRenderSolarSecao(){
       const hojeBrasilia = new Date(Date.now() - 3*3600*1000);
       const diasDesdeInicioCiclo = Math.max(0, Math.round((hojeBrasilia - new Date(cicloSolarAberto.data_inicio)) / 86400000));
       const fmtDataBr = iso => iso ? iso.split('-').reverse().join('/') : '—';
-      const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → em aberto';
+      // CORRIGIDO 14/08/2026 (pedido do usuário: "aqui pode por 08.09.2026, melhor que aberto") —
+      // "em aberto" não dizia QUANDO o ciclo deve fechar; mostra a data prevista de verdade (mesmo
+      // dia 8 usado em "Dias restantes (GD)"/meta acima — calcularDiasRestantes já faz essa conta,
+      // só reaproveitada aqui pra pegar a Date em vez do número de dias).
+      const proximoFechamentoGD = (() => {
+        const hj = new Date(); const hojeSoData = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate());
+        let prox = new Date(hj.getFullYear(), hj.getMonth(), DIA_LEITURA_WELLIDA);
+        if(prox <= hojeSoData) prox = new Date(hj.getFullYear(), hj.getMonth()+1, DIA_LEITURA_WELLIDA);
+        return prox;
+      })();
+      const fmtDataBrDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+      const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → previsto '+fmtDataBrDate(proximoFechamentoGD);
       // CORRIGIDO 14/08/2026 (achado do usuário: "o dia deve ser sempre dia 08 que é o da leitura do
       // GD" — DIA_LEITURA_WALLACE (21) é a leitura do APARTAMENTO do Wallace pela Energisa, sobre
       // CONSUMO, sem nenhuma relação com quando o ciclo de GERAÇÃO (a usina, na Casa da Mãe) fecha.
