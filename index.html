@@ -979,38 +979,121 @@
             return linha ? linha.valor : null;
         }
 
-        // Monta 1 bloco de narrativa no mesmo padrão visual do artefato aprovado (`.rank li`): barra
-        // lateral colorida por item, sem fundo pastel sólido. `tipo` decide a cor (bom/ruim/neutro).
-        // Item vazio = bloco inteiro omitido (nunca mostra card vazio "sem dados" pra narrativa).
-        function _wwiRelBlocoNarrativa(titulo, itens, tipo) {
+        // CSS VERBATIM copiado do artefato aprovado (mesmo arquivo fonte usado pra publicar o
+        // "Tactical Wealth Report" original) — só o bloco de tema claro (:root), sem @media dark nem
+        // [data-theme=dark], porque o PDF/relatório deve SEMPRE sair no visual claro aprovado,
+        // independente do tema do sistema operacional de quem gerar. Nenhuma classe renomeada, nenhuma
+        // cor "aproximada" — é a mesma folha de estilo, caractere por caractere onde possível.
+        const WWI_CSS_ARTEFATO = '' +
+            ':root{--bg:#F1F1EB;--surface:#FFFFFF;--surface-2:#F7F6F0;--ink:#161A22;--ink-soft:#525968;--ink-faint:#8B8F98;--line:#DEDCD1;--accent:#8C6D2F;--accent-strong:#6B4F1E;--accent-soft:#EFE6D0;--good:#2E7D5B;--good-soft:#E3F0EA;--warn:#B4791F;--warn-soft:#F6EBD8;--bad:#B14338;--bad-soft:#F8E7E4;--font-display:"Iowan Old Style","Sitka Text","Palatino Linotype",Palatino,Georgia,serif;--font-body:Seravek,"Segoe UI",-apple-system,"Avenir Next",Avenir,sans-serif;}' +
+            '.wwi-scope{max-width:1040px;margin:0 auto;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;}' +
+            '.wwi-scope *{box-sizing:border-box;}' +
+            '.wwi-scope h1,.wwi-scope h2,.wwi-scope h3{font-family:var(--font-display);font-weight:600;margin:0;}' +
+            '.wwi-scope .cover{background:radial-gradient(ellipse at 15% -10%, rgba(203,169,104,.10), transparent 55%),linear-gradient(180deg,#0C1017 0%, #10141D 60%, #12161F 100%);color:#ECEAE0;padding:3.2rem 2.6rem 3.4rem;position:relative;overflow:hidden;}' +
+            '.wwi-scope .cover::after{content:"";position:absolute;inset:14px;border:1px solid rgba(203,169,104,.28);pointer-events:none;}' +
+            '.wwi-scope .cover-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:3.5rem;}' +
+            '.wwi-scope .cover-mark{font-family:var(--font-display);font-size:.95rem;letter-spacing:.14em;text-transform:uppercase;color:#CBA968;}' +
+            '.wwi-scope .cover-mark span{display:block;font-family:var(--font-body);font-size:.68rem;letter-spacing:.18em;color:#8A93A8;margin-top:.3rem;}' +
+            '.wwi-scope .classification{border:1px solid #CBA968;color:#E4C989;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;padding:.42rem .85rem;white-space:nowrap;font-family:var(--font-body);}' +
+            '.wwi-scope .cover-title{font-size:2.6rem;line-height:1.04;margin-bottom:.9rem;max-width:16ch;}' +
+            '.wwi-scope .cover-title em{font-style:italic;color:#CBA968;}' +
+            '.wwi-scope .cover-sub{font-size:1.05rem;color:#B9BFCE;max-width:38ch;font-family:var(--font-body);font-weight:300;margin-bottom:2.6rem;}' +
+            '.wwi-scope .cover-rule{height:1px;background:linear-gradient(90deg,#CBA968,transparent 75%);margin-bottom:1.6rem;}' +
+            '.wwi-scope .cover-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.2rem;font-size:.82rem;color:#9AA1B2;}' +
+            '.wwi-scope .cover-foot strong{display:block;color:#ECEAE0;font-family:var(--font-body);font-weight:600;font-size:.95rem;margin-bottom:.15rem;}' +
+            '.wwi-scope .cover-grade{margin-top:2.2rem;display:inline-flex;align-items:baseline;gap:.9rem;border-left:2px solid #CBA968;padding-left:1rem;}' +
+            '.wwi-scope .cover-grade b{font-family:var(--font-display);font-size:2rem;color:#ECEAE0;}' +
+            '.wwi-scope .cover-grade span{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#B9BFCE;max-width:24ch;line-height:1.5;}' +
+            '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;}' +
+            '.wwi-scope .toc span{flex:0 0 auto;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:.85rem 1rem;white-space:nowrap;}' +
+            '.wwi-scope section{padding:2.2rem 2.6rem;}' +
+            '.wwi-scope section:nth-of-type(odd){background:var(--surface);}' +
+            '.wwi-scope section:nth-of-type(even){background:var(--surface-2);}' +
+            '.wwi-scope .eyebrow{display:flex;align-items:center;gap:.8rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.9rem;}' +
+            '.wwi-scope .eyebrow .num{font-family:var(--font-display);font-size:1rem;color:var(--accent-strong);}' +
+            '.wwi-scope .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);}' +
+            '.wwi-scope h2.sec-title{font-size:1.7rem;margin-bottom:1.4rem;max-width:32ch;}' +
+            '.wwi-scope .lede{font-size:1.02rem;color:var(--ink-soft);max-width:70ch;margin-bottom:1.8rem;}' +
+            '.wwi-scope .prose{max-width:70ch;}' +
+            '.wwi-scope .prose p{margin:0 0 1.05rem;font-size:1rem;line-height:1.65;}' +
+            '.wwi-scope .prose p:last-child{margin-bottom:0;}' +
+            '.wwi-scope .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:1.6rem;}' +
+            '.wwi-scope .kpi{background:var(--surface);padding:1.3rem 1.4rem;}' +
+            '.wwi-scope .kpi-label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.55rem;}' +
+            '.wwi-scope .kpi-val{font-family:var(--font-body);font-weight:700;font-size:1.5rem;letter-spacing:-.01em;}' +
+            '.wwi-scope .kpi-sub{font-size:.8rem;color:var(--ink-soft);margin-top:.35rem;}' +
+            '.wwi-scope .chip{display:inline-flex;align-items:center;gap:.4rem;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding:.28rem .6rem .28rem .5rem;border-radius:100px;margin-top:.6rem;}' +
+            '.wwi-scope .chip::before{content:"";width:7px;height:7px;border-radius:50%;}' +
+            '.wwi-scope .chip.g{background:var(--good-soft);color:var(--good);}.wwi-scope .chip.g::before{background:var(--good);}' +
+            '.wwi-scope .chip.a{background:var(--warn-soft);color:var(--warn);}.wwi-scope .chip.a::before{background:var(--warn);}' +
+            '.wwi-scope .chip.r{background:var(--bad-soft);color:var(--bad);}.wwi-scope .chip.r::before{background:var(--bad);}' +
+            '.wwi-scope table{width:100%;border-collapse:collapse;font-size:.92rem;}' +
+            '.wwi-scope .tbl-wrap{overflow-x:auto;margin-top:1.6rem;border:1px solid var(--line);}' +
+            '.wwi-scope th,.wwi-scope td{padding:.72rem .9rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}' +
+            '.wwi-scope thead th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);font-weight:600;}' +
+            '.wwi-scope tbody tr:last-child td{border-bottom:none;}' +
+            '.wwi-scope td.num,.wwi-scope th.num{text-align:right;}' +
+            '.wwi-scope td.num{font-weight:600;}' +
+            '.wwi-scope .rank{list-style:none;margin:1.6rem 0 0;padding:0;display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);}' +
+            '.wwi-scope .rank li{background:var(--surface);padding:1.1rem 1.3rem 1.1rem 1.5rem;border-left:4px solid var(--line);}' +
+            '.wwi-scope .rank li.risk-alto{border-left-color:var(--bad);}' +
+            '.wwi-scope .rank li.risk-medio{border-left-color:var(--warn);}' +
+            '.wwi-scope .rank li.risk-baixo{border-left-color:var(--good);}' +
+            '.wwi-scope .rank .rk-desc{color:var(--ink-soft);font-size:.92rem;}' +
+            '.wwi-scope .score-wrap{display:flex;gap:2.4rem;align-items:center;margin-top:1.8rem;flex-wrap:wrap;}' +
+            '.wwi-scope .gauge{position:relative;width:180px;height:180px;flex:0 0 auto;}' +
+            '.wwi-scope .gauge svg{width:100%;height:100%;transform:rotate(-90deg);}' +
+            '.wwi-scope .gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}' +
+            '.wwi-scope .gauge-num b{font-family:var(--font-display);font-size:2.6rem;line-height:1;}' +
+            '.wwi-scope .gauge-num span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:.3rem;}' +
+            '.wwi-scope .score-list{flex:1;min-width:260px;display:flex;flex-direction:column;gap:.9rem;}' +
+            '.wwi-scope .score-row{display:grid;grid-template-columns:11rem 1fr 2.6rem;gap:.9rem;align-items:center;}' +
+            '.wwi-scope .score-row .sr-label{font-size:.86rem;color:var(--ink-soft);}' +
+            '.wwi-scope .score-row .sr-val{font-weight:700;text-align:right;}' +
+            '.wwi-scope .sr-track{height:6px;background:var(--surface-2);border:1px solid var(--line);}' +
+            '.wwi-scope .sr-fill{height:100%;background:var(--accent);}' +
+            '.wwi-scope .callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:1rem 1.3rem;font-size:.92rem;color:var(--ink);margin-top:1.5rem;}' +
+            '.wwi-scope .callout b{color:var(--accent-strong);}' +
+            '.wwi-scope .foot-note{font-size:.76rem;color:var(--ink-faint);margin-top:.6rem;}' +
+            '.wwi-scope .final-verdict{background:var(--surface);border:1px solid var(--accent);padding:1.6rem 1.8rem;margin-top:1.8rem;}' +
+            '.wwi-scope .final-verdict .fv-q{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem;}' +
+            '.wwi-scope .final-verdict p{margin:0 0 1.1rem;color:var(--ink-soft);}' +
+            '.wwi-scope .final-verdict p:last-child{margin-bottom:0;}' +
+            '.wwi-scope .report-foot{padding:2.4rem 2.6rem 3rem;text-align:center;color:var(--ink-faint);font-size:.78rem;background:var(--surface);}';
+
+        // Monta 1 bloco de lista (Pontos Fortes/Fracos/Riscos/Oportunidades) reaproveitando a EXATA
+        // classe `.rank` do artefato — cada item usa a borda lateral colorida (risk-baixo=verde,
+        // risk-alto=vermelho) que o CSS acima já define, mesmo padrão visual do "Ranking de risco"
+        // da seção 4 do artefato original. Bloco vazio = omitido (nunca mostra card "sem dados").
+        function _wwiRelLista(itens, corTipo) {
             if (!itens || !itens.length) return '';
-            const cls = tipo === 'bom' ? 'wwirel-bd-bom' : tipo === 'ruim' ? 'wwirel-bd-ruim' : 'wwirel-bd-neutro';
-            return '<div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num ' + cls + '"></span><h3>' + _wwiRelEsc(titulo) + '</h3></div>' +
-                '<ul class="wwirel-rank ' + cls + '">' +
-                itens.map(function (t) { return '<li>' + _wwiRelEsc(t) + '</li>'; }).join('') +
+            const cls = corTipo === 'bom' ? 'risk-baixo' : corTipo === 'ruim' ? 'risk-alto' : 'risk-medio';
+            return '<ul class="rank">' +
+                itens.map(function (t) { return '<li class="' + cls + '"><span class="rk-desc">' + _wwiRelEsc(t) + '</span></li>'; }).join('') +
                 '</ul>';
         }
 
-        // Monta 1 seção genérica do coletor (dados.secoes) como tabela label/valor — mesmo padrão
-        // visual de tabela do artefato aprovado (linhas com hairline, valor à direita em tabular-nums).
-        function _wwiRelBlocoSecaoDados(secao) {
-            let corpo;
+        // Monta 1 seção genérica do coletor (dados.secoes) como tabela — EXATA classe `.tbl-wrap table`
+        // do artefato (mesma usada nas seções "Análise de Patrimônio"/"Oportunidades de Aceleração").
+        function _wwiRelTabelaSecao(secao) {
             if (!secao.linhas.length) {
-                corpo = '<div class="wwirel-vazio">' + _wwiRelEsc(secao.erro || 'Sem dados.') + '</div>';
-            } else {
-                corpo = '<table class="wwirel-tabela"><tbody>' +
-                    secao.linhas.map(function (l) {
-                        return '<tr><td class="wwirel-td-label">' + _wwiRelEsc(l.label) + '</td><td class="wwirel-td-valor">' + _wwiRelEsc(l.valor) + '</td></tr>';
-                    }).join('') +
-                    '</tbody></table>';
+                return '<p class="foot-note">' + _wwiRelEsc(secao.erro || 'Sem dados.') + '</p>';
             }
-            return '<div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num wwirel-bd-neutro"></span><h3>' + _wwiRelEsc(secao.titulo.replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '').trim()) + '</h3></div>' + corpo;
+            return '<div class="tbl-wrap"><table><tbody>' +
+                secao.linhas.map(function (l) {
+                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
+                }).join('') +
+                '</tbody></table></div>';
         }
 
-        // Monta o HTML completo do relatório — mesma paleta/tipografia/estrutura do artefato "Tactical
-        // Wealth Report" aprovado pelo usuário (capa navy fixa + dourado, KPIs com borda de destaque,
-        // score em anel dourado, blocos de narrativa com barra lateral colorida). CSS 100% inline
-        // (self-contido), largura fixa de 800px pensada pra virar página A4 depois do html2canvas.
+        function _wwiRelTituloSemEmoji(titulo) {
+            return titulo.replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '').trim();
+        }
+
+        // Monta o HTML completo do relatório reaproveitando o CSS VERBATIM (WWI_CSS_ARTEFATO) e as
+        // classes exatas do artefato "Tactical Wealth Report" aprovado — capa, TOC, eyebrow+sec-title,
+        // kpi-grid, gauge, rank, tbl-wrap, final-verdict. Numeração de seções dinâmica (a quantidade
+        // real de seções varia com o que o coletor encontrou naquele ciclo).
         function construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo) {
             const score = indicadores && indicadores.wealthScore != null ? indicadores.wealthScore : null;
             const nivel = score === null ? null : score >= 90 ? 'ELITE' : score >= 75 ? 'AVANÇADO' : score >= 55 ? 'ESTÁVEL' : 'ATENÇÃO';
@@ -1018,120 +1101,121 @@
             const offset = score === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, score)) / 100);
 
             const kpis = [
-                { lbl: 'Patrimônio Líquido', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') },
-                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações') },
-                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional') },
+                { lbl: 'Patrimônio Líquido', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido'), chip: null },
+                { lbl: 'Total Obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações'), chip: null },
+                { lbl: 'Modo Operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional'), chip: null },
+                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão'), chip: null },
             ].filter(function (k) { return k.val; });
 
             const subscoresHtml = (indicadores && indicadores.subscores) ? Object.keys(indicadores.subscores)
                 .filter(function (k) { return indicadores.subscores[k] !== null; })
                 .map(function (k) {
                     const v = Math.round(indicadores.subscores[k]);
-                    return '<div class="wwirel-score-row"><span class="wwirel-sr-label">' + _wwiRelEsc(k) + '</span>' +
-                        '<div class="wwirel-sr-track"><div class="wwirel-sr-fill" style="width:' + v + '%"></div></div>' +
-                        '<span class="wwirel-sr-val">' + v + '</span></div>';
+                    return '<div class="score-row"><span class="sr-label">' + _wwiRelEsc(k) + '</span>' +
+                        '<div class="sr-track"><div class="sr-fill" style="width:' + v + '%"></div></div>' +
+                        '<span class="sr-val">' + v + '</span></div>';
                 }).join('') : '';
 
-            const evolucaoHtml = (comparativo && comparativo.temHistorico && comparativo.frases.length)
-                ? _wwiRelBlocoNarrativa('Evolução Patrimonial', comparativo.frases, 'neutro')
-                : _wwiRelBlocoNarrativa('Evolução Patrimonial', ['Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.'], 'neutro');
+            // Numera as seções dinamicamente (mesmo padrão "01/02/03..." do eyebrow do artefato).
+            let numSecao = 0;
+            function proximoNum() { numSecao++; return numSecao < 10 ? '0' + numSecao : '' + numSecao; }
+            function secaoEyebrowTitulo(titulo, h2) {
+                return '<div class="eyebrow"><span class="num">' + proximoNum() + '</span> ' + _wwiRelEsc(titulo) + '</div>' +
+                    (h2 ? '<h2 class="sec-title">' + _wwiRelEsc(h2) + '</h2>' : '');
+            }
 
-            return '' +
-                '<style>' +
-                '.wwirel-report{width:800px;font-family:Georgia,"Times New Roman",serif;background:#F1F1EB;color:#161A22;}' +
-                '.wwirel-report *{box-sizing:border-box;}' +
-                '.wwirel-cover{background:#10141C;color:#ECEAE0;padding:44px 48px 40px;position:relative;}' +
-                '.wwirel-cover::after{content:"";position:absolute;inset:12px;border:1px solid rgba(203,169,104,.28);}' +
-                '.wwirel-cover-eyebrow{font-family:Arial,sans-serif;font-size:11px;letter-spacing:1.5px;color:#CBA968;text-transform:uppercase;margin-bottom:34px;}' +
-                '.wwirel-cover-title{font-size:40px;font-weight:700;margin:0 0 10px;color:#ECEAE0;}' +
-                '.wwirel-cover-title em{font-style:italic;color:#CBA968;}' +
-                '.wwirel-cover-sub{font-family:Arial,sans-serif;font-size:14px;color:#B9BFCE;font-weight:300;margin-bottom:30px;}' +
-                '.wwirel-cover-rule{height:1px;background:linear-gradient(90deg,#CBA968,transparent 75%);margin-bottom:16px;}' +
-                '.wwirel-cover-foot{display:flex;justify-content:space-between;font-family:Arial,sans-serif;font-size:11px;color:#9AA1B2;}' +
-                '.wwirel-cover-foot b{display:block;color:#ECEAE0;font-family:Georgia,serif;font-size:13px;margin-bottom:2px;}' +
-                '.wwirel-cover-grade{margin-top:22px;border-left:2px solid #CBA968;padding-left:14px;display:flex;align-items:baseline;gap:12px;}' +
-                '.wwirel-cover-grade b{font-size:26px;color:#ECEAE0;}' +
-                '.wwirel-cover-grade span{font-family:Arial,sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#B9BFCE;max-width:420px;line-height:1.5;}' +
-                '.wwirel-section{padding:28px 48px;background:#FFFFFF;}' +
-                '.wwirel-section:nth-of-type(even){background:#F7F6F0;}' +
-                '.wwirel-eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:14px;}' +
-                '.wwirel-eyebrow-num{width:4px;height:16px;display:inline-block;}' +
-                '.wwirel-bd-neutro{background:#8C6D2F;}' +
-                '.wwirel-bd-bom{background:#2E7D5B;}' +
-                '.wwirel-bd-ruim{background:#B14338;}' +
-                '.wwirel-eyebrow h3{font-family:Georgia,serif;font-size:16px;font-weight:700;color:#161A22;margin:0;flex:0 0 auto;}' +
-                '.wwirel-eyebrow::after{content:"";flex:1;height:1px;background:#DEDCD1;margin-left:4px;}' +
-                '.wwirel-kpi-grid{display:flex;gap:12px;margin-bottom:4px;}' +
-                '.wwirel-kpi{flex:1;background:#FFFFFF;border:1px solid #DEDCD1;border-left:3px solid #8C6D2F;padding:14px 16px;}' +
-                '.wwirel-kpi-label{font-family:Arial,sans-serif;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8B8F98;margin-bottom:8px;}' +
-                '.wwirel-kpi-val{font-family:Georgia,serif;font-weight:700;font-size:20px;color:#161A22;}' +
-                '.wwirel-score-wrap{display:flex;gap:36px;align-items:center;margin-top:20px;}' +
-                '.wwirel-gauge{position:relative;width:150px;height:150px;flex:0 0 auto;}' +
-                '.wwirel-gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}' +
-                '.wwirel-gauge-num b{font-family:Georgia,serif;font-size:34px;color:#161A22;line-height:1;}' +
-                '.wwirel-gauge-num span{font-family:Arial,sans-serif;font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:#8B8F98;margin-top:4px;}' +
-                '.wwirel-score-list{flex:1;display:flex;flex-direction:column;gap:10px;}' +
-                '.wwirel-score-row{display:grid;grid-template-columns:150px 1fr 30px;gap:10px;align-items:center;}' +
-                '.wwirel-sr-label{font-family:Arial,sans-serif;font-size:11px;color:#525968;}' +
-                '.wwirel-sr-track{height:6px;background:#F7F6F0;border:1px solid #DEDCD1;}' +
-                '.wwirel-sr-fill{height:100%;background:#8C6D2F;}' +
-                '.wwirel-sr-val{font-family:Arial,sans-serif;font-weight:700;font-size:11px;text-align:right;}' +
-                '.wwirel-rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;}' +
-                '.wwirel-rank li{background:#FFFFFF;padding:10px 14px;border-left:3px solid #8C6D2F;font-family:Arial,sans-serif;font-size:12px;line-height:1.55;color:#161A22;margin-bottom:6px;}' +
-                '.wwirel-rank.wwirel-bd-bom li{border-left-color:#2E7D5B;}' +
-                '.wwirel-rank.wwirel-bd-ruim li{border-left-color:#B14338;}' +
-                '.wwirel-tabela{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:11.5px;}' +
-                '.wwirel-tabela tr{border-bottom:1px solid #DEDCD1;}' +
-                '.wwirel-tabela tr:nth-child(even){background:#F7F6F0;}' +
-                '.wwirel-td-label{padding:7px 4px;color:#525968;}' +
-                '.wwirel-td-valor{padding:7px 4px;text-align:right;font-weight:700;color:#161A22;}' +
-                '.wwirel-vazio{font-family:Arial,sans-serif;font-size:11px;color:#8B8F98;padding:8px 0;}' +
-                '.wwirel-prose{font-family:Arial,sans-serif;font-size:12.5px;line-height:1.65;color:#161A22;}' +
-                '.wwirel-final{background:#10141C;color:#ECEAE0;padding:26px 30px;}' +
-                '.wwirel-final .wwirel-eyebrow h3{color:#ECEAE0;}' +
-                '.wwirel-final .wwirel-eyebrow::after{background:#3A4152;}' +
-                '.wwirel-final .wwirel-prose{color:#D7D9E0;}' +
-                '.wwirel-footer{padding:18px 48px;text-align:center;font-family:Arial,sans-serif;font-size:9.5px;color:#8B8F98;background:#FFFFFF;border-top:1px solid #DEDCD1;}' +
-                '</style>' +
-                '<div class="wwirel-report">' +
-                '<div class="wwirel-cover">' +
-                '<div class="wwirel-cover-eyebrow">Sistema Wallace Lira &middot; Wallace Wealth Intelligence</div>' +
-                '<h1 class="wwirel-cover-title">Tactical Wealth <em>Report</em></h1>' +
-                '<div class="wwirel-cover-sub">Gest&atilde;o Patrimonial, Liquidez e Constru&ccedil;&atilde;o de Capital</div>' +
-                '<div class="wwirel-cover-rule"></div>' +
-                '<div class="wwirel-cover-foot">' +
-                '<div><b>Wallace Lira</b>Executivo Industrial</div>' +
-                '<div><b>Ciclo</b>' + _wwiRelEsc(dados.cicloAtual) + '</div>' +
-                '<div><b>Gerado em</b>' + _wwiRelEsc(dados.geradoEm) + '</div>' +
+            const blocos = [];
+
+            // 1. Resumo do CFO
+            if (narrativa && narrativa.parecerFinalTexto) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Resumo do CFO', 'Leitura executiva do ciclo') +
+                    '<div class="prose"><p>' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</p></div></section>');
+            }
+
+            // 2. Painel Executivo
+            if (kpis.length || score !== null) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Painel Executivo', 'Números que resumem o ciclo') +
+                    (kpis.length ? '<div class="kpi-grid">' + kpis.map(function (k) {
+                        return '<div class="kpi"><div class="kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="kpi-val">' + _wwiRelEsc(k.val) + '</div></div>';
+                    }).join('') + '</div>' : '') +
+                    '</section>');
+            }
+
+            // 3. Pontos Fortes
+            if (narrativa && narrativa.pontosFortesTexto && narrativa.pontosFortesTexto.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Pontos Fortes', 'O que está funcionando bem') +
+                    _wwiRelLista(narrativa.pontosFortesTexto, 'bom') + '</section>');
+            }
+
+            // 4. Pontos Fracos
+            if (narrativa && narrativa.pontosFracosTexto && narrativa.pontosFracosTexto.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Pontos Fracos', 'O que merece atenção') +
+                    _wwiRelLista(narrativa.pontosFracosTexto, 'ruim') + '</section>');
+            }
+
+            // 5. Evolução Patrimonial
+            const temHistorico = comparativo && comparativo.temHistorico && comparativo.frases.length;
+            blocos.push('<section>' + secaoEyebrowTitulo('Evolução Patrimonial', 'Comparação com ciclos anteriores') +
+                (temHistorico ? _wwiRelLista(comparativo.frases, 'neutro') :
+                    '<p class="lede">Este é o primeiro relatório WWI desta série — comparativos históricos aparecerão a partir do próximo ciclo.</p>') +
+                '</section>');
+
+            // 6+. Dados do sistema, 1 seção por bloco coletado
+            dados.secoes.forEach(function (secao) {
+                blocos.push('<section>' + secaoEyebrowTitulo(_wwiRelTituloSemEmoji(secao.titulo), null) +
+                    _wwiRelTabelaSecao(secao) + '</section>');
+            });
+
+            // Oportunidades de Crescimento
+            const oportunidades = narrativa ? (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []) : [];
+            if (oportunidades.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Oportunidades de Crescimento', 'Onde o capital pode trabalhar mais') +
+                    _wwiRelLista(oportunidades, 'bom') + '</section>');
+            }
+
+            // Matriz de Riscos
+            if (narrativa && narrativa.riscosTexto && narrativa.riscosTexto.length) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Matriz de Riscos', 'Pontos de atenção monitorados') +
+                    _wwiRelLista(narrativa.riscosTexto, 'ruim') + '</section>');
+            }
+
+            // Wealth Score (gauge — mesma classe do artefato)
+            if (score !== null) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Wealth Score', 'Nota consolidada do ciclo') +
+                    '<div class="score-wrap"><div class="gauge"><svg viewBox="0 0 100 100">' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-2)" stroke-width="10"/>' +
+                    '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
+                    '</svg><div class="gauge-num"><b>' + score + '</b><span>de 100 &middot; ' + nivel + '</span></div></div>' +
+                    '<div class="score-list">' + subscoresHtml + '</div></div></section>');
+            }
+
+            // Parecer Final (mesma classe .final-verdict do artefato)
+            if (narrativa && narrativa.parecerFinalTexto) {
+                blocos.push('<section>' + secaoEyebrowTitulo('Parecer Final', 'Leitura de encerramento') +
+                    '<div class="final-verdict"><div class="fv-q">Parecer</div><p>' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</p></div>' +
+                    (score !== null ? '<div class="cover-grade" style="margin-top:2rem;border-color:var(--accent);"><b style="color:var(--ink)">' + score + '/100 &mdash; ' + nivel + '</b></div>' : '') +
+                    '</section>');
+            }
+
+            return '<style>' + WWI_CSS_ARTEFATO + '</style>' +
+                '<div class="wwi-scope">' +
+                '<header class="cover">' +
+                '<div class="cover-top">' +
+                '<div class="cover-mark">Sistema Wallace Lira<span>Wallace Wealth Intelligence</span></div>' +
+                '<div class="classification">Uso Restrito &middot; Pessoal</div>' +
                 '</div>' +
-                (score !== null ? '<div class="wwirel-cover-grade"><b>' + nivel + '</b><span>Wealth Score ' + score + '/100 &mdash; ver detalhamento completo por eixo na se&ccedil;&atilde;o de Wealth Score deste relat&oacute;rio.</span></div>' : '') +
+                '<h1 class="cover-title">Tactical Wealth <em>Report</em></h1>' +
+                '<p class="cover-sub">Gestão Patrimonial, Liquidez e Construção de Capital &mdash; leitura executiva do sistema financeiro pessoal.</p>' +
+                '<div class="cover-rule"></div>' +
+                '<div class="cover-foot">' +
+                '<div><strong>Wallace Lira</strong>Executivo Industrial</div>' +
+                '<div><strong>Ciclo de referência</strong>' + _wwiRelEsc(dados.cicloAtual) + '</div>' +
+                '<div><strong>Gerado em</strong>' + _wwiRelEsc(dados.geradoEm) + '</div>' +
                 '</div>' +
-                '<div class="wwirel-section">' +
-                (kpis.length ? '<div class="wwirel-kpi-grid">' + kpis.map(function (k) {
-                    return '<div class="wwirel-kpi"><div class="wwirel-kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="wwirel-kpi-val">' + _wwiRelEsc(k.val) + '</div></div>';
-                }).join('') + '</div>' : '') +
-                (score !== null ? '<div class="wwirel-eyebrow" style="margin-top:22px"><span class="wwirel-eyebrow-num wwirel-bd-neutro"></span><h3>Wealth Score</h3></div>' +
-                    '<div class="wwirel-score-wrap"><div class="wwirel-gauge"><svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg)">' +
-                    '<circle cx="50" cy="50" r="42" fill="none" stroke="#F7F6F0" stroke-width="10"/>' +
-                    '<circle cx="50" cy="50" r="42" fill="none" stroke="#8C6D2F" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
-                    '</svg><div class="wwirel-gauge-num"><b>' + score + '</b><span>de 100</span></div></div>' +
-                    '<div class="wwirel-score-list">' + subscoresHtml + '</div></div>' : '') +
-                '</div>' +
-                (narrativa && narrativa.parecerFinalTexto ? '<div class="wwirel-section">' + _wwiRelBlocoNarrativa('Resumo Executivo do CFO', [narrativa.parecerFinalTexto], 'neutro').replace('wwirel-rank', 'wwirel-rank wwirel-prose-list') + '</div>' : '') +
-                (narrativa ? '<div class="wwirel-section">' +
-                    _wwiRelBlocoNarrativa('Pontos Fortes', narrativa.pontosFortesTexto, 'bom') +
-                    _wwiRelBlocoNarrativa('Pontos Fracos', narrativa.pontosFracosTexto, 'ruim') +
-                    '</div>' : '') +
-                '<div class="wwirel-section">' + evolucaoHtml + '</div>' +
-                dados.secoes.map(function (secao, i) {
-                    return '<div class="wwirel-section">' + _wwiRelBlocoSecaoDados(secao) + '</div>';
-                }).join('') +
-                (narrativa ? '<div class="wwirel-section">' +
-                    _wwiRelBlocoNarrativa('Oportunidades de Crescimento', (narrativa.oportunidadesTexto || []).concat(narrativa.recomendacoesTexto || []), 'bom') +
-                    _wwiRelBlocoNarrativa('Matriz de Riscos', narrativa.riscosTexto, 'ruim') +
-                    '</div>' : '') +
-                (narrativa && narrativa.parecerFinalTexto ? '<div class="wwirel-final"><div class="wwirel-eyebrow"><span class="wwirel-eyebrow-num" style="background:#CBA968"></span><h3>Parecer Final</h3></div><div class="wwirel-prose">' + _wwiRelEsc(narrativa.parecerFinalTexto) + '</div></div>' : '') +
-                '<div class="wwirel-footer">Tactical Wealth Report &middot; Sistema Wallace Lira &mdash; gerado automaticamente, s&oacute; leitura.</div>' +
+                (score !== null ? '<div class="cover-grade"><b>' + nivel + '</b><span>Wealth Score ' + score + '/100 &mdash; ver detalhamento completo por eixo neste relatório.</span></div>' : '') +
+                '</header>' +
+                blocos.join('') +
+                '<footer class="report-foot">Tactical Wealth Report &middot; Sistema Wallace Lira &middot; gerado automaticamente pelo módulo WWI &middot; documento de uso pessoal.</footer>' +
                 '</div>';
         }
 
