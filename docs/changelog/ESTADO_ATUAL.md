@@ -2,68 +2,93 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 14/08/2026, sessão muito longa (herdou contexto do dia anterior) — bloco 1: reconciliação Wärtsilä, padronização de caixas, correções pontuais e governança de documentação (ver seção 2.1-2.9, resumo herdado). Bloco 2 (o grosso desta reescrita): **investigação e correção de performance do boot** (~6s → ~2,5s medido em produção), **refino visual "premium"** da identidade existente, produzidos por um workflow de 10 agentes especializados (5 performance + 5 design) em worktrees isoladas, revisados/integrados manualmente e publicados em produção (`wallacelira.com.br`) em 6 commits sequenciais. Também corrigido: bug de infraestrutura real (Google Drive sincronizando `.git/` inteiro, injetando `desktop.ini` até dentro de `refs/`, causando o mesmo tipo de corrupção de worktree já visto em sessões anteriores).
+Última reescrita: 14/08/2026, sessão longa (herdou contexto do dia, que já vinha de um bloco anterior de 10 agentes performance+design — ver PASSAGEM_DE_TURNO.md pro resumo daquele bloco). Esta sessão: correções pontuais de UX/bugs reais (piso absoluto dessincronizado, legenda gigante, link de compartilhamento solar), 2ª rodada de 10 agentes (design sênior + performance, integrada manualmente), causa raiz real do bug recorrente de `.git`/Google Drive corrigida, seção nova no link de compartilhamento solar (Fluxo 1/2 de crédito), e feature nova completa: botão de relatório de fechamento em PDF.
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
 1. **Migração V1→V2 relacional está formalmente encerrada** — não reabrir.
-2. **Mastercard Black e Caixa Mastercard_Infinite** (renomeada 13/08) — exceção formalizada, não reabrir.
-3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. Cartão 4845 (Vanessa) **ATIVO**; só o 4844 (Wallace) aposentado.
+2. **Mastercard Black e Caixa Mastercard_Infinite** — exceção formalizada, não reabrir.
+3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. Cartão 4845 (Vanessa) ATIVO; só o 4844 (Wallace) aposentado.
 4. **"Estimado só na ausência de valor final"** — ao destravar campo antes manual/estimado, auditar quem mais consumia a versão antiga.
-5. **Rendimento por cofrinho do Mercado Pago não é automatizável** (confirmado 14/08/2026) — não reabrir sem pista nova concreta.
-6. **NOVO 14/08/2026 — Nunca deixar o Google Drive sincronizar a pasta `.git/`**: causou corrupção real (ver seção 1.1 abaixo). Se aparecer de novo o erro `fatal: bad object refs/desktop.ini` ou uma worktree "toda deletada" no `git status`, a causa é essa — solução é `find .git -iname "desktop.ini" -delete` (seguro, são só resíduos do Explorer/Drive, não objetos git reais), NUNCA tentar recuperar via `git reflog`/`fsck` primeiro.
-7. **NOVO 14/08/2026 — Boot do painel: ~1,7-1,8s de `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy` NÃO é bug de código** (investigado a fundo, ver seção 1.2) — é competição pelo mesmo thread JS com as ~18 outras ondas concorrentes. Não reabrir como "achado novo" sem medir de novo primeiro.
+5. **Rendimento por cofrinho do Mercado Pago não é automatizável** — não reabrir sem pista nova concreta.
+6. **Nunca deixar o Google Drive sincronizar a pasta `.git/`** — causou corrupção real 2x (13/08, 14/08 manhã). **NOVO 14/08/2026 (correção definitiva desta sessão)**: a causa raiz real não era só resíduo em disco — 45 `desktop.ini` estavam de fato **commitados no repositório**, então toda limpeza anterior (só apagar do disco) era temporária, o Drive recriava e o bug voltava. Removidos do índice do git de verdade + `.gitignore` novo (`desktop.ini`) — não deve mais voltar, mesmo com o Drive sincronizando `.git/`. Se aparecer de novo mesmo assim, o comando de limpeza antigo (`find .git -iname desktop.ini -delete`) continua seguro, mas agora `git rm --cached` também, dado o `.gitignore`.
+7. **Boot do painel: ~1,7-1,8s de `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy` NÃO é bug de código** — é contenção de thread entre ~18 ondas concorrentes, já investigado a fundo (sessão de 14/08 manhã). Não reabrir como "achado novo" sem medir de novo primeiro. Um agente da rodada de performance desta sessão confirmou de novo (achado novo e real, diferente: ver seção 2 abaixo, "preload de scripts").
 
 ## 1. Pendências abertas AGORA (retomar por aqui)
 
-### 1.1 Google Drive sincronizando `.git/` — mitigado, não resolvido na raiz
-Removidos os `desktop.ini` que já tinham se infiltrado em `.git/refs/` (bloqueava `git fetch`/`push`) e em todas as pastas de `.git/objects/`. **Não configurado ainda** para o Drive parar de sincronizar `.git/` no futuro (precisa adicionar a pasta à lista de exclusão do Google Drive for Desktop, ação fora do alcance de um agente — só o usuário tem acesso à configuração do cliente Drive). Enquanto isso não for feito, o problema pode voltar. Se voltar: mesmo comando de limpeza da regra 6 acima.
+### 1.1 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
+Sem mudança desde a última sessão — ainda não confirmado como recebido.
 
-### 1.2 Boot do painel: 2,5s em produção, gargalo residual identificado mas não resolvido
-Depois de 3 rodadas de correção or (paralelização de fetches → RPC batch desenhada → paralelização de contexto de dedupe → correção de lookup O(n) que não era o problema real), o boot caiu de ~6,1s (medido no servidor local, ambiente enganoso) pra **2.486ms reais em produção** (medido com login real, `wallacelira.com.br`). Breakdown real:
-- `wallace-boot-start → modulos-base-loaded`: 517ms (carregamento dos ~93 scripts, já paralelizado ao máximo sem bundler)
-- `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy`: ~1,7-1,8s cada, mas **investigado a fundo e confirmado que não é bug de código** — o trabalho síncrono real dentro delas é rápido (~130-140ms, instrumentado e depois removido). A causa é que essas 2 só começam a rodar ~1,2s após o boot iniciar e competem pelo mesmo thread JS com as ~18 outras ondas concorrentes até o fim do boot.
-- Resto do boot: rápido (10-70ms por onda).
+### 1.2 LREI0004 (R$103,55) segue ativa
+Aguardando Caixa Manutenção acumular saldo suficiente (não conferido nesta sessão).
 
-**Próximo passo real, se o usuário quiser continuar**: não é mais "achar outro bug", é uma mudança estrutural — throttling de quantas ondas rodam ao mesmo tempo, ou mover processamento pro servidor (RPC). Backlog, não pendência urgente.
+### 1.3 Relatório de fechamento em PDF — testado o quanto dava sem login, falta validação ao vivo
+Feature nova completa (ver seção 2.6). Testei tudo que dava pra testar sem sessão logada (a função de coleta de dados só roda dentro do iframe autenticado): decodifiquei o PDF gerado byte a byte pra confirmar visualmente que renderiza certo, com fixtures de DOM idênticas à estrutura real. **Não testado**: o fluxo real completo, botão → iframe logado → PDF final, com dado de produção. Pedir pro usuário testar na próxima sessão e reportar qualquer seção vazia/estranha.
 
-### 1.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
-Bruto do ciclo R$7.362,76, recebido até agora R$7.022,76. Confirmado com o usuário em 14/08 que ainda não chegou. Quando chegar: nova linha em `reembolso_wartsila_recebimentos`, destino provável Caixa Lance.
+### 1.4 Previsão de geração baseada em irradiância solar — sugerido, não implementado
+Usuário perguntou "tem alguma informação relevante pra energia solar na API do tempo?" — respondido que a Open-Meteo tem `shortwave_radiation`/`direct_radiation`/`diffuse_radiation`/`sunshine_duration`, hoje não usados (só temperatura/condição). Ficou de o usuário decidir se quer que isso vire uma previsão de geração esperada. Nada implementado ainda.
 
-### 1.4 LREI0004 (R$103,55) segue ativa
-Aguardando Caixa Manutenção acumular saldo suficiente (não conferido de novo nesta sessão).
+### 1.5 Variação horária de autoconsumo — perguntado, não é bug
+Usuário perguntou por que autoconsumo (%) varia hora a hora. Respondido (explicação física: geração e consumo têm picos em horários diferentes, quando coincidem autoconsumo sobe). Mencionei que dado intradiário granular não existe hoje (robô só grava total do dia) — se o usuário quiser essa granularidade, é feature nova a definir, não pendência aberta.
 
-### 1.5 Data-limite de metas — só 2 de N caixas têm hoje
-`caixas.meta_data_limite` só preenchida pra Escola de Júlio (01/11/2026) e Caixa Aniversário Júlio (25/08/2026). Card já lê e mostra automaticamente quando populada, sem precisar de código novo.
+## 2. O que foi feito nesta sessão (14/08/2026, bloco 3 — depois do bloco de 10 agentes da manhã já documentado)
 
-## 2. O que foi feito nesta sessão (13-14/08/2026)
+### 2.1 Link de compartilhamento solar — token Firebase expirando em sessões longas
+`idToken` do Firebase (~1h de validade) não tinha renovação (login é REST puro, não SDK). `renovarTokenFirebase()` nova em `index.html`, roda a cada 45min + ao retomar sessão; `compartilhamento-solar.js` tenta renovar e repete a chamada 1x antes de mostrar erro. Corrigido só o retry explícito nesse botão — a renovação periódica em background protege qualquer outra RPC autenticada do site.
 
-### 2.1-2.9 (bloco 1, resumo herdado — detalhe completo em PASSAGEM_DE_TURNO.md)
-Reconciliação Wärtsilä fechada, recalibração/renomeação de 17 caixas, bug do rodapé SSOT corrigido, sync multi-conta Mercado Pago, contagem regressiva de metas, investigação de rendimento por cofrinho (bloqueio confirmado), auditoria de governança de documentação (Drive), correção de falso-positivo "1 divergência" na auditoria de Reservas, fix do clima solar buscando 13x no boot.
+### 2.2 Piso absoluto dessincronizado (R$9.223,66 vs R$7.831,17) + Consórcios removido de onde é sempre R$0
+`VARS.reservaPiso` era um literal congelado de antes de 11/08 (quando Boletos subiu e Consórcios zerou com a migração dos consórcios Porto pro boleto). O card 03 "Soma do piso absoluto" já tinha sido corrigido em 13/08 pra somar ao vivo, mas `REG.reserva.piso` (card 05 "Desemprego extremo"), `deficitZero.piso[0]` e o texto de aviso continuavam lendo o literal velho. Os 3 agora derivam da mesma fórmula (`recalcular-necessidade.js`). Também removida a linha "Consórcios" do card 03 e do gráfico "Composição do Total Operacional" — categoria estruturalmente R$0,00 desde a migração pro boleto (11/08), não é bug.
 
-### 2.10 Workflow de 10 agentes — performance + design "premium" (pedido explícito do usuário)
-Usuário pediu explicitamente multi-agente ("coloque 10 agentes, 5 senior em programação e 5 designer gráfico"). Rodado como Workflow (5 performance + 5 design, cada um em worktree isolada, sem tocar `main`, sem aplicar migration no Supabase). 9/10 agentes concluíram (1 falhou na criação da worktree por causa do bug do Drive/`.git`, seção 1.1). Resultado revisado e integrado manualmente (2 conflitos de merge resolvidos combinando as duas mudanças; 1 arquivo com corrupção de worktree — mesmo bug do Drive — descartado em favor de reaplicação manual dos 4 arquivos reais alterados, verificados por leitura direta em vez de `git diff`).
+### 2.3 Legenda gigante de detalhe da Caixa Mastercard_Infinite removida
+Extrato linha-a-linha concatenado numa string só, ilegível. Removida a exibição (V1 e V2) e o fetch que só existia pra alimentá-la (`getExtratoCaixaMastercardInfinite`, órfão agora, removido de `app.js`).
 
-**Performance entregue**: paralelização de fetches sequenciais em Onda 1/3/7/12 e na classificação de transações suspeitas da Pluggy; cache em `sessionStorage` pra endpoints pouco voláteis; RPC nova desenhada (`rpc_composicao_saldo_caixas_batch`, `supabase/migrations/`, **não aplicada** — cliente já tem fallback automático); instrumentação de boot por módulo (`window.WALLACE_BOOT_TIMING`, permanente, útil pra diagnóstico futuro); `defer` na tag do Chart.js (só script bloqueante do `<head>`).
+### 2.4 CC-211/CC-212 ganham barra/%/meta + Seção "Obrigações Operacionais" reestruturada + Altura/IMC no Emagrecimento
+- CC-211 (Caixa Mercado Pago) e CC-212 (Mastercard_Infinite) eram as únicas 2 caixas da grade sem barra/%/meta — meta agora é o comprometido do ciclo (fatura MP / total dos 2 cartões), não um teto fixo (não fazem sentido com meta de poupança, são reserva de fatura).
+- Seção 07 "Obrigações Operacionais" dividida em 2 cards: o que soma no Total (Visa+MB+MP líquido) separado do que é só contexto Wärtsilá (corporativo do ciclo + pendente acumulado, nenhum soma no total). 4 legendas soltas viraram 1.
+- Aba Emagrecimento: 4º card do kpi-strip (grid fixa de 4 colunas, ficava vazio com só 3 cards) mostra Altura (1,87m) + IMC calculado a partir da última pesagem.
 
-**Visual entregue**: tipografia/espaçamento (escala modular de `--fs-*`/`--lh-*`/`--ls-*`), sombras/elevação em camadas (`--shadow-card`/`--shadow-card-hover`), gradientes de 2 tons na paleta já existente (badges, `.ciclo-btn`, `.btn-pill`, header), estados de hover/focus/active consistentes entre botões. Paleta base, layout e todos os ids/onclick usados por JS preservados intactos (verificado por leitura, não só confiado no relatório dos agentes).
+### 2.5 Bug real de infraestrutura: 45 `desktop.ini` estavam commitados no repositório
+Ver regra 6 acima. Causa raiz de verdade do "worktree aparece toda deletada" (13/08, 14/08 manhã, e de novo nesta sessão em 3 das 10 worktrees da 2ª rodada de agentes — seção 2.7). `git rm --cached` nos 45 arquivos + `.gitignore` novo. As 3 worktrees corrompidas desta sessão tiveram os arquivos reais alterados identificados pelo próprio relatório do agente, lidos direto do disco (bypassando git) e reaplicados manualmente no `main` — mesmo procedimento já documentado em sessões anteriores pro mesmo tipo de corrupção.
 
-**Bug real achado durante a integração** (não veio de nenhum agente isolado, só apareceu ao combinar os patches): sintaxe de objeto literal (`chave: valor,`) inserida dentro do corpo de uma `class` (`_CacheComTTL`, `app.js`) — quebrava o parse do arquivo inteiro, painel não carregava nada. Corrigido convertendo pra sintaxe de classe (`campo = valor;`).
+### 2.6 Relatório de fechamento em PDF — feature nova completa
+Pedido do usuário: "quero um botão de link para baixar relatório que possa ser gerado em pdf com um resumo e fechamento de tudo". Escopo definido com o usuário: Resumo Executivo + Obrigações Operacionais (Total Operacional/Cartões/MP) + Todas as Caixas + Balanço Patrimonial/Patrimônio Financeiro + Reembolsos Wärtsilä. Localização: botão no cabeçalho (`index.html`, fora do iframe, acessível de qualquer aba).
 
-### 2.11 Correção real de performance pós-deploy (achado ao vivo, não do workflow)
-Depois de medir em produção, achado que `reconciliarTransacoesPluggy` tinha uma 4ª busca (`palavrasChaveAssinaturas`) rodando fora do `Promise.all` das outras 3 (mesma classe de bug já corrigida 2x nesta sessão) — corrigido. Também paralelizado o "contexto de dedupe" (4 buscas) com o fetch principal em Onda 6/7 (`dispararContextoDedupeInbox()`, nova função compartilhada em `classificacao-inbox.js`). Essas correções são válidas e ficaram no código, mas **não foram a causa dominante do tempo de Onda 6/7** (ver 1.2 acima) — medido antes/depois, tempo não mudou significativamente, o que levou à investigação mais funda que concluiu ser contenção de thread, não bug de sequenciamento.
+- `src/relatorio/coletar-dados-relatorio.js` (novo, roda dentro do iframe): não recalcula nada, lê o texto já renderizado dos cards por título de seção (`.row`/`.k`/`.v`) — fonte única, nunca pode dessincronizar do que a tela mostra.
+- **Achado real**: a seção "Todas as Caixas" usa um formato de card diferente (sem `.row`), o extrator genérico não achava nada ali — ficava sempre vazia, nem Boletos apareciam (achado do próprio usuário testando o PDF real). Extrator alternativo (`_extrairLinhasCards`) só pra esse formato, usado como fallback.
+- jsPDF carregado sob demanda (mesmo padrão do html2canvas já usado no site), só no 1º clique.
+- **Iteração de design**: 1ª versão era só texto corrido — usuário mandou print de referência (relatório corporativo com cards de KPI, cores, header colorido) e pediu pra melhorar. Reescrito com faixa de cabeçalho, 3 KPIs em destaque (Patrimônio Líquido/Modo Operacional/Total Obrigações), cards de seção com header colorido e linhas com fundo alternado.
+- **2º achado real, testando o PDF de verdade** (decodifiquei o blob gerado e li o conteúdo byte a byte, não só "rodou sem erro"): emojis dos títulos de seção ("🔄", "📦") e a seta "→" viravam mojibake ("Ø=Ý", "!'") — as fontes padrão do jsPDF (WinAnsiEncoding) não têm glifo pra Unicode fora do latin-1. Sanitizador novo (`pdfSanitizarTexto`) remove emoji/símbolos antes de qualquer `doc.text()`, só na hora de desenhar.
+- **Não testado ao vivo** — ver pendência 1.3.
 
-### 2.13 Trigger de auto-categorização no banco (achado real: Claude Chat lança transação sem passar pelo classificador)
-Badge "396/398 categorizadas" (`app.js`, `catV2Badge`) apontou 2 transações sem `categoria_id` (TX000317 "Uber Gabriela", TX000279 "H57Store"). Causa: essas 2 vieram de fora deste repositório (Claude Chat lançando direto no Supabase) — o classificador que aplica `regras_classificacao` só existe no client-side (`classificarViaV2`, JS deste repo), nunca roda quando outro agente/interface insere a transação. As 2 corrigidas manualmente (mesmo padrão histórico das outras dezenas de transações idênticas). **Correção estrutural**: trigger novo `trg_auto_categorizar_transacao` (`fn_auto_categorizar_transacao()`, `supabase/migrations/20260814045700_...`) em `transacoes` (BEFORE INSERT OR UPDATE) — se `categoria_id` vier nulo e existir regra ativa em `regras_classificacao` cujo `estabelecimento_contem` bata na descrição, preenche sozinho. Testado ao vivo (INSERT de teste, categoria correta aplicada, linha removida). Não mexe em `caixa_id` (só categoria) — resolver_caixa continua sendo o mecanismo pra isso, não replicado aqui. Ícone do badge trocado de 📊 pra 🏷️ (mais condizente com "categorização").
+### 2.7 2ª rodada de 10 agentes (5 design sênior + 5 performance) — pedido explícito do usuário ("otimize para mobile, desempenho e estética máxima")
+Mesmo padrão da rodada da manhã: worktrees isoladas, sem tocar `main`, sem commit/push/migration. 9/10 worktrees limpas, 3 vieram com o mesmo bug de corrupção do Drive (ver 2.5) — arquivos reais identificados pelo relatório do próprio agente e reaplicados manualmente lendo o disco.
 
-### 2.12 `inboxAdicionarItem()` — lookup O(n) trocado por índice O(1) (correção válida, mas não era o gargalo)
-`VARS.INBOX_FINANCEIRA.find(...)` (O(n) por chamada, ~1.057 chamadas no boot) trocado por `Map` (`_inboxIndicePorIdExterno`). Correção legítima (mesma classe de bug documentada 2x no próprio código), mantida — mas medição pós-deploy confirmou que a Inbox real só tem 12 itens, então não era isso que causava os 1,7-1,8s.
+**Design entregue**: touch targets abaixo de 44px corrigidos (Inbox, seletor de ciclo, tabs, ícones do cabeçalho); `kpi-strip` colapsa pra 1 coluna em ≤480px; contraste de `--text-dim` corrigido (4.14:1 → ~5.2:1, WCAG AA); ~178 font-sizes inline migrados pros tokens `--fs-*`; ~25 cores hardcoded/tokens quebrados (`--yellow` nunca existiu) trocados pelos tokens reais; hover/active/focus-visible estendidos aos elementos que ainda não tinham (busca global, botões do compartilhamento solar, `.brand` do cabeçalho).
+
+**Performance entregue**: html2canvas (~200KB) saiu do `<head>` bloqueante, carrega sob demanda no 1º clique de download; `<link rel=preload>` nos 9 scripts que só começavam a baixar no fim de uma cadeia de onload em série; `font-size:16px` em todos os `<input>`/`<select>` reais que causavam zoom automático do iOS Safari.
+
+### 2.8 Link de compartilhamento solar — seção nova + 4 bugs reais corrigidos testando ao vivo
+Pedido do usuário: replicar a seção 03 do painel privado ("📈 Crédito garantido vs. crédito em formação", Fluxo 1 fechado + Fluxo 2 em formação) na página pública `solar-compartilhado.html`. A RPC `consultar_solar_compartilhado` já devolvia `baseline_kwh`/`rateio_wallace_pct`/`rateio_irma_pct` em `cicloAberto` (não precisou mudar o banco) — só reaproveitado.
+
+Testado ao vivo com token real ativo do banco (dado de produção, só leitura) em 3 rodadas, achando e corrigindo bugs reais a cada uma:
+1. **"Fechado em undefined" / "Período: undefined"** — `dataFimTxt`/`periodoTxt` viviam só no objeto pai (`fluxo1`/`fluxo2`), nunca chegavam no objeto por casa que o template lia.
+2. **Payback inflado (0,7 anos)** — achado do próprio usuário ("como vou pegar 14800 em 7 meses?"): dividia a economia acumulada desde a ATIVAÇÃO (~24 dias) pelos dias do CICLO GD ATUAL (~7 dias, reseta a cada fechamento) em vez da data de ativação real. Corrigido com `SOLAR_DATA_ATIVACAO` (2026-07-21) — payback real: 2,3 anos.
+3. **"Geração hoje" mostrando dado de ontem depois da virada do dia** — mesmo truque de fuso (Brasília, -3h) já usado no painel privado, só não tinha sido replicado aqui.
+4. Reestilizado pra ficar visualmente idêntico ao painel privado (mini-cards com borda em vez de grid solto) + texto conferido linha por linha ("Rateio Wallace"/"Rateio Wellida", "Faltam (se negativo)", legenda com "(janela 19-21)"/"(janela 06-09)") + cor da barra do Fluxo 2 (Wellida) trocada de âmbar pra verde (igual ao Wallace, pedido do usuário) + "previsto" removido do texto do período (nos 2 lugares: painel privado E página compartilhada — mesmo texto copiado deliberadamente nos 2).
+
+Também corrigido: `INVESTIMENTO_PADRAO` desta página (usado no payback) ainda estava em R$25.000 — 2ª cópia do mesmo valor que já tinha sido corrigido no painel privado (`simInvestimento`) nesta sessão, tinha ficado pra trás (achado do usuário: "investimento de R$25.000,00 (padrão) - coloque 14800").
+
+### 2.9 Ícone da aba genérico em links `/solar/<token>`
+`404.html` (redirect client-side da URL bonita) só declarava 2 dos 3 ícones (faltava o SVG) — navegador gruda no favicon do instante do redirect e não atualiza depois. Igualado aos outros 2 arquivos (mesmos 3 `<link rel=icon>`, mesma ordem).
+
+### 2.10 Caixa Emagrecimento sem saldo — aporte mensal que faltou lançado
+Achado do usuário ("a caixa tem saldo"): a caixa foi criada em 12/08, depois da virada do ciclo (25/07) — nunca recebeu o aporte mensal automático que as outras caixas operacionais recebem na virada. Saldo real era R$0,00 (a única entrada tinha sido um repasse avulso da sobra Wärtsilä que coincidentemente cobriu a 1ª compra). Lançado `TX000318` (SQL direto, confirmado com o usuário antes) — entrada de R$278,89 em 25/07/2026, categoria "Aporte de Salário", mesmo padrão das outras caixas. Saldo real hoje: R$278,89.
 
 ## 3. Protocolo de sessão nova
 
 1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
-3. Se `git fetch`/`push`/worktree falhar com erro de ref/objeto corrompido: ver regra 6 (seção 🎯) antes de qualquer outra investigação.
+3. Se `git fetch`/`push`/worktree falhar com erro de ref/objeto corrompido: o bug antigo (Drive sincronizando `.git/`) deveria estar resolvido de vez desde 14/08 (regra 6 acima) — se voltar mesmo assim, é achado novo, investigar a fundo antes de assumir que é "o mesmo de sempre".
 4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-5. Retomar pela seção 1 — nenhuma pendência depende de código urgente.
-6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`, inclui os 2 arquivos do Google Drive (`Livro Razão/Agentes/`).
+5. Retomar pela seção 1 — a pendência mais concreta é testar o relatório PDF ao vivo (1.3).
+6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`. Nesta sessão, avaliado e **não necessário** atualizar os 2 arquivos do Google Drive — nada mudou que afete premissas do Claude Chat (nenhum domínio V2 novo, nenhuma regra de negócio nova, nenhuma exceção formal nova; o manual operacional em si não foi editado). Reavaliar esse julgamento a cada sessão, não assumir que continua válido.
