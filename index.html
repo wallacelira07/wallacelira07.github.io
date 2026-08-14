@@ -1057,6 +1057,66 @@
             });
         }
 
+        // NOVO 14/08/2026 (achado do usuário: botão "Compartilhar" do Solar falhando com "Não
+        // consegui criar o link" em sessão de várias horas) - o idToken do Firebase expira em ~1h e
+        // login() nunca implementou renovação (é REST puro, não o SDK oficial, que faria isso sozinho).
+        // O RPC do Supabase (criar_compartilhamento_solar) valida o JWT e rejeita silenciosamente um
+        // token vencido como "não autenticado", mesmo com sessionStorage.auth ainda presente - dava a
+        // entender que era só um erro de rede. A resposta de signInWithPassword TAMBÉM traz um
+        // refreshToken (sempre foi salvo, só nunca foi usado) - de vida muito mais longa, serve pra
+        // pedir um idToken novo sem precisar da senha de novo. Endpoint oficial do Google Identity
+        // Platform pra isso: securetoken.googleapis.com/v1/token (formato de resposta é snake_case,
+        // diferente do signInWithPassword - normaliza pros mesmos campos camelCase que o resto do
+        // código já espera em sessionStorage.auth, pra obterTokenAuthSupabase() em app.js nem perceber
+        // a diferença).
+        function renovarTokenFirebase() {
+            let auth;
+            try { auth = JSON.parse(sessionStorage.getItem('auth') || 'null'); } catch (e) { auth = null; }
+            if (!auth || !auth.refreshToken) return Promise.resolve(false);
+
+            const url = "https://securetoken.googleapis.com/v1/token?key=" + window.firebaseConfig.apiKey;
+            return fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(auth.refreshToken)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error.message);
+                auth.idToken = data.id_token;
+                auth.refreshToken = data.refresh_token;
+                auth.expiresIn = data.expires_in;
+                sessionStorage.setItem('auth', JSON.stringify(auth));
+                window.authObj = auth;
+                console.log('🔄 Token Firebase renovado.');
+                return true;
+            })
+            .catch(error => {
+                // refreshToken também vencido/revogado (ex: senha trocada, sessão revogada no
+                // console) - não dá pra renovar, só relogar mesmo. Não força logout aqui pra não
+                // interromper o usuário no meio do que está fazendo; próxima chamada autenticada que
+                // falhar mostra o erro real e ele reloga quando quiser.
+                console.warn('Não foi possível renovar o token Firebase:', error.message);
+                return false;
+            });
+        }
+        window.renovarTokenFirebase = renovarTokenFirebase;
+
+        // Renova de forma proativa a cada 45min (token expira em ~60min) enquanto o painel estiver
+        // aberto, e também logo ao entrar/retomar sessão (cobre o caso de reload de página com um
+        // idToken já vencido guardado no sessionStorage de uma aba esquecida aberta por horas).
+        const INTERVALO_RENOVACAO_TOKEN_MS = 45 * 60 * 1000;
+        let __renovacaoTokenTimer = null;
+        function iniciarRenovacaoTokenPeriodica() {
+            renovarTokenFirebase();
+            if (__renovacaoTokenTimer) clearInterval(__renovacaoTokenTimer);
+            __renovacaoTokenTimer = setInterval(renovarTokenFirebase, INTERVALO_RENOVACAO_TOKEN_MS);
+        }
+        function pararRenovacaoTokenPeriodica() {
+            if (__renovacaoTokenTimer) clearInterval(__renovacaoTokenTimer);
+            __renovacaoTokenTimer = null;
+        }
+
         // LOGIN
         function login() {
             const email = document.getElementById('email').value.trim();
@@ -1106,6 +1166,7 @@
             document.getElementById('userEmailTooltip').textContent = email || '';
             loadDashboard();
             iniciarMonitorInatividade();
+            iniciarRenovacaoTokenPeriodica();
         }
 
         // NOVO 10/08/2026 (pedido do usuário: "quando passar o mouse ou clicar sobre a letra com a
@@ -1203,6 +1264,7 @@
         // LOGOUT
         function logout() {
             pararMonitorInatividade();
+            pararRenovacaoTokenPeriodica();
             sessionStorage.removeItem('auth');
             window.authObj = null;
             document.getElementById('dashboardContent').innerHTML = '';

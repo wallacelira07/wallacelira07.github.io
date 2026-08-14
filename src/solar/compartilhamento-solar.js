@@ -46,10 +46,24 @@ async function criarLinkCompartilhamentoSolar(){
   const el = $('solarLinkGerado');
   if(el){ el.style.display = 'block'; el.textContent = 'Gerando link…'; }
   try {
-    const resp = await fetch(`${SUPABASE_URL_SOLAR_SHARE}/rest/v1/rpc/criar_compartilhamento_solar`, {
+    let resp = await fetch(`${SUPABASE_URL_SOLAR_SHARE}/rest/v1/rpc/criar_compartilhamento_solar`, {
       method: 'POST', headers: _headersCompartilhamentoSolar(),
       body: JSON.stringify({ p_validade_dias: validadeDias }),
     });
+    // CORRIGIDO 14/08/2026 (achado do usuário: "Não consegui criar o link" numa sessão de várias
+    // horas) - o idToken do Firebase (~1h de validade) tinha vencido; o RPC rejeita como "não
+    // autenticado" mesmo com sessionStorage.auth presente. A renovação automática periódica
+    // (index.html, renovarTokenFirebase()) evita isso daqui pra frente, mas essa retentativa cobre o
+    // intervalo entre login e a primeira renovação automática (até 45min) sem obrigar reload.
+    if(!resp.ok && typeof window.renovarTokenFirebase === 'function'){
+      const renovou = await window.renovarTokenFirebase();
+      if(renovou){
+        resp = await fetch(`${SUPABASE_URL_SOLAR_SHARE}/rest/v1/rpc/criar_compartilhamento_solar`, {
+          method: 'POST', headers: _headersCompartilhamentoSolar(),
+          body: JSON.stringify({ p_validade_dias: validadeDias }),
+        });
+      }
+    }
     if(!resp.ok){ const corpo = await resp.json().catch(()=>({})); throw new Error(corpo.message || `erro ${resp.status}`); }
     const dado = await resp.json();
     const link = _linkCompartilhamentoSolarUrl(dado.token);
