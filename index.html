@@ -1171,21 +1171,33 @@
         // gerar-analise-financeira.js passou a montar (narrativa.projetos/passivosRank/
         // centrosDeCusto/composicaoPatrimonio/liquidezAnalise) usando as classes verbatim do artefato.
 
+        // CORRIGIDO 14/08/2026 (achado do agente de comparação: faltavam .proj-obj/.proj-meta/.maturity
+        // — CSS já existia, mas nada emitia esse HTML. Campos vêm de _wwiMontarProjetos, nunca fabricados
+        // aqui: objetivo é texto fixo por projeto, acumulado/falta vêm de linhas já coletadas, maturidade
+        // é leitura textual do mesmo % já calculado.)
         function _wwiRelProjetos(projetos) {
             if (!projetos || !projetos.length) return '';
             return '<div class="proj-grid">' + projetos.map(function (p) {
                 return '<div class="proj"><h3>' + _wwiRelEsc(p.nome) + '</h3>' +
+                    (p.objetivo ? '<div class="proj-obj">Objetivo: ' + _wwiRelEsc(p.objetivo) + '</div>' : '') +
                     (p.pct !== null ? '<div class="proj-pct">' + _wwiRelEsc(String(p.pct).replace('.', ',')) + '%</div>' +
                         '<div class="bar-track"><div class="bar-fill" style="width:' + p.pct + '%"></div></div>' : '') +
+                    (p.acumulado || p.falta ? '<div class="proj-meta">' +
+                        (p.acumulado ? '<span>' + _wwiRelEsc(p.acumulado) + ' acumulados</span>' : '<span></span>') +
+                        (p.falta ? '<span>' + _wwiRelEsc(p.falta) + ' restantes</span>' : '<span></span>') +
+                        '</div>' : '') +
                     '<ul class="proj-risks">' + p.linhas.map(function (l) {
                         return '<li><strong>' + _wwiRelEsc(l.label) + ':</strong> ' + _wwiRelEsc(l.valor) + '</li>';
-                    }).join('') + '</ul></div>';
+                    }).join('') + '</ul>' +
+                    (p.maturidade ? '<span class="maturity">' + _wwiRelEsc(p.maturidade) + '</span>' : '') +
+                    '</div>';
             }).join('') + '</div>';
         }
 
         // CORRIGIDO 14/08/2026 (achado do agente de comparação: a classificação de risco (it.risco)
         // já era calculada em _wwiMontarPassivosRank mas nunca aparecia no HTML — só decidia a cor
-        // da borda lateral. O artefato mostra essa classificação como texto (.rk-tag), não só cor).
+        // da borda lateral. O artefato mostra essa classificação como texto (.rk-tag) e uma descrição
+        // (.rk-desc) — descricao vem de _wwiMontarPassivosRank, mesma heurística que já decide o risco).
         const WWI_LABELS_RISCO = { alto: 'Risco alto', medio: 'Risco médio', baixo: 'Risco baixo' };
         function _wwiRelPassivosRank(itens) {
             if (!itens || !itens.length) return '';
@@ -1193,7 +1205,9 @@
                 const cls = it.risco === 'alto' ? 'risk-alto' : it.risco === 'medio' ? 'risk-medio' : 'risk-baixo';
                 return '<li class="' + cls + '"><span class="rk-name">' + (i + 1) + '. ' + _wwiRelEsc(it.nome) + '</span>' +
                     '<span class="rk-val">' + _wwiRelEsc(it.valor) + '</span>' +
-                    '<span class="rk-tag">' + _wwiRelEsc(WWI_LABELS_RISCO[it.risco] || WWI_LABELS_RISCO.baixo) + '</span></li>';
+                    '<span class="rk-tag">' + _wwiRelEsc(WWI_LABELS_RISCO[it.risco] || WWI_LABELS_RISCO.baixo) + '</span>' +
+                    (it.descricao ? '<span class="rk-desc">' + _wwiRelEsc(it.descricao) + '</span>' : '') +
+                    '</li>';
             }).join('') + '</ol>';
         }
 
@@ -1238,8 +1252,14 @@
         }
         function _wwiRelLiquidez(liq) {
             if (!liq || (!liq.linhas.length && liq.classificacao === null)) return '';
+            // ADICIONADO 14/08/2026 (achado do agente de comparação: a coluna esquerda do artefato abre
+            // com um parágrafo, não só a tabela — textoLiquidez vem de _wwiMontarLiquidez, reaproveita a
+            // mesma frase/limiar já usado pela narrativa de liquidez, não é redação nova).
             return '<div class="grid-2">' +
+                '<div>' +
+                (liq.textoLiquidez ? '<div class="prose"><p>' + _wwiRelEsc(liq.textoLiquidez) + '</p></div>' : '') +
                 '<div class="tbl-wrap"><table><tbody>' + liq.linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') + '</tbody></table></div>' +
+                '</div>' +
                 '<div>' +
                 (liq.classificacao ? '<div class="kpi" style="border:1px solid var(--line)"><div class="kpi-label">Classificação de Liquidez</div>' +
                     '<div class="kpi-val" style="color:' + _wwiCorLiquidez(liq.classificacao) + '">' + _wwiRelEsc(liq.classificacao) + '</div>' +

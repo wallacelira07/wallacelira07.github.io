@@ -209,6 +209,35 @@ function calcularIndicadoresEScores(dados){
 // passo" que não teriam como ser derivadas de forma determinística e verdadeira.
 // ---------------------------------------------------------------------------------------------
 
+// Objetivo fixo por projeto — texto FACTUAL do que o número do card representa (mesma classe dos
+// campos `sub` já usados nos KPIs do Painel Executivo, ex. "Reserva + investimentos + Caixa Lance"),
+// não uma frase analítica nova: só nomeia o que já é conhecido sobre os 3 projetos, sempre os mesmos.
+const WWI_OBJETIVO_PROJETO = {
+  'Meta do milhão': 'Acumular R$ 1.000.000 em patrimônio líquido.',
+  'Projeto casa nova': 'Reunir capital (LFTS11 + Caixa Lance) para viabilizar a compra da casa nova.',
+  'Consórcio casa nova (I0464 · Cota 12)': 'Consórcio I0464, Cota 12 — carta de crédito para a casa nova, via contemplação por sorteio ou lance.',
+};
+
+// ADICIONADO 14/08/2026 (achado do agente de comparação: o artefato mostra acumulado/restante e um
+// selo de "maturidade" por projeto, além do %; hoje só o % era extraído). Busca por rótulo já
+// coletado — nunca fabrica um valor que não esteja em `secao.linhas` de verdade.
+function _wwiAcumuladoFalta(linhas){
+  const acumulado = linhas.find(l => /^(acumulado|capital dispon)/i.test(l.label));
+  const falta = linhas.find(l => /^(falta|valor para quita)/i.test(l.label));
+  return { acumulado: acumulado ? acumulado.valor : null, falta: falta ? falta.valor : null };
+}
+
+// Maturidade — mesmo limiar já usado por `casa_nova_pre_contemplacao` (consorcioCasaPagoPct<5) em
+// gerarAnaliseFinanceira(), generalizado pros 3 projetos a partir do próprio % já extraído (não um
+// dado novo, só uma leitura textual do mesmo número).
+function _wwiMaturidadeProjeto(pct){
+  if(pct === null) return null;
+  if(pct < 5) return 'Pré-contemplação';
+  if(pct < 50) return 'Fase de fundação';
+  if(pct < 90) return 'Em consolidação';
+  return 'Fase final';
+}
+
 // Projetos Estratégicos (proj-grid do artefato) — 1 card por seção de projeto já coletada.
 function _wwiMontarProjetos(dados){
   const titulos = ['Meta do milhão', 'Projeto casa nova', 'Consórcio casa nova (I0464 · Cota 12)'];
@@ -217,22 +246,35 @@ function _wwiMontarProjetos(dados){
     if(!secao || !secao.linhas.length) return null;
     const linhaPct = secao.linhas.find(l => /%/.test(l.valor));
     const pct = linhaPct ? _wwiClamp(_wwiNum(linhaPct.valor) || 0, 0, 100) : null;
-    return { nome: titulo, pct, linhas: secao.linhas };
+    const { acumulado, falta } = _wwiAcumuladoFalta(secao.linhas);
+    return {
+      nome: titulo, pct, linhas: secao.linhas,
+      objetivo: WWI_OBJETIVO_PROJETO[titulo] || null,
+      acumulado, falta,
+      maturidade: _wwiMaturidadeProjeto(pct),
+    };
   }).filter(Boolean);
 }
 
 // Análise dos Passivos (rank do artefato) — heurística de risco por PADRÃO DE NOME, não um dado
 // coletado (documentado como tal): LREI* (empréstimo interno) = risco baixíssimo; consórcio =
-// risco médio (fluxo certo, contemplação incerta); resto = risco baixo (condições conhecidas).
+// risco médio (fluxo certo, contemplação incerta); resto = risco baixo (condições conhecidas). A
+// descrição de cada risco é a MESMA justificativa da heurística acima, só tornada visível no
+// relatório (não é uma frase nova por item — é a categoria, sempre igual para a mesma categoria).
+const WWI_DESCRICAO_RISCO = {
+  baixo_lrei: 'Empréstimo interno, sem juros — ressarcimento já mapeado na própria caixa credora.',
+  medio: 'Fluxo mensal certo, contemplação (por sorteio ou lance) ainda incerta em prazo.',
+  baixo: 'Condições contratuais conhecidas e estáveis — não exige antecipação.',
+};
 function _wwiMontarPassivosRank(dados){
   const secao = _wwiSecao(dados, '📉 Passivos Patrimoniais') || _wwiSecao(dados, 'Passivos patrimoniais');
   if(!secao) return [];
   return secao.linhas.map(l => {
     const lower = l.label.toLowerCase();
-    let risco = 'baixo';
-    if(lower.includes('lrei')) risco = 'baixo';
-    else if(lower.includes('consórcio') || lower.includes('consorcio')) risco = 'medio';
-    return { nome: l.label, valor: l.valor, risco };
+    let risco = 'baixo', descricao = WWI_DESCRICAO_RISCO.baixo;
+    if(lower.includes('lrei')) { risco = 'baixo'; descricao = WWI_DESCRICAO_RISCO.baixo_lrei; }
+    else if(lower.includes('consórcio') || lower.includes('consorcio')) { risco = 'medio'; descricao = WWI_DESCRICAO_RISCO.medio; }
+    return { nome: l.label, valor: l.valor, risco, descricao };
   });
 }
 
@@ -285,11 +327,17 @@ function _wwiMontarLiquidez(dados, indicadores){
     indicadores.subscores.liquidez >= 80 ? 'Muito Forte' :
     indicadores.subscores.liquidez >= 60 ? 'Forte' :
     indicadores.subscores.liquidez >= 40 ? 'Adequada' : 'Abaixo do recomendado';
+  // ADICIONADO 14/08/2026 (achado do agente de comparação: o artefato abre esta seção com um texto
+  // corrido, não só a tabela). Mesma frase/limiar já usados pelas regras 'liquidez_forte'/'media'/
+  // 'fraca' em gerarAnaliseFinanceira() — reaproveitada aqui, não uma redação nova por ciclo.
+  const textoLiquidez = (b.reserva === null || b.liquidezCiclos === null) ? null :
+    `A Reserva de Emergência (R$ ${_wwiFmtMoeda(b.reserva)}) cobre cerca de ${_wwiFmtNum(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha, ${indicadores.subscores.liquidez !== null && indicadores.subscores.liquidez >= 80 ? 'bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta)' : indicadores.subscores.liquidez !== null && indicadores.subscores.liquidez >= 40 ? 'dentro da faixa considerada segura para o perfil' : 'abaixo do recomendável, sem contar outras fontes de caixa disponíveis no sistema'}.`;
   return {
     linhas: secao ? secao.linhas : [],
     classificacao,
     liquidezCiclos: b.liquidezCiclos,
     independenciaFinanceira: indicadores.indices.independenciaFinanceira,
+    textoLiquidez,
   };
 }
 
