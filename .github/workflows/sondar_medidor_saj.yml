@@ -1,0 +1,29 @@
+name: Sondar Medidor DDSU666 (SAJ) — só leitura, Fase 1
+
+# NOVO 14/08/2026 (preparação pra instalação física do medidor DDSU666, prevista 15/08/2026 —
+# ver docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md). Workflow separado do robô de produção
+# (atualizar_geracao_saj.yml) DE PROPÓSITO: este só lê e imprime a resposta da API, nunca escreve
+# no Supabase — existe só pra descobrir se a API da SAJ passou a expor campos novos (geração
+# instantânea, consumo, importação/exportação da rede) agora que o medidor bidirecional está
+# fisicamente instalado. Disparo manual (workflow_dispatch) — sem agendamento, roda só quando
+# alguém decidir rodar (ex: logo depois da instalação, ou quantas vezes quiser depois).
+on:
+  workflow_dispatch: {}
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependências
+        run: pip install cryptography
+      - name: Rodar sondagem (só leitura, nenhuma escrita no Supabase)
+        env:
+          SAJ_USERNAME: ${{ secrets.SAJ_USERNAME }}
+          SAJ_PASSWORD: ${{ secrets.SAJ_PASSWORD }}
+          SAJ_PLANT_UID: ${{ secrets.SAJ_PLANT_UID }}
+        run: python3 scripts/sync/sondar_medidor_saj.py
