@@ -1392,10 +1392,16 @@
             // ADICIONADO 14/08/2026 (pedido do usuário: "coloque também o ícone da aba do
             // navegador") — favicon inline (data URI, sem depender de arquivo externo): monograma
             // "W" dourado sobre fundo escuro, mesma paleta da capa do relatório (#0C1017/#CBA968).
-            const faviconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
-                '<rect width="100" height="100" rx="18" fill="%230C1017"/>' +
-                '<text x="50" y="70" font-family="Georgia,serif" font-size="58" fill="%23CBA968" text-anchor="middle">W</text>' +
-                '</svg>';
+            // CORRIGIDO 14/08/2026 (achado do usuário: "não foi" — o favicon não aparecia, ficava o
+            // ícone genérico do navegador): o SVG usava ASPAS DUPLAS nos atributos (viewBox="...",
+            // fill="...") dentro de um atributo HTML href="..." TAMBÉM delimitado por aspas duplas —
+            // o parser fechava o href na primeira aspa dupla do SVG (logo depois de xmlns=), cortando
+            // a tag inteira no meio. Fix: aspas simples dentro do SVG, que não colidem com o
+            // delimitador duplo do href.
+            const faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>" +
+                "<rect width='100' height='100' rx='18' fill='%230C1017'/>" +
+                "<text x='50' y='70' font-family='Georgia,serif' font-size='58' fill='%23CBA968' text-anchor='middle'>W</text>" +
+                "</svg>";
             const docHtml = '<!doctype html><html><head><meta charset="utf-8">' +
                 '<link rel="icon" href="data:image/svg+xml,' + faviconSvg + '">' +
                 '<title>Tactical Wealth Report — Wallace Lira</title>' +
