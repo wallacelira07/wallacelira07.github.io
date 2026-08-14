@@ -41,9 +41,29 @@ function gerarProximoInboxId(){
 // Centraliza a checagem aqui: se idExterno já existe em VARS.INBOX_FINANCEIRA, não adiciona de novo -
 // função vira idempotente, seguro chamar 2x com o mesmo item. Só afeta itens COM idExterno - itens sem
 // idExterno nunca tiveram checagem de duplicata (comportamento preservado, não inventado agora).
+// CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot — 4ª rodada: aplicarOnda6MercadoPago/
+// aplicarOnda7Pluggy medindo ~1,7-1,8s em produção MESMO com os fetches de rede rápidos, ~200-330ms
+// cada, confirmado na aba Network — o tempo real estava em processamento síncrono no cliente). Causa
+// raiz: a checagem de duplicata abaixo (`VARS.INBOX_FINANCEIRA.find(...)`, adicionada 11/08/2026)
+// é O(n) e roda 1x POR ITEM dentro do loop de sincronizarMercadoPagoParaInbox()/
+// reconciliarTransacoesPluggy()/reconciliarPluggy() — com ~1.057 eventos/transações processados
+// nesta carga contra um VARS.INBOX_FINANCEIRA que só cresce (nunca é podado, acumula desde o início
+// do uso do sistema), isso é O(n×m), a mesma classe de bug que o comentário de 04/08/2026 logo
+// abaixo já tinha corrigido uma vez (removendo uma 2ª busca redundante) — só que essa checagem nova
+// de duplicata reintroduziu o padrão. Índice `_inboxIndicePorIdExterno` (Map) dá lookup O(1);
+// reconstruído preguiçosamente na 1ª chamada da sessão (mesmo padrão já usado por
+// _inboxContadorId/gerarProximoInboxId logo acima) e mantido atualizado a cada item novo.
+let _inboxIndicePorIdExterno = null;
+function _inboxObterIndicePorIdExterno(){
+  if(!_inboxIndicePorIdExterno){
+    _inboxIndicePorIdExterno = new Map();
+    VARS.INBOX_FINANCEIRA.forEach(it => { if(it.idExterno) _inboxIndicePorIdExterno.set(it.idExterno, it); });
+  }
+  return _inboxIndicePorIdExterno;
+}
 function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, categoriaSugerida, livroSugerido, confianca, idExterno, metadata, silencioso}){
   if(idExterno){
-    const jaExiste = VARS.INBOX_FINANCEIRA.find(it => it.idExterno === idExterno);
+    const jaExiste = _inboxObterIndicePorIdExterno().get(idExterno);
     if(jaExiste) return jaExiste.id;
   }
   const item = {
@@ -62,6 +82,7 @@ function inboxAdicionarItem({origem, descricao, descricaoCompleta, valor, data, 
     criadoEm: new Date().toISOString()
   };
   VARS.INBOX_FINANCEIRA.push(item);
+  if(item.idExterno) _inboxObterIndicePorIdExterno().set(item.idExterno, item); // mantém o índice em dia (evita reconstrução O(n) na próxima chamada)
   WallaceBus.emit('inboxItemAdicionado', item);
   if(!silencioso) renderInboxFinanceira();
   return item.id;
