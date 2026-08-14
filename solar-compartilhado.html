@@ -164,9 +164,21 @@ const INVESTIMENTO_PADRAO = 14800; // mesmo default do simulador do painel priva
 // vs. crédito em formação") — cópia deliberada (mesmo padrão da tarifa/consumo acima) das metas
 // mensais e da lógica de Fluxo 1 (fechado)/Fluxo 2 (em formação) de graficos-cenarios-lazy.js
 // (painel privado, seção 03 "Unidade Geradora"). Fluxo 1 usa credito_wallace_kwh/credito_irma_kwh
-// já congelados em ciclosFechados (RPC) — não recalcula nada. Fluxo 2 deriva do saldo líquido
-// acumulado (leituras reais, já calculado abaixo) menos o baseline_kwh do ciclo aberto (também
-// devolvido pela RPC, mesmo campo que o painel privado usa) — mesma fórmula, mesmo resultado.
+// já congelados em ciclosFechados (RPC) — não recalcula nada.
+// CORRIGIDO 14/08/2026 (achado do usuário: números "meu"/"da minha irmã" incorretos aqui vs. o
+// painel privado — ex.: esta página mostrava 67,5 kWh pro Wallace enquanto o painel privado, com o
+// MESMO ciclo aberto, mostrava 82,75 kWh). Causa raiz: Fluxo 2 aqui usava só o saldo da ÚLTIMA
+// LEITURA MANUAL (exportado-importado, parado até a próxima foto do medidor que o usuário manda),
+// enquanto o painel privado projeta esse saldo até HOJE somando a geração diária REAL já registrada
+// pelo robô SAJ (energia_solar_geracao_diaria) desde a última leitura manual, menos o consumo médio
+// estimado da Casa da Mãe nesses dias — ver `VARS._creditoLiquidoProjetadoHoje` em
+// graficos-cenarios-lazy.js (linhas ~1384-1424 e ~2088-2092). Sem essa projeção, o crédito "em
+// formação" aqui sempre ficava atrasado em relação ao painel privado por quantos dias se passaram
+// desde a última leitura manual. Corrigido: `calcularSaldoLiquidoProjetadoHoje()` abaixo reimplementa
+// a MESMA fórmula (cópia deliberada, mesmo padrão desta página autocontida) usando os dados que a
+// própria RPC já devolve (`dados.leituras` + `dados.geracaoDiaria`) — Fluxo 2 passa a usar esse saldo
+// projetado em vez do saldo cru da última leitura. Fluxo 1 (fechado) não muda — continua vindo
+// direto de ciclosFechados, congelado, sem recalcular nada.
 const KWH_ANO_ANTERIOR_WALLACE = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul/26..Jun/27
 const CONSUMO_MENSAL_IRMA = [90,74,70,82,103,127,122,138,142,172,140,100]; // Jul/26..Jun/27
 const ANCHOR_ENERGIA_ANO = 2026, ANCHOR_ENERGIA_MES = 7; // mesmo VARS.solarDataAtivacao (2026-07-21)
@@ -191,6 +203,50 @@ function calcularStatusGD(mediaRealizada, mediaNecessaria){
   const deficitPct = (mediaNecessaria-mediaRealizada)/mediaNecessaria;
   if(deficitPct < 0.10) return {emoji:'🟡', texto:'Atenção', cor:'var(--amber)'};
   return {emoji:'🔴', texto:'Atrasado', cor:'var(--red)'};
+}
+
+// Cópia deliberada (mesmo padrão da tarifa/consumo acima) de src/solar/vars-energia-solar.js —
+// `solarConsumoMaeAnoAnterior`, consumo histórico real (12 faturas Energisa) da Casa da Mãe (unidade
+// geradora). Usado SÓ dentro da projeção abaixo, pra estimar quanto a casa consumiu nos dias desde a
+// última leitura manual — mesmo array, mesma média, do painel privado (graficos-cenarios-lazy.js,
+// `consumoMedioMensalMaeChart`). Não confundir com CONSUMO_DIARIO_MAE_KWH acima (1572/213=7,38
+// kWh/dia, usado só como linha de referência no gráfico de geração diária) — são duas estimativas de
+// consumo da mesma casa, propositalmente separadas: aqui precisa ser BIT A BIT igual ao painel
+// privado pra não reintroduzir a divergência que este comentário está corrigindo.
+const SOLAR_CONSUMO_MAE_ANO_ANTERIOR = [171,172,174,175,177,168,201,270,242,210,215,266]; // Mai/25..Abr/26 kWh
+
+// NOVO 14/08/2026 (correção da divergência Fluxo 2, ver comentário acima) — reimplementação bit a
+// bit da projeção do painel privado (graficos-cenarios-lazy.js linhas ~1384-1416,
+// `saldoTotalEstimadoChart`): soma a geração diária REAL do robô SAJ (quando existe pra aquele dia)
+// ou a média histórica de geração/dia (quando não existe ainda) pra cada dia desde a última leitura
+// manual até hoje, subtrai o consumo médio estimado da Casa da Mãe nesses mesmos dias, e soma tudo
+// ao crédito líquido da última leitura manual (exportado-importado). `ultima` = última leitura de
+// `dados.leituras` (mesmo objeto já usado no resto da página); `geracaoDiaria` = `dados.geracaoDiaria`
+// (mesmo array da RPC). Retorna null se não há leitura ou geração acumulada ainda (mesma condição de
+// guarda do painel privado); cai pro crédito líquido cru (sem projeção) se a última leitura já é de
+// hoje (nada a projetar).
+function calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria){
+  if(!ultima || ultima.geracaoAcumulada == null) return null;
+  const creditoLiquidoUltimaLeitura = Math.round((ultima.leitura103 - ultima.leitura03) * 100) / 100;
+  const hoje = new Date();
+  const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+  const dataUltimaLeitura = new Date(ultima.data);
+  const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
+  if(diasDesdeLeitura <= 0) return creditoLiquidoUltimaLeitura;
+  const diasDesdeAtivacao = Math.round((dataUltimaLeitura - new Date(SOLAR_DATA_ATIVACAO)) / 86400000);
+  const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? ultima.geracaoAcumulada / diasDesdeAtivacao : 0;
+  const consumoMedioMensalMae = SOLAR_CONSUMO_MAE_ANO_ANTERIOR.reduce((s,v)=>s+v,0) / SOLAR_CONSUMO_MAE_ANO_ANTERIOR.length;
+  const consumoMedioDiarioMae = consumoMedioMensalMae / 30;
+  const diariosPorDataMap = {};
+  (geracaoDiaria || []).forEach(r => { diariosPorDataMap[r.data] = Number(r.kwh); });
+  let geracaoEstimadaTotalPeriodo = 0;
+  for(let d = 1; d <= diasDesdeLeitura; d++){
+    const dataDoDia = new Date(dataUltimaLeitura);
+    dataDoDia.setDate(dataDoDia.getDate() + d);
+    const chaveISO = dataDoDia.toISOString().slice(0,10);
+    geracaoEstimadaTotalPeriodo += (diariosPorDataMap[chaveISO] != null) ? diariosPorDataMap[chaveISO] : geracaoMediaDiaria;
+  }
+  return Math.round((creditoLiquidoUltimaLeitura + geracaoEstimadaTotalPeriodo - diasDesdeLeitura * consumoMedioDiarioMae) * 100) / 100;
 }
 
 // Cópia deliberada (mesmo padrão da tarifa acima) de src/solar/vars-energia-solar.js — consumo médio
@@ -381,20 +437,32 @@ async function carregar(){
 
   // NOVO 14/08/2026 (pedido do usuário: "acrescente na aba compartilhada o menu 03 Crédito garantido
   // vs. crédito em formação"). Fluxo 1 (fechado) — direto de ciclosFechados (RPC), congelado, não
-  // recalcula nada. Fluxo 2 (em formação) — deriva do saldo líquido acumulado (leituras reais, já
-  // calculado acima) menos o baseline_kwh do ciclo aberto, mesma fórmula do painel privado.
+  // recalcula nada. Fluxo 2 (em formação) — deriva do saldo líquido PROJETADO até hoje (ver
+  // calcularSaldoLiquidoProjetadoHoje() e comentário de correção acima) menos o baseline_kwh do
+  // ciclo aberto, mesma fórmula do painel privado.
   const OFFSET_GD_HOJE = Math.max(0, Math.min(11, offsetMesesCicloGD()));
   const METAS_ABERTO = { wallace: KWH_ANO_ANTERIOR_WALLACE[OFFSET_GD_HOJE], wellida: CONSUMO_MENSAL_IRMA[OFFSET_GD_HOJE] };
 
+  // CORRIGIDO 14/08/2026 (ver comentário grande acima, junto de KWH_ANO_ANTERIOR_WALLACE) — usa o
+  // saldo PROJETADO até hoje (mesma fórmula do painel privado), não mais o saldo cru parado na
+  // última leitura manual. saldoLiquidoAcum continua existindo e sendo usado nos outros cards desta
+  // página (Autoconsumo/Dependência/Exportação/Economia, "Saldo líquido" logo acima) — esses cards
+  // são sobre o que JÁ foi medido/lido, não sobre projeção de crédito em formação, então não mudam.
+  const saldoLiquidoProjetadoHoje = calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria);
   let fluxo2 = null;
-  if(ciclo && saldoLiquidoAcum!=null && ciclo.baseline_kwh!=null && ciclo.rateio_wallace_pct!=null){
+  if(ciclo && saldoLiquidoProjetadoHoje!=null && ciclo.baseline_kwh!=null && ciclo.rateio_wallace_pct!=null){
     const baselineKwh = Number(ciclo.baseline_kwh);
     const rateioWallace = Number(ciclo.rateio_wallace_pct);
     const rateioIrma = Number(ciclo.rateio_irma_pct);
-    const creditoLiquidoCiclo = Math.round((saldoLiquidoAcum - baselineKwh) * 100) / 100;
+    const creditoLiquidoCiclo = Math.round((saldoLiquidoProjetadoHoje - baselineKwh) * 100) / 100;
     const creditoWallaceAtual = Math.round(creditoLiquidoCiclo * rateioWallace * 100) / 100;
     const creditoIrmaAtual = Math.round(creditoLiquidoCiclo * rateioIrma * 100) / 100;
-    const diasDesdeInicioCiclo = Math.max(0, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
+    // CORRIGIDO 14/08/2026: mesmo ajuste de fuso (Brasília, -3h) do painel privado
+    // (`hojeBrasilia = new Date(Date.now() - 3*3600*1000)`, graficos-cenarios-lazy.js ~linha 2100) —
+    // sem isso, "dias desde o início do ciclo" podia ficar 1 dia à frente/atrás do painel privado
+    // perto da virada de dia UTC, distorcendo Média atual/Previsão de fechamento.
+    const hojeBrasiliaMs = Date.now() - 3*3600*1000;
+    const diasDesdeInicioCiclo = Math.max(0, Math.round((hojeBrasiliaMs - new Date(ciclo.data_inicio).getTime()) / 86400000));
     const { dias: diasRestantesGD, data: proximoFechamentoGD } = calcularDiasRestantesGD(DIA_LEITURA_GD);
     const periodoTxt = fmtData(ciclo.data_inicio) + ' → ' + proximoFechamentoGD.toLocaleDateString('pt-BR');
 
