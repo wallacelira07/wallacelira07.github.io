@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Página não encontrada — Sistema Wallace Lira</title>
+<!-- CORRIGIDO 14/08/2026 (achado do usuário: "o ícone da aba nunca fica certo num link novo" —
+     links /solar/<token> passam por ESTE arquivo antes do redirect JS abaixo (comentário logo
+     adiante explica o porquê). Faltava o ícone SVG aqui (só tinha os 2 PNG) — diferente de
+     index.html/solar-compartilhado.html, que declaram o SVG primeiro. O navegador gruda no favicon
+     que existia no instante do redirect e não recarrega depois; com o conjunto de ícones incompleto/
+     diferente aqui, ficava mostrando o globo genérico em vez do logo. Mesmos 3 links, mesma ordem,
+     dos outros 2 arquivos — agora idêntico, não importa em qual dos 3 o navegador "gruda". -->
+<link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/favicon-192.png">
 <!-- GitHub Pages não faz rewrite/redirect de servidor (confirmado: header "Server: GitHub.com", sem
