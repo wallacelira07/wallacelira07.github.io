@@ -2279,7 +2279,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         const total = resumoV2.kpis.total_transacoes;
         const semCategoria = resumoV2.kpis.transacoes_sem_categoria;
         const comCategoria = total - semCategoria;
-        badgeCat.textContent = `📊 ${comCategoria}/${total} categorizadas`;
+        badgeCat.textContent = `🏷️ ${comCategoria}/${total} categorizadas`;
         badgeCat.title = `Arquitetura V2 (Supabase): ${comCategoria} de ${total} transações já têm categoria via regras_classificacao (Fase 3). ${semCategoria} ainda sem categoria (nomes de pessoa sem padrão seguro, na maioria).`;
       }
     }
