@@ -4,7 +4,7 @@ Procedimento único, obrigatório para qualquer agente (Claude Chat, Claude Code
 
 Este documento define **como agir**. Regras de negócio (cascata de reembolso, caixas, ciclo financeiro) estão em `POLITICAS_INTERNAS_SISTEMA_WALLACE.md` — leia os dois, não se sobrepõem.
 
-**Este é o documento mestre.** `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (Google Doc, entrada do Claude Chat — sem acesso a este repositório) deriva deste manual e deve ser mantido em sincronia com ele; nunca o contrário. Ver seção 11.
+**Este é o documento mestre.** `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (arquivo `.md` real no Google Drive, pasta `Livro Razão/Agentes/` — entrada do Claude Chat, que não tem acesso a este repositório) deriva deste manual e deve ser mantido em sincronia com ele; nunca o contrário. Ver seção 11.
 
 ---
 
@@ -411,13 +411,18 @@ Preparar reposição da PIX Vanessa caso ocorra nova saída.
 
 ## 10. Checklist de Encerramento de Sessão
 
-- [ ] Todo lançamento financeiro real está nos lugares aplicáveis (arquivo local + Supabase `wallace_dados`; V2 relacional se decidido).
+**Regra geral (pedido explícito do usuário, 14/08/2026, depois de repetidos problemas do Claude Chat "se perder" por documentação desatualizada): "passagem de turno" significa TODOS os documentos abaixo, sempre — nunca só o `ESTADO_ATUAL.md`. Um documento desatualizado é pior que nenhum, porque passa confiança falsa.**
+
+- [ ] Todo lançamento financeiro real está nos lugares aplicáveis (Supabase V2 relacional; `wallace_dados`/V1 só se for exceção formal documentada).
 - [ ] `WALLACE_VALIDACAO_RUNTIME` 18/18 e `#healthBadge` íntegro, se algo tocou cálculo/painel — validado em navegador real.
 - [ ] `git status` limpo, ou pendência explicada no handoff.
 - [ ] `docs/changelog/ESTADO_ATUAL.md` reescrito do zero.
 - [ ] `docs/changelog/PASSAGEM_DE_TURNO.md` recebeu bloco novo anexado.
 - [ ] Toda decisão/investigação nova registrada em `docs/decisions/` com evidência, não só narrada no chat.
-- [ ] Usuário avisado do que foi commitado/enviado nesta sessão.
+- [ ] **Se algo mudou que afete o que o Claude Chat precisa saber** (regra de negócio nova, domínio V2 novo, exceção formal nova, procedimento mudado): `Livro Razão/Agentes/CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` no Google Drive **sobrescrito** (nunca criar cópia nova) com o conteúdo atualizado, na mesma sessão — não deixar pra depois.
+- [ ] **Se este manual (`MANUAL_OPERACIONAL_AGENTES.md`) mudou**: a cópia em `Livro Razão/Agentes/MANUAL_OPERACIONAL_AGENTES.md` no Google Drive também **sobrescrita**, mesmo conteúdo do repositório — as duas nunca podem divergir (achado real 14/08/2026: ficaram 5 dias divergentes sem ninguém notar, porque esse passo não estava neste checklist).
+- [ ] Nenhum arquivo `NOME (1).md`/`.gdoc` órfão foi deixado pra trás na pasta `Agentes/` do Drive (ver seção 11.5) — sempre sobrescrever o arquivo existente, nunca criar cópia numerada ao lado.
+- [ ] Usuário avisado do que foi commitado/enviado nesta sessão, e do que foi atualizado no Google Drive (o Drive não passa por `git`, merece aviso explícito à parte).
 - [ ] Nenhuma correção de dado ficou "no escuro" — toda causa raiz documentada, mesmo quando a decisão foi não corrigir ainda.
 
 ---
@@ -470,7 +475,11 @@ Todo chat novo (qualquer conta, qualquer dispositivo) deve começar assumindo, s
 
 Mecanismo: o `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` já foi reescrito (08/08/2026) para abrir com essa premissa. **Ação recomendada ao usuário** (fora do alcance de qualquer agente sem login na conta) — uma única vez, só em `wallace.termica@gmail.com`: criar um Project dedicado (ex.: "Sistema Wallace Lira"), anexar o documento como Project Knowledge, e manter o Custom Instructions da conta curto, só apontando para o Project ("Para qualquer assunto do Sistema Wallace Lira, leia primeiro o documento anexado neste Project"). Feito uma vez, propaga automaticamente para Web/Android/iOS dessa conta — não precisa repetir por dispositivo.
 
-**Formato oficial dos arquivos no Drive (decisão do usuário, 09/08/2026)**: os dois documentos (`MANUAL_OPERACIONAL_AGENTES.md` e `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`) vivem na pasta `Livro Razão/Sistema Wallace Lira - Claude Chat` do Google Drive, **como arquivos `.md` reais** (`mimeType: text/markdown`, criados com `disableConversionToGoogleType`), **não como Google Doc**. Motivo: uma tentativa inicial criou cópias em Google Doc, que reintroduzem escape de markdown e (mais grave) geraram confusão real — o usuário viu uma conversa do Claude Chat lendo uma cópia desatualizada em Google Doc enquanto a versão `.md` mais recente também existia na mesma pasta, e não havia como saber qual delas o Project Knowledge estava de fato usando. **Se qualquer agente futuro for atualizar esses documentos**: criar sempre como `.md`, nunca deixar duas versões (Doc + `.md`) coexistindo na pasta — apagar a anterior primeiro (peça ao usuário, não há ferramenta de exclusão de arquivo do Drive disponível para agentes nesta sessão) ou avisar explicitamente qual é a oficial.
+**Formato e local oficiais dos arquivos no Drive (decisão do usuário, 09/08/2026, endereço corrigido 14/08/2026)**: os documentos vivem na pasta **`Livro Razão/Agentes/`** do Google Drive (conta `wallace.termica@gmail.com`), **como arquivos `.md` reais** (`mimeType: text/markdown`, criados com `disableConversionToGoogleType`), **nunca como Google Doc**. A pasta `Livro Razão/Sistema Wallace Lira - Claude Chat/` (endereço original de 09/08) foi abandonada no mesmo dia em favor de `Agentes/`, mas este manual continuou citando o endereço antigo por 5 dias sem ninguém notar — achado real 14/08/2026: a pasta antiga estava vazia (só `desktop.ini`), e a cópia real em `Agentes/` tinha ficado 5 dias sem sincronizar com o repositório (ainda descrevia `wallace_dados` como fonte viva do painel, desligada em 12/08). Motivo de exigir `.md` puro, nunca Google Doc: uma tentativa inicial criou cópias em Google Doc, que reintroduzem escape de markdown e geraram confusão real — o usuário viu uma conversa do Claude Chat lendo uma cópia desatualizada em Google Doc enquanto a versão `.md` mais recente também existia na mesma pasta, sem como saber qual o Project Knowledge estava de fato usando.
+
+**Arquivo `ONDE_LER.md`** (mesma pasta `Agentes/`) é o ponteiro estável — nunca muda de nome/lugar, só existe pra dizer "os documentos reais estão aqui". Se o endereço mudar de novo no futuro, atualizar `ONDE_LER.md` primeiro e SEMPRE checar que ele bate com o que este manual diz (é exatamente essa divergência que causou o problema de 14/08).
+
+**Regra de manutenção, sem exceção**: sempre **sobrescrever** o arquivo existente na pasta `Agentes/` — nunca criar `NOME (1).md`/`NOME_v2.md` ao lado. Um arquivo com sufixo numérico nessa pasta é sinal de sincronização quebrada (achado real 14/08/2026: `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE (1).md` ficou 2 dias como a única cópia existente, enquanto o nome oficial sem sufixo não existia) — se encontrar um, renomear removendo o sufixo (nunca apagar sem antes conferir que é a versão mais recente). Também nunca deixar um arquivo `.gdoc` (atalho de Google Doc) solto em qualquer lugar do Drive com nome parecido — apagar assim que encontrado, é resíduo da tentativa antiga de Google Doc.
 
 ### 11.6 Processo de manutenção — evitar divergência futura
 

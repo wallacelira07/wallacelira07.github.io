@@ -180,7 +180,7 @@ const WallaceFinanceService = {
   // barra de progresso dos cards gerados dinamicamente (ver preencherCaixasOperacionaisExtra()).
   async getTetoMensalCaixas(){
     return this._cache.obterOuBuscar('caixas_teto_mensal', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/caixas?select=nome,teto_mensal&teto_mensal=not.is.null`, {
+      const resp = await fetch(`${this._url}/rest/v1/caixas?select=nome,teto_mensal,meta_data_limite&teto_mensal=not.is.null`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas.teto_mensal`);

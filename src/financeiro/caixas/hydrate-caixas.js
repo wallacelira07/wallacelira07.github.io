@@ -174,7 +174,7 @@ const METAS_V2_CARDS_ESTATICOS = {
   'PIX Vanessa':               { idPct: 'cxPixPct',      idBarra: 'cxPixBar',      idMeta: 'cxPixMeta' },
   'Caixa Manutenção':          { idPct: 'cxManutPct',    idBarra: 'cxManutBar',    idMeta: 'cxManutMeta' },
   'Caixa Eventos':             { idPct: 'cxEventosPct',  idBarra: 'cxEventosBar',  idMeta: 'cxEventosMeta' },
-  'Escola de Júlio':           { idPct: 'cxEscolaPct',   idBarra: 'cxEscolaBar',   idMeta: 'cxEscolaMeta' },
+  'Escola de Júlio':           { idPct: 'cxEscolaPct',   idBarra: 'cxEscolaBar',   idMeta: 'cxEscolaMeta',   idPrazo: 'cxEscolaPrazo' },
   // CORRIGIDO 13/08/2026 (pedido do usuário: "passe essas legendas para dentro da caixa
   // flutuante, deixe fora só a porcentagem e a meta") - estes 4 mostravam um texto de "aporte
   // alvo" no lugar da % (cxSaudeAporteTxt etc, ainda escritos por hydrate-wartsila-caixas-
@@ -183,7 +183,7 @@ const METAS_V2_CARDS_ESTATICOS = {
   // mostra dentro do popover. Aqui ganham idPct normal, igual as outras 5 caixas com meta.
   'Caixa Bens Duráveis':       { idPct: 'cxBensDuraveisPct', idBarra: 'cxBensDuraveisBar', idMeta: 'cxBensDuraveisMeta' },
   'Caixa Saúde Família':       { idPct: 'cxSaudePct',        idBarra: 'cxSaudeBar',        idMeta: 'cxSaudeMeta' },
-  'Caixa Aniversário Júlio':   { idPct: 'cxAnivPct',         idBarra: 'cxAnivBar',         idMeta: 'cxAnivMeta' },
+  'Caixa Aniversário Júlio':   { idPct: 'cxAnivPct',         idBarra: 'cxAnivBar',         idMeta: 'cxAnivMeta',   idPrazo: 'cxAnivPrazo' },
   'Caixa Seguro Emplacamento': { idPct: 'cxSeguroPct',       idBarra: 'cxSeguroBar',       idMeta: 'cxSeguroMeta' },
 };
 
@@ -203,7 +203,7 @@ async function aplicarMetasV2CaixasEstaticas(){
   saldos.forEach(s => { mapaSaldo[s.caixa_nome] = Number(s.v2_saldo_calculado); });
   const pctOfLocal = (s,m) => m>0 ? Math.max(0, Math.min(100, s/m*100)) : 0;
   let atualizadas = 0;
-  tetos.forEach(({nome, teto_mensal}) => {
+  tetos.forEach(({nome, teto_mensal, meta_data_limite}) => {
     const cfg = METAS_V2_CARDS_ESTATICOS[nome];
     const teto = Number(teto_mensal);
     if(!cfg || !(teto > 0) || !(nome in mapaSaldo)) return;
@@ -212,6 +212,19 @@ async function aplicarMetasV2CaixasEstaticas(){
     if(cfg.idPct){ const el = document.getElementById(cfg.idPct); if(el) el.textContent = pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
     if(cfg.idBarra){ const el = document.getElementById(cfg.idBarra); if(el) el.style.width = pct+'%'; }
     if(cfg.idMeta){ const el = document.getElementById(cfg.idMeta); if(el) el.textContent = 'R$ '+Math.round(teto).toLocaleString('pt-BR'); }
+    // NOVO 14/08/2026 (pedido do usuário: contagem regressiva no card das metas com prazo -
+    // Escola de Júlio 01/11/2026, Aniversário Júlio 25/08/2026, coluna caixas.meta_data_limite).
+    if(cfg.idPrazo && meta_data_limite){
+      const el = document.getElementById(cfg.idPrazo);
+      if(el){
+        const hoje = new Date(new Date().toDateString());
+        const alvo = new Date(meta_data_limite+'T00:00:00');
+        const dias = Math.round((alvo-hoje)/86400000);
+        el.textContent = dias > 0 ? `faltam ${dias} dia${dias===1?'':'s'} (${alvo.toLocaleDateString('pt-BR')})`
+          : dias === 0 ? 'é hoje!' : `venceu há ${-dias} dia${dias===-1?'':'s'}`;
+        el.style.color = dias <= 7 ? 'var(--red)' : 'var(--text-mid)';
+      }
+    }
     atualizadas++;
   });
   console.log(`MetasV2CaixasEstaticas: ${atualizadas} card(s) com meta atualizada via caixas.teto_mensal (V2).`);
