@@ -63,8 +63,10 @@ TX000159-A/TX000159-B também receberam de volta o `cartao_id` (MB virtual) que 
 
 Manutenção/Eventos/Saúde Família não tinham nenhuma transação de cartão mal classificada nesta auditoria.
 
-## Pendência em aberto (não resolvida nesta rodada)
+## Decisão do usuário (14/08/2026) — procedimento de pagamento de fatura
 
-**Procedimento pra quando a fatura do cartão vence e é paga de verdade** (dinheiro sai do banco), sem contar a saída duas vezes (uma como "Comprometido", outra como pagamento real). Não existe hoje nenhum mecanismo automático (trigger/RPC) nem procedimento manual documentado — precisa ser decidido e registrado antes da próxima virada de fatura. Caminhos possíveis, nenhum implementado ainda:
-- (a) `UPDATE` na mesma linha de `transacoes`, virando `afeta_saldo_real=true` quando a fatura é paga; ou
-- (b) uma segunda transação real (a saída do banco pagando a fatura), com a original marcada de forma que a reconciliação não some as duas.
+**Decidido**: quando a fatura do cartão vence e é paga de verdade (dinheiro sai do banco), fazer `UPDATE` na MESMA linha de `transacoes` que já registrou a compra — `afeta_saldo_real` muda de `false` para `true` no momento do pagamento. Não criar uma segunda transação (opção descartada: geraria risco de contar a saída 2x no Livro Razão sem cuidado extra de reconciliação).
+
+Efeito prático: a compra continua existindo como UMA linha só, do início ao fim — nasce com `cartao_id` preenchido e `afeta_saldo_real=false` (não reduz o saldo da caixa, só aparece como "Comprometido"); no dia em que a fatura é paga, o mesmo registro vira `afeta_saldo_real=true`, e a partir daí passa a reduzir o "Tem na Caixa" normalmente, como qualquer saída real. O "Comprometido no cartão" (`getComprometidoPorCaixaV2`) já filtra por `afeta_saldo_real=false` — assim que a linha virar `true`, ela some automaticamente do comprometido e passa a contar como saída de caixa, sem precisar de nenhuma mudança de código.
+
+Cuidado ao aplicar: usar a `data` do PAGAMENTO (não a data da compra original) só se isso não quebrar a leitura histórica do Livro Razão daquela caixa — na dúvida, manter a `data` original da compra e registrar a data do pagamento só em auditoria (`audit_log`, já é automático via trigger).

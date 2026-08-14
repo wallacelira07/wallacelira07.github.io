@@ -79,6 +79,7 @@
   @media (prefers-reduced-motion: reduce){
     .clima-agora .emoji, .clima-dia .emoji{ animation: none; }
   }
+  header .brand-name-short{display:none}
   /* NOVO 14/08/2026 (achado de auditoria mobile: página não tinha nenhum @media de layout, só
      funcionava por acaso via grid auto-fit; padding/fonte fixos ficam grandes demais em ~360px). */
   @media (max-width:480px){
@@ -87,6 +88,8 @@
     h1{font-size:1rem}
     .stat-val{font-size:1.2rem}
     .chart-wrap{height:260px}
+    header .brand-name-full{display:none}
+    header .brand-name-short{display:inline}
   }
 </style>
 </head>
@@ -104,7 +107,7 @@
       </svg>
     </span>
     <div>
-      <h1>Energia Solar — Sistema Wallace Lira</h1>
+      <h1><span class="brand-name-full">Energia Solar — Sistema Wallace Lira</span><span class="brand-name-short">Energia Solar</span></h1>
       <div class="sub">Só leitura, dados solares apenas · link válido até <span id="expiraTxt">…</span></div>
     </div>
   </header>
