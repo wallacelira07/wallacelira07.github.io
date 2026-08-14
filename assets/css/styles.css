@@ -930,3 +930,32 @@
     outline:none; box-shadow:var(--shadow-focus-accent-lg);
   }
 
+  /* NOVO 14/08/2026 (pedido do usuário: "coloque animação ao clicar nos cards, informações
+     relevantes e movimento no click" — diagrama "Fluxo de energia" na aba Solar). Cada etapa vira
+     clicável: leve elevação/scale no hover, "afunda" no clique (:active), anel de foco por teclado
+     (mesmo padrão de .tab/.master-tab acima). O painel de detalhe abaixo de cada card usa
+     grid-template-rows 0fr→1fr (truque de transição suave em altura de conteúdo dinâmico, mais
+     confiável que animar max-height com texto que pode quebrar linha) + opacity, dando a sensação
+     de "abrir" em vez de aparecer seco. */
+  .fluxo-energia-card{
+    cursor:pointer; user-select:none;
+    transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard),
+      transform var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+  }
+  .fluxo-energia-card:hover{ border-color:var(--accent); box-shadow:0 4px 14px rgba(76,142,242,0.16); transform:translateY(-1px); }
+  .fluxo-energia-card:active{ transform:translateY(0) scale(0.97); }
+  .fluxo-energia-card.aberto{ border-color:var(--accent); background:rgba(76,142,242,0.08); }
+  .fluxo-energia-card:focus-visible{ outline:none; box-shadow:var(--shadow-focus-accent-lg); }
+  .fluxo-energia-detalhe{
+    display:grid; grid-template-rows:0fr; opacity:0; width:100%; max-width:420px;
+    transition: grid-template-rows var(--dur-base) var(--ease-standard), opacity var(--dur-base) var(--ease-standard);
+  }
+  .fluxo-energia-detalhe.aberto{ grid-template-rows:1fr; opacity:1; }
+  .fluxo-energia-detalhe > div{
+    overflow:hidden; min-height:0;
+    font-size:0.7rem; color:var(--text-mid); text-align:left;
+    background:rgba(76,142,242,0.06); border:1px solid rgba(76,142,242,0.25); border-radius:var(--radius-lg);
+    padding:0 0.7rem;
+  }
+  .fluxo-energia-detalhe.aberto > div{ padding:0.55rem 0.7rem; }
+

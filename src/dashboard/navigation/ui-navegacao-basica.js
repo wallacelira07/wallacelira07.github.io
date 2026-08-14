@@ -82,6 +82,22 @@ function showLR(id, btn){
   btn.classList.add('active');
 }
 
+// NOVO 14/08/2026 (pedido do usuário: "coloque animação ao clicar nos cards, informações relevantes
+// e movimento no click" — diagrama "Fluxo de energia" na aba Solar). Toggle genérico: abre/fecha o
+// painel de detalhe (`${idCard}Detalhe`) logo abaixo do card clicado, mesmo padrão accordion do
+// showLR() acima (clicar de novo fecha). Puramente de UI — o TEXTO do detalhe já foi escrito antes
+// pela função que calcula os valores reais (graficos-cenarios-lazy.js, roda no boot/toda atualização
+// da aba Solar); este toggle só mostra/esconde o que já está lá, nunca calcula nada.
+function fluxoEnergiaToggle(idCard){
+  const card = document.getElementById(idCard);
+  const detalhe = document.getElementById(idCard+'Detalhe');
+  if(!card || !detalhe) return;
+  const abrir = !card.classList.contains('aberto');
+  card.classList.toggle('aberto', abrir);
+  detalhe.classList.toggle('aberto', abrir);
+  card.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+
 // Clicar fora do bloco "Livros razão" (barra de abas #lrTabs + a tabela do livro aberto) fecha
 // qualquer lista aberta, mesmo padrão de UX de um dropdown/accordion. `#lrTabs` e cada `.pane` são
 // filhos diretos do mesmo `.card` (ver Sistema_Wallace_Lira_Completo.html, seção 07) - usa esse

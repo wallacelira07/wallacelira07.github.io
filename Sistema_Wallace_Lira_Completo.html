@@ -1260,23 +1260,46 @@
           <div class="card"><div style="font-size:0.68rem;color:var(--text-mid)">Exportação da geração</div><div class="v" style="font-weight:600" id="ugExportacaoPct">—</div></div>
         </div>
 
-        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.6rem">Fluxo de energia</div>
+        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.2rem">Fluxo de energia</div>
+        <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.4rem">Toque em qualquer etapa pra ver o valor real dela.</div>
+        <!-- NOVO 14/08/2026 (pedido do usuário: "coloque animação ao clicar nos cards, informações
+             relevantes e movimento no click") — cada etapa ganhou id + onclick (fluxoEnergiaToggle,
+             src/solar/energia-solar.js), classe .fluxo-energia-card (hover/active/foco, CSS novo em
+             styles.css) e um painel de detalhe oculto por padrão, que expande com transição suave
+             (max-height + opacity) mostrando o valor REAL daquela etapa — mesmos dados já calculados
+             nesta mesma função pros campos ugGeracaoAcumulada/ugConsumoDireto/etc logo acima, nenhum
+             cálculo novo, só reexibido no lugar certo do diagrama. -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;font-size:0.78rem;text-align:center">
-          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">☀️ Placas solares — geração total</div>
+          <div class="fluxo-energia-card" id="feGeracao" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feGeracao')" style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border);width:100%;max-width:420px">☀️ Placas solares — geração total</div>
+          <div class="fluxo-energia-detalhe" id="feGeracaoDetalhe"></div>
           <div style="color:var(--text-dim)">↓</div>
           <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
-            <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border);flex:1;min-width:130px">🏠 Consumo imediato da casa</div>
-            <div style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border);flex:1;min-width:130px">📤 Exportação (código 103)</div>
+            <div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:0.3rem">
+              <div class="fluxo-energia-card" id="feConsumoCasa" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feConsumoCasa')" style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">🏠 Consumo imediato da casa</div>
+              <div class="fluxo-energia-detalhe" id="feConsumoCasaDetalhe"></div>
+            </div>
+            <div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:0.3rem">
+              <div class="fluxo-energia-card" id="feExportacao" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feExportacao')" style="padding:0.5rem 0.8rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">📤 Exportação (código 103)</div>
+              <div class="fluxo-energia-detalhe" id="feExportacaoDetalhe"></div>
+            </div>
           </div>
           <div style="color:var(--text-dim)">↓ (só a exportação vira crédito)</div>
-          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">💳 Créditos Energisa</div>
+          <div class="fluxo-energia-card" id="feCreditos" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feCreditos')" style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border);width:100%;max-width:420px">💳 Créditos Energisa</div>
+          <div class="fluxo-energia-detalhe" id="feCreditosDetalhe"></div>
           <div style="color:var(--text-dim)">↓</div>
           <div style="display:flex;gap:0.6rem;width:100%;justify-content:center;flex-wrap:wrap">
-            <div style="padding:0.5rem 0.8rem;background:rgba(53,209,153,0.12);border-radius:var(--radius-lg);border:1px solid var(--green);flex:1;min-width:130px">Wallace (71%)</div>
-            <div style="padding:0.5rem 0.8rem;background:rgba(234,168,63,0.14);border-radius:var(--radius-lg);border:1px solid var(--amber);flex:1;min-width:130px">Wellida (29%)</div>
+            <div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:0.3rem">
+              <div class="fluxo-energia-card" id="feWallace" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feWallace')" style="padding:0.5rem 0.8rem;background:rgba(53,209,153,0.12);border-radius:var(--radius-lg);border:1px solid var(--green)">Wallace (71%)</div>
+              <div class="fluxo-energia-detalhe" id="feWallaceDetalhe"></div>
+            </div>
+            <div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:0.3rem">
+              <div class="fluxo-energia-card" id="feWellida" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feWellida')" style="padding:0.5rem 0.8rem;background:rgba(234,168,63,0.14);border-radius:var(--radius-lg);border:1px solid var(--amber)">Wellida (29%)</div>
+              <div class="fluxo-energia-detalhe" id="feWellidaDetalhe"></div>
+            </div>
           </div>
           <div style="color:var(--text-dim);margin-top:0.4rem">À noite ↓</div>
-          <div style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">🔌 Rede Energisa → Código 03 (Importação)</div>
+          <div class="fluxo-energia-card" id="feImportacao" tabindex="0" role="button" aria-expanded="false" onclick="fluxoEnergiaToggle('feImportacao')" style="padding:0.5rem 1rem;background:var(--surface-2);border-radius:var(--radius-lg);border:1px solid var(--border);width:100%;max-width:420px">🔌 Rede Energisa → Código 03 (Importação)</div>
+          <div class="fluxo-energia-detalhe" id="feImportacaoDetalhe"></div>
         </div>
 
         <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>

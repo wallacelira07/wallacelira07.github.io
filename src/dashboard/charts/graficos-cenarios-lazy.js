@@ -1593,6 +1593,25 @@ async function _lazyRenderSolarSecao(){
     setUG('ugDependenciaPct', consumoDiretoConfiavel ? dependenciaPct+'%' : consumoMsg);
     setUG('ugExportacaoPct', consumoDiretoConfiavel ? exportacaoDaGeracaoPct+'%' : consumoMsg);
 
+    // NOVO 14/08/2026 (pedido do usuário: "informações relevantes" nos cards do diagrama "Fluxo de
+    // energia" clicáveis, ver Sistema_Wallace_Lira_Completo.html/fluxoEnergiaToggle em
+    // ui-navegacao-basica.js). Popula o painel de detalhe de cada etapa com os MESMOS valores já
+    // calculados acima pros campos ugGeracaoAcumulada/ugConsumoDireto/etc — nenhum cálculo novo, só
+    // reaproveitado no diagrama. Wrapper <div> interno é o que a transição de altura (CSS
+    // .fluxo-energia-detalhe > div) anima — sem ele a transição em grid-template-rows não funciona.
+    const setFluxo = (id, texto) => { const el = $(id); if(el) el.innerHTML = '<div>'+texto+'</div>'; };
+    setFluxo('feGeracaoDetalhe', temGeracao
+      ? 'Total gerado pelas placas desde a ativação (21/07): <strong>'+fmtKwhPtBr(geracaoAcum)+' kWh</strong>.'
+      : INSUFICIENTE);
+    setFluxo('feConsumoCasaDetalhe', consumoDiretoConfiavel
+      ? 'Consumido na hora, direto das placas, pela Casa da Mãe (onde fica a usina): <strong>'+fmtKwhPtBr(consumoDiretoAcum)+' kWh</strong> (~'+autoconsumoPct+'% da geração total).'
+      : consumoMsg);
+    setFluxo('feExportacaoDetalhe', 'Enviado pra rede da Energisa (código 103), vira crédito: <strong>'+fmtKwhPtBr(exportadoAcum)+' kWh</strong>'+(consumoDiretoConfiavel ? ' (~'+exportacaoDaGeracaoPct+'% da geração total)' : '')+'.');
+    setFluxo('feCreditosDetalhe', 'Saldo líquido acumulado (exportado − importado à noite): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(saldoLiquidoAcum)+' kWh</strong>. É esse valor que é dividido entre Wallace e Wellida pelo rateio.');
+    setFluxo('feWallaceDetalhe', 'Fatia do Wallace (71% do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioWallace*100)/100)+' kWh</strong>.');
+    setFluxo('feWellidaDetalhe', 'Fatia da Wellida (29% do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioIrma*100)/100)+' kWh</strong>.');
+    setFluxo('feImportacaoDetalhe', 'Puxado da rede à noite (código 03, quando as placas não geram): <strong>'+fmtKwhPtBr(importadoAcum)+' kWh</strong> desde a ativação.');
+
     // Status: so usa dado 100% real (saldo liquido = 103-03), nao depende da geracao do inversor
     let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
     if(saldoLiquidoAcum > 0) statusUG = {emoji:'🟢', texto:'Excedente (exportando mais do que importa)', cor:'#34c98a'};
