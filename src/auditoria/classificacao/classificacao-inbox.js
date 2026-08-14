@@ -202,11 +202,9 @@ async function sincronizarMercadoPagoParaInbox(promessaContexto){
   // não dependem de VARS.MERCADOPAGO_EVENTOS já ter chegado — aplicarOnda6MercadoPago() dispara
   // essa promessa ANTES do fetch dos eventos, em paralelo, e repassa aqui via `promessaContexto`.
   // Se chamada sem o parâmetro (uso avulso/futuro), dispara na hora do jeito antigo — nunca quebra.
-  const __t0 = performance.now();
   const valoresConhecidos = new Set();
   const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] =
     await (promessaContexto || dispararContextoDedupeInbox('sincronizarMercadoPagoParaInbox'));
-  const __t1 = performance.now();
   if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
   if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
@@ -247,12 +245,6 @@ async function sincronizarMercadoPagoParaInbox(promessaContexto){
     novos++;
   });
   console.log(`sincronizarMercadoPagoParaInbox: ${novos} evento(s) novo(s) levado(s) pra Inbox, ${ignoradosPorDuplicidade} ignorado(s) por já estar lançado(a), ${ignoradosPorCicloAntigo} ignorado(s) por ser de ciclo anterior ao atual.`);
-  const __t2 = performance.now();
   renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por evento
-  const __t3 = performance.now();
-  // DIAGNÓSTICO TEMPORÁRIO 14/08/2026 (achado real: fetches de rede rápidos — 200-330ms — mas a
-  // função inteira medindo ~1,8s; correção do lookup O(n) em inboxAdicionarItem não mudou o tempo
-  // total, então o gargalo está em outro lugar. Breakdown aqui pra achar de vez, remover depois.
-  console.log(`sincronizarMercadoPagoParaInbox BREAKDOWN: contexto=${Math.round(__t1-__t0)}ms, loop(${eventos.length} eventos)=${Math.round(__t2-__t1)}ms, render=${Math.round(__t3-__t2)}ms`);
   return {novos};
 }
