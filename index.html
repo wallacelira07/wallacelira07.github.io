@@ -923,47 +923,12 @@
         // NOVO 14/08/2026 (pedido do usuário: "botão de link pra baixar relatório em PDF com um
         // resumo e fechamento de tudo" — escopo definido com o usuário: Resumo Executivo +
         // Obrigações Operacionais (Total Operacional/Cartões/MP) + Todas as Caixas + Balanço
-        // Patrimonial/Patrimônio Financeiro + Reembolsos Wärtsilä). jsPDF carregado sob demanda, só
-        // no 1º clique — mesmo padrão de carregarHtml2CanvasSobDemanda() (ui-componentes-visuais.js,
-        // dentro do iframe), nunca baixa no boot pra quem nunca usa. Os dados vêm de
+        // Patrimonial/Patrimônio Financeiro + Reembolsos Wärtsilä). Os dados vêm de
         // coletarDadosRelatorioFechamento() (src/relatorio/coletar-dados-relatorio.js, dentro do
         // iframe) — lê o texto já renderizado dos cards, nunca recalcula nada (fonte única, mesmo
-        // valor que a tela mostra, não pode dessincronizar).
-        var _promiseJsPDF = null;
-        function _carregarJsPdfSobDemanda() {
-            if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
-            if (_promiseJsPDF) return _promiseJsPDF;
-            _promiseJsPDF = new Promise(function (resolve, reject) {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                script.onload = function () { resolve(); };
-                script.onerror = function () { _promiseJsPDF = null; reject(new Error('falha ao carregar jsPDF')); };
-                document.head.appendChild(script);
-            });
-            return _promiseJsPDF;
-        }
-
-        // REESCRITO 14/08/2026, 2ª vez no mesmo dia (achado do usuário: "eu quero idêntico ao primeiro
-        // que você fez, esses estão horríveis" — as duas tentativas anteriores desenhavam o PDF com
-        // primitivas do jsPDF (rect/text), e por mais que a paleta batesse, tipografia/espaçamento/
-        // proporção NUNCA ficam idênticos a um HTML/CSS de verdade só copiando cor por cor). Mudança de
-        // abordagem: monta o relatório como HTML real (mesmas classes/paleta do artefato "Tactical
-        // Wealth Report" aprovado), injeta fora da tela, rasteriza com html2canvas (mesma lib já usada
-        // pelo botão de "baixar seção como JPEG" dentro do iframe) e fatia o resultado em páginas do
-        // jsPDF. Isso garante fidelidade visual real — é literalmente o mesmo CSS, não uma imitação.
-        var _promiseHtml2CanvasHeader = null;
-        function _carregarHtml2CanvasHeaderSobDemanda() {
-            if (typeof html2canvas !== 'undefined') return Promise.resolve();
-            if (_promiseHtml2CanvasHeader) return _promiseHtml2CanvasHeader;
-            _promiseHtml2CanvasHeader = new Promise(function (resolve, reject) {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                script.onload = function () { resolve(); };
-                script.onerror = function () { _promiseHtml2CanvasHeader = null; reject(new Error('falha ao carregar html2canvas')); };
-                document.head.appendChild(script);
-            });
-            return _promiseHtml2CanvasHeader;
-        }
+        // valor que a tela mostra, não pode dessincronizar). GERAÇÃO DO PDF: ver comentário em
+        // gerarPdfRelatorioFechamento() — usa window.print() nativo do navegador, não mais
+        // jsPDF/html2canvas (removidos 14/08/2026, 3ª reescrita, por fidelidade de fonte).
 
         function _wwiRelEsc(s) {
             if (s == null) return '';
@@ -1348,47 +1313,50 @@
                 '</div>';
         }
 
-        // Rasteriza o HTML montado acima e fatia em páginas A4 do jsPDF — técnica padrão
-        // html2canvas+jsPDF (1 canvas alto, recortado por página via offset Y negativo). Só assim o
-        // resultado é de fato o MESMO CSS do artefato aprovado, não uma reconstrução aproximada.
-        // CORRIGIDO 14/08/2026 (achado do usuário: "a qualidade gráfica tem que melhorar, fonte no PDF
-        // não ficou boa"): 3 ajustes de qualidade —
-        //   1. Container deixou de usar `left:-9999px` — posicionamento extremo fora da tela é um
-        //      problema conhecido do html2canvas (mede/renderiza errado em alguns navegadores). Trocado
-        //      por `position:fixed;top:0;left:0;z-index:-1` — fica atrás de todo o resto da página
-        //      (invisível na prática, sem depender de coordenada absurda) e dentro do viewport real.
-        //   2. Escala subiu de 2 pra 3 (mais pixels por ponto de fonte = texto mais nítido).
-        //   3. Exportação trocou de JPEG (com compressão, borra beirada de letra) pra PNG (sem perda).
-        function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo) {
-            const container = document.createElement('div');
-            container.style.cssText = 'position:fixed;top:0;left:0;z-index:-1;background:#F1F1EB;';
-            container.innerHTML = construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo);
-            document.body.appendChild(container);
-
-            return html2canvas(container, { scale: 3, backgroundColor: '#F1F1EB', useCORS: true }).then(function (canvas) {
-                document.body.removeChild(container);
-                const jsPDF = window.jspdf.jsPDF;
-                const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const pageHeight = doc.internal.pageSize.getHeight();
-                const imgWidth = pageWidth;
-                const imgHeight = canvas.height * imgWidth / canvas.width;
-                const imgData = canvas.toDataURL('image/png');
-                let heightLeft = imgHeight;
-                let position = 0;
-                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-                while (heightLeft > 0) {
-                    position = heightLeft - imgHeight;
-                    doc.addPage();
-                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
+        // REESCRITO 14/08/2026, 3ª vez (achado do usuário: "reprovado, não é o mesmo arquivo, eu
+        // quero exatamente o mesmo... pode tentar em outro formato, que preserve 100%"). As duas
+        // tentativas anteriores usavam html2canvas pra rasterizar o HTML numa imagem e colar essa
+        // imagem no jsPDF — por mais fiel que o CSS/classes fiquem, um rasterizador de terceiros
+        // NUNCA renderiza fonte/anti-aliasing 100% igual ao motor de renderização real do navegador
+        // (foi exatamente o que causou as reprovações de qualidade de fonte). MUDANÇA DE ARQUITETURA:
+        // não gera mais um arquivo PDF programaticamente — abre o relatório como uma página HTML real
+        // numa aba nova e chama window.print(), deixando o PRÓPRIO NAVEGADOR converter pra PDF (mesmo
+        // mecanismo que o usuário já usa manualmente pra salvar o artefato aprovado via Ctrl+P). Isso
+        // elimina o intermediário (html2canvas/jsPDF) por completo — o texto que sai é texto de
+        // verdade renderizado pelo Chrome, não uma foto de tela. Trade-off aceito: em vez de baixar
+        // sozinho, abre o diálogo de impressão do navegador (usuário escolhe "Salvar como PDF" e
+        // marca "Gráficos de fundo" — mesmas 2 instruções já dadas pro artefato original).
+        function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela) {
+            const htmlRel = construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo);
+            if (!janela || janela.closed) {
+                alert('O navegador bloqueou a janela de impressão — permite pop-ups pra este site e tenta de novo.');
+                return Promise.resolve();
+            }
+            const docHtml = '<!doctype html><html><head><meta charset="utf-8">' +
+                '<title>Tactical Wealth Report — Wallace Lira</title>' +
+                '<style>' +
+                '@page{margin:0;}' +
+                'html,body{margin:0;padding:0;background:#F1F1EB;}' +
+                '@media print{.wwi-scope .toc{display:none;}.wwi-scope section{break-inside:avoid;}.wwi-scope .proj{break-inside:avoid;}.wwi-scope .rank li{break-inside:avoid;}}' +
+                '</style></head><body>' + htmlRel + '</body></html>';
+            janela.document.open();
+            janela.document.write(docHtml);
+            janela.document.close();
+            return new Promise(function (resolve) {
+                let disparado = false;
+                function dispararImpressao() {
+                    if (disparado) return;
+                    disparado = true;
+                    janela.focus();
+                    janela.print();
+                    resolve();
                 }
-                const nomeArquivo = 'tactical-wealth-report-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
-                doc.save(nomeArquivo);
-            }).catch(function (err) {
-                if (container.parentNode) document.body.removeChild(container);
-                throw err;
+                // espera o layout assentar (fontes/imagens) antes de abrir o diálogo — onload cobre o
+                // caso normal, o setTimeout é rede de segurança se onload não disparar (documento já
+                // pronto no momento do write, em alguns navegadores). Guard `disparado` evita chamar
+                // print() duas vezes se os dois gatilhos dispararem.
+                janela.addEventListener('load', dispararImpressao, { once: true });
+                setTimeout(dispararImpressao, 600);
             });
         }
 
@@ -1403,7 +1371,14 @@
         //      no PDF (gerarAnaliseFinanceira) — não persiste; quem persiste de verdade é o job mensal.
         //   5. compararComHistorico() — frases de evolução vs. ciclo(s) anterior(es), degrada sem
         //      histórico (1º relatório da série).
-        //   6. construirHtmlRelatorioWWI() + html2canvas + jsPDF — ver comentário acima.
+        //   6. construirHtmlRelatorioWWI() + window.print() numa aba nova — ver comentário acima de
+        //      gerarPdfRelatorioFechamento(). Não depende mais de jsPDF/html2canvas.
+        // CORRIGIDO 14/08/2026 (achado ao testar): window.open() chamado DEPOIS de um fetch
+        // assíncrono (busca de histórico) é bloqueado por popup blocker em vários navegadores — o
+        // "gesto do usuário" (o clique no botão) só cobre chamadas síncronas ou logo no próximo
+        // microtask, não sobrevive a uma ida-e-volta de rede. Fix: abre a janela (com uma tela de
+        // "gerando...") SÍNCRONO, no primeiro tick do clique, antes de qualquer await — e só
+        // preenche o conteúdo final/chama print() depois que os dados chegam.
         function gerarRelatorioFechamentoPDF() {
             const btn = document.getElementById('btnRelatorioPdfHeader');
             const iframe = document.getElementById('mainIframe');
@@ -1411,8 +1386,14 @@
                 alert('O painel ainda não terminou de carregar — espera alguns segundos e tenta de novo.');
                 return;
             }
+            const janela = window.open('', '_blank');
+            if (janela) {
+                janela.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Gerando relatório…</title></head>' +
+                    '<body style="font-family:sans-serif;background:#F1F1EB;color:#161A22;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">' +
+                    '<p>Gerando o relatório…</p></body></html>');
+            }
             if (btn) btn.disabled = true;
-            Promise.all([_carregarJsPdfSobDemanda(), _carregarHtml2CanvasHeaderSobDemanda()]).then(function () {
+            Promise.resolve().then(function () {
                 const win = iframe.contentWindow;
                 const dados = win.coletarDadosRelatorioFechamento();
                 const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados) : null;
@@ -1429,10 +1410,11 @@
                     const comparativo = (typeof win.compararComHistorico === 'function')
                         ? win.compararComHistorico(indicadores, historico.anteriores)
                         : { frases: [], temHistorico: false };
-                    return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo);
+                    return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela);
                 });
             }).catch(function (err) {
                 console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);
+                if (janela && !janela.closed) janela.close();
                 alert('Não consegui gerar o relatório — confere sua conexão e tenta de novo.');
             }).finally(function () {
                 if (btn) btn.disabled = false;
