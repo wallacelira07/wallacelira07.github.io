@@ -79,6 +79,19 @@ function hydrateCaixas(){
   t('cxEscolaMeta', fmtInt(R.patrimonio.metaEscolaJulio));
   t('cxEscolaPct', pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
   { const el=$('cxEscolaBar'); if(el) el.style.width = pctOf(R.escolaJulioSaldo, R.patrimonio.metaEscolaJulio)+'%'; }
+
+  // NOVO 13/08/2026 (pedido do usuário: "sempre que for negativo, deixe vermelho e com o sinal
+  // de menos") - passe único, centralizado, sobre todos os saldos dos 12 cards estáticos: fmt()
+  // já garante o sinal de menos (toLocaleString), aqui só falta garantir a cor. Não sobrescreve
+  // quando já é 0 ou positivo (deixa a cor que cada card já define por padrão).
+  ['cxBoletosSaldo','cxPixSaldo','cxPgvSaldo','cxWartsila','cxManutSaldo','cxBensDuraveisSaldo',
+   'cxEventosSaldo','cxSuavizSaldo','cxSaudeSaldo','cxAnivSaldo','cxSeguroSaldo','cxEscolaSaldo'
+  ].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    const valor = Number((el.textContent||'').replace(/[^0-9,-]/g,'').replace('.','').replace(',','.'));
+    if(!isNaN(valor) && valor < 0) el.style.color = 'var(--red)';
+  });
 }
 
 // NOVO 13/08/2026 (pedido do usuário: "todas as caixas nesse lugar, pra não faltar nenhuma") —
@@ -132,11 +145,15 @@ async function preencherCaixasOperacionaisExtra(){
     const titulo = (PREFIXO_CC[c.caixa_nome] || '') + c.caixa_nome;
     const teto = mapaTeto[c.caixa_nome];
     const temMeta = teto > 0;
-    const pct = temMeta ? Math.max(0, Math.min(100, saldo/teto*100)) : 0;
-    const corBarra = temMeta ? 'var(--accent)' : 'var(--border)';
-    const labelEsquerda = temMeta ? pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : 'sem meta definida';
-    const labelDireita = temMeta ? fmt(teto) : '';
-    return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${titulo}</div><div class="v" style="font-weight:600" ${estiloValor}>${fmt(saldo)}</div><div class="progress"><div class="fill" style="width:${pct}%;background:${corBarra}"></div></div><div class="progress-lbl"><span class="v">${labelEsquerda}</span><span class="v">${labelDireita}</span></div></div>`;
+    // CORRIGIDO 13/08/2026 (achado do usuário: "caixas sem barra" - as sem meta mostravam uma
+    // barra vazia/cinza fixa em 0%, parecendo quebrada). Sem meta cadastrada, não renderiza a
+    // barra nem a linha de %/valor nenhuma - só título e saldo, igual as outras "sem meta" fazem
+    // sentido mostrar (nada pra comparar o saldo contra).
+    const blocoMeta = temMeta ? (() => {
+      const pct = Math.max(0, Math.min(100, saldo/teto*100));
+      return `<div class="progress"><div class="fill" style="width:${pct}%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v">${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span><span class="v">${fmt(teto)}</span></div>`;
+    })() : '';
+    return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${titulo}</div><div class="v" style="font-weight:600" ${estiloValor}>${fmt(saldo)}</div>${blocoMeta}</div>`;
   }).join('');
   // Liga o mesmo tooltip de composição (hover/toque) que os 12 cards estáticos já têm - função
   // exposta por tooltip-composicao-caixa.js pra evitar duplicar a lógica de popover.
@@ -160,12 +177,16 @@ const METAS_V2_CARDS_ESTATICOS = {
   'Caixa Manutenção':          { idPct: 'cxManutPct',    idBarra: 'cxManutBar',    idMeta: 'cxManutMeta' },
   'Caixa Eventos':             { idPct: 'cxEventosPct',  idBarra: 'cxEventosBar',  idMeta: 'cxEventosMeta' },
   'Escola de Júlio':           { idPct: 'cxEscolaPct',   idBarra: 'cxEscolaBar',   idMeta: 'cxEscolaMeta' },
-  // Estes 4 mostram um texto de "aporte alvo" à esquerda (conceito diferente de %) - só a
-  // barra e o valor da meta à direita são atualizados, o texto da esquerda fica intocado.
-  'Caixa Bens Duráveis':       { idBarra: 'cxBensDuraveisBar', idMeta: 'cxBensDuraveisMeta' },
-  'Caixa Saúde Família':       { idBarra: 'cxSaudeBar',        idMeta: 'cxSaudeMeta' },
-  'Caixa Aniversário Júlio':   { idBarra: 'cxAnivBar',         idMeta: 'cxAnivMeta' },
-  'Caixa Seguro Emplacamento': { idBarra: 'cxSeguroBar',       idMeta: 'cxSeguroMeta' },
+  // CORRIGIDO 13/08/2026 (pedido do usuário: "passe essas legendas para dentro da caixa
+  // flutuante, deixe fora só a porcentagem e a meta") - estes 4 mostravam um texto de "aporte
+  // alvo" no lugar da % (cxSaudeAporteTxt etc, ainda escritos por hydrate-wartsila-caixas-
+  // textos.js/hydrateCaixas, agora ocultos via CSS) - o texto continua sendo calculado do mesmo
+  // jeito, só que o tooltip de composição (tooltip-composicao-caixa.js) lê ele escondido e
+  // mostra dentro do popover. Aqui ganham idPct normal, igual as outras 5 caixas com meta.
+  'Caixa Bens Duráveis':       { idPct: 'cxBensDuraveisPct', idBarra: 'cxBensDuraveisBar', idMeta: 'cxBensDuraveisMeta' },
+  'Caixa Saúde Família':       { idPct: 'cxSaudePct',        idBarra: 'cxSaudeBar',        idMeta: 'cxSaudeMeta' },
+  'Caixa Aniversário Júlio':   { idPct: 'cxAnivPct',         idBarra: 'cxAnivBar',         idMeta: 'cxAnivMeta' },
+  'Caixa Seguro Emplacamento': { idPct: 'cxSeguroPct',       idBarra: 'cxSeguroBar',       idMeta: 'cxSeguroMeta' },
 };
 
 async function aplicarMetasV2CaixasEstaticas(){

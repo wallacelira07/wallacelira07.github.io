@@ -42,6 +42,17 @@
     'Caixa Manutenção': 'LREI0001 quitado em 21/07/2026 (depósito direto do reembolso Wärtsilä).',
   };
 
+  // NOVO 13/08/2026 (pedido do usuário: "passe essas legendas para dentro da caixa flutuante,
+  // deixe fora só a porcentagem e a meta") - estes 4 cards escondem (display:none) o texto de
+  // "aporte alvo" que antes ocupava o card - lido AO VIVO daqui (não duplicado/hardcoded) pra
+  // nunca dessincronizar do valor real calculado por hydrate-wartsila-caixas-textos.js/hydrateCaixas.
+  const NOTA_EXTRA_ELEMENTO_ID = {
+    'Caixa Bens Duráveis': 'cxBensDuraveisAporte',
+    'Caixa Saúde Família': 'cxSaudeAporteTxt',
+    'Caixa Aniversário Júlio': 'cxAnivAporteTxt',
+    'Caixa Seguro Emplacamento': 'cxSeguroAporteTxt',
+  };
+
   let popoverEl = null;
   let hoverTimer = null;
   let hideTimer = null;
@@ -164,10 +175,12 @@
           </div>`).join('')
       : `<div class="tcc-vazio">Nenhuma transação neste ciclo.</div>`;
 
-    const notaExtra = NOTAS_EXTRA_CAIXA[caixaNome];
+    const idNotaElemento = NOTA_EXTRA_ELEMENTO_ID[caixaNome];
+    const notaElemento = idNotaElemento ? document.getElementById(idNotaElemento) : null;
+    const notaExtra = NOTAS_EXTRA_CAIXA[caixaNome] || (notaElemento ? notaElemento.textContent.trim() : null);
     pop.innerHTML = `
       <div class="tcc-titulo">${caixaNome} · ${linhas.length} transação(ões) do ciclo atual</div>
-      ${notaExtra ? `<div class="tcc-rodape" style="border-top:none;padding-top:0">${notaExtra}</div>` : ''}
+      ${notaExtra && notaExtra !== '—' ? `<div class="tcc-rodape" style="border-top:none;padding-top:0">${notaExtra}</div>` : ''}
       <div class="tcc-lista">${listaHtml}</div>
       <div class="tcc-rodape">Soma da lista: <span class="tcc-total">${totalTxt}</span></div>
       ${divergeDoCard ? `<div class="tcc-aviso">⚠ Diverge do valor mostrado no card (${valorCardTxt}) — pode ser saldo inicial de ciclo não vindo de transação individual. Não ajustado automaticamente.</div>` : ''}

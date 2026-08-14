@@ -14,8 +14,11 @@ function atualizarContadoresAbasLR(){
   // LR"): adicionadas as 9 caixas que so tinham array de transacoes no Supabase, sem aba nenhuma - agora
   // toda caixa operacional/patrimonial do sistema tem seu LR proprio (14 caixas + Caixa Variavel = 15,
   // mais os livros que nao sao caixa: Wallace/Vanessa/Boletos/Parcelas/etc).
+  // CORRIGIDO 13/08/2026 (mesmo padrao de bug ja documentado 2x acima - caixa nova esquecida
+  // desta lista): 'lremag' (Emagrecimento, criada 12/08/2026) nunca tinha sido adicionada aqui,
+  // por isso o botao "LREM - Emagrecimento" nunca ganhava o sufixo "(N)" que os outros ganham.
   const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo','lrbd',
-    'lrlance','lrmanut','lraniv','lreventos','lrsaude','lrseguro','lrcomb','lrchurrasco','lrmci'];
+    'lrlance','lrmanut','lraniv','lreventos','lrsaude','lrseguro','lrcomb','lrchurrasco','lrmci','lremag'];
   const labels = {
     lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
     lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
@@ -23,7 +26,8 @@ function atualizarContadoresAbasLR(){
     lrbd:'LRBD - Bens Duráveis',
     lrlance:'LRCL - Caixa Lance', lrmanut:'LRMN - Manutenção', lraniv:'LRAJ - Aniversário Júlio',
     lreventos:'LREV - Eventos e Viagens', lrsaude:'LRSF - Saúde Família', lrseguro:'LRSE - Seguro/Emplacamento',
-    lrcomb:'LRCB - Combustível', lrchurrasco:'LRCH - Churrasco', lrmci:'LRMI - Mastercard/Infinite'
+    lrcomb:'LRCB - Combustível', lrchurrasco:'LRCH - Churrasco', lrmci:'LRMI - Mastercard_Infinite',
+    lremag:'LREM - Emagrecimento'
   };
   // NOVO 01/08/2026 (V243, pedido do usuario - "torne isso automatico em todas"): rodapes de tabela
   // (ex: "9 lançamentos", "13 assinaturas ativas") eram texto FIXO no HTML, nunca contado de verdade -
