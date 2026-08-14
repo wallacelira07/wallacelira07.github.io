@@ -286,7 +286,7 @@
   }
 
   .masthead{
-    display:flex;justify-content:space-between;align-items:flex-end;
+    display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:0.5rem;
     border-bottom:1px solid var(--border-strong);
     padding-bottom:1.25rem;margin-bottom:var(--space-section-sm);
   }
@@ -353,7 +353,7 @@
   /* NOVO 04/08/2026 (parte 41): coluna Descrição da Inbox Financeira estava estourando a altura da
      linha (itens da Pluggy tem texto longo) e dominando a tabela inteira - ver print do usuário.
      Agora trava em 2 linhas com "..." e mostra o texto completo no hover (title="" no HTML). */
-  #inboxFinanceiraTable td:nth-child(3){ max-width:340px; }
+  #inboxFinanceiraTable td:nth-child(3){ max-width:min(340px, 80vw); }
   .inbox-desc-txt{
     display:-webkit-box;
     -webkit-line-clamp:2;
@@ -425,6 +425,10 @@
      agrupamentos de 3 KPIs do painel (regra @media(max-width:820px) mais abaixo neste arquivo). */
   @media(max-width:480px){
     .cv-legend-row{flex-direction:column;gap:0.6rem}
+    /* NOVO 14/08/2026 (achado de auditoria mobile: .cover h1 usa --fs-4xl fixo em 2.3rem, sem redução
+       — em ~256px úteis de largura o título grande força quebras de linha ruins). */
+    .cover{padding:1.6rem 1.3rem}
+    .cover h1{font-size:1.7rem}
   }
 
   .row{
@@ -668,6 +672,10 @@
   .chart-box.tall-lg{height:340px}
   @media(max-width:640px){
     .chart-box.tall-lg{height:260px}
+    /* NOVO 14/08/2026 (achado de auditoria mobile: .tall/.wide nunca ganharam a mesma redução que
+       .tall-lg já tinha — inconsistência entre 3 classes do mesmo grupo). */
+    .chart-box.tall{height:220px}
+    .chart-box.wide{height:190px}
   }
 
   footer{

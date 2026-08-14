@@ -79,6 +79,15 @@
   @media (prefers-reduced-motion: reduce){
     .clima-agora .emoji, .clima-dia .emoji{ animation: none; }
   }
+  /* NOVO 14/08/2026 (achado de auditoria mobile: página não tinha nenhum @media de layout, só
+     funcionava por acaso via grid auto-fit; padding/fonte fixos ficam grandes demais em ~360px). */
+  @media (max-width:480px){
+    body{padding:0.9rem}
+    .card{padding:0.85rem 0.9rem}
+    h1{font-size:1rem}
+    .stat-val{font-size:1.2rem}
+    .chart-wrap{height:260px}
+  }
 </style>
 </head>
 <body>
@@ -550,7 +559,9 @@ async function carregar(){
   `;
 
   if(geracaoDiaria.length && window.Chart){
-    const ultimos = geracaoDiaria.slice(-30);
+    // CORRIGIDO 14/08/2026 (achado de auditoria mobile: 30 barras + rótulos de data em ~300px úteis
+    // de largura ficam ilegíveis). Tela estreita mostra só os últimos 14 dias; desktop mantém 30.
+    const ultimos = geracaoDiaria.slice(window.innerWidth <= 480 ? -14 : -30);
     // DEFENSIVO (11/08/2026, achado de auditoria): mesma proteção aplicada em todo new Chart() do repo.
     { const __chartExistente = Chart.getChart(document.getElementById('cGeracaoDiaria')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cGeracaoDiaria'), {

@@ -983,25 +983,26 @@
             '.wwi-scope{max-width:1040px;margin:0 auto;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}' +
             '.wwi-scope *{box-sizing:border-box;}' +
             '.wwi-scope h1,.wwi-scope h2,.wwi-scope h3{font-family:var(--font-display);font-weight:600;margin:0;}' +
-            '.wwi-scope .cover{background:radial-gradient(ellipse at 15% -10%, rgba(203,169,104,.10), transparent 55%),linear-gradient(180deg,#0C1017 0%, #10141D 60%, #12161F 100%);color:#ECEAE0;padding:3.2rem 2.6rem 3.4rem;position:relative;overflow:hidden;}' +
+            '.wwi-scope .cover{background:radial-gradient(ellipse at 15% -10%, rgba(203,169,104,.10), transparent 55%),linear-gradient(180deg,#0C1017 0%, #10141D 60%, #12161F 100%);color:#ECEAE0;padding:clamp(2.5rem,6vw,5rem) clamp(1.5rem,6vw,4rem) clamp(3rem,7vw,5rem);position:relative;overflow:hidden;}' +
             '.wwi-scope .cover::after{content:"";position:absolute;inset:14px;border:1px solid rgba(203,169,104,.28);pointer-events:none;}' +
-            '.wwi-scope .cover-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:3.5rem;}' +
+            '.wwi-scope .cover-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:clamp(3rem,10vw,7rem);}' +
             '.wwi-scope .cover-mark{font-family:var(--font-display);font-size:.95rem;letter-spacing:.14em;text-transform:uppercase;color:#CBA968;}' +
             '.wwi-scope .cover-mark span{display:block;font-family:var(--font-body);font-size:.68rem;letter-spacing:.18em;color:#8A93A8;margin-top:.3rem;}' +
             '.wwi-scope .classification{border:1px solid #CBA968;color:#E4C989;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;padding:.42rem .85rem;white-space:nowrap;font-family:var(--font-body);}' +
-            '.wwi-scope .cover-title{font-size:2.6rem;line-height:1.04;margin-bottom:.9rem;max-width:16ch;}' +
+            '.wwi-scope .cover-title{font-size:clamp(2.4rem,6vw,4.1rem);line-height:1.04;margin-bottom:.9rem;max-width:16ch;}' +
             '.wwi-scope .cover-title em{font-style:italic;color:#CBA968;}' +
-            '.wwi-scope .cover-sub{font-size:1.05rem;color:#B9BFCE;max-width:38ch;font-family:var(--font-body);font-weight:300;margin-bottom:2.6rem;}' +
+            '.wwi-scope .cover-sub{font-size:clamp(1rem,2vw,1.2rem);color:#B9BFCE;max-width:38ch;font-family:var(--font-body);font-weight:300;margin-bottom:clamp(2.2rem,6vw,3.6rem);}' +
             '.wwi-scope .cover-rule{height:1px;background:linear-gradient(90deg,#CBA968,transparent 75%);margin-bottom:1.6rem;}' +
             '.wwi-scope .cover-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.2rem;font-size:.82rem;color:#9AA1B2;}' +
             '.wwi-scope .cover-foot strong{display:block;color:#ECEAE0;font-family:var(--font-body);font-weight:600;font-size:.95rem;margin-bottom:.15rem;}' +
-            '.wwi-scope .cover-grade{margin-top:2.2rem;display:inline-flex;align-items:baseline;gap:.9rem;border-left:2px solid #CBA968;padding-left:1rem;}' +
-            '.wwi-scope .cover-grade b{font-family:var(--font-display);font-size:2rem;color:#ECEAE0;}' +
+            '.wwi-scope .cover-grade{margin-top:clamp(2rem,6vw,3rem);display:inline-flex;align-items:baseline;gap:.9rem;border-left:2px solid #CBA968;padding-left:1rem;}' +
+            '.wwi-scope .cover-grade b{font-family:var(--font-display);font-size:2.2rem;color:#ECEAE0;}' +
             '.wwi-scope .cover-grade span{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#B9BFCE;max-width:24ch;line-height:1.5;}' +
             '.wwi-scope .toc{background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:0;overflow-x:auto;scrollbar-width:thin;position:sticky;top:0;z-index:5;}' +
             '.wwi-scope .toc a{flex:0 0 auto;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--ink-faint);padding:.85rem 1rem;border-bottom:2px solid transparent;white-space:nowrap;}' +
             '.wwi-scope .toc a:hover{color:var(--ink);}' +
-            '.wwi-scope section{padding:2.2rem 2.6rem;}' +
+            '.wwi-scope .toc a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}' +
+            '.wwi-scope section{padding:clamp(2.4rem,5vw,4rem) clamp(1.5rem,6vw,4rem);}' +
             '.wwi-scope section:nth-of-type(odd){background:var(--surface);}' +
             '.wwi-scope section:nth-of-type(even){background:var(--surface-2);}' +
             '.wwi-scope .eyebrow{display:flex;align-items:center;gap:.8rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.9rem;white-space:nowrap;}' +
@@ -1022,7 +1023,7 @@
             '.wwi-scope .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:1.6rem;}' +
             '.wwi-scope .kpi{background:var(--surface);padding:1.3rem 1.4rem;}' +
             '.wwi-scope .kpi-label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.55rem;}' +
-            '.wwi-scope .kpi-val{font-family:var(--font-body);font-weight:700;font-size:1.5rem;letter-spacing:-.01em;}' +
+            '.wwi-scope .kpi-val{font-family:var(--font-body);font-weight:700;font-size:1.5rem;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}' +
             '.wwi-scope .kpi-sub{font-size:.8rem;color:var(--ink-soft);margin-top:.35rem;}' +
             '.wwi-scope .chip{display:inline-flex;align-items:center;gap:.4rem;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding:.28rem .6rem .28rem .5rem;border-radius:100px;margin-top:.6rem;}' +
             '.wwi-scope .chip::before{content:"";width:7px;height:7px;border-radius:50%;}' +
@@ -1034,16 +1035,17 @@
             '.wwi-scope th,.wwi-scope td{padding:.72rem .9rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}' +
             '.wwi-scope thead th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);font-weight:600;}' +
             '.wwi-scope tbody tr:last-child td{border-bottom:none;}' +
-            '.wwi-scope td.num,.wwi-scope th.num{text-align:right;}' +
+            '.wwi-scope td.num,.wwi-scope th.num{text-align:right;font-variant-numeric:tabular-nums;}' +
             '.wwi-scope td.num{font-weight:600;}' +
             '.wwi-scope .rank{list-style:none;margin:1.6rem 0 0;padding:0;display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);}' +
-            '.wwi-scope .rank li{background:var(--surface);padding:1.1rem 1.3rem 1.1rem 1.5rem;border-left:4px solid var(--line);}' +
+            '.wwi-scope .rank li{background:var(--surface);padding:1.1rem 1.3rem 1.1rem 1.5rem;border-left:4px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:.3rem 1rem;align-items:baseline;}' +
             '.wwi-scope .rank li.risk-alto{border-left-color:var(--bad);}' +
             '.wwi-scope .rank li.risk-medio{border-left-color:var(--warn);}' +
             '.wwi-scope .rank li.risk-baixo{border-left-color:var(--good);}' +
-            '.wwi-scope .rank .rk-name{font-weight:700;}' +
-            '.wwi-scope .rank .rk-val{font-weight:600;float:right;}' +
-            '.wwi-scope .rank .rk-desc{color:var(--ink-soft);font-size:.92rem;display:block;margin-top:.2rem;}' +
+            '.wwi-scope .rank .rk-name{font-weight:700;grid-column:1/3;}' +
+            '.wwi-scope .rank .rk-val{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}' +
+            '.wwi-scope .rank .rk-tag{font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}' +
+            '.wwi-scope .rank .rk-desc{color:var(--ink-soft);font-size:.92rem;display:block;margin-top:.15rem;grid-column:1/4;}' +
             // ADICIONADO 14/08/2026 (achado do usuário: "não é o que aprovei" — o gerador tinha
             // seções inteiras faltando frente ao artefato). Classes verbatim copiadas do arquivo-fonte
             // real do artefato (baixado direto do frame do Claude, não reconstruído de memória):
@@ -1056,20 +1058,21 @@
             '.wwi-scope .proj .proj-obj{font-size:.85rem;color:var(--ink-soft);margin-bottom:1rem;}' +
             '.wwi-scope .bar-track{height:7px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin:.5rem 0 .4rem;}' +
             '.wwi-scope .bar-fill{height:100%;background:var(--accent);}' +
-            '.wwi-scope .proj-pct{font-weight:700;font-size:1.3rem;}' +
+            '.wwi-scope .proj-pct{font-weight:700;font-size:1.3rem;font-variant-numeric:tabular-nums;}' +
             '.wwi-scope .proj-meta{display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink-faint);margin-top:.2rem;}' +
             '.wwi-scope .proj-risks{margin:.9rem 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--ink-soft);}' +
             '.wwi-scope .proj-risks li{margin-bottom:.3rem;}' +
-            '.wwi-scope .score-wrap{display:flex;gap:2.4rem;align-items:center;margin-top:1.8rem;flex-wrap:wrap;}' +
-            '.wwi-scope .gauge{position:relative;width:180px;height:180px;flex:0 0 auto;}' +
+            '.wwi-scope .maturity{display:inline-block;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;margin-top:.9rem;padding:.25rem .55rem;background:var(--accent-soft);color:var(--accent-strong);}' +
+            '.wwi-scope .score-wrap{display:grid;grid-template-columns:minmax(200px,260px) 1fr;gap:2.4rem;align-items:center;margin-top:1.8rem;}' +
+            '.wwi-scope .gauge{position:relative;width:210px;height:210px;flex:0 0 auto;}' +
             '.wwi-scope .gauge svg{width:100%;height:100%;transform:rotate(-90deg);}' +
             '.wwi-scope .gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}' +
-            '.wwi-scope .gauge-num b{font-family:var(--font-display);font-size:2.6rem;line-height:1;}' +
+            '.wwi-scope .gauge-num b{font-family:var(--font-display);font-size:3.1rem;line-height:1;}' +
             '.wwi-scope .gauge-num span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:.3rem;}' +
             '.wwi-scope .score-list{flex:1;min-width:260px;display:flex;flex-direction:column;gap:.9rem;}' +
             '.wwi-scope .score-row{display:grid;grid-template-columns:11rem 1fr 2.6rem;gap:.9rem;align-items:center;}' +
             '.wwi-scope .score-row .sr-label{font-size:.86rem;color:var(--ink-soft);}' +
-            '.wwi-scope .score-row .sr-val{font-weight:700;text-align:right;}' +
+            '.wwi-scope .score-row .sr-val{font-weight:700;text-align:right;font-variant-numeric:tabular-nums;}' +
             '.wwi-scope .sr-track{height:6px;background:var(--surface-2);border:1px solid var(--line);}' +
             '.wwi-scope .sr-fill{height:100%;background:var(--accent);}' +
             '.wwi-scope .callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:1rem 1.3rem;font-size:.92rem;color:var(--ink);margin-top:1.5rem;}' +
@@ -1079,7 +1082,19 @@
             '.wwi-scope .final-verdict .fv-q{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem;}' +
             '.wwi-scope .final-verdict p{margin:0 0 1.1rem;color:var(--ink-soft);}' +
             '.wwi-scope .final-verdict p:last-child{margin-bottom:0;}' +
-            '.wwi-scope .report-foot{padding:2.4rem 2.6rem 3rem;text-align:center;color:var(--ink-faint);font-size:.78rem;background:var(--surface);}';
+            '.wwi-scope .report-foot{padding:2.4rem clamp(1.5rem,6vw,4rem) 3rem;text-align:center;color:var(--ink-faint);font-size:.78rem;background:var(--surface);}' +
+            // PORTADO 14/08/2026 (achado dos agentes de comparação: o CSS do gerador não tinha NENHUM
+            // @media — o artefato aprovado colapsa .score-wrap/.grid-2/.rank/.score-row em telas
+            // estreitas via @media(max-width:760px)). Mesmos breakpoints/regras do arquivo-fonte real.
+            '@media (max-width:760px){' +
+            '.wwi-scope .score-wrap{grid-template-columns:1fr;}' +
+            '.wwi-scope .gauge{margin:0 auto;}' +
+            '.wwi-scope .grid-2{grid-template-columns:1fr;gap:1.8rem;}' +
+            '.wwi-scope .rank li{grid-template-columns:1fr auto;}' +
+            '.wwi-scope .rank .rk-name{grid-column:1/2;}' +
+            '.wwi-scope .rank .rk-desc{grid-column:1/3;}' +
+            '.wwi-scope .score-row{grid-template-columns:7rem 1fr 2.6rem;}' +
+            '}';
 
         // Monta 1 bloco de lista (Pontos Fortes/Fracos/Riscos/Oportunidades) reaproveitando a EXATA
         // classe `.rank` do artefato — cada item usa a borda lateral colorida (risk-baixo=verde,
@@ -1124,9 +1139,14 @@
             if (idxBase === -1) idxBase = -1;
             const base = idxBase !== -1 ? valores[idxBase] : null;
             if (!base) return '<div class="tbl-wrap"><table><tbody>' + linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') + '</tbody></table></div>';
-            return '<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% do Total</th></tr></thead><tbody>' +
+            // CORRIGIDO 14/08/2026 (achado do agente de comparação: no artefato aprovado, linhas de
+            // dedução "(–) ..." ficam com a célula de % vazia por design — % de uma dedução sobre o
+            // ativo bruto não é uma leitura útil. Cabeçalho também renomeado para "% do ativo bruto",
+            // igual ao artefato, no lugar do genérico "% do Total").
+            return '<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% do ativo bruto</th></tr></thead><tbody>' +
                 linhas.map(function (l, i) {
-                    const pct = valores[i] !== null ? (Math.abs(valores[i]) / Math.abs(base) * 100) : null;
+                    const ehDeducao = /^\s*[\(（]?[−–-]/.test(String(l.label));
+                    const pct = (!ehDeducao && valores[i] !== null) ? (Math.abs(valores[i]) / Math.abs(base) * 100) : null;
                     return _wwiRelLinhaTabela(l.label, l.valor, pct !== null ? _wwiFmtNumLocal(pct, 1) + '%' : '');
                 }).join('') + '</tbody></table></div>';
         }
@@ -1163,12 +1183,17 @@
             }).join('') + '</div>';
         }
 
+        // CORRIGIDO 14/08/2026 (achado do agente de comparação: a classificação de risco (it.risco)
+        // já era calculada em _wwiMontarPassivosRank mas nunca aparecia no HTML — só decidia a cor
+        // da borda lateral. O artefato mostra essa classificação como texto (.rk-tag), não só cor).
+        const WWI_LABELS_RISCO = { alto: 'Risco alto', medio: 'Risco médio', baixo: 'Risco baixo' };
         function _wwiRelPassivosRank(itens) {
             if (!itens || !itens.length) return '';
             return '<ol class="rank">' + itens.map(function (it, i) {
                 const cls = it.risco === 'alto' ? 'risk-alto' : it.risco === 'medio' ? 'risk-medio' : 'risk-baixo';
                 return '<li class="' + cls + '"><span class="rk-name">' + (i + 1) + '. ' + _wwiRelEsc(it.nome) + '</span>' +
-                    '<span class="rk-val">' + _wwiRelEsc(it.valor) + '</span></li>';
+                    '<span class="rk-val">' + _wwiRelEsc(it.valor) + '</span>' +
+                    '<span class="rk-tag">' + _wwiRelEsc(WWI_LABELS_RISCO[it.risco] || WWI_LABELS_RISCO.baixo) + '</span></li>';
             }).join('') + '</ol>';
         }
 
@@ -1177,7 +1202,7 @@
             return '<div class="tbl-wrap"><table><thead><tr><th>Fundo</th><th>Centros de custo</th><th class="num">Saldo agregado</th></tr></thead><tbody>' +
                 grupos.map(function (g) {
                     return '<tr><td style="font-weight:700">' + _wwiRelEsc(g.nome) + '</td><td>' + _wwiRelEsc(g.caixas.join(' &middot; ')) +
-                        '</td><td class="num">R$ ' + g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td></tr>';
+                        '</td><td class="num">' + _wwiRelEsc(_wwiFmtR(g.total)) + '</td></tr>';
                 }).join('') + '</tbody></table></div>';
         }
 
@@ -1185,14 +1210,17 @@
             if (!comp || (!comp.linhas.length && !comp.eixos.length)) return '';
             const circunferencia = 263.9;
             const offset = comp.nota === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, comp.nota)) / 100);
+            // CORRIGIDO 14/08/2026 (achado do agente de comparação: no artefato, o gauge+score-list
+            // desta seção fica dentro de `.score-wrap` com override inline `grid-template-columns:1fr`
+            // — herda o gap:1rem entre gauge e lista em vez de um `<div>` genérico sem espaçamento).
             return '<div class="grid-2">' +
                 _wwiRelTabelaComPct(comp.linhas) +
-                '<div>' +
+                '<div class="score-wrap" style="grid-template-columns:1fr;gap:1rem;">' +
                 (comp.nota !== null ? '<div class="gauge" style="margin:0 auto;"><svg viewBox="0 0 100 100">' +
                     '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-2)" stroke-width="10"/>' +
                     '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + circunferencia + '" stroke-dashoffset="' + offset + '"/>' +
                     '</svg><div class="gauge-num"><b>' + comp.nota + '</b><span>Nota Patrimonial</span></div></div>' : '') +
-                '<div class="score-list" style="margin-top:1.2rem;">' + comp.eixos.map(function (e) {
+                '<div class="score-list">' + comp.eixos.map(function (e) {
                     const v = Math.round(e.val);
                     return '<div class="score-row"><span class="sr-label">' + _wwiRelEsc(e.label) + '</span>' +
                         '<div class="sr-track"><div class="sr-fill" style="width:' + v + '%"></div></div><span class="sr-val">' + v + '</span></div>';
@@ -1200,13 +1228,21 @@
                 '</div></div>';
         }
 
+        // Cor do valor de classificação — mesmos limiares já usados por _wwiMontarLiquidez (nunca uma
+        // classificação nova, só a cor que a acompanha, igual ao padrão semafórico do resto do relatório).
+        function _wwiCorLiquidez(classificacao) {
+            if (classificacao === 'Muito Forte' || classificacao === 'Forte') return 'var(--good)';
+            if (classificacao === 'Adequada') return 'var(--warn)';
+            if (classificacao) return 'var(--bad)';
+            return null;
+        }
         function _wwiRelLiquidez(liq) {
             if (!liq || (!liq.linhas.length && liq.classificacao === null)) return '';
             return '<div class="grid-2">' +
                 '<div class="tbl-wrap"><table><tbody>' + liq.linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') + '</tbody></table></div>' +
                 '<div>' +
                 (liq.classificacao ? '<div class="kpi" style="border:1px solid var(--line)"><div class="kpi-label">Classificação de Liquidez</div>' +
-                    '<div class="kpi-val">' + _wwiRelEsc(liq.classificacao) + '</div>' +
+                    '<div class="kpi-val" style="color:' + _wwiCorLiquidez(liq.classificacao) + '">' + _wwiRelEsc(liq.classificacao) + '</div>' +
                     (liq.liquidezCiclos !== null ? '<div class="kpi-sub">Reserva cobre ~' + _wwiRelEsc(liq.liquidezCiclos.toFixed(1).replace('.', ',')) + ' ciclos de compromisso fixo</div>' : '') +
                     '</div>' : '') +
                 (liq.independenciaFinanceira !== null ? '<div class="kpi" style="border:1px solid var(--line);border-top:none;"><div class="kpi-label">Grau de Independência Financeira</div>' +
@@ -1330,13 +1366,20 @@
 
             // 02. Painel Executivo
             if (kpis.length || score !== null) {
+                // ADICIONADO 14/08/2026 (achado do agente de comparação: o artefato tem uma legenda
+                // fixa explicando o semáforo verde/amarelo/vermelho abaixo do kpi-grid). Texto fixo
+                // (explica a convenção de cor, não fabrica dado) + frase final condicional sobre se
+                // algum chip do ciclo está vermelho — computada dos próprios chips já resolvidos acima.
+                const temVermelho = kpis.some(function (k) { return k.chip && k.chip.cls === 'r'; });
                 blocos.push('<section>' + secaoEyebrowTitulo('Painel Executivo', 'Números que resumem o ciclo') +
                     (kpis.length ? '<div class="kpi-grid">' + kpis.map(function (k) {
                         return '<div class="kpi"><div class="kpi-label">' + _wwiRelEsc(k.lbl) + '</div><div class="kpi-val">' + _wwiRelEsc(k.val) + '</div>' +
                             (k.sub ? '<div class="kpi-sub">' + _wwiRelEsc(k.sub) + '</div>' : '') +
                             (k.chip ? '<span class="chip ' + k.chip.cls + '">' + k.chip.txt + '</span>' : '') +
                             '</div>';
-                    }).join('') + '</div>' : '') +
+                    }).join('') + '</div>' +
+                    '<p class="foot-note">Classificação semafórica: Verde = métrica saudável, Amarelo = atenção moderada, Vermelho = requer ação no próximo ciclo. ' +
+                    (temVermelho ? 'Ao menos um indicador do painel está em Vermelho neste ciclo.' : 'Nenhum indicador do painel está em Vermelho neste ciclo.') + '</p>' : '') +
                     '</section>');
             }
 
@@ -1374,7 +1417,7 @@
                     '<div class="kpi-grid">' +
                     '<div class="kpi"><div class="kpi-label">Valor Bruto do Ciclo</div><div class="kpi-val">' + _wwiRelEsc(_wwiFmtR(b.reembTotalCiclo)) + '</div></div>' +
                     (b.reembRecebidos != null ? '<div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-val" style="color:var(--good)">' + _wwiRelEsc(_wwiFmtR(b.reembRecebidos)) + '</div></div>' : '') +
-                    (b.reembAReceber != null ? '<div class="kpi"><div class="kpi-label">Pendente</div><div class="kpi-val" style="color:var(--warn)">' + _wwiRelEsc(_wwiFmtR(b.reembAReceber)) + '</div></div>' : '') +
+                    (b.reembAReceber != null ? '<div class="kpi"><div class="kpi-label">Pendente</div><div class="kpi-val" style="color:var(--warn)">' + _wwiRelEsc(_wwiFmtR(b.reembAReceber)) + '</div>' + (b.reembAReceber > 0 ? '<span class="chip a">Aguardando confirmação</span>' : '') + '</div>' : '') +
                     (eficiencia !== null ? '<div class="kpi"><div class="kpi-label">Eficiência de Recuperação</div><div class="kpi-val" style="color:var(--good)">' + eficiencia + '%</div></div>' : '') +
                     '</div></section>');
             }
@@ -1419,37 +1462,52 @@
             if (narrativa && narrativa.parecerFinalTexto) {
                 perguntasParecer.push({ q: 'Leitura de encerramento', r: narrativa.parecerFinalTexto });
             }
+            // Leitura descritiva do selo final — mesmo texto/limiar já usado por gerar-analise-financeira.js
+            // (nivelTexto), não uma frase nova: reutiliza a classificação por nível já computada ali.
+            const nivelLeitura = score === null ? null :
+                score >= 90 ? 'Base institucional consolidada em praticamente todos os eixos avaliados.' :
+                score >= 75 ? 'Disciplina e proteção patrimonial sólidas — a próxima fronteira normalmente é alocação e diversificação, não segurança.' :
+                score >= 55 ? 'Fundamentos presentes, com espaço real de melhoria em pelo menos um eixo crítico.' :
+                'Recomenda-se revisão de prioridades antes de assumir novos compromissos financeiros.';
             if (perguntasParecer.length) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Parecer Final', 'Leitura de encerramento') +
                     '<div class="final-verdict">' + perguntasParecer.map(function (qa) {
                         return '<div class="fv-q">' + _wwiRelEsc(qa.q) + '</div><p>' + _wwiRelEsc(qa.r) + '</p>';
                     }).join('') + '</div>' +
-                    (score !== null ? '<div class="cover-grade" style="margin-top:2rem;border-color:var(--accent);"><b style="color:var(--ink)">' + score + '/100 &mdash; ' + nivel + '</b></div>' : '') +
+                    (score !== null ? '<div class="cover-grade" style="margin-top:2.2rem;border-color:var(--accent);"><b style="color:var(--ink)">' + score + '/100 &mdash; ' + nivel + '</b><span style="color:var(--ink-soft)">' + _wwiRelEsc(nivelLeitura) + '</span></div>' : '') +
                     '</section>');
             }
 
+            // ADICIONADO 14/08/2026 (achado do agente de comparação: a barra .toc usava o título
+            // completo da seção em maiúsculas, ficando bem mais longa que a referência, que usa
+            // rótulos curtos de 1-2 palavras). Mapa fixo por número de seção — mesmo texto do
+            // eyebrow completo continua no corpo da seção, só a aba de navegação fica compacta.
+            const WWI_TOC_LABELS = {
+                '01': 'CFO', '02': 'Painel', '03': 'Patrimônio', '04': 'Passivos', '05': 'Centros de Custo',
+                '06': 'Projetos', '07': 'Liquidez', '08': 'Wärtsilä', '09': 'Aceleração', '10': 'Score', '11': 'Parecer',
+            };
             return '<style>' + WWI_CSS_ARTEFATO + '</style>' +
                 '<div class="wwi-scope">' +
                 '<header class="cover">' +
                 '<div class="cover-top">' +
-                '<div class="cover-mark">Sistema Wallace Lira<span>Wallace Wealth Intelligence</span></div>' +
+                '<div class="cover-mark">Sistema Wallace Lira<span>Family Office &amp; Patrimônio Pessoal</span></div>' +
                 '<div class="classification">Uso Restrito &middot; Pessoal</div>' +
                 '</div>' +
                 '<h1 class="cover-title">Tactical Wealth <em>Report</em></h1>' +
                 '<p class="cover-sub">Gestão Patrimonial, Liquidez e Construção de Capital &mdash; leitura executiva do sistema financeiro pessoal.</p>' +
                 '<div class="cover-rule"></div>' +
                 '<div class="cover-foot">' +
-                '<div><strong>Wallace Lira</strong>Executivo Industrial</div>' +
+                '<div><strong>Wallace Lira</strong>Executivo Industrial &middot; W&auml;rtsil&auml;</div>' +
                 '<div><strong>Ciclo de referência</strong>' + _wwiRelEsc(dados.cicloAtual) + '</div>' +
-                '<div><strong>Gerado em</strong>' + _wwiRelEsc(dados.geradoEm) + '</div>' +
+                '<div><strong>Preparado por</strong>CFO Pessoal &amp; Conselheiro Patrimonial</div>' +
                 '</div>' +
                 (score !== null ? '<div class="cover-grade"><b>' + nivel + '</b><span>Wealth Score ' + score + '/100 &mdash; ver detalhamento completo por eixo neste relatório.</span></div>' : '') +
                 '</header>' +
                 '<nav class="toc">' + navSecoes.map(function (s) {
-                    return '<a href="#' + s.id + '">' + s.num + ' ' + _wwiRelEsc(_wwiRelTituloSemEmoji(s.titulo).toUpperCase()) + '</a>';
+                    return '<a href="#' + s.id + '">' + s.num + ' ' + _wwiRelEsc((WWI_TOC_LABELS[s.num] || _wwiRelTituloSemEmoji(s.titulo)).toUpperCase()) + '</a>';
                 }).join('') + '</nav>' +
                 blocos.join('') +
-                '<footer class="report-foot">Tactical Wealth Report &middot; Sistema Wallace Lira &middot; gerado automaticamente pelo módulo WWI &middot; documento de uso pessoal.</footer>' +
+                '<footer class="report-foot">Tactical Wealth Report &middot; Sistema Wallace Lira &middot; Dados extraídos diretamente do banco relacional V2 (Supabase) em ' + _wwiRelEsc(dados.geradoEm) + ' &middot; Documento de uso pessoal, não constitui recomendação de investimento regulada.</footer>' +
                 '</div>';
         }
 

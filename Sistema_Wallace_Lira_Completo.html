@@ -1487,17 +1487,19 @@
           </select>
         </div>
       </div>
-      <button id="btnCalcularSimulacao" type="button" style="margin-top:0.8rem;padding:0.5rem 1rem;border-radius:var(--radius-lg);background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600">Calcular simulação</button>
+      <button id="btnCalcularSimulacao" type="button" style="margin-top:0.8rem;padding:0.7rem 1.1rem;border-radius:var(--radius-lg);background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600">Calcular simulação</button>
 
       <div class="grid-2" style="margin-top:1rem">
         <div class="card"><div style="font-size:var(--fs-label);color:var(--text-mid)">Economia acumulada no período</div><div class="v" style="font-weight:600;color:var(--green)" id="simEconomiaAcumulada">—</div></div>
         <div class="card"><div style="font-size:var(--fs-label);color:var(--text-mid)">Período simulado</div><div class="v" style="font-weight:600" id="simPeriodo">—</div></div>
       </div>
 
+      <div style="overflow-x:auto">
       <table style="width:100%;margin-top:1rem;font-size:0.75rem;border-collapse:collapse">
         <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th style="padding:0.3rem 0">Ano</th><th>Economia acumulada</th><th>Payback estimado</th></tr></thead>
         <tbody id="simTabelaAnual"></tbody>
       </table>
+      </div>
       <div class="legend-note" style="font-size:0.65rem;margin-top:0.7rem">
         Premissas ajustáveis no código (SolarConfig): reajuste tarifário 6%a.a., inflação 4,5%a.a., degradação do módulo 0,5%a.a., aumento de consumo 0%a.a. (padrão conservador). Tarifas base: Resolução Homologatória ANEEL 3518/2025, Grupo B1 Residencial. Fio B segue a curva de transição da Lei 14.300 (60% em 2026, sobe para 100% até 2029) — incide só sobre energia compensada, nunca sobre energia instantânea.
       </div>
