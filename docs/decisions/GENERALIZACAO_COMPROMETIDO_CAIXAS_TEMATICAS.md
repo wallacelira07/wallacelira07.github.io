@@ -41,11 +41,23 @@ Testado com dados simulados (DOM + `WallaceFinanceService` mockados) cobrindo os
 
 O usuário generalizou o princípio além da exibição: **"as compras foram feitas no cartão... as caixas são apenas referências como uma coleção para viabilizar a compra"** — ou seja, em qualquer caixa, compra com `cartao_id` preenchido é sempre `afeta_saldo_real=false`, ponto final (ver seção 1.3.5 do `MANUAL_OPERACIONAL_AGENTES.md`, criada nesta mesma rodada). Auditoria encontrou 6 transações mal classificadas (`cartao_id` preenchido mas `afeta_saldo_real=true`) nas 3 caixas que já tinham compra real no cartão:
 
-| Caixa | TX corrigidas | Saldo antes | Saldo depois |
-|---|---|---|---|
-| Caixa Bens Duráveis | TX000227, TX000226, TX000159-A, TX000159-B | R$583,99 | R$1.167,98 |
-| Caixa Churrasco | TX000228 | R$359,56 | R$718,43 |
-| Emagrecimento | TX000277 | R$278,89 | R$557,78 |
+| Caixa | TX corrigidas (`afeta_saldo_real`→false) | Saldo antes |
+|---|---|---|
+| Caixa Bens Duráveis | TX000227, TX000226, TX000159-A, TX000159-B | R$583,99 |
+| Caixa Churrasco | TX000228 | R$359,56 |
+| Emagrecimento | TX000277 | R$278,89 |
+
+**Achado seguinte, mesma sessão (achado do usuário: "o valor não pode dobrar")**: essa 1ª correção fez os 3 saldos praticamente dobrarem (Bens Duráveis→R$1.167,98, Churrasco→R$718,43, Emagrecimento→R$557,78) — sintoma de **dupla contagem**, não um saldo real maior. Causa raiz: cada uma das 3 caixas já tinha um lançamento de "calibração"/"saldo físico confirmado" criado numa rodada de reconciliação anterior (13/08), no mesmo valor de outro aporte já existente — criado numa época em que a compra de cartão ainda contava contra o saldo, então a calibração "recompunha" o saldo somando de novo o que a compra de cartão tinha subtraído. Depois que a compra parou de subtrair (correção acima), a calibração virou dinheiro duplicado.
+
+Removidas (confirmado item a item com o usuário) as 3 transações de calibração redundantes:
+
+| Caixa | TX removida | Motivo |
+|---|---|---|
+| Caixa Bens Duráveis | TX000316 "Saldo físico confirmado pelo usuário" (R$583,99) | Duplicava TX000298 "Aporte — repasse sobra reembolso Wärtsilä", mesmo valor, criada 8h depois |
+| Caixa Churrasco | TX000309 "Saldo físico confirmado... destinado ao pagamento do cartão" (R$359,56) | Descrição confirma que era um patch manual só pra cobrir TX000228 (R$358,87) antes da correção existir |
+| Emagrecimento | TX000300 "Aporte — repasse sobra reembolso Wärtsilä" (R$278,89) | Duplicava TX000318 "Aporte mensal retroativo", mesmo valor |
+
+**Saldos finais corretos**: Bens Duráveis R$583,99 · Churrasco R$358,87 · Emagrecimento R$278,89 — nenhum dobrou, cada um reflete exatamente o dinheiro real disponível (aportes reais menos só as saídas que NÃO são compra de cartão).
 
 TX000159-A/TX000159-B também receberam de volta o `cartao_id` (MB virtual) que haviam perdido quando TX000159 original foi dividida entre Caixa Variável e Bens Duráveis. Confirmado com o usuário item a item antes da correção; valores pós-correção validados contra `vw_saldo_v2_por_caixa`.
 
