@@ -40,6 +40,15 @@
   .msg h2{color:var(--text);margin-bottom:0.5rem}
   .footer-note{font-size:0.7rem;color:var(--text-dim);text-align:center;margin-top:1.5rem;line-height:1.5}
   a{color:var(--blue)}
+  /* NOVO 14/08/2026 (pedido do usuário: "acrescente na aba compartilhada o menu 03 Crédito garantido
+     vs. crédito em formação da energia solar") — barra de progresso simples, mesmo padrão visual do
+     resto do site (.fill do painel privado), reimplementada aqui sem dependências (página autocontida). */
+  .progress{height:6px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;margin-top:0.6rem}
+  .progress-fill{height:100%;border-radius:99px}
+  .credito-casa{margin-bottom:1.1rem}
+  .credito-casa:last-child{margin-bottom:0}
+  .credito-fluxo-lbl{font-size:0.68rem;color:var(--text-dim);font-weight:600;margin-bottom:0.2rem}
+  .credito-fracao{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:0.4rem}
   /* NOVO 12/08/2026 (pedido do usuário: "coloque a previsão do tempo também") — mesma fonte
      (Open-Meteo) e coordenadas de src/solar/hydrate-clima-solar.js (painel privado), reimplementado
      aqui sem dependências porque esta página é autocontida. Fica FORA de #app de propósito: não
@@ -131,7 +140,39 @@ const TARIFA_RS_POR_KWH = 0.8995;
 // COMPENSADO (exportado), nunca sobre o autoconsumo direto. Nível C (fornecido pelo usuário, não
 // consultado ao vivo numa fatura desta sessão) — se a tarifa/Fio B mudar de faixa, atualizar aqui.
 const FIO_B_RS_POR_KWH = 0.14160;
-const INVESTIMENTO_PADRAO = 25000; // mesmo default do simulador do painel privado (simInvestimento)
+const INVESTIMENTO_PADRAO = 14800; // mesmo default do simulador do painel privado (simInvestimento)
+
+// NOVO 14/08/2026 (pedido do usuário: "acrescente na aba compartilhada o menu 03 Crédito garantido
+// vs. crédito em formação") — cópia deliberada (mesmo padrão da tarifa/consumo acima) das metas
+// mensais e da lógica de Fluxo 1 (fechado)/Fluxo 2 (em formação) de graficos-cenarios-lazy.js
+// (painel privado, seção 03 "Unidade Geradora"). Fluxo 1 usa credito_wallace_kwh/credito_irma_kwh
+// já congelados em ciclosFechados (RPC) — não recalcula nada. Fluxo 2 deriva do saldo líquido
+// acumulado (leituras reais, já calculado abaixo) menos o baseline_kwh do ciclo aberto (também
+// devolvido pela RPC, mesmo campo que o painel privado usa) — mesma fórmula, mesmo resultado.
+const KWH_ANO_ANTERIOR_WALLACE = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul/26..Jun/27
+const CONSUMO_MENSAL_IRMA = [90,74,70,82,103,127,122,138,142,172,140,100]; // Jul/26..Jun/27
+const ANCHOR_ENERGIA_ANO = 2026, ANCHOR_ENERGIA_MES = 7; // mesmo VARS.solarDataAtivacao (2026-07-21)
+const DIA_LEITURA_GD = 8; // dia da leitura/fechamento da GD (Casa da Mãe, onde fica a usina)
+
+function offsetMesesCicloGD(dataRef){
+  const hoje = dataRef ? new Date(dataRef+'T00:00:00') : new Date();
+  let ano = hoje.getFullYear(), mes = hoje.getMonth()+1;
+  if(hoje.getDate() >= DIA_LEITURA_GD){ mes += 1; if(mes > 12){ mes = 1; ano += 1; } }
+  return (ano-ANCHOR_ENERGIA_ANO)*12 + (mes-ANCHOR_ENERGIA_MES);
+}
+function calcularDiasRestantesGD(diaLeituraAlvo){
+  const hj = new Date();
+  const hojeSoData = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate());
+  let proxima = new Date(hj.getFullYear(), hj.getMonth(), diaLeituraAlvo);
+  if(proxima <= hojeSoData) proxima = new Date(hj.getFullYear(), hj.getMonth()+1, diaLeituraAlvo);
+  return { dias: Math.max(1, Math.round((proxima-hojeSoData)/86400000)), data: proxima };
+}
+function calcularStatusGD(mediaRealizada, mediaNecessaria){
+  if(mediaNecessaria<=0 || mediaRealizada>=mediaNecessaria) return {emoji:'🟢', texto:'No ritmo', cor:'var(--green)'};
+  const deficitPct = (mediaNecessaria-mediaRealizada)/mediaNecessaria;
+  if(deficitPct < 0.10) return {emoji:'🟡', texto:'Atenção', cor:'var(--amber)'};
+  return {emoji:'🔴', texto:'Atrasado', cor:'var(--red)'};
+}
 
 // Cópia deliberada (mesmo padrão da tarifa acima) de src/solar/vars-energia-solar.js — consumo médio
 // diário das 3 casas que dividem a usina (Wallace, Wellida/"Irmã", Mãe/geradora), usado só como linha
@@ -308,6 +349,87 @@ async function carregar(){
     }
   }
 
+  // NOVO 14/08/2026 (pedido do usuário: "acrescente na aba compartilhada o menu 03 Crédito garantido
+  // vs. crédito em formação"). Fluxo 1 (fechado) — direto de ciclosFechados (RPC), congelado, não
+  // recalcula nada. Fluxo 2 (em formação) — deriva do saldo líquido acumulado (leituras reais, já
+  // calculado acima) menos o baseline_kwh do ciclo aberto, mesma fórmula do painel privado.
+  const OFFSET_GD_HOJE = Math.max(0, Math.min(11, offsetMesesCicloGD()));
+  const METAS_ABERTO = { wallace: KWH_ANO_ANTERIOR_WALLACE[OFFSET_GD_HOJE], wellida: CONSUMO_MENSAL_IRMA[OFFSET_GD_HOJE] };
+
+  let fluxo2 = null;
+  if(ciclo && saldoLiquidoAcum!=null && ciclo.baseline_kwh!=null && ciclo.rateio_wallace_pct!=null){
+    const baselineKwh = Number(ciclo.baseline_kwh);
+    const rateioWallace = Number(ciclo.rateio_wallace_pct);
+    const rateioIrma = Number(ciclo.rateio_irma_pct);
+    const creditoLiquidoCiclo = Math.round((saldoLiquidoAcum - baselineKwh) * 100) / 100;
+    const creditoWallaceAtual = Math.round(creditoLiquidoCiclo * rateioWallace * 100) / 100;
+    const creditoIrmaAtual = Math.round(creditoLiquidoCiclo * rateioIrma * 100) / 100;
+    const diasDesdeInicioCiclo = Math.max(0, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
+    const { dias: diasRestantesGD, data: proximoFechamentoGD } = calcularDiasRestantesGD(DIA_LEITURA_GD);
+    const periodoTxt = fmtData(ciclo.data_inicio) + ' → previsto ' + proximoFechamentoGD.toLocaleDateString('pt-BR');
+
+    function montarPrevisao(meta, creditoAtual, corBarra, rateioTxt){
+      const creditoRestante = Math.round((meta-creditoAtual)*100)/100;
+      const mediaNecessaria = diasRestantesGD>0 ? Math.round((creditoRestante/diasRestantesGD)*10)/10 : 0;
+      const mediaRealizada = diasDesdeInicioCiclo>0 ? Math.round((creditoAtual/diasDesdeInicioCiclo)*10)/10 : 0;
+      const previsao = Math.round((creditoAtual + mediaRealizada*diasRestantesGD)*10)/10;
+      const status = calcularStatusGD(mediaRealizada, mediaNecessaria);
+      const pct = Math.min(100, Math.max(0, Math.round(creditoAtual/meta*100)));
+      return { meta, creditoAtual, pct, corBarra, rateioTxt, diasRestantesGD, mediaNecessaria, mediaRealizada, previsao, status };
+    }
+    fluxo2 = {
+      periodoTxt,
+      wallace: montarPrevisao(METAS_ABERTO.wallace, creditoWallaceAtual, '#34c98a', fmtPct(rateioWallace*100)),
+      wellida: montarPrevisao(METAS_ABERTO.wellida, creditoIrmaAtual, '#e8a63a', fmtPct(rateioIrma*100)),
+    };
+  }
+
+  // ciclosFechados vem ORDER BY data_inicio ASC (RPC) — o mais recente é o último elemento.
+  const ultimoFechado = ciclosFechados.length ? ciclosFechados[ciclosFechados.length-1] : null;
+  let fluxo1 = null;
+  if(ultimoFechado){
+    const offsetFechado = Math.max(0, Math.min(11, offsetMesesCicloGD(ultimoFechado.dataFim)));
+    const metaWallaceFechado = KWH_ANO_ANTERIOR_WALLACE[offsetFechado];
+    const metaWellidaFechado = CONSUMO_MENSAL_IRMA[offsetFechado];
+    function montarFechado(meta, creditoFechado){
+      const cobertura = meta>0 ? Math.round((creditoFechado/meta)*1000)/10 : 0;
+      const faltam = Math.round((meta-creditoFechado)*10)/10;
+      const pct = Math.min(100, Math.max(0, Math.round(cobertura)));
+      return { meta, creditoFechado, cobertura, faltam, pct };
+    }
+    fluxo1 = {
+      dataFimTxt: fmtData(ultimoFechado.dataFim),
+      wallace: montarFechado(metaWallaceFechado, Number(ultimoFechado.creditoWallaceKwh)),
+      wellida: montarFechado(metaWellidaFechado, Number(ultimoFechado.creditoIrmaKwh)),
+    };
+  }
+
+  function montarBlocoCasa(nome, dadosFluxo1, dadosFluxo2){
+    const f1 = dadosFluxo1 ? `
+      <div class="credito-fluxo-lbl">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
+      <div class="progress"><div class="progress-fill" style="width:${dadosFluxo1.pct}%;background:${dadosFluxo1.faltam<=0?'var(--green)':'var(--amber)'}"></div></div>
+      <div class="credito-fracao"><span>${fmtKwh(dadosFluxo1.creditoFechado)} / ${fmtKwh(dadosFluxo1.meta)}</span><span>${fmtPct(dadosFluxo1.cobertura)}</span></div>
+      <div class="stat-sub" style="margin-top:0.3rem">Fechado em ${dadosFluxo1.dataFimTxt} — não muda mais, é o que abate a próxima fatura. ${dadosFluxo1.faltam>0 ? 'Faltam '+fmtKwh(dadosFluxo1.faltam) : 'Cobre com sobra de '+fmtKwh(Math.abs(dadosFluxo1.faltam))}.</div>
+    ` : `<div class="stat-sub">Sem ciclo fechado ainda.</div>`;
+    const f2 = dadosFluxo2 ? `
+      <div class="credito-fluxo-lbl" style="margin-top:0.9rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
+      <div class="progress"><div class="progress-fill" style="width:${dadosFluxo2.pct}%;background:${dadosFluxo2.corBarra}"></div></div>
+      <div class="credito-fracao"><span>${fmtKwh(dadosFluxo2.creditoAtual)} / ${fmtKwh(dadosFluxo2.meta)} (meta do mês, referência)</span><span>${dadosFluxo2.pct}%</span></div>
+      <div class="stat-sub" style="margin-top:0.3rem">${dadosFluxo2.status.emoji} <span style="color:${dadosFluxo2.status.cor}">${dadosFluxo2.status.texto}</span> · rateio ${dadosFluxo2.rateioTxt} · ${dadosFluxo2.diasRestantesGD} dias restantes · média ${fmtKwh(dadosFluxo2.mediaRealizada)}/dia (precisa de ${fmtKwh(dadosFluxo2.mediaNecessaria)}/dia) · previsão de fechamento ${fmtKwh(dadosFluxo2.previsao)}</div>
+    ` : `<div class="stat-sub" style="margin-top:0.9rem">⚠ Sem ciclo aberto no momento.</div>`;
+    return `<div class="credito-casa"><div style="font-weight:600;margin-bottom:0.4rem">⚡ ${nome}</div>${f1}${f2}</div>`;
+  }
+
+  const creditoGarantidoHtml = (fluxo1 || fluxo2) ? `
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.3rem">📈 Crédito garantido vs. crédito em formação</div>
+      <div class="stat-sub" style="margin-bottom:0.9rem">Dois créditos coexistem ao mesmo tempo, sem se misturar: o que já fechou (garantido, vai pra próxima fatura) e o que a usina está gerando agora (só fecha no próximo fechamento da GD${fluxo2 ? ', ' + fluxo2.periodoTxt : ''}).</div>
+      ${montarBlocoCasa('Wallace', fluxo1 && fluxo1.wallace, fluxo2 && fluxo2.wallace)}
+      <div style="border-top:1px solid var(--border);margin:1rem 0"></div>
+      ${montarBlocoCasa('Wellida', fluxo1 && fluxo1.wellida, fluxo2 && fluxo2.wellida)}
+    </div>
+  ` : '';
+
   // NOVO 11/08/2026 (pedido do usuário: "coloque mais gráficos lá no link, se possível todos os
   // gráficos") - "Histórico mês a mês" (importado/consumo direto/exportado/saldo líquido), mesma
   // ideia do gráfico do painel privado (seção 02), recalculada aqui a partir do delta entre leituras
@@ -349,6 +471,8 @@ async function carregar(){
       </div>
       ${saldoLiquidoAcum!=null ? `<div class="stat-sub" style="margin-top:0.9rem;padding-top:0.9rem;border-top:1px solid var(--border)">Saldo líquido: <strong style="color:${saldoLiquidoAcum>=0?'var(--green)':'var(--red)'}">${saldoLiquidoAcum>=0?'+':''}${fmtKwh(saldoLiquidoAcum)}</strong> ${saldoLiquidoAcum>=0 ? '— excedente (exportando mais do que importa)' : '— dependendo mais da rede do que exportando'}</div>` : ''}
     </div>
+
+    ${creditoGarantidoHtml}
 
     <div class="card">
       <div class="stat-lbl" style="margin-bottom:0.6rem">Economia estimada (desde a ativação)</div>
