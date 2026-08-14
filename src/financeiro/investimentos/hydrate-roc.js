@@ -74,7 +74,10 @@ function hydrateROC(){
   // ADICIONADAS 12/08/2026 (achado de auditoria, mesmo tratamento): legOrcamentoOperacionalComposicao
   // (teto Caixa Variável + meta PIX Vanessa) e legPGVSaldoResidual (saldo real da PGV) tinham valores
   // R$ fixos na string — agora calculadas em hydrateResumoExecutivo() a cada render.
-  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida', 'legOrcamentoOperacionalComposicao', 'legPGVSaldoResidual']);
+  // ADICIONADA 14/08/2026 (achado do usuário, mesmo tratamento): legMPCorporativoImpacto tinha
+  // "R$9.223,66" fixo — agora calculada em hydrateResumoExecutivo() a cada render (ver
+  // recalcular-necessidade.js pra causa raiz do valor congelado).
+  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida', 'legOrcamentoOperacionalComposicao', 'legPGVSaldoResidual', 'legMPCorporativoImpacto']);
   Object.keys(VARS.LEGENDAS).forEach(id => {
     if(LEGENDAS_CALCULADAS.has(id)) return;
     const el = $(id);

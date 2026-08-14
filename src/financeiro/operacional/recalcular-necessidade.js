@@ -17,6 +17,16 @@ function recalcularNecessidade(){
   const r2 = x => Math.round(x*100)/100;
   const D = REG.totalOpDetalhe;
 
+  // CORRIGIDO 14/08/2026 (achado do usuário: card 05 "Desemprego extremo" mostrava R$9.223,66,
+  // card 03 "Soma do piso absoluto" mostrava R$7.831,17 — não batiam). REG.reserva.piso e
+  // deficitZero.piso[0] ainda liam VARS.reservaPiso, literal congelado de antes de 11/08/2026
+  // (quando Boletos subiu e Consórcios zerou com a migração dos consórcios Porto pro boleto).
+  // pisoTotal (hydrate-resumo-cartoes.js) já tinha sido corrigido em 13/08 pra somar os mesmos 6
+  // componentes ao vivo — só esse literal ficou pra trás. Agora os 3 consumidores derivam da MESMA
+  // fórmula, nunca mais podem dessincronizar.
+  REG.reserva.piso = r2(D.boletos + D.parcelas + D.consorcios + D.recorrencias + D.provMP + D.assinaturas);
+  if(REG.deficitZero && Array.isArray(REG.deficitZero.piso)) REG.deficitZero.piso[0] = REG.reserva.piso;
+
   // V128 (bug real apontado pelo usuario): entradasTotais agora DERIVADO de salario+reembolsoCicloTotal, nunca mais um numero fixo que "esquecia" de atualizar quando o reembolso mudava de status (a receber -> recebido).
   REG.operacional.entradasTotais = r2(REG.operacional.salario + REG.operacional.reembolsoCicloTotal - REG.operacional.reembolsoPassThroughCorporativo);
   REG.balanco.fluxo.entradas = REG.operacional.entradasTotais; // fonte unica - antes eram 2 copias que podiam divergir

@@ -74,10 +74,13 @@ function hydrateResumoCartoes(){
   t('alivioBadgeMar27', 'Alívio '+fmt(alivioTotal)+' até Mar/27');
 
   // piso absoluto (O que NUNCA e cortado)
+  // REMOVIDO 14/08/2026 (pedido do usuario): linha "Consorcios" tirada da lista - desde 11/08/2026
+  // os 2 consorcios Porto migraram pro boleto (D.consorcios/VARS.livroLRCON sempre R$0,00 desde
+  // entao, estrutural, nao e bug). Continua somado em pisoTotalReal abaixo (soma inerte, +R$0,00) -
+  // so a linha de exibicao saiu, pra nao mostrar categoria morta.
   const D = R.totalOpDetalhe;
   t('pisoBoletos', fmt(D.boletos));
   t('pisoParcelas', fmt(D.parcelas));
-  t('pisoConsorcios', fmt(D.consorcios));
   t('pisoRecorrencias', fmt(D.recorrencias));
   t('pisoMP', fmt(D.provMP));
   t('pisoAssinaturas', fmt(D.assinaturas));

@@ -122,4 +122,14 @@ function hydrateResumoExecutivo(){
     const saldoPGV = R.caixasOperacionais.pixGeralVanessa.saldo;
     legPGVEl.innerHTML = `Saldo real da Caixa Pix Geral: <strong>${fmt(saldoPGV)}</strong>. Fonte: V2 pura (tabela transações), sem depender do array V1 — qualquer lançamento confirmado dentro do ciclo aparece aqui automaticamente, sem sincronização manual.`;
   }
+
+  // CORRIGIDO 14/08/2026 (achado do usuário: texto tinha "R$9.223,66" fixo — o mesmo literal
+  // congelado de VARS.reservaPiso que causava o card 05 "Desemprego extremo" não bater com o card
+  // 03 "Soma do piso absoluto", real R$7.831,17 — ver recalcular-necessidade.js). Mesmo tratamento
+  // de legNecessidadeBrutaLiquida acima: lê REG.reserva.piso (já corrigido pra derivar ao vivo) a
+  // cada render — excluída do loop genérico de hydrate-roc.js.
+  const legMPImpactoEl = $('legMPCorporativoImpacto');
+  if(legMPImpactoEl){
+    legMPImpactoEl.innerHTML = `Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, <span class="v">${fmt(R.reserva.piso)}</span> têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.`;
+  }
 }

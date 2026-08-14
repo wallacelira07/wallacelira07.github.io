@@ -179,9 +179,15 @@ new Chart($('g_cVisaBar'), {
 
 // 01 — Composição do Total Operacional (7 categorias confirmadas com o Wallace em 15/07/2026)
 // Boletos=2600 (APORTE_BOLETOS, nao o total bruto do livro LRB) · Prov. MP=471,47 (MP pessoal, nao o total bruto do LRMP)
-const totalOpLabels = ['Boletos','Parcelas','Consórcios','Recorrências','Aportes Pat.','Prov. MP','Assinaturas'];
-const totalOpData = Object.values(REG.totalOpDetalhe);
-const totalOpColors = ['#3987e5','#9085e9','#e2554f','#34c98a','#e8a63a','#6f6d66','#e879b0'];
+// REMOVIDO 14/08/2026 (pedido do usuario, mesmo achado do card "O que NUNCA e cortado"):
+// "Consórcios" tirado da lista - desde 11/08/2026 os 2 consorcios Porto migraram pro boleto
+// (REG.totalOpDetalhe.consorcios sempre R$0,00 desde entao, categoria estrutural morta, nao bug).
+// totalOpData agora lista os campos explicitamente (nao mais Object.values() da ordem inteira do
+// objeto) pra poder excluir so esse campo sem quebrar o alinhamento label<->valor dos outros 6.
+const D01 = REG.totalOpDetalhe;
+const totalOpLabels = ['Boletos','Parcelas','Recorrências','Aportes Pat.','Prov. MP','Assinaturas'];
+const totalOpData = [D01.boletos, D01.parcelas, D01.recorrencias, D01.aportesPat, D01.provMP, D01.assinaturas];
+const totalOpColors = ['#3987e5','#9085e9','#34c98a','#e8a63a','#6f6d66','#e879b0'];
 
 { const __chartExistente = Chart.getChart($('g_cTotalOp')); if (__chartExistente) __chartExistente.destroy(); }
 window.WALLACE_CHARTS.gTotalOpDoughnut = new Chart($('g_cTotalOp'), {

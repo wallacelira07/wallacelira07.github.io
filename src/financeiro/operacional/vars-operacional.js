@@ -70,7 +70,13 @@ function criarVarsOperacional(){
     // CORRIGIDO 13/08/2026 (achado de auditoria: mesma legenda, frase única longa demais) —
     // quebrada em tópicos curtos, mesmos fatos e datas.
     legLegendaCaixasIncrementais: `Prazos das caixas incrementais: Aniversário Júlio (R$200/mês) para em Set/26. Escola Júlio ciclo atual (R$500/mês) para em Nov/26. Seguro/Emplacamento (R$425/mês) é contínuo, não gera alívio. Escola Júlio 2027 reinicia em Jan/27 (R$839,64/mês até Nov/27). Saúde Família (R$100/mês) projeta completar perto de Nov/27.`,
-    legMPCorporativoImpacto: `Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, R$9.223,66 têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.`,
+    // CORRIGIDO 14/08/2026 (achado do usuário: R$9.223,66 embutido no texto era o mesmo literal
+    // congelado de VARS.reservaPiso, dessincronizado do valor real R$7.831,17 desde 11/08 — ver
+    // recalcular-necessidade.js). Esta chave PAROU de ser usada como texto fixo — hydrateResumoExecutivo()
+    // agora calcula o conteúdo real de #legMPCorporativoImpacto a cada render, a partir de
+    // REG.reserva.piso (excluída do loop genérico em hydrate-roc.js de propósito, mesmo padrão de
+    // legNecessidadeBrutaLiquida). Literal abaixo mantido só como histórico/fallback morto — nunca mais renderizado.
+    legMPCorporativoImpacto: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.reserva.piso)`,
     legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
     legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Não há fórmula CLT/convenção implementada como derivado — atualizar manualmente se o salário-base mudar.`,
     legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$8.109,64/mês</strong>.`,
