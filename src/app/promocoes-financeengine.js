@@ -249,10 +249,15 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       }
     }
 
-    // Total recalculado 1x no final, mesma fórmula já existente em recalcularAgregadosDerivados()
+    // Total recalculado 1x no final, mesma fórmula já existente em recalcularBalanco()
     // (não duplicada — só reaplicada aqui porque este bloco roda DEPOIS dela no carregamento).
+    // CORRIGIDO 14/08/2026 (achado real, ao vivo: auditoria acusando "1 divergência" mesmo depois da
+    // correção em auditoria-automatica.js/recalcular-balanco.js do mesmo dia — causa raiz era AQUI,
+    // um 3º lugar que soma as reservas e ainda incluía r.boletos, reintroduzindo a duplicidade com
+    // operacional.caixaBoletos que os outros 2 arquivos já tinham removido. Esta fase roda DEPOIS de
+    // recalcularBalanco() no boot, então sobrescrevia o total já corrigido com o valor errado de novo.
     const r = REG.balanco.reservas;
-    r.total = Math.round((r.boletos + r.escolaJulio + r.caixaLance + r.manutencao + r.eventos + r.churrasco +
+    r.total = Math.round((r.escolaJulio + r.caixaLance + r.manutencao + r.eventos + r.churrasco +
       r.saudeFamilia + r.seguroEmplacamento + r.aniversarioJulio + r.pixVanessa + r.combustivel + r.bensDuraveis + r.suavizacao) * 100) / 100;
 
     if (typeof hydrate === 'function') hydrate();

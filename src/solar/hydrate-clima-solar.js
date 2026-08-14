@@ -45,9 +45,19 @@ const CLIMA_SOLAR_CODIGOS = {
   99: { emoji: '⛈️', texto: 'Trovoada com granizo forte' },
 };
 
+// CORRIGIDO 14/08/2026 (achado real: painel demorando ~7s pra carregar) - hydrate() e chamada de
+// novo ate 13x durante o boot (promocoes-financeengine.js promove cada caixa V1->V2 individualmente,
+// re-hidratando a cada uma), e aplicarClimaSolar() rodava a cada chamada sem nenhuma protecao -
+// disparava a MESMA requisicao pra Open-Meteo 13 vezes seguidas, cada uma esperando a anterior
+// (limite de conexoes por host do navegador), somando ~7s sozinho no fim da fila. O clima e so
+// contexto visual (nunca usado em calculo, ver comentario no topo do arquivo) - nao precisa
+// re-buscar a cada re-hidratacao da mesma carga de pagina, 1x ja e suficiente.
+let __climaSolarJaBuscado = false;
 async function aplicarClimaSolar(){
   const elBloco = $('qgClima');
   if(!elBloco) return;
+  if(__climaSolarJaBuscado) return;
+  __climaSolarJaBuscado = true;
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CLIMA_SOLAR_LAT}&longitude=${CLIMA_SOLAR_LON}&current=temperature_2m,weather_code,is_day&timezone=America%2FSao_Paulo`;
     // NOVO 12/08/2026 (pedido do usuário: "precisa de data e hora nesse menu do tempo") - current.time

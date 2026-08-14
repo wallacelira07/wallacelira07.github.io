@@ -24,14 +24,23 @@
 // perde dado real nenhum, já que a decisão em si já está gravada na tabela desde a RPC).
 
 async function aplicarOnda7Pluggy(){
-  let pluggyV2;
-  try {
-    pluggyV2 = await WallaceFinanceService.getPluggyContasV2();
-  } catch(err){
-    console.error('Onda7Pluggy: falha ao buscar pluggy_conexoes/contas/transacoes — sem fallback V1 (domínio é V2-exclusivo).', err);
-    window.WALLACE_ONDA7_PLUGGY_RELATORIO = { status: 'erro_v2', erro: String(err) };
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot): PLUGGY_CONTAS e PLUGGY_TRIAGEM
+  // são fetches independentes (nenhum usa o resultado do outro) mas rodavam em `await` sequencial —
+  // o comentário original (linha ~10 abaixo) já dizia "busca em paralelo", intenção nunca aplicada
+  // de fato. Promise.allSettled dispara os 2 juntos e preserva o mesmo tratamento de erro de antes:
+  // falha em PLUGGY_CONTAS é fatal (domínio V2-exclusivo, sem fallback V1), falha em PLUGGY_TRIAGEM
+  // é tolerada (degrada pra "nenhum item marcado como já triado", não perde dado real).
+  const [resContas, resTriagem] = await Promise.allSettled([
+    WallaceFinanceService.getPluggyContasV2(),
+    WallaceFinanceService.getPluggyTriagemV2(),
+  ]);
+
+  if(resContas.status !== 'fulfilled'){
+    console.error('Onda7Pluggy: falha ao buscar pluggy_conexoes/contas/transacoes — sem fallback V1 (domínio é V2-exclusivo).', resContas.reason);
+    window.WALLACE_ONDA7_PLUGGY_RELATORIO = { status: 'erro_v2', erro: String(resContas.reason) };
     return;
   }
+  const pluggyV2 = resContas.value;
   if(!pluggyV2 || !Array.isArray(pluggyV2.conexoes)){
     console.warn('Onda7Pluggy: resposta inesperada da V2.');
     window.WALLACE_ONDA7_PLUGGY_RELATORIO = { status: 'sem_dado_v2' };
@@ -42,14 +51,14 @@ async function aplicarOnda7Pluggy(){
 
   VARS.PLUGGY_CONTAS = pluggyV2;
 
-  try {
-    const triagemV2 = await WallaceFinanceService.getPluggyTriagemV2();
+  if(resTriagem.status === 'fulfilled'){
+    const triagemV2 = resTriagem.value || [];
     const mapa = {};
-    (triagemV2 || []).forEach(t => { mapa[t.id_externo] = { status_triagem: t.status_triagem, atualizado_em: t.atualizado_em }; });
+    triagemV2.forEach(t => { mapa[t.id_externo] = { status_triagem: t.status_triagem, atualizado_em: t.atualizado_em }; });
     VARS.PLUGGY_TRIAGEM = mapa;
     console.log(`Onda7Pluggy: PLUGGY_TRIAGEM sincronizado da V2 (${triagemV2.length} decisão(ões)).`);
-  } catch(err){
-    console.warn('Onda7Pluggy: falha ao buscar pluggy_triagem (V2) — itens já triados podem reaparecer 1x na Inbox nesta carga, nenhuma decisão é perdida (já gravada na tabela).', err);
+  } else {
+    console.warn('Onda7Pluggy: falha ao buscar pluggy_triagem (V2) — itens já triados podem reaparecer 1x na Inbox nesta carga, nenhuma decisão é perdida (já gravada na tabela).', resTriagem.reason);
   }
 
   // Reaproveita reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, inalteradas) — mesma lógica de

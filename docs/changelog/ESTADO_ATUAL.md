@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 14/08/2026, sessão longa (herdou contexto de sessão anterior do mesmo dia/dia anterior) — reconciliação Wärtsilä concluída, renomeação/padronização de caixas, correção do bug do rodapé SSOT, sincronização multi-conta Mercado Pago, contagem regressiva de metas com prazo, investigação de rendimento por cofrinho (bloqueio confirmado), e **auditoria + correção da governança de documentação** (manual apontava pra pasta errada no Google Drive, cópia real 5 dias desatualizada).
+Última reescrita: 14/08/2026, sessão longa (herdou contexto de sessão anterior do mesmo dia/dia anterior) — reconciliação Wärtsilä concluída, renomeação/padronização de caixas, correção do bug do rodapé SSOT, sincronização multi-conta Mercado Pago, contagem regressiva de metas com prazo, investigação de rendimento por cofrinho (bloqueio confirmado), **auditoria + correção da governança de documentação** (manual apontava pra pasta errada no Google Drive, cópia real 5 dias desatualizada), e mais 2 correções pontuais ainda não commitadas (auditoria de Reservas com fórmula desatualizada, painel Solar buscando clima 13x no boot).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -23,7 +23,10 @@ Aguardando Caixa Manutenção acumular saldo suficiente (não conferido de novo 
 ### 1.3 Backlog não crítico do `sincronizar_pluggy.py`
 Nenhum log de debug residual identificado nesta sessão (já limpo em sessão anterior, commit `f3df757`). Se aparecer print `[debug ...]` numa sessão futura, é sinal de regressão, remover.
 
-### 1.4 Data-limite de metas — só 2 de N caixas têm hoje
+### 1.4 2 arquivos com correção pronta, ainda não commitados
+`src/auditoria/verificacoes/auditoria-automatica.js` e `src/solar/hydrate-clima-solar.js` — ver 2.8/2.9 abaixo. Testar e commitar (avisando antes) assim que retomar a sessão.
+
+### 1.5 Data-limite de metas — só 2 de N caixas têm hoje
 `caixas.meta_data_limite` (coluna nova 14/08/2026) só está preenchida para Escola de Júlio (01/11/2026) e Caixa Aniversário Júlio (25/08/2026). Se o usuário quiser prazo em outras metas no futuro, é só popular a coluna — o card já lê e mostra automaticamente (`aplicarMetasV2CaixasEstaticas()`, `hydrate-caixas.js`), não precisa de código novo.
 
 ## 2. O que foi feito nesta sessão (13-14/08/2026)
@@ -53,6 +56,12 @@ Usuário relatou "muito problema para o Claude Chat atualizar as coisas, ele se 
 3. `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE (1).md` — arquivo duplicado com sufixo "(1)" (proibido pela própria regra de manutenção do `ONDE_LER.md`), também desatualizado desde 12/08. Reescrito como `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` (sem sufixo), cobrindo tudo que mudou entre 12/08 e 14/08 (Pluggy 100% V2, renomeação de caixas, metas com prazo, sync multi-conta MP, bloqueio de rendimento cofrinho). Arquivo "(1)" antigo apagado.
 4. `.gdoc` órfão (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md.gdoc`) solto na raiz do Drive, resíduo da tentativa antiga de usar Google Doc — apagado.
 5. **Checklist de Encerramento de Sessão (seção 10 do manual) endurecido**: antes só citava `ESTADO_ATUAL.md`/`PASSAGEM_DE_TURNO.md`; agora exige explicitamente sobrescrever os 2 arquivos do Drive sempre que o manual ou algo que o Claude Chat precisa saber mudar, e checar que não sobrou arquivo `(1)`/`.gdoc` órfão. **Esse é o padrão que deve valer daqui pra frente sempre que o usuário pedir "atualizar a passagem de turno"** — não é só este arquivo + PASSAGEM_DE_TURNO.md, é a lista completa da seção 10.
+
+### 2.8 Auditoria automática: falso-positivo "1 divergência" nas Reservas (achado real)
+`auditoriaAutomatica()` (`src/auditoria/verificacoes/auditoria-automatica.js`, checagem 7) somava `r.boletos` na conferência de Reservas, mas `recalcularBalanco()` (`recalcular-balanco.js`) parou de somar Boletos no total em 13/08 (Caixa Boletos migrou da seção 05/reservas pra seção 06/operacional). A checagem nunca foi atualizada junto — passou a acusar "1 divergência" em todo carregamento desde então (~R$1.648,55 de diferença, o valor da Caixa Boletos). Não era o bug do rodapé de novo (2.3, já corrigido), era a própria auditoria comparando contra fórmula desatualizada. Corrigido: soma agora é só das 12 caixas de reserva de fato (`r.boletos` continua existindo no objeto como linha informativa, só não entra mais nesta soma — igual já não entra em `recalcularBalanco()`). **Ainda não commitado.**
+
+### 2.9 Painel Solar buscando o clima 13x no boot (achado real, ~7s de atraso)
+`aplicarClimaSolar()` (`src/solar/hydrate-clima-solar.js`) rodava sem nenhuma proteção contra chamada repetida. `hydrate()` é chamado de novo até 13x durante o boot (`promocoes-financeengine.js` promove cada caixa V1→V2 individualmente, re-hidratando a cada uma), e cada chamada disparava a mesma requisição pra Open-Meteo — 13 requisições sequenciais pro mesmo dado (limite de conexões por host do navegador as enfileira), somando ~7s sozinho no fim da fila de carregamento. Clima é só contexto visual (nunca usado em cálculo). Corrigido com uma flag de módulo (`__climaSolarJaBuscado`) que faz a função retornar cedo depois da 1ª busca bem-sucedida da carga de página. **Ainda não commitado.**
 
 ## 3. Protocolo de sessão nova
 

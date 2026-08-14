@@ -20,18 +20,27 @@ const ONDA3_LRWLRV_MAPA = [
 ];
 
 async function aplicarOnda3LrwLrv(){
+  // CORRIGIDO 14/08/2026 (auditoria de performance): a lista detalhada (aplicarOnda3LrwLrvListaDetalhada,
+  // mais abaixo) só é chamada DEPOIS deste bloco terminar, mas a view que ela busca
+  // (vw_transacoes_cartao_variavel_por_pessoa) não depende em nada do resultado de
+  // vw_compromisso_cartao_por_pessoa buscado logo abaixo — são 2 fetches independentes que rodavam
+  // em série. Disparado aqui, ANTES do primeiro await, sai baixando em paralelo; .catch vazio só
+  // pra não gerar "unhandled rejection" nos 2 caminhos de erro/formato inesperado logo abaixo (o
+  // catch de verdade continua isolado dentro de aplicarOnda3LrwLrvListaDetalhada, mais abaixo).
+  const promessaDetalhe = WallaceFinanceService.getTransacoesCartaoVariavelDetalhe();
+  promessaDetalhe.catch(function(){});
   let compromissos;
   try {
     compromissos = await WallaceFinanceService.getCompromissoCartaoPorPessoa();
   } catch(err){
     console.error('Onda3LrwLrv: falha ao buscar vw_compromisso_cartao_por_pessoa (só usada pra log/diagnóstico agora, card não depende mais disso).', err);
     window.WALLACE_ONDA3_LRWLRV_RELATORIO = { status: 'erro_v2', erro: String(err) };
-    return aplicarOnda3LrwLrvListaDetalhada();
+    return aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe);
   }
   if(!Array.isArray(compromissos)){
     console.warn('Onda3LrwLrv: resposta inesperada de vw_compromisso_cartao_por_pessoa (só log/diagnóstico agora).');
     window.WALLACE_ONDA3_LRWLRV_RELATORIO = { status: 'sem_dado_v2' };
-    return aplicarOnda3LrwLrvListaDetalhada();
+    return aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe);
   }
   // Não sobrescreve mais mbLRW/mbLRV no DOM (ver comentário no topo do arquivo) — só loga a
   // divergência pra quem quiser investigar depois, o card confia na reconciliação manual.
@@ -56,10 +65,10 @@ async function aplicarOnda3LrwLrv(){
   });
   window.WALLACE_ONDA3_LRWLRV_RELATORIO = relatorio;
 
-  return aplicarOnda3LrwLrvListaDetalhada();
+  return aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe);
 }
 
-async function aplicarOnda3LrwLrvListaDetalhada(){
+async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
 
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de lançamentos com total
   // diferente do card acima — R$1.318,19/R$376,64 na lista vs R$972,98/R$245,84 aqui): a lista
@@ -68,7 +77,7 @@ async function aplicarOnda3LrwLrvListaDetalhada(){
   // (mesmo filtro exato), pra lista e card nunca mais divergirem — um só lê o outro escreve, nunca 2
   // fontes independentes pra mesma coisa.
   try {
-    const detalhe = await WallaceFinanceService.getTransacoesCartaoVariavelDetalhe();
+    const detalhe = await promessaDetalhe;
     if(Array.isArray(detalhe)){
       const mapear = nome => detalhe
         .filter(l => l.usuario_nome === nome)

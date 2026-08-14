@@ -54,11 +54,19 @@ function auditoriaAutomatica(){
     problemas.push(`Reservas de Pagamento: CaixaVariavel+CaixaBoletos+MastercardInfinite=${opCalc} ≠ total(${REG.balanco.operacional.total})`);
   }
 
-  // 7) Reservas (Balanço) = soma das 9 caixas de reserva
+  // 7) Reservas (Balanço) = soma das 12 caixas de reserva
+  // CORRIGIDO 14/08/2026 (achado real: divergência falsa-positiva persistindo desde 13/08) - esta
+  // checagem somava r.boletos, mas recalcularBalanco() (recalcular-balanco.js) PAROU de somar
+  // boletos no total em 13/08 (Caixa Boletos migrou da seção 05 pra seção 06/operacional, ver
+  // comentário lá - somar aqui também duplicava ~R$1.648,55). A checagem nunca foi atualizada pra
+  // acompanhar essa mudança legítima, e passou a acusar "1 divergência" em todo carregamento desde
+  // então - não era um bug de timing/flash, era a própria auditoria comparando contra uma fórmula
+  // desatualizada. r.boletos continua existindo no objeto (linha informativa), só não entra mais
+  // nesta soma, igual já não entra em recalcularBalanco().
   const r = REG.balanco.reservas;
-  const resCalc = round2(r.boletos+r.escolaJulio+r.caixaLance+r.manutencao+r.eventos+r.churrasco+r.saudeFamilia+r.seguroEmplacamento+r.aniversarioJulio+r.pixVanessa+r.combustivel+r.bensDuraveis+r.suavizacao);
+  const resCalc = round2(r.escolaJulio+r.caixaLance+r.manutencao+r.eventos+r.churrasco+r.saudeFamilia+r.seguroEmplacamento+r.aniversarioJulio+r.pixVanessa+r.combustivel+r.bensDuraveis+r.suavizacao);
   if(!bate(resCalc, r.total)){
-    problemas.push(`Reservas: soma das 13 caixas=${resCalc} ≠ total(${r.total})`);
+    problemas.push(`Reservas: soma das 12 caixas=${resCalc} ≠ total(${r.total})`);
   }
 
   // 8) Patrimônio Financeiro = Reserva + BTG/Necton + Caixa Lance + Necton Conta Corrente (ADICIONADO 20/07/2026, pedido do usuário)

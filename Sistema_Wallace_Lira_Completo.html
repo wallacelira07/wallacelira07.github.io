@@ -7,7 +7,13 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Sistema Wallace Lira — Painel Completo</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- CORRIGIDO 14/08/2026 (auditoria de performance: era a única tag <script> sem defer/async no
+     <head>, bloqueando o parse do resto da página até baixar+executar a lib inteira). Chart/new
+     Chart(...)/Chart.register só são chamados de dentro de funções chamadas bem depois no boot,
+     nunca no nível superior de nenhum módulo carregado antes delas (renderGraficosPainelPrincipal()
+     e afins - conferido: nenhum "new Chart("/"Chart.register" roda fora de uma function) - defer é
+     seguro aqui, mesmo padrão já usado no html2canvas abaixo. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <link rel="stylesheet" href="assets/css/styles.css?v=277">

@@ -23,6 +23,18 @@ async function aplicarEmagrecimento(){
   const fmtKg = v => v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kg';
   const elAviso = $('emgAviso');
 
+  // CORRIGIDO 14/08/2026 (auditoria de performance: as 3 buscas desta função — pesagens, aplicações
+  // do Ozivy [dentro de aplicarOzivyAplicacoes()] e saldo da caixa Emagrecimento — são 100%
+  // independentes entre si, nenhuma lê o resultado da outra, mas rodavam em SÉRIE, await após await
+  // (3 round-trips somados em vez do maior dos 3). Disparadas aqui, ANTES do primeiro await, as 3
+  // já saem baixando em paralelo — aplicarOzivyAplicacoes() trata o próprio erro internamente (nunca
+  // rejeita pro chamador, então não precisa de .catch aqui); promessaSaldos ganha um .catch vazio só
+  // pra não gerar "unhandled rejection" no caminho de erro de pesagens (return antecipado logo
+  // abaixo) — o catch de verdade continua isolado, mais abaixo, exatamente como antes.
+  const promessaOzivyAplicacoes = aplicarOzivyAplicacoes();
+  const promessaSaldosPorCaixa = WallaceFinanceService.getSaldosPorCaixa();
+  promessaSaldosPorCaixa.catch(function(){});
+
   let pesagens;
   try {
     pesagens = await WallaceFinanceService.getPesagens();
@@ -100,15 +112,17 @@ async function aplicarEmagrecimento(){
     }
   }
 
-  // Aplicações do Ozivy — controle de doses aplicadas (semanal), separado das pesagens.
-  await aplicarOzivyAplicacoes();
+  // Aplicações do Ozivy — controle de doses aplicadas (semanal), separado das pesagens. Já disparada
+  // em paralelo com pesagens/saldos no topo desta função (ver comentário 14/08/2026 acima) — só
+  // espera terminar aqui, na mesma posição de sempre.
+  await promessaOzivyAplicacoes;
 
   // Custo do tratamento (caneta Ozivy Semaglutida) — caixa dedicada, mesmo padrão de leitura de
   // saldo já usado em todo o resto do site (vw_saldo_v2_por_caixa).
   $('emgAporteMensal').textContent = fmt(VARS.saudeEmagrecimentoAporte)+'/mês';
   const elAvisoCusto = $('emgAvisoCusto');
   try {
-    const saldos = await WallaceFinanceService.getSaldosPorCaixa();
+    const saldos = await promessaSaldosPorCaixa;
     const caixa = Array.isArray(saldos) ? saldos.find(c => c.caixa_nome === 'Emagrecimento') : null;
     if(caixa){
       $('emgSaldoCaixa').textContent = fmt(Number(caixa.v2_saldo_calculado));

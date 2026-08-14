@@ -30,12 +30,55 @@
     --shadow-focus-accent: 0 0 0 2px rgba(76,142,242,0.15);
     --shadow-focus-accent-lg: 0 0 0 3px rgba(76,142,242,0.18);
     --shadow-master-tab-active: 0 -2px 0 0 rgba(76,142,242,0.15) inset, 0 2px 8px rgba(76,142,242,0.12);
+    /* NOVO 14/08/2026 (refino de elevacao/profundidade, pedido do usuario: "sofisticado e premium
+       dentro da mesma identidade" - so acabamento, sem mudar paleta/layout). Sombra em 2 camadas
+       (contato rente ao card + elevacao mais larga e suave) em vez da sombra unica chapada que
+       existia so em alguns componentes isolados (.master-tabs, .greeting-modal-ok etc). Mesma
+       formula reaproveitada em todo componente tipo "card" do painel pra ficar consistente. */
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34);
+    --shadow-card-hover: 0 2px 5px rgba(0,0,0,0.26), 0 16px 36px -8px rgba(0,0,0,0.46);
+    --border-card-inset: inset 0 1px 0 0 rgba(255,255,255,0.035);
+    /* NOVO 14/08/2026 (refino tipografico, escopo: so tipografia/espacamento, paleta e layout
+       intocados) — escala modular de tamanhos de fonte. Cada valor abaixo e o mesmo (ou o mais
+       proximo) numero que ja estava espalhado pelo arquivo (ex: 0.7rem/0.68rem/0.72rem faziam o
+       mesmo papel de "rotulo maiusculo pequeno" com 3 grafias diferentes) - nomeando/consolidando
+       em uma unica escala em vez de introduzir tamanhos novos, pra hierarquia titulo/subtitulo/
+       corpo/rotulo ficar previsivel em vez de ad-hoc. Nenhum elemento visualmente dominante mudou
+       de tamanho de forma perceptivel (maior salto e 0.02rem). */
+    --fs-label: 0.7rem;     /* rotulos maiusculos: .lbl, .cm-lbl, th, .progress-lbl, .ciclo-seletor-label */
+    --fs-2xs: 0.72rem;      /* texto auxiliar pequeno: badge, verif-item, tfoot, inbox-btn */
+    --fs-xs: 0.76rem;       /* texto secundario: chi-sub, masthead .sub, callout compacto */
+    --fs-sm: 0.82rem;       /* corpo padrao: table, row */
+    --fs-base: 0.86rem;     /* corpo levemente maior: .row */
+    --fs-md: 0.95rem;       /* subtitulo de capa, titulos de card-header-icon */
+    --fs-lg: 1.05rem;       /* itens de navegacao principal: master-tab */
+    --fs-xl: 1.2rem;        /* valores numericos de destaque: cm-val */
+    --fs-2xl: 1.5rem;       /* valores numericos principais: kpi .val */
+    --fs-3xl: 1.65rem;      /* titulo de secao: masthead h1 */
+    --fs-4xl: 2.3rem;       /* titulo principal da capa: cover h1 */
+    /* Ritmo vertical: altura de linha por funcao (titulos comprimidos, numeros densos legiveis,
+       texto corrido confortavel), e espacamento entre secoes/blocos consolidado numa mesma escala
+       usada em varios pontos do arquivo (2.5rem/1.8rem entre secoes, 0.9rem/1.1rem entre blocos
+       menores) em vez de cada regra escolher um numero proprio. */
+    --lh-tight: 1.15;   /* titulos grandes */
+    --lh-snug: 1.3;      /* blocos densos de numero (kpi/cm/total) */
+    --lh-normal: 1.45;  /* corpo de texto padrao */
+    --lh-relaxed: 1.55; /* paragrafos/notas mais longas (legend-note, callout) */
+    --ls-label: 0.05em;      /* padrao para rotulos maiusculos (consolida 0.04/0.05/0.06em) */
+    --ls-label-wide: 0.12em; /* eyebrow / destaque maximo */
+    --space-section: 2.5rem;    /* respiro entre secoes grandes */
+    --space-section-sm: 1.8rem; /* respiro entre blocos medios */
+    --space-stack-sm: 0.4rem;   /* respiro entre label e valor dentro de um bloco */
+    --space-stack-md: 0.9rem;   /* respiro entre blocos pequenos dentro de uma secao */
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    /* NOVO 14/08/2026 (refino tipografico): line-height base explicito - antes dependia do padrao
+       do navegador (~1.2, apertado demais pra paragrafos/notas de texto corrido do painel). */
+    line-height: var(--lh-normal);
     padding: 2.5rem 1.5rem 5rem;
     overflow-x:hidden;
   }
@@ -44,9 +87,15 @@
   .cover{
     position:relative;
     z-index:5; /* NOVO parte 83: garante que o dropdown da busca (dentro deste card) sempre pinte por cima dos cards normais que vêm depois no DOM, sem depender de nuance de stacking context */
-    background: radial-gradient(ellipse at top left, rgba(76,142,242,0.18), transparent 55%),
-                radial-gradient(ellipse at bottom right, rgba(53,209,153,0.12), transparent 50%),
-                linear-gradient(160deg, #0d1420 0%, #0a0b10 70%);
+    /* CORRIGIDO 14/08/2026 (refino de acabamento, pedido do usuário: "sofisticado e premium dentro
+       da mesma identidade" — mesmas cores de sempre, --accent/--green/--amber, só a combinação ficou
+       mais rica: 3 manchas radiais em vez de 2, um terceiro tom (amber, bem discreto) aquecendo o
+       canto inferior esquerdo, e o gradiente de base ganhou um 3º stop pra não parecer um degradê
+       plano de 2 pontas). Nenhum token novo, nenhuma cor fora da paleta já aprovada. */
+    background: radial-gradient(ellipse at top left, rgba(76,142,242,0.19), transparent 55%),
+                radial-gradient(ellipse at bottom right, rgba(53,209,153,0.13), transparent 50%),
+                radial-gradient(ellipse at bottom left, rgba(234,168,63,0.06), transparent 45%),
+                linear-gradient(160deg, #0d1420 0%, #0e111a 45%, #0a0b10 70%);
     border:1px solid var(--border-strong);
     border-radius:var(--radius-3xl);
     padding:2.5rem 2.2rem;
@@ -83,7 +132,7 @@
      "barra de cima", que um sticky interno ao iframe não satisfazia). Ver dashboard-navegacao.js
      (buscaGlobalDados/buscaGlobalNavegar) e index.html (#headerSearchWrap). */
   .cover-eyebrow{
-    font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+    font-size:var(--fs-2xs);font-weight:700;letter-spacing:var(--ls-label-wide);
     color:var(--accent);text-transform:uppercase;
     display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem 0.5rem;margin-bottom:0.9rem;
     max-width:100%;
@@ -147,10 +196,10 @@
   .greeting-modal-ok:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(76,142,242,0.4)}
   .greeting-modal-ok:active{transform:translateY(0)}
   .cover h1{
-    font-size:2.3rem;font-weight:700;letter-spacing:-0.02em;
-    line-height:1.1;margin-bottom:0.6rem;position:relative;z-index:1;
+    font-size:var(--fs-4xl);font-weight:700;letter-spacing:-0.02em;
+    line-height:var(--lh-tight);margin-bottom:0.6rem;position:relative;z-index:1;
   }
-  .cover .cover-sub{color:var(--text-mid);font-size:0.95rem;margin-bottom:1.8rem;position:relative;z-index:1}
+  .cover .cover-sub{color:var(--text-mid);font-size:var(--fs-md);line-height:var(--lh-normal);margin-bottom:1.8rem;position:relative;z-index:1}
   .cover-metrics{
     display:grid;grid-template-columns:repeat(4,1fr);gap:0.9rem;
     position:relative;z-index:1;
@@ -158,25 +207,36 @@
   /* V300 parte 43 (redesign premium, pedido do usuario) — KPIs viram cards de verdade em vez de
      texto solto sobre o gradiente da capa: icone + faixa de cor sutil por indicador, mesmo padrao
      visual de "KPI card" usado em dashboards executivos (Power BI/Looker). */
+  /* CORRIGIDO 14/08/2026 (refino de acabamento, cards de KPI da Capa): fundo ganhou leve gradiente
+     diagonal na mesma cor de destaque de cada card (via variável --cm-tint, default accent) em vez
+     de um cinza translúcido igual pros 4 cards - reforça a cor da borda esquerda sem trocar nenhum
+     token, e uma transição suave prepara hover/foco caso vire clicável no futuro. */
   .cm-card{
+    --cm-tint: 76,142,242;
     display:flex;align-items:center;gap:0.75rem;
-    background:rgba(255,255,255,0.03);border:1px solid var(--border-strong);
+    background:linear-gradient(120deg, rgba(var(--cm-tint),0.07), rgba(255,255,255,0.03) 70%);
+    border:1px solid var(--border-strong);
     border-left:3px solid var(--accent);border-radius:var(--radius-xl);
     padding:0.85rem 1rem;
+    /* NOVO 14/08/2026 (refino de elevacao, mesma formula de .card acima): esses 4 KPIs da capa
+       ficavam totalmente chapados (nenhuma sombra), destoando do resto do painel depois do refino -
+       agora usam a mesma sombra em camadas pra parecer parte do mesmo sistema visual. */
+    box-shadow: var(--shadow-card), var(--border-card-inset);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.15s ease, background 0.15s ease;
   }
-  .cm-card.cm-c2{border-left-color:var(--accent-2)}
-  .cm-card.cm-c3{border-left-color:var(--green)}
-  .cm-card.cm-c4{border-left-color:var(--amber)}
+  .cm-card.cm-c2{--cm-tint:156,143,242;border-left-color:var(--accent-2)}
+  .cm-card.cm-c3{--cm-tint:53,209,153;border-left-color:var(--green)}
+  .cm-card.cm-c4{--cm-tint:234,168,63;border-left-color:var(--amber)}
   .cm-ico{
     flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
     font-size:1rem;border-radius:var(--radius-lg);background:rgba(255,255,255,0.05);
   }
   .cm-body{min-width:0}
-  .cover-metrics .cm-lbl{font-size:0.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
-  .cover-metrics .cm-val{font-size:1.2rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cover-metrics .cm-lbl{font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--ls-label);margin-bottom:var(--space-stack-sm)}
+  .cover-metrics .cm-val{font-size:var(--fs-xl);line-height:var(--lh-snug);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* NOVO 10/08/2026 (pedido do usuário: "total como principal e um pequeno com o líquido, no mesmo
      card") - linha secundária discreta, mesmo card do valor principal. */
-  .cover-metrics .cm-sub{font-size:0.68rem;color:var(--text-dim);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cover-metrics .cm-sub{font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cover-metrics .cm-sub span{color:var(--text-mid);font-weight:600;font-variant-numeric:tabular-nums}
   @media (max-width:820px){.cover-metrics{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:480px){.cover-metrics{grid-template-columns:1fr}}
@@ -206,12 +266,16 @@
   .master-tab{
     flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:0.6rem;
     background:none;border:none;color:var(--text-dim);font-family:inherit;
-    font-size:1.05rem;font-weight:600;padding:1.15rem 1.2rem;cursor:pointer;
+    font-size:var(--fs-lg);font-weight:600;padding:1.15rem 1.2rem;cursor:pointer;
     border-radius:var(--radius-lg);white-space:nowrap;
     transition:color .15s ease, background .15s ease, box-shadow .15s ease;
   }
   .master-tab:hover{color:var(--text-mid);background:rgba(255,255,255,0.035)}
-  .master-tab.active{color:var(--text);background:rgba(76,142,242,0.14);box-shadow:var(--shadow-master-tab-active)}
+  /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo ativo chapado (rgba unica) virou gradiente
+     de 2 tons de --accent, mesma linguagem já usada em .tab.active logo abaixo neste arquivo - as
+     duas abas (master e sub-abas) agora seguem o mesmo padrão visual de "ativo". */
+  .master-tab.active{color:var(--text);background:linear-gradient(135deg, rgba(76,142,242,0.20), rgba(76,142,242,0.09));box-shadow:var(--shadow-master-tab-active)}
+  .master-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent-lg)}
   @media (max-width:640px){
     .master-tabs{flex-wrap:wrap;top:0}
     .master-tab{flex:1 1 40%;font-size:0.88rem;padding:0.85rem 0.7rem}
@@ -220,28 +284,32 @@
   .masthead{
     display:flex;justify-content:space-between;align-items:flex-end;
     border-bottom:1px solid var(--border-strong);
-    padding-bottom:1.25rem;margin-bottom:2rem;
+    padding-bottom:1.25rem;margin-bottom:var(--space-section-sm);
   }
   .masthead h1{
-    font-size:1.65rem;font-weight:600;letter-spacing:-0.01em;
+    font-size:var(--fs-3xl);font-weight:600;letter-spacing:-0.01em;line-height:var(--lh-tight);
   }
-  .masthead .sub{color:var(--text-mid);font-size:0.85rem;margin-top:0.3rem}
+  .masthead .sub{color:var(--text-mid);font-size:0.85rem;line-height:var(--lh-normal);margin-top:0.3rem}
+  /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo chapado virou gradiente de 2 tons da mesma
+     família (--green), mesmo raciocínio já usado em .tab.active/.ciclo-btn.ciclo-ativo — cor
+     continua sendo só verde, a aplicação que ganhou profundidade. */
   .status-pill{
-    background: rgba(53,209,153,0.12); color:var(--green);
+    background: linear-gradient(135deg, rgba(53,209,153,0.20), rgba(53,209,153,0.09));
+    color:var(--green);
     border:1px solid rgba(53,209,153,0.35);
     padding:0.35rem 0.9rem;border-radius:var(--radius-pill);
-    font-size:0.75rem;font-weight:600;letter-spacing:0.02em;
+    font-size:var(--fs-2xs);font-weight:600;letter-spacing:0.02em;
   }
 
   .kpi-strip{
     display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
     background:var(--border);border:1px solid var(--border);
-    border-radius:var(--radius-xl);overflow:hidden;margin-bottom:2.5rem;
+    border-radius:var(--radius-xl);overflow:hidden;margin-bottom:var(--space-section);
   }
   .kpi{background:var(--surface);padding:1.1rem 1.3rem}
-  .kpi .lbl{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem}
-  .kpi .val{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
-  .kpi .sub{font-size:0.72rem;color:var(--text-mid);margin-top:0.25rem}
+  .kpi .lbl{font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--ls-label);margin-bottom:0.4rem}
+  .kpi .val{font-size:var(--fs-2xl);line-height:var(--lh-snug);font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:var(--fs-2xs);color:var(--text-mid);margin-top:0.25rem}
   .g{color:var(--green)}.a{color:var(--amber)}.r{color:var(--red)}.b{color:var(--accent)}.p{color:var(--accent-2)}
 
   /* NOVO 04/08/2026: botoes de acao da Inbox Financeira (Aprovar/Rejeitar) - antes so tinham cor via
@@ -251,13 +319,22 @@
   .inbox-btn{
     appearance:none;-webkit-appearance:none;-moz-appearance:none;
     padding:0.35rem 0.7rem;border-radius:6px;border:none;cursor:pointer;
-    font-size:0.72rem;font-weight:700;margin-right:0.35rem;color:#fff !important;
+    font-size:var(--fs-2xs);font-weight:700;margin-right:0.35rem;color:#fff !important;
     box-shadow:0 1px 2px rgba(0,0,0,0.25);
+    transition:transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   }
   .inbox-btn-ok{ background:var(--green) !important; }
-  .inbox-btn-ok:hover{ background:#2bad78 !important; }
+  /* CORRIGIDO 14/08/2026 (refino de acabamento, achado: o hover usava hex hardcoded #2bad78/#c9433d,
+     cor fora dos tokens --green/--red definidos em :root, ligeiramente dessincronizada da paleta.
+     filter:brightness() deriva o tom de hover diretamente do próprio token - sempre a MESMA cor
+     semântica, só um pouco mais escura, sem inventar hex novo). Leve elevação (translateY) reforça
+     que o botão é clicável, mesmo padrão de microinteração já usado em .greeting-modal-ok/.home-nav-btn. */
+  .inbox-btn-ok:hover{ filter:brightness(0.88); transform:translateY(-1px); box-shadow:0 3px 8px rgba(53,209,153,0.35); }
+  .inbox-btn-ok:active{ filter:brightness(0.8); transform:translateY(0); }
   .inbox-btn-no{ background:var(--red) !important; }
-  .inbox-btn-no:hover{ background:#c9433d !important; }
+  .inbox-btn-no:hover{ filter:brightness(0.88); transform:translateY(-1px); box-shadow:0 3px 8px rgba(239,91,86,0.35); }
+  .inbox-btn-no:active{ filter:brightness(0.8); transform:translateY(0); }
+  .inbox-btn:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(255,255,255,0.25), 0 1px 2px rgba(0,0,0,0.25); }
 
   /* NOVO 04/08/2026 (parte 41): coluna Descrição da Inbox Financeira estava estourando a altura da
      linha (itens da Pluggy tem texto longo) e dominando a tabela inteira - ver print do usuário.
@@ -274,16 +351,16 @@
 
   .section-num{
     display:flex;align-items:baseline;gap:0.6rem;
-    margin:2.5rem 0 0.9rem;
+    margin:var(--space-section) 0 var(--space-stack-md);
   }
   .section-num .n{
-    font-family:var(--mono);font-size:0.7rem;color:var(--text-dim);
+    font-family:var(--mono);font-size:var(--fs-label);color:var(--text-dim);
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
     padding:0.15rem 0.4rem;
   }
   /* CORRIGIDO 13/08/2026 (achado de auditoria: sem min-width:0, h2 podia espremer título longo
      contra o botão de print em telas <=640px, já que .section-num é flex row) */
-  .section-num h2{font-size:0.95rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em;min-width:0}
+  .section-num h2{font-size:var(--fs-md);font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:var(--ls-label);min-width:0}
   .btn-print-secao{
     margin-left:auto;flex-shrink:0;
     width:1.7rem;height:1.7rem;border-radius:var(--radius-md);
@@ -292,14 +369,20 @@
     display:flex;align-items:center;justify-content:center;
     transition:background .15s,color .15s;
   }
-  .btn-print-secao:hover{background:rgba(255,255,255,0.07);color:var(--text-mid)}
+  .btn-print-secao:hover{background:rgba(255,255,255,0.07);color:var(--text-mid);border-color:var(--border-strong)}
   .btn-print-secao:active{transform:scale(0.93)}
+  .btn-print-secao:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent)}
   .btn-print-secao:disabled{opacity:0.5;cursor:default}
   @media print{ .btn-print-secao{display:none} }
 
   .card{
     background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);
     padding:1.1rem 1.3rem;overflow-x:hidden;
+    /* CORRIGIDO 14/08/2026 (refino de elevacao, escopo restrito a sombra/borda - ver --shadow-card
+       acima): sombra em camadas + friso interno sutil de 1px no topo (bevel discreto), sem alterar
+       cor de fundo/borda base nem o border-radius ja existente. */
+    box-shadow: var(--shadow-card), var(--border-card-inset);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
@@ -312,20 +395,24 @@
   .row{
     display:flex;justify-content:space-between;align-items:center;
     padding:0.5rem 0;border-bottom:1px solid var(--border);
-    font-size:0.86rem;flex-wrap:wrap;gap:0.3rem 0.6rem;
+    font-size:var(--fs-base);line-height:var(--lh-normal);flex-wrap:wrap;gap:0.3rem 0.6rem;
   }
   .row:last-child{border-bottom:none}
   .row .k{color:var(--text-mid);overflow-wrap:anywhere;flex:1 1 auto;min-width:0}
   .row .v{font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
 
   .badge{
-    display:inline-block;font-size:0.72rem;font-weight:600;
+    display:inline-block;font-size:var(--fs-2xs);font-weight:600;
     padding:0.2rem 0.65rem;border-radius:var(--radius-pill);
   }
-  .badge.bg{background:rgba(53,209,153,0.12);color:var(--green)}
-  .badge.ba{background:rgba(234,168,63,0.14);color:var(--amber)}
-  .badge.br{background:rgba(239,91,86,0.14);color:var(--red)}
-  .badge.bb{background:rgba(76,142,242,0.14);color:var(--accent)}
+  /* CORRIGIDO 14/08/2026 (refino de acabamento, mesma paleta): badges de status ganharam gradiente
+     de 2 tons da própria cor semântica (mais escura/opaca embaixo à direita) em vez de fundo chapado,
+     com uma borda 1px na mesma família pra separar melhor do card por trás — cor continua sendo
+     exatamente --green/--amber/--red/--accent, só a aplicação ficou mais rica. */
+  .badge.bg{background:linear-gradient(135deg, rgba(53,209,153,0.18), rgba(53,209,153,0.08));color:var(--green);border:1px solid rgba(53,209,153,0.22)}
+  .badge.ba{background:linear-gradient(135deg, rgba(234,168,63,0.20), rgba(234,168,63,0.09));color:var(--amber);border:1px solid rgba(234,168,63,0.25)}
+  .badge.br{background:linear-gradient(135deg, rgba(239,91,86,0.20), rgba(239,91,86,0.09));color:var(--red);border:1px solid rgba(239,91,86,0.25)}
+  .badge.bb{background:linear-gradient(135deg, rgba(76,142,242,0.20), rgba(76,142,242,0.09));color:var(--accent);border:1px solid rgba(76,142,242,0.25)}
 
   /* NOVO 12/08/2026 (Fase 4, achado da auditoria): botão pill colorido reutilizável — antes só
      existia 1 ocorrência (compartilhar link solar), construída do zero com estilo inline, usando
@@ -333,16 +420,38 @@
      hardcoded, que ficou desatualizado assim que a Fase 3 mudou --accent-2 (era exatamente o valor
      antigo de --accent-2 antes do refino de paleta). Extraído aqui pra próximo botão de ação
      secundária reaproveitar em vez de repetir o mesmo bloco. */
+  /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo chapado --accent-2 virou gradiente de 2 tons
+     da própria família (accent-2 -> accent), reforçando visualmente que é uma ação secundária "de
+     destaque" sem sair da paleta - mais transição/hover/focus consistentes com os demais botões do
+     painel (inbox-btn, ciclo-btn, home-nav-btn). */
   .btn-pill{
-    display:inline-flex;align-items:stretch;background:var(--accent-2);color:#fff;
-    border:none;border-radius:var(--radius-pill);padding:0;font-size:0.72rem;font-weight:700;
+    display:inline-flex;align-items:stretch;
+    background:linear-gradient(135deg, var(--accent-2), var(--accent));
+    color:#fff;
+    border:none;border-radius:var(--radius-pill);padding:0;font-size:var(--fs-2xs);font-weight:700;
     cursor:pointer;overflow:hidden;line-height:1;flex-shrink:0;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
   }
+  .btn-pill:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(156,143,242,0.35);filter:brightness(1.05)}
+  .btn-pill:active{transform:translateY(0);filter:brightness(0.95)}
+  .btn-pill:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(156,143,242,0.3)}
   .btn-pill-icon{display:flex;align-items:center;justify-content:center;width:1.9rem;background:rgba(255,255,255,0.2)}
   .btn-pill-label{padding:0.5rem 0.8rem}
 
-  .progress{height:6px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:0.55rem}
-  .progress .fill{height:100%;border-radius:var(--radius-sm);transition:width 0.6s ease}
+  .progress{height:6px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:0.55rem;box-shadow:inset 0 1px 2px rgba(0,0,0,0.3)}
+  .progress .fill{height:100%;border-radius:var(--radius-sm);transition:width 0.6s cubic-bezier(.2,.8,.3,1);position:relative;overflow:hidden}
+  /* NOVO 14/08/2026 (refino de acabamento, pedido do usuário: "barras de progresso de meta" mais
+     sofisticadas): cada barra de meta define sua cor via style="" inline (background:var(--accent)/
+     --green/--amber, ver Sistema_Wallace_Lira_Completo.html) — o shorthand inline sempre vence sobre
+     qualquer background-image definido aqui no stylesheet, então em vez de tentar sobrescrever a cor,
+     este ::after aplica um verniz (gradiente branco translúcido, top-to-bottom, blend "overlay") por
+     cima de QUALQUER cor que a barra já tenha, dando profundidade/brilho sem duplicar nem inventar
+     cor nova - mesmo efeito "vidro" já usado nos botões pill do site. */
+  .progress .fill::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0) 60%);
+    mix-blend-mode:overlay;pointer-events:none;
+  }
   /* NOVO 07/08/2026 (pedido do usuário: card CC-103/PIX Geral Vanessa ganhou meta de R$300 - "coloque
      cor e animação na barra"): gradiente animado (accent-2 -> accent), distinto das barras sólidas
      das outras caixas, pra destacar visualmente que essa é a conta autônoma da Vanessa. */
@@ -355,15 +464,15 @@
     0%{ background-position: 0% 0; }
     100%{ background-position: -200% 0; }
   }
-  .progress-lbl{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem}
-  .legend-note{font-size:0.7rem;color:var(--text-dim);margin-top:0.6rem;line-height:1.4;font-family:inherit}
-  .total-line{display:flex;justify-content:space-between;align-items:baseline;padding-top:0.65rem;margin-top:0.65rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text-mid)}
-  .total-line .v{font-size:1.02rem;font-weight:700;color:var(--text)}
+  .progress-lbl{display:flex;justify-content:space-between;font-size:var(--fs-label);color:var(--text-dim);margin-top:0.3rem}
+  .legend-note{font-size:var(--fs-label);color:var(--text-dim);margin-top:0.6rem;line-height:var(--lh-relaxed);font-family:inherit}
+  .total-line{display:flex;justify-content:space-between;align-items:baseline;padding-top:0.65rem;margin-top:0.65rem;border-top:1px solid var(--border);font-size:var(--fs-xs);color:var(--text-mid)}
+  .total-line .v{font-size:1.02rem;line-height:var(--lh-snug);font-weight:700;color:var(--text)}
 
   .tabs{display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:0.5rem;margin-bottom:1rem}
   .tab{
     background:var(--surface-2);border:1px solid var(--border);
-    color:var(--text-mid);font-size:0.72rem;font-weight:600;
+    color:var(--text-mid);font-size:var(--fs-2xs);font-weight:600;
     padding:0.6rem 0.7rem;border-radius:var(--radius-xl);cursor:pointer;
     transition:all 0.18s ease;letter-spacing:0.01em;
     white-space:normal;line-height:1.3;text-align:center;
@@ -372,6 +481,7 @@
       celula do grid (achado do usuario: botoes do Livro Razao com tamanhos diferentes). */
   }
   .tab:hover{border-color:rgba(76,142,242,0.5);color:var(--text)}
+  .tab:focus-visible{outline:none;border-color:var(--accent);box-shadow:var(--shadow-focus-accent-lg)}
   .tab.active{
     background:linear-gradient(135deg, rgba(76,142,242,0.22), rgba(76,142,242,0.10));
     color:var(--accent);border-color:var(--accent);
@@ -389,14 +499,14 @@
       padding-bottom:0.3rem;margin-bottom:0.8rem;
     }
     .tab{
-      flex:0 0 auto;white-space:nowrap;font-size:0.7rem;
+      flex:0 0 auto;white-space:nowrap;font-size:var(--fs-label);
       padding:0.55rem 0.8rem;
     }
   }
   .pane{display:none}
   .pane.active{display:block; animation:v300FadeInPane 0.25s ease}
 
-  table{width:100%;border-collapse:collapse;font-size:0.82rem;table-layout:fixed}
+  table{width:100%;border-collapse:collapse;font-size:var(--fs-sm);table-layout:fixed}
   /* CORRIGIDO 10/08/2026 (pedido do usuário: "muitos campos com muito texto ficam trepados um sobre
      os outros, parece que abriu um navegador de PC no celular"). Causa raiz: table-layout:fixed +
      width:100% força QUALQUER tabela (mesmo com 8 colunas — ex: Inbox Financeira, Opções vendidas) a
@@ -421,8 +531,8 @@
     .pane.active{overflow-x:auto;-webkit-overflow-scrolling:touch}
   }
   th{
-    text-align:left;font-size:0.68rem;font-weight:600;color:var(--text-dim);
-    text-transform:uppercase;letter-spacing:0.04em;
+    text-align:left;font-size:var(--fs-label);font-weight:600;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:var(--ls-label);
     padding:0.4rem 0.5rem;border-bottom:1px solid var(--border-strong);
   }
   /* CORRIGIDO 01/08/2026: .r tem dois significados no site (alinhar a direita EM TABELAS, e cor
@@ -433,7 +543,10 @@
      cor semantica (verde/vermelho) faz sentido de verdade numa celula, ela e aplicada via style
      inline no proprio <td>, nao pela classe .r.  */
   th.r{text-align:right;color:inherit}
-  td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text);overflow-wrap:anywhere;word-break:break-word}
+  /* NOVO 14/08/2026 (refino tipografico: legibilidade em blocos densos de numero, pedido explicito
+     do escopo desta rodada) - line-height um pouco mais folgado que o padrao implicito do navegador
+     (~1.2), sem alterar padding/altura de linha o suficiente pra quebrar tabelas compactas. */
+  td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text);line-height:var(--lh-snug);overflow-wrap:anywhere;word-break:break-word}
   td.r{text-align:right;font-variant-numeric:tabular-nums;color:inherit}
   td.mono{color:var(--text-dim);font-family:var(--mono);font-size:0.75rem}
   tr.last-parcel td{color:var(--amber)}
@@ -448,17 +561,21 @@
   .tfoot{
     display:flex;justify-content:space-between;padding:0.5rem;
     border-top:1px solid var(--border-strong);margin-top:0.3rem;
-    font-size:0.72rem;color:var(--text-dim);
+    font-size:var(--fs-2xs);color:var(--text-dim);
   }
   .tfoot .total{font-weight:600;color:var(--text)}
 
   .callout{
-    padding:0.75rem 1rem;border-radius:var(--radius-lg);font-size:0.82rem;margin-top:0.7rem;
+    padding:0.75rem 1rem;border-radius:var(--radius-lg);font-size:var(--fs-sm);line-height:var(--lh-normal);margin-top:0.7rem;
   }
-  .callout.danger{background:rgba(239,91,86,0.1);border:1px solid rgba(239,91,86,0.3);color:#f0918d}
-  .callout.warn{background:rgba(234,168,63,0.1);border:1px solid rgba(234,168,63,0.3);color:#eec38a}
-  .callout.ok{background:rgba(53,209,153,0.1);border:1px solid rgba(53,209,153,0.3);color:#8bdcb8}
-  .callout.info{background:rgba(76,142,242,0.08);border:1px solid rgba(76,142,242,0.25);color:var(--text-mid)}
+  /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo chapado virou gradiente sutil de 2 tons da
+     mesma cor semântica (esquerda mais forte -> direita mais suave); a cor de texto de cada callout
+     já era mais clara que o token base (#f0918d/#eec38a/#8bdcb8, pensadas pra legibilidade sobre
+     fundo escuro) e continua igual - só o fundo por trás ganhou profundidade, contraste do texto não muda. */
+  .callout.danger{background:linear-gradient(135deg, rgba(239,91,86,0.14), rgba(239,91,86,0.06));border:1px solid rgba(239,91,86,0.3);color:#f0918d}
+  .callout.warn{background:linear-gradient(135deg, rgba(234,168,63,0.14), rgba(234,168,63,0.06));border:1px solid rgba(234,168,63,0.3);color:#eec38a}
+  .callout.ok{background:linear-gradient(135deg, rgba(53,209,153,0.14), rgba(53,209,153,0.06));border:1px solid rgba(53,209,153,0.3);color:#8bdcb8}
+  .callout.info{background:linear-gradient(135deg, rgba(76,142,242,0.11), rgba(76,142,242,0.04));border:1px solid rgba(76,142,242,0.25);color:var(--text-mid)}
 
   /* parte 44 (pedido do usuario: "essa parte não conversa com o resto do site") — cabecalho de card
      com chip de icone, mesmo padrao visual ja usado em .cm-ico (Capa)/.cover-metrics, agora reutilizado
@@ -468,8 +585,8 @@
     flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
     font-size:1rem;border-radius:var(--radius-lg);background:rgba(255,255,255,0.05);
   }
-  .card-header-icon .chi-title{font-size:0.92rem;font-weight:700;color:var(--text)}
-  .card-header-icon .chi-sub{font-size:0.76rem;color:var(--text-mid);margin-top:0.1rem}
+  .card-header-icon .chi-title{font-size:var(--fs-md);font-weight:700;color:var(--text)}
+  .card-header-icon .chi-sub{font-size:var(--fs-xs);color:var(--text-mid);margin-top:0.1rem}
 
   /* Verificações de Negócio (parte 47, pedido do usuario: "ainda não tô gostando dessa lista") —
      trocado o icone circular colorido (competia visualmente linha a linha) por uma borda esquerda fina
@@ -482,7 +599,7 @@
   .verif-item{
     display:flex;align-items:center;gap:0.5rem;
     padding:0.38rem 0.65rem;margin-bottom:0.2rem;
-    font-size:0.74rem;line-height:1.35;color:var(--text-mid);
+    font-size:var(--fs-2xs);line-height:var(--lh-normal);color:var(--text-mid);
     background:rgba(255,255,255,0.018);border-left:2px solid var(--border-strong);
     border-radius:var(--radius-md);
   }
@@ -491,7 +608,7 @@
   .verif-item.ba{border-left-color:var(--amber)}
   .verif-item.br{border-left-color:var(--red)}
   .verif-item.bb{border-left-color:var(--accent)}
-  .verif-ico{flex:none;font-size:0.68rem;opacity:0.9}
+  .verif-ico{flex:none;font-size:var(--fs-label);opacity:0.9}
   .verif-txt strong{color:var(--text)}
 
   .chart-box{position:relative;width:100%;height:190px;margin-top:0.5rem}
@@ -509,7 +626,7 @@
   footer{
     display:flex;justify-content:space-between;margin-top:3rem;
     padding-top:1rem;border-top:1px solid var(--border);
-    font-size:0.72rem;color:var(--text-dim);
+    font-size:var(--fs-2xs);color:var(--text-dim);
   }
 
   @media(max-width:820px){
@@ -539,12 +656,21 @@
   }
   .home-nav-btn{
     display:flex; flex-direction:column; align-items:center; gap:0.4rem;
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-2xl);
     padding:1.1rem 0.6rem; font-size:1.6rem; cursor:pointer; color:var(--text);
-    transition:border-color 0.15s ease, transform 0.15s ease;
+    /* CORRIGIDO 14/08/2026 (refino de elevacao/hover, card clicavel real da Home - border-radius
+       12px trocado por var(--radius-2xl), mesmo valor de 12px ja usado em .card, so passou a citar
+       o token pra ficar consistente com o resto do sistema): sombra base em camadas + transicao de
+       box-shadow somada a transform que ja existia, pra elevacao no hover ficar suave e nao so um
+       "pulo" seco. Hover combina a sombra em camadas com um leve tingimento de fundo na cor
+       --accent (mesmo "lift" já aplicado em .btn-pill/.inbox-btn nesta mesma rodada). */
+    box-shadow: var(--shadow-card);
+    transition:border-color 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease, background 0.15s ease;
   }
-  .home-nav-btn:hover{ border-color:var(--accent); transform:translateY(-2px); }
-  .home-nav-btn span{ font-size:0.72rem; font-weight:600; color:var(--text-mid); }
+  .home-nav-btn:hover{ border-color:var(--accent); transform:translateY(-2px); box-shadow: var(--shadow-card-hover); background:rgba(76,142,242,0.05); }
+  .home-nav-btn:active{ transform:translateY(-1px) scale(0.98); box-shadow: var(--shadow-card); }
+  .home-nav-btn:focus-visible{ outline:none; box-shadow:var(--shadow-focus-accent-lg); }
+  .home-nav-btn span{ font-size:var(--fs-2xs); font-weight:600; color:var(--text-mid); }
   /* CORRIGIDO 10/08/2026 (pedido do usuário: "a barra com as abas toma muito o espaço útil pra
      navegar" — os 5 botões grandes viravam 3 linhas empilhadas, ~350-400px só de navegação antes de
      qualquer conteúdo real). Primeira tentativa: faixa rolável na horizontal — o usuário não gostou
@@ -634,7 +760,7 @@
     border:1px solid var(--border-strong); border-radius:var(--radius-2xl);
   }
   .ciclo-seletor-label {
-    font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em;
+    font-size:var(--fs-label); text-transform:uppercase; letter-spacing:var(--ls-label);
     color:var(--text-dim); font-weight:600; margin-right:0.2rem;
   }
   .ciclo-seletor-btns { display:flex; gap:0.35rem; flex-wrap:wrap; }
@@ -644,9 +770,12 @@
     padding:0.38rem 0.85rem; border-radius:var(--radius-pill); cursor:pointer;
     transition:all 0.15s ease; white-space:nowrap;
   }
-  .ciclo-btn:hover { border-color:var(--accent); color:#fff; }
+  .ciclo-btn:hover { border-color:var(--accent); color:#fff; background:rgba(76,142,242,0.12); }
+  .ciclo-btn:focus-visible { outline:none; box-shadow:var(--shadow-focus-accent-lg); }
+  /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo ativo chapado virou gradiente de 2 tons do
+     próprio --accent, mesma linguagem das outras "abas ativas" do painel (.tab.active/.master-tab.active). */
   .ciclo-btn.ciclo-ativo {
-    background:var(--accent); border-color:var(--accent); color:#fff;
+    background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, black)); border-color:var(--accent); color:#fff;
     box-shadow:var(--shadow-focus-accent-lg);
     font-weight:600;
   }
@@ -656,7 +785,7 @@
   }
   #cicloBannerFechado {
     display:flex; align-items:center; gap:0.5rem;
-    font-size:0.74rem; color:var(--amber);
+    font-size:var(--fs-2xs); color:var(--amber);
     background:rgba(234,168,63,0.08); border:1px solid rgba(234,168,63,0.25);
     border-radius:var(--radius-lg); padding:0.45rem 0.7rem; margin-bottom:1rem;
   }
@@ -690,7 +819,7 @@
     box-shadow:0 8px 24px rgba(0,0,0,0.35);
   }
   .busca-resultado-item{
-    padding:0.55rem 0.9rem; font-size:0.8rem; color:var(--text-mid);
+    padding:0.55rem 0.9rem; font-size:var(--fs-sm); color:var(--text-mid);
     cursor:pointer; border-bottom:1px solid var(--border);
   }
   .busca-resultado-item:last-child{ border-bottom:none; }
@@ -702,7 +831,7 @@
   .busca-resultado-transacao{ cursor:pointer; }
   .busca-resultado-transacao:hover{ background:rgba(255,255,255,0.06); }
   .busca-resultado-transacao strong{ color:var(--text); }
-  .busca-resultado-sub{ display:block; font-size:0.7rem; color:var(--text-dim); margin-top:0.15rem; }
+  .busca-resultado-sub{ display:block; font-size:var(--fs-label); color:var(--text-dim); margin-top:0.15rem; }
 
   /* NOVO 05/08/2026: destaque temporario da linha na tabela do Livro Razao, ao chegar via clique
      num resultado de busca de transacao. CORRIGIDO 09/08/2026 (pedido do usuario: "piscar em azul
@@ -740,5 +869,57 @@
   }
   ::-webkit-scrollbar-corner {
     background: var(--surface);
+  }
+
+  /* NOVO 14/08/2026 (pedido do usuário: refino de microinterações/transições, mantendo a identidade
+     visual — paleta e layout intocados). Dois tokens novos, aditivos: uma curva de easing e uma
+     duração-padrão únicas, pra toda transição nova deste bloco usar o mesmo "toque" em vez de cada
+     regra inventar seu próprio timing. Transições já existentes no arquivo (ex: .master-tab, .tab,
+     .progress .fill) não foram tocadas — só os elementos abaixo, que hoje trocam de estado no corte
+     seco (sem transition alguma), ganharam feedback visual. Nenhum id/classe usado por JS mudou de
+     nome; nenhuma duração passa de 300ms (nada atrasa a leitura de valor financeiro real). */
+  :root{
+    --ease-standard: cubic-bezier(.4,0,.2,1);
+    --dur-fast: 160ms;
+    --dur-base: 220ms;
+  }
+
+  /* .card é o container mais repetido do painel (KPIs, Livro Razão, gráficos, etc.) e nunca teve
+     nenhum retorno visual ao passar o mouse — parece "morto" numa tela cheia de dado clicável/rolável
+     ao redor. Só borda + sombra sutil (sem transform, sem mexer em padding/largura) pra não deslocar
+     nada em telas com muitos cards lado a lado. */
+  .card{ transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+  .card:hover{ border-color:var(--border-strong); box-shadow:0 4px 16px rgba(0,0,0,0.22); }
+
+  /* mesmo tratamento nos cards de KPI da Capa (.cm-card), que já tinham borda-esquerda colorida mas
+     nenhum feedback de hover. */
+  .cm-card{ transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+  .cm-card:hover{ box-shadow:0 4px 16px rgba(0,0,0,0.22); }
+
+  /* linhas de tabela (Livro Razão, Inbox, Opções, etc.) e linhas de .row (listas de card) ganham
+     destaque sutil ao passar o mouse — facilita achar a linha certa em tabelas densas, padrão comum
+     de app financeiro. Cor tira do próprio tema (--accent em baixa opacidade), sem novo token. */
+  tbody tr{ transition: background-color var(--dur-fast) var(--ease-standard); }
+  tbody tr:hover{ background:rgba(76,142,242,0.05); }
+  .row{ transition: background-color var(--dur-fast) var(--ease-standard); }
+  .row:hover{ background:rgba(255,255,255,0.02); }
+
+  /* feedback de "pressionado" (:active) nos botões que já tinham hover mas nunca reagiam ao clique em
+     si — pequeno scale-down, solta ao soltar o botão. Mesma ideia já usada em .btn-print-secao:active
+     e .greeting-modal-ok:active, agora estendida aos outros botões clicáveis do painel. */
+  .tab, .master-tab, .ciclo-btn, .home-nav-btn{
+    transition: color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard),
+      border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard),
+      transform var(--dur-fast) var(--ease-standard);
+  }
+  .tab:active, .master-tab:active, .ciclo-btn:active, .home-nav-btn:active{ transform:scale(0.96); }
+
+  /* foco por teclado (Tab) não tinha nenhum contorno visível nos botões/abas principais — acessibilidade
+     básica, reaproveita o mesmo anel de foco já usado no input de busca (--shadow-focus-accent-lg).
+     :focus-visible não aparece em clique de mouse, só navegação por teclado, então não muda nada do
+     visual de quem usa o painel normalmente. */
+  .tab:focus-visible, .master-tab:focus-visible, .ciclo-btn:focus-visible,
+  .home-nav-btn:focus-visible, .btn-print-secao:focus-visible, .btn-pill:focus-visible{
+    outline:none; box-shadow:var(--shadow-focus-accent-lg);
   }
 

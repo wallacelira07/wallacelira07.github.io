@@ -437,6 +437,12 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
     return PADROES_RUIDO_TRANSACAO.some(re=>re.test(d));
   }
 
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot): antes, `classificarViaV2()` era
+  // chamada com `await` dentro deste loop, uma vez por transação suspeita — com dezenas de itens
+  // novos (comum logo após uma sincronização grande da Pluggy), isso somava vários segundos em
+  // série (2-3 fetches por item, um esperando o outro terminar). O loop abaixo só DETECTA as
+  // suspeitas (síncrono, rápido); a classificação V2 de todas elas roda depois, em paralelo.
+  const candidatosClassificacao = [];
   for(const conexao of pc.conexoes){
     for(const conta of (conexao.contas||[])){
       const transacoes = conta.transacoes_recentes;
@@ -484,21 +490,31 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias){
           const idExtTx = t.id ? `pluggy-tx-${t.id}` : null;
           if(idExtTx && pluggyJaTriado(idExtTx)) continue;
           resultado.suspeitas.push({banco:conexao.banco, conta:conta.nome, data:t.data, descricao:t.descricao, valor:t.valor});
-          // NOVO 06/08/2026 (parte 114): tenta sugestao V2 (regras_classificacao + resolver_caixa)
-          // antes de criar o item - best-effort, nunca bloqueia (catch interno ja trata falha de rede).
-          const sugestaoV2 = await classificarViaV2(t.descricao, 'pluggy');
-          inboxAdicionarItem({
-            origem:'Pluggy-Transação',
-            descricao:`${conexao.banco} (${conta.nome}): "${t.descricao}" — não encontrada em nenhum livro do ERP (comparação só por valor)`,
-            valor: t.valor, data: (t.data||'').slice(0,10),
-            categoriaSugerida: sugestaoV2 ? `V2 sugere: ${sugestaoV2.caixaNome}` : null,
-            livroSugerido:null, confianca: sugestaoV2 ? 0.6 : null,
-            idExterno: idExtTx, silencioso:true
-          });
+          candidatosClassificacao.push({ banco:conexao.banco, contaNome:conta.nome, t, idExtTx });
         }
       }
     }
   }
+
+  // NOVO 06/08/2026 (parte 114): tenta sugestao V2 (regras_classificacao + resolver_caixa) antes de
+  // criar o item - best-effort, nunca bloqueia (catch interno ja trata falha de rede). Pré-aquece o
+  // cache de regras com 1 chamada isolada antes do fan-out — evita N candidatos disparando o mesmo
+  // fetch de `regras_classificacao` simultaneamente na 1ª carga da página (cache ainda vazio).
+  if(candidatosClassificacao.length && !__regrasClassificacaoV2Cache){
+    await classificarViaV2('', 'pluggy-warmup');
+  }
+  await Promise.all(candidatosClassificacao.map(async (c) => {
+    const sugestaoV2 = await classificarViaV2(c.t.descricao, 'pluggy');
+    inboxAdicionarItem({
+      origem:'Pluggy-Transação',
+      descricao:`${c.banco} (${c.contaNome}): "${c.t.descricao}" — não encontrada em nenhum livro do ERP (comparação só por valor)`,
+      valor: c.t.valor, data: (c.t.data||'').slice(0,10),
+      categoriaSugerida: sugestaoV2 ? `V2 sugere: ${sugestaoV2.caixaNome}` : null,
+      livroSugerido:null, confianca: sugestaoV2 ? 0.6 : null,
+      idExterno: c.idExtTx, silencioso:true
+    });
+  }));
+
   console.log('reconciliarTransacoesPluggy:', resultado.semDados ? 'sem transacoes_recentes ainda (aguardando script externo corrigido rodar)' : `${resultado.suspeitas.length} transação(ões) suspeita(s), ${resultado.ignoradasPorData} ignorada(s) por serem fora da janela recente, ${resultado.ignoradasPorRuido||0} ignorada(s) por serem movimentação interna/resumo de fatura`);
   renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por transação (ver silencioso:true acima)
   return resultado;

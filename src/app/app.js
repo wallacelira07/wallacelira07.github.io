@@ -17,6 +17,44 @@ function onDomPronto(fn){
   }
 }
 
+// NOVO 14/08/2026 (instrumentação de boot: até aqui só existia o log final "[Wallace] Carregado em
+// Xms", sem breakdown por módulo — impossível saber qual aplicarOndaN() é o gargalo). Envolve cada
+// chamada já existente (hydrate() e os onDomPronto(aplicarOndaN...) mais abaixo) com marcação de
+// performance.now(), sem alterar nenhuma lógica de negócio nem ordem de execução — se a função
+// original retorna uma Promise, a duração só fecha quando ela resolve/rejeita (fetch incluso);
+// se for síncrona, fecha na hora. Consultável em runtime via window.WALLACE_BOOT_TIMING (array) e
+// impresso automaticamente em console.table() no listener 'load' já existente (ver mais abaixo).
+window.WALLACE_BOOT_TIMING = window.WALLACE_BOOT_TIMING || [];
+function medirOnda(nome, fn){
+  return function(){
+    const inicio = performance.now();
+    const registrar = function(erro){
+      const fim = performance.now();
+      window.WALLACE_BOOT_TIMING.push({
+        nome: nome,
+        inicio: Math.round(inicio * 100) / 100,
+        fim: Math.round(fim * 100) / 100,
+        duracaoMs: Math.round((fim - inicio) * 100) / 100,
+        status: erro ? 'erro' : 'ok'
+      });
+    };
+    try {
+      const resultado = fn.apply(this, arguments);
+      if(resultado && typeof resultado.then === 'function'){
+        return resultado.then(
+          function(v){ registrar(false); return v; },
+          function(e){ registrar(true); throw e; }
+        );
+      }
+      registrar(false);
+      return resultado;
+    } catch(e){
+      registrar(true);
+      throw e;
+    }
+  };
+}
+
 // NOVO 09/08/2026 (achado real de auditoria de segurança: lancar_transacao_manual/triar_pluggy_item/
 // triar_mercadopago_evento eram SECURITY DEFINER concedidas a `anon` SEM nenhuma checagem de quem
 // chamava - qualquer pessoa com a chave publica do site (esta no HTML, visivel por qualquer um)
@@ -111,6 +149,67 @@ class _CacheComTTL {
       if(prefixos.some(p => chave.startsWith(p))) this._mapa.delete(chave);
     }
   }
+  // NOVO 14/08/2026 (pedido do usuário: "ampliar a camada de cache pra reduzir refetch entre cargas
+  // de página" — o cache acima é só em memória, então some inteiro a cada F5, forçando refetch total
+  // toda vez mesmo que o usuário tenha acabado de recarregar a mesma tela segundos atrás). Camada
+  // extra OPCIONAL em sessionStorage (nunca localStorage — expira ao fechar a aba, mais seguro pra
+  // dado financeiro que sessão longa/compartilhada em navegador de terceiros poderia deixar salvo).
+  // Só chamada explicitamente pelos endpoints pouco voláteis (ver obterOuBuscarPersistente abaixo) -
+  // saldo/transações/reconciliação continuam só no obterOuBuscar() em memória, TTL de 90s, nunca
+  // sobrevivem a um F5. Prefixo 'wfs_cache_v1:' versiona a chave: se o formato do valor gravado mudar
+  // no futuro, basta subir pra 'v2' que o código novo ignora silenciosamente tudo que ficou salvo
+  // pelo formato antigo (JSON.parse de um formato incompatível cai no catch, trata como cache-miss).
+  _PREFIXO_SESSION_STORAGE = 'wfs_cache_v1:';
+  _lerPersistente(chave, ttlMs){
+    try {
+      const bruto = sessionStorage.getItem(this._PREFIXO_SESSION_STORAGE + chave);
+      if(!bruto) return undefined;
+      const entrada = JSON.parse(bruto);
+      if(!entrada || typeof entrada.gravadoEm !== 'number') return undefined;
+      if(Date.now() - entrada.gravadoEm > ttlMs){
+        sessionStorage.removeItem(this._PREFIXO_SESSION_STORAGE + chave);
+        return undefined;
+      }
+      return entrada.valor;
+    } catch(e){
+      // Modo anônimo/privado (Safari lança em alguns browsers), quota estourada, JSON corrompido,
+      // sessionStorage desabilitado por política do navegador - qualquer erro aqui cai pra
+      // cache-miss silencioso, NUNCA quebra o carregamento da página.
+      return undefined;
+    }
+  }
+  _gravarPersistente(chave, valor){
+    try {
+      sessionStorage.setItem(this._PREFIXO_SESSION_STORAGE + chave, JSON.stringify({ valor, gravadoEm: Date.now() }));
+    } catch(e){
+      // Mesma justificativa de _lerPersistente: gravação é um bônus de performance, não uma garantia.
+      // Se falhar (quota cheia, ex: muitas outras chaves de outra aba do mesmo site), simplesmente não
+      // persiste - a próxima chamada volta a buscar da rede via obterOuBuscar() em memória normal.
+    }
+  }
+  // Mesmo contrato de obterOuBuscar (inclusive dedupe de chamada concorrente via promessa em voo),
+  // com uma camada extra: se não achar em memória, tenta sessionStorage ANTES de ir pra rede. Uso
+  // restrito a endpoints de leitura pouco voláteis (config fixa, regra de classificação, teto de
+  // caixa) - NUNCA chamar isto pra saldo/transações/reconciliação, que precisam estar sempre frescos
+  // a cada carga de página (ver comentário de cada chamador abaixo).
+  async obterOuBuscarPersistente(chave, fabricaAsync, ttlPersistenteMs){
+    if(this.has(chave)) return this.get(chave);
+    const persistido = this._lerPersistente(chave, ttlPersistenteMs);
+    if(persistido !== undefined){
+      this.set(chave, persistido); // repovoa a memória também, evita reler sessionStorage a cada chamada
+      return persistido;
+    }
+    const promessa = (async () => {
+      try {
+        const valor = await fabricaAsync();
+        this._gravarPersistente(chave, valor);
+        return valor;
+      }
+      catch(err){ this._mapa.delete(chave); throw err; }
+    })();
+    this.set(chave, promessa);
+    return promessa;
+  }
 }
 
 const WallaceFinanceService = {
@@ -131,6 +230,7 @@ const WallaceFinanceService = {
     'comprometido_caixa_variavel_v2', 'transacoes_cartao_variavel_detalhe',
     'transacoes_por_caixa:', 'vw_compromisso_cartao_por_pessoa',
     'transacoes_corporativo_cartao_detalhe', 'caixas', 'composicao_saldo:',
+    'composicao_saldo_batch:', // NOVO 14/08/2026 (getComposicaoCaixasBatch, mesma família de cache que 'composicao_saldo:')
     'vw_patrimonio_v2', 'vw_emprestimos_internos_v2', 'reembolso_wartsila_ciclo',
     'vw_parcelamentos_v2', 'vw_p2p_v2'
   ],
@@ -178,14 +278,19 @@ const WallaceFinanceService = {
   // NOVO 13/08/2026 (seção "Todas as Caixas" no Painel): teto_mensal não está na view
   // vw_saldo_v2_por_caixa (só nome/saldo), precisa buscar direto da tabela caixas pra montar a
   // barra de progresso dos cards gerados dinamicamente (ver preencherCaixasOperacionaisExtra()).
+  // NOVO 14/08/2026 (ampliação da camada de cache, pedido do usuário): teto_mensal/meta_data_limite
+  // são configurados manualmente e mudam raro (não a cada lançamento, diferente de saldo/transações)
+  // - candidato seguro pra sobreviver a um F5 via sessionStorage (obterOuBuscarPersistente), TTL de
+  // 90s igual ao cache em memória. Pior caso de "dado desatualizado": barra de progresso da meta
+  // atrasada até 90s depois de editar um teto na V2 - aceitável, não é saldo/transação.
   async getTetoMensalCaixas(){
-    return this._cache.obterOuBuscar('caixas_teto_mensal', async () => {
+    return this._cache.obterOuBuscarPersistente('caixas_teto_mensal', async () => {
       const resp = await fetch(`${this._url}/rest/v1/caixas?select=nome,teto_mensal,meta_data_limite&teto_mensal=not.is.null`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar caixas.teto_mensal`);
       return await resp.json();
-    });
+    }, 90000);
   },
   // NOVO 08/08/2026 (Onda 2, Livro Razão Fase 1): reconciliação completa por caixa (saldo, qtd de
   // transações V1×V2, valor das transações só-no-V1) — reaproveita vw_reconciliacao_v1_v2, já
@@ -441,6 +546,49 @@ const WallaceFinanceService = {
       return { caixaId: caixa.id, cicloInicioEm, linhas };
     });
   },
+  // NOVO 14/08/2026 (consolidação de boot do painel — pedido do orquestrador: hydrate-onda12-
+  // caixas-pequenas-v2.js fazia 5 round-trips HTTP separados a getTransacoesComposicaoSaldoCaixa,
+  // um por caixa pequena). Chama a RPC nova rpc_composicao_saldo_caixas_batch(p_nomes) — desenhada
+  // em supabase/migrations/20260814000000_rpc_composicao_saldo_caixas_batch.sql, AINDA NÃO APLICADA
+  // em produção — que devolve a composição das N caixas numa única chamada, chaveada por nome, no
+  // MESMO shape que getTransacoesComposicaoSaldoCaixa() já devolve por caixa ({caixaId,
+  // cicloInicioEm, linhas}). Enquanto a migration não for aplicada (RPC inexistente -> Postgrest
+  // devolve 404), cai automaticamente pro fallback de 5 chamadas individuais (mesmo comportamento de
+  // hoje) — mesmo padrão try/catch-com-fallback já usado no domínio Solar/Cotações/PIB (ver
+  // hydrate-clima-solar.js), só que ali o fallback é "sem dado" e aqui é "método antigo continua
+  // funcionando".
+  async getComposicaoCaixasBatch(nomesCaixa){
+    const chaveCache = 'composicao_saldo_batch:' + nomesCaixa.slice().sort().join(',');
+    return this._cache.obterOuBuscar(chaveCache, async () => {
+      try {
+        const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_composicao_saldo_caixas_batch`, {
+          method: 'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
+          body: JSON.stringify({ p_nomes: nomesCaixa })
+        });
+        if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao chamar rpc_composicao_saldo_caixas_batch`);
+        const dado = await resp.json();
+        if(!dado || typeof dado !== 'object' || Array.isArray(dado)) throw new Error('WallaceFinanceService: rpc_composicao_saldo_caixas_batch devolveu formato inesperado');
+        // confere se a RPC devolveu TODAS as caixas pedidas — se faltar alguma (nome sem match na
+        // tabela `caixas`, ou resposta parcial), cai pro fallback também em vez de fingir sucesso
+        // com dado incompleto (mesma regra "nunca invente dado" do resto do projeto).
+        const faltando = nomesCaixa.filter(n => !(n in dado));
+        if(faltando.length) throw new Error(`WallaceFinanceService: rpc_composicao_saldo_caixas_batch nao devolveu "${faltando.join(', ')}"`);
+        return dado;
+      } catch(errRpc){
+        console.warn('WallaceFinanceService: rpc_composicao_saldo_caixas_batch indisponível (RPC provavelmente ainda não aplicada) — usando fallback de chamadas individuais por caixa.', errRpc);
+        const resultado = {};
+        await Promise.all(nomesCaixa.map(async nome => {
+          try {
+            resultado[nome] = await this.getTransacoesComposicaoSaldoCaixa(nome);
+          } catch(errIndividual){
+            console.error(`WallaceFinanceService: falha também no fallback individual de "${nome}".`, errIndividual);
+          }
+        }));
+        return resultado;
+      }
+    });
+  },
   async getSaldoCaixa(nomeCaixa){
     const caixas = await this.getCaixas();
     const caixa = caixas.find(c => c.nome === nomeCaixa);
@@ -682,14 +830,18 @@ const WallaceFinanceService = {
   // NOVO 08/08/2026 (migração wallace_dados/vars-caixas.js.CRONOGRAMA_BOLETOS_FIXOS -> tabela
   // cronograma_boletos_fixos): schedule dos 9 boletos fixos recorrentes, editável sem deploy de
   // código (mesmo padrão já usado pela tabela `legendas`). Ver hydrate-onda8-cronograma-boletos.js.
+  // NOVO 14/08/2026 (ampliação da camada de cache): cronograma_boletos_fixos é config fixa, editada
+  // manualmente e raro (já documentado acima em _CHAVES_CACHE_AFETADAS_POR_LANCAMENTO como "não
+  // afetado por 1 lançamento") - candidato seguro pra sessionStorage, mesmo raciocínio de
+  // getTetoMensalCaixas.
   async getCronogramaBoletosV2(){
-    return this._cache.obterOuBuscar('cronograma_boletos_fixos', async () => {
+    return this._cache.obterOuBuscarPersistente('cronograma_boletos_fixos', async () => {
       const resp = await fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=tx,nome,dia_vencimento,valor&ativo=eq.true&order=dia_vencimento.asc`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_boletos_fixos`);
       return await resp.json();
-    });
+    }, 120000);
   },
   // NOVO 11/08/2026 (hardening de produção: "eliminar falha silenciosa" das automações agendadas).
   // vw_saude_jobs = última execução (sucesso/erro) de cada job Python, gravada por _heartbeat.py
@@ -704,33 +856,36 @@ const WallaceFinanceService = {
   // NOVO 11/08/2026 (achado do usuário: "confira se isso tudo é V2" — LRS/LRR/LRCON/LRDOA eram HTML
   // estático, nunca lido do banco) — mesmo padrão de getCronogramaBoletosV2() acima, 4 tabelas novas
   // (cronograma_assinaturas/recorrencias/consorcios/doacoes). Ver hydrate-onda9-livros-fixos.js.
+  // NOVO 14/08/2026 (ampliação da camada de cache, mesmo raciocínio de getCronogramaBoletosV2 logo
+  // acima — as 4 tabelas cronograma_* abaixo já estavam fora de _CHAVES_CACHE_AFETADAS_POR_LANCAMENTO
+  // por serem config fixa/pouco volátil): sessionStorage via obterOuBuscarPersistente, TTL 120s.
   async getCronogramaAssinaturasV2(){
-    return this._cache.obterOuBuscar('cronograma_assinaturas', async () => {
+    return this._cache.obterOuBuscarPersistente('cronograma_assinaturas', async () => {
       const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor&ativo=eq.true&order=data.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
       return await resp.json();
-    });
+    }, 120000);
   },
   async getCronogramaRecorrenciasV2(){
-    return this._cache.obterOuBuscar('cronograma_recorrencias', async () => {
+    return this._cache.obterOuBuscarPersistente('cronograma_recorrencias', async () => {
       const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
       return await resp.json();
-    });
+    }, 120000);
   },
   async getCronogramaConsorciosV2(){
-    return this._cache.obterOuBuscar('cronograma_consorcios', async () => {
+    return this._cache.obterOuBuscarPersistente('cronograma_consorcios', async () => {
       const resp = await fetch(`${this._url}/rest/v1/cronograma_consorcios?select=tx,nome,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_consorcios`);
       return await resp.json();
-    });
+    }, 120000);
   },
   async getCronogramaDoacoesV2(){
-    return this._cache.obterOuBuscar('cronograma_doacoes', async () => {
+    return this._cache.obterOuBuscarPersistente('cronograma_doacoes', async () => {
       const resp = await fetch(`${this._url}/rest/v1/cronograma_doacoes?select=tx,descricao,responsavel,valor&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_doacoes`);
       return await resp.json();
-    });
+    }, 120000);
   },
   // NOVO 10/08/2026 (fecha o último escritor ativo de wallace_dados disparado por clique do
   // usuário — ver PLANO_UNIFICACAO_V1_V2.md seção 44): decisões de Aprovar/Rejeitar da Inbox pra
@@ -927,6 +1082,15 @@ const WallaceObs = (function(){
     const tempoMs = Math.round(performance.now());
     console.info('[Wallace] Carregado em ' + tempoMs + 'ms');
     WallaceBus.emit('performanceMedida', {tempoMs, hora:new Date().toISOString()});
+    // NOVO 14/08/2026: breakdown por módulo de boot, ordenado do mais lento pro mais rápido —
+    // ver window.WALLACE_BOOT_TIMING/medirOnda() no topo do arquivo. Algumas ondas assíncronas
+    // (fetch em voo) podem ainda não ter terminado no momento exato do evento 'load' — nesse caso
+    // ficam de fora desta impressão, mas continuam aparecendo em window.WALLACE_BOOT_TIMING assim
+    // que resolverem, consultável manualmente no console.
+    if(Array.isArray(window.WALLACE_BOOT_TIMING) && window.WALLACE_BOOT_TIMING.length){
+      const ordenado = window.WALLACE_BOOT_TIMING.slice().sort((a, b) => b.duracaoMs - a.duracaoMs);
+      console.table(ordenado);
+    }
   });
   return { listarErros: () => erros.slice() };
 })();
@@ -1927,13 +2091,13 @@ function hydrate(){
   preencherCaixasOperacionaisExtra(); // NOVO 13/08/2026: completa a seção 05 com as caixas que não têm card estático (ver hydrate-caixas.js)
   aplicarMetasV2CaixasEstaticas(); // NOVO 13/08/2026: metas dos 12 cards estáticos passam a vir de caixas.teto_mensal (V2), não mais fixas no JS
 
-  aplicarOnda3Suavizacao(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
+  medirOnda('aplicarOnda3Suavizacao', aplicarOnda3Suavizacao)(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
 
   hydrateVisaMB(); // MODULARIZAÇÃO 07/08/2026: breakdown Visa Infinite + Mastercard Black extraído pra src/modules/hydrate-visa-mb.js — mesma sequência, nenhum id/fórmula alterado.
 
-  aplicarOnda3LrwLrv(); // NOVO 08/08/2026 (Onda 3, Prioridade 2): sobrescreve mbLRW/mbLRV com V2 (vw_compromisso_cartao_por_pessoa) — roda depois de hydrateVisaMB() (V1) de propósito, só sobrescreve em caso de sucesso.
+  medirOnda('aplicarOnda3LrwLrv', aplicarOnda3LrwLrv)(); // NOVO 08/08/2026 (Onda 3, Prioridade 2): sobrescreve mbLRW/mbLRV com V2 (vw_compromisso_cartao_por_pessoa) — roda depois de hydrateVisaMB() (V1) de propósito, só sobrescreve em caso de sucesso.
 
-  aplicarOnda10LrcLimbo(); // NOVO 12/08/2026 (Onda 10): sobrescreve LRC_LIMBO (cartão corporativo reembolsável) com V2 — mesmo padrão do bloco acima, roda depois de renderLivrosVariaveis() (V1) já ter desenhado a tabela, só sobrescreve em caso de sucesso.
+  medirOnda('aplicarOnda10LrcLimbo', aplicarOnda10LrcLimbo)(); // NOVO 12/08/2026 (Onda 10): sobrescreve LRC_LIMBO (cartão corporativo reembolsável) com V2 — mesmo padrão do bloco acima, roda depois de renderLivrosVariaveis() (V1) já ter desenhado a tabela, só sobrescreve em caso de sucesso.
 
   hydrateMercadoPago(); // MODULARIZAÇÃO 07/08/2026: indicadores de Mercado Pago extraídos pra src/modules/hydrate-mercado-pago.js — só renderização, cálculo continua em recalcularAgregadosDerivados(), nenhum id/fórmula alterado.
 
@@ -1952,46 +2116,46 @@ function hydrate(){
   // vw_saldo_v2_por_caixa) — sobrescreve só 4 ids (Boletos/PIX Vanessa/Caixa Variável saldoReal/
   // Mastercard-Infinite) quando a resposta chegar, com fallback automático pro valor V1 já
   // escrito acima se o fetch falhar. Rollback: comentar esta linha. Ver hydrate-onda1-v2.js.
-  aplicarOnda1V2();
+  medirOnda('aplicarOnda1V2', aplicarOnda1V2)();
 
   // ONDA 2 — MIGRAÇÃO V2 → PAINEL (08/08/2026): mesmo padrão da Onda 1, agora pras 11 caixas
   // restantes (overlay CONDICIONAL — só troca pra V2 se não houver divergência; ver
   // hydrate-onda2-v2.js) + diagnóstico Fase 1 do Livro Razão (só compara e loga, não muda
   // nenhuma renderização de tabela). Rollback: comentar as 2 linhas abaixo.
-  aplicarOnda2V2();
+  medirOnda('aplicarOnda2V2', aplicarOnda2V2)();
   diagnosticoLivroRazaoFase1();
 
   // ONDA 3 — pendência transversal "Caixa Lance nunca classificada" (08/08/2026): mesmo padrão
   // da Onda 2, reaproveitando vw_saldo_v2_por_caixa. Divergência de R$4,37 (0,10%) tem causa
   // indeterminada/baixa confiança (não "documentada" no sentido da regra) — continua exibindo V1,
   // só passa a logar a divergência em vez de nunca ter sido comparada. Ver hydrate-onda3-caixalance.js.
-  aplicarOnda3CaixaLance();
+  medirOnda('aplicarOnda3CaixaLance', aplicarOnda3CaixaLance)();
 
   // ONDA 4 — "SUPABASE COMO FONTE ÚNICA DE VERDADE" (08/08/2026): diferente das Ondas 1-3, aqui a
   // V2 já É a fonte primária assim que os dados existem (sem gate de divergência) — os valores
   // foram migrados diretamente dos mesmos literais do V1, zero divergência por construção.
   // Fallback pra V1 só em erro técnico. Domínio 1: Patrimônio (patrimonio + financiamentos, view
   // vw_patrimonio_v2). Exceção deliberada: caixaLance continua V1 (ver hydrate-onda4-patrimonio.js).
-  aplicarOnda4Patrimonio();
+  medirOnda('aplicarOnda4Patrimonio', aplicarOnda4Patrimonio)();
 
   // ONDA 4, domínio 2 (Investimentos/ROC): reaproveita aplicarStatusVencidoEValorMercadoOpcoes()/
   // calcularROCOpcoes()/hydrateROC() (V1, inalteradas) sobre dado vindo de `investimentos` (V2) —
   // ver hydrate-onda4-investimentos.js.
-  aplicarOnda4Investimentos();
+  medirOnda('aplicarOnda4Investimentos', aplicarOnda4Investimentos)();
 
   // ONDA 4, domínio 4 (último dos 4 autorizados) — Cascata Wärtsilä: reaproveita
   // recalcularReembolsos()/hydrateReembolsos() (V1, inalteradas) sobre dado vindo de
   // reembolso_wartsila_ciclo + vw_saldo_v2_por_caixa. Ver hydrate-onda4-wartsila.js.
-  aplicarOnda4Wartsila();
+  medirOnda('aplicarOnda4Wartsila', aplicarOnda4Wartsila)();
 
   // ONDA 5, domínio 2 — P2P: reaproveita recalcularP2P()/hydrateResumoP2P() (V1, inalteradas)
   // sobre dado vindo de `indicadores` (mesmo padrão do CDI). Ver hydrate-onda5-p2p.js.
-  aplicarOnda5P2P();
+  medirOnda('aplicarOnda5P2P', aplicarOnda5P2P)();
 
   // "Qualidade da geração" (08/08/2026) — card novo, SEPARADO do domínio de crédito/rateio solar
   // (que continua pendente de validação, não tocado). Só responde "a usina está indo bem ou mal
   // hoje", sem jargão técnico. Ver hydrate-onda5-qualidade-geracao.js.
-  aplicarOnda5QualidadeGeracao();
+  medirOnda('aplicarOnda5QualidadeGeracao', aplicarOnda5QualidadeGeracao)();
   // NOVO 11/08/2026 (pedido do usuário: ícone de clima atual junto do card de desempenho da usina,
   // "geração baixa mas está chovendo, aí eu já sei o porque"). Ver hydrate-clima-solar.js.
   if(typeof aplicarClimaSolar === 'function') aplicarClimaSolar();
@@ -2033,17 +2197,17 @@ onDomPronto(renderParcelamentos); // V155/V170: gera as tabelas de parcelamento 
 // ONDA 5, domínio 1 (08/08/2026) — Parcelamentos: registrado DEPOIS de renderParcelamentos() de
 // propósito, mesmo motivo das Ondas anteriores. Reaproveita a própria função pra redesenhar, agora
 // com VARS.PARCELAMENTOS_VISA/MP vindo da V2. Ver hydrate-onda5-parcelamentos.js.
-onDomPronto(aplicarOnda5Parcelamentos);
+onDomPronto(medirOnda('aplicarOnda5Parcelamentos', aplicarOnda5Parcelamentos));
 onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-limbo/LRCV a partir dos arrays estruturados
 // ONDA 3 (08/08/2026): registrado DEPOIS de renderLivrosVariaveis() de propósito — precisa que a
 // tabela já tenha sido preenchida com V1 antes de tentar sobrescrever com V2 (senão a ordem
 // inverteria e V1 apagaria o V2 escrito antes). Fallback automático: só sobrescreve em caso de
 // sucesso do fetch. Rollback: comentar esta linha.
-onDomPronto(aplicarOnda3LivroRazao);
+onDomPronto(medirOnda('aplicarOnda3LivroRazao', aplicarOnda3LivroRazao));
 // ONDA 4, domínio 3 — LREI (08/08/2026): mesmo motivo de ordem do comentário acima — precisa que
 // renderLivrosVariaveis() (V1) já tenha rodado. Reaproveita a própria função pra redesenhar, agora
 // com VARS.LREI_ATIVAS vindo da V2. Ver hydrate-onda4-lrei.js.
-onDomPronto(aplicarOnda4Lrei);
+onDomPronto(medirOnda('aplicarOnda4Lrei', aplicarOnda4Lrei));
 // NOVO 09/08/2026 (politica nova, pedido do usuario): caixa operacional negativa sem LREI ATIVO
 // cobrindo o rombo soma a diferenca na Necessidade Total Bruta. Busca saldo (vw_saldo_v2_por_caixa)
 // e LREI (vw_emprestimos_internos_v2) por conta propria, via Promise.all - nao depende de nenhuma
@@ -2062,26 +2226,26 @@ onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Fina
 // pluggy_conexoes/pluggy_contas/pluggy_transacoes (V2) e reaproveita as mesmas funções de
 // reconciliação inalteradas, só com dado novo. Ver hydrate-onda7-pluggy.js. classificarInboxPendentes()
 // já é re-chamada de dentro de aplicarOnda7Pluggy() (mesmo cuidado da parte 115 abaixo).
-onDomPronto(aplicarOnda7Pluggy);
+onDomPronto(medirOnda('aplicarOnda7Pluggy', aplicarOnda7Pluggy));
 // NOVO 08/08/2026 (Onda 8): CRONOGRAMA_BOLETOS_FIXOS (literal em vars-caixas.js) migrado pra tabela
 // cronograma_boletos_fixos — editável sem deploy de código a partir de agora. Ver hydrate-onda8-cronograma-boletos.js.
-onDomPronto(aplicarOnda8CronogramaBoletos);
+onDomPronto(medirOnda('aplicarOnda8CronogramaBoletos', aplicarOnda8CronogramaBoletos));
 // NOVO 12/08/2026 (Onda 11): extrato real da Caixa Boletos, ver hydrate-onda11-boletos-extrato-v2.js.
-onDomPronto(aplicarOnda11BoletosExtratoV2);
+onDomPronto(medirOnda('aplicarOnda11BoletosExtratoV2', aplicarOnda11BoletosExtratoV2));
 // NOVO 12/08/2026 (Onda 12): lista de lançamentos das 5 últimas caixas pequenas cujo CARD já era V2
 // mas a tabela detalhada por baixo ainda vinha do literal fixo (Caixa Lance, Bens Duráveis,
 // Churrasco, PIX Vanessa, Mastercard/Infinite) — ver hydrate-onda12-caixas-pequenas-v2.js.
-onDomPronto(aplicarOnda12CaixasPequenasV2);
+onDomPronto(medirOnda('aplicarOnda12CaixasPequenasV2', aplicarOnda12CaixasPequenasV2));
 // NOVA 12/08/2026: aba "Emagrecimento" (peso + custo da caneta), ver hydrate-emagrecimento.js.
 onDomPronto(aplicarEmagrecimento);
-onDomPronto(aplicarOnda9LivrosFixos);
+onDomPronto(medirOnda('aplicarOnda9LivrosFixos', aplicarOnda9LivrosFixos));
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.
 onDomPronto(aplicarSaudeOperacional);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.
-onDomPronto(aplicarOnda6MercadoPago); // V450 Etapas 4+5+6, agora V2: FinancialEvent -> Inbox (com classificacao e checagem de duplicidade)
+onDomPronto(medirOnda('aplicarOnda6MercadoPago', aplicarOnda6MercadoPago)); // V450 Etapas 4+5+6, agora V2: FinancialEvent -> Inbox (com classificacao e checagem de duplicidade)
 onDomPronto(classificarInboxPendentes); // V400 Etapa 10: roda por último, classifica o que as etapas acima adicionaram nesta mesma carga
 onDomPronto(renderMercadoPagoDashboard); // V450 Etapa 9: so leitura/exibicao, roda depois da Inbox estar populada
 onDomPronto(atualizarContadoresAbasLR); // V162/V170: conta linhas reais das abas de Livros Razao

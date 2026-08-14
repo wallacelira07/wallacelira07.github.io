@@ -2,6 +2,15 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 14/08/2026 — 2 correções pontuais achadas em auditoria de código, ainda não commitadas
+
+Retomada da sessão de 14/08 abaixo (mesmo dia). 2 arquivos com correção pronta no working tree, pendentes de commit:
+
+1. **`src/auditoria/verificacoes/auditoria-automatica.js`** — a checagem 7 (Reservas) somava `r.boletos` na conferência, mas `recalcularBalanco()` tinha parado de somar Boletos no total das Reservas em 13/08 (Caixa Boletos migrou de seção 05 pra 06/operacional). A checagem nunca foi atualizada, então acusava "1 divergência" (≈R$1.648,55, o valor da Caixa Boletos) em todo carregamento desde 13/08 — não era o bug do rodapé de novo (já corrigido em 2.3 do bloco anterior), era a própria fórmula da auditoria desatualizada. Soma corrigida pra 12 caixas (era 13).
+2. **`src/solar/hydrate-clima-solar.js`** — `aplicarClimaSolar()` rodava sem proteção contra chamada repetida; `hydrate()` é disparado até 13x durante o boot (uma vez por caixa promovida V1→V2), cada uma refazendo a mesma requisição à Open-Meteo em série (limite de conexões por host), somando ~7s de atraso no fim da fila. Corrigido com flag de módulo que só busca 1x por carga de página (clima é só contexto visual, nunca usado em cálculo).
+
+Nenhuma das duas mudanças afeta o que o Claude Chat precisa saber (sem domínio V2 novo, sem regra de negócio nova) — não requer atualização do Google Drive. Próximo passo: testar as 2 mudanças ao vivo e commitar (avisando antes).
+
 ## 🏁 Encerramento 14/08/2026 — Reconciliação Wärtsilä concluída, padronização de caixas, sync multi-conta MP, governança de documentação corrigida
 
 Continuação direta da sessão de 13/08 abaixo (mesmo dia de trabalho, atravessou a virada de data). Trabalho dividido em 2 blocos.

@@ -30,15 +30,26 @@ const ONDA12_CAIXAS_MAPA = [
 ];
 
 async function aplicarOnda12CaixasPequenasV2(){
-  const relatorio = [];
-  for(const cfg of ONDA12_CAIXAS_MAPA){
+  // CORRIGIDO 14/08/2026 (achado real, auditoria de lag do boot): as 5 caixas eram buscadas num
+  // `for` sequencial, uma esperando a outra terminar (5 round-trips ao Supabase em série, ~0,75-
+  // 1,5s). São completamente independentes entre si (cada uma só mexe em VARS[cfg.varArr]/
+  // VARS[cfg.varSaldo] próprios) — Promise.all dispara as 5 juntas; o try/catch por caixa foi
+  // preservado dentro de cada callback (mesmo padrão já usado na FASE 2F de promocoes-financeengine.js).
+  //
+  // CORRIGIDO 14/08/2026 (consolidação de boot): as 5 chamadas em paralelo acima ainda eram 5
+  // round-trips HTTP distintos (paralelos, mas 5 conexões). getComposicaoCaixasBatch() (app.js) busca
+  // as 5 numa única chamada via RPC rpc_composicao_saldo_caixas_batch (supabase/migrations/), com
+  // fallback automático e transparente pras 5 chamadas individuais se a RPC ainda não estiver
+  // aplicada no banco — nenhuma mudança de shape aqui, cada `composicaoBatch[cfg.caixaNome]` é
+  // idêntico ao que getTransacoesComposicaoSaldoCaixa(cfg.caixaNome) já devolvia por caixa.
+  const composicaoBatch = await WallaceFinanceService.getComposicaoCaixasBatch(ONDA12_CAIXAS_MAPA.map(cfg => cfg.caixaNome));
+  const relatorio = await Promise.all(ONDA12_CAIXAS_MAPA.map(async (cfg) => {
     try {
-      const composicao = await WallaceFinanceService.getTransacoesComposicaoSaldoCaixa(cfg.caixaNome);
+      const composicao = composicaoBatch[cfg.caixaNome];
       const linhas = composicao && composicao.linhas;
       if(!Array.isArray(linhas)){
         console.warn(`Onda12CaixasPequenasV2: resposta inesperada pra "${cfg.caixaNome}" — mantendo array V1.`);
-        relatorio.push({ caixa: cfg.caixaNome, status: 'sem_dado_v2' });
-        continue;
+        return { caixa: cfg.caixaNome, status: 'sem_dado_v2' };
       }
       const v1Qtd = VARS[cfg.varArr].length;
       // linhas vem order=data.desc,created_at.desc (mais recente primeiro) — os arrays V1 sempre
@@ -53,13 +64,13 @@ async function aplicarOnda12CaixasPequenasV2(){
       if(typeof calcularSaldoCaixa === 'function'){
         VARS[cfg.varSaldo] = calcularSaldoCaixa(cfg.saldoInicial(), VARS[cfg.varArr]);
       }
-      relatorio.push({ caixa: cfg.caixaNome, qtdV1: v1Qtd, qtdV2: linhas.length, saldoV2: VARS[cfg.varSaldo], exibindo: 'V2' });
       console.log(`Onda12CaixasPequenasV2 [${cfg.caixaNome}]: lista agora vem 100% da V2 (${linhas.length} lançamentos; V1 tinha ${v1Qtd} itens fixos).`);
+      return { caixa: cfg.caixaNome, qtdV1: v1Qtd, qtdV2: linhas.length, saldoV2: VARS[cfg.varSaldo], exibindo: 'V2' };
     } catch(err){
       console.error(`Onda12CaixasPequenasV2: falha ao buscar "${cfg.caixaNome}" — mantendo array V1 local.`, err);
-      relatorio.push({ caixa: cfg.caixaNome, status: 'erro_v2', erro: String(err) });
+      return { caixa: cfg.caixaNome, status: 'erro_v2', erro: String(err) };
     }
-  }
+  }));
   // Índice de busca global (mesmo cuidado da Onda 11 — LR simples entra na busca por VARS[arr]).
   // NOTA: `_buscaGlobalIndiceTransacoes` é `let` de escopo de módulo clássico (dashboard-navegacao.js)
   // — window._buscaGlobalIndiceTransacoes NÃO seria o mesmo binding, por isso a referência direta
