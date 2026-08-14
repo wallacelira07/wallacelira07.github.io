@@ -206,6 +206,35 @@ async function aplicarOnda5QualidadeGeracao(){
     window.__wallaceFrescorSolarInterval = setInterval(renderizarFrescor, 60000);
   }
 
+  // NOVO 14/08/2026 (pedido do usuário, depois de perguntar "você acha que o GD não consegue gerar
+  // o suficiente pra segurar as 3 casas?" — cálculo manual mostrou geração bruta ~4,5% acima do
+  // consumo total, margem apertada demais pra deixar só numa conversa). Compara o último dia
+  // COMPLETO de geração bruta (diaReferencia.kwh — nunca "hoje", que é sempre parcial e daria falso
+  // alarme de manhã) contra a soma dos 3 consumos diários de referência REAIS (linha "Média" de
+  // cada fatura Energisa confirmada, mesma fonte que VARS.solarConsumoDiarioWallace/Irma/Mae já usa
+  // em outros cálculos desta sessão — nenhum número novo inventado aqui).
+  const elCobertura = $('qgCoberturaTresCasas');
+  if(elCobertura){
+    const consumoWallace = VARS.solarConsumoDiarioWallace;
+    const consumoIrma = VARS.solarConsumoDiarioIrma;
+    const consumoMae = VARS.solarConsumoDiarioMae;
+    if(typeof consumoWallace === 'number' && typeof consumoIrma === 'number' && typeof consumoMae === 'number'){
+      const consumoTotal3Casas = Math.round((consumoWallace + consumoIrma + consumoMae) * 100) / 100;
+      const margemPct = consumoTotal3Casas > 0 ? Math.round(((diaReferencia.kwh - consumoTotal3Casas) / consumoTotal3Casas) * 1000) / 10 : null;
+      let statusCobertura;
+      if(margemPct === null) statusCobertura = { emoji:'🟡', texto:'Sem referência de consumo suficiente pra comparar', cor:'var(--text-dim)' };
+      else if(margemPct < 0) statusCobertura = { emoji:'🔴', texto:`Geração ABAIXO do consumo total das 3 casas (${Math.abs(margemPct).toLocaleString('pt-BR',{maximumFractionDigits:1})}% a menos)`, cor:'#e2554f' };
+      else if(margemPct < 10) statusCobertura = { emoji:'🟡', texto:`Geração cobre as 3 casas, mas com margem apertada (só ${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% de folga)`, cor:'#e8a63a' };
+      else statusCobertura = { emoji:'🟢', texto:`Geração cobre as 3 casas com folga confortável (${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% acima do consumo total)`, cor:'#34c98a' };
+      elCobertura.textContent = statusCobertura.emoji+' '+statusCobertura.texto+` — ${fmtKwh(diaReferencia.kwh)} gerados × ${fmtKwh(consumoTotal3Casas)} consumidos (Wallace+Wellida+Casa da Mãe, ${dd}/${mm})`;
+      elCobertura.style.color = statusCobertura.cor;
+      window.WALLACE_ONDA5_COBERTURA_3_CASAS = { kwhGerado: diaReferencia.kwh, consumoTotal3Casas, margemPct, dia: diaReferencia.data };
+    } else {
+      elCobertura.textContent = '⚠ Consumo de referência das 3 casas indisponível — comparação não calculada.';
+      elCobertura.style.color = 'var(--text-dim)';
+    }
+  }
+
   window.WALLACE_ONDA5_QUALIDADE_GERACAO_RELATORIO = {
     hoje: registroHoje ? registroHoje.kwh : null,
     diaReferencia: diaReferencia.data, kwhDiaReferencia: diaReferencia.kwh,

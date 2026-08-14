@@ -1200,6 +1200,12 @@
       <div style="margin-top:0.3rem;font-weight:600;font-size:0.85rem;color:var(--text-dim)" id="qgStatus">—</div>
       <div style="font-size:0.72rem;font-weight:600;margin-top:0.4rem" id="qgFrescor">—</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
+      <!-- NOVO 14/08/2026 (pedido do usuário: "monte esse alerta" — depois de calcular manualmente
+           que a geração bruta média (~22,1 kWh/dia) está só ~4,5% acima do consumo total das 3 casas
+           vinculadas à usina, margem apertada). Compara o último dia COMPLETO de geração bruta contra
+           o consumo diário de referência (fatura Energisa real) de Wallace+Wellida+Casa da Mãe somado
+           — ver aplicarOnda5QualidadeGeracao(), hydrate-onda5-qualidade-geracao.js. -->
+      <div style="font-size:0.72rem;font-weight:600;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)" id="qgCoberturaTresCasas">—</div>
       <!-- NOVO 11/08/2026 (pedido do usuário: "quero um ícone com a previsão do tempo do momento...
            por exemplo, hoje a geração está baixa, mas está chovendo, então eu vendo esse ícone já sei
            o porque") - clima atual de Campina Grande/PB (Open-Meteo, API pública, sem chave/cadastro),
