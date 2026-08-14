@@ -69,6 +69,17 @@ function _wwiFmtMoeda(n){
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// ADICIONADO 14/08/2026 (achado do usuário: "não ficou 100% igual" — comparando com o artefato
+// aprovado, os percentuais/contagens saíam com PONTO decimal — "95.4%", "10.3 ciclos" — em vez de
+// vírgula ("95,4%", "10,3 ciclos"). Causa: _wwiArredonda() retorna um number puro do JavaScript, e
+// interpolar um number direto num template string usa o formato padrão (ponto), nunca o BR. Todo
+// texto EXIBIDO na narrativa (não usado em cálculo posterior) deve passar por este formatador —
+// mesmo padrão já usado em _wwiFmtMoeda() pra valores em R$.
+function _wwiFmtNum(n, casas){
+  if(n === null || n === undefined) return '';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
 // ---------------------------------------------------------------------------------------------
 // calcularIndicadoresEScores(dados) — Wealth Score (0-100) + 4 índices dedicados + indicadores brutos
 // usados tanto pelo PDF quanto pela comparação histórica. Cada sub-score só entra na média se o dado
@@ -319,33 +330,33 @@ function gerarAnaliseFinanceira(dados){
 
   // ===== Liquidez =====
   regra('liquidez_forte', subscores.liquidez !== null && subscores.liquidez >= 80, () => {
-    pontosFortesTexto.push(`Liquidez de nível muito forte: a Reserva de Emergência (R$ ${_wwiFmtMoeda(b.reserva)}) cobre sozinha cerca de ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo — bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta).`);
+    pontosFortesTexto.push(`Liquidez de nível muito forte: a Reserva de Emergência (R$ ${_wwiFmtMoeda(b.reserva)}) cobre sozinha cerca de ${_wwiFmtNum(b.liquidezCiclos, 1)} ciclos de compromisso fixo — bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta).`);
   });
   regra('liquidez_media', subscores.liquidez !== null && subscores.liquidez >= 40 && subscores.liquidez < 80, () => {
-    pontosFortesTexto.push(`Liquidez em nível saudável: a Reserva de Emergência cobre cerca de ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo, dentro da faixa considerada segura para o perfil.`);
+    pontosFortesTexto.push(`Liquidez em nível saudável: a Reserva de Emergência cobre cerca de ${_wwiFmtNum(b.liquidezCiclos, 1)} ciclos de compromisso fixo, dentro da faixa considerada segura para o perfil.`);
   });
   regra('liquidez_fraca', subscores.liquidez !== null && subscores.liquidez < 40, () => {
-    pontosFracosTexto.push(`Liquidez abaixo do recomendável: a Reserva cobriria só ${_wwiArredonda(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.`);
+    pontosFracosTexto.push(`Liquidez abaixo do recomendável: a Reserva cobriria só ${_wwiFmtNum(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.`);
     riscosTexto.push('Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.');
     recomendacoesTexto.push('Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.');
   });
 
   // ===== Endividamento / alavancagem =====
   regra('alavancagem_baixa', subscores.endividamento !== null && subscores.endividamento >= 80, () => {
-    const pctAlav = _wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1);
+    const pctAlav = _wwiFmtNum((b.passivosTotal / b.ativosTotal) * 100, 1);
     pontosFortesTexto.push(`Alavancagem controlada: os passivos (financiamento da casa + consórcio do carro) representam apenas ${pctAlav}% do ativo total (R$ ${_wwiFmtMoeda(b.passivosTotal)} sobre R$ ${_wwiFmtMoeda(b.ativosTotal)}) — bem abaixo de qualquer linha de alerta para o perfil, e ambas as dívidas têm condições conhecidas e estáveis, não exigindo antecipação.`);
   });
   regra('alavancagem_media', subscores.endividamento !== null && subscores.endividamento >= 40 && subscores.endividamento < 80, () => {
-    pontosFracosTexto.push(`Alavancagem moderada: passivos representam ${_wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total — não é crítico, mas merece acompanhamento nos próximos ciclos.`);
+    pontosFracosTexto.push(`Alavancagem moderada: passivos representam ${_wwiFmtNum((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total — não é crítico, mas merece acompanhamento nos próximos ciclos.`);
   });
   regra('alavancagem_alta', subscores.endividamento !== null && subscores.endividamento < 40, () => {
-    pontosFracosTexto.push(`Alavancagem elevada: passivos já representam ${_wwiArredonda((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total.`);
+    pontosFracosTexto.push(`Alavancagem elevada: passivos já representam ${_wwiFmtNum((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total.`);
     riscosTexto.push('Nível de dívida sobre ativos merece monitoramento antes de assumir novos compromissos financeiros de longo prazo.');
   });
 
   // ===== Composição do patrimônio (financeiro vs. físico) =====
   regra('concentracao_fisica', subscores.investimentos !== null && subscores.investimentos < 50, () => {
-    const pctFinanceiro = b.patrimonioLiquido ? _wwiArredonda((b.patrimonioFinanceiro / b.patrimonioLiquido) * 100, 1) : null;
+    const pctFinanceiro = b.patrimonioLiquido ? _wwiFmtNum((b.patrimonioFinanceiro / b.patrimonioLiquido) * 100, 1) : null;
     pontosFracosTexto.push(`Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos (casa, apartamento, carro, jazigo)${pctFinanceiro !== null ? ` — só ${pctFinanceiro}% do patrimônio líquido está em capital financeiro realmente alocável` : ''}. Não é um erro por si só (é típico de quem construiu patrimônio via consumo disciplinado), mas concentra o risco numa única classe de ativo.`);
     oportunidadesTexto.push('Redirecionar o próximo ciclo de aportes para ativos financeiros líquidos ajuda a equilibrar a composição do patrimônio e reduz a dependência de valorização imobiliária/veicular.');
   });
@@ -355,41 +366,41 @@ function gerarAnaliseFinanceira(dados){
 
   // ===== Meta do Milhão =====
   regra('meta_milhao_inicial', b.metaMilhaoPct !== null && b.metaMilhaoPct < 25, () => {
-    const faltaMilhao = b.patrimonioLiquido !== null ? _wwiArredonda(1000000 - b.patrimonioLiquido, 2) : null;
-    pontosFracosTexto.push(`Meta do Milhão ainda em fase inicial: ${_wwiArredonda(b.metaMilhaoPct, 1)}% do caminho percorrido${faltaMilhao !== null ? ` (faltam R$ ${_wwiFmtMoeda(faltaMilhao)})` : ''}. É esperado nesta fase — o que importa mais que o percentual isolado é o ritmo de aporte se manter constante ciclo a ciclo.`);
+    const faltaMilhao = b.patrimonioLiquido !== null ? Math.max(0, 1000000 - b.patrimonioLiquido) : null;
+    pontosFracosTexto.push(`Meta do Milhão ainda em fase inicial: ${_wwiFmtNum(b.metaMilhaoPct, 1)}% do caminho percorrido${faltaMilhao !== null ? ` (faltam R$ ${_wwiFmtMoeda(faltaMilhao)})` : ''}. É esperado nesta fase — o que importa mais que o percentual isolado é o ritmo de aporte se manter constante ciclo a ciclo.`);
   });
   regra('meta_milhao_avancada', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 25 && b.metaMilhaoPct < 50, () => {
-    pontosFortesTexto.push(`Meta do Milhão em ${_wwiArredonda(b.metaMilhaoPct, 1)}% do caminho percorrido — progresso real, mesmo que ainda distante da metade.`);
+    pontosFortesTexto.push(`Meta do Milhão em ${_wwiFmtNum(b.metaMilhaoPct, 1)}% do caminho percorrido — progresso real, mesmo que ainda distante da metade.`);
   });
   regra('meta_milhao_mais_da_metade', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 50, () => {
-    pontosFortesTexto.push(`Meta do Milhão já em ${_wwiArredonda(b.metaMilhaoPct, 1)}% — mais da metade do caminho percorrido, ritmo consolidado.`);
+    pontosFortesTexto.push(`Meta do Milhão já em ${_wwiFmtNum(b.metaMilhaoPct, 1)}% — mais da metade do caminho percorrido, ritmo consolidado.`);
   });
 
   // ===== Escola de Júlio =====
   regra('escola_julio_baixo', escolaJulioPct !== null && escolaJulioPct < 30, () => {
-    riscosTexto.push(`Escola de Júlio em ${_wwiArredonda(escolaJulioPct, 1)}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte, não só o que sobrar do mês.`);
+    riscosTexto.push(`Escola de Júlio em ${_wwiFmtNum(escolaJulioPct, 1)}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte, não só o que sobrar do mês.`);
   });
   regra('escola_julio_ok', escolaJulioPct !== null && escolaJulioPct >= 30, () => {
-    pontosFortesTexto.push(`Escola de Júlio com ${_wwiArredonda(escolaJulioPct, 1)}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.`);
+    pontosFortesTexto.push(`Escola de Júlio com ${_wwiFmtNum(escolaJulioPct, 1)}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.`);
   });
 
   // ===== Projeto/Consórcio Casa Nova =====
   regra('casa_nova_pre_contemplacao', b.consorcioCasaPagoPct !== null && b.consorcioCasaPagoPct < 5, () => {
-    riscosTexto.push(`Consórcio Casa Nova ainda em fase pré-contemplação (${_wwiArredonda(b.consorcioCasaPagoPct, 2)}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo. Vale já ter uma política definida de quando/se usar lance para acelerar, em vez de depender só do sorteio.`);
+    riscosTexto.push(`Consórcio Casa Nova ainda em fase pré-contemplação (${_wwiFmtNum(b.consorcioCasaPagoPct, 2)}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo. Vale já ter uma política definida de quando/se usar lance para acelerar, em vez de depender só do sorteio.`);
   });
   regra('projeto_casa_nova_capital', projetoCasaNovaPct !== null, () => {
-    oportunidadesTexto.push(`Projeto Casa Nova em ${_wwiArredonda(projetoCasaNovaPct, 1)}% de maturidade${capitalCasaNova !== null ? `, com R$ ${_wwiFmtMoeda(capitalCasaNova)} de capital hoje disponível (LFTS11 + Caixa Lance) para eventual lance` : ''}.`);
+    oportunidadesTexto.push(`Projeto Casa Nova em ${_wwiFmtNum(projetoCasaNovaPct, 1)}% de maturidade${capitalCasaNova !== null ? `, com R$ ${_wwiFmtMoeda(capitalCasaNova)} de capital hoje disponível (LFTS11 + Caixa Lance) para eventual lance` : ''}.`);
   });
 
   // ===== Reembolsos Wärtsilä =====
   regra('wartsila_pendencia', b.reembAReceber !== null && b.reembAReceber > 0, () => {
-    const pctPendente = b.reembTotalCiclo ? _wwiArredonda((b.reembAReceber / b.reembTotalCiclo) * 100, 1) : null;
+    const pctPendente = b.reembTotalCiclo ? _wwiFmtNum((b.reembAReceber / b.reembTotalCiclo) * 100, 1) : null;
     oportunidadesTexto.push(`Reembolso Wärtsilä do ciclo tem R$ ${_wwiFmtMoeda(b.reembAReceber)} ainda pendente de confirmação${pctPendente !== null ? ` (${pctPendente}% do total do ciclo)` : ''} — não trava nenhuma obrigação (a cascata de adiantamento via Caixa Lance já cobre isso), mas vale acompanhar até a confirmação definitiva.`);
   });
   regra('wartsila_recuperacao_alta', (b.reembRecebidos !== null && b.reembTotalCiclo), () => {
     const eficiencia = b.reembTotalCiclo ? (b.reembRecebidos / b.reembTotalCiclo) * 100 : null;
     if(eficiencia !== null && eficiencia >= 90){
-      pontosFortesTexto.push(`Eficiência de recuperação do reembolso Wärtsilä em ${_wwiArredonda(eficiencia, 1)}% no ciclo (R$ ${_wwiFmtMoeda(b.reembRecebidos)} de R$ ${_wwiFmtMoeda(b.reembTotalCiclo)} já confirmados) — a unidade de negócio "reembolso corporativo" está operando com eficiência alta e previsível.`);
+      pontosFortesTexto.push(`Eficiência de recuperação do reembolso Wärtsilä em ${_wwiFmtNum(eficiencia, 1)}% no ciclo (R$ ${_wwiFmtMoeda(b.reembRecebidos)} de R$ ${_wwiFmtMoeda(b.reembTotalCiclo)} já confirmados) — a unidade de negócio "reembolso corporativo" está operando com eficiência alta e previsível.`);
     }
   });
 
@@ -407,7 +418,7 @@ function gerarAnaliseFinanceira(dados){
     if(b.poupancaReceitas && b.poupancaSobrou !== null){
       const taxaPoupanca = (b.poupancaSobrou / b.poupancaReceitas) * 100;
       if(taxaPoupanca >= 25){
-        pontosFortesTexto.push(`Taxa de poupança do ciclo em ${_wwiArredonda(taxaPoupanca, 1)}% — nível de elite para o perfil.`);
+        pontosFortesTexto.push(`Taxa de poupança do ciclo em ${_wwiFmtNum(taxaPoupanca, 1)}% — nível de elite para o perfil.`);
       }
     }
   });
@@ -426,17 +437,31 @@ function gerarAnaliseFinanceira(dados){
     wealthScore >= 55 ? 'Nível Estável — os fundamentos estão presentes, com espaço real de melhoria em pelo menos um eixo crítico (ver Pontos Fracos).' :
     'Nível de Atenção — recomenda-se revisão de prioridades antes de assumir novos compromissos financeiros.';
 
-  const frasesParecer = [];
+  // CORRIGIDO 14/08/2026 (achado do usuário: comparando com o artefato aprovado, "Resumo do CFO"
+  // repetia o MESMO conteúdo 2x — a versão condensada aqui embaixo ["do lado positivo: X;Y" / "o
+  // ponto que mais pede atenção é..."] seguida, no parágrafo seguinte, dos MESMOS pontos por
+  // extenso). `resumoAberturaTexto` guarda só as 2 frases realmente diferentes (score + patrimônio
+  // líquido) pra abrir o "Resumo do CFO" (seção 01) — o condensado completo (`parecerFinalTexto`,
+  // com os destaques resumidos) fica reservado só pro "Parecer Final" (seção 11, "Leitura de
+  // encerramento"), que é uma seção separada e não repete o que já foi dito na seção 01.
+  const frasesAbertura = [];
   if(wealthScore !== null){
-    frasesParecer.push(`Wealth Score do ciclo: ${wealthScore}/100. ${nivelTexto}`);
+    frasesAbertura.push(`Wealth Score do ciclo: ${wealthScore}/100. ${nivelTexto}`);
   } else {
-    frasesParecer.push('Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta.');
+    frasesAbertura.push('Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta.');
   }
   if(b.patrimonioLiquido !== null){
-    frasesParecer.push(`O patrimônio líquido do ciclo está em R$ ${_wwiFmtMoeda(b.patrimonioLiquido)}${b.ativosTotal !== null && b.passivosTotal !== null ? `, resultado de R$ ${_wwiFmtMoeda(b.ativosTotal)} em ativos menos R$ ${_wwiFmtMoeda(b.passivosTotal)} em passivos` : ''}.`);
+    frasesAbertura.push(`O patrimônio líquido do ciclo está em R$ ${_wwiFmtMoeda(b.patrimonioLiquido)}${b.ativosTotal !== null && b.passivosTotal !== null ? `, resultado de R$ ${_wwiFmtMoeda(b.ativosTotal)} em ativos menos R$ ${_wwiFmtMoeda(b.passivosTotal)} em passivos` : ''}.`);
   }
+  const resumoAberturaTexto = frasesAbertura.join(' ');
+
+  const frasesParecer = frasesAbertura.slice();
   if(pontosFortesTexto.length){
-    frasesParecer.push(`Do lado positivo, ${pontosFortesTexto.length === 1 ? 'o destaque do ciclo é' : 'os destaques do ciclo são'}: ${pontosFortesTexto.map(t => t.split(':')[0].split(' —')[0].toLowerCase()).join('; ')}.`);
+    // CORRIGIDO 14/08/2026 (achado do usuário: "reembolso wärtsilä" saindo com W minúsculo no
+    // parecer — .toLowerCase() aplicado na frase inteira também rebaixava nomes próprios no meio
+    // do texto, tipo "Wärtsilä"). Agora só a PRIMEIRA letra é rebaixada (concordância de "os
+    // destaques são: X; Y"), preservando maiúscula de nome próprio em qualquer outra posição.
+    frasesParecer.push(`Do lado positivo, ${pontosFortesTexto.length === 1 ? 'o destaque do ciclo é' : 'os destaques do ciclo são'}: ${pontosFortesTexto.map(t => { const frag = t.split(':')[0].split(' —')[0]; return frag.charAt(0).toLowerCase() + frag.slice(1); }).join('; ')}.`);
   }
   if(pontosFracosTexto.length){
     frasesParecer.push(`O ponto que mais pede atenção é ${pontosFracosTexto[0].charAt(0).toLowerCase() + pontosFracosTexto[0].slice(1).replace(/\.$/, '')}.`);
@@ -448,7 +473,7 @@ function gerarAnaliseFinanceira(dados){
 
   return {
     pontosFortesTexto, pontosFracosTexto, riscosTexto, oportunidadesTexto, recomendacoesTexto,
-    parecerFinalTexto, regrasAplicadas,
+    resumoAberturaTexto, parecerFinalTexto, regrasAplicadas,
     projetos: _wwiMontarProjetos(dados),
     passivosRank: _wwiMontarPassivosRank(dados),
     centrosDeCusto: _wwiMontarCentrosDeCusto(dados),
@@ -476,7 +501,7 @@ function compararComHistorico(indicadoresAtuais, historico){
 
   if(patrimAtual !== null && patrimAnterior){
     const variacaoPct = ((patrimAtual - patrimAnterior) / patrimAnterior) * 100;
-    frases.push(`O patrimônio líquido ${variacaoPct >= 0 ? 'cresceu' : 'recuou'} ${Math.abs(_wwiArredonda(variacaoPct, 1))}% em relação ao ciclo anterior (${anterior.competencia}).`);
+    frases.push(`O patrimônio líquido ${variacaoPct >= 0 ? 'cresceu' : 'recuou'} ${_wwiFmtNum(Math.abs(variacaoPct), 1)}% em relação ao ciclo anterior (${anterior.competencia}).`);
   }
 
   if(indicadoresAtuais && indicadoresAtuais.wealthScore !== null && anterior && anterior.score !== null && anterior.score !== undefined){
@@ -501,7 +526,7 @@ function compararComHistorico(indicadoresAtuais, historico){
     const patrimRef = refBruto ? refBruto.patrimonioLiquido : null;
     if(patrimAtual !== null && patrimRef){
       const variacaoPct = ((patrimAtual - patrimRef) / patrimRef) * 100;
-      frases.push(`O patrimônio líquido ${variacaoPct >= 0 ? 'acumulou alta' : 'acumulou queda'} de ${Math.abs(_wwiArredonda(variacaoPct, 1))}% ${janela.rotulo}.`);
+      frases.push(`O patrimônio líquido ${variacaoPct >= 0 ? 'acumulou alta' : 'acumulou queda'} de ${_wwiFmtNum(Math.abs(variacaoPct), 1)}% ${janela.rotulo}.`);
     }
   });
 

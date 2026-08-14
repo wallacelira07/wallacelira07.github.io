@@ -1235,8 +1235,13 @@
             // 01. Resumo do CFO — prosa em vários parágrafos (parecer + pontos fortes + pontos fracos
             // + evolução vs. ciclo anterior, quando existir), em vez de seções separadas em lista —
             // mesmo espírito de "carta do CFO" do artefato original.
+            // CORRIGIDO 14/08/2026 (achado do usuário: "olha a diferença no desenvolvimento" — o
+            // Resumo do CFO repetia o mesmo conteúdo 2x, porque parecerFinalTexto JÁ inclui um
+            // resumo condensado dos pontos fortes/fracos, e os parágrafos seguintes traziam eles de
+            // novo por extenso). Troca pra resumoAberturaTexto (só score + patrimônio líquido, sem o
+            // resumo condensado) — cada fato aparece 1x só, não 2x com fraseado diferente.
             const paragrafosCfo = [];
-            if (narrativa && narrativa.parecerFinalTexto) paragrafosCfo.push(narrativa.parecerFinalTexto);
+            if (narrativa && narrativa.resumoAberturaTexto) paragrafosCfo.push(narrativa.resumoAberturaTexto);
             if (narrativa && narrativa.pontosFortesTexto && narrativa.pontosFortesTexto.length) paragrafosCfo.push(narrativa.pontosFortesTexto.join(' '));
             if (narrativa && narrativa.pontosFracosTexto && narrativa.pontosFracosTexto.length) paragrafosCfo.push(narrativa.pontosFracosTexto.join(' '));
             if (comparativo && comparativo.temHistorico && comparativo.frases.length) paragrafosCfo.push(comparativo.frases.join(' '));
@@ -1384,7 +1389,15 @@
                 alert('O navegador bloqueou a aba do relatório — permite pop-ups pra este site e tenta de novo.');
                 return Promise.resolve();
             }
+            // ADICIONADO 14/08/2026 (pedido do usuário: "coloque também o ícone da aba do
+            // navegador") — favicon inline (data URI, sem depender de arquivo externo): monograma
+            // "W" dourado sobre fundo escuro, mesma paleta da capa do relatório (#0C1017/#CBA968).
+            const faviconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+                '<rect width="100" height="100" rx="18" fill="%230C1017"/>' +
+                '<text x="50" y="70" font-family="Georgia,serif" font-size="58" fill="%23CBA968" text-anchor="middle">W</text>' +
+                '</svg>';
             const docHtml = '<!doctype html><html><head><meta charset="utf-8">' +
+                '<link rel="icon" href="data:image/svg+xml,' + faviconSvg + '">' +
                 '<title>Tactical Wealth Report — Wallace Lira</title>' +
                 '<style>' +
                 'html,body{margin:0;padding:0;background:#F1F1EB;}' +
