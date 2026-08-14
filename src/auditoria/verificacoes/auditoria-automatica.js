@@ -157,6 +157,10 @@ function auditoriaAutomatica(){
     // reconciliação, cansaço real): "não auditável" some do texto/cor visível do badge (não é
     // divergência, não precisa chamar atenção toda vez que a página carrega) — mas continua no
     // console.warn acima E no title (tooltip ao passar o mouse), pra quem quiser conferir ainda achar.
+    // CORRIGIDO 13/08/2026: remove aviso de uma rodada ANTERIOR (auditoriaAutomatica roda 3x -
+    // boot + 2 re-hidratações) que tinha achado divergência - sem isso, o rodapé ficava com o
+    // aviso "grudado" mesmo depois desta rodada confirmar 0 divergências.
+    { const footer = document.querySelector('footer'); const avisoAntigo = footer && footer.querySelector('.aviso-ssot-divergencia'); if(avisoAntigo) avisoAntigo.remove(); }
     if(healthBadge){
       healthBadge.textContent = '✅ Sistema íntegro';
       healthBadge.style.color = '#34c98a';
@@ -178,7 +182,15 @@ function auditoriaAutomatica(){
     }
     const footer = document.querySelector('footer');
     if(footer){
+      // CORRIGIDO 13/08/2026 (achado do usuário: aviso "grudava" no rodapé mesmo depois de uma
+      // rodada seguinte confirmar 0 divergências): auditoriaAutomatica() roda 3x (boot síncrono +
+      // 2 re-hidratações assíncronas depois) e cada rodada com problema fazia footer.appendChild()
+      // de um span NOVO, sem nunca remover o anterior - avisos de rodadas antigas (já corrigidas)
+      // ficavam acumulados pra sempre. Remove qualquer aviso anterior antes de adicionar o atual.
+      const avisoAntigo = footer.querySelector('.aviso-ssot-divergencia');
+      if(avisoAntigo) avisoAntigo.remove();
       const aviso = document.createElement('span');
+      aviso.className = 'aviso-ssot-divergencia';
       aviso.style.color = '#e2554f';
       aviso.style.fontWeight = '600';
       aviso.textContent = `⚠️ ${problemas.length} divergência(s) SSOT — ver console`;
