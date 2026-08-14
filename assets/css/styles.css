@@ -479,6 +479,13 @@
     display:flex;align-items:center;justify-content:center;
     width:100%;box-sizing:border-box; /* CORRIGIDO 13/08/2026: garante largura igual dentro da
       celula do grid (achado do usuario: botoes do Livro Razao com tamanhos diferentes). */
+    /* CORRIGIDO 14/08/2026 (achado do usuário via print: fileira inteira do grid ficava mais alta
+       quando algum rótulo quebrava em 2 linhas — "Bens Duráveis"/"Aniversário Júlio"/"Eventos e
+       Viagens"/"Saúde Família"/"Seguro/Emplacamento" — porque o CSS Grid estica TODAS as células da
+       mesma linha pra bater a altura da mais alta, mesmo os botões com texto curto de 1 linha só.
+       min-height fixo (2 linhas de texto + padding, mesmo cálculo pra todos) garante altura igual
+       em toda a grade, quebrando ou não). */
+    min-height:3.1rem;
   }
   .tab:hover{border-color:rgba(76,142,242,0.5);color:var(--text)}
   .tab:focus-visible{outline:none;border-color:var(--accent);box-shadow:var(--shadow-focus-accent-lg)}
