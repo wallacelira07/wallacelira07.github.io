@@ -64,7 +64,15 @@ function _extrairLinhasSecao(elSectionNum){
       const kClone = kEl.cloneNode(true);
       kClone.querySelectorAll('.badge').forEach(b => b.remove());
       const label = kClone.textContent.trim().replace(/\s+/g, ' ');
-      const valor = vEl.textContent.trim().replace(/\s+/g, ' ');
+      // CORRIGIDO 14/08/2026 (achado do usuário no PDF real: "Meta do Milhão" saía "11,78" sem o "%").
+      // Causa: nesse padrão específico (`<span class="badge bb"><span class="v">11,78</span>%</span>`),
+      // o "%" é um nó de texto IRMÃO do `.v`, vive dentro do `.badge` pai, não dentro do próprio `.v`
+      // — `vEl.textContent` sozinho nunca pegava esse sufixo. Quando o `.v` está dentro de um `.badge`
+      // que é um elemento DIFERENTE dele mesmo (não o caso de badges que já são a própria `.v`, tipo
+      // `class="badge ba v"`), usa o texto do badge inteiro — inclui o sufixo sem duplicar nada.
+      const badgePai = vEl.closest('.badge');
+      const valorEl = (badgePai && badgePai !== vEl) ? badgePai : vEl;
+      const valor = valorEl.textContent.trim().replace(/\s+/g, ' ');
       if(label && valor) linhas.push({ label, valor });
     });
     el = el.nextElementSibling;

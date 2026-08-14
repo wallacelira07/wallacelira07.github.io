@@ -986,7 +986,7 @@
         // cor "aproximada" — é a mesma folha de estilo, caractere por caractere onde possível.
         const WWI_CSS_ARTEFATO = '' +
             ':root{--bg:#F1F1EB;--surface:#FFFFFF;--surface-2:#F7F6F0;--ink:#161A22;--ink-soft:#525968;--ink-faint:#8B8F98;--line:#DEDCD1;--accent:#8C6D2F;--accent-strong:#6B4F1E;--accent-soft:#EFE6D0;--good:#2E7D5B;--good-soft:#E3F0EA;--warn:#B4791F;--warn-soft:#F6EBD8;--bad:#B14338;--bad-soft:#F8E7E4;--font-display:"Iowan Old Style","Sitka Text","Palatino Linotype",Palatino,Georgia,serif;--font-body:Seravek,"Segoe UI",-apple-system,"Avenir Next",Avenir,sans-serif;}' +
-            '.wwi-scope{max-width:1040px;margin:0 auto;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;}' +
+            '.wwi-scope{max-width:1040px;margin:0 auto;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}' +
             '.wwi-scope *{box-sizing:border-box;}' +
             '.wwi-scope h1,.wwi-scope h2,.wwi-scope h3{font-family:var(--font-display);font-weight:600;margin:0;}' +
             '.wwi-scope .cover{background:radial-gradient(ellipse at 15% -10%, rgba(203,169,104,.10), transparent 55%),linear-gradient(180deg,#0C1017 0%, #10141D 60%, #12161F 100%);color:#ECEAE0;padding:3.2rem 2.6rem 3.4rem;position:relative;overflow:hidden;}' +
@@ -1009,9 +1009,16 @@
             '.wwi-scope section{padding:2.2rem 2.6rem;}' +
             '.wwi-scope section:nth-of-type(odd){background:var(--surface);}' +
             '.wwi-scope section:nth-of-type(even){background:var(--surface-2);}' +
-            '.wwi-scope .eyebrow{display:flex;align-items:center;gap:.8rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.9rem;}' +
+            '.wwi-scope .eyebrow{display:flex;align-items:center;gap:.8rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.9rem;white-space:nowrap;}' +
             '.wwi-scope .eyebrow .num{font-family:var(--font-display);font-size:1rem;color:var(--accent-strong);}' +
-            '.wwi-scope .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);}' +
+            // CORRIGIDO 14/08/2026 (achado do usuário no PDF real: uma linha horizontal cruzava por
+            // cima do título "O que está funcionando bem"). Causa: a hairline do eyebrow era um
+            // pseudo-elemento `::after` com `flex:1` — html2canvas tem suporte historicamente frágil
+            // pra pseudo-elementos dentro de flexbox (renderiza na posição/tamanho errados, às vezes
+            // esticando por cima do elemento seguinte). Trocado por um `<span>` real no HTML (mesmo
+            // resultado visual: linha fina esticando até a margem direita), que o html2canvas rasteriza
+            // de forma confiável por ser um elemento de verdade, não conteúdo gerado por CSS.
+            '.wwi-scope .eyebrow .hairline{flex:1 1 auto;height:1px;background:var(--line);min-width:20px;}' +
             '.wwi-scope h2.sec-title{font-size:1.7rem;margin-bottom:1.4rem;max-width:32ch;}' +
             '.wwi-scope .lede{font-size:1.02rem;color:var(--ink-soft);max-width:70ch;margin-bottom:1.8rem;}' +
             '.wwi-scope .prose{max-width:70ch;}' +
@@ -1120,7 +1127,7 @@
             let numSecao = 0;
             function proximoNum() { numSecao++; return numSecao < 10 ? '0' + numSecao : '' + numSecao; }
             function secaoEyebrowTitulo(titulo, h2) {
-                return '<div class="eyebrow"><span class="num">' + proximoNum() + '</span> ' + _wwiRelEsc(titulo) + '</div>' +
+                return '<div class="eyebrow"><span class="num">' + proximoNum() + '</span><span>' + _wwiRelEsc(titulo) + '</span><span class="hairline"></span></div>' +
                     (h2 ? '<h2 class="sec-title">' + _wwiRelEsc(h2) + '</h2>' : '');
             }
 
@@ -1222,13 +1229,21 @@
         // Rasteriza o HTML montado acima e fatia em páginas A4 do jsPDF — técnica padrão
         // html2canvas+jsPDF (1 canvas alto, recortado por página via offset Y negativo). Só assim o
         // resultado é de fato o MESMO CSS do artefato aprovado, não uma reconstrução aproximada.
+        // CORRIGIDO 14/08/2026 (achado do usuário: "a qualidade gráfica tem que melhorar, fonte no PDF
+        // não ficou boa"): 3 ajustes de qualidade —
+        //   1. Container deixou de usar `left:-9999px` — posicionamento extremo fora da tela é um
+        //      problema conhecido do html2canvas (mede/renderiza errado em alguns navegadores). Trocado
+        //      por `position:fixed;top:0;left:0;z-index:-1` — fica atrás de todo o resto da página
+        //      (invisível na prática, sem depender de coordenada absurda) e dentro do viewport real.
+        //   2. Escala subiu de 2 pra 3 (mais pixels por ponto de fonte = texto mais nítido).
+        //   3. Exportação trocou de JPEG (com compressão, borra beirada de letra) pra PNG (sem perda).
         function gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo) {
             const container = document.createElement('div');
-            container.style.cssText = 'position:absolute;left:-9999px;top:0;background:#F1F1EB;';
+            container.style.cssText = 'position:fixed;top:0;left:0;z-index:-1;background:#F1F1EB;';
             container.innerHTML = construirHtmlRelatorioWWI(dados, narrativa, indicadores, comparativo);
             document.body.appendChild(container);
 
-            return html2canvas(container, { scale: 2, backgroundColor: '#F1F1EB', useCORS: true }).then(function (canvas) {
+            return html2canvas(container, { scale: 3, backgroundColor: '#F1F1EB', useCORS: true }).then(function (canvas) {
                 document.body.removeChild(container);
                 const jsPDF = window.jspdf.jsPDF;
                 const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -1236,15 +1251,15 @@
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const imgWidth = pageWidth;
                 const imgHeight = canvas.height * imgWidth / canvas.width;
-                const imgData = canvas.toDataURL('image/jpeg', 0.94);
+                const imgData = canvas.toDataURL('image/png');
                 let heightLeft = imgHeight;
                 let position = 0;
-                doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
                 while (heightLeft > 0) {
                     position = heightLeft - imgHeight;
                     doc.addPage();
-                    doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                     heightLeft -= pageHeight;
                 }
                 const nomeArquivo = 'tactical-wealth-report-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
