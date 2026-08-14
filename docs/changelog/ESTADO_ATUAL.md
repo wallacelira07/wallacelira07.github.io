@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 14/08/2026, sessão longa (herdou contexto do dia, que já vinha de um bloco anterior de 10 agentes performance+design — ver PASSAGEM_DE_TURNO.md pro resumo daquele bloco). Esta sessão: correções pontuais de UX/bugs reais (piso absoluto dessincronizado, legenda gigante, link de compartilhamento solar), 2ª rodada de 10 agentes (design sênior + performance, integrada manualmente), causa raiz real do bug recorrente de `.git`/Google Drive corrigida, seção nova no link de compartilhamento solar (Fluxo 1/2 de crédito), e feature nova completa: botão de relatório de fechamento em PDF.
+Última reescrita: 14/08/2026, sessão longa (herdou contexto do dia, que já vinha de um bloco anterior de 10 agentes performance+design — ver PASSAGEM_DE_TURNO.md pro resumo daquele bloco). Esta sessão: correções pontuais de UX/bugs reais (piso absoluto dessincronizado, legenda gigante, link de compartilhamento solar), 2ª rodada de 10 agentes (design sênior + performance, integrada manualmente), causa raiz real do bug recorrente de `.git`/Google Drive corrigida, seção nova no link de compartilhamento solar (Fluxo 1/2 de crédito), feature nova completa (botão de relatório de fechamento em PDF), e 2º bug real de favicon achado no mesmo link solar (diferente do de 2.9, ver 2.11).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -83,6 +83,9 @@ Também corrigido: `INVESTIMENTO_PADRAO` desta página (usado no payback) ainda 
 
 ### 2.10 Caixa Emagrecimento sem saldo — aporte mensal que faltou lançado
 Achado do usuário ("a caixa tem saldo"): a caixa foi criada em 12/08, depois da virada do ciclo (25/07) — nunca recebeu o aporte mensal automático que as outras caixas operacionais recebem na virada. Saldo real era R$0,00 (a única entrada tinha sido um repasse avulso da sobra Wärtsilä que coincidentemente cobriu a 1ª compra). Lançado `TX000318` (SQL direto, confirmado com o usuário antes) — entrada de R$278,89 em 25/07/2026, categoria "Aporte de Salário", mesmo padrão das outras caixas. Saldo real hoje: R$278,89.
+
+### 2.11 Ícone da aba quebrado de novo em `/solar/<token>` — 2º bug real, diferente do de 2.9
+Usuário reportou print mostrando o ícone genérico na aba do navegador ao abrir um link de compartilhamento solar real. A correção de 2.9 (favicon faltando no `404.html`) já tinha resolvido um bug real, mas era outro: `solar-compartilhado.html` (o arquivo que de fato renderiza, depois do redirect do `404.html`) declarava os 3 `<link rel="icon">` com caminho **relativo** (`assets/images/...`) — como a página é servida em `/solar/<token>/`, o navegador resolvia pra `/solar/assets/images/...`, que não existe (404 silencioso). Corrigido pra caminho absoluto (`/assets/images/...`) nos 3 links. Validado ao vivo em produção (`javascript_tool` na página real, com um token inválido de teste): os 3 `href` computados resolvem pra `https://wallacelira.com.br/assets/images/...`. Commit `6b8d7d6`.
 
 ## 3. Protocolo de sessão nova
 

@@ -2,6 +2,10 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 14/08/2026 (bloco 4) — 2º bug real de favicon no link solar, diferente do de 2.9
+
+Retomada do bloco 3 abaixo (mesmo dia). Usuário reportou de novo o ícone genérico na aba ao abrir um link de compartilhamento solar. A correção anterior (2.9, `404.html`) resolveu um bug real mas não era este: `solar-compartilhado.html` — o arquivo que renderiza de fato, depois do redirect — usava caminho relativo (`assets/images/...`) nos 3 `<link rel="icon">`, que resolvia errado (`/solar/assets/images/...`, 404 silencioso) porque a página vive em `/solar/<token>/`. Trocado pra caminho absoluto (`/assets/images/...`). Validado ao vivo em produção via `javascript_tool` (não só "deveria funcionar"): os 3 `href` computados na página real batem com `https://wallacelira.com.br/assets/images/...`. Commit `6b8d7d6`, avisado o usuário antes de commitar/pushar, sem merge de bump `__V` pendente no momento do push. Não afeta regra de negócio nem domínio V2 — não requer atualização dos documentos do Google Drive.
+
 ## 🏁 Encerramento 14/08/2026 (bloco 3) — correções pontuais, causa raiz real do bug do Drive/`.git`, 2ª rodada de 10 agentes, seção nova + 4 bugs no link solar, relatório de fechamento em PDF (feature nova)
 
 Continuação direta do bloco 2 abaixo (mesmo dia). Sessão longa, muitos pedidos pontuais do usuário intercalados com investigação de bugs reais — resumo em ordem cronológica.
