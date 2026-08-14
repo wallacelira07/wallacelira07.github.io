@@ -363,9 +363,11 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
   // sincronizarMercadoPagoParaInbox). CORRIGIDO 14/08/2026 (3ª rodada): aplicarOnda7Pluggy() dispara
   // essa promessa ANTES de getPluggyContasV2()/getPluggyTriagemV2(), em paralelo, e repassa aqui via
   // `promessaContexto` — se chamada sem o parâmetro, dispara na hora do jeito antigo.
+  const __t0 = performance.now();
   const valoresConhecidos = new Set();
   const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, resCicloAtualInicio] =
     await (promessaContexto || dispararContextoDedupeInbox('reconciliarTransacoesPluggy'));
+  const __t1 = performance.now();
   if(resCicloAtualInicio){
     const dataCicloAtual = new Date(resCicloAtualInicio + 'T00:00:00');
     if(dataCicloAtual > dataCorte) dataCorte = dataCicloAtual;
@@ -479,6 +481,7 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
     }
   }
 
+  const __t2 = performance.now();
   // NOVO 06/08/2026 (parte 114): tenta sugestao V2 (regras_classificacao + resolver_caixa) antes de
   // criar o item - best-effort, nunca bloqueia (catch interno ja trata falha de rede). Pré-aquece o
   // cache de regras com 1 chamada isolada antes do fan-out — evita N candidatos disparando o mesmo
@@ -497,8 +500,13 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
       idExterno: c.idExtTx, silencioso:true
     });
   }));
+  const __t3 = performance.now();
 
   console.log('reconciliarTransacoesPluggy:', resultado.semDados ? 'sem transacoes_recentes ainda (aguardando script externo corrigido rodar)' : `${resultado.suspeitas.length} transação(ões) suspeita(s), ${resultado.ignoradasPorData} ignorada(s) por serem fora da janela recente, ${resultado.ignoradasPorRuido||0} ignorada(s) por serem movimentação interna/resumo de fatura`);
   renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por transação (ver silencioso:true acima)
+  const __t4 = performance.now();
+  // DIAGNÓSTICO TEMPORÁRIO 14/08/2026 (mesmo motivo do breakdown em sincronizarMercadoPagoParaInbox,
+  // classificacao-inbox.js — remover depois de achar o gargalo real).
+  console.log(`reconciliarTransacoesPluggy BREAKDOWN: contexto=${Math.round(__t1-__t0)}ms, loopDeteccao=${Math.round(__t2-__t1)}ms, classificacaoV2(${candidatosClassificacao.length} candidatos)=${Math.round(__t3-__t2)}ms, render=${Math.round(__t4-__t3)}ms`);
   return resultado;
 }
