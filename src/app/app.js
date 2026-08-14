@@ -414,6 +414,28 @@ const WallaceFinanceService = {
       return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
     });
   },
+  // GENERALIZADO 14/08/2026 (decisão do usuário, depois de pergunta trazida pelo Claude Chat sobre
+  // se "Comprometido × Disponível Real" devia valer só pra Caixa Variável ou pra qualquer caixa com
+  // cartão: as 6 caixas temáticas que compram no cartão de crédito — Churrasco, Bens Duráveis,
+  // Manutenção, Eventos e Viagens, Saúde Família, Emagrecimento — devem se comportar como a Caixa
+  // Variável, servindo de "pulmão" pro cartão até a fatura vencer). MESMA fórmula exata de
+  // getComprometidoCaixaVariavelV2() acima, só parametrizada por caixaId em vez de fixa — essa
+  // função nova NÃO substitui a de cima (mantida intacta, já testada, cache própria) — ver
+  // hydrate-comprometido-caixas-tematicas-v2.js.
+  async getComprometidoPorCaixaV2(caixaId){
+    return this._cache.obterOuBuscar('comprometido_caixa_v2:' + caixaId, async () => {
+      const caixas = await this.getCaixas();
+      const caixa = caixas.find(c => c.id === caixaId);
+      const cicloInicioEm = caixa && caixa.ciclo_inicio_em;
+      const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da caixa ${caixaId}`);
+      const dado = await resp.json();
+      return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
+    });
+  },
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
   // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
   // detalhada vinha de VARS.LRW_TRANSACOES/LRV_TRANSACOES, array V1 mantido à mão no código, nunca
@@ -2218,6 +2240,9 @@ onDomPronto(aplicarDeficitCaixasSemLrei);
 // escreve os mesmos campos de REG.operacional) - pode rodar em qualquer ordem relativa a ela. Ver
 // hydrate-comprometido-caixa-variavel-v2.js.
 onDomPronto(aplicarComprometidoCaixaVariavelV2);
+// NOVO 14/08/2026 (decisão do usuário — ver hydrate-comprometido-caixas-tematicas-v2.js): mesmo
+// conceito acima, generalizado pras 6 caixas temáticas que também compram no cartão de crédito.
+onDomPronto(aplicarComprometidoCaixasTematicasV2);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
 // VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas
