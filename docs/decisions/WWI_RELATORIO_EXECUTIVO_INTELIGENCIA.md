@@ -1,7 +1,7 @@
 # Wallace Wealth Intelligence (WWI) — módulo permanente de relatório executivo patrimonial
 
 **Data:** 14/08/2026
-**Status:** FASE A e FASE B concluídas (migration aplicada em produção, RPC testada e validada, job Python + workflow criados). **Falta 1 passo que só o usuário pode fazer**: agendar o disparo mensal no cron-job.org (dia 25, mesmo serviço externo já usado pelos outros jobs) — o agente não tem acesso à conta cron-job.org, mesma classe de limitação já documentada pra GitHub Secrets em sessões anteriores. Até esse agendamento existir, o job `wwi_regenerar_relatorio_mensal.yml` só roda via disparo manual (`workflow_dispatch`, aba Actions do GitHub).
+**Status:** COMPLETO e VALIDADO EM PRODUÇÃO. Fase A, Fase B e o agendamento mensal (dia 25, 9h America/Sao_Paulo) no cron-job.org — "WWI - Relatório Mensal", clonado de um cronjob existente pra herdar token/headers sem o agente nunca ver a credencial — todos concluídos. Usuário disparou um "Test Run" real (14/08/2026) que rodou de ponta a ponta: job Python executou, heartbeat registrou sucesso, snapshot da competência `2026-07` gravado em `historico_relatorios` com números batendo exatamente com os calculados manualmente antes (patrimônio líquido R$ 471.458,31, reembolso Wärtsilä 95,4% recuperado). **Achado real nesse primeiro teste** (ver seção 7): `consorcio_casa_pago_pct` gravava 100x maior que o real (42% em vez de 0,42%) — bug de conversão corrigido no código e a linha já gravada foi corrigida no banco antes de qualquer usuário ver o número errado.
 **Contexto**: pedido explícito do usuário, depois de já ter recebido um relatório executivo patrimonial ("Tactical Wealth Report") como artefato avulso numa conversa anterior — *"Você não irá criar apenas um relatório. Você irá criar um módulo permanente chamado WALLACE WEALTH INTELLIGENCE (WWI)... O usuário NÃO quer um PDF estático. O usuário quer um relatório vivo que seja regenerado automaticamente a cada mês utilizando os dados mais recentes."* PRD completo entregue na mesma sessão, cobrindo objetivo, métricas de sucesso, escopo e critérios de aceite — não duplicado aqui.
 
 ## 1. Decisões confirmadas com o usuário (AskUserQuestion, todas na opção recomendada)
@@ -32,6 +32,14 @@
 Pesos do Wealth Score: Liquidez 15% · Proteção Patrimonial 15% · Investimentos 20% · Endividamento 15% · Organização Financeira 10% · Execução de Metas 15% · Construção Patrimonial 10%. Fórmula exata de cada sub-score e dos 4 índices dedicados está comentada linha a linha em `src/relatorio/gerar-analise-financeira.js` (função `calcularIndicadoresEScores`) — não duplicada aqui pra evitar as duas fontes divergirem no futuro.
 
 **Limitação conhecida, documentada no próprio código**: "Organização Financeira" é hoje um proxy de completude do próprio relatório (% de seções que o coletor conseguiu extrair), não uma medida de categorização/auditoria de transação — esse dado não está disponível pro coletor de DOM. Se o usuário quiser um score de organização mais fiel, precisa de uma fonte nova (ex. RPC que exponha `% transações categorizadas`, hoje só consultável via SQL direto).
+
+## 7. Achado real do primeiro Test Run (14/08/2026) — bug de conversão de percentual
+
+Usuário disparou "Test Run" real no cronjob recém-criado. Rodou de ponta a ponta (heartbeat `sucesso`, snapshot gravado em `historico_relatorios` pra competência `2026-07`), mas conferindo o resultado célula a célula (nunca aceitar número de automação nova sem checar contra o dado real) achei: `indicadoresBrutos.consorcioCasaPagoPct` gravou `42`, quando o valor real é `0,42%` (mesmo número já citado no Tactical Wealth Report anterior — "0,42% pago").
+
+**Causa raiz**: `wwi_gerar_relatorio_mensal.py` tinha uma heurística (`*100 se valor <= 1`) pra converter fração 0-1 em percentual — mas `vw_patrimonio_v2.consorcio_casa_pago_pct` **já devolve o percentual pronto** (confirmado comparando com `consorcio_auto_pago_pct = 75.22`, que também já é literal, nunca fracionário). A heurística só quebra quando o percentual real É pequeno (<1%) — exatamente o caso real do Consórcio Casa Nova agora, então o bug não aparecia em nenhum teste anterior com dado fake.
+
+**Correção**: heurística removida (linha lida direto, sem transformação). Linha já gravada corrigida via `wwi_upsert_relatorio_mensal` chamada direto por SQL com os valores certos (`score` recalculado de 58 para 53, já que `execucaoDeMetas` também dependia do valor errado) — `created_at` preservado, `analise_ia` preservada (nenhuma frase da narrativa citava esse número, então o texto já gerado continuou válido). Commit `0886352`.
 
 ## 5. Não testado ao vivo (mesma ressalva já registrada pro relatório PDF original)
 
