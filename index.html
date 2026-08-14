@@ -1093,6 +1093,44 @@
                 '</ul>';
         }
 
+        // ADICIONADO 14/08/2026 (achado do usuário: "falta riqueza de detalhe... veja o que eu aprovo
+        // como tem detalhes, cores, nuance" — comparando print a print, a tabela de Análise de
+        // Patrimônio do artefato tem negrito nas linhas de "total" e vermelho nas linhas de dedução
+        // "(–) ...", e a minha tabela saía tudo no mesmo peso/cor). Helper único usado em toda tabela
+        // de label/valor do relatório — decide negrito/vermelho só pelo TEXTO do label já coletado
+        // (nunca inventa um valor novo, só estiliza o que já veio real): label contendo "total" (sem
+        // acento, case-insensitive) fica em negrito; label começando com "(–)"/"(-)" fica em vermelho
+        // (mesmo `var(--bad)` do artefato) — mesmo padrão exato da tabela original.
+        function _wwiRelLinhaTabela(label, valor, pctTexto) {
+            const labelNorm = String(label).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            const ehTotal = /\btotal\b/.test(labelNorm);
+            const ehDeducao = /^\s*[\(（]?[−–-]/.test(String(label));
+            const estiloLabel = ehTotal ? ' style="font-weight:700"' : '';
+            const estiloValor = ehTotal ? 'font-weight:700' : ehDeducao ? 'color:var(--bad)' : '';
+            return '<tr><td' + estiloLabel + '>' + _wwiRelEsc(label) + '</td>' +
+                '<td class="num"' + (estiloValor ? ' style="' + estiloValor + '"' : '') + '>' + _wwiRelEsc(valor) + '</td>' +
+                (pctTexto !== undefined ? '<td class="num"' + (estiloValor ? ' style="' + estiloValor + '"' : '') + '>' + _wwiRelEsc(pctTexto) + '</td>' : '') +
+                '</tr>';
+        }
+
+        // ADICIONADO 14/08/2026 (achado do usuário: "falta riqueza de detalhe" — a tabela de Análise de
+        // Patrimônio do artefato tem uma 3ª coluna "% do Ativo Bruto" que a minha não tinha). % de cada
+        // linha calculado a partir dos PRÓPRIOS valores já coletados (nunca um dado novo/estimado): o
+        // denominador é a linha cujo label bate "total" (ou "ativo", se não houver "total" explícito)
+        // — se nenhuma linha servir de base, a coluna é omitida por inteiro em vez de mostrar % errado.
+        function _wwiRelTabelaComPct(linhas) {
+            const valores = linhas.map(function (l) { return _wwiNumLocal(l.valor); });
+            let idxBase = linhas.findIndex(function (l) { return /\btotal\b/i.test(l.label) && !/^\s*[\(（]?[−-]/.test(l.label); });
+            if (idxBase === -1) idxBase = -1;
+            const base = idxBase !== -1 ? valores[idxBase] : null;
+            if (!base) return '<div class="tbl-wrap"><table><tbody>' + linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') + '</tbody></table></div>';
+            return '<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% do Total</th></tr></thead><tbody>' +
+                linhas.map(function (l, i) {
+                    const pct = valores[i] !== null ? (Math.abs(valores[i]) / Math.abs(base) * 100) : null;
+                    return _wwiRelLinhaTabela(l.label, l.valor, pct !== null ? _wwiFmtNumLocal(pct, 1) + '%' : '');
+                }).join('') + '</tbody></table></div>';
+        }
+
         // Monta 1 seção genérica do coletor (dados.secoes) como tabela — EXATA classe `.tbl-wrap table`
         // do artefato (mesma usada nas seções "Análise de Patrimônio"/"Oportunidades de Aceleração").
         function _wwiRelTabelaSecao(secao) {
@@ -1100,9 +1138,7 @@
                 return '<p class="foot-note">' + _wwiRelEsc(secao.erro || 'Sem dados.') + '</p>';
             }
             return '<div class="tbl-wrap"><table><tbody>' +
-                secao.linhas.map(function (l) {
-                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
-                }).join('') +
+                secao.linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') +
                 '</tbody></table></div>';
         }
 
@@ -1150,9 +1186,7 @@
             const circunferencia = 263.9;
             const offset = comp.nota === null ? circunferencia : circunferencia - (circunferencia * Math.min(100, Math.max(0, comp.nota)) / 100);
             return '<div class="grid-2">' +
-                '<div class="tbl-wrap"><table><tbody>' + comp.linhas.map(function (l) {
-                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
-                }).join('') + '</tbody></table></div>' +
+                _wwiRelTabelaComPct(comp.linhas) +
                 '<div>' +
                 (comp.nota !== null ? '<div class="gauge" style="margin:0 auto;"><svg viewBox="0 0 100 100">' +
                     '<circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-2)" stroke-width="10"/>' +
@@ -1169,9 +1203,7 @@
         function _wwiRelLiquidez(liq) {
             if (!liq || (!liq.linhas.length && liq.classificacao === null)) return '';
             return '<div class="grid-2">' +
-                '<div class="tbl-wrap"><table><tbody>' + liq.linhas.map(function (l) {
-                    return '<tr><td>' + _wwiRelEsc(l.label) + '</td><td class="num">' + _wwiRelEsc(l.valor) + '</td></tr>';
-                }).join('') + '</tbody></table></div>' +
+                '<div class="tbl-wrap"><table><tbody>' + liq.linhas.map(function (l) { return _wwiRelLinhaTabela(l.label, l.valor); }).join('') + '</tbody></table></div>' +
                 '<div>' +
                 (liq.classificacao ? '<div class="kpi" style="border:1px solid var(--line)"><div class="kpi-label">Classificação de Liquidez</div>' +
                     '<div class="kpi-val">' + _wwiRelEsc(liq.classificacao) + '</div>' +
