@@ -30,9 +30,9 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background:
-                radial-gradient(560px 420px at 18% 8%, rgba(57,135,229,0.14), transparent 60%),
+                radial-gradient(560px 420px at 18% 8%, rgba(76,142,242,0.14), transparent 60%),
                 radial-gradient(620px 480px at 88% 92%, rgba(144,133,233,0.12), transparent 60%),
-                #0b0c0e;
+                #0a0b10;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -61,7 +61,7 @@
             position: relative;
             background: linear-gradient(180deg, #17191d 0%, #131518 100%);
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
+            border-radius: 14px;
             box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.04);
             padding: 38px 36px 34px;
             max-width: 380px;
@@ -74,7 +74,7 @@
             position: absolute;
             left: 0; right: 0; top: 0;
             height: 1px;
-            background: linear-gradient(90deg, rgba(57,135,229,0) 0%, rgba(57,135,229,0.7) 25%, rgba(144,133,233,0.6) 55%, rgba(57,135,229,0) 100%);
+            background: linear-gradient(90deg, rgba(76,142,242,0) 0%, rgba(76,142,242,0.7) 25%, rgba(144,133,233,0.6) 55%, rgba(76,142,242,0) 100%);
         }
         @media (prefers-reduced-motion: reduce) {
             #loginScreen { animation: none; }
@@ -99,7 +99,7 @@
             width: 52px;
             height: 52px;
             border-radius: 14px;
-            background: linear-gradient(135deg, rgba(57,135,229,0.28), rgba(144,133,233,0.2));
+            background: linear-gradient(135deg, rgba(76,142,242,0.28), rgba(144,133,233,0.2));
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
             color: #8ab4f8;
@@ -112,7 +112,7 @@
             line-height: 1.3;
         }
         .login-brand-sub {
-            font-size: 10.5px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.7px;
             text-transform: uppercase;
@@ -149,7 +149,7 @@
             padding: 12px 12px 12px 38px;
             background: rgba(255,255,255,0.03);
             border: 1px solid #2a2d31;
-            border-radius: 9px;
+            border-radius: 10px;
             color: #e8e6df;
             /* CORRIGIDO (mobile perf): 14px < 16px dispara zoom automatico do iOS Safari ao focar
                o campo de login (bug conhecido do WebKit) - 16px é o minimo que evita o zoom. */
@@ -164,9 +164,9 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #3987e5;
-            background: rgba(57,135,229,0.06);
-            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.15);
+            border-color: #4c8ef2;
+            background: rgba(76,142,242,0.06);
+            box-shadow: 0 0 0 3px rgba(76,142,242, 0.15);
         }
 
         /* NOVO 01/08/2026: botao de esconder valores - antes era emoji fixo que nunca trocava
@@ -188,11 +188,11 @@
             transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
         .eye-toggle-btn:hover {
-            border-color: rgba(57, 135, 229, 0.55);
-            background: rgba(57, 135, 229, 0.1);
+            border-color: rgba(76,142,242, 0.55);
+            background: rgba(76,142,242, 0.1);
             color: #8ab4f8;
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(57, 135, 229, 0.18);
+            box-shadow: 0 4px 14px rgba(76,142,242, 0.18);
         }
         .eye-toggle-btn:active {
             transform: translateY(0) scale(0.94);
@@ -201,16 +201,16 @@
            cobriu todo o styles.css do painel interno): botões redondos do cabeçalho/login tinham
            :hover/:active mas nenhum :focus-visible próprio — navegação por teclado (Tab) caía no anel
            padrão do navegador, que em botão circular sobre fundo escuro fica com "cantos" quadrados
-           destoando do resto do site. Mesmo azul de marca (#3987e5) já usado no anel de foco dos campos
+           destoando do resto do site. Mesmo azul de marca (#4c8ef2) já usado no anel de foco dos campos
            de login (linha ~167) e no botão de busca (linha ~484), só reaproveitado. */
         .eye-toggle-btn:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+            box-shadow: 0 0 0 3px rgba(76,142,242, 0.35);
         }
         .eye-toggle-btn.ativo {
-            background: rgba(57, 135, 229, 0.16);
-            border-color: #3987e5;
-            color: #3987e5;
+            background: rgba(76,142,242, 0.16);
+            border-color: #4c8ef2;
+            color: #4c8ef2;
         }
         .eye-icon {
             position: absolute;
@@ -241,30 +241,30 @@
             width: 100%;
             padding: 13px;
             margin-top: 6px;
-            background: linear-gradient(135deg, #3987e5, #7c6fe0);
+            background: linear-gradient(135deg, #4c8ef2, #7c6fe0);
             color: white;
             border: none;
-            border-radius: 9px;
+            border-radius: 10px;
             font-size: 15px;
             font-weight: 600;
             font-family: inherit;
             letter-spacing: 0.2px;
             cursor: pointer;
             transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.15s ease;
-            box-shadow: 0 8px 20px rgba(57, 135, 229, 0.28);
+            box-shadow: 0 8px 20px rgba(76,142,242, 0.28);
         }
 
         #loginBtn:hover:not(:disabled) {
             transform: translateY(-1px);
             filter: brightness(1.06);
-            box-shadow: 0 10px 26px rgba(57, 135, 229, 0.36);
+            box-shadow: 0 10px 26px rgba(76,142,242, 0.36);
         }
         #loginBtn:active:not(:disabled) {
             transform: translateY(0) scale(0.99);
         }
         #loginBtn:focus-visible {
             outline: none;
-            box-shadow: 0 8px 20px rgba(57, 135, 229, 0.28), 0 0 0 3px rgba(57, 135, 229, 0.35);
+            box-shadow: 0 8px 20px rgba(76,142,242, 0.28), 0 0 0 3px rgba(76,142,242, 0.35);
         }
 
         #loginBtn:disabled {
@@ -297,12 +297,12 @@
         }
 
         .error-message {
-            color: #ff8783;
-            font-size: 13.5px;
+            color: #ef5b56;
+            font-size: 13px;
             margin-top: 16px;
             padding: 10px 12px;
-            background: rgba(226, 85, 79, 0.12);
-            border: 1px solid rgba(226, 85, 79, 0.3);
+            background: rgba(239,91,86, 0.12);
+            border: 1px solid rgba(239,91,86, 0.3);
             border-radius: 8px;
             display: none;
             text-align: center;
@@ -338,7 +338,7 @@
             position: absolute;
             left: 0; right: 0; bottom: -1px;
             height: 1px;
-            background: linear-gradient(90deg, rgba(57,135,229,0.55) 0%, rgba(144,133,233,0.4) 45%, rgba(57,135,229,0) 100%);
+            background: linear-gradient(90deg, rgba(76,142,242,0.55) 0%, rgba(144,133,233,0.4) 45%, rgba(76,142,242,0) 100%);
         }
 
         #dashboardScreen header .brand {
@@ -361,7 +361,7 @@
             height: 36px;
             font-size: 18px;
             border-radius: 10px;
-            background: linear-gradient(135deg, rgba(57,135,229,0.22), rgba(144,133,233,0.16));
+            background: linear-gradient(135deg, rgba(76,142,242,0.22), rgba(144,133,233,0.16));
             border: 1px solid rgba(255,255,255,0.09);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
             color: #8ab4f8;
@@ -376,7 +376,7 @@
         }
 
         #dashboardScreen header h1 {
-            font-size: 15.5px;
+            font-size: 15px;
             font-weight: 700;
             letter-spacing: 0.2px;
             color: #f3f1ec;
@@ -429,8 +429,8 @@
         }
         #dashboardScreen header .header-search-input {
             width: 100%;
-            background: rgba(57,135,229,0.07);
-            border: 1px solid rgba(57,135,229,0.25);
+            background: rgba(76,142,242,0.07);
+            border: 1px solid rgba(76,142,242,0.25);
             color: #eceae4;
             /* CORRIGIDO (mobile perf): abaixo de 16px o iOS Safari da zoom automatico ao focar -
                este campo abre em overlay no mobile (max-width:780px), entao o toque é comum. */
@@ -442,7 +442,7 @@
             transition: border-color .15s ease, background-color .15s ease;
         }
         #dashboardScreen header .header-search-input:focus {
-            border-color: rgba(57,135,229,0.55);
+            border-color: rgba(76,142,242,0.55);
             background: rgba(255,255,255,0.08);
         }
         #dashboardScreen header .header-search-resultados {
@@ -455,21 +455,21 @@
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34);
             z-index: 50;
         }
         #dashboardScreen header .header-search-item {
             padding: 8px 12px;
-            font-size: 12.5px;
+            font-size: 12px;
             color: #c8c6bf;
             cursor: pointer;
             border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         #dashboardScreen header .header-search-item:last-child { border-bottom: none; }
-        #dashboardScreen header .header-search-item:hover { background: rgba(57,135,229,0.12); color: #eceae4; }
+        #dashboardScreen header .header-search-item:hover { background: rgba(76,142,242,0.12); color: #eceae4; }
         #dashboardScreen header .header-search-item .hs-sub {
             display: block;
-            font-size: 10.5px;
+            font-size: 10px;
             color: #8b8a84;
             margin-top: 2px;
         }
@@ -488,32 +488,32 @@
             width: 34px;
             height: 34px;
             border-radius: 999px;
-            background: rgba(57,135,229,0.16);
-            border: 1px solid rgba(57,135,229,0.45);
+            background: rgba(76,142,242,0.16);
+            border: 1px solid rgba(76,142,242,0.45);
             color: #8ab4f8;
             cursor: pointer;
             flex-shrink: 0;
             transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
         }
         #dashboardScreen header .header-search-toggle-btn:hover {
-            background: rgba(57,135,229,0.26);
-            border-color: rgba(57,135,229,0.7);
+            background: rgba(76,142,242,0.26);
+            border-color: rgba(76,142,242,0.7);
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(57,135,229,0.22);
+            box-shadow: 0 4px 14px rgba(76,142,242,0.22);
         }
         #dashboardScreen header .header-search-toggle-btn:active {
             transform: translateY(0) scale(0.94);
         }
         #dashboardScreen header .header-search-toggle-btn:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+            box-shadow: 0 0 0 3px rgba(76,142,242, 0.35);
         }
         /* .brand tem role="button" tabindex="0" (é navegável por Tab de verdade, não só clicável de
            mouse) mas só tinha feedback de :hover (opacidade) — sem nenhum indicador de foco por
            teclado, único elemento do cabeçalho realmente focável sem anel próprio. */
         #dashboardScreen header .brand:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+            box-shadow: 0 0 0 3px rgba(76,142,242, 0.35);
         }
         @media (max-width: 780px) {
             #dashboardScreen header .header-search-wrap { display: none; }
@@ -523,8 +523,8 @@
                baixo contraste porque a correção de contraste morava só no bloco max-width:560px. Botão
                vira círculo (visível) já em 780px — o contraste forte precisa valer na mesma faixa. */
             #dashboardScreen header .header-search-toggle-btn {
-                background: rgba(57,135,229,0.32);
-                border-color: rgba(57,135,229,0.75);
+                background: rgba(76,142,242,0.32);
+                border-color: rgba(76,142,242,0.75);
                 color: #ffffff;
             }
             #dashboardScreen header .header-search-wrap.mobile-open {
@@ -574,8 +574,8 @@
             font-weight: 500;
             white-space: nowrap;
             padding: 5px 10px;
-            border-radius: 7px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34);
             opacity: 0;
             pointer-events: none;
             transform: translateY(-3px);
@@ -596,7 +596,7 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3987e5, #9085e9);
+            background: linear-gradient(135deg, #4c8ef2, #9085e9);
             color: #fff;
             font-size: 13px;
             font-weight: 700;
@@ -634,11 +634,11 @@
         }
 
         #dashboardScreen header .logout-btn:hover {
-            background: rgba(226, 85, 79, 0.12);
-            border-color: rgba(226, 85, 79, 0.55);
-            color: #ff8783;
+            background: rgba(239,91,86, 0.12);
+            border-color: rgba(239,91,86, 0.55);
+            color: #ef5b56;
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(226, 85, 79, 0.18);
+            box-shadow: 0 4px 14px rgba(239,91,86, 0.18);
         }
 
         #dashboardScreen header .logout-btn:active {
@@ -646,7 +646,7 @@
         }
         #dashboardScreen header .logout-btn:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(226, 85, 79, 0.35);
+            box-shadow: 0 0 0 3px rgba(239,91,86, 0.35);
         }
 
         /* NOVO 14/08/2026 (pedido do usuário: botão de baixar relatório de fechamento em PDF, "no
@@ -670,18 +670,18 @@
             transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
         #dashboardScreen header .pdf-report-btn:hover {
-            background: rgba(57, 135, 229, 0.1);
-            border-color: rgba(57, 135, 229, 0.55);
+            background: rgba(76,142,242, 0.1);
+            border-color: rgba(76,142,242, 0.55);
             color: #8ab4f8;
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(57, 135, 229, 0.18);
+            box-shadow: 0 4px 14px rgba(76,142,242, 0.18);
         }
         #dashboardScreen header .pdf-report-btn:active {
             transform: translateY(0) scale(0.94);
         }
         #dashboardScreen header .pdf-report-btn:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+            box-shadow: 0 0 0 3px rgba(76,142,242, 0.35);
         }
         #dashboardScreen header .pdf-report-btn:disabled {
             opacity: 0.5;
@@ -893,6 +893,18 @@
 
     <!-- NOVO 04/08/2026 (parte 76): modal de confirmacao de senha pra DESATIVAR o modo de esconder
          valores. So aparece nesse sentido (ativar continua 1 clique, sem atrito). -->
+    <!-- CORRIGIDO 14/08/2026 (achado de auditoria: únicos botões clicáveis da página sem nenhum
+         estado de hover/focus/active, destoando do resto do arquivo que trata isso com cuidado). -->
+    <style>
+      #modalSenhaEsconderValoresBtnCancelar{transition:background 0.15s ease,border-color 0.15s ease}
+      #modalSenhaEsconderValoresBtnCancelar:hover{background:rgba(255,255,255,0.05);border-color:#363b45}
+      #modalSenhaEsconderValoresBtnCancelar:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(76,142,242,0.18)}
+      #senhaEsconderValoresBtnConfirmar{transition:filter 0.15s ease,box-shadow 0.15s ease}
+      #senhaEsconderValoresBtnConfirmar:hover{filter:brightness(1.1)}
+      #senhaEsconderValoresBtnConfirmar:active{filter:brightness(0.95)}
+      #senhaEsconderValoresBtnConfirmar:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(76,142,242,0.35)}
+      #senhaEsconderValoresInput:focus{outline:none;border-color:#4c8ef2;box-shadow:0 0 0 3px rgba(76,142,242,0.15)}
+    </style>
     <div id="modalSenhaEsconderValores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
       <div style="background:#14161b;border:1px solid #262a32;border-radius:12px;padding:1.5rem;width:90%;max-width:320px;">
         <div style="font-weight:600;color:#f0eee6;margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
@@ -902,7 +914,7 @@
           onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores();">
         <div id="senhaEsconderValoresErro" style="display:none;color:#ef5b56;font-size:0.78rem;margin-bottom:0.5rem;"></div>
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-          <button type="button" onclick="fecharModalSenhaEsconderValores()"
+          <button type="button" id="modalSenhaEsconderValoresBtnCancelar" onclick="fecharModalSenhaEsconderValores()"
             style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid #262a32;background:transparent;color:#adaba3;cursor:pointer;">Cancelar</button>
           <button type="button" id="senhaEsconderValoresBtnConfirmar" onclick="confirmarSenhaEsconderValores()"
             style="flex:1;padding:0.55rem;border-radius:8px;border:none;background:#4c8ef2;color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>

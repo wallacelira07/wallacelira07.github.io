@@ -177,7 +177,7 @@ function hydrateROC(){
         rocLinha2 = `<span style="color:var(--text-dim);font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxt}</span>`;
       }
       const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
     // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
     // absoluto fixo por frescor relativo (montarBadgeFrescor), recalculado a cada 60s. hydrateROC()
@@ -240,7 +240,7 @@ function hydrateROC(){
           rocLinha2v = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxtV}</span>`;
         }
         const rocHtmlV = `<div>${rocLinha1v}</div><div style="min-height:1em">${rocLinha2v}</div>`;
-        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlV}</td></tr>`;
+        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlV}</td></tr>`;
       }).join('');
     }
     // NOVO 03/08/2026 (pedido do usuario): avisa por que a posicao vencida saiu da tabela ativa e do
@@ -275,7 +275,7 @@ function hydrateROC(){
           rocLinha2e = `<span style="font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxtE}</span>`;
         }
         const rocHtmlE = `<div>${rocLinha1e}</div><div style="min-height:1em">${rocLinha2e}</div>`;
-        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td class="r">${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlE}</td></tr>`;
+        return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r">${o.premioRecebido===null ? '<span style="font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r v">${rocHtmlE}</td></tr>`;
       }).join('');
     }
     const legExercidasEl = $('legOpcoesExercidas');

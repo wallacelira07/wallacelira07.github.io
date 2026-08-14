@@ -27,9 +27,9 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:1.2rem;max-width:900px;margin-inline:auto}
   header{display:flex;align-items:center;gap:0.7rem;margin-bottom:1.4rem}
-  header .ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg, rgba(57,135,229,0.22), rgba(144,133,233,0.16));border:1px solid rgba(255,255,255,0.09);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);color:#8ab4f8;flex-shrink:0}
+  header .ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg, rgba(57,135,229,0.22), rgba(144,133,233,0.16));border:1px solid rgba(255,255,255,0.09);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);color:var(--blue);flex-shrink:0}
   h1{font-size:1.15rem;margin:0}
-  .sub{font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem}
+  .sub{font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1rem}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.8rem}
   .stat-lbl{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em}
@@ -47,7 +47,7 @@
   .progress-fill{height:100%;border-radius:99px}
   .credito-casa{margin-bottom:1.1rem}
   .credito-casa:last-child{margin-bottom:0}
-  .credito-fluxo-lbl{font-size:0.68rem;color:var(--text-dim);font-weight:600;margin-bottom:0.2rem}
+  .credito-fluxo-lbl{font-size:0.7rem;color:var(--text-dim);font-weight:600;margin-bottom:0.2rem}
   .credito-fracao{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:0.4rem}
   /* NOVO 14/08/2026 (pedido do usuário: "quero esse formato, com os cards e não solto como está
      agora") — mini-cards com borda pra cada estatística de Fluxo 1/2, igual ao grid-3 de
@@ -60,7 +60,7 @@
      aqui sem dependências porque esta página é autocontida. Fica FORA de #app de propósito: não
      depende do token/RPC solar, então aparece mesmo se o link for inválido/expirado (clima não é
      dado sensível) e nunca some se o carregamento principal falhar. */
-  .clima-card{display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:1rem;gap:1rem}
+  .clima-card{display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1rem;gap:1rem}
   .clima-agora{display:flex;align-items:center;gap:0.7rem}
   .clima-agora .emoji{font-size:1.8rem;line-height:1;display:inline-block;animation:climaFlutuar 3s ease-in-out infinite}
   .clima-agora .temp{font-size:1.3rem;font-weight:700}
@@ -126,7 +126,7 @@ function fmtData(iso){ if(!iso) return '—'; const [a,m,d] = iso.slice(0,10).sp
 
 // ATUALIZADO 12/08/2026 (pedido do usuário: trocar os emojis soltos ☀️ pelo mesmo ícone de marca do
 // resto do site) — versão inline (vertical-align ajustado pra encaixar no meio de texto de heading).
-const ICONE_MARCA_INLINE = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;color:#8ab4f8"><rect x="3" y="11" width="4" height="9" rx="0.5"></rect><rect x="10" y="6" width="4" height="14" rx="0.5"></rect><rect x="17" y="3" width="4" height="17" rx="0.5"></rect></svg>`;
+const ICONE_MARCA_INLINE = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;color:var(--blue)"><rect x="3" y="11" width="4" height="9" rx="0.5"></rect><rect x="10" y="6" width="4" height="14" rx="0.5"></rect><rect x="17" y="3" width="4" height="17" rx="0.5"></rect></svg>`;
 
 function renderErro(mensagem){
   const msgs = {
@@ -406,12 +406,12 @@ async function carregar(){
     }
     fluxo2 = {
       periodoTxt,
-      wallace: montarPrevisao(METAS_ABERTO.wallace, creditoWallaceAtual, '#34c98a', fmtPct(rateioWallace*100)),
+      wallace: montarPrevisao(METAS_ABERTO.wallace, creditoWallaceAtual, 'var(--green)', fmtPct(rateioWallace*100)),
       // CORRIGIDO 14/08/2026 (pedido do usuário: "a escala da minha irmã deve ser igual a minha verde
       // no fluxo em aberto") — cor da barra do Fluxo 2 (em formação) igual pras 2 casas; só o Fluxo 1
       // (fechado) mantém a distinção visual verde/âmbar (ali a cor tem significado: âmbar = ainda não
       // cobriu a meta, ver faltam>0 em montarFechado/montarBlocoCasa).
-      wellida: montarPrevisao(METAS_ABERTO.wellida, creditoIrmaAtual, '#34c98a', fmtPct(rateioIrma*100)),
+      wellida: montarPrevisao(METAS_ABERTO.wellida, creditoIrmaAtual, 'var(--green)', fmtPct(rateioIrma*100)),
     };
   }
 
@@ -630,7 +630,7 @@ async function carregar(){
         labels: ciclosFechados.map(c => fmtData(c.dataFim)),
         datasets: [
           { label:'Crédito Wallace', data: ciclosFechados.map(c=>c.creditoWallaceKwh), backgroundColor:'#34c98a', borderRadius:3 },
-          { label:'Crédito Wellida', data: ciclosFechados.map(c=>c.creditoIrmaKwh), backgroundColor:'#14b8a6', borderRadius:3 },
+          { label:'Crédito Wellida', data: ciclosFechados.map(c=>c.creditoIrmaKwh), backgroundColor:'#9085e9', borderRadius:3 },
         ],
       },
       options: {
