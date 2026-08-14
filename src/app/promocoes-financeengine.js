@@ -361,7 +361,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       const pct = formPatV2.patrimonioEsperadoRegraClassica ? (REG.balanco.patrimonioTotalGeral / formPatV2.patrimonioEsperadoRegraClassica) * 100 : null;
       REG.balanco.patrimonioTotalFaixa = pct === null ? {label:'Sem dado', cor:'var(--text-dim)'}
         : pct < 50 ? {label:formPatV2.faixa, cor:'var(--red)'}
-        : pct < 100 ? {label:formPatV2.faixa, cor:'var(--yellow, #e8a63a)'}
+        : pct < 100 ? {label:formPatV2.faixa, cor:'var(--amber)'}
         : {label:formPatV2.faixa, cor:'var(--green)'};
     }
 

@@ -6,7 +6,11 @@
     --border-strong: #363b45;
     --text: #f0eee6;
     --text-mid: #adaba3;
-    --text-dim: #75736c;
+    /* AJUSTADO 14/08/2026 (auditoria de tipografia/contraste): #75736c sobre --bg/--surface dava
+       ~4.1:1, abaixo do minimo WCAG AA (4.5:1) pra texto normal - falhava em rotulos de KPI, cabecalho
+       de tabela e ate texto de dado (td em opcoes vencidas/exercidas). Clareado pra ~5.2:1, mesma
+       familia de cinza quente, sem mudar nenhum outro token. */
+    --text-dim: #86847c;
     --accent: #4c8ef2;
     --accent-2: #9c8ff2;
     --green: #35d199;
@@ -278,7 +282,7 @@
   .master-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent-lg)}
   @media (max-width:640px){
     .master-tabs{flex-wrap:wrap;top:0}
-    .master-tab{flex:1 1 40%;font-size:0.88rem;padding:0.85rem 0.7rem}
+    .master-tab{flex:1 1 40%;font-size:var(--fs-base);padding:0.85rem 0.7rem}
   }
 
   .masthead{
@@ -289,7 +293,7 @@
   .masthead h1{
     font-size:var(--fs-3xl);font-weight:600;letter-spacing:-0.01em;line-height:var(--lh-tight);
   }
-  .masthead .sub{color:var(--text-mid);font-size:0.85rem;line-height:var(--lh-normal);margin-top:0.3rem}
+  .masthead .sub{color:var(--text-mid);font-size:var(--fs-xs);line-height:var(--lh-normal);margin-top:0.3rem}
   /* CORRIGIDO 14/08/2026 (refino de acabamento): fundo chapado virou gradiente de 2 tons da mesma
      família (--green), mesmo raciocínio já usado em .tab.active/.ciclo-btn.ciclo-ativo — cor
      continua sendo só verde, a aplicação que ganhou profundidade. */
@@ -335,6 +339,16 @@
   .inbox-btn-no:hover{ filter:brightness(0.88); transform:translateY(-1px); box-shadow:0 3px 8px rgba(239,91,86,0.35); }
   .inbox-btn-no:active{ filter:brightness(0.8); transform:translateY(0); }
   .inbox-btn:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(255,255,255,0.25), 0 1px 2px rgba(0,0,0,0.25); }
+  /* NOVO 14/08/2026 (achado de auditoria mobile: Aprovar/Rejeitar da Inbox Financeira tinham
+     padding:0.35rem 0.7rem, ~28px de altura real - abaixo do alvo de toque de 44px, justamente
+     numa acao de decisao (aprovar/rejeitar lancamento) onde um toque errado tem custo real).
+     Ampliado so no breakpoint mobile via display:inline-flex + min-height, sem mudar a fonte/cor. */
+  @media(max-width:640px){
+    .inbox-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-height:2.75rem;padding:0.5rem 0.9rem;
+    }
+  }
 
   /* NOVO 04/08/2026 (parte 41): coluna Descrição da Inbox Financeira estava estourando a altura da
      linha (itens da Pluggy tem texto longo) e dominando a tabela inteira - ver print do usuário.
@@ -374,6 +388,19 @@
   .btn-print-secao:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent)}
   .btn-print-secao:disabled{opacity:0.5;cursor:default}
   @media print{ .btn-print-secao{display:none} }
+  /* NOVO 14/08/2026 (achado de auditoria mobile: 1.7rem = 27.2px, bem abaixo do alvo de toque
+     minimo de 44x44px recomendado - este botao aparece no topo de TODA secao numerada do painel,
+     entao e um dos elementos mais tocados no celular). Area de toque real ampliada via ::before
+     invisivel maior que o botao (tecnica padrao: nao muda o visual do icone, so o hitbox), em vez
+     de aumentar o icone em si e destoar do resto da linha de titulo. */
+  @media(max-width:640px){
+    .btn-print-secao{position:relative}
+    .btn-print-secao::before{
+      content:'';position:absolute;
+      top:50%;left:50%;transform:translate(-50%,-50%);
+      width:44px;height:44px;
+    }
+  }
 
   .card{
     background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);
@@ -391,6 +418,14 @@
      NENHUMA regra CSS neste arquivo — os 3 blocos empilhavam verticalmente em vez de ficar lado a
      lado como todo outro agrupamento de 3 KPIs, que usa .grid-3) */
   .cv-legend-row{display:flex;justify-content:space-between;gap:1rem}
+  /* NOVO 14/08/2026 (achado de auditoria mobile: os 3 blocos (Tem na Caixa/Comprometido/Disponível
+     Real) ficavam sempre lado a lado, sem wrap - em telas <=480px o valor monetário (fonte 600,
+     largura variável) espremia contra a borda do .card, que tem overflow-x:hidden (corta em vez de
+     rolar). Empilha em coluna só no mobile, mesmo padrão que .grid-3 já usa pros outros
+     agrupamentos de 3 KPIs do painel (regra @media(max-width:820px) mais abaixo neste arquivo). */
+  @media(max-width:480px){
+    .cv-legend-row{flex-direction:column;gap:0.6rem}
+  }
 
   .row{
     display:flex;justify-content:space-between;align-items:center;
@@ -467,7 +502,7 @@
   .progress-lbl{display:flex;justify-content:space-between;font-size:var(--fs-label);color:var(--text-dim);margin-top:0.3rem}
   .legend-note{font-size:var(--fs-label);color:var(--text-dim);margin-top:0.6rem;line-height:var(--lh-relaxed);font-family:inherit}
   .total-line{display:flex;justify-content:space-between;align-items:baseline;padding-top:0.65rem;margin-top:0.65rem;border-top:1px solid var(--border);font-size:var(--fs-xs);color:var(--text-mid)}
-  .total-line .v{font-size:1.02rem;line-height:var(--lh-snug);font-weight:700;color:var(--text)}
+  .total-line .v{font-size:var(--fs-lg);line-height:var(--lh-snug);font-weight:700;color:var(--text)}
 
   .tabs{display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:0.5rem;margin-bottom:1rem}
   .tab{
@@ -508,6 +543,11 @@
     .tab{
       flex:0 0 auto;white-space:nowrap;font-size:var(--fs-label);
       padding:0.55rem 0.8rem;
+      /* CORRIGIDO 14/08/2026 (achado de auditoria: sem min-height, a altura real desses chips
+         ficava ~29px, so texto+padding - abaixo do alvo de toque de 44px, num carrossel com 22
+         categorias tocadas com frequencia). min-height nao no bloco desktop, so aqui no mobile,
+         onde o .tab virou chip compacto de fato. */
+      min-height:2.75rem;
     }
   }
   .pane{display:none}
@@ -555,7 +595,7 @@
      (~1.2), sem alterar padding/altura de linha o suficiente pra quebrar tabelas compactas. */
   td{padding:0.42rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text);line-height:var(--lh-snug);overflow-wrap:anywhere;word-break:break-word}
   td.r{text-align:right;font-variant-numeric:tabular-nums;color:inherit}
-  td.mono{color:var(--text-dim);font-family:var(--mono);font-size:0.75rem}
+  td.mono{color:var(--text-dim);font-family:var(--mono);font-size:var(--fs-xs)}
   tr.last-parcel td{color:var(--amber)}
   /* NOVO 03/08/2026: tabela de posições vencidas (seção 17) - mesmo componente <table> das posições
      ativas, mas com texto esmaecido pra deixar claro visualmente que são registros encerrados/histórico,
@@ -640,6 +680,13 @@
     .kpi-strip{grid-template-columns:repeat(2,1fr)}
     .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
   }
+  /* NOVO 14/08/2026 (achado de auditoria mobile: .kpi-strip nunca colapsava pra 1 coluna, diferente
+     de .cover-metrics que já tinha essa mesma progressão 4->2->1 - em telas bem estreitas (<=480px)
+     2 colunas ainda espremiam .kpi .val (fonte grande, 1.5rem) contra o padding do card, mesmo risco
+     de vazamento/corte de valor monetário real). Mesmo breakpoint já usado em .cover-metrics. */
+  @media(max-width:480px){
+    .kpi-strip{grid-template-columns:1fr}
+  }
 
   .master-pane{display:none}
   .master-pane.active{display:block; animation:v300FadeInPane 0.25s ease}
@@ -703,7 +750,7 @@
       padding:0.75rem 0.9rem; font-size:1.25rem;
       background:rgba(76,142,242,0.1); border-color:rgba(76,142,242,0.4);
     }
-    .home-nav-btn span{ font-size:0.78rem; }
+    .home-nav-btn span{ font-size:var(--fs-xs); }
   }
 
   /* CORRIGIDO 09/08/2026 (achado do usuário: "os botões estão duplicados") - .master-tabs foi
@@ -773,7 +820,7 @@
   .ciclo-seletor-btns { display:flex; gap:0.35rem; flex-wrap:wrap; }
   .ciclo-btn {
     appearance:none; border:1px solid var(--border-strong); background:var(--card,#15171a);
-    color:var(--text-mid); font-size:0.78rem; font-weight:500;
+    color:var(--text-mid); font-size:var(--fs-xs); font-weight:500;
     padding:0.38rem 0.85rem; border-radius:var(--radius-pill); cursor:pointer;
     transition:all 0.15s ease; white-space:nowrap;
   }
@@ -789,6 +836,11 @@
   .ciclo-btn.ciclo-ativo.ciclo-fechado-btn {
     background:var(--text-dim); border-color:var(--text-dim);
     box-shadow:0 0 0 3px rgba(111,109,102,0.18);
+  }
+  /* NOVO 14/08/2026 (achado de auditoria mobile: padding:0.38rem 0.85rem dava ~29px de altura real,
+     abaixo do alvo de toque de 44px - seletor de ciclo fica sempre visivel no topo de varias abas). */
+  @media(max-width:640px){
+    .ciclo-btn{ min-height:2.75rem; padding:0.5rem 1rem; }
   }
   #cicloBannerFechado {
     display:flex; align-items:center; gap:0.5rem;
@@ -828,10 +880,15 @@
   .busca-resultado-item{
     padding:0.55rem 0.9rem; font-size:var(--fs-sm); color:var(--text-mid);
     cursor:pointer; border-bottom:1px solid var(--border);
+    /* NOVO 14/08/2026 (achado de auditoria): unico item hoverable do arquivo sem "transition" -
+       o hover de fundo/cor trocava no corte seco enquanto todo o resto do site (tab, row, card,
+       tbody tr etc) ja usa os tokens --dur-fast/--ease-standard definidos mais abaixo neste mesmo
+       arquivo para a mesma troca de background-color. */
+    transition: background-color var(--dur-fast, 160ms) var(--ease-standard, ease), color var(--dur-fast, 160ms) var(--ease-standard, ease);
   }
   .busca-resultado-item:last-child{ border-bottom:none; }
   .busca-resultado-item:hover{ background:rgba(76,142,242,0.1); color:var(--text); }
-  .busca-resultado-vazio{ padding:0.6rem 0.9rem; font-size:0.78rem; color:var(--text-dim); }
+  .busca-resultado-vazio{ padding:0.6rem 0.9rem; font-size:var(--fs-xs); color:var(--text-dim); }
   /* NOVO parte 76: resultado de transacao (TX/valor) - mesma linha, mais um subtitulo pequeno com
      data/livro/obs. CORRIGIDO 05/08/2026: agora navega ate a aba do livro razao certo quando existe
      mapeamento conhecido (ver LIVRO_PARA_TAB_LR no app.js) - cursor pointer, nao mais default. */
@@ -939,6 +996,13 @@
      de "abrir" em vez de aparecer seco. */
   .fluxo-energia-card{
     cursor:pointer; user-select:none;
+    /* CORRIGIDO 14/08/2026 (achado de auditoria mobile: o padding inline (0.5rem 1rem/0.8rem) mais
+       o texto de ~0.78rem somavam so ~32-34px de altura real - abaixo do alvo de toque de 44px,
+       num diagrama inteiro feito pra ser tocado, "toque em qualquer etapa"). min-height garante o
+       piso de 44px sem brigar com o padding inline (que continua controlando o respiro do texto);
+       display:flex + centralizacao so reforca o que .fluxo-energia-detalhe/pai ja faziam via
+       text-align:center. */
+    min-height:44px; display:flex; align-items:center; justify-content:center;
     transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard),
       transform var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
   }
@@ -953,9 +1017,29 @@
   .fluxo-energia-detalhe.aberto{ grid-template-rows:1fr; opacity:1; }
   .fluxo-energia-detalhe > div{
     overflow:hidden; min-height:0;
-    font-size:0.7rem; color:var(--text-mid); text-align:left;
+    font-size:var(--fs-label); color:var(--text-mid); text-align:left;
     background:rgba(76,142,242,0.06); border:1px solid rgba(76,142,242,0.25); border-radius:var(--radius-lg);
     padding:0 0.7rem;
   }
   .fluxo-energia-detalhe.aberto > div{ padding:0.55rem 0.7rem; }
+
+  /* NOVO 14/08/2026 (achado de auditoria): botões "Abrir página"/"Copiar link" e o link "revogar"
+     do compartilhamento solar (src/solar/compartilhamento-solar.js) são gerados via innerHTML com
+     cor/fundo só inline (cada card tem sua própria cor de marca) e nunca tiveram nenhum estado de
+     hover/foco/clique - inline style="" não aceita pseudo-classe, então essa parte ficava "morta"
+     mesmo com o resto do site já revisado nesta mesma rodada. Classes aditivas, aplicadas junto do
+     style="" existente (que continua definindo a cor de fundo de cada botão) - só a interação nova. */
+  .solar-share-btn{
+    display:inline-block;
+    transition: transform var(--dur-fast) var(--ease-standard), filter var(--dur-fast) var(--ease-standard),
+      box-shadow var(--dur-fast) var(--ease-standard);
+  }
+  .solar-share-btn:hover{ transform:translateY(-1px); filter:brightness(1.08); box-shadow:0 3px 10px rgba(0,0,0,0.3); }
+  .solar-share-btn:active{ transform:translateY(0); filter:brightness(0.94); }
+  .solar-share-btn:focus-visible{ outline:none; box-shadow:var(--shadow-focus-accent-lg); }
+  .solar-revoke-link{
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+  .solar-revoke-link:hover{ opacity:0.75; text-decoration:underline; }
+  .solar-revoke-link:focus-visible{ outline:none; box-shadow:var(--shadow-focus-accent); border-radius:var(--radius-sm); }
 

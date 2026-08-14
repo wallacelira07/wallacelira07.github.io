@@ -37,7 +37,7 @@ function recalcularBalanco(){
     if(!esperado) return {label:'Sem dado', cor:'var(--text-dim)'};
     const pct = atual / esperado * 100;
     if(pct < 50) return {label:'Abaixo da faixa esperada p/ idade e renda', cor:'var(--red)'};
-    if(pct < 100) return {label:'Dentro da faixa, ainda construindo', cor:'var(--yellow, #e8a63a)'};
+    if(pct < 100) return {label:'Dentro da faixa, ainda construindo', cor:'var(--amber)'};
     if(pct < 200) return {label:'Dentro da faixa, acumulador acima da média', cor:'var(--green)'};
     return {label:'Muito acima da faixa esperada', cor:'var(--green)'};
   })(REG.balanco.patrimonioTotalGeral, REG.balanco.patrimonioEsperadoRegraClassica);

@@ -74,8 +74,8 @@ async function criarLinkCompartilhamentoSolar(){
     if(el){
       el.innerHTML = `✅ Link criado, válido até <strong>${fmtDataHoraCompartilhamentoSolar(dado.expira_em)}</strong>` +
         `<div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap">` +
-        `<a href="${link}" target="_blank" rel="noopener" style="background:var(--purple,#9085e9);color:#fff;border-radius:6px;padding:0.4rem 0.8rem;font-size:0.78rem;text-decoration:none;font-weight:600">☀️ Abrir página</a>` +
-        `<button type="button" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem 0.8rem;font-size:0.78rem;cursor:pointer">📋 Copiar link</button>` +
+        `<a href="${link}" target="_blank" rel="noopener" class="btn-pill" style="text-decoration:none"><span class="btn-pill-label">☀️ Abrir página</span></a>` +
+        `<button type="button" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" class="solar-share-btn" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.4rem 0.8rem;font-size:0.78rem;cursor:pointer">📋 Copiar link</button>` +
         `</div>`;
     }
     renderizarLinksCompartilhamentoSolar();
@@ -112,9 +112,9 @@ async function renderizarLinksCompartilhamentoSolar(){
     const ativos = (linhas || []).filter(l => l.ativo && new Date(l.expira_em) > new Date());
     if(!ativos.length){ el.textContent = ''; return; }
     el.innerHTML = 'Links ativos: ' + ativos.map(l =>
-      `<span style="display:inline-block;margin:0.2rem 0.4rem 0.2rem 0;padding:0.15rem 0.5rem;background:var(--surface-2);border-radius:6px">` +
+      `<span style="display:inline-block;margin:0.2rem 0.4rem 0.2rem 0;padding:0.15rem 0.5rem;background:var(--surface-2);border-radius:var(--radius-md)">` +
       `válido até ${fmtDataHoraCompartilhamentoSolar(l.expira_em)} ` +
-      `<a href="#" onclick="desativarLinkCompartilhamentoSolar('${l.token}');return false;" style="color:var(--red);margin-left:0.3rem">revogar</a></span>`
+      `<a href="#" onclick="desativarLinkCompartilhamentoSolar('${l.token}');return false;" class="solar-revoke-link" style="color:var(--red);margin-left:0.3rem">revogar</a></span>`
     ).join('');
   } catch(err){
     console.warn('renderizarLinksCompartilhamentoSolar: falha ao listar links (não bloqueia o painel).', err);

@@ -1523,10 +1523,10 @@ function formatarFrescor(timestampISO, limites, agoraParaFaixa){
   if(!Number.isFinite(minutosVerde)) minutosVerde = 15;
   if(!Number.isFinite(minutosAmarelo)) minutosAmarelo = 120;
   if(!Number.isFinite(minutosLaranja)) minutosLaranja = 1440;
-  if(minutos <= minutosVerde) return { faixa:'verde', emoji:'✅', tempo, cor:'#34c98a' };
-  if(minutos <= minutosAmarelo) return { faixa:'amarelo', emoji:'🟡', tempo, cor:'#e8a63a' };
+  if(minutos <= minutosVerde) return { faixa:'verde', emoji:'✅', tempo, cor:'var(--green)' };
+  if(minutos <= minutosAmarelo) return { faixa:'amarelo', emoji:'🟡', tempo, cor:'var(--amber)' };
   if(minutos <= minutosLaranja) return { faixa:'laranja', emoji:'⚠️', tempo, cor:'#e2884f' };
-  return { faixa:'vermelho', emoji:'🔴', tempo, cor:'#e2554f' };
+  return { faixa:'vermelho', emoji:'🔴', tempo, cor:'var(--red)' };
 }
 
 // Junta formatarFrescor()+formatarLegenda(): escolhe a legenda certa pela faixa (ex: idBase
@@ -2303,7 +2303,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         .wallace-lancar-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
         .wallace-lancar-btn:active{transform:translateY(0) scale(0.98)}
         .wallace-panel{position:relative;margin-top:0.6rem;width:100%;max-width:320px;max-height:70vh;overflow-y:auto;background:#0f1620;border:1px solid #2d3b52;border-radius:10px;padding:0.8rem;font-size:0.78rem;color:#c8d4e3;box-shadow:0 2px 12px rgba(0,0,0,.25);display:none}
-        .wallace-field{width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box}
+        .wallace-field{width:100%;margin-bottom:0.4rem;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;box-sizing:border-box;font-size:16px}
         .wallace-btn-primary{width:100%;background:#1f5c38;color:#5fd68a;border:none;border-radius:5px;padding:0.4rem;cursor:pointer;font-weight:600}
         .wallace-btn-secondary{background:#1a2332;color:#8ab4f8;border:1px dashed #2d3b52;border-radius:5px;padding:0.3rem;cursor:pointer;font-size:0.72rem}
       `;
@@ -2461,8 +2461,8 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         row.className = 'ltx-split-row';
         row.style.cssText = 'display:flex;gap:0.3rem;margin-bottom:0.3rem';
         row.innerHTML = `
-          <select class="ltxSplitCaixa" style="flex:2;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0">${caixaOpts}</select>
-          <input class="ltxSplitValor" type="number" step="0.01" placeholder="Valor" style="flex:1;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;box-sizing:border-box">
+          <select class="ltxSplitCaixa" style="flex:2;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;font-size:16px">${caixaOpts}</select>
+          <input class="ltxSplitValor" type="number" step="0.01" placeholder="Valor" style="flex:1;background:#1a2332;border:1px solid #2d3b52;color:#c8d4e3;border-radius:5px;padding:0.3rem;min-width:0;box-sizing:border-box;font-size:16px">
           <button type="button" class="ltxSplitDel" style="background:none;border:none;color:#e2554f;cursor:pointer;font-size:0.9rem;padding:0 0.2rem">✕</button>`;
         row.querySelector('.ltxSplitValor').oninput = atualizarRestante;
         row.querySelector('.ltxSplitDel').onclick = () => { row.remove(); atualizarRestante(); };

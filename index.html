@@ -151,7 +151,9 @@
             border: 1px solid #2a2d31;
             border-radius: 9px;
             color: #e8e6df;
-            font-size: 14px;
+            /* CORRIGIDO (mobile perf): 14px < 16px dispara zoom automatico do iOS Safari ao focar
+               o campo de login (bug conhecido do WebKit) - 16px é o minimo que evita o zoom. */
+            font-size: 16px;
             font-family: inherit;
             transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
         }
@@ -194,6 +196,16 @@
         }
         .eye-toggle-btn:active {
             transform: translateY(0) scale(0.94);
+        }
+        /* NOVO 14/08/2026 (achado de auditoria, mesma rodada de refino de estados interativos que já
+           cobriu todo o styles.css do painel interno): botões redondos do cabeçalho/login tinham
+           :hover/:active mas nenhum :focus-visible próprio — navegação por teclado (Tab) caía no anel
+           padrão do navegador, que em botão circular sobre fundo escuro fica com "cantos" quadrados
+           destoando do resto do site. Mesmo azul de marca (#3987e5) já usado no anel de foco dos campos
+           de login (linha ~167) e no botão de busca (linha ~484), só reaproveitado. */
+        .eye-toggle-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
         }
         .eye-toggle-btn.ativo {
             background: rgba(57, 135, 229, 0.16);
@@ -249,6 +261,10 @@
         }
         #loginBtn:active:not(:disabled) {
             transform: translateY(0) scale(0.99);
+        }
+        #loginBtn:focus-visible {
+            outline: none;
+            box-shadow: 0 8px 20px rgba(57, 135, 229, 0.28), 0 0 0 3px rgba(57, 135, 229, 0.35);
         }
 
         #loginBtn:disabled {
@@ -416,7 +432,9 @@
             background: rgba(57,135,229,0.07);
             border: 1px solid rgba(57,135,229,0.25);
             color: #eceae4;
-            font-size: 12.5px;
+            /* CORRIGIDO (mobile perf): abaixo de 16px o iOS Safari da zoom automatico ao focar -
+               este campo abre em overlay no mobile (max-width:780px), entao o toque é comum. */
+            font-size: 16px;
             padding: 7px 10px 7px 30px;
             border-radius: 999px;
             outline: none;
@@ -485,6 +503,17 @@
         }
         #dashboardScreen header .header-search-toggle-btn:active {
             transform: translateY(0) scale(0.94);
+        }
+        #dashboardScreen header .header-search-toggle-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
+        }
+        /* .brand tem role="button" tabindex="0" (é navegável por Tab de verdade, não só clicável de
+           mouse) mas só tinha feedback de :hover (opacidade) — sem nenhum indicador de foco por
+           teclado, único elemento do cabeçalho realmente focável sem anel próprio. */
+        #dashboardScreen header .brand:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.35);
         }
         @media (max-width: 780px) {
             #dashboardScreen header .header-search-wrap { display: none; }
@@ -615,6 +644,10 @@
         #dashboardScreen header .logout-btn:active {
             transform: translateY(0) scale(0.94);
         }
+        #dashboardScreen header .logout-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(226, 85, 79, 0.35);
+        }
 
         @media (max-width: 560px) {
             #dashboardScreen header {
@@ -646,9 +679,14 @@
             #dashboardScreen header .logout-btn,
             #dashboardScreen header .header-search-toggle-btn,
             #dashboardScreen header .user-avatar-initial {
-                width: 28px;
-                height: 28px;
-                font-size: 11px;
+                /* CORRIGIDO 14/08/2026 (achado de auditoria mobile: eram 28x28px neste breakpoint -
+                   MENOR que os 34x34px do desktop, ou seja, os botões de ação real do cabeçalho
+                   (esconder valores, sair, buscar) encolhiam justo na tela onde o dedo precisa de
+                   mais área, não menos. 40x40px fica perto do alvo de toque de 44px recomendado e
+                   ainda cabe confortável dentro do header (min-height:48px neste mesmo breakpoint). */
+                width: 40px;
+                height: 40px;
+                font-size: 13px;
             }
             /* CORRIGIDO 10/08/2026 (pedido do usuário: proporção/alinhamento perfeitos no mobile) -
                header-search-toggle-btn não fazia parte deste bloco antes, ficava 34px enquanto
@@ -657,10 +695,10 @@
                 gap: 7px;
             }
             #dashboardScreen header .header-search-toggle-btn svg {
-                width: 15px;
-                height: 15px;
-                min-width: 15px;
-                min-height: 15px;
+                width: 17px;
+                height: 17px;
+                min-width: 17px;
+                min-height: 17px;
                 flex-shrink: 0;
             }
         }
@@ -809,18 +847,18 @@
     <!-- NOVO 04/08/2026 (parte 76): modal de confirmacao de senha pra DESATIVAR o modo de esconder
          valores. So aparece nesse sentido (ativar continua 1 clique, sem atrito). -->
     <div id="modalSenhaEsconderValores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
-      <div style="background:#16181b;border:1px solid #2a2d31;border-radius:12px;padding:1.5rem;width:90%;max-width:320px;">
-        <div style="font-weight:600;color:#eceae4;margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
-        <div style="font-size:0.78rem;color:#a9a79f;margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
+      <div style="background:#14161b;border:1px solid #262a32;border-radius:12px;padding:1.5rem;width:90%;max-width:320px;">
+        <div style="font-weight:600;color:#f0eee6;margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
+        <div style="font-size:0.78rem;color:#adaba3;margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
         <input type="password" id="senhaEsconderValoresInput" placeholder="PIN" inputmode="numeric" maxlength="4" autocomplete="off"
-          style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:1px solid #2a2d31;background:#0b0c0e;color:#eceae4;font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
+          style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:1px solid #262a32;background:#0a0b10;color:#f0eee6;font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
           onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores();">
-        <div id="senhaEsconderValoresErro" style="display:none;color:#e2554f;font-size:0.78rem;margin-bottom:0.5rem;"></div>
+        <div id="senhaEsconderValoresErro" style="display:none;color:#ef5b56;font-size:0.78rem;margin-bottom:0.5rem;"></div>
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
           <button type="button" onclick="fecharModalSenhaEsconderValores()"
-            style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid #2a2d31;background:transparent;color:#a9a79f;cursor:pointer;">Cancelar</button>
+            style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid #262a32;background:transparent;color:#adaba3;cursor:pointer;">Cancelar</button>
           <button type="button" id="senhaEsconderValoresBtnConfirmar" onclick="confirmarSenhaEsconderValores()"
-            style="flex:1;padding:0.55rem;border-radius:8px;border:none;background:#3987e5;color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>
+            style="flex:1;padding:0.55rem;border-radius:8px;border:none;background:#4c8ef2;color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>
         </div>
       </div>
     </div>

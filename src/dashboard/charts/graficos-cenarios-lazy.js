@@ -1489,10 +1489,10 @@ async function _lazyRenderSolarSecao(){
     if(baselineKwh != null){
       const creditoCicloAtual = Math.round((saldoLiquidoAcum - baselineKwh)*100)/100;
       setUG('ugSaldoLiquido', (creditoCicloAtual>=0?'+':'')+fmtKwhPtBr(creditoCicloAtual)+' kWh');
-      if(ugSaldoEl) ugSaldoEl.style.color = creditoCicloAtual>=0 ? '#34c98a' : '#e2554f';
+      if(ugSaldoEl) ugSaldoEl.style.color = creditoCicloAtual>=0 ? 'var(--green)' : 'var(--red)';
     } else {
       setUG('ugSaldoLiquido', '⚠ Indisponível (V2)');
-      if(ugSaldoEl) ugSaldoEl.style.color = '#e2554f';
+      if(ugSaldoEl) ugSaldoEl.style.color = 'var(--red)';
     }
     // Secundário — acumulado desde a ativação (21/07), a mesma métrica que era o número principal
     // antes de hoje. Continua 100% real, só deixou de ser o número em destaque.
@@ -1619,9 +1619,9 @@ async function _lazyRenderSolarSecao(){
     setFluxo('feImportacaoDetalhe', 'Puxado da rede à noite (código 03, quando as placas não geram): <strong>'+fmtKwhPtBr(importadoAcum)+' kWh</strong> desde a ativação.');
 
     // Status: so usa dado 100% real (saldo liquido = 103-03), nao depende da geracao do inversor
-    let statusUG = {emoji:'🔴', texto:'Déficit', cor:'#e2554f'};
-    if(saldoLiquidoAcum > 0) statusUG = {emoji:'🟢', texto:'Excedente (exportando mais do que importa)', cor:'#34c98a'};
-    else if(saldoLiquidoAcum === 0) statusUG = {emoji:'🟡', texto:'Equilibrado', cor:'#e8a63a'};
+    let statusUG = {emoji:'🔴', texto:'Déficit', cor:'var(--red)'};
+    if(saldoLiquidoAcum > 0) statusUG = {emoji:'🟢', texto:'Excedente (exportando mais do que importa)', cor:'var(--green)'};
+    else if(saldoLiquidoAcum === 0) statusUG = {emoji:'🟡', texto:'Equilibrado', cor:'var(--amber)'};
     const ugStatusEl = $('ugStatus');
     if(ugStatusEl){ ugStatusEl.textContent = statusUG.emoji+' '+statusUG.texto; ugStatusEl.style.color = statusUG.cor; }
 
@@ -1642,10 +1642,10 @@ async function _lazyRenderSolarSecao(){
         const fmtDataBR = d => new Date(d).toLocaleDateString('pt-BR', {timeZone:'UTC'});
         elCicloParcial.style.display = 'block';
         elCicloParcial.innerHTML =
-          '<div style="font-weight:600;color:#e8a63a">⚠ Primeiro ciclo parcial de geração</div>'
+          '<div style="font-weight:600;color:var(--amber)">⚠ Primeiro ciclo parcial de geração</div>'
           + '<div style="margin-top:0.5rem">A usina entrou em operação em <strong>'+fmtDataBR(inicioGeracao)+'</strong>, mas o ciclo da distribuidora já havia iniciado em <strong>'+fmtDataBR(inicioFaturamento)+'</strong>. Por isso, parte do consumo deste ciclo ocorreu antes do início da geração solar.</div>'
           + '<div style="margin-top:0.5rem">O resultado oficial do ciclo continua sendo:</div>'
-          + '<div style="margin-top:0.2rem">— Exportação: <strong>'+exportadoAcum+' kWh</strong><br>— Importação: <strong>'+importadoAcum+' kWh</strong><br>— Crédito líquido: <strong style="color:#34c98a">'+saldoLiquidoAcum+' kWh</strong></div>'
+          + '<div style="margin-top:0.2rem">— Exportação: <strong>'+exportadoAcum+' kWh</strong><br>— Importação: <strong>'+importadoAcum+' kWh</strong><br>— Crédito líquido: <strong style="color:var(--green)">'+saldoLiquidoAcum+' kWh</strong></div>'
           + '<div style="margin-top:0.5rem">Entretanto, este ciclo representa uma fase de transição e tende a subestimar o desempenho normal da usina, pois a geração não esteve disponível durante todo o período de faturamento. A partir do primeiro ciclo completo de operação, as comparações de desempenho se tornam mais representativas.</div>';
       } else {
         elCicloParcial.style.display = 'none';
@@ -1655,16 +1655,16 @@ async function _lazyRenderSolarSecao(){
     const ugResumoEl = $('ugResumo');
     if(ugResumoEl){
       if(consumoDiretoConfiavel){
-        ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:#34c98a">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:#e8a63a">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 03, abaixo.';
+        ugResumoEl.innerHTML = 'A casa consumiu <strong>'+consumoTotalCasa+' kWh</strong> neste período (desde 21/07, '+ultimaSolar.dias+' dias). <strong style="color:var(--green)">'+consumoDiretoAcum+' kWh ('+autoconsumoPct+'%)</strong> foram atendidos diretamente pelas placas. <strong style="color:var(--amber)">'+importadoAcum+' kWh ('+dependenciaPct+'%)</strong> vieram da Energisa. A usina exportou <strong>'+exportadoAcum+' kWh</strong> ('+exportacaoDaGeracaoPct+'% de tudo que gerou). Saldo líquido produzido: <strong style="color:'+(saldoLiquidoAcum>=0?'var(--green)':'var(--red)')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong> — é esse saldo que alimenta o rateio da seção 03, abaixo.';
       } else if(temGeracao){
         // CORRIGIDO 02/08/2026 (achado do usuário): antes disso, se temGeracao=true o resumo sempre
         // calculava consumoDireto/autoconsumo misturando geracao viva com exportado congelado, sem
         // limite - agora que existe o travamento por dias de descompasso, esse ramo intermediario
         // cobre "tem geracao mas o descompasso ja passou do limite seguro" - mostra so o que e 100%
         // real (importado/exportado/saldo liquido), sem fingir precisao no consumo direto.
-        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Consumo direto/autoconsumo pausado</strong> — a leitura do medidor está desatualizada há <strong>'+diasDescompassoAtual+' dias</strong> (mais que o limite seguro de '+LIMITE_DIAS_DESCOMPASSO_SEGURO+'), então parei de calcular esses campos pra não mostrar número cada vez mais errado. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente. Manda uma leitura nova do 03/103 pra recalibrar tudo.';
+        ugResumoEl.innerHTML = '<strong style="color:var(--amber)">Consumo direto/autoconsumo pausado</strong> — a leitura do medidor está desatualizada há <strong>'+diasDescompassoAtual+' dias</strong> (mais que o limite seguro de '+LIMITE_DIAS_DESCOMPASSO_SEGURO+'), então parei de calcular esses campos pra não mostrar número cada vez mais errado. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'var(--green)':'var(--red)')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente. Manda uma leitura nova do 03/103 pra recalibrar tudo.';
       } else {
-        ugResumoEl.innerHTML = '<strong style="color:#e8a63a">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'#34c98a':'#e2554f')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente.';
+        ugResumoEl.innerHTML = '<strong style="color:var(--amber)">Dados insuficientes para calcular consumo direto/autoconsumo/dependência</strong> — falta a leitura real de geração acumulada do inversor SAJ. Importado (<strong>'+importadoAcum+' kWh</strong>), exportado (<strong>'+exportadoAcum+' kWh</strong>) e saldo líquido (<strong style="color:'+(saldoLiquidoAcum>=0?'var(--green)':'var(--red)')+'">'+(saldoLiquidoAcum>=0?'+':'')+saldoLiquidoAcum+' kWh</strong>) continuam corretos (vêm do medidor bidirecional) — isso já alimenta o rateio da seção 03 normalmente.';
       }
     }
 
@@ -2017,10 +2017,10 @@ async function _lazyRenderSolarSecao(){
     return Math.round((creditoAtual + mediaRealizada*diasRestantesAlvo)*10)/10;
   }
   function calcularStatus(mediaRealizada, mediaNecessaria){
-    if(mediaNecessaria<=0 || mediaRealizada>=mediaNecessaria) return {emoji:'🟢', texto:'No ritmo', cor:'#34c98a'};
+    if(mediaNecessaria<=0 || mediaRealizada>=mediaNecessaria) return {emoji:'🟢', texto:'No ritmo', cor:'var(--green)'};
     const deficitPct = (mediaNecessaria-mediaRealizada)/mediaNecessaria;
-    if(deficitPct < 0.10) return {emoji:'🟡', texto:'Atenção', cor:'#e8a63a'};
-    return {emoji:'🔴', texto:'Atrasado', cor:'#e2554f'};
+    if(deficitPct < 0.10) return {emoji:'🟡', texto:'Atenção', cor:'var(--amber)'};
+    return {emoji:'🔴', texto:'Atrasado', cor:'var(--red)'};
   }
 
   // CORRIGIDO 11/08/2026 (pedido do usuário, doc "Ajuste Conceitual da Seção 'Previsão até a
@@ -2065,7 +2065,7 @@ async function _lazyRenderSolarSecao(){
     const cobertura = meta>0 ? Math.round((creditoFechado/meta)*1000)/10 : 0;
     const faltam = Math.round((meta-creditoFechado)*10)/10;
     const pct = Math.min(100, Math.max(0, Math.round(cobertura)));
-    if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = faltam<=0 ? '#34c98a' : '#e8a63a'; }
+    if(barEl){ barEl.style.width = pct+'%'; barEl.style.background = faltam<=0 ? 'var(--green)' : 'var(--amber)'; }
     set(prefixo+'Fracao', fmtKwhPtBr(creditoFechado)+' / '+fmtKwhPtBr(meta)+' kWh');
     set(prefixo+'Cobertura', fmtKwhPtBr(cobertura)+'%');
     set(prefixo+'Data', dataFimTxt);
@@ -2141,7 +2141,7 @@ async function _lazyRenderSolarSecao(){
         renderFluxo1Fechado('fechWellida', META_WELLIDA, null, null);
       }
     } else {
-      ['prevWallaceStatus','prevWellidaStatus'].forEach(id => { const el=$(id); if(el){ el.textContent='⚠ Indisponível (V2)'; el.style.color='#e2554f'; } });
+      ['prevWallaceStatus','prevWellidaStatus'].forEach(id => { const el=$(id); if(el){ el.textContent='⚠ Indisponível (V2)'; el.style.color='var(--red)'; } });
       console.error('CicloSolar: Previsão (seção 12) sem baselineKwh/cicloSolarAberto — não calculada, sem fallback silencioso.');
     }
   }

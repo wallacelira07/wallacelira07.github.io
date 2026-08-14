@@ -171,7 +171,7 @@ function auditoriaAutomatica(){
     { const footer = document.querySelector('footer'); const avisoAntigo = footer && footer.querySelector('.aviso-ssot-divergencia'); if(avisoAntigo) avisoAntigo.remove(); }
     if(healthBadge){
       healthBadge.textContent = '✅ Sistema íntegro';
-      healthBadge.style.color = '#34c98a';
+      healthBadge.style.color = 'var(--green)';
       healthBadge.title = naoAuditaveis.length
         ? `0 divergências reais.\n\nNão auditável (lacuna de dado conhecida, não é erro — ver console):\n${naoAuditaveis.join('\n')}`
         : 'Auditoria automática: 0 divergências nas 12 relações matemáticas do REG.';
@@ -185,7 +185,7 @@ function auditoriaAutomatica(){
     }
     if(healthBadge){
       healthBadge.textContent = `⚠️ ${problemas.length} divergência(s) — ver console`;
-      healthBadge.style.color = '#e2554f';
+      healthBadge.style.color = 'var(--red)';
       healthBadge.title = problemas.join('\n') + (naoAuditaveis.length ? `\n\nNão auditável (lacuna de dado conhecida, não é erro):\n${naoAuditaveis.join('\n')}` : '');
     }
     const footer = document.querySelector('footer');
@@ -199,7 +199,7 @@ function auditoriaAutomatica(){
       if(avisoAntigo) avisoAntigo.remove();
       const aviso = document.createElement('span');
       aviso.className = 'aviso-ssot-divergencia';
-      aviso.style.color = '#e2554f';
+      aviso.style.color = 'var(--red)';
       aviso.style.fontWeight = '600';
       aviso.textContent = `⚠️ ${problemas.length} divergência(s) SSOT — ver console`;
       footer.appendChild(aviso);

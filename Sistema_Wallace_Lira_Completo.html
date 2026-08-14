@@ -12,10 +12,15 @@
      Chart(...)/Chart.register só são chamados de dentro de funções chamadas bem depois no boot,
      nunca no nível superior de nenhum módulo carregado antes delas (renderGraficosPainelPrincipal()
      e afins - conferido: nenhum "new Chart("/"Chart.register" roda fora de uma function) - defer é
-     seguro aqui, mesmo padrão já usado no html2canvas abaixo. -->
+     seguro aqui. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
-<!-- html2canvas: usada só pelos botões de download JPEG por seção (03/08/2026) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<!-- CORRIGIDO 14/08/2026 (auditoria de performance mobile: html2canvas (~200KB) baixava em TODO
+     boot do painel, pra TODO usuário, mesmo que ninguém nunca clique em nenhum dos botões de
+     download JPEG por seção - puro desperdício de rede numa conexão mais lenta/instável. A lib só é
+     usada dentro de baixarSecaoComoJPEG() (ui-componentes-visuais.js), sob clique explícito do
+     usuário - carregada ali sob demanda agora (ver carregarHtml2CanvasSobDemanda()), nunca mais aqui
+     no <head>. Nenhum botão/comportamento visual mudou, só o instante em que a lib é baixada. -->
+
 <link rel="stylesheet" href="assets/css/styles.css?v=277">
 </head>
 <body>
@@ -237,9 +242,9 @@
       <div class="kpi"><div class="lbl">Acima do teto do mês</div><div class="val v" id="simEstouroTeto">—</div></div>
     </div>
     <div id="simPendenteBox" class="callout info" style="display:none;margin-top:1rem">
-      <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem;letter-spacing:0.04em">📤 Pendente para o próximo ciclo</div>
-      <div class="v" style="font-size:1.05rem;font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
-      <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem">Compras no Mastercard Black feitas depois do fechamento da fatura (dia 22) mas ainda dentro deste ciclo — não entram no comprometido de agora, já vêm pré-debitadas do orçamento da Caixa Variável do próximo ciclo.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;margin-bottom:0.2rem;letter-spacing:0.04em">📤 Pendente para o próximo ciclo</div>
+      <div class="v" style="font-size:var(--fs-lg);font-weight:700;color:var(--accent)" id="simPendenteValor">—</div>
+      <div style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.3rem">Compras no Mastercard Black feitas depois do fechamento da fatura (dia 22) mas ainda dentro deste ciclo — não entram no comprometido de agora, já vêm pré-debitadas do orçamento da Caixa Variável do próximo ciclo.</div>
     </div>
     <div class="v" id="simMensagem" style="font-size:0.8rem;color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
@@ -277,7 +282,7 @@
     <div class="card-header-icon" style="margin-bottom:0.7rem">
       <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🔍</div>
       <div>
-        <div class="chi-title" style="font-size:0.82rem">Verificações de Negócio</div>
+        <div class="chi-title" style="font-size:var(--fs-sm)">Verificações de Negócio</div>
         <div class="chi-sub" style="font-size:0.68rem">Checagens automáticas de consistência a cada carregamento</div>
       </div>
     </div>
@@ -292,7 +297,7 @@
     <div class="card-header-icon" style="margin-bottom:0.7rem">
       <div class="chi-ico" style="width:26px;height:26px;font-size:0.85rem">🩺</div>
       <div>
-        <div class="chi-title" style="font-size:0.82rem">Saúde Operacional</div>
+        <div class="chi-title" style="font-size:var(--fs-sm)">Saúde Operacional</div>
         <div class="chi-sub" style="font-size:0.68rem">Última execução de cada automação agendada — em menos de 30 segundos você sabe se algo parou</div>
       </div>
     </div>
@@ -341,9 +346,9 @@
   <div class="section-num"><span class="n">01</span><h2>Ciclo financeiro</h2></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Dias decorridos</div><div style="font-size:1.1rem;font-weight:600" id="diasDecorridos">—</div></div>
-      <div style="text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Hoje</div><div style="font-weight:600" id="hojeData">—</div></div>
-      <div style="text-align:right"><div style="font-size:0.7rem;color:var(--text-dim)">Dias restantes</div><div style="font-size:1.1rem;font-weight:600" id="diasRestantes">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim)">Dias decorridos</div><div style="font-size:1.1rem;font-weight:600" id="diasDecorridos">—</div></div>
+      <div style="text-align:center"><div style="font-size:var(--fs-label);color:var(--text-dim)">Hoje</div><div style="font-weight:600" id="hojeData">—</div></div>
+      <div style="text-align:right"><div style="font-size:var(--fs-label);color:var(--text-dim)">Dias restantes</div><div style="font-size:1.1rem;font-weight:600" id="diasRestantes">—</div></div>
     </div>
     <div class="progress"><div class="fill" id="cicloProgress" style="width:0%;background:var(--accent)"></div></div>
   </div>
@@ -351,16 +356,16 @@
   <!-- 2 -->
   <div class="section-num"><span class="n">02</span><h2>Modo operacional</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Salário</div><div class="v" style="font-size:1.2rem;font-weight:600" id="s02Salario">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Reembolsos a receber</div><div class="v" style="font-size:1.2rem;font-weight:600" id="s02Reembolsos">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Entradas totais do ciclo</div><div class="v" style="font-size:1.2rem;font-weight:600;color:var(--accent)" id="s02Entradas">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Salário</div><div class="v" style="font-size:var(--fs-xl);font-weight:600" id="s02Salario">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Reembolsos a receber</div><div class="v" style="font-size:var(--fs-xl);font-weight:600" id="s02Reembolsos">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Entradas totais do ciclo</div><div class="v" style="font-size:var(--fs-xl);font-weight:600;color:var(--accent)" id="s02Entradas">—</div></div>
   </div>
   <div class="card" id="s02ModoCard" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-      <div><div style="font-size:1.05rem;font-weight:600;color:#e8d34f" id="s02ModoTitulo">Salário Normal</div><div style="font-size:0.75rem;color:var(--text-dim)">Saldo do ciclo R$ <span class="v" id="s02SaldoCiclo">—</span> <span class="v" id="s02ModoFaixa">(R$ 3.000 – R$ 7.999)</span></div></div>
+      <div><div style="font-size:var(--fs-lg);font-weight:600;color:var(--amber)" id="s02ModoTitulo">Salário Normal</div><div style="font-size:0.75rem;color:var(--text-dim)">Saldo do ciclo R$ <span class="v" id="s02SaldoCiclo">—</span> <span class="v" id="s02ModoFaixa">(R$ 3.000 – R$ 7.999)</span></div></div>
       <span class="badge bg" id="s02ModoBadge">Normal</span>
     </div>
-    <div style="font-size:0.82rem;color:#8bdcb8" id="s02ModoTexto">Cumprir aportes normalmente.</div>
+    <div style="font-size:var(--fs-sm);color:var(--text-dim)" id="s02ModoTexto">Cumprir aportes normalmente.</div>
   </div>
 
   <!-- 3 -->
@@ -375,7 +380,7 @@
   <div class="card-agrupador">
   <div class="grid-2">
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.3rem">Total</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.3rem">Total</div>
       <div class="v" style="font-size:1.7rem;font-weight:700;color:var(--green);margin-bottom:0.7rem" id="patTotal">—</div>
       <div class="row"><span class="k">CC-301 · Reserva de emergência</span><span class="v" id="patReserva">—</span></div>
       <div class="row"><span class="k">CC-302 · BTG/Necton (94 LFTS11)</span><span class="v" id="patBtg">—</span></div>
@@ -384,7 +389,7 @@
       <div class="v" id="legEscolaJulioForaPatrimonio" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
     </div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
       <div class="chart-box"><canvas id="cPatrim"></canvas></div>
     </div>
   </div>
@@ -392,10 +397,10 @@
   <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-top:1.5rem;margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div>
         <div class="v" style="font-size:1.4rem;font-weight:700" id="patPrevidencia">—</div>
       </div>
-      <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+      <span class="badge" style="background:rgba(144,133,233,0.15);color:var(--purple);border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
     </div>
     <div class="v" id="legPGBLDefinicao" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
@@ -403,17 +408,17 @@
   <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">FGTS · Wärtsilä</div>
         <div class="v" style="font-size:1.4rem;font-weight:700" id="patFgts">—</div>
       </div>
-      <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+      <span class="badge" style="background:rgba(144,133,233,0.15);color:var(--purple);border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
     </div>
     <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Conta 198100004332\152579-RJ, admissão 13/02/2012. Saque apenas em hipóteses legais específicas (demissão sem justa causa, aposentadoria, etc) — <strong>não entra no Patrimônio Financeiro nem na Meta do Milhão</strong>, mesmo tratamento do PGBL acima. Saldo total (16/07/2026); sem detalhamento mês a mês ainda.</div>
   </div>
 
   <div class="card" style="border-left:3px solid var(--amber);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div style="font-size:0.72rem;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em">Créditos e Cupons</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em">Créditos e Cupons</div>
       <span class="badge ba">Benefícios, não patrimônio</span>
     </div>
     <div class="grid-2" style="row-gap:0.6rem">
@@ -429,8 +434,8 @@
   <div class="section-num"><span class="n">04</span><h2>Meta do milhão</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Acumulado</div><div class="v" style="font-weight:600" id="patAcumulado">—</div></div>
-      <div style="text-align:right"><div style="font-size:0.72rem;color:var(--text-mid)">Falta</div><div class="v" style="font-weight:600" id="patFalta">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Acumulado</div><div class="v" style="font-weight:600" id="patAcumulado">—</div></div>
+      <div style="text-align:right"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Falta</div><div class="v" style="font-weight:600" id="patFalta">—</div></div>
       <span class="badge bb v" id="patPctBadge">—</span>
     </div>
     <div class="progress"><div class="fill" id="patPctBar" style="width:0%;background:var(--accent)"></div></div>
@@ -439,18 +444,25 @@
   <!-- 5 -->
   <div class="section-num"><span class="n">05</span><h2>📦 Todas as Caixas</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-210 · Caixa Boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxBoletosPct">—</span><span class="v" id="cxBoletosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-103 · PIX Geral Vanessa (conta autônoma dela, PGV)</div><div class="v" style="font-weight:600" id="cxPgvSaldo">—</div><div class="progress"><div class="fill fill-pgv" id="cxPgvBar" style="width:0%"></div></div><div class="progress-lbl"><span class="v" id="cxPgvPct">—</span><span class="v" id="cxPgvMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-305 · Caixa Wartsila</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" id="cxWartsilaBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" id="cxManutBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" id="cxManutPct">—</span><span class="v" id="cxManutMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-205 · Bens Duráveis (eletrônico, roupa, panela)</div><div class="v" style="font-weight:600" id="cxBensDuraveisSaldo">—</div><div class="progress"><div class="fill" id="cxBensDuraveisBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxBensDuraveisPct">—</span><span class="v" id="cxBensDuraveisMeta">—</span></div><span id="cxBensDuraveisAporte" style="display:none">—</span></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" id="cxEventosBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxEventosPct">—</span><span class="v" id="cxEventosMeta">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-304 · Fundo de Suavização Salarial</div><div class="v" style="font-weight:600" id="cxSuavizSaldo">—</div><div class="progress"><div class="fill" id="cxSuavizBar" style="width:0%;background:var(--blue)"></div></div><div class="progress-lbl"><span class="v" id="cxSuavizTxt">—</span><span class="v" id="cxSuavizProLabore">—</span></div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" id="cxSaudeBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudePct">—</span><span class="v" id="cxSaudeMeta">—</span></div><span id="cxSaudeAporteTxt" style="display:none">—</span></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" id="cxAnivBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxAnivPct">—</span><span class="v" id="cxAnivMeta">—</span></div><div style="font-size:0.68rem;color:var(--text-mid)" id="cxAnivPrazo"></div><span id="cxAnivAporteTxt" style="display:none">—</span></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" id="cxSeguroBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroPct">—</span><span class="v" id="cxSeguroMeta">—</span></div><span id="cxSeguroAporteTxt" style="display:none">—</span></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxEscolaPct">—</span><span class="v" id="cxEscolaMeta">—</span></div><div style="font-size:0.68rem;color:var(--text-mid)" id="cxEscolaPrazo"></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-210 · Caixa Boletos</div><div class="v" style="font-weight:600" id="cxBoletosSaldo">—</div><div class="progress"><div class="fill" id="cxBoletosBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxBoletosPct">—</span><span class="v" id="cxBoletosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-102 · PIX Vanessa (reserva do Wallace, PV)</div><div class="v" style="font-weight:600" id="cxPixSaldo">—</div><div class="progress"><div class="fill" id="cxPixBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxPixPct">—</span><span class="v" id="cxPixMeta">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-103 · PIX Geral Vanessa (conta autônoma dela, PGV)</div><div class="v" style="font-weight:600" id="cxPgvSaldo">—</div><div class="progress"><div class="fill fill-pgv" id="cxPgvBar" style="width:0%"></div></div><div class="progress-lbl"><span class="v" id="cxPgvPct">—</span><span class="v" id="cxPgvMeta">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-305 · Caixa Wartsila</div><div class="v" style="font-weight:600" id="cxWartsila">—</div><div class="progress"><div class="fill" id="cxWartsilaBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" style="color:var(--green)" id="cxWartsilaExcedente">—</span><span class="v" id="cxWartsilaProvisionado">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-202 · Manutenção</div><div class="v" style="font-weight:600;color:var(--green)" id="cxManutSaldo">—</div><div class="progress"><div class="fill" id="cxManutBar" style="width:0%;background:var(--green)"></div></div><div class="progress-lbl"><span class="v" id="cxManutPct">—</span><span class="v" id="cxManutMeta">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-205 · Bens Duráveis (eletrônico, roupa, panela)</div><div class="v" style="font-weight:600" id="cxBensDuraveisSaldo">—</div><div class="progress"><div class="fill" id="cxBensDuraveisBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxBensDuraveisPct">—</span><span class="v" id="cxBensDuraveisMeta">—</span></div><span id="cxBensDuraveisAporte" style="display:none">—</span></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-203 · Eventos e Viagens</div><div class="v" style="font-weight:600" id="cxEventosSaldo">—</div><div class="progress"><div class="fill" id="cxEventosBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxEventosPct">—</span><span class="v" id="cxEventosMeta">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-304 · Fundo de Suavização Salarial</div><div class="v" style="font-weight:600" id="cxSuavizSaldo">—</div><div class="progress"><div class="fill" id="cxSuavizBar" style="width:0%;background:var(--blue)"></div></div><div class="progress-lbl"><span class="v" id="cxSuavizTxt">—</span><span class="v" id="cxSuavizProLabore">—</span></div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-206 · Saúde Família</div><div class="v" style="font-weight:600" id="cxSaudeSaldo">—</div><div class="progress"><div class="fill" id="cxSaudeBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSaudePct">—</span><span class="v" id="cxSaudeMeta">—</span></div><span id="cxSaudeAporteTxt" style="display:none">—</span></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-207 · Aniversário Júlio</div><div class="v" style="font-weight:600" id="cxAnivSaldo">—</div><div class="progress"><div class="fill" id="cxAnivBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxAnivPct">—</span><span class="v" id="cxAnivMeta">—</span></div><div style="font-size:0.68rem;color:var(--text-mid)" id="cxAnivPrazo"></div><span id="cxAnivAporteTxt" style="display:none">—</span></div>
+    <!-- CORRIGIDO 14/08/2026 (achado de auditoria de layout: esta é a caixa do meio na 4ª fileira da
+         grade de 3 colunas — as 2 vizinhas, Aniversário Júlio e Escola de Júlio, têm uma linha extra
+         de "prazo" (cxAnivPrazo/cxEscolaPrazo) que esta caixa nunca terá, hydrate-caixas.js não mapeia
+         idPrazo pra "Seguro e Emplacamento" — o grid CSS já estica as 3 alturas da fileira pra bater a
+         maior, mas o conteúdo desta caixa ficava só no topo, sobrando um vão vazio embaixo. Mesmo
+         padrão de correção já usado nos cards dinâmicos de preencherCaixasOperacionaisExtra() acima
+         (visibility:hidden reserva o espaço da linha sem mostrar nada). -->
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-208 · Seguro e Emplacamento</div><div class="v" style="font-weight:600" id="cxSeguroSaldo">—</div><div class="progress"><div class="fill" id="cxSeguroBar" style="width:0%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v" id="cxSeguroPct">—</span><span class="v" id="cxSeguroMeta">—</span></div><div style="font-size:0.68rem;color:var(--text-mid);visibility:hidden">—</div><span id="cxSeguroAporteTxt" style="display:none">—</span></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">CC-204 · Escola de Júlio</div><div class="v" style="font-weight:600" id="cxEscolaSaldo">—</div><div class="progress"><div class="fill" id="cxEscolaBar" style="width:0%;background:var(--amber)"></div></div><div class="progress-lbl"><span class="v" id="cxEscolaPct">—</span><span class="v" id="cxEscolaMeta">—</span></div><div style="font-size:0.68rem;color:var(--text-mid)" id="cxEscolaPrazo"></div></div>
   </div>
   <!-- NOVO 13/08/2026 (pedido do usuário: "todas as caixas nesse lugar", sem nunca faltar nenhuma):
        preenchido dinamicamente por preencherCaixasOperacionaisExtra() (hydrate-caixas.js) com
@@ -463,9 +475,9 @@
   <div class="section-num"><span class="n">06</span><h2>Controle caixa variável</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div class="cv-legend-row" style="margin-bottom:0.3rem">
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">Tem na Caixa</div><div class="v" style="font-weight:600" id="cvSaldoReal">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">(−) Comprometido</div><div class="v" style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
-      <div><div style="font-size:0.7rem;color:var(--text-dim)">(=) Disponível Real</div><div class="v" style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim)">Tem na Caixa</div><div class="v" style="font-weight:600" id="cvSaldoReal">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim)">(−) Comprometido</div><div class="v" style="font-weight:600;color:var(--amber)" id="cvComprometido">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim)">(=) Disponível Real</div><div class="v" style="font-weight:600;color:var(--green)" id="cvDisponivel">—</div></div>
     </div>
     <div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.7rem">Disponível Real = Tem na Caixa − Comprometido. "Tem na Caixa" é o dinheiro existente; "Disponível Real" é o que ainda sobra pra novas despesas.</div>
     <div class="chart-box" style="height:150px"><canvas id="cVariavel"></canvas></div>
@@ -730,9 +742,9 @@
   <!-- 08 -->
   <div class="section-num"><span class="n">08</span><h2>ECC — estouro do ciclo</h2></div>
   <div class="grid-3">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--red)" id="eccStatus">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Disponível (dinheiro real)</div><div class="v" style="font-weight:600" id="eccValor">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Fôlego até o teto da Caixa</div><div class="v" style="font-weight:600" id="eccFolego">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Status</div><div style="font-weight:600;color:var(--red)" id="eccStatus">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Disponível (dinheiro real)</div><div class="v" style="font-weight:600" id="eccValor">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Fôlego até o teto da Caixa</div><div class="v" style="font-weight:600" id="eccFolego">—</div></div>
   </div>
   <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem"><strong>Disponível</strong> = saldo real menos o comprometido (dinheiro que você tem de verdade hoje). <strong>Fôlego</strong> = quanto ainda cabe dentro do teto da própria Caixa Variável (R$2.000, com tolerância se houver) — é o limite estrutural da caixa, não uma escolha de orçamento do dia a dia; pode ser maior ou menor que o Disponível dependendo de quanto dinheiro real você tem. Livro razão detalhado da Caixa Variável (LRCV) está na aba "Livros razão" mais abaixo — não duplicado aqui.</div>
 
@@ -745,8 +757,8 @@
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
       </div>
       <div class="v" id="legVisaAposentado" style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">—</div>
       <div class="v" id="legVisaCorrecaoV207" style="font-size:0.65rem;color:var(--text-dim);margin-bottom:0.6rem;font-style:italic">—</div>
@@ -755,7 +767,7 @@
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="visaLRNaoReconciliado">—</span></div>
     </div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
       <div class="chart-box"><canvas id="cVisa"></canvas></div>
     </div>
   </div>
@@ -765,8 +777,8 @@
   <div class="grid-2">
     <div class="card">
       <div style="display:flex;gap:1.2rem;margin-bottom:0.7rem">
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="mbTotal">—</div></div>
-        <div><div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="mbPessoal">—</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="mbTotal">—</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="mbPessoal">—</div></div>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.6rem">Cartão único do Wallace a partir de 16/07/2026 (regra V39). Assinaturas/recorrências dele migram aos poucos (usuário avisa uma por uma). Vanessa: cartão físico Mastercard Black chegou 20/07/2026 — final real é <strong>6351</strong> (não 2250, que era placeholder), Personnalité adicional, ativo. Compras antigas dela seguem 100% no Visa Infinite (LRV-I); a partir de agora, novas compras no Mastercard Black vão para LRV-MB (ainda vazia).</div>
       <div class="row"><span class="k">Compras Wallace (LRW-MB)</span><span class="v" id="mbLRW">—</span></div>
@@ -779,7 +791,7 @@
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="mbLRNaoReconciliado">R$ 0,00</span></div>
     </div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem">Composição</div>
       <div class="chart-box"><canvas id="cVisaMB"></canvas></div>
     </div>
   </div>
@@ -788,8 +800,8 @@
   <div class="section-num"><span class="n">11</span><h2>Mercado Pago</h2></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Fatura atual (aberta)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="mpFatura">—</div></div>
-      <div style="font-size:0.72rem;color:var(--text-dim)">Fecha 29/07 · Vence 04/08</div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Fatura atual (aberta)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="mpFatura">—</div></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Fecha 29/07 · Vence 04/08</div>
     </div>
     <div class="row"><span class="k">Parcelas próprias (LRMP)</span><span class="v" id="mpProprias">—</span></div>
     <div class="row"><span class="k">Transporte corporativo</span><span class="v" id="mpTransporteCorp">—</span></div>
@@ -799,13 +811,13 @@
   <div class="section-num"><span class="n">12</span><h2>Passivos patrimoniais</h2></div>
   <div class="grid-2">
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid)">Financiamento da casa</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Financiamento da casa</div>
       <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppFinanciamentoCasa">—</div>
-      <div class="v" style="font-size:0.72rem;color:var(--text-dim)" id="ppFinanciamentoDetalhe">—</div>
+      <div class="v" style="font-size:var(--fs-2xs);color:var(--text-dim)" id="ppFinanciamentoDetalhe">—</div>
       <span class="badge bg" style="margin-top:0.5rem">Em dia</span>
     </div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Consórcio auto (AF316 · Cota 346)</div>
       <div class="v" style="font-weight:600;font-size:1.1rem;margin-bottom:0.3rem" id="ppConsorcioAuto">—</div>
       <div class="progress"><div class="fill" id="ppConsorcioAutoBar" style="width:0%;background:var(--green)"></div></div>
       <div class="progress-lbl"><span class="v" id="ppConsorcioAutoPct">—</span><span class="v" id="ppConsorcioAutoParcela">—</span></div>
@@ -817,7 +829,7 @@
   <div class="section-num"><span class="n">13</span><h2>Consórcio casa nova (I0464 · Cota 12)</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Carta de crédito</div><div class="v" style="font-weight:600;font-size:1.1rem" id="ccnCartaCredito">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Carta de crédito</div><div class="v" style="font-weight:600;font-size:1.1rem" id="ccnCartaCredito">—</div></div>
       <span class="badge ba">Não contemplada</span>
     </div>
     <div class="row"><span class="k">Parcela (cartão de crédito)</span><span class="v" id="ccnParcela">—</span></div>
@@ -831,7 +843,7 @@
   <div class="section-num"><span class="n">14</span><h2>Projeto casa nova</h2></div>
   <div class="card" style="border-left:3px solid var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital disponível (LFTS11 + Caixa Lance)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="pcnCapital">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Capital disponível (LFTS11 + Caixa Lance)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="pcnCapital">—</div></div>
       <span class="badge ba v" id="pcnPctBadge">—</span>
     </div>
     <div class="progress"><div class="fill" id="pcnBar" style="width:0%;background:var(--accent)"></div></div>
@@ -842,7 +854,7 @@
   <div class="section-num"><span class="n">16</span><h2>Meta de investimento</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)" class="v">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)" class="v">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
       <span class="badge bg v" id="metaInvBadge">—</span>
     </div>
     <div class="row"><span class="k">Aporte BTG/Necton (neste ciclo)</span><span class="v" style="color:var(--green)" id="metaInvBTG">—</span></div>
@@ -853,12 +865,12 @@
   <!-- 17 -->
   <div class="section-num"><span class="n">17</span><h2>Carteira de opções</h2></div>
   <div class="card">
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
     <div class="grid-2" style="margin-bottom:0.7rem">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Valor de mercado (posições ativas)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesValorMercado">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total bruto (antes dos custos)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesPremioBrutoTotal">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total em custos (corretagem/taxas)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--red)" id="opcoesCustosTotal">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Total líquido recebido</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Valor de mercado (posições ativas)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesValorMercado">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total bruto (antes dos custos)</div><div class="v" style="font-weight:600;font-size:1.1rem" id="opcoesPremioBrutoTotal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total em custos (corretagem/taxas)</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--red)" id="opcoesCustosTotal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total líquido recebido</div><div class="v" style="font-weight:600;font-size:1.1rem;color:var(--green)" id="opcoesPremioTotal">—</div></div>
     </div>
 
     <!-- Módulo 17 (03/08/2026, layout revisado a pedido do usuário): Rentabilidade da Operação (ROC) -
@@ -873,14 +885,14 @@
          Numero principal reduzido de 2rem/var(--accent) pra 1.5rem/var(--text) - continua em destaque
          (maior que o resto do card) mas sem gritar cor/tamanho, badge de status ao lado ja comunica o
          "veredito" (Muito Boa/Boa/etc), o numero nao precisa competir em cor por cima disso. -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:0.9rem;padding:1.1rem 1.3rem">
+    <div class="card" style="margin-top:0.9rem">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.9rem">
-        <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Rentabilidade da Operação (ROC)</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Rentabilidade da Operação (ROC)</div>
         <span class="badge" id="rocStatusBadge">—</span>
       </div>
 
       <div style="display:flex;align-items:baseline;gap:0.7rem;flex-wrap:wrap;padding-bottom:0.9rem;margin-bottom:0.9rem;border-bottom:1px solid var(--border)">
-        <div class="v" style="font-size:1.5rem;font-weight:700;color:var(--text);line-height:1" id="rocRentabilidadeMensal">—</div>
+        <div class="v" style="font-size:var(--fs-2xl);font-weight:700;color:var(--text);line-height:1" id="rocRentabilidadeMensal">—</div>
         <div style="font-size:0.78rem;color:var(--text-mid)">ao mês&nbsp; · &nbsp;<span class="v" style="font-weight:600;color:var(--text)" id="rocComparacaoCDI">—</span>&nbsp; · &nbsp;<span class="v" style="font-weight:600" id="rocRentabilidadeAnualizada">—</span> ao ano</div>
       </div>
 
@@ -944,12 +956,12 @@
   <div class="section-num"><span class="n">18</span><h2>Operações P2P</h2></div>
   <div class="card">
     <div class="grid-4">
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600" id="p2pCreditosRestantes">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
-      <div><div style="font-size:0.72rem;color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600" id="p2pCreditosRestantes">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
     </div>
-    <div class="v" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
+    <div class="v" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
   </div>
 
   <!-- 19 -->
@@ -966,9 +978,9 @@
     <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)" id="reembRecebidos">—</span></div>
     <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600" id="reembAReceber">—</span></div>
     <div class="row" style="border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k" style="font-weight:700">Total do ciclo</span><span class="v" style="font-weight:700" id="reembCicloTotal">—</span></div>
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Recebidos = Total do ciclo − A receber (sobe conforme reembolsos são confirmados). A receber é a última solicitação pendente, ainda sem data de pagamento.</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Recebidos = Total do ciclo − A receber (sobe conforme reembolsos são confirmados). A receber é a última solicitação pendente, ainda sem data de pagamento.</div>
 
-    <div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.8rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-top:0.8rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
     <div style="padding-left:0.7rem;border-left:2px solid var(--border);margin-top:0.4rem">
       <div class="row" style="padding:0.35rem 0"><span class="k">1. Fatura Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
       <div class="row" style="padding:0.35rem 0"><span class="k">2. Corp. Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
@@ -991,9 +1003,9 @@
   <!-- 20 -->
   <div class="section-num"><span class="n">20</span><h2>Indicadores e evolução da necessidade</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:0.66rem;color:var(--text-dim)">—</div></div>
-    <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Necessidade total (bruta)</div><div class="v" style="font-weight:700;font-size:1.2rem;margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:0.66rem;color:var(--text-dim)">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Necessidade total (bruta)</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:0.66rem;color:var(--text-dim)">Total operacional + orçamento operacional. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
   </div>
   <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
@@ -1001,7 +1013,7 @@
       <span class="badge bg">Já garantido: R$ <span class="v" id="s20Garantido">—</span></span>
     </div>
     <div class="v" style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
-    <div class="v" id="legNecessidadeBrutaLiquida" style="font-size:0.72rem;color:var(--text-dim)">—</div>
+    <div class="v" id="legNecessidadeBrutaLiquida" style="font-size:var(--fs-2xs);color:var(--text-dim)">—</div>
   </div>
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -1009,7 +1021,7 @@
       <span class="badge bg v" id="quedaTotalNL">Queda total: —</span>
     </div>
     <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
-    <div class="v" id="legSimulacaoMesAMes" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">—</div>
+    <div class="v" id="legSimulacaoMesAMes" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
@@ -1017,7 +1029,7 @@
       <span class="badge bg v" id="alivioBadgeMar27">—</span>
     </div>
     <div class="chart-box"><canvas id="cEvol"></canvas></div>
-    <div class="v" id="legTotalOperacionalDefinicao" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">—</div>
+    <div class="v" id="legTotalOperacionalDefinicao" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
   <!-- 21 -->
@@ -1051,7 +1063,7 @@
        razao (ver app.js, funcao inboxAprovar). -->
   <div class="section-num"><span class="n">22</span><h2>📥 Inbox Financeira</h2></div>
   <div class="card">
-    <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
     <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
          mais do que ajuda" — decisão: remover o atalho global flutuante, deixar só nos lugares que já
          fazem sentido). Formulário "＋ Lançar" (lancar_transacao_manual, V2) migrado do dock flutuante
@@ -1110,7 +1122,7 @@
     <div class="total-line" style="margin-top:0.35rem;padding-top:0;font-weight:700"><span>Reposição necessária na Caixa Variável</span><span class="v" id="gCVReposicaoLine">—</span></div>
     <!-- CORRIGIDO 13/08/2026 (achado de auditoria: menor texto da aba Gráficos, 0.66rem — subido
          pra 0.7rem, mínimo legível em mobile) -->
-    <div class="v" style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem" id="gCVReposicaoFonte">—</div>
+    <div class="v" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.3rem" id="gCVReposicaoFonte">—</div>
     <div class="total-line" style="margin-top:0.35rem;padding-top:0"><span>(−) Caixa Variável comprometido</span><span class="v" style="color:var(--red)" id="gCVComprometidoLine">—</span></div>
     <div class="total-line" style="margin-top:0.35rem;padding-top:0.35rem;border-top:1px solid var(--border)"><span style="font-weight:700">Líquido não coberto por Caixa Variável</span><span class="v" style="font-weight:700;color:var(--amber)" id="gCartoesLiquidoLine">—</span></div>
   </div>
@@ -1186,26 +1198,26 @@
       </button>
     </div>
     <div id="solarLinkGerado" style="display:none;margin-bottom:0.8rem;padding:0.7rem 0.9rem;background:var(--surface-2);border-radius:var(--radius-lg);font-size:0.78rem;word-break:break-all"></div>
-    <div id="solarLinksAtivos" style="font-size:0.72rem;color:var(--text-dim)"></div>
+    <div id="solarLinksAtivos" style="font-size:var(--fs-2xs);color:var(--text-dim)"></div>
 
     <!-- "Qualidade da geração" - card separado do crédito/rateio. Objetivo único: responder "hoje
     a usina está gerando bem ou mal", sem nenhum termo técnico (código 03/103, saldo líquido, ANEEL,
     rateio). Ver hydrate-onda5-qualidade-geracao.js. -->
     <div class="card" style="border-left:3px solid var(--amber)">
       <div class="grid-2">
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Hoje até agora</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgProducaoHoje">—</div></div>
-        <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)" id="qgLabelReferencia">Último dia completo</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgMediaHistorica">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Hoje até agora</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgProducaoHoje">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)" id="qgLabelReferencia">Último dia completo</div><div class="v" style="font-weight:600;font-size:1.15rem" id="qgMediaHistorica">—</div></div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600;font-size:0.85rem" id="qgStatusHoje">—</div>
       <div style="margin-top:0.3rem;font-weight:600;font-size:0.85rem;color:var(--text-dim)" id="qgStatus">—</div>
-      <div style="font-size:0.72rem;font-weight:600;margin-top:0.4rem" id="qgFrescor">—</div>
+      <div style="font-size:var(--fs-2xs);font-weight:600;margin-top:0.4rem" id="qgFrescor">—</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem" id="qgAviso"></div>
       <!-- NOVO 14/08/2026 (pedido do usuário: "monte esse alerta" — depois de calcular manualmente
            que a geração bruta média (~22,1 kWh/dia) está só ~4,5% acima do consumo total das 3 casas
            vinculadas à usina, margem apertada). Compara o último dia COMPLETO de geração bruta contra
            o consumo diário de referência (fatura Energisa real) de Wallace+Wellida+Casa da Mãe somado
            — ver aplicarOnda5QualidadeGeracao(), hydrate-onda5-qualidade-geracao.js. -->
-      <div style="font-size:0.72rem;font-weight:600;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)" id="qgCoberturaTresCasas">—</div>
+      <div style="font-size:var(--fs-2xs);font-weight:600;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)" id="qgCoberturaTresCasas">—</div>
       <!-- NOVO 11/08/2026 (pedido do usuário: "quero um ícone com a previsão do tempo do momento...
            por exemplo, hoje a geração está baixa, mas está chovendo, então eu vendo esse ícone já sei
            o porque") - clima atual de Campina Grande/PB (Open-Meteo, API pública, sem chave/cadastro),
@@ -1230,25 +1242,25 @@
            diagrama didático, histórico mensal) foi pro <details> "Ver detalhes técnicos" - mesmo dado,
            mesmos cálculos, só deixou de competir visualmente com o que importa no dia a dia. -->
       <div class="card" style="border-left:3px solid var(--green)">
-        <div style="font-size:0.72rem;color:var(--text-mid)">📊 Crédito do ciclo atual (desde o último fechamento)</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">📊 Crédito do ciclo atual (desde o último fechamento)</div>
         <div class="v" style="font-weight:600;font-size:1.4rem" id="ugSaldoLiquido">—</div>
         <div class="v" id="ugAcumuladoDesdeAtivacao" style="font-size:0.68rem;color:var(--text-dim);margin-top:0.3rem">—</div>
         <div class="v" id="ugSaldoLiquidoEstimado" style="display:none;font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid var(--border)">—</div>
       </div>
       <div style="margin-top:0.6rem;font-weight:600" id="ugStatus">—</div>
 
-      <div id="ugAvisosConsistencia" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(226,85,79,0.1);border:1px solid rgba(226,85,79,0.35);border-radius:var(--radius-lg);font-size:0.76rem;line-height:1.5;color:#e2554f"></div>
-      <div id="ugCicloParcial" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(232,166,58,0.1);border:1px solid rgba(232,166,58,0.35);border-radius:var(--radius-lg);font-size:0.76rem;line-height:1.5;color:var(--text)"></div>
+      <div id="ugAvisosConsistencia" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(239,91,86,0.1);border:1px solid rgba(239,91,86,0.35);border-radius:var(--radius-lg);font-size:var(--fs-xs);line-height:1.5;color:var(--red)"></div>
+      <div id="ugCicloParcial" style="display:none;margin-top:0.8rem;padding:0.7rem 0.9rem;background:rgba(234,168,63,0.1);border:1px solid rgba(234,168,63,0.35);border-radius:var(--radius-lg);font-size:var(--fs-xs);line-height:1.5;color:var(--text)"></div>
 
       <details style="margin-top:1rem">
-        <summary style="cursor:pointer;font-weight:600;font-size:0.82rem;color:var(--text-mid);padding:0.4rem 0">Ver detalhes técnicos (importado, exportado, consumo direto, eficiência, histórico)</summary>
+        <summary style="cursor:pointer;font-weight:600;font-size:var(--fs-sm);color:var(--text-mid);padding:0.4rem 0">Ver detalhes técnicos (importado, exportado, consumo direto, eficiência, histórico)</summary>
 
         <div class="grid-2" style="margin-top:0.8rem">
-          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">☀️ Geração acumulada (inversor SAJ)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugGeracaoAcumulada">—</div></div>
-          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugImportado">—</div></div>
-          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugExportado">—</div></div>
-          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏠 Consumo direto das placas</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoDireto">—</div></div>
-          <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">🏡 Consumo total da casa</div><div class="v" style="font-weight:600;font-size:1.05rem" id="ugConsumoTotalCasa">—</div></div>
+          <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">☀️ Geração acumulada (inversor SAJ)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="ugGeracaoAcumulada">—</div></div>
+          <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">⚡ Importado da rede (código 03)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="ugImportado">—</div></div>
+          <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">📤 Exportado (código 103)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="ugExportado">—</div></div>
+          <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">🏠 Consumo direto das placas</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="ugConsumoDireto">—</div></div>
+          <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">🏡 Consumo total da casa</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="ugConsumoTotalCasa">—</div></div>
         </div>
 
         <div style="margin-top:0.9rem;padding:0.8rem;background:var(--surface-2);border-radius:var(--radius-lg);font-size:0.8rem;line-height:1.5" id="ugResumo">—</div>
@@ -1323,7 +1335,7 @@
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">Dois créditos coexistem ao mesmo tempo, sem se misturar: o que já fechou (garantido, vai pra próxima fatura) e o que a usina está gerando agora (só fecha no próximo fechamento da GD).</div>
 
       <div style="font-weight:600;margin-bottom:0.3rem">⚡ Wallace</div>
-      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
       <div class="progress"><div class="fill" id="fechWallaceBar" style="width:0%;background:var(--green)"></div></div>
       <div class="progress-lbl"><span class="v" id="fechWallaceFracao">—</span><span class="v" id="fechWallaceCobertura">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
@@ -1335,7 +1347,7 @@
 
       <div style="border-top:1px dashed var(--surface-2);margin:0.9rem 0"></div>
 
-      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
       <div class="progress"><div class="fill" id="prevWallaceBar" style="width:0%;background:var(--accent)"></div></div>
       <div class="progress-lbl"><span class="v" id="prevWallaceFracao">—</span><span class="v" id="prevWallacePct">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
@@ -1353,7 +1365,7 @@
       <div style="border-top:1px solid var(--surface-2);margin:1.2rem 0"></div>
 
       <div style="font-weight:600;margin-bottom:0.3rem">⚡ Wellida</div>
-      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
       <div class="progress"><div class="fill" id="fechWellidaBar" style="width:0%;background:var(--green)"></div></div>
       <div class="progress-lbl"><span class="v" id="fechWellidaFracao">—</span><span class="v" id="fechWellidaCobertura">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
@@ -1365,7 +1377,7 @@
 
       <div style="border-top:1px dashed var(--surface-2);margin:0.9rem 0"></div>
 
-      <div style="font-size:0.72rem;color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;margin-bottom:0.3rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
       <div class="progress"><div class="fill" id="prevWellidaBar" style="width:0%;background:var(--amber)"></div></div>
       <div class="progress-lbl"><span class="v" id="prevWellidaFracao">—</span><span class="v" id="prevWellidaPct">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
@@ -1389,7 +1401,7 @@
         <div style="font-weight:600">Geração por dia vs. consumo médio das casas</div>
         <button type="button" class="btn-print-secao" data-print-titulo="geracao-por-dia-vs-consumo" title="Baixar este gráfico como JPEG" aria-label="Baixar gráfico Geração por dia como JPEG">⬇</button>
       </div>
-      <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
       <div class="legend-note v" id="legGeracaoPorDia">—</div>
     </div>
@@ -1409,7 +1421,7 @@
          recalculado depois de gravado. -->
     <div class="card" style="margin-top:1rem">
       <div style="font-weight:600;margin-bottom:0.4rem">📁 Histórico de ciclos fechados</div>
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa (evidência obrigatória) — o crédito daquele período fica congelado aqui, e um novo ciclo abre automaticamente.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa (evidência obrigatória) — o crédito daquele período fica congelado aqui, e um novo ciclo abre automaticamente.</div>
       <div id="historicoCiclosSolares">—</div>
     </div>
 
@@ -1426,7 +1438,7 @@
     solares, independente de quanto voce gerar - sempre sobra uma fatura minima. -->
     <div class="card" style="border-left:3px solid var(--amber);margin-top:1rem">
       <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💡 Quanto você ainda vai pagar mesmo com 100% dos créditos</div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a 60% em 2026) é só uma <strong>fatia</strong> dela (~28%) — 60%×28% = 16,8% cobrado, <strong>83,2% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a 60% em 2026) é só uma <strong>fatia</strong> dela (~28%) — 60%×28% = 16,8% cobrado, <strong>83,2% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
       <div id="residualPosSolarTbody" style="overflow-x:auto">—</div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real <strong>soma</strong> Taxa Mínima/Custo de Disponibilidade (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Fio B calculado acima + Iluminação Pública + Encargos setoriais — os 4 juntos, não o maior entre eles. Base sempre a fatura pré-solar mais recente disponível (Ago/26 quando existir).</div>
     </div>
@@ -1446,11 +1458,11 @@
       </div>
       <div class="grid-2">
         <div>
-          <label style="font-size:0.7rem;color:var(--text-mid)">Consumo mensal (kWh)</label>
+          <label style="font-size:var(--fs-label);color:var(--text-mid)">Consumo mensal (kWh)</label>
           <input type="number" id="simConsumo" value="300" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:0.7rem;color:var(--text-mid)">Tipo de ligação</label>
+          <label style="font-size:var(--fs-label);color:var(--text-mid)">Tipo de ligação</label>
           <select id="simLigacao" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
             <option value="MONO">Monofásico (30 kWh)</option>
             <option value="BI">Bifásico (50 kWh)</option>
@@ -1458,15 +1470,15 @@
           </select>
         </div>
         <div>
-          <label style="font-size:0.7rem;color:var(--text-mid)">Geração mensal estimada (kWh)</label>
+          <label style="font-size:var(--fs-label);color:var(--text-mid)">Geração mensal estimada (kWh)</label>
           <input type="number" id="simGeracao" value="850" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:0.7rem;color:var(--text-mid)">Investimento total (R$)</label>
+          <label style="font-size:var(--fs-label);color:var(--text-mid)">Investimento total (R$)</label>
           <input type="number" id="simInvestimento" value="25000" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:0.7rem;color:var(--text-mid)">Período de forecast</label>
+          <label style="font-size:var(--fs-label);color:var(--text-mid)">Período de forecast</label>
           <select id="simMeses" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px;padding:0.4rem;color:var(--text);margin-top:0.2rem">
             <option value="12">12 meses</option>
             <option value="24">24 meses</option>
@@ -1478,8 +1490,8 @@
       <button id="btnCalcularSimulacao" type="button" style="margin-top:0.8rem;padding:0.5rem 1rem;border-radius:var(--radius-lg);background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600">Calcular simulação</button>
 
       <div class="grid-2" style="margin-top:1rem">
-        <div class="card"><div style="font-size:0.7rem;color:var(--text-mid)">Economia acumulada no período</div><div class="v" style="font-weight:600;color:var(--green)" id="simEconomiaAcumulada">—</div></div>
-        <div class="card"><div style="font-size:0.7rem;color:var(--text-mid)">Período simulado</div><div class="v" style="font-weight:600" id="simPeriodo">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-label);color:var(--text-mid)">Economia acumulada no período</div><div class="v" style="font-weight:600;color:var(--green)" id="simEconomiaAcumulada">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-label);color:var(--text-mid)">Período simulado</div><div class="v" style="font-weight:600" id="simPeriodo">—</div></div>
       </div>
 
       <table style="width:100%;margin-top:1rem;font-size:0.75rem;border-collapse:collapse">
@@ -1499,24 +1511,24 @@
     <div class="card">
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.8rem">4 referências: quando você não trabalha, o ponto de empate, sua média real e a média dos seus meses bons. Verde = sobra. Vermelho = falta.</div>
       <div class="chart-box"><canvas id="cCenarioSalario"></canvas></div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong> (do ciclo atual, 25/06-24/07): Necessidade Total (R$<span class="v" id="csNecTotal">—</span>) − Reembolso pessoal, após pagar Wärtsilä + corporativo MP + corporativo cartão (R$<span class="v" id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$<span class="v" id="chMediana">—</span> · Desvio padrão: R$<span class="v" id="chDesvpad">—</span> (44,7% da média — renda muito instável mês a mês).</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong> (do ciclo atual, 25/06-24/07): Necessidade Total (R$<span class="v" id="csNecTotal">—</span>) − Reembolso pessoal, após pagar Wärtsilä + corporativo MP + corporativo cartão (R$<span class="v" id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$<span class="v" id="chMediana">—</span> · Desvio padrão: R$<span class="v" id="chDesvpad">—</span> (44,7% da média — renda muito instável mês a mês).</div>
     </div>
 
     <div class="section-num"><span class="n">02</span><h2>Pontos de virada (dados reais)</h2></div>
     <div class="grid-3" style="margin-bottom:1rem">
       <div class="card" style="border-left:3px solid var(--red)">
-        <div style="font-size:0.72rem;color:var(--text-mid)">Pior mês já recebido</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Pior mês já recebido</div>
         <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--red)" id="chPiorValor">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span class="v" id="chPiorSaldo">—</span>. Modo Crítico — já aconteceu de verdade.</div>
       </div>
       <div class="card" style="border-left:3px solid var(--amber)">
-        <div style="font-size:0.72rem;color:var(--text-mid)">Ponto de equilíbrio (saldo=0)</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Ponto de equilíbrio (saldo=0)</div>
         <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0" id="chEquilibrio">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">4 dos 12 meses reais ficaram abaixo disso.</div>
       </div>
       <div class="card" style="border-left:3px solid var(--green)">
-        <div style="font-size:0.72rem;color:var(--text-mid)">Média real (12 meses)</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Média real (12 meses)</div>
         <div class="v" style="font-weight:700;font-size:1.1rem;margin:0.3rem 0;color:var(--green)" id="chMediaValor">—</div>
         <div style="font-size:0.68rem;color:var(--text-dim)">Saldo do ciclo: <span class="v" id="chMediaSaldo">—</span>. Alto na média — mas com desvio grande.</div>
       </div>
@@ -1546,7 +1558,7 @@
       <div class="v" id="legPisoSemTrabalhar" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
       <div class="chart-box tall"><canvas id="cPisoSemTrabalhar"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
-        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
             <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Não trabalha: fórmula validada</th>
@@ -1564,17 +1576,17 @@
       <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Dois cenários: pagando tudo normalmente (Necessidade Total) vs. desemprego extremo, cortando tudo que dá e pagando só o piso do campo 03.</div>
       <div class="grid-2" style="margin-bottom:0.8rem">
         <div class="card" style="border-left:3px solid var(--amber)">
-          <div style="font-size:0.72rem;color:var(--text-mid)">Cenário normal (paga tudo)</div>
-          <div class="v" style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resNormalValor">—</div>
+          <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Cenário normal (paga tudo)</div>
+          <div class="v" style="font-weight:700;font-size:var(--fs-xl);margin:0.3rem 0" id="resNormalValor">—</div>
           <div style="font-weight:600;color:var(--amber)" id="resNormalCiclos">—</div>
         </div>
         <div class="card" style="border-left:3px solid var(--red)">
-          <div style="font-size:0.72rem;color:var(--text-mid)">Desemprego extremo (só o piso)</div>
-          <div class="v" style="font-weight:700;font-size:1.2rem;margin:0.3rem 0" id="resExtremoValor">—</div>
+          <div style="font-size:var(--fs-2xs);color:var(--text-mid)">Desemprego extremo (só o piso)</div>
+          <div class="v" style="font-weight:700;font-size:var(--fs-xl);margin:0.3rem 0" id="resExtremoValor">—</div>
           <div style="font-weight:600;color:var(--red)" id="resExtremoCiclos">—</div>
         </div>
       </div>
-      <div style="font-size:0.72rem;color:var(--text-dim)">Reserva atual: R$<span class="v" id="resAtual">—</span>. No cenário de desemprego total (cortando Custos Variáveis, PIX Vanessa e todas as caixas patrimoniais, pagando só Boletos+Parcelas+Assinaturas+Recorrências+Consórcios+MP pessoal), a Reserva aguenta <span id="resDiffMeses">—</span> meses a mais que pagando tudo normal. Regra do sistema: Reserva de Emergência e Escola de Júlio nunca podem ser credoras de empréstimo interno, nem nesse cenário.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Reserva atual: R$<span class="v" id="resAtual">—</span>. No cenário de desemprego total (cortando Custos Variáveis, PIX Vanessa e todas as caixas patrimoniais, pagando só Boletos+Parcelas+Assinaturas+Recorrências+Consórcios+MP pessoal), a Reserva aguenta <span id="resDiffMeses">—</span> meses a mais que pagando tudo normal. Regra do sistema: Reserva de Emergência e Escola de Júlio nunca podem ser credoras de empréstimo interno, nem nesse cenário.</div>
     </div>
 
     <div class="section-num"><span class="n">06</span><h2>Estimador de Salário do Mês</h2></div>
@@ -1583,30 +1595,30 @@
 
       <div style="background:var(--surface-2);border-radius:var(--radius-lg);padding:0.8rem 0.9rem;margin-bottom:0.9rem">
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Status</span><span class="v" style="color:var(--green)" id="estStatusFonte">Ciclo 25/07 a Ago/26 · Real recebido</span></div>
-        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Líquido projetado</span><span class="v" style="font-weight:700;font-size:1.05rem" id="estLiquido">—</span></div>
+        <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Líquido projetado</span><span class="v" style="font-weight:700;font-size:var(--fs-lg)" id="estLiquido">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0"><span class="k">Necessidade Líquida do ciclo 25/07</span><span class="v" id="estNecLiquida">—</span></div>
         <div class="row" style="border:none;padding:0.15rem 0 0"><span class="k" style="font-weight:600">Excedente estimado</span><span class="v" style="color:var(--green);font-weight:700" id="estExcedente">—</span></div>
       </div>
 
-      <div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Fórmula exata (alta confiança)</div>
+      <div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Fórmula exata (alta confiança)</div>
       <div class="grid-3" style="margin-bottom:0.7rem;row-gap:0.7rem">
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Periculosidade Campo II</div><div class="v" style="font-weight:600;font-size:0.82rem">30% do base</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Adicional Supervisão</div><div class="v" style="font-weight:600;font-size:0.82rem">5% do base</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Previdência PGBL</div><div class="v" style="font-weight:600;font-size:0.82rem">6,000% exato</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">INSS (teto atual)</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 988,07</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">IRRF</div><div class="v" style="font-weight:600;font-size:0.82rem">27,5% − R$908,73</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Saúde/Dental fixo</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 382,67</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Periculosidade Campo II</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">30% do base</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Adicional Supervisão</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">5% do base</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Previdência PGBL</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">6,000% exato</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">INSS (teto atual)</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 988,07</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">IRRF</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">27,5% − R$908,73</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Saúde/Dental fixo</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 382,67</div></div>
       </div>
       <div class="v" id="legCoparticipacaoSaude" style="font-size:0.68rem;color:var(--amber);margin-bottom:0.9rem">—</div>
 
-      <div class="v" id="legTaxasPorHoraAviso" style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">—</div>
+      <div class="v" id="legTaxasPorHoraAviso" style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">—</div>
       <div class="grid-3" style="row-gap:0.7rem">
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 50%</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 121,50/h</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 100%</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 160,62/h</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Banco de horas 50%</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 123,44/h</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Adicional noturno</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 15,97/h</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Sobreaviso</div><div class="v" style="font-weight:600;font-size:0.82rem">R$ 72,76/h</div></div>
-        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">DSR (sempre aplica)</div><div style="font-weight:600;font-size:0.82rem">×1,20</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 50%</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 121,50/h</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Hora extra 100%</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 160,62/h</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem" class="v">Banco de horas 50%</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 123,44/h</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Adicional noturno</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 15,97/h</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">Sobreaviso</div><div class="v" style="font-weight:600;font-size:var(--fs-sm)">R$ 72,76/h</div></div>
+        <div><div style="font-size:0.66rem;color:var(--text-dim);margin-bottom:0.15rem">DSR (sempre aplica)</div><div style="font-weight:600;font-size:var(--fs-sm)">×1,20</div></div>
       </div>
       <div class="v legend-note" id="legCenarioFicaEmCasa">—</div>
     </div>
@@ -1620,7 +1632,7 @@
       <div class="v" id="legDeficitSemEmbarque" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">—</div>
       <div class="chart-box tall"><canvas id="cDeficitZero"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
-        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
             <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Salário base + 35% garantido</th>
@@ -1638,7 +1650,7 @@
       <div id="legSuperavitNormal" style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Cenário normal (paga tudo): confronta o líquido de cada ciclo contra a Necessidade <strong>Líquida</strong> (boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional, menos a Cobertura Garantida real do ciclo atual) — não o piso essencial. —</div>
       <div class="chart-box tall"><canvas id="cSuperavitNormal"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
-        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
             <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Líquido</th>
@@ -1683,16 +1695,16 @@
 
     <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:0.72rem;color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
-        <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
+        <span class="badge" style="background:rgba(144,133,233,0.15);color:var(--purple);border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Igual ao INSS — só desconta do salário, não é gestão ativa do Wallace. Aparece aqui junto ao patrimônio para visibilidade, mas <strong>não entra no total do Patrimônio Financeiro nem na Meta do Milhão</strong> (que é patrimônio líquido de gestão ativa dele).</div>
     </div>
 
     <div class="card" style="border-left:3px solid var(--purple, #9085e9);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:0.72rem;color:var(--text-mid)">FGTS · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
-        <span class="badge bg" style="background:rgba(144,133,233,0.15);color:#9085e9;border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">FGTS · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
+        <span class="badge" style="background:rgba(144,133,233,0.15);color:var(--purple);border:1px solid rgba(144,133,233,0.3)">Não líquido</span>
       </div>
       <div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.5rem">Mesmo tratamento do PGBL — recurso compulsório, saque condicionado, não gerido ativamente. Não entra no total do Patrimônio Financeiro nem na Meta do Milhão.</div>
     </div>
@@ -1720,9 +1732,9 @@
 
     <!-- NOVO 05/08/2026 (parte 97, pedido do usuario: campo abaixo do menu 04 somando fisico + financeiro + previdencia + FGTS -->
     <div class="card" style="border-left:3px solid var(--green);margin-top:0.6rem">
-      <div class="row" style="font-weight:700;font-size:1.05rem"><span class="k">Valor total (Físico + Financeiro + Previdência + FGTS, líquido de passivos)</span><span class="v" style="color:var(--green)" id="balPatrimonioTotalGeral">—</span></div>
+      <div class="row" style="font-weight:700;font-size:var(--fs-lg)"><span class="k">Valor total (Físico + Financeiro + Previdência + FGTS, líquido de passivos)</span><span class="v" style="color:var(--green)" id="balPatrimonioTotalGeral">—</span></div>
       <div class="v" style="font-size:0.66rem;color:var(--text-dim);margin-top:0.3rem">Diferente do "Patrimônio Líquido" acima — este soma também PGBL (previdência) e FGTS, que ficam de fora do total oficial e da Meta do Milhão porque não são resgatáveis livremente.</div>
-      <div class="v" id="balPatrimonioTotalFaixa" style="font-size:0.72rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)">—</div>
+      <div class="v" id="balPatrimonioTotalFaixa" style="font-size:var(--fs-2xs);margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)">—</div>
     </div>
 
     <!-- 5 -->
@@ -1771,7 +1783,7 @@
          Card próprio + 1 legenda combinada (era 3 parágrafos separados); nota de migração de
          25/07/2026 removida (histórico já resolvido, sem relevância pra decisão nenhuma hoje). -->
     <div class="card" style="margin-top:0.6rem">
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.5rem">🔄 Reembolsável pela Wärtsilá — não soma no Total obrigações acima</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.5rem">🔄 Reembolsável pela Wärtsilá — não soma no Total obrigações acima</div>
       <div class="row"><span class="k">Corporativo Mercado Pago (ciclo atual)</span><span class="v" id="balObrWartsila">—</span></div>
       <div class="row" style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px dashed var(--border)"><span class="k" style="color:var(--text-dim)">Pendente acumulado <span class="badge ba" style="margin-left:0.4rem;font-size:0.62rem">Só informativo</span></span><span class="v" id="balReembolsoWartsilaAcumulado" style="color:var(--text-dim)">—</span></div>
       <div style="font-size:0.66rem;color:var(--amber);margin-top:0.4rem">Corporativo do ciclo = despesas MP corporativas por competência (independe de fatura paga). Pendente acumulado = histórico, zera só quando a Wärtsilá reembolsar de fato — ⚠ falta confirmar se as viagens Recife/JP que o compõem já estão no Amount Due Employee da Wärtsilá.</div>
@@ -1809,15 +1821,15 @@
          número em destaque — fica como detalhe secundário, recolhido no fim do card. -->
     <div class="section-num"><span class="n">10</span><h2>📈 Crescimento Patrimonial</h2></div>
     <div class="card">
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Mede quanto o patrimônio líquido cresceu de verdade entre o fechamento do ciclo anterior e agora — não quanto entrou de renda.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Mede quanto o patrimônio líquido cresceu de verdade entre o fechamento do ciclo anterior e agora — não quanto entrou de renda.</div>
       <div class="row"><span class="k">Patrimônio inicial (fechamento do ciclo anterior)</span><span class="v" id="crescPatrimInicial">—</span></div>
       <div class="row"><span class="k">Patrimônio atual</span><span class="v" id="crescPatrimAtual">—</span></div>
       <div class="row" style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.3rem"><span class="k" style="font-weight:600;color:var(--text)">Variação</span><span class="v" id="crescPatrimDelta" style="font-weight:700">—</span></div>
     </div>
 
     <div class="card" style="margin-top:0.8rem">
-      <div class="section-num" style="margin-bottom:0.5rem"><h2 style="font-size:0.95rem">💰 Taxa de Poupança</h2></div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.6rem">Quanto da renda total (tudo que entrou) sobrou depois de todas as despesas (tudo que saiu, sem exceção — bens duráveis e gastos avulsos contam como gasto real).</div>
+      <div class="section-num" style="margin-bottom:0.5rem"><h2 style="font-size:var(--fs-md)">💰 Taxa de Poupança</h2></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Quanto da renda total (tudo que entrou) sobrou depois de todas as despesas (tudo que saiu, sem exceção — bens duráveis e gastos avulsos contam como gasto real).</div>
       <div class="row"><span class="k">Receitas totais</span><span class="v" id="poupancaReceitas">—</span></div>
       <div class="row"><span class="k">Despesas totais</span><span class="v" id="poupancaDespesas">—</span></div>
       <div class="row" style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.3rem"><span class="k" style="font-weight:600;color:var(--text)">Sobrou</span><span class="v" id="poupancaSobrou" style="font-weight:700">—</span></div>
@@ -1862,14 +1874,14 @@
 
     <div class="section-num"><span class="n">02</span><h2>💉 Aplicações do Ozivy</h2></div>
     <div class="grid-3" style="margin-bottom:1rem">
-      <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Total de aplicações</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozTotalAplicacoes">—</div></div>
-      <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Última aplicação</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozUltimaAplicacao">—</div></div>
-      <div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">Próxima prevista (7 dias)</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozProximaPrevista">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total de aplicações</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozTotalAplicacoes">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Última aplicação</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozUltimaAplicacao">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Próxima prevista (7 dias)</div><div class="v" style="font-weight:600;font-size:1.4rem" id="ozProximaPrevista">—</div></div>
     </div>
     <div class="card" style="margin-bottom:1rem">
       <div class="chart-box"><canvas id="cOzivyDose"></canvas></div>
       <div style="overflow-x:auto;margin-top:0.8rem">
-        <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Data</th>
             <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Dose</th>
@@ -1997,6 +2009,40 @@ function __carregarScriptsParalelo(caminhos){
     });
   }));
 }
+
+// NOVO 14/08/2026 (auditoria de performance de boot, achado novo — NÃO é a contenção de thread
+// entre Ondas já investigada e fechada em sessão anterior, é atraso de REDE): app.js,
+// energia-solar.js, promocoes-financeengine.js e os 6 módulos de "promessaModulosIndependentes"
+// (mais abaixo) só ganham sua tag <script> depois de uma cadeia em série (Promise.all dos ~91
+// módulos base + ~14 fetches ao Supabase + os 2 módulos isolados via fetch/new Function -> ENTÃO
+// app.js -> onload -> ENTÃO energia-solar.js -> onload -> ENTÃO estes 6 + promocoes) — cada elo só
+// descobre a URL do próximo quando o anterior termina de EXECUTAR, então o navegador só começa a
+// BAIXAR cada um desses arquivos nesse momento, mesmo sendo estático e a URL (caminho + __V) já
+// 100% conhecida desde a linha acima. <link rel=preload as=script> resolve isso sem mudar NENHUMA
+// ordem de execução (a serialização documentada acima continua idêntica) — só avisa o navegador
+// pra já começar o download em paralelo com os ~105 requests que já estão em voo, então quando a
+// vez de cada um desses 9 arquivos chegar de verdade na cadeia, o download já está pronto (ou bem
+// adiantado) e só falta executar. Maior ganho em mobile (RTT alto: cada elo desta cadeia hoje paga
+// 1 round-trip de rede cheio antes mesmo de começar a baixar).
+(function __preloadScriptsFinaisDaCadeia(){
+  [
+    'src/app/app.js',
+    'src/solar/energia-solar.js',
+    'src/app/promocoes-financeengine.js',
+    'src/dashboard/navigation/dashboard-navegacao.js',
+    'src/dashboard/navigation/ui-navegacao-basica.js',
+    'src/dashboard/widgets/ui-componentes-visuais.js',
+    'src/dashboard/charts/graficos-cenarios-lazy.js',
+    'src/dashboard/navigation/filtro-livros-razao.js',
+    'src/dashboard/widgets/contagem-abas-livros-razao.js'
+  ].forEach(function(src){
+    var link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'script';
+    link.href = src + '?v=' + __V;
+    document.head.appendChild(link);
+  });
+})();
 
 window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/investimentos/opcoes-roc.js',

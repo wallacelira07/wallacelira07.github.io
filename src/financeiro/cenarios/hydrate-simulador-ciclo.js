@@ -113,7 +113,7 @@ function hydrateSimuladorCiclo(){
   const eccStatusEl = $('eccStatus');
   if(eccStatusEl){
     eccStatusEl.textContent = cv.disponivel >= 0 ? 'RESOLVIDO' : (folego >= 0 ? 'ATIVO (dentro da tolerância)' : 'ATIVO (estourou a tolerância)');
-    eccStatusEl.style.color = cv.disponivel >= 0 ? '#34c98a' : (folego >= 0 ? '#e8a63a' : '#e2554f');
+    eccStatusEl.style.color = cv.disponivel >= 0 ? 'var(--green)' : (folego >= 0 ? 'var(--amber)' : 'var(--red)');
   }
   set('eccValor', fmt(cv.disponivel));
   set('eccFolego', fmt(folego));
@@ -136,12 +136,12 @@ function hydrateSimuladorCiclo(){
   const faltaEl = $('simFalta');
   if(faltaEl){
     faltaEl.textContent = faltaCobrir > 0 ? fmt(faltaCobrir) : 'R$ 0,00 (coberto)';
-    faltaEl.style.color = faltaCobrir > 0 ? '#e2554f' : '#34c98a';
+    faltaEl.style.color = faltaCobrir > 0 ? 'var(--red)' : 'var(--green)';
   }
   const folegoEl = $('simFolego');
   if(folegoEl){
     folegoEl.textContent = fmt(cv.disponivel); // CORRIGIDO 26/07/2026 (V182, usuario apontou "Folego ate teto errado"): antes mostrava tetoEfetivo-comprometido (fôlego contra o TETO OFICIAL de R$2.000, sempre igual mesmo com saldo real menor) - renomeado para "Disponível real hoje" e agora mostra cv.disponivel (saldoReal-comprometido), a mesma metrica do card Caixa Variavel acima, sem ambiguidade.
-    folegoEl.style.color = cv.disponivel >= 0 ? '#34c98a' : '#e2554f';
+    folegoEl.style.color = cv.disponivel >= 0 ? 'var(--green)' : 'var(--red)';
   }
   // NOVO 12/08/2026 (ver comentário de estouroTeto acima): quinto valor do card, mostra o estouro
   // contra o TETO PLANEJADO (sempre <= "Falta cobrir" em módulo, já que o teto pode ser maior que o
@@ -149,7 +149,7 @@ function hydrateSimuladorCiclo(){
   const estouroTetoEl = $('simEstouroTeto');
   if(estouroTetoEl){
     estouroTetoEl.textContent = estouroTeto > 0 ? fmt(estouroTeto) : 'Dentro do teto';
-    estouroTetoEl.style.color = estouroTeto > 0 ? '#e2554f' : '#34c98a';
+    estouroTetoEl.style.color = estouroTeto > 0 ? 'var(--red)' : 'var(--green)';
   }
   // NOVO 26/07/2026 (V182): "cadê o valor que possa gastar por dia?" - a descricao do card ja
   // prometia "ritmo sugerido por dia" (Politicas sec.15) mas nunca foi implementado. Disponivel real
@@ -181,7 +181,7 @@ function hydrateSimuladorCiclo(){
       const fraseTeto = estouroTeto > 0
         ? ` Isso já inclui <strong>${fmt(estouroTeto)}</strong> de estouro do teto do mês (${fmt(tetoEfetivo)}) — o resto (${fmt(Math.round((faltaCobrir-estouroTeto)*100)/100)}) é aporte do mês que ainda não caiu na caixa.`
         : ` Ainda dentro do teto do mês (${fmt(tetoEfetivo)}) — só falta o aporte cair na caixa.`;
-      msgEl.innerHTML = `<strong style="color:#e2554f">Falta ${fmt(faltaCobrir)}</strong> para cobrir o comprometido — tem ${fmt(cv.saldoReal)} na caixa contra ${fmt(cv.comprometido)} comprometido.${fraseTeto} Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
+      msgEl.innerHTML = `<strong style="color:var(--red)">Falta ${fmt(faltaCobrir)}</strong> para cobrir o comprometido — tem ${fmt(cv.saldoReal)} na caixa contra ${fmt(cv.comprometido)} comprometido.${fraseTeto} Recomposição prevista via reembolso Wärtsilä ou salário de 25/07.`;
     }
   }
 

@@ -76,9 +76,36 @@ function inicializarBotoesPrintSecao(){
   });
 }
 
+// CORRIGIDO 14/08/2026 (auditoria de performance mobile: html2canvas saiu do <script defer> do
+// <head> - antes baixava ~200KB pra TODO boot do painel, mesmo pra quem nunca clica em nenhum botão
+// de download JPEG. Carrega a lib pela CDN só na hora do 1º clique em qualquer botão de print (deste
+// arquivo inteiro, os 2 pontos de entrada são inicializarBotoesPrintSecao()/
+// inicializarBotoesPrintCardAvulso(), ambos chamam baixarSecaoComoJPEG()). _promiseHtml2Canvas
+// memoiza a promise pra cliques seguintes reusarem o mesmo <script> já carregado, nunca injeta 2x.
+var _promiseHtml2Canvas = null;
+function carregarHtml2CanvasSobDemanda(){
+  if (typeof html2canvas !== 'undefined') return Promise.resolve();
+  if (_promiseHtml2Canvas) return _promiseHtml2Canvas;
+  _promiseHtml2Canvas = new Promise(function(resolve, reject){
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = function(){ resolve(); };
+    script.onerror = function(){ _promiseHtml2Canvas = null; reject(new Error('falha ao carregar html2canvas')); };
+    document.head.appendChild(script);
+  });
+  return _promiseHtml2Canvas;
+}
+
 function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   if (typeof html2canvas === 'undefined'){
-    alert('A biblioteca de captura ainda está carregando. Tenta de novo em alguns segundos.');
+    if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
+    carregarHtml2CanvasSobDemanda().then(function(){
+      baixarSecaoComoJPEG(card, num, titulo, btnOrigem);
+    }).catch(function(err){
+      console.error('Erro ao carregar html2canvas sob demanda', err);
+      alert('Não consegui carregar a biblioteca de captura. Confira sua conexão e tenta de novo.');
+      if (btnOrigem){ btnOrigem.disabled = false; btnOrigem.textContent = '⬇'; }
+    });
     return;
   }
   if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }

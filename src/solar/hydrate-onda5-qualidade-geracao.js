@@ -127,9 +127,9 @@ async function aplicarOnda5QualidadeGeracao(){
   let percentual = null, status = null;
   if(media){
     percentual = Math.round((diaReferencia.kwh / media) * 1000) / 10;
-    if(percentual < limiteBaixo) status = { emoji:'🔴', texto:'Abaixo do esperado', cor:'#e2554f' };
-    else if(percentual > limiteAlto) status = { emoji:'🟢', texto:'Acima do esperado', cor:'#34c98a' };
-    else status = { emoji:'🟡', texto:'Dentro do esperado', cor:'#e8a63a' };
+    if(percentual < limiteBaixo) status = { emoji:'🔴', texto:'Abaixo do esperado', cor:'var(--red)' };
+    else if(percentual > limiteAlto) status = { emoji:'🟢', texto:'Acima do esperado', cor:'var(--green)' };
+    else status = { emoji:'🟡', texto:'Dentro do esperado', cor:'var(--amber)' };
   }
   const elStatus = $('qgStatus');
   if(elStatus){
@@ -165,9 +165,9 @@ async function aplicarOnda5QualidadeGeracao(){
       const percentualHoje = esperadoAteAgora > 0 ? Math.round((registroHoje.kwh / esperadoAteAgora) * 1000) / 10 : null;
       let statusHoje;
       if(percentualHoje === null) statusHoje = { emoji:'🟡', texto:'Dentro do esperado' };
-      else if(percentualHoje < limiteBaixo) statusHoje = { emoji:'🔴', texto:'Abaixo do esperado', cor:'#e2554f' };
-      else if(percentualHoje > limiteAlto) statusHoje = { emoji:'🟢', texto:'Acima do esperado', cor:'#34c98a' };
-      else statusHoje = { emoji:'🟡', texto:'Dentro do esperado', cor:'#e8a63a' };
+      else if(percentualHoje < limiteBaixo) statusHoje = { emoji:'🔴', texto:'Abaixo do esperado', cor:'var(--red)' };
+      else if(percentualHoje > limiteAlto) statusHoje = { emoji:'🟢', texto:'Acima do esperado', cor:'var(--green)' };
+      else statusHoje = { emoji:'🟡', texto:'Dentro do esperado', cor:'var(--amber)' };
       const pctTxt = percentualHoje !== null ? ` (${percentualHoje.toLocaleString('pt-BR',{maximumFractionDigits:1})}% do esperado até agora, estimativa)` : '';
       elStatusHoje.textContent = 'Hoje: '+statusHoje.emoji+' '+statusHoje.texto+pctTxt;
       elStatusHoje.style.color = statusHoje.cor || '';
@@ -223,9 +223,9 @@ async function aplicarOnda5QualidadeGeracao(){
       const margemPct = consumoTotal3Casas > 0 ? Math.round(((diaReferencia.kwh - consumoTotal3Casas) / consumoTotal3Casas) * 1000) / 10 : null;
       let statusCobertura;
       if(margemPct === null) statusCobertura = { emoji:'🟡', texto:'Sem referência de consumo suficiente pra comparar', cor:'var(--text-dim)' };
-      else if(margemPct < 0) statusCobertura = { emoji:'🔴', texto:`Geração ABAIXO do consumo total das 3 casas (${Math.abs(margemPct).toLocaleString('pt-BR',{maximumFractionDigits:1})}% a menos)`, cor:'#e2554f' };
-      else if(margemPct < 10) statusCobertura = { emoji:'🟡', texto:`Geração cobre as 3 casas, mas com margem apertada (só ${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% de folga)`, cor:'#e8a63a' };
-      else statusCobertura = { emoji:'🟢', texto:`Geração cobre as 3 casas com folga confortável (${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% acima do consumo total)`, cor:'#34c98a' };
+      else if(margemPct < 0) statusCobertura = { emoji:'🔴', texto:`Geração ABAIXO do consumo total das 3 casas (${Math.abs(margemPct).toLocaleString('pt-BR',{maximumFractionDigits:1})}% a menos)`, cor:'var(--red)' };
+      else if(margemPct < 10) statusCobertura = { emoji:'🟡', texto:`Geração cobre as 3 casas, mas com margem apertada (só ${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% de folga)`, cor:'var(--amber)' };
+      else statusCobertura = { emoji:'🟢', texto:`Geração cobre as 3 casas com folga confortável (${margemPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% acima do consumo total)`, cor:'var(--green)' };
       elCobertura.textContent = statusCobertura.emoji+' '+statusCobertura.texto+` — ${fmtKwh(diaReferencia.kwh)} gerados × ${fmtKwh(consumoTotal3Casas)} consumidos (Wallace+Wellida+Casa da Mãe, ${dd}/${mm})`;
       elCobertura.style.color = statusCobertura.cor;
       window.WALLACE_ONDA5_COBERTURA_3_CASAS = { kwhGerado: diaReferencia.kwh, consumoTotal3Casas, margemPct, dia: diaReferencia.data };
