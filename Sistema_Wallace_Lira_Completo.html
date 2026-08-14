@@ -1286,23 +1286,7 @@
       </details>
     </div>
 
-    <div class="section-num"><span class="n">03</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
-    <div class="card">
-      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>
-      <div class="chart-box tall"><canvas id="cSolarRateio"></canvas></div>
-      <div class="legend-note v" id="legSolarRateio">—</div>
-    </div>
-
-    <!-- Histórico real de ciclos fechados (ciclos_solares, status='fechado') — cada linha é um
-         fechamento oficial confirmado com evidência (leitura + fatura Energisa real), nunca
-         recalculado depois de gravado. -->
-    <div class="card" style="margin-top:1rem">
-      <div style="font-weight:600;margin-bottom:0.4rem">📁 Histórico de ciclos fechados</div>
-      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa (evidência obrigatória) — o crédito daquele período fica congelado aqui, e um novo ciclo abre automaticamente.</div>
-      <div id="historicoCiclosSolares">—</div>
-    </div>
-
-    <div class="section-num"><span class="n">04</span><h2>📈 Crédito garantido vs. crédito em formação</h2></div>
+    <div class="section-num"><span class="n">03</span><h2>📈 Crédito garantido vs. crédito em formação</h2></div>
     <div class="card">
       <!-- CORRIGIDO 11/08/2026 (pedido do usuário: "Ajuste Conceitual da Seção 'Previsão até a
            Próxima Leitura'" - documento anexado) - a seção antiga misturava 2 eventos diferentes:
@@ -1376,7 +1360,7 @@
       <div class="legend-note" style="font-size:0.68rem;margin-top:0.7rem">Leitura/fatura Wallace (apartamento): dia 21 do mês (janela 19-21). Leitura/fatura Wellida (casa da mãe): dia 8 do mês (janela 06-09) — mesmo dia do fechamento da GD. 🟢 no ritmo (média ≥ necessário pra fechar a meta) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%) — status do Fluxo 2 (em formação), não do Fluxo 1 (já fechado).</div>
     </div>
 
-    <div class="section-num"><span class="n">05</span><h2>☀️ Geração diária</h2></div>
+    <div class="section-num"><span class="n">04</span><h2>☀️ Geração diária</h2></div>
     <div class="card">
       <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem">
         <div style="font-weight:600">Geração por dia vs. consumo médio das casas</div>
@@ -1385,6 +1369,25 @@
       <div style="font-size:0.76rem;color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
       <div class="legend-note v" id="legGeracaoPorDia">—</div>
+    </div>
+
+    <!-- NOVO 14/08/2026 (pedido do usuário: "coloque o menu 3 abaixo do 05" — bloco "Rateio Solar"
+         movido pra cá, depois de "Geração diária"; renumerado de 03 pra 05 pra manter a sequência
+         visual 02,03,04,05,06,07 na nova ordem física. Conteúdo idêntico, só a posição mudou. -->
+    <div class="section-num"><span class="n">05</span><h2>Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</h2></div>
+    <div class="card">
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (código 103 − código 03 do medidor bidirecional da casa da mãe) vs. consumo esperado, mês a mês. Consumo de cada casa vem da fatura Energisa real dos últimos 12 meses (Wallace e Wellida). Meses sem leitura ainda ficam sem barra de crédito.</div>
+      <div class="chart-box tall"><canvas id="cSolarRateio"></canvas></div>
+      <div class="legend-note v" id="legSolarRateio">—</div>
+    </div>
+
+    <!-- Histórico real de ciclos fechados (ciclos_solares, status='fechado') — cada linha é um
+         fechamento oficial confirmado com evidência (leitura + fatura Energisa real), nunca
+         recalculado depois de gravado. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📁 Histórico de ciclos fechados</div>
+      <div style="font-size:0.72rem;color:var(--text-mid);margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa (evidência obrigatória) — o crédito daquele período fica congelado aqui, e um novo ciclo abre automaticamente.</div>
+      <div id="historicoCiclosSolares">—</div>
     </div>
 
     <div class="section-num"><span class="n">06</span><h2>Economia antes × depois (apartamento)</h2></div>
