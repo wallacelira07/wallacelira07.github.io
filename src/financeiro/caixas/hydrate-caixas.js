@@ -133,7 +133,14 @@ async function preencherCaixasOperacionaisExtra(){
   // vez de esconder o bloco inteiro, pra manter a mesma altura de card em toda a grade.
   // CC-209 atribuído 13/08/2026 (pedido do usuário: "crie" um código pra Emagrecimento, mesma
   // faixa 200 dos custos operacionais mensais pessoais - Saúde=206/Aniversário=207/Seguro=208).
-  const PREFIXO_CC = { 'Caixa Lance': 'CC-303 · ', 'Emagrecimento': 'CC-209 · ' };
+  // CC-210 a CC-214 atribuídos 14/08/2026 (achado do usuário via print: cards novos destoando dos
+  // outros por não terem "CC-XXX · " na frente do nome, mesma classe do achado de 13/08 que gerou
+  // o CC-209) - próximos números livres da mesma faixa 2xx (custos operacionais pessoais).
+  const PREFIXO_CC = {
+    'Caixa Lance': 'CC-303 · ', 'Emagrecimento': 'CC-209 · ',
+    'Caixa Mercado Pago': 'CC-211 · ', 'Caixa Mastercard_Infinite': 'CC-212 · ',
+    'Caixa Churrasco': 'CC-213 · ', 'Caixa Combustível': 'CC-214 · ',
+  };
   const mapaTeto = {};
   (Array.isArray(tetos) ? tetos : []).forEach(t => { mapaTeto[t.nome] = Number(t.teto_mensal); });
   // NAO usar $() aqui - $(id) memoiza (DOM[id] ||= document.getElementById(id)) e fica com
