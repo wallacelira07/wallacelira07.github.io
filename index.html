@@ -943,6 +943,175 @@
             return _promiseJsPDF;
         }
 
+        // NOVO 14/08/2026 (pedido do usuário, depois de ver o resultado: "o pdf que você fez está
+        // muito pobre" — mandou um print de referência, relatório corporativo com faixa de cabeçalho
+        // colorida, cards de KPI com número grande e cards de seção com header colorido). Reescrito
+        // do zero: era só texto corrido (título + linhas label/valor soltas), agora usa as primitivas
+        // de desenho do jsPDF (rect/roundedRect com fill) pra montar faixa de cabeçalho, 3 cards de
+        // KPI em destaque (extraídos das próprias seções coletadas — mesmo dado, só resaltado) e cada
+        // seção como um card com barra de título colorida + linhas com fundo alternado. Paleta clara
+        // (fundo branco, acentos na mesma cor de marca do site — --accent #4c8ef2, --green #34c98a)
+        // porque é um documento pra imprimir/ler fora da tela, não o tema escuro do painel.
+        const PDF_COR_MARCA = [76, 142, 242];       // --accent
+        const PDF_COR_MARCA_ESCURA = [30, 41, 59];  // faixa de cabeçalho
+        const PDF_COR_VERDE = [52, 201, 138];       // --green
+        const PDF_COR_TEXTO = [30, 34, 40];
+        const PDF_COR_TEXTO_DIM = [120, 126, 135];
+        const PDF_COR_LINHA_PAR = [246, 248, 251];
+
+        // CORRIGIDO 14/08/2026 (achado ao testar visualmente, antes de publicar: emojis dos títulos
+        // de seção — "🔄", "📦" etc — e a seta "→" do período do ciclo viravam lixo/mojibake no PDF
+        // ("Ø=Ý", "!'"). Causa: as fontes padrão do jsPDF (Helvetica/Times/Courier, WinAnsiEncoding)
+        // não têm glifo pra emoji nem pra alguns símbolos Unicode fora do latin-1 — cada caractere
+        // sem glifo é desenhado como bytes soltos em vez de ser ignorado. Sanitiza removendo emoji
+        // (todas as faixas Unicode comuns de emoji/símbolo/seta) antes de qualquer doc.text(), só na
+        // hora de desenhar — os dados originais (usados pra achar KPI por título exato, por exemplo)
+        // continuam intactos.
+        function pdfSanitizarTexto(txt) {
+            if (txt == null) return '';
+            return String(txt)
+                .replace(/→/g, '->')
+                .replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}️‍]/gu, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        // Procura uma linha específica (por label) dentro de uma seção coletada, pra destacar como
+        // KPI — não recalcula nada, só reaproveita o mesmo par label/valor que coletarDadosRelatorio
+        // Fechamento() já leu do DOM. Retorna null se a seção/linha não existir (relatório nunca
+        // quebra por um KPI faltando, só deixa de mostrar aquele card).
+        function pdfPegarKpi(secoes, tituloSecao, labelLinha) {
+            const secao = secoes.find(function (s) { return s.titulo === tituloSecao; });
+            if (!secao) return null;
+            const linha = secao.linhas.find(function (l) { return l.label === labelLinha; });
+            return linha ? linha.valor : null;
+        }
+
+        function gerarPdfRelatorioFechamento(dados) {
+            const jsPDF = window.jspdf.jsPDF;
+            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+            const margem = 40;
+            const larguraPagina = doc.internal.pageSize.getWidth();
+            const alturaPagina = doc.internal.pageSize.getHeight();
+            const larguraUtil = larguraPagina - margem * 2;
+
+            function novaPaginaSeNecessario(alturaBloco) {
+                if (y + alturaBloco > alturaPagina - margem) {
+                    doc.addPage();
+                    y = margem;
+                }
+            }
+
+            // ===== Faixa de cabeçalho =====
+            doc.setFillColor.apply(doc, PDF_COR_MARCA_ESCURA);
+            doc.rect(0, 0, larguraPagina, 92, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(19);
+            doc.text('Sistema Wallace Lira', margem, 42);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Relatório de Fechamento', margem, 62);
+            doc.setFontSize(9);
+            doc.setTextColor(190, 200, 215);
+            doc.text(pdfSanitizarTexto('Ciclo ' + dados.cicloAtual + '  ·  gerado em ' + dados.geradoEm), margem, 78);
+            doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+
+            let y = 122;
+
+            // ===== KPIs em destaque =====
+            const kpis = [
+                { lbl: 'Patrimônio Líquido', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido'), cor: PDF_COR_MARCA },
+                { lbl: 'Modo operacional', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Modo operacional'), cor: PDF_COR_VERDE },
+                { lbl: 'Total obrigações', val: pdfPegarKpi(dados.secoes, '🔄 Obrigações Operacionais', 'Total obrigações'), cor: [239, 91, 86] },
+            ].filter(function (k) { return k.val; });
+
+            if (kpis.length) {
+                const gap = 14;
+                const largKpi = (larguraUtil - gap * (kpis.length - 1)) / kpis.length;
+                const altKpi = 58;
+                kpis.forEach(function (k, i) {
+                    const x = margem + i * (largKpi + gap);
+                    doc.setFillColor(249, 250, 252);
+                    doc.setDrawColor(226, 230, 236);
+                    doc.roundedRect(x, y, largKpi, altKpi, 6, 6, 'FD');
+                    doc.setFillColor.apply(doc, k.cor);
+                    doc.roundedRect(x, y, 4, altKpi, 2, 2, 'F');
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8.5);
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
+                    doc.text(pdfSanitizarTexto(k.lbl).toUpperCase(), x + 14, y + 20);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(14);
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+                    const valorAjustado = doc.splitTextToSize(pdfSanitizarTexto(k.val), largKpi - 20)[0];
+                    doc.text(valorAjustado, x + 14, y + 42);
+                });
+                y += altKpi + 26;
+            }
+
+            // ===== Cards de seção =====
+            dados.secoes.forEach(function (secao) {
+                novaPaginaSeNecessario(46);
+                // header colorido do card
+                doc.setFillColor(238, 243, 252);
+                doc.roundedRect(margem, y, larguraUtil, 24, 4, 4, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor.apply(doc, PDF_COR_MARCA_ESCURA);
+                doc.text(pdfSanitizarTexto(secao.titulo), margem + 10, y + 16);
+                y += 24;
+
+                if (!secao.linhas.length) {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
+                    doc.text(pdfSanitizarTexto(secao.erro || 'Sem dados.'), margem + 10, y + 16);
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+                    y += 26;
+                    return;
+                }
+
+                const larguraLabel = larguraUtil * 0.62;
+                doc.setFontSize(9);
+                secao.linhas.forEach(function (linha, idx) {
+                    doc.setFont('helvetica', 'normal');
+                    const labelLinhas = doc.splitTextToSize(pdfSanitizarTexto(linha.label), larguraLabel - 20);
+                    const alturaLinha = Math.max(15, labelLinhas.length * 11 + 4);
+                    novaPaginaSeNecessario(alturaLinha);
+                    if (idx % 2 === 0) {
+                        doc.setFillColor.apply(doc, PDF_COR_LINHA_PAR);
+                        doc.rect(margem, y, larguraUtil, alturaLinha, 'F');
+                    }
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
+                    labelLinhas.forEach(function (l, i) {
+                        doc.text(l, margem + 10, y + 10 + i * 11);
+                    });
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor.apply(doc, PDF_COR_TEXTO);
+                    doc.text(pdfSanitizarTexto(linha.valor), larguraPagina - margem - 8, y + 10, { align: 'right' });
+                    y += alturaLinha;
+                });
+                y += 18;
+            });
+
+            // ===== Rodapé (todas as páginas) =====
+            const totalPaginas = doc.internal.getNumberOfPages();
+            for (let p = 1; p <= totalPaginas; p++) {
+                doc.setPage(p);
+                doc.setDrawColor(226, 230, 236);
+                doc.line(margem, alturaPagina - 34, larguraPagina - margem, alturaPagina - 34);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor.apply(doc, PDF_COR_TEXTO_DIM);
+                doc.text('Sistema Wallace Lira — relatório gerado automaticamente, só leitura.', margem, alturaPagina - 20);
+                doc.text('Página ' + p + ' de ' + totalPaginas, larguraPagina - margem, alturaPagina - 20, { align: 'right' });
+            }
+
+            const nomeArquivo = 'relatorio-fechamento-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
+            doc.save(nomeArquivo);
+        }
+
         function gerarRelatorioFechamentoPDF() {
             const btn = document.getElementById('btnRelatorioPdfHeader');
             const iframe = document.getElementById('mainIframe');
@@ -953,63 +1122,7 @@
             if (btn) btn.disabled = true;
             _carregarJsPdfSobDemanda().then(function () {
                 const dados = iframe.contentWindow.coletarDadosRelatorioFechamento();
-                const jsPDF = window.jspdf.jsPDF;
-                const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-                const margem = 40;
-                const larguraPagina = doc.internal.pageSize.getWidth();
-                const alturaPagina = doc.internal.pageSize.getHeight();
-                const larguraLabel = (larguraPagina - margem * 2) * 0.62;
-                let y = margem;
-
-                function novaLinha(altura) {
-                    y += altura;
-                    if (y > alturaPagina - margem) {
-                        doc.addPage();
-                        y = margem;
-                    }
-                }
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.text('Sistema Wallace Lira — Relatório de Fechamento', margem, y);
-                novaLinha(20);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(120);
-                doc.text('Ciclo ' + dados.cicloAtual + ' · gerado em ' + dados.geradoEm, margem, y);
-                doc.setTextColor(0);
-                novaLinha(24);
-
-                dados.secoes.forEach(function (secao) {
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(12);
-                    doc.text(secao.titulo, margem, y);
-                    novaLinha(6);
-                    doc.setDrawColor(210);
-                    doc.line(margem, y, larguraPagina - margem, y);
-                    novaLinha(14);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9.5);
-                    if (!secao.linhas.length) {
-                        doc.setTextColor(150);
-                        doc.text(secao.erro || 'Sem dados.', margem, y);
-                        doc.setTextColor(0);
-                        novaLinha(18);
-                        return;
-                    }
-                    secao.linhas.forEach(function (linha) {
-                        const labelLinhas = doc.splitTextToSize(linha.label, larguraLabel);
-                        labelLinhas.forEach(function (l, i) {
-                            doc.text(l, margem, y);
-                            if (i === 0) doc.text(linha.valor, larguraPagina - margem, y, { align: 'right' });
-                            novaLinha(12.5);
-                        });
-                    });
-                    novaLinha(8);
-                });
-
-                const nomeArquivo = 'relatorio-fechamento-wallace-lira-' + new Date().toISOString().slice(0, 10) + '.pdf';
-                doc.save(nomeArquivo);
+                gerarPdfRelatorioFechamento(dados);
             }).catch(function (err) {
                 console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);
                 alert('Não consegui gerar o relatório — confere sua conexão e tenta de novo.');

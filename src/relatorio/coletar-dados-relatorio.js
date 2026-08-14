@@ -52,6 +52,32 @@ function _extrairLinhasSecao(elSectionNum){
   return linhas;
 }
 
+// CORRIGIDO 14/08/2026 (achado do usuário testando o PDF real: "Todas as Caixas" saía vazia — nem
+// Boletos, nem nenhuma caixa apareciam). Causa: essa seção NÃO usa o padrão .row/.k/.v do resto do
+// site — cada caixa é um `.card` "achatado" (`<div class="card"><div>label</div><div class="v">
+// valor</div><div class="progress">...</div>...</div>`), sem wrapper `.row`. Extrator alternativo,
+// só pra esse formato: label = primeiro filho direto do card que não é o valor nem a barra de
+// progresso; valor = primeiro `.v` FILHO DIRETO do card (via :scope, pra não pegar os `.v` da
+// barra/progress-lbl, que são % e meta, não o saldo).
+function _extrairLinhasCards(elSectionNum){
+  const linhas = [];
+  let el = elSectionNum.nextElementSibling;
+  while(el && !el.classList.contains('section-num')){
+    el.querySelectorAll('.card').forEach(card => {
+      const valEl = card.querySelector(':scope > .v');
+      if(!valEl) return;
+      const labelEl = Array.from(card.children).find(c =>
+        c !== valEl && !c.classList.contains('progress') && !c.classList.contains('progress-lbl'));
+      if(!labelEl) return;
+      const label = labelEl.textContent.trim().replace(/\s+/g, ' ');
+      const valor = valEl.textContent.trim().replace(/\s+/g, ' ');
+      if(label && valor && valor !== '—') linhas.push({ label, valor });
+    });
+    el = el.nextElementSibling;
+  }
+  return linhas;
+}
+
 function coletarDadosRelatorioFechamento(){
   const secoes = SECOES_RELATORIO_FECHAMENTO.map(titulo => {
     // busca em TODO o documento (não só a aba ativa) - os headings são únicos o suficiente
@@ -61,7 +87,11 @@ function coletarDadosRelatorioFechamento(){
     if(!heading){
       return { titulo, linhas: [], erro: 'Seção não encontrada no DOM (título pode ter mudado).' };
     }
-    const linhas = _extrairLinhasSecao(heading.closest('.section-num'));
+    // tenta o padrão .row/.k/.v primeiro (maioria das seções); só cai pro padrão de cards "achatados"
+    // (Todas as Caixas) se o primeiro não achar nada — evita ter que hardcodar qual seção usa qual
+    // formato, e continua funcionando se outra seção futura tiver a mesma estrutura de cards.
+    let linhas = _extrairLinhasSecao(heading.closest('.section-num'));
+    if(!linhas.length) linhas = _extrairLinhasCards(heading.closest('.section-num'));
     return { titulo, linhas };
   });
 

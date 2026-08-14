@@ -384,7 +384,7 @@ async function carregar(){
     const creditoIrmaAtual = Math.round(creditoLiquidoCiclo * rateioIrma * 100) / 100;
     const diasDesdeInicioCiclo = Math.max(0, Math.round((Date.now() - new Date(ciclo.data_inicio).getTime()) / 86400000));
     const { dias: diasRestantesGD, data: proximoFechamentoGD } = calcularDiasRestantesGD(DIA_LEITURA_GD);
-    const periodoTxt = fmtData(ciclo.data_inicio) + ' → previsto ' + proximoFechamentoGD.toLocaleDateString('pt-BR');
+    const periodoTxt = fmtData(ciclo.data_inicio) + ' → ' + proximoFechamentoGD.toLocaleDateString('pt-BR');
 
     function montarPrevisao(meta, creditoAtual, corBarra, rateioTxt){
       const creditoRestante = Math.round((meta-creditoAtual)*100)/100;

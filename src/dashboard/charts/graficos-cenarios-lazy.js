@@ -2111,7 +2111,7 @@ async function _lazyRenderSolarSecao(){
         return prox;
       })();
       const fmtDataBrDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
-      const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → previsto '+fmtDataBrDate(proximoFechamentoGD);
+      const periodoTxt = fmtDataBr(cicloSolarAberto.data_inicio)+' → '+fmtDataBrDate(proximoFechamentoGD);
       // CORRIGIDO 14/08/2026 (achado do usuário: "o dia deve ser sempre dia 08 que é o da leitura do
       // GD" — DIA_LEITURA_WALLACE (21) é a leitura do APARTAMENTO do Wallace pela Energisa, sobre
       // CONSUMO, sem nenhuma relação com quando o ciclo de GERAÇÃO (a usina, na Casa da Mãe) fecha.
