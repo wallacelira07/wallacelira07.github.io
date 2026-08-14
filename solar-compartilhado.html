@@ -49,6 +49,12 @@
   .credito-casa:last-child{margin-bottom:0}
   .credito-fluxo-lbl{font-size:0.68rem;color:var(--text-dim);font-weight:600;margin-bottom:0.2rem}
   .credito-fracao{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:0.4rem}
+  /* NOVO 14/08/2026 (pedido do usuário: "quero esse formato, com os cards e não solto como está
+     agora") — mini-cards com borda pra cada estatística de Fluxo 1/2, igual ao grid-3 de
+     `<div class="card">` do painel privado (screenshot do usuário). Fundo levemente mais claro que
+     o --panel do card externo, senão os 2 fundiam visualmente (mesma cor). */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.6rem;margin-top:0.6rem}
+  .stat-box{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem}
   /* NOVO 12/08/2026 (pedido do usuário: "coloque a previsão do tempo também") — mesma fonte
      (Open-Meteo) e coordenadas de src/solar/hydrate-clima-solar.js (painel privado), reimplementado
      aqui sem dependências porque esta página é autocontida. Fica FORA de #app de propósito: não
@@ -313,7 +319,15 @@ async function carregar(){
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
 
   // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
-  const geracaoHojeReg = geracaoDiaria.length ? geracaoDiaria[geracaoDiaria.length - 1] : null;
+  // CORRIGIDO 14/08/2026 (achado do usuário: "após 00hs deveria mostrar outra coisa até o primeiro
+  // dado do SAJ do dia" — o card mostrava o último registro do array como se fosse "hoje", mesmo
+  // depois da virada do dia, quando na verdade ainda é a geração de ONTEM, só ainda não tem leitura
+  // nova porque o robô só roda das 6h às 18h de Brasília). Mesmo truque de fuso já usado em
+  // hydrate-onda5-qualidade-geracao.js (painel privado): desloca -3h e compara a data, só mostra o
+  // registro se a data bater com "hoje" de Brasília de verdade.
+  const hojeStrBrasilia = new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10);
+  const ultimoRegistroGeracao = geracaoDiaria.length ? geracaoDiaria[geracaoDiaria.length - 1] : null;
+  const geracaoHojeReg = (ultimoRegistroGeracao && ultimoRegistroGeracao.data === hojeStrBrasilia) ? ultimoRegistroGeracao : null;
 
   const importadoAcum = ultima ? ultima.leitura03 : null;
   const exportadoAcum = ultima ? ultima.leitura103 : null;
@@ -428,10 +442,10 @@ async function carregar(){
       <div class="credito-fluxo-lbl">🔒 Fluxo 1 — crédito fechado, garantido pra próxima conta</div>
       <div class="progress"><div class="progress-fill" style="width:${dadosFluxo1.pct}%;background:${dadosFluxo1.faltam<=0?'var(--green)':'var(--amber)'}"></div></div>
       <div class="credito-fracao"><span>${fmtKwh(dadosFluxo1.creditoFechado)} / ${fmtKwh(dadosFluxo1.meta)}</span><span>${fmtPct(dadosFluxo1.cobertura)}</span></div>
-      <div class="grid" style="margin-top:0.6rem;gap:0.6rem">
-        <div><div class="stat-lbl">Fechado em</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo1.dataFimTxt}</div></div>
-        <div><div class="stat-lbl">Meta</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo1.meta)}</div></div>
-        <div><div class="stat-lbl">Faltam</div><div class="stat-val" style="font-size:0.92rem;color:${dadosFluxo1.faltam>0?'var(--amber)':'var(--green)'}">${dadosFluxo1.faltam>0 ? fmtKwh(dadosFluxo1.faltam) : 'Cobre com sobra'}</div></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-lbl">Fechado em</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo1.dataFimTxt}</div></div>
+        <div class="stat-box"><div class="stat-lbl">Meta</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo1.meta)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">Faltam (se negativo)</div><div class="stat-val" style="font-size:0.92rem;color:${dadosFluxo1.faltam>0?'var(--amber)':'var(--green)'}">${dadosFluxo1.faltam>0 ? fmtKwh(dadosFluxo1.faltam) : 'Cobre com sobra de '+fmtKwh(Math.abs(dadosFluxo1.faltam))}</div></div>
       </div>
       <div class="stat-sub" style="margin-top:0.5rem">Este valor não muda mais — é o que a Energisa vai abater na fatura que fecha por volta do dia ${dadosFluxo1.diaFatura}.</div>
     ` : `<div class="stat-sub">Sem ciclo fechado ainda.</div>`;
@@ -439,17 +453,15 @@ async function carregar(){
       <div class="credito-fluxo-lbl" style="margin-top:1.1rem">🌱 Fluxo 2 — GD atual, crédito em formação</div>
       <div class="progress"><div class="progress-fill" style="width:${dadosFluxo2.pct}%;background:${dadosFluxo2.corBarra}"></div></div>
       <div class="credito-fracao"><span>${fmtKwh(dadosFluxo2.creditoAtual)} / ${fmtKwh(dadosFluxo2.meta)} (meta do mês, referência)</span><span>${dadosFluxo2.pct}%</span></div>
-      <div class="grid" style="margin-top:0.6rem;gap:0.6rem">
-        <div><div class="stat-lbl">Período</div><div class="stat-val" style="font-size:0.8rem">${dadosFluxo2.periodoTxt}</div></div>
-        <div><div class="stat-lbl">Rateio</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo2.rateioTxt}</div></div>
-        <div><div class="stat-lbl">Média atual</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.mediaRealizada)}/dia</div></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-lbl">Período</div><div class="stat-val" style="font-size:0.8rem">${dadosFluxo2.periodoTxt}</div></div>
+        <div class="stat-box"><div class="stat-lbl">Rateio ${nome}</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo2.rateioTxt}</div></div>
+        <div class="stat-box"><div class="stat-lbl">Média atual</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.mediaRealizada)}/dia</div></div>
+        <div class="stat-box"><div class="stat-lbl">Dias restantes (GD)</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo2.diasRestantesGD} dias</div></div>
+        <div class="stat-box"><div class="stat-lbl">Necessário/dia</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.mediaNecessaria)}/dia</div></div>
+        <div class="stat-box"><div class="stat-lbl">Previsão de fechamento</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.previsao)}</div></div>
       </div>
-      <div class="grid" style="margin-top:0.5rem;gap:0.6rem">
-        <div><div class="stat-lbl">Dias restantes (GD)</div><div class="stat-val" style="font-size:0.92rem">${dadosFluxo2.diasRestantesGD} dias</div></div>
-        <div><div class="stat-lbl">Necessário/dia</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.mediaNecessaria)}/dia</div></div>
-        <div><div class="stat-lbl">Previsão de fechamento</div><div class="stat-val" style="font-size:0.92rem">${fmtKwh(dadosFluxo2.previsao)}</div></div>
-      </div>
-      <div style="margin-top:0.5rem;font-weight:600;font-size:0.8rem;color:${dadosFluxo2.status.cor}">${dadosFluxo2.status.emoji} ${dadosFluxo2.status.texto} <span style="color:var(--text-dim);font-weight:400">(ritmo de geração desta GD)</span></div>
+      <div style="margin-top:0.6rem;font-weight:600;font-size:0.8rem;color:${dadosFluxo2.status.cor}">${dadosFluxo2.status.emoji} ${dadosFluxo2.status.texto} <span style="color:var(--text-dim);font-weight:400">(ritmo de geração desta GD)</span></div>
     ` : `<div class="stat-sub" style="margin-top:0.9rem">⚠ Sem ciclo aberto no momento.</div>`;
     return `<div class="credito-casa"><div style="font-weight:600;margin-bottom:0.4rem">⚡ ${nome}</div>${f1}${f2}</div>`;
   }
@@ -461,6 +473,7 @@ async function carregar(){
       ${montarBlocoCasa('Wallace', fluxo1 && fluxo1.wallace, fluxo2 && fluxo2.wallace)}
       <div style="border-top:1px solid var(--border);margin:1rem 0"></div>
       ${montarBlocoCasa('Wellida', fluxo1 && fluxo1.wellida, fluxo2 && fluxo2.wellida)}
+      <div class="stat-sub" style="margin-top:0.9rem;padding-top:0.7rem;border-top:1px solid var(--border)">Leitura/fatura Wallace (apartamento): dia 21 do mês (janela 19-21). Leitura/fatura Wellida (casa da mãe): dia 8 do mês (janela 06-09) — mesmo dia do fechamento da GD. 🟢 no ritmo (média ≥ necessário pra fechar a meta) · 🟡 atenção (déficit menor que 10%) · 🔴 atrasado (déficit maior que 10%) — status do Fluxo 2 (em formação), não do Fluxo 1 (já fechado).</div>
     </div>
   ` : '';
 
