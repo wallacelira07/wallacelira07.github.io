@@ -145,14 +145,12 @@ async function preencherCaixasOperacionaisExtra(){
     const titulo = (PREFIXO_CC[c.caixa_nome] || '') + c.caixa_nome;
     const teto = mapaTeto[c.caixa_nome];
     const temMeta = teto > 0;
-    // CORRIGIDO 13/08/2026 (achado do usuário: "caixas sem barra" - as sem meta mostravam uma
-    // barra vazia/cinza fixa em 0%, parecendo quebrada). Sem meta cadastrada, não renderiza a
-    // barra nem a linha de %/valor nenhuma - só título e saldo, igual as outras "sem meta" fazem
-    // sentido mostrar (nada pra comparar o saldo contra).
-    const blocoMeta = temMeta ? (() => {
-      const pct = Math.max(0, Math.min(100, saldo/teto*100));
-      return `<div class="progress"><div class="fill" style="width:${pct}%;background:var(--accent)"></div></div><div class="progress-lbl"><span class="v">${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span><span class="v">${fmt(teto)}</span></div>`;
-    })() : '';
+    // CORRIGIDO 13/08/2026 (achado do usuário: sem barra o card fica mais baixo que os outros,
+    // grade com alturas desiguais - visibility:hidden reserva o mesmo espaço sem mostrar nada,
+    // em vez de omitir o bloco inteiro ou mostrar uma barra vazia/cinza "quebrada").
+    const pct = temMeta ? Math.max(0, Math.min(100, saldo/teto*100)) : 0;
+    const estiloOculto = temMeta ? '' : 'style="visibility:hidden"';
+    const blocoMeta = `<div class="progress" ${estiloOculto}><div class="fill" style="width:${pct}%;background:var(--accent)"></div></div><div class="progress-lbl" ${estiloOculto}><span class="v">${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span><span class="v">${temMeta?fmt(teto):''}</span></div>`;
     return `<div class="card"><div style="font-size:0.72rem;color:var(--text-mid)">${titulo}</div><div class="v" style="font-weight:600" ${estiloValor}>${fmt(saldo)}</div>${blocoMeta}</div>`;
   }).join('');
   // Liga o mesmo tooltip de composição (hover/toque) que os 12 cards estáticos já têm - função
