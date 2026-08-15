@@ -46,6 +46,16 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 
+# NOVO 15/08/2026 (Fase 1 do WWI_ROADMAP_V1.md — rastreabilidade de metodologia, pedido explícito
+# do usuário: "toda mudança de metodologia de cálculo é rastreável"). Bump manual toda vez que a
+# fórmula do Wealth Score (pesos, sub-scores, guardas) mudar de verdade — não é automático de
+# propósito, precisa ser uma decisão consciente de quem edita a fórmula. Histórico de versões:
+#   wwi-methodology-2026-08-15 — protecaoPatrimonial corrigido (era idêntico a endividamento, agora
+#   debt-to-equity); organizacaoFinanceira/construcaoPatrimonial implementados neste motor (antes
+#   sempre None); guard patrimonioLiquido>0 explícito em protecaoPatrimonial/investimentos.
+METODOLOGIA_VERSAO = "wwi-methodology-2026-08-15"
+
+
 def _mes_anterior(competencia: str) -> str:
     """'2026-08' -> '2026-07', '2026-01' -> '2025-12'. Usado pra buscar o patrimônio líquido do
     fechamento do ciclo anterior em pib_wallace_historico (ver construcaoPatrimonial abaixo)."""
@@ -246,7 +256,8 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         "disciplinaFinanceira": None,
     }
 
-    return {"wealthScore": wealth_score, "subscores": subscores, "indices": indices, "indicadoresBrutos": indicadores_brutos}
+    return {"wealthScore": wealth_score, "subscores": subscores, "indices": indices,
+            "indicadoresBrutos": indicadores_brutos, "metodologiaVersao": METODOLOGIA_VERSAO}
 
 
 def gerar_narrativa(indicadores: dict) -> dict:

@@ -173,3 +173,38 @@ Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois d
 **Nomenclatura confirmada com o usuário (15/08/2026, 2ª rodada)**: Fase 2 cobre "evolução patrimonial automática, análises de tendência, parecer executivo baseado em histórico" — mesmo escopo já descrito nas seções 4/5 acima (snapshot patrimonial consolidado + card de evolução), só reafirmando os termos de negócio. Fase 3 cobre "geração completa do Tactical Wealth Report, PDF premium, persistência das análises geradas" — mesmo escopo do "relatório executivo automático" já descrito, usando o nome do artefato original (Tactical Wealth Report) que deu origem ao WWI.
 
 **Este documento não implementa nada ainda.** Roadmap validado pelo usuário — aguardando autorização explícita pra começar a escrever código/migration da Fase 1 (itens 2-3 acima, os únicos sem dependência restante).
+
+---
+
+## 10. Relatório de execução — itens 1 e 2 da Fase 1 (15/08/2026)
+
+Autorizado pelo usuário com diretrizes explícitas: não alterar cálculos/Wealth Score/geração de relatórios/fluxos financeiros existentes, sem refatoração oportunista. Os 2 itens abaixo são estritamente aditivos.
+
+### 1. `metodologia_versao`
+
+**O que foi feito**: campo `metodologiaVersao` (string) adicionado dentro de `dados_json` (JSON, não é coluna nova na tabela — nenhum `ALTER TABLE`). Valor atual: `"wwi-methodology-2026-08-15"`.
+- Linha existente (`2026-07`, já reprocessada): `UPDATE` direto, campo adicionado retroativamente.
+- Motor Python (`wwi_gerar_relatorio_mensal.py`): constante `METODOLOGIA_VERSAO` nova, incluída no dicionário que `coletar_indicadores()` retorna — toda linha nova gravada pelo job mensal a partir de agora já nasce com o campo, sem ação manual. Bump é **manual e consciente** (comentário no código documenta quando/por que mudar), não automático — decisão deliberada pra evitar que uma mudança de fórmula passe despercebida.
+- **Nada foi tocado em `gerar-analise-financeira.js` (motor JS)** — fora de escopo desta etapa, sem necessidade (o JS não persiste narrativa hoje, só o Python grava).
+
+**Tabelas/views afetadas**: `historico_relatorios` (só o conteúdo de `dados_json`, schema já era `jsonb`, sem migration de schema).
+
+**Riscos identificados**: nenhum — campo aditivo, nenhuma leitura existente depende da ausência dele, nenhum cálculo foi tocado.
+
+**Evidência de funcionamento**: `SELECT dados_json->>'metodologiaVersao' FROM historico_relatorios WHERE competencia='2026-07'` retorna `wwi-methodology-2026-08-15`. `python -m py_compile` no script Python confirmou sintaxe válida após a mudança.
+
+### 2. `vw_wwi_comparativo_mensal`
+
+**O que foi feito**: view nova (`CREATE OR REPLACE VIEW`), leitura pura sobre `historico_relatorios`, com `security_invoker=true` explícito. Calcula, por competência: delta M/M (mês a mês), T/T (trimestre a trimestre, comparando o fechamento de cada trimestre) e A/A (ano a ano, comparando o fechamento de cada ano) de `score` e `patrimonioLiquido`, além de sinalizar quando a `metodologia_versao` mudou em relação ao mês anterior (`metodologia_mudou_desde_mes_anterior`). Todas as colunas de delta (M/M, T/T, A/A) existem desde já, mesmo com 1 única competência real — evita quebra de compatibilidade quando a série crescer, como pedido.
+
+**Tabelas/views afetadas**: `vw_wwi_comparativo_mensal` (nova). Nenhuma tabela existente foi alterada — a view só lê `historico_relatorios`, não escreve nada em lugar nenhum.
+
+**Riscos identificados**: nenhum de segurança (view lê a mesma tabela já protegida por RLS + `security_invoker` garante que a política de acesso de quem consulta a view é respeitada, não a de quem criou a view). Risco funcional único, já mitigado: com poucos pontos históricos, os deltas T/T e A/A comparam **fechamentos de período** (última competência de cada trimestre/ano), não médias — comportamento correto e documentado, mas deve ser lembrado ao interpretar quando houver mais dado.
+
+**Evidência de funcionamento**:
+1. Com o dado real (1 linha, `2026-07`): `SELECT * FROM vw_wwi_comparativo_mensal` retornou a linha esperada com **todos os deltas `null`** — comportamento correto, nenhuma comparação fabricada.
+2. Teste com 2ª linha sintética (`2026-08`, score 65, patrimônio R$480.000) dentro de `BEGIN`/`ROLLBACK` (nunca persistida): a view calculou corretamente `score_mes_anterior=58`, `delta_score_mom=7`, `delta_patrimonio_mom=8.541,69`, `delta_patrimonio_mom_pct=1,81%`. Confirmado depois que `SELECT count(*) FROM historico_relatorios` voltou a `1` — nenhum resíduo do teste ficou no banco.
+
+---
+
+**Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).
