@@ -13,14 +13,16 @@ não via scraping de DOM (este script não tem navegador). Grava via RPC `wwi_up
 download no navegador só LÊ o que este job já persistiu (ou gera uma narrativa temporária, só pra
 exibir, se este job ainda não rodou neste ciclo — nunca persiste do navegador).
 
-LIMITAÇÃO CONHECIDA, documentada de propósito (nunca fabricar dado que não existe): alguns campos
-que o coletor de DOM consegue ler direto da tela (ex. "Total operacional" do card Resumo Executivo)
-não têm hoje uma fonte SQL limpa e confirmada pra este script replicar sem risco de divergir do
-painel. Os sub-scores/índices que dependem desse campo (liquidez em ciclos, independência financeira,
-disciplina financeira) ficam `None` no `dados_json` gravado por este job — o Wealth Score final é
-recalculado só com os eixos disponíveis (mesma lógica de renormalização de pesos do motor JS), nunca
-tratando ausência de dado como zero. Quando uma fonte SQL confiável pra "compromisso fixo do ciclo"
-existir, ampliar aqui e em `calcularIndicadoresEScores()` (mesmo cálculo, duas linguagens).
+LIMITAÇÃO CONHECIDA, documentada de propósito (nunca fabricar dado que não existe): a Fase 1/Estágio A
+(15/08/2026, WWI_ROADMAP_V1.md) descobriu que `pib_wallace_historico.snapshot` da PRÓPRIA competência
+(escrito pelo painel a cada boot, não só no fechamento) já cobre "Total operacional" e afins — então
+liquidez em ciclos, independência financeira e disciplina financeira deixaram de ser `None` sempre.
+O gap remanescente é só `capacidade_investimento` (regra do motor JS): depende de
+`aporteBTGPactual`/`depositoAtivacaoNecton`, que são literais editados à mão em
+`vars-patrimonio.js` a cada ciclo, sem nenhuma tabela/coluna V2 que os espelhe — permanece `None`/
+ausente neste job até existir uma fonte SQL confiável (ver `capacidadeInvestimentoDisponivel` em
+`coletar_indicadores()`). Wealth Score final é recalculado só com os eixos disponíveis (mesma lógica
+de renormalização de pesos do motor JS), nunca tratando ausência de dado como zero.
 
 CORRIGIDO 15/08/2026 (achado ALTA da auditoria de 43 especialistas, docs/decisions/
 AUDITORIA_MULTIDISCIPLINAR_15082026.md): até aqui, `organizacaoFinanceira` e `construcaoPatrimonial`
@@ -54,6 +56,17 @@ from urllib.error import HTTPError, URLError
 #   debt-to-equity); organizacaoFinanceira/construcaoPatrimonial implementados neste motor (antes
 #   sempre None); guard patrimonioLiquido>0 explícito em protecaoPatrimonial/investimentos.
 METODOLOGIA_VERSAO = "wwi-methodology-2026-08-15"
+
+# NOVO 15/08/2026 (WWI_ROADMAP_V1.md, Fase 1, Estágio A — paridade de narrativa com o motor JS).
+# Constantes de negócio replicadas EXATAMENTE das mesmas usadas pelo motor JS/app.js (não são
+# valores novos, só espelhados pra este lado poder calcular sem depender do DOM):
+#   - META_LANCE_PROJETO_CASA: vars-patrimonio.js:95 (metaLanceProjetoCasa) — meta fixa de lance
+#     pro Projeto Casa Nova (capital via BTG/Necton + Caixa Lance), R$180.000,00.
+#   - WWI_MARCOS_PATRIMONIO: gerar-analise-financeira.js (WWI_MARCOS_PATRIMONIO) — marcos redondos
+#     usados pra "quanto falta pro próximo salto patrimonial".
+META_LANCE_PROJETO_CASA = 180000.00
+WWI_MARCOS_PATRIMONIO = [100000, 250000, 500000, 1000000, 1500000, 2000000, 3000000, 5000000,
+                          10000000, 20000000, 50000000]
 
 
 def _mes_anterior(competencia: str) -> str:
@@ -96,6 +109,20 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
 
     saldos_caixas = _rest_get(supabase_url, headers, "vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado")
     caixa_lance = next((c["v2_saldo_calculado"] for c in saldos_caixas if c["caixa_nome"] == "Caixa Lance"), 0) or 0
+
+    # NOVO 15/08/2026 (Estágio A — paridade de narrativa): teto_mensal por caixa, usado pelo motor
+    # JS (centrosDeCusto/escolaJulioPct) como "meta" de cada caixa temática. Mesma tabela/coluna,
+    # nenhum dado novo inventado.
+    caixas_com_teto = _rest_get(supabase_url, headers, "caixas?select=nome,teto_mensal")
+    teto_por_caixa = {c["nome"]: c["teto_mensal"] for c in caixas_com_teto if c.get("teto_mensal") is not None}
+    saldo_por_caixa = {c["caixa_nome"]: (c["v2_saldo_calculado"] or 0) for c in saldos_caixas}
+
+    # NOVO 15/08/2026 (Estágio A): empréstimos internos ATIVOS — mesmo padrão de risco baixíssimo
+    # (LREI) que o motor JS classifica em _wwiMontarPassivosRank(), pra manter os passivos completos
+    # (financiamento+consórcio auto+LREI ativas), não só os 2 que vw_patrimonio_v2 já expõe.
+    lrei_ativas = _rest_get(
+        supabase_url, headers,
+        "emprestimos_internos?select=codigo_legado,valor,caixa_credora_id,caixa_devedora_id,devedora_texto&status=eq.ATIVO")
 
     # CORRIGIDO 14/08/2026 (auditoria achou tabela `metas` órfã — nenhum código de `src/` lê/escreve
     # nela, e `metas.valor_atual` fica estático desde a criação enquanto o painel ao vivo usa outra
@@ -173,16 +200,37 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
                              if hist_anterior else None)
     cresc_patrim_atual = patrimonio_liquido
 
-    # NOTA: total_operacional (compromisso fixo do ciclo) não tem fonte SQL confiável hoje pra este
-    # script - ver limitação documentada no topo do arquivo. liquidez/independenciaFinanceira/
-    # disciplinaFinanceira ficam None aqui de propósito (nunca fabricados).
+    # NOVO 15/08/2026 (Estágio A — paridade de narrativa, achado real durante a investigação: ao
+    # contrário do que a limitação original documentava, `pib_wallace_historico` TEM uma fonte pra
+    # totalOperacional/poupança — só não era usada aqui. `registrar_pib_mensal()` (recalcular-
+    # indicadores.js) grava/atualiza a linha da COMPETÊNCIA ATUAL a cada boot do painel (não só no
+    # fechamento do ciclo), então por volta do dia 25 (quando este job roda) a linha do próprio mês
+    # já deve existir, contanto que o usuário tenha aberto o painel ao menos 1x no ciclo — suposição
+    # razoável de uso normal, mas NÃO garantida. Se a linha não existir ainda, tudo abaixo fica
+    # `None` (nunca fabricado) — mesmo padrão defensivo do resto do script.
+    #   totalOperacional ≈ despesaTotalComp - consumoNaoRecorrente (mesma decomposição documentada
+    #   em recalcular-indicadores.js: "Despesa Total = necessidadeTotalBruta + consumoNaoRecorrente").
+    hist_atual = _rest_get(
+        supabase_url, headers, f"pib_wallace_historico?select=snapshot&mes=eq.{competencia}")
+    snap_atual = hist_atual[0]["snapshot"] if hist_atual else {}
+    poupanca_receitas = snap_atual.get("receitaTotalComp")
+    poupanca_sobrou = snap_atual.get("poupancaRS")
+    despesa_total_comp = snap_atual.get("despesaTotalComp")
+    consumo_nao_recorrente = snap_atual.get("consumoNaoRecorrente")
+    total_operacional = (
+        despesa_total_comp - consumo_nao_recorrente
+        if despesa_total_comp is not None and consumo_nao_recorrente is not None else None)
+
+    liquidez_ciclos = (reserva / total_operacional
+                        if reserva is not None and total_operacional else None)
+
     indicadores_brutos = {
         "patrimonioLiquido": patrimonio_liquido,
         "ativosTotal": ativos_total,
         "passivosTotal": passivos_total,
         "patrimonioFinanceiro": patrimonio_financeiro,
         "reserva": patrimonio.get("reserva"),
-        "totalOperacional": None,
+        "totalOperacional": total_operacional,
         "metaMilhaoPct": meta_milhao_pct,
         "reembRecebidos": reemb_recebido,
         "reembAReceber": reemb_a_receber,
@@ -190,12 +238,17 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         "consorcioCasaPagoPct": consorcio_casa_pago_pct,
         "crescPatrimInicial": cresc_patrim_inicial,
         "crescPatrimAtual": cresc_patrim_atual,
-        "liquidezCiclos": None,
-        "poupancaReceitas": None,
-        "poupancaSobrou": None,
+        "liquidezCiclos": liquidez_ciclos,
+        "poupancaReceitas": poupanca_receitas,
+        "poupancaSobrou": poupanca_sobrou,
     }
 
-    subscores = {"liquidez": None}
+    # CORRIGIDO 15/08/2026 (Estágio A — antes sempre None por falta de fonte SQL pra
+    # totalOperacional; ver bloco de coleta de pib_wallace_historico acima). Mesma fórmula do motor
+    # JS: 24 ciclos (~2 anos) de reserva sozinha = nota máxima.
+    subscores = {
+        "liquidez": _clamp(liquidez_ciclos / 24 * 100, 0, 100) if liquidez_ciclos is not None else None
+    }
     # Mesma fórmula do motor JS (gerar-analise-financeira.js): variação % do patrimônio líquido entre
     # o fechamento do ciclo anterior e agora, centrada em 50 (0% de crescimento = 50; a cada 2 pontos
     # percentuais de crescimento, +1 na nota).
@@ -249,59 +302,225 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         soma_ponderada += v * peso
     wealth_score = round(soma_ponderada / soma_pesos) if soma_pesos > 0 else None
 
+    # CORRIGIDO 15/08/2026 (Estágio A): independenciaFinanceira/disciplinaFinanceira agora têm fonte
+    # (totalOperacional/poupança via pib_wallace_historico da própria competência, ver acima) —
+    # mesmas fórmulas do motor JS.
+    independencia_financeira = (
+        _clamp(patrimonio_liquido / total_operacional / 240 * 100, 0, 100)
+        if patrimonio_liquido is not None and total_operacional else None)
+    disciplina_financeira = (
+        _clamp(poupanca_sobrou / poupanca_receitas * 100, 0, 100)
+        if poupanca_receitas and poupanca_sobrou is not None else None)
+
     indices = {
         "metaDoMilhao": meta_milhao_pct,
         "casaNova": consorcio_casa_pago_pct,
-        "independenciaFinanceira": None,
-        "disciplinaFinanceira": None,
+        "independenciaFinanceira": independencia_financeira,
+        "disciplinaFinanceira": disciplina_financeira,
+    }
+
+    # NOVO 15/08/2026 (Estágio A) — dado bruto adicional, só pra alimentar gerar_narrativa() (as 8
+    # regras/5 blocos novos portados do motor JS). Fica FORA de indicadoresBrutos de propósito: esse
+    # dict já é usado como universo de campos pro proxy de organizacaoFinanceira (ver acima) — somar
+    # campos novos ali mudaria esse cálculo sem necessidade.
+    qtd_caixas = len(saldo_por_caixa)
+    caixas_zeradas = sum(1 for v in saldo_por_caixa.values() if v == 0)
+
+    meta_milhao_acumulado = (
+        (reserva or 0) + (btg_necton or 0) + (necton_cc or 0) + caixa_lance
+        if None not in (reserva, btg_necton, necton_cc) else None)
+    meta_milhao_falta = (1_000_000 - meta_milhao_acumulado) if meta_milhao_acumulado is not None else None
+
+    capital_casa_nova = (
+        (btg_necton or 0) + caixa_lance if btg_necton is not None else None)
+    projeto_casa_nova_pct = (
+        _clamp(capital_casa_nova / META_LANCE_PROJETO_CASA * 100, 0, 999)
+        if capital_casa_nova is not None else None)
+    projeto_casa_nova_falta = (
+        META_LANCE_PROJETO_CASA - capital_casa_nova if capital_casa_nova is not None else None)
+
+    consorcio_casa_nova_falta = patrimonio.get("consorcio_casa_quitacao")
+    consorcio_casa_nova_acumulado = patrimonio.get("consorcio_casa_pago")
+
+    escola_julio_saldo = saldo_por_caixa.get("Escola de Júlio")
+    escola_julio_teto = teto_por_caixa.get("Escola de Júlio")
+    escola_julio_pct = (
+        _clamp(escola_julio_saldo / escola_julio_teto * 100, 0, 999)
+        if escola_julio_saldo is not None and escola_julio_teto else None)
+
+    # Centros de Custo — mesmo agrupamento por padrão de nome de WWI_FAMILIAS_CAIXA (gerar-analise-
+    # financeira.js), "leitura" só quando TODAS as caixas do grupo têm teto conhecido (mesma regra:
+    # cobertura parcial produziria % artificialmente inflado, uma forma de fabricar leitura).
+    import re as _re
+    familias = [
+        ("Estratégicos", _re.compile(r"lance|w[aä]rtsil[aä]|suaviza", _re.I)),
+        ("Operacionais", _re.compile(r"vari[aá]vel|boleto|mercado pago|mastercard|combust[ií]vel|manuten[cç][aã]o|seguro", _re.I)),
+        ("Familiares", _re.compile(r"sa[uú]de|pix|anivers[aá]rio|emagrecimento|churrasco|evento", _re.I)),
+        ("De Objetivos", _re.compile(r"escola|dur[aá]vel|duravel", _re.I)),
+    ]
+    grupos = {nome: {"caixas": [], "total": 0.0, "meta_total": 0.0, "com_meta": 0} for nome, _ in familias}
+    grupos["Outros"] = {"caixas": [], "total": 0.0, "meta_total": 0.0, "com_meta": 0}
+    for nome_caixa, saldo in saldo_por_caixa.items():
+        grupo_nome = next((g for g, pad in familias if pad.search(nome_caixa)), "Outros")
+        g = grupos[grupo_nome]
+        g["caixas"].append(nome_caixa)
+        g["total"] += saldo or 0
+        teto = teto_por_caixa.get(nome_caixa)
+        if teto is not None:
+            g["meta_total"] += teto
+            g["com_meta"] += 1
+    centros_de_custo = []
+    for nome_grupo, g in grupos.items():
+        if not g["caixas"]:
+            continue
+        cobertura_total = g["com_meta"] == len(g["caixas"]) and g["meta_total"] > 0
+        pct = round(g["total"] / g["meta_total"] * 100, 1) if cobertura_total else None
+        centros_de_custo.append({
+            "nome": nome_grupo, "caixas": g["caixas"], "total": round(g["total"], 2),
+            "metaTotal": round(g["meta_total"], 2) if cobertura_total else None, "pct": pct,
+        })
+
+    # Passivos Rank — mesma heurística de risco por padrão de nome de _wwiMontarPassivosRank()
+    # (gerar-analise-financeira.js): LREI = baixíssimo, consórcio = médio, resto = baixo.
+    passivos_rank = []
+    if passivo_financiamento_casa:
+        passivos_rank.append({"nome": "Financiamento da Casa", "valor": passivo_financiamento_casa,
+                               "risco": "baixo", "descricao": "Condições contratuais conhecidas e estáveis — não exige antecipação."})
+    if passivo_consorcio_auto:
+        passivos_rank.append({"nome": "Consórcio Auto", "valor": passivo_consorcio_auto,
+                               "risco": "medio", "descricao": "Fluxo mensal certo, contemplação (por sorteio ou lance) ainda incerta em prazo."})
+    for lrei in lrei_ativas:
+        passivos_rank.append({
+            "nome": lrei.get("codigo_legado") or "Empréstimo interno",
+            "valor": lrei.get("valor"), "risco": "baixo",
+            "descricao": "Empréstimo interno, sem juros — ressarcimento já mapeado na própria caixa credora.",
+        })
+
+    dados_narrativos = {
+        "qtdCaixas": qtd_caixas, "caixasZeradas": caixas_zeradas,
+        "metaMilhaoAcumulado": meta_milhao_acumulado, "metaMilhaoFalta": meta_milhao_falta,
+        "capitalCasaNova": capital_casa_nova, "projetoCasaNovaPct": projeto_casa_nova_pct,
+        "projetoCasaNovaFalta": projeto_casa_nova_falta,
+        "consorcioCasaNovaAcumulado": consorcio_casa_nova_acumulado,
+        "consorcioCasaNovaFalta": consorcio_casa_nova_falta,
+        "escolaJulioSaldo": escola_julio_saldo, "escolaJulioPct": escola_julio_pct,
+        "centrosDeCusto": centros_de_custo, "passivosRank": passivos_rank,
+        "balancoLinhas": {
+            "ativosTotal": ativos_total, "passivosTotal": passivos_total,
+            "patrimonioLiquido": patrimonio_liquido, "fisicoTotal": fisico_total,
+            "patrimonioFinanceiro": patrimonio_financeiro,
+        },
+        # GAP DOCUMENTADO (Estágio A, ver WWI_NARRATIVE_ENGINE_ANALISE.md seção 5): "capacidade de
+        # investimento" (regra 'capacidade_investimento' do JS) depende de aporteBTGPactual/
+        # depositoAtivacaoNecton — hoje literais editados à mão em vars-patrimonio.js, sem tabela V2
+        # correspondente. Sem fonte SQL confiável, fica de fora aqui de propósito (nunca fabricado).
+        "capacidadeInvestimentoDisponivel": False,
     }
 
     return {"wealthScore": wealth_score, "subscores": subscores, "indices": indices,
-            "indicadoresBrutos": indicadores_brutos, "metodologiaVersao": METODOLOGIA_VERSAO}
+            "indicadoresBrutos": indicadores_brutos, "metodologiaVersao": METODOLOGIA_VERSAO,
+            "dadosNarrativos": dados_narrativos}
 
 
 def gerar_narrativa(indicadores: dict) -> dict:
     """Mesmo espírito de gerarAnaliseFinanceira() (motor JS) — regras determinísticas, nunca cita
-    número fora de `indicadores`. Subconjunto das regras (as que dependem de totalOperacional/
-    crescimento patrimonial ficam de fora aqui, mesma limitação documentada no topo do arquivo)."""
+    número fora de `indicadores`.
+
+    AMPLIADO 15/08/2026 (WWI_ROADMAP_V1.md, Fase 1, Estágio A — paridade de narrativa): antes tinha
+    só 6 das 20 regras nomeadas do motor JS. Portadas mais 8 (liquidez_forte/media/fraca,
+    escola_julio_baixo/ok, projeto_casa_nova_capital, caixas_zeradas, poupanca_alta) usando fontes
+    SQL achadas durante a investigação (ver WWI_NARRATIVE_ENGINE_ANALISE.md) — principalmente
+    `pib_wallace_historico` da PRÓPRIA competência (não só do mês anterior), que carrega
+    receita/despesa/poupança já calculados pelo painel a cada boot. 1 regra do JS
+    ('capacidade_investimento') continua de fora — gap documentado, sem fonte SQL confiável (ver
+    comentário em `coletar_indicadores()`, campo `capacidadeInvestimentoDisponivel`)."""
     b = indicadores["indicadoresBrutos"]
     subscores = indicadores["subscores"]
+    dn = indicadores.get("dadosNarrativos", {})
     pontos_fortes, pontos_fracos, riscos, oportunidades, recomendacoes = [], [], [], [], []
+    regras_aplicadas = []
+
+    def regra(nome, condicao, fn):
+        if not condicao:
+            return
+        regras_aplicadas.append(nome)
+        fn()
+
+    # ===== Liquidez (NOVO Estágio A) =====
+    regra("liquidez_forte", subscores.get("liquidez") is not None and subscores["liquidez"] >= 80, lambda: (
+        pontos_fortes.append(f"Liquidez de nível muito forte: a Reserva de Emergência (R$ {b['reserva']:.2f}) cobre sozinha cerca de {b['liquidezCiclos']:.1f} ciclos de compromisso fixo — bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta).")))
+    regra("liquidez_media", subscores.get("liquidez") is not None and 40 <= subscores["liquidez"] < 80, lambda: (
+        pontos_fortes.append(f"Liquidez em nível saudável: a Reserva de Emergência cobre cerca de {b['liquidezCiclos']:.1f} ciclos de compromisso fixo, dentro da faixa considerada segura para o perfil.")))
+    def _liquidez_fraca():
+        pontos_fracos.append(f"Liquidez abaixo do recomendável: a Reserva cobriria só {b['liquidezCiclos']:.1f} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.")
+        riscos.append("Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.")
+        recomendacoes.append("Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.")
+    regra("liquidez_fraca", subscores.get("liquidez") is not None and subscores["liquidez"] < 40, _liquidez_fraca)
 
     if subscores.get("endividamento") is not None:
         if subscores["endividamento"] >= 80:
             pontos_fortes.append(
                 f"Alavancagem controlada: passivos representam {round((b['passivosTotal']/b['ativosTotal'])*100, 1)}% do ativo total.")
+            regras_aplicadas.append("alavancagem_baixa")
         elif subscores["endividamento"] < 40:
             pontos_fracos.append(
                 f"Alavancagem elevada: passivos já representam {round((b['passivosTotal']/b['ativosTotal'])*100, 1)}% do ativo total.")
             riscos.append("Nível de dívida sobre ativos merece monitoramento antes de novos compromissos de longo prazo.")
+            regras_aplicadas.append("alavancagem_alta")
 
     if subscores.get("investimentos") is not None:
         if subscores["investimentos"] < 50:
             pontos_fracos.append("Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos.")
             oportunidades.append("Redirecionar o próximo ciclo de aportes para ativos líquidos ajuda a equilibrar a composição do patrimônio.")
+            regras_aplicadas.append("concentracao_fisica")
         elif subscores["investimentos"] >= 90:
             pontos_fortes.append("Boa proporção de patrimônio financeiro/líquido frente ao total.")
+            regras_aplicadas.append("investimentos_bem_alocados")
 
     if b.get("metaMilhaoPct") is not None:
         if b["metaMilhaoPct"] < 25:
             pontos_fracos.append(f"Meta do Milhão ainda em fase inicial: {b['metaMilhaoPct']}% do caminho percorrido.")
+            regras_aplicadas.append("meta_milhao_inicial")
         elif b["metaMilhaoPct"] >= 50:
             pontos_fortes.append(f"Meta do Milhão já em {b['metaMilhaoPct']}% — mais da metade do caminho percorrido.")
+            regras_aplicadas.append("meta_milhao_mais_da_metade")
 
-    if b.get("consorcioCasaPagoPct") is not None and b["consorcioCasaPagoPct"] < 5:
-        riscos.append("Consórcio Casa Nova ainda em fase pré-contemplação: parcela mensal é um compromisso certo para um benefício ainda incerto.")
+    regra("casa_nova_pre_contemplacao", b.get("consorcioCasaPagoPct") is not None and b["consorcioCasaPagoPct"] < 5, lambda: (
+        riscos.append(f"Consórcio Casa Nova ainda em fase pré-contemplação ({b['consorcioCasaPagoPct']:.2f}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo.")))
+
+    # ===== Escola de Júlio (NOVO Estágio A) =====
+    regra("escola_julio_baixo", dn.get("escolaJulioPct") is not None and dn["escolaJulioPct"] < 30, lambda: (
+        riscos.append(f"Escola de Júlio em {dn['escolaJulioPct']:.1f}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte.")))
+    regra("escola_julio_ok", dn.get("escolaJulioPct") is not None and dn["escolaJulioPct"] >= 30, lambda: (
+        pontos_fortes.append(f"Escola de Júlio com {dn['escolaJulioPct']:.1f}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.")))
+
+    # ===== Projeto Casa Nova — capital via BTG/Necton + Caixa Lance (NOVO Estágio A) =====
+    regra("projeto_casa_nova_capital", dn.get("projetoCasaNovaPct") is not None, lambda: (
+        oportunidades.append(f"Projeto Casa Nova em {dn['projetoCasaNovaPct']:.1f}% de maturidade, com R$ {dn['capitalCasaNova']:.2f} de capital hoje disponível (BTG/Necton + Caixa Lance) para eventual lance.")))
 
     if b.get("reembAReceber"):
         oportunidades.append(f"Reembolso Wärtsilä do ciclo tem R$ {b['reembAReceber']:.2f} ainda pendente de confirmação.")
+        regras_aplicadas.append("wartsila_pendencia")
     if b.get("reembRecebidos") is not None and b.get("reembTotalCiclo"):
         eficiencia = (b["reembRecebidos"] / b["reembTotalCiclo"]) * 100
         if eficiencia >= 90:
             pontos_fortes.append(f"Eficiência de recuperação do reembolso Wärtsilä em {eficiencia:.1f}% no ciclo.")
+            regras_aplicadas.append("wartsila_recuperacao_alta")
+
+    # ===== Centros de custo zerados (NOVO Estágio A) =====
+    regra("caixas_zeradas", dn.get("caixasZeradas") not in (None, 0), lambda: (
+        pontos_fracos.append(f"{dn['caixasZeradas']} de {dn['qtdCaixas']} centros de custo estão com saldo zerado neste ciclo — pode ser normal, mas vale conferir se algum deles deveria ter recebido aporte.")))
+
+    # ===== Poupança do ciclo (NOVO Estágio A) =====
+    def _poupanca_alta():
+        taxa = (b["poupancaSobrou"] / b["poupancaReceitas"]) * 100
+        if taxa >= 25:
+            pontos_fortes.append(f"Taxa de poupança do ciclo em {taxa:.1f}% — nível de elite para o perfil.")
+    regra("poupanca_alta", b.get("poupancaReceitas") and b.get("poupancaSobrou") is not None, _poupanca_alta)
 
     if not pontos_fortes and not pontos_fracos:
         pontos_fracos.append("Dados insuficientes na coleta via SQL deste job para uma leitura completa — ver limitação documentada no topo do script.")
+        regras_aplicadas.append("fallback_dados_insuficientes")
 
     score = indicadores.get("wealthScore")
     if score is not None:
@@ -317,10 +536,88 @@ def gerar_narrativa(indicadores: dict) -> dict:
     else:
         parecer = "Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta."
 
+    # ===== resumoAberturaTexto (NOVO Estágio A) — mesmas 2 frases do motor JS =====
+    frases_abertura = [parecer if score is not None else "Não foi possível calcular o Wealth Score deste ciclo — dados insuficientes na coleta."]
+    if b.get("patrimonioLiquido") is not None:
+        extra = (f", resultado de R$ {b['ativosTotal']:.2f} em ativos menos R$ {b['passivosTotal']:.2f} em passivos"
+                  if b.get("ativosTotal") is not None and b.get("passivosTotal") is not None else "")
+        frases_abertura.append(f"O patrimônio líquido do ciclo está em R$ {b['patrimonioLiquido']:.2f}{extra}.")
+    resumo_abertura = " ".join(frases_abertura)
+
+    # ===== proximoSaltoTexto (NOVO Estágio A) — mesmos marcos redondos do motor JS =====
+    proximo_salto = None
+    if b.get("patrimonioLiquido") is not None:
+        proximo_marco = next((m for m in WWI_MARCOS_PATRIMONIO if m > b["patrimonioLiquido"]), None)
+        if proximo_marco is not None:
+            falta = proximo_marco - b["patrimonioLiquido"]
+            proximo_salto = f"Com o patrimônio líquido atual em R$ {b['patrimonioLiquido']:.2f}, faltam R$ {falta:.2f} para atingir o próximo marco redondo de R$ {proximo_marco:.2f}."
+        else:
+            proximo_salto = f"O patrimônio líquido atual (R$ {b['patrimonioLiquido']:.2f}) já superou todos os marcos redondos de referência deste relatório."
+
+    # ===== perfilConstrucaoTexto (NOVO Estágio A) — mesmos 2 limiares já usados acima (não inventados) =====
+    perfil_construcao = None
+    if b.get("poupancaReceitas") and b.get("poupancaSobrou") is not None and subscores.get("investimentos") is not None:
+        taxa_poupanca = (b["poupancaSobrou"] / b["poupancaReceitas"]) * 100
+        poupanca_elite = taxa_poupanca >= 25
+        alocacao_equilibrada = subscores["investimentos"] >= 50
+        perfil = "mais próximo de um construtor de riqueza ativo" if (poupanca_elite and alocacao_equilibrada) else "ainda mais próximo do padrão de um investidor comum"
+        perfil_construcao = (f"Combinando taxa de poupança do ciclo ({taxa_poupanca:.1f}%, limiar de \"elite\" já usado neste relatório é >=25%) com a "
+                              f"proporção de patrimônio financeiro/líquido bem alocado (nota {round(subscores['investimentos'])}/100, limiar de composição "
+                              f"equilibrada já usado neste relatório é >=50), o padrão observado no ciclo está {perfil}.")
+
+    # ===== 5 blocos estruturados (NOVO Estágio A) — mesmos nomes/formato do motor JS =====
+    projetos = []
+    if b.get("metaMilhaoPct") is not None:
+        projetos.append({
+            "nome": "Meta do milhão", "pct": b["metaMilhaoPct"],
+            "objetivo": "Acumular R$ 1.000.000 em patrimônio líquido.",
+            "acumulado": dn.get("metaMilhaoAcumulado"), "falta": dn.get("metaMilhaoFalta"),
+        })
+    if dn.get("projetoCasaNovaPct") is not None:
+        projetos.append({
+            "nome": "Projeto casa nova", "pct": dn["projetoCasaNovaPct"],
+            "objetivo": "Reunir capital (BTG/Necton + Caixa Lance) para viabilizar a compra da casa nova.",
+            "acumulado": dn.get("capitalCasaNova"), "falta": dn.get("projetoCasaNovaFalta"),
+        })
+    if b.get("consorcioCasaPagoPct") is not None:
+        projetos.append({
+            "nome": "Consórcio casa nova (I0464 · Cota 12)", "pct": b["consorcioCasaPagoPct"],
+            "objetivo": "Consórcio I0464, Cota 12 — carta de crédito para a casa nova, via contemplação por sorteio ou lance.",
+            "acumulado": dn.get("consorcioCasaNovaAcumulado"), "falta": dn.get("consorcioCasaNovaFalta"),
+        })
+
+    composicao_patrimonio = {
+        "linhas": dn.get("balancoLinhas", {}),
+        "eixos": [
+            {"label": "Eficiência patrimonial", "val": subscores.get("organizacaoFinanceira")},
+            {"label": "Liquidez", "val": subscores.get("liquidez")},
+            {"label": "Concentração (diversificação)", "val": subscores.get("investimentos")},
+            {"label": "Proteção patrimonial", "val": subscores.get("protecaoPatrimonial")},
+            {"label": "Geração futura", "val": subscores.get("construcaoPatrimonial")},
+        ],
+    }
+    eixos_validos = [e["val"] for e in composicao_patrimonio["eixos"] if e["val"] is not None]
+    composicao_patrimonio["nota"] = round(sum(eixos_validos) / len(eixos_validos)) if eixos_validos else None
+
+    liquidez_analise = {
+        "classificacao": (
+            None if subscores.get("liquidez") is None else
+            "Muito Forte" if subscores["liquidez"] >= 80 else
+            "Forte" if subscores["liquidez"] >= 60 else
+            "Adequada" if subscores["liquidez"] >= 40 else "Abaixo do recomendado"),
+        "liquidezCiclos": b.get("liquidezCiclos"),
+        "independenciaFinanceira": indicadores.get("indices", {}).get("independenciaFinanceira"),
+    }
+
     return {
         "pontosFortesTexto": pontos_fortes, "pontosFracosTexto": pontos_fracos, "riscosTexto": riscos,
         "oportunidadesTexto": oportunidades, "recomendacoesTexto": recomendacoes,
-        "parecerFinalTexto": parecer, "regrasAplicadas": ["motor_python_job_mensal"],
+        "parecerFinalTexto": parecer, "resumoAberturaTexto": resumo_abertura,
+        "proximoSaltoTexto": proximo_salto, "perfilConstrucaoTexto": perfil_construcao,
+        "regrasAplicadas": regras_aplicadas or ["motor_python_job_mensal"],
+        "projetos": projetos, "passivosRank": dn.get("passivosRank", []),
+        "centrosDeCusto": dn.get("centrosDeCusto", []),
+        "composicaoPatrimonio": composicao_patrimonio, "liquidezAnalise": liquidez_analise,
     }
 
 

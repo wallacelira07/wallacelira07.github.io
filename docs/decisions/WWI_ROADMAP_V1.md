@@ -207,4 +207,72 @@ Autorizado pelo usuário com diretrizes explícitas: não alterar cálculos/Weal
 
 ---
 
+## 11. Relatório de encerramento — Estágio A (unificação em 2 estágios do narrative engine, 15/08/2026)
+
+Autorizado com escopo estrito: portar regras/blocos faltantes pro motor Python, sem tocar em `gerar-analise-financeira.js`, sem mudar comportamento visível, sem mudar fluxo/PDF/UX. **Estágio B permanece bloqueado.** Ver `WWI_NARRATIVE_ENGINE_ANALISE.md` pra análise pré-execução completa (seções 1-6).
+
+### 1. Regras de narrativa portadas
+
+Das 9 regras que o JS tem e o Python não tinha, **8 foram portadas**, 1 permanece gap documentado:
+
+| Regra | Fonte SQL usada | Status |
+|---|---|---|
+| `liquidez_forte` / `liquidez_media` / `liquidez_fraca` | `pib_wallace_historico.snapshot` da própria competência (`despesaTotalComp - consumoNaoRecorrente`) + `vw_patrimonio_v2.reserva` | ✅ Portada |
+| `escola_julio_baixo` / `escola_julio_ok` | `vw_saldo_v2_por_caixa` (saldo) + `caixas.teto_mensal` (meta) | ✅ Portada |
+| `projeto_casa_nova_capital` | `vw_patrimonio_v2.btg_necton` + Caixa Lance vs `META_LANCE_PROJETO_CASA` (constante espelhada de `vars-patrimonio.js:95`) | ✅ Portada |
+| `caixas_zeradas` | `vw_saldo_v2_por_caixa` (contagem de saldo=0) | ✅ Portada |
+| `poupanca_alta` | `pib_wallace_historico.snapshot` (`poupancaRS`/`receitaTotalComp`) | ✅ Portada |
+| `capacidade_investimento` | — | ❌ **Gap confirmado**: depende de `aporteBTGPactual`/`depositoAtivacaoNecton`, literais editados à mão em `vars-patrimonio.js`, sem tabela/coluna V2 correspondente. Fica ausente (`None`) neste job, nunca fabricado. |
+
+(As demais regras do JS — `alavancagem`, `concentracao_fisica`/`investimentos_bem_alocados`, `meta_milhao_*`, `casa_nova_pre_contemplacao`, `wartsila_*` — já existiam no Python antes do Estágio A e não fizeram parte deste escopo; foram só rastreadas por nome agora, ver item 4.)
+
+### 2. Blocos estruturados portados
+
+Todos os 5 blocos usados pelo PDF "Tactical Wealth Report" foram portados, mesma nomenclatura do JS:
+
+1. **`projetos`** — Meta do Milhão, Projeto Casa Nova, Consórcio Casa Nova (I0464/Cota 12), cada um com `pct`/`acumulado`/`falta`.
+2. **`passivosRank`** — Financiamento da Casa (risco baixo), Consórcio Auto (risco médio), + cada empréstimo interno ATIVO (`emprestimos_internos`, risco baixo, descrição específica de LREI).
+3. **`centrosDeCusto`** — 4 famílias por regex de nome (Estratégicos/Operacionais/Familiares/De Objetivos) + "Outros", mesma regra do JS de só calcular `%` quando **todas** as caixas do grupo têm `teto_mensal` conhecido (evita cobertura parcial fabricando percentual).
+4. **`composicaoPatrimonio`** — gauge de 5 eixos (organizaçãoFinanceira/liquidez/investimentos/proteçãoPatrimonial/construçãoPatrimonial) + nota agregada.
+5. **`liquidezAnalise`** — classificação textual (Muito Forte/Forte/Adequada/Abaixo do recomendado) + `liquidezCiclos` + `independenciaFinanceira`.
+
+### 3. Comparação antes/depois
+
+| Métrica | Antes do Estágio A | Depois do Estágio A |
+|---|---|---|
+| Regras de narrativa rastreáveis por nome | 1 string fixa (`"motor_python_job_mensal"`) | Lista granular (`regrasAplicadas`), mesmo padrão do JS |
+| Regras efetivamente cobertas | 6 | 14 (das 15 do JS; 1 gap documentado) |
+| Sub-score liquidez | Sempre `None` | Calculado (fonte: `pib_wallace_historico` da própria competência) |
+| Índices `independenciaFinanceira`/`disciplinaFinanceira` | Sempre `None` | Calculados |
+| Blocos estruturados (`projetos`/`passivosRank`/`centrosDeCusto`/`composicaoPatrimonio`/`liquidezAnalise`) | Inexistentes | Presentes, todos os 5 |
+| `resumoAberturaTexto` / `proximoSaltoTexto` / `perfilConstrucaoTexto` | Inexistentes | Presentes |
+| `gerar-analise-financeira.js` (motor JS) | — | **Intocado** (0 linhas alteradas) |
+| Fluxo de geração / PDF / UX | — | **Inalterado** — mudança é só no que o job Python grava, não em quem lê |
+
+### 4. Evidências de geração equivalente
+
+- `python -m py_compile scripts/sync/wwi_gerar_relatorio_mensal.py` — sintaxe válida.
+- Execução real da função `gerar_narrativa()` fora do job (script isolado, mesmos dados da competência `2026-07` coletados via SQL nesta sessão: `vw_patrimonio_v2`, `vw_saldo_v2_por_caixa`, `caixas.teto_mensal`, `emprestimos_internos` ATIVOS, `pib_wallace_historico`): rodou sem erro e produziu, para o ciclo real atual, 7 regras nomeadas disparadas (`liquidez_fraca`, `meta_milhao_inicial`, `casa_nova_pre_contemplacao`, `escola_julio_baixo`, `projeto_casa_nova_capital`, `caixas_zeradas`, `poupanca_alta`), os 5 blocos estruturados completos e `resumoAberturaTexto`/`proximoSaltoTexto`/`perfilConstrucaoTexto` coerentes com os números reais (ex.: patrimônio líquido R$471.458,31, faltam R$28.541,69 pro próximo marco de R$500.000).
+- Nenhuma escrita foi feita no banco durante o teste — só leitura via `execute_sql` e execução local da função pura.
+
+### 5. Gaps remanescentes
+
+- **`capacidade_investimento`**: confirmado não portável sem fabricar dado (ver item 1). Só existirá no Python quando `aporteBTGPactual`/`depositoAtivacaoNecton` ganharem uma fonte V2/SQL — hoje são literais de `vars-patrimonio.js`, fora de escopo deste Estágio.
+- **Descrições de `passivosRank`**: o teste usou texto placeholder (`"x"`) nas descrições sintéticas do script de validação — no código real do `wwi_gerar_relatorio_mensal.py`, as descrições já estão com o texto final (conferido por leitura direta do arquivo, linhas 385-397), só o script de teste ad-hoc usou texto reduzido pra simplificar.
+
+### 6. Riscos identificados
+
+- **Nenhum risco de regressão no motor JS** — zero linhas tocadas em `gerar-analise-financeira.js` ou `index.html`.
+- **Nenhum risco de schema** — narrativa mora em `dados_json`/`analise_ia`, ambos `jsonb` já existentes, sem migration.
+- **Risco funcional baixo, monitorável**: o job mensal (dia 25, ou disparo manual) ainda não gravou nenhuma linha nova com o Python enriquecido — a próxima execução real do job vai persistir a narrativa expandida pela primeira vez em produção. Recomendação: acompanhar o resultado da próxima virada de ciclo (25/08/2026) antes de considerar o Estágio A 100% validado em produção, não só em teste isolado.
+- **Risco de interpretação**: `liquidez_ciclos` deu 7,7 ciclos pra uma Reserva de R$100.000 no teste real — parece baixo à primeira vista, mas é o mesmo divisor (`total_operacional`, ciclo de 24 como teto de referência) usado pelo motor JS; não é um bug deste Estágio, é a fórmula espelhada fielmente.
+
+### 7. Recomendação para Estágio B
+
+**Não recomendo iniciar o Estágio B ainda.** Motivo: o Estágio A só foi validado com dados reais em um teste isolado (fora do job), não com uma execução real do job mensal persistindo em `historico_relatorios`. A recomendação é: deixar o job rodar normalmente na próxima virada de ciclo (25/08/2026) — ou disparar manualmente antes, se preferir validar mais cedo — comparar a narrativa persistida com a que o JS geraria pro mesmo ciclo, e só then decidir sobre o Estágio B. Isso está alinhado com o princípio oficial do WWI definido pelo usuário: "Primeiro alcançar paridade funcional. Depois centralizar. Nunca o contrário."
+
+**Estágio B continua bloqueado, aguardando decisão explícita do usuário.**
+
+---
+
 **Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).
