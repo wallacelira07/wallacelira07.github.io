@@ -190,13 +190,28 @@ function inboxAprovar(id){
   }
 }
 
+// ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: "✘ Rejeitar" executava em
+// 1 clique sem confirmação nem desfazer). confirm() nativo evita clique acidental; inboxDesfazer-
+// Rejeicao() abaixo cobre o desfazer (reaproveita persistirTriagemItem/RPC já existentes, só manda
+// 'pendente' de volta — nenhuma tabela/RPC nova).
 function inboxRejeitar(id, motivo){
   const item = VARS.INBOX_FINANCEIRA.find(i=>i.id===id);
   if(!item) return;
+  if(!confirm(`Rejeitar "${item.descricao || item.descricaoCompleta || 'este item'}"? Dá pra desfazer logo em seguida, clicando em "↺ Desfazer" na mesma linha.`)) return;
   item.status = 'REJEITADO';
   item.motivoRejeicao = motivo || null;
   persistirTriagemItem(item, 'rejeitado');
   WallaceBus.emit('inboxItemRejeitado', item);
+  atualizarInboxItem(id);
+}
+
+function inboxDesfazerRejeicao(id){
+  const item = VARS.INBOX_FINANCEIRA.find(i=>i.id===id);
+  if(!item) return;
+  item.status = 'PENDENTE';
+  item.motivoRejeicao = null;
+  persistirTriagemItem(item, 'pendente');
+  WallaceBus.emit('inboxItemRejeicaoDesfeita', item);
   atualizarInboxItem(id);
 }
 
@@ -206,9 +221,14 @@ function inboxRejeitar(id, motivo){
 function renderInboxLinha(it){
   const classeStatus = it.status==='APROVADO' ? 'bg' : (it.status==='REJEITADO' ? 'br' : 'ba');
   const conf = it.confianca!=null ? Math.round(it.confianca*100)+'%' : '—';
+  // ADICIONADO 15/08/2026 (mesmo achado do comentário em inboxRejeitar): item REJEITADO ganha
+  // "↺ Desfazer" em vez de "—" — antes não tinha como reverter um clique errado sem editar o
+  // banco na mão.
   const acoes = it.status==='PENDENTE'
     ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
-    : '—';
+    : (it.status==='REJEITADO'
+      ? `<button type="button" class="inbox-btn" onclick="inboxDesfazerRejeicao('${it.id}')">↺ Desfazer</button>`
+      : '—');
   const descTitle = _inboxEscapeHtml(it.descricaoCompleta||it.descricao||'');
   // NOVO 08/08/2026 (correção de usabilidade — itens com mesma origem/valor/data pareciam
   // duplicados): linha de identificação abaixo da descrição, prioridade pagador > ID externo

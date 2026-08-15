@@ -318,6 +318,12 @@
     <button type="button" class="master-tab" data-pane="cenarios" onclick="irParaPrimeiraSecao('cenarios')">🛡️ Cenários</button>
     <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
     <button type="button" class="master-tab" data-pane="emagrecimento" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️ Emagrecimento</button>
+    <!-- ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: formulário de
+         lançamento manual só existe dentro do card da Inbox Financeira, que fica bem abaixo na
+         aba Painel — exigia rolar por muitas seções pra chegar lá). Atalho fixo na mesma barra
+         sticky das abas, sempre visível não importa a posição de scroll — reaproveita o form/
+         botão que já existe (abrirFormLancarTxRapido(), ui-navegacao-basica.js), não duplica nada. -->
+    <button type="button" class="master-tab" onclick="abrirFormLancarTxRapido()" title="Abrir o formulário de lançamento manual sem precisar rolar até a Inbox Financeira">＋ Lançar</button>
   </div>
 
   <div id="painel" class="master-pane">
@@ -2042,6 +2048,14 @@ function __carregarScriptsParalelo(caminhos){
 // vez de cada um desses 9 arquivos chegar de verdade na cadeia, o download já está pronto (ou bem
 // adiantado) e só falta executar. Maior ganho em mobile (RTT alto: cada elo desta cadeia hoje paga
 // 1 round-trip de rede cheio antes mesmo de começar a baixar).
+// CORRIGIDO 15/08/2026 (auditoria de 43 especialistas, seção 4 Performance: graficos-cenarios-lazy.js
+// é o MAIOR módulo do boot — 2193 linhas — mas "lazy" no nome só se referia à renderização
+// (initGraficosECenariosLazy/initSolarLazy só rodavam no clique da aba Gráficos/Cenários/Solar), o
+// ARQUIVO em si baixava sempre, pra todo usuário, mesmo quem nunca abre essas abas). Removido daqui
+// (preload) e do Promise.all abaixo (promessaModulosIndependentes) — agora carrega sob demanda no
+// próprio clique da aba, via carregarGraficosCenariosLazySobDemanda() (ui-navegacao-basica.js),
+// mesmo padrão já validado pro html2canvas (~200KB, ver carregarHtml2CanvasSobDemanda() em
+// ui-componentes-visuais.js, corrigido 14/08/2026 - <head> deste arquivo tem a nota completa).
 (function __preloadScriptsFinaisDaCadeia(){
   [
     'src/app/app.js',
@@ -2050,7 +2064,6 @@ function __carregarScriptsParalelo(caminhos){
     'src/dashboard/navigation/dashboard-navegacao.js',
     'src/dashboard/navigation/ui-navegacao-basica.js',
     'src/dashboard/widgets/ui-componentes-visuais.js',
-    'src/dashboard/charts/graficos-cenarios-lazy.js',
     'src/dashboard/navigation/filtro-livros-razao.js',
     'src/dashboard/widgets/contagem-abas-livros-razao.js'
   ].forEach(function(src){
@@ -2521,10 +2534,13 @@ Promise.all([
         scriptPromocoes.onerror = resolve;
         document.body.appendChild(scriptPromocoes);
       });
+      // CORRIGIDO 15/08/2026 (auditoria de performance): graficos-cenarios-lazy.js removido desta
+      // lista — ver nota completa em __preloadScriptsFinaisDaCadeia() logo acima. Carrega sob
+      // demanda no clique da aba Gráficos/Cenários/Solar (showMaster(), ui-navegacao-basica.js), não
+      // mais aqui no boot síncrono.
       const promessaModulosIndependentes = Promise.all(['src/dashboard/navigation/dashboard-navegacao.js',
        'src/dashboard/navigation/ui-navegacao-basica.js',
        'src/dashboard/widgets/ui-componentes-visuais.js',
-       'src/dashboard/charts/graficos-cenarios-lazy.js',
        'src/dashboard/navigation/filtro-livros-razao.js',
        'src/dashboard/widgets/contagem-abas-livros-razao.js',
        'src/relatorio/coletar-dados-relatorio.js',

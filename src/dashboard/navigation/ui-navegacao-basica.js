@@ -10,6 +10,53 @@
 // botao no DOM (fragil, ver nota em CAPA_DESTINOS acima). Agora showMaster(id) troca o pane sozinho;
 // se ainda existir algum elemento com data-pane="<id>" na pagina (nenhum hoje, mantido por seguranca
 // caso volte a existir um seletor visual de pane), ele recebe .active - senao, no-op silencioso.
+// ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas, seção 4 Performance):
+// graficos-cenarios-lazy.js (2193 linhas, o MAIOR módulo do boot) tinha nome "lazy" só pela
+// RENDERIZAÇÃO (initGraficosECenariosLazy/initSolarLazy só rodavam no clique da aba) — o ARQUIVO em
+// si baixava sempre, incondicionalmente, pra todo usuário, junto com o resto da cadeia de boot
+// (Sistema_Wallace_Lira_Completo.html, promessaModulosIndependentes), mesmo que ele nunca abrisse
+// as abas Gráficos/Cenários/Solar. Mesmo padrão já validado pro html2canvas (~200KB, ver
+// carregarHtml2CanvasSobDemanda() em ui-componentes-visuais.js, corrigido 14/08/2026): <script>
+// injetado sob demanda, promise memoizada pra não baixar 2x. Risco verificado antes de mudar: os 5
+// callers externos (atualizarGraficosNecessidade/atualizarGraficoPatrimonio/
+// atualizarGraficoTotalOpDetalhe/atualizarGraficoCaixaVariavel/atualizarGraficoCaixas, chamados de
+// hydrate-onda*.js) já usam `typeof X === 'function'` como guard defensivo — o próprio comentário em
+// graficos-painel-principal.js já documentava que esse guard "falha silenciosamente" quando o
+// usuário nunca abriu a aba, e por isso os 2 gráficos do Painel principal têm uma função irmã que
+// não depende deste módulo. Ou seja: o resto do sistema já era escrito assumindo que este módulo
+// pode não existir ainda — carregar de verdade sob demanda não quebra nada disso, só adia o momento
+// em que ele passa a existir. O único ponto que chamava initGraficosECenariosLazy()/initSolarLazy()
+// direto pelo nome (sem guard) era showMaster(), abaixo — por isso o loader entra exatamente ali.
+var _promiseGraficosCenariosLazy = null;
+function carregarGraficosCenariosLazySobDemanda(){
+  if (typeof initGraficosECenariosLazy === 'function') return Promise.resolve();
+  if (_promiseGraficosCenariosLazy) return _promiseGraficosCenariosLazy;
+  _promiseGraficosCenariosLazy = new Promise(function(resolve, reject){
+    var script = document.createElement('script');
+    script.src = 'src/dashboard/charts/graficos-cenarios-lazy.js' + (typeof __V !== 'undefined' ? '?v=' + __V : '');
+    script.onload = function(){ resolve(); };
+    script.onerror = function(){ _promiseGraficosCenariosLazy = null; reject(new Error('falha ao carregar graficos-cenarios-lazy.js')); };
+    document.head.appendChild(script);
+  });
+  return _promiseGraficosCenariosLazy;
+}
+
+// ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: o botão/form "＋ Lançar
+// transação" de app.js só existe dentro do card da Inbox Financeira — em qualquer aba muito
+// abaixo do topo, o usuário tinha que rolar por várias seções pra chegar nele). Reaproveita o
+// mesmo form/botão criados por app.js (nenhum form novo) — só garante visibilidade + scroll até
+// ele, chamável de qualquer lugar via o atalho fixo na barra .master-tabs.
+function abrirFormLancarTxRapido(){
+  const btn = document.getElementById('btnLancarTx');
+  const form = document.getElementById('formLancarTx');
+  if(!btn || !form){
+    alert('O formulário de lançamento ainda está carregando — tente de novo em alguns segundos.');
+    return;
+  }
+  form.style.display = 'block';
+  form.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
 function showMaster(id){
   document.querySelectorAll('.master-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('[data-pane]').forEach(t=>t.classList.remove('active'));
@@ -21,13 +68,26 @@ function showMaster(id){
   try { sessionStorage.setItem('wallaceAbaAtual', id); } catch(e){}
   // V300 (Etapa 1.1): so cria os graficos de Graficos/Cenarios quando o usuario realmente abre uma
   // dessas 2 abas pela 1a vez (initGraficosECenariosLazy tem flag interna, seguro chamar sempre aqui).
+  // ADICIONADO 15/08/2026: initGraficosECenariosLazy só existe depois que o <script> do módulo
+  // carregar — carregarGraficosCenariosLazySobDemanda() baixa sob demanda (memoizado) e só então
+  // chama a função, mesmo padrão de carregarHtml2CanvasSobDemanda() (ui-componentes-visuais.js).
   if(id === 'graficos' || id === 'cenarios'){
-    initGraficosECenariosLazy();
+    carregarGraficosCenariosLazySobDemanda().then(function(){
+      initGraficosECenariosLazy();
+    }).catch(function(err){
+      console.error('Erro ao carregar módulo de Gráficos/Cenários sob demanda', err);
+    });
   }
   // NOVO 08/08/2026 (aba própria "☀️ Energia Solar"): mesmo padrão da linha acima, flag própria
   // (initSolarLazy(), graficos-cenarios-lazy.js) — Solar não carrega mais junto com Gráficos/Cenários.
+  // ADICIONADO 15/08/2026: mesmo loader sob demanda do bloco acima (initSolarLazy vive no mesmo
+  // arquivo que initGraficosECenariosLazy, a promise memoizada cobre as 2 chamadas sem baixar 2x).
   if(id === 'solar'){
-    initSolarLazy();
+    carregarGraficosCenariosLazySobDemanda().then(function(){
+      initSolarLazy();
+    }).catch(function(err){
+      console.error('Erro ao carregar módulo de Gráficos/Cenários (Solar) sob demanda', err);
+    });
   }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
   // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
