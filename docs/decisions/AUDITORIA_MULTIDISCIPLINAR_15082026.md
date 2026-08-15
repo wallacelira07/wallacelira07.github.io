@@ -34,7 +34,9 @@ Rodada via `Workflow` (43 agentes especialistas em paralelo, 1 por papel, fase s
 | 18 | Quick win: `ORDER BY` explícito em `DISTINCT ON` de `atualizar_pluggy_contas` | ✅ **RESOLVIDO** — as 4 ocorrências de `DISTINCT ON` na função ganharam `ORDER BY` determinístico (tiebreaker por representação textual do JSON ou pelos campos extraídos). Testado isoladamente (fora da função, sem tocar tabela real): dedup agora é determinístico entre execuções. |
 | 19 | Quick win: retry/backoff no `_request()` do Pluggy | ✅ **RESOLVIDO** — mesmo padrão de `mercadopago_sync.py._get()` portado: retry em 429/5xx, até 3 tentativas, backoff `2×tentativa` segundos. |
 
-**12 de 13 quick wins do relatório resolvidos nesta rodada** (o 13º, CI, já tinha sido feito antes). Restam só as "Melhorias de médio prazo" da seção 4 do relatório — nenhuma urgente, e a decisão de reprocessamento retroativo do Wealth Score (item 2 da lista de validação abaixo).
+**12 de 13 quick wins do relatório resolvidos nesta rodada** (o 13º, CI, já tinha sido feito antes). Restam só as "Melhorias de médio prazo" da seção 4 do relatório — nenhuma urgente.
+
+**Reprocessamento do histórico (item 2 da lista de validação) — RESOLVIDO 15/08/2026, autorizado pelo usuário**: único registro existente (`2026-07`) recalculado com a metodologia nova. Score `53`→`58`, cruzou o limiar "Atenção"→"Estável". Detalhe completo em `ESTADO_ATUAL.md` seção 1.2c.
 
 ---
 
@@ -170,7 +172,7 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 Tudo marcado `financeiro_sensivel`, ou que contradiga uma decisão já documentada:
 
 1. ~~Commit pendente da correção de metodologia do Wealth Score~~ — **já resolvido, commit `7d80c59`, ver nota de correção no topo deste documento.**
-2. **Reprocessamento retroativo de `historico_relatorios`** caso o motor Python seja corrigido — decidir se snapshots já gravados são recalculados ou mantidos com marca de "metodologia pré-15/08".
+2. ~~Reprocessamento retroativo de `historico_relatorios`~~ — ✅ RESOLVIDO 15/08/2026, usuário autorizou. Ver `ESTADO_ATUAL.md` seção 1.2c.
 3. ~~Correção de `wwi_upsert_relatorio_mensal` e da policy pública de `wallace_dados`~~ — ✅ RESOLVIDO, ver tabela de status no topo do documento.
 4. ~~Constraint de banco para "cartão nunca reduz saldo real"~~ — ✅ RESOLVIDO, ver tabela de status no topo do documento.
 5. **Duplicata Anthropic R$52,95** — não apagar nenhuma das duas TX sem o usuário identificar qual é a real.
