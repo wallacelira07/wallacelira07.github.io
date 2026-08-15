@@ -558,4 +558,53 @@ Aguardar pelo menos 1 ciclo completo de uso real (gerar o relatório de fechamen
 
 ---
 
+## 18. FASE 2 — Encerramento (2A + 2B + 2C, 15/08/2026)
+
+Autorizada ponta a ponta pelo usuário ("considere esta mensagem como autorização explícita para execução completa da Fase 2"), execução contínua sem checkpoint entre subfases, com 1 exceção: a 2C foi pausada 1x pra decidir onde o dashboard deveria morar no site (decisão de produto explícita, uma das 4 condições de parada definidas pelo usuário) — decidido: aba permanente "🧠 Wealth Intelligence", WWI como fonte primária, PDF como exportação.
+
+### 1. O que foi implementado
+
+**2A — Extensão da série histórica**: view nova `vw_wwi_metricas_historico` (formato longo: 1 linha por competência×métrica), cobrindo `patrimonioFinanceiro`/`ativosTotal`/`passivosTotal`/`reserva`/`liquidezCiclos`/`metaMilhaoPct`/`consorcioCasaPagoPct`/`projetoCasaNovaPct` + os 7 subscores. M/M・T/T・A/A com checagem de contiguidade de calendário (nunca compara meses não-consecutivos como se fossem M/M) e flag `metodologia_mudou_mom`. `vw_wwi_comparativo_mensal` (Fase 1) mantida intacta pra score/patrimônio líquido.
+
+**2B — Wealth Score histórico**: view nova `vw_wwi_score_historico` — melhor/pior score separado por `metodologia_versao` (nunca compara réguas diferentes) + melhor/pior absoluto; média móvel de 3 competências (só com 3 pontos contíguos); tendência (alta/queda/estável) só a partir do 4º ponto contíguo, comparando médias móveis consecutivas. Checagem de sanidade no job Python (`coletar_indicadores()`): avisa em `stderr` quando >30% dos campos de `indicadoresBrutos` vierem `None`, nunca bloqueia a gravação.
+
+**2C — Dashboard Executivo**: aba permanente `#wwi` no `Sistema_Wallace_Lira_Completo.html`, carregada sob demanda (mesmo padrão lazy de `graficos-cenarios-lazy.js`), atualizada toda vez que abre. 8 seções: Resumo Executivo, Evolução Patrimonial, Wealth Score Histórico, Meta do Milhão, Projeto Casa Nova, Liquidez, Riscos e Oportunidades, Comparativos M/M·T/T·A/A. 4 métodos novos em `WallaceFinanceService` (mesmo padrão de cache TTL 90s dos demais). Todo estado sem histórico suficiente mostra "Histórico em construção" explícito — nenhum gráfico/tendência fabricado.
+
+### 2. O que ficou pendente
+
+- **Nada do escopo documentado em `WWI_FASE2_PROPOSTA_ARQUITETURA.md` ficou pendente** — 2A/2B/2C completas conforme proposto.
+- Fora de escopo desta fase (já registrado antes): `capacidade_investimento` (divergência aceita), `parecerFinalTexto` mais raso no Python (dívida técnica de qualidade, não bloqueador).
+- "Objetivos" como conceito distinto de "Projetos" (seção 1.3 da proposta) — levantamento de requisito não feito, tratado como o mesmo conceito por ora.
+
+### 3. Riscos remanescentes
+
+Os 6 riscos já classificados na proposta (seção 5) continuam valendo como estavam — nenhum mudou de categoria com a implementação. O de maior atenção continua sendo **"Dependência do job automático"** (Alto) — toda a Fase 2 depende do job de dia 25 rodar sem falha; mitigado por design (lacuna de competência é tratada como estado válido, não como erro) e pelo heartbeat já monitorado (painel Saúde Operacional).
+
+**Risco novo, não estava na proposta original**: a aba WWI faz **4 requisições HTTP** à Supabase toda vez que abre (`historico_relatorios` completo + 3 views) — com volume de dado baixo (seção 5 da proposta: ~12 linhas/ano), não é um problema de performance hoje, mas se a tabela crescer MUITO no futuro (anos), `getWwiHistoricoCompleto()` busca `select=*` sem paginação. Risco **Baixo** no horizonte atual, mitigação futura óbvia (limitar `order=competencia.desc&limit=N`) se algum dia virar relevante — não implementado agora por não ser um problema real hoje (evitar otimização prematura).
+
+### 4. Evidências de validação
+
+- **2A**: testado com o único dado real (todos os deltas `null`, correto) + 3 rodadas de dado sintético em `BEGIN`/`ROLLBACK` (nunca persistido): série contígua com deltas corretos, série com lacuna (mês pulado) corretamente com `delta_mom=null` mesmo com `valor_mes_anterior` existindo, mudança de metodologia detectada corretamente (`metodologia_mudou_mom=true`). Confirmado `SELECT count(*) FROM historico_relatorios` = 1 depois de cada teste (nenhum resíduo).
+- **2B**: testado com 6 pontos sintéticos contíguos — média móvel só aparece a partir do 3º ponto, tendência só a partir do 4º, melhor/pior separado corretamente por metodologia (57/57 pra 1 ponto na metodologia nova vs 55/40 pra 5 pontos na antiga). Checagem de sanidade do job testada isoladamente com dict sintético (60% ausente → dispara; 20% ausente → não dispara).
+- **2C**: sintaxe verificada (balanceamento de chaves/parênteses só nas linhas adicionadas, todos os 5 arquivos tocados, 0 de desbalanceamento introduzido); 0 IDs duplicados no HTML resultante; 0 colisão de nome de função/variável global com o resto do projeto. **Não foi possível testar ao vivo** (login real indisponível neste ambiente de desenvolvimento, mesma limitação documentada desde a criação do motor JS) — validação funcional real só acontece na próxima vez que o usuário abrir a aba "🧠 Wealth Intelligence" no painel logado.
+
+### 5. Commits realizados
+
+| Commit | Conteúdo |
+|---|---|
+| `19fad96` | Proposta de arquitetura da Fase 2 (documento, sem código) |
+| `b333e0f` | Fase 2B — checagem de sanidade do job Python |
+| `0c70ec9` | Fase 2C — aba permanente Wealth Intelligence |
+| *(sem commit local)* | Migrations SQL 2A/2B/2C aplicadas direto via Supabase MCP (`wwi_fase2a_vw_metricas_historico`, `wwi_fase2b_vw_score_historico`, `wwi_fase2c_vw_metricas_historico_add_projetos`) — mesmo padrão já usado pra `vw_wwi_comparativo_mensal` na Fase 1, não versionadas como arquivo de migration local |
+
+Todos os commits acima já passaram por `git pull`/merge com os bumps automáticos de `__V` e foram enviados ao `origin/main`.
+
+### 6. Recomendação para Fase 3
+
+A Fase 3 do roadmap original (`WWI_ROADMAP_V1.md`, seção 5) é "relatório executivo automático + PDF premium" — mas a diretriz mais recente do usuário já inverteu a relação (*"o WWI passa a ser a fonte primária, o PDF passa a ser a saída"*), então a Fase 3 real que falta não é gerar MAIS PDF, é: **fazer o Tactical Wealth Report (PDF) consumir os dados do WWI (views novas da Fase 2) em vez de recalcular tudo via `gerarAnaliseFinanceira()`** — fechando o ciclo "WWI = fonte, PDF = exportação" que o usuário definiu como objetivo de produto. Isso é literalmente o Estágio B do narrative engine (já em shadow mode, seção 17) evoluindo pra virar a fonte real do PDF, não um projeto novo — recomendo tratar como a continuação natural do shadow mode (aguardar o período de observação já definido) antes de qualquer nova frente.
+
+**Aguardando decisão do usuário** sobre a Fase 3.
+
+---
+
 **Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).
