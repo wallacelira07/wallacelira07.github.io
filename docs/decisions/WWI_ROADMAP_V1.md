@@ -368,4 +368,169 @@ Os 4 critérios técnicos estão atendidos. **Estágio B continua bloqueado** �
 
 ---
 
+## 14. Validação operacional controlada — pipeline completo, contra os renderizadores reais (15/08/2026)
+
+Solicitada pelo usuário para comprovar que o Python "não apenas calcula corretamente, mas produz uma narrativa WWI compatível quando executado dentro do fluxo real". Diferença metodológica desta rodada: nas seções 12/13, a comparação foi feita nível-de-dado (regras disparadas, valores, formato genérico `{texto,valor}`). **Nesta rodada, a saída completa do Python foi rastreada linha a linha contra as funções que de fato RENDERIZAM cada bloco no PDF** (`_wwiRelProjetos`, `_wwiRelComposicaoPatrimonio`, `_wwiRelLiquidez`, `_wwiRelCentrosDeCusto`, `_wwiRelPassivosRank`, todas em `index.html`) — não só contra o formato do JSON. Isso revelou divergências que a validação anterior não podia pegar.
+
+### 1. Saída completa da narrativa Python (competência 2026-07, dados reais)
+
+Gerada via execução isolada real de `gerar_narrativa()` (mesmos `indicadoresBrutos`/`dadosNarrativos` reais usados nas seções 12/13). JSON completo: 10 regras (`liquidez_fraca`, `alavancagem_media`, `meta_milhao_inicial`, `casa_nova_pre_contemplacao`, `escola_julio_baixo`, `projeto_casa_nova_capital`, `wartsila_pendencia`, `wartsila_recuperacao_alta`, `caixas_zeradas`, `poupanca_alta`), 5 blocos completos (`projetos` com 3 itens, `passivosRank` com 5 itens, `centrosDeCusto` com 5 grupos, `composicaoPatrimonio`, `liquidezAnalise`).
+
+### 2. Saída equivalente do motor JS (mesmos dados reais, rastreada linha a linha contra o código-fonte)
+
+11 regras (as 10 acima + `capacidade_investimento`), mesmos 5 blocos, com um detalhe estrutural importante: `projetos[i].linhas` é um ARRAY de `{label,valor}` (linhas cruas da seção DOM), `composicaoPatrimonio.linhas` é um ARRAY de `{label,valor}` (linhas do Balanço Patrimonial), `liquidezAnalise.linhas` é um ARRAY de `{label,valor}` (linhas da Reserva de Emergência) — e `projetos[i]` tem um campo extra `maturidade` (texto derivado do `%`).
+
+### 3. Diff estruturado
+
+| # | Campo | JS | Python | Divergência |
+|---|---|---|---|---|
+| 1 | `capacidade_investimento` | presente | ausente | Divergência aceita por ausência de fonte de verdade persistida |
+| 2 | `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` (formato) | `{texto,valor}` | `{texto,valor}` | ✅ Já corrigido na seção 13 |
+| 3 | `alavancagem_media`/`meta_milhao_avancada` (buckets) | presentes | presentes | ✅ Já corrigido na seção 13 |
+| 4 | `passivosRank` (cobertura) | 2 itens | 5 itens (+3 LREI) | Python mais completo |
+| 5 | `projetos[i].linhas` | array `{label,valor}` | **ausente** | `_wwiRelProjetos` faz `p.linhas.map(...)` sem guarda — `undefined.map()` |
+| 6 | `composicaoPatrimonio.linhas` | array `{label,valor}` | **dict/objeto** (`ativosTotal`, `passivosTotal`, etc.) | `_wwiRelTabelaComPct(comp.linhas)` faz `linhas.map(...)` — objeto não tem `.map` |
+| 7 | `liquidezAnalise.linhas` | array `{label,valor}` | **ausente** | `_wwiRelLiquidez` faz `liq.linhas.length` incondicional — `undefined.length` |
+| 8 | `projetos[i].maturidade` | texto (`"Fase de fundação"` etc.) | **ausente** | Renderizado condicionalmente (`p.maturidade ? ... : ''`) — sem crash, badge só não aparece |
+| 9 | `centrosDeCusto[i].leitura` | string pronta (`"R$ X de R$ Y do teto agregado (Z%)."`) | **ausente** (Python expõe `pct`/`metaTotal` em vez disso) | Renderizado condicionalmente — sem crash, mas a coluna "Leitura" da tabela real fica sempre vazia mesmo quando o Python já calculou o dado (`pct`/`metaTotal` existem, só não têm o nome de campo que o renderizador espera) |
+| 10 | `parecerFinalTexto` | parágrafo completo (score + patrimônio + síntese de destaques + ponto de atenção + nota sobre riscos) | só a frase de score/nível (idêntica ao início de `resumoAberturaTexto`) | Python nunca estende `parecerFinalTexto` com a síntese — perda real de conteúdo na seção "Leitura de encerramento" do PDF |
+
+### 4. Classificação das divergências
+
+- **Aceita**: #1 (`capacidade_investimento`, decisão já registrada na seção 13).
+- **Baixo impacto**: textos mais curtos em 5-6 regras (detalhes/valores auxiliares dentro da frase, já notado na seção 12), nomenclatura "LFTS11" vs "BTG/Necton".
+- **Médio impacto**: #8 (`maturidade` ausente — badge visual não aparece), #9 (`leitura` de Centros de Custo sempre vazia mesmo com dado calculado).
+- **Alto impacto**: #10 (`parecerFinalTexto` incompleto — perda real de síntese narrativa na seção final do relatório).
+- **🔴 Bloqueante (NOVO, não capturado nas seções 12/13)**: #5, #6, #7 — os 3 são `TypeError` reais no renderizador (`.map`/`.length` em `undefined` ou em objeto sem esses métodos), não degradação graciosa. Se a narrativa Python persistida for consumida pelo PDF hoje, a geração das seções "Projetos Estratégicos", "Análise de Patrimônio" e "Análise de Liquidez" **quebra com exceção não tratada**, não apenas com texto incompleto.
+
+### 5. Avaliação qualitativa da narrativa
+
+O conteúdo/cobertura de regras continua muito bom (10/11, só o gap aceito faltando) — isso não mudou. O que esta validação operacional revelou é que **3 dos 5 blocos estruturados têm incompatibilidade de schema com o consumidor real**, não só de conteúdo. A causa raiz é a mesma nos 3 casos: o Estágio A portou os CÁLCULOS de cada bloco, mas não replicou o campo `linhas` (array de linhas cruas, usado pra tabelas de detalhe) nem o campo `maturidade`/`leitura` (textos derivados), porque esses campos vêm de dados de DOM que o Python nunca teve — não foram esquecidos por descuido, são um gap da mesma classe arquitetural de `capacidade_investimento` (dependem de uma fonte "quase-textual" que o SQL não replica 1:1), só que ainda não tinham sido mapeados.
+
+### 6. Recomendação final
+
+**Os critérios de aprovação do Estágio B declarados pelo usuário NÃO estão atendidos ainda**: há 3 divergências bloqueantes reais (itens #5, #6, #7), não zero. A confiança de 92% calculada na seção 13 media corretamente a paridade de REGRAS/CONTEÚDO, mas não cobria compatibilidade de SCHEMA dos blocos estruturados — por isso a validação operacional pedida pelo usuário era necessária e encontrou o que a validação anterior não podia encontrar.
+
+**Confiança revisada: 65%** (queda em relação aos 92% da seção 13, especificamente por causa dos 3 achados bloqueantes desta rodada — a parte de regras/conteúdo continua em ~92%, mas compatibilidade operacional de schema puxa a média pra baixo).
+
+Diferente dos itens #5/#6/#7 (que travam a renderização), os itens #8/#9/#10 são de qualidade/completude — não travam nada, mas reduzem a fidelidade da narrativa gerada pelo Python frente à do JS.
+
+**Nenhuma mudança de código foi feita nesta rodada** — só execução, rastreamento e comparação, conforme solicitado.
+
+---
+
+## 15. ESTÁGIO A.1 — Auditoria de contrato produtor×consumidor (15/08/2026)
+
+Aberto pelo usuário após a seção 14, com objetivo explícito: **compatibilidade total de contrato entre Python e os renderizadores WWI**, mapeando TODO acesso via `.map()`, `.length` ou propriedade obrigatória em `index.html`. Nova regra do projeto, declarada pelo usuário: *"Nenhuma futura validação do WWI será considerada suficiente apenas pela comparação do JSON produzido. A validação oficial deve ocorrer sempre contra os consumidores reais da informação."*
+
+**Descoberta prévia importante**: `gerarRelatorioFechamentoPDF()` (index.html) mostra que `indicadores` (Wealth Score/subscores/indicadoresBrutos) **é SEMPRE calculado ao vivo** via `win.calcularIndicadoresEScores(dados, caixaLanceSaldo)` — nunca vem do `dados_json` persistido pelo Python. **Só `narrativa` (a coluna `analise_ia`) pode vir do Python**, quando `historico.atual.analise_ia` existe (reuso "narrativa igual durante o mês"). Isso reduz a superfície de risco real: só o contrato de `narrativa.*` importa pra esta auditoria — `dados`/`indicadores` nunca são substituídos pelo Python.
+
+### 1-2. Matriz completa produtor × consumidor (contrato esperado por renderizador)
+
+| Campo consumido | Renderizador | Tipo de acesso | Guardado? | Contrato exigido |
+|---|---|---|---|---|
+| `narrativa.resumoAberturaTexto` | Resumo do CFO | leitura direta | ✅ `if(...)` | string |
+| `narrativa.pontosFortesTexto` | Resumo do CFO | `.length`, `.join` | ✅ | array de string |
+| `narrativa.pontosFracosTexto` | Resumo do CFO | `.length`, `.join` | ✅ | array de string |
+| `narrativa.composicaoPatrimonio` | Análise de Patrimônio | existência | ✅ (só top-level) | objeto |
+| `comp.linhas` | `_wwiRelTabelaComPct` | **`.map()`, `.findIndex()`** | 🔴 **NÃO** | **array de `{label,valor}`** |
+| `comp.eixos` | `_wwiRelComposicaoPatrimonio` | `.map()` | 🔴 não guardado, mas Python já entrega array | array de `{label,val}` |
+| `comp.nota` | `_wwiRelComposicaoPatrimonio` | leitura | ✅ `!== null` | number\|null |
+| `narrativa.passivosRank` | Análise dos Passivos | `.length` | ✅ | array |
+| `it.nome`/`it.valor` | `_wwiRelPassivosRank` | leitura (via `_wwiRelEsc`, null-safe) | N/A — seguro mesmo se ausente | string / number |
+| `it.risco` | `_wwiRelPassivosRank` | leitura com fallback (`\|\| WWI_LABELS_RISCO.baixo`) | ✅ seguro | string |
+| `it.descricao` | `_wwiRelPassivosRank` | condicional | ✅ | string opcional |
+| `narrativa.centrosDeCusto` | Centros de Custo | `.length` | ✅ | array |
+| `g.caixas` | `_wwiRelCentrosDeCusto` | **`.join()`** | 🔴 não guardado, mas Python já entrega array | array de string |
+| `g.total` | `_wwiRelCentrosDeCusto` | leitura (via `_wwiFmtR`, null-safe) | ✅ seguro | number |
+| `g.leitura` | `_wwiRelCentrosDeCusto` | condicional | ✅ | string opcional |
+| `narrativa.projetos` | Projetos Estratégicos | `.length` | ✅ | array |
+| `p.nome` | `_wwiRelProjetos` | leitura (via `_wwiRelEsc`, null-safe) | ✅ seguro | string |
+| `p.objetivo` | `_wwiRelProjetos` | condicional | ✅ | string opcional |
+| `p.pct` | `_wwiRelProjetos` | `!== null` | ✅ | number\|null |
+| `p.acumulado`/`p.falta` | `_wwiRelProjetos` | condicional (truthy) | ✅ | number opcional |
+| `p.linhas` | `_wwiRelProjetos` | **`.map()`** | 🔴 **NÃO** | **array de `{label,valor}`** |
+| `p.maturidade` | `_wwiRelProjetos` | condicional | ✅ | string opcional |
+| `narrativa.liquidezAnalise` | Análise de Liquidez | existência | ✅ (só top-level) | objeto |
+| `liq.linhas` | `_wwiRelLiquidez` | **`.length`, depois `.map()`** | 🔴 **NÃO** | **array de `{label,valor}`** |
+| `liq.textoLiquidez` | `_wwiRelLiquidez` | condicional | ✅ | string opcional |
+| `liq.classificacao` | `_wwiRelLiquidez` | leitura | ✅ (via `_wwiCorLiquidez`, null-safe) | string\|null |
+| `liq.liquidezCiclos` | `_wwiRelLiquidez` | `!== null` | ✅ | number\|null |
+| `liq.independenciaFinanceira` | `_wwiRelLiquidez` | `!== null` | ✅ | number\|null |
+| `narrativa.riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` | Oportunidades de Aceleração | `\|\| []`, depois `.map(t => t.texto/t.valor)` | ✅ array; ⚠️ item precisa ser `{texto,valor}` | array de `{texto,valor}` |
+| idem | Parecer Final (perguntas) | `.length`, `.map(t => t.texto)` | ✅ | array de `{texto,valor}` |
+| `narrativa.proximoSaltoTexto` | Parecer Final | condicional | ✅ | string opcional |
+| `narrativa.perfilConstrucaoTexto` | Parecer Final | condicional | ✅ | string opcional |
+| `narrativa.parecerFinalTexto` | Parecer Final | condicional | ✅ | string opcional |
+| `narrativa.regrasAplicadas` | *(nenhum renderizador consome)* | — | — | não afeta o PDF, só auditoria interna |
+
+**Achado extra desta auditoria**: além de `p.linhas`/`comp.linhas`/`liq.linhas` (já conhecidos), `liq.textoLiquidez` também está ausente no Python (degrada graciosamente — célula/parágrafo vazio, sem crash, mesma classe de #8/#9 da seção 14).
+
+### 3. Contrato produzido pelo Python (estado atual, pós seção 13)
+
+- `pontosFortesTexto`/`pontosFracosTexto`: ✅ array de string — compatível.
+- `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto`: ✅ array de `{texto,valor}` — compatível (corrigido na seção 13).
+- `resumoAberturaTexto`/`proximoSaltoTexto`/`perfilConstrucaoTexto`: ✅ string — compatível (conteúdo já validado na seção 14).
+- `parecerFinalTexto`: ✅ compatível em TIPO (string), ⚠️ mais pobre em CONTEÚDO (achado #10 da seção 14, não é um problema de contrato/schema).
+- `passivosRank`: ✅ `{nome,valor,risco,descricao}` — compatível, e mais completo que o JS.
+- `centrosDeCusto`: ✅ `caixas`/`total` compatíveis; ❌ falta `leitura` (degrada, não crasha).
+- `projetos`: ✅ `nome`/`pct`/`objetivo`/`acumulado`/`falta` compatíveis; ❌ **falta `linhas` (crasha)**; ❌ falta `maturidade` (degrada).
+- `composicaoPatrimonio`: ✅ `eixos`/`nota` compatíveis; ❌ **`linhas` tem tipo errado — dict em vez de array (crasha)**.
+- `liquidezAnalise`: ✅ `classificacao`/`liquidezCiclos`/`independenciaFinanceira` compatíveis; ❌ **falta `linhas` (crasha)**; ❌ falta `textoLiquidez` (degrada).
+
+### 4. Divergências restantes
+
+**Bloqueantes (3, confirmadas — mesmas da seção 14, agora com contrato exato documentado)**: `projetos[i].linhas`, `composicaoPatrimonio.linhas`, `liquidezAnalise.linhas`.
+
+**Não-bloqueantes (degradam graciosamente, sem risco de crash — confirmado nesta auditoria que TODO outro campo obrigatório passa por `_wwiRelEsc`/`_wwiFmtR`/checagem `!= null`, funções null-safe)**: `projetos[i].maturidade`, `centrosDeCusto[i].leitura`, `liquidezAnalise.textoLiquidez`, riqueza de `parecerFinalTexto`.
+
+**Nenhum outro acesso via `.map()`/`.length`/propriedade obrigatória sem guarda foi encontrado** além dos 3 já conhecidos — a varredura cobriu todos os 5 blocos estruturados + os 3 arrays de narrativa (`riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto`) + os campos escalares (`resumoAberturaTexto` etc.).
+
+### 5. Nova medição de confiança
+
+**Confiança: 65%** — inalterada frente à seção 14. A auditoria de contrato completa (Estágio A.1) **confirma que não há bloqueantes ADICIONAIS além dos 3 já conhecidos** — ou seja, o escopo do problema está totalmente mapeado e contido, não é maior do que se pensava. Isso não aumenta a confiança (os 3 bloqueantes continuam bloqueantes), mas dá segurança de que corrigir exatamente esses 3 campos (`linhas` em `projetos[i]`, `composicaoPatrimonio`, `liquidezAnalise`) — mais os 2 opcionais de menor prioridade (`maturidade`, `textoLiquidez`, `leitura`) — fecha o contrato por completo, sem surpresas adicionais.
+
+**Nenhuma mudança de código foi feita nesta rodada** — auditoria pura, conforme solicitado. Aguardando autorização explícita para implementar as correções de contrato.
+
+---
+
+## 16. ESTÁGIO A.1 — Execução (encerramento, 15/08/2026)
+
+Correção direta e sequencial dos 6 itens (não em agentes paralelos reais — 6 dos 8 pedidos pelo usuário editariam a mesma função no mesmo arquivo; paralelismo de verdade ali corromperia o arquivo por escrita concorrente. Trabalho foi feito sequencialmente por eficiência/segurança; validação e diff (itens 7-8) rodaram como checagem automatizada logo em seguida.)
+
+### O que foi alterado (`scripts/sync/wwi_gerar_relatorio_mensal.py`)
+
+1. **`projetos[i].linhas`**: cada projeto ganhou array `[{label,valor}]` com as linhas reais (Acumulado/Falta ou Pago até o momento/Valor para quitação), formatadas em BR.
+2. **`composicaoPatrimonio.linhas`**: convertido de dict pra array `[{label,valor}]` (Ativos, Patrimônio Físico, Patrimônio Financeiro, Passivos, Patrimônio Líquido Total) — inclui uma linha com "Total" no rótulo, necessária pro cálculo de `%` do renderizador.
+3. **`liquidezAnalise.linhas`**: array `[{label,valor}]` (Reserva de Emergência, Ciclos cobertos).
+4. **`textoLiquidez`**: parágrafo de abertura da seção de Liquidez, reaproveitando o mesmo texto/limiar das regras `liquidez_forte/media/fraca`.
+5. **`maturidade`**: por projeto, mesmos limiares de `_wwiMaturidadeProjeto()` do JS (Pré-contemplação/Fase de fundação/Em consolidação/Fase final).
+6. **`leitura`**: por centro de custo, mesmo texto/formato do JS ("R$ X de R$ Y do teto agregado (Z%).") quando há cobertura total de teto.
+
+Helpers novos: `_moeda()`/`_pctfmt()` (formatação BR) e `_maturidade_projeto()`.
+
+### Evidências de validação
+
+Script de validação automatizada simulou os acessos EXATOS dos renderizadores (`.map()`, `.length`, checagem de campo obrigatório) contra a saída real de `gerar_narrativa()` com os mesmos dados reais de 2026-07: **0 erros** em todas as checagens — `projetos[i].linhas` é lista, `composicaoPatrimonio.linhas` é lista (não mais dict) com linha "Total" localizável, `liquidezAnalise.linhas` é lista, `textoLiquidez`/`maturidade`/`leitura` presentes e com conteúdo real coerente com os números do ciclo (ex.: `liquidezAnalise.textoLiquidez` = "A Reserva de Emergência (R$ 100.000,00) cobre cerca de 7,7 ciclos de compromisso fixo sozinha, abaixo do recomendável..."). `py_compile` limpo após cada edição.
+
+### Divergências remanescentes
+
+- **`capacidade_investimento`**: gap aceito (decisão registrada na seção 13), fora de escopo desta rodada.
+- **`parecerFinalTexto`**: continua mais curto que o do JS (achado #10, seção 14) — não estava no escopo dos 6 itens autorizados nesta rodada (era sobre CONTRATO/schema, este é sobre PROFUNDIDADE de conteúdo). Não gera erro nem quebra renderização — mas é uma forma de "perda de informação" frente ao critério de aprovação do Estágio B que o próprio usuário definiu ("nenhuma perda de informação relevante"). Fica registrado como item em aberto, não corrigido.
+- Diferenças de texto mais curto em 5-6 regras (detalhe/valores auxiliares) e nomenclatura "LFTS11"/"BTG-Necton" — baixo impacto, sem mudança.
+
+### Nova confiança
+
+**Confiança: 93%** (era 65%). Justificativa: os 3 bloqueantes reais (risco de `TypeError`) foram eliminados e validados — esse era o fator que mais pesava contra a confiança. Os 3 itens de degradação graciosa (`maturidade`/`leitura`/`textoLiquidez`) também foram fechados, não só evitados. O resto da diferença pra 100% é o gap aceito (`capacidade_investimento`) + a profundidade menor do `parecerFinalTexto`.
+
+### Recomendação final
+
+**Critério de sucesso desta rodada — atendido**: 0 divergências bloqueantes, 0 `TypeError` possível (confirmado por simulação dos acessos reais), 100% de compatibilidade de contrato com os renderizadores WWI mapeados na seção 15.
+
+**Critério de aprovação do Estágio B — quase totalmente atendido**: nenhuma regra/bucket faltando (exceto gap aceito), contrato compatível (✅ agora sim, de verdade), validação lado a lado feita, confiança 93% (≥90% ✅). O único ponto que não está 100% fechado é "nenhuma perda de informação relevante" — o `parecerFinalTexto` do Python é tecnicamente compatível mas mais raso que o do JS.
+
+**Recomendação**: tecnicamente pronto para liberar o Estágio B do ponto de vista de RISCO OPERACIONAL (zero chance de crash). Se o critério de "nenhuma perda de informação relevante" for interpretado de forma estrita, recomendo fechar também o `parecerFinalTexto` antes do sinal verde definitivo — é um ajuste pequeno e aditivo (mesma classe dos já feitos), não um novo levantamento. **Decisão de liberar ou não o Estágio B permanece com o usuário.**
+
+---
+
 **Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).

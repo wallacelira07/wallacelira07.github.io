@@ -101,6 +101,28 @@ def _clamp(n: float, minimo: float, maximo: float) -> float:
     return max(minimo, min(maximo, n))
 
 
+def _moeda(n: float) -> str:
+    """Formata em BR ("R$ 1.234,56") — mesmo padrão de _wwiFmtMoeda() no motor JS. Usado pelos
+    campos `linhas` dos blocos estruturados (contrato Estágio A.1, WWI_ROADMAP_V1.md seção 15)."""
+    return f"R$ {n:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+def _pctfmt(n: float, casas: int = 2) -> str:
+    """Formata percentual em BR ("11,78%") — mesmo padrão de _wwiFmtNum() no motor JS."""
+    return f"{n:,.{casas}f}%".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+def _maturidade_projeto(pct: float) -> str:
+    """Mesmos limiares de _wwiMaturidadeProjeto() no motor JS — não são novos, só espelhados."""
+    if pct < 5:
+        return "Pré-contemplação"
+    if pct < 50:
+        return "Fase de fundação"
+    if pct < 90:
+        return "Em consolidação"
+    return "Fase final"
+
+
 def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> dict:
     """Espelha (parcialmente — ver limitação no topo do arquivo) os campos de
     calcularIndicadoresEScores() do motor JS, mas lendo direto das views V2 em vez de DOM."""
@@ -375,9 +397,15 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
             continue
         cobertura_total = g["com_meta"] == len(g["caixas"]) and g["meta_total"] > 0
         pct = round(g["total"] / g["meta_total"] * 100, 1) if cobertura_total else None
+        # Contrato Estágio A.1 (WWI_ROADMAP_V1.md seção 15) — `leitura` é o campo que
+        # `_wwiRelCentrosDeCusto()` (index.html) de fato lê pra coluna "Leitura" da tabela; `pct`/
+        # `metaTotal` sozinhos não bastam. Mesmo texto/formato do JS.
+        leitura = (f"{_moeda(g['total'])} de {_moeda(g['meta_total'])} do teto agregado ({_pctfmt(pct, 1)})."
+                   if cobertura_total else None)
         centros_de_custo.append({
             "nome": nome_grupo, "caixas": g["caixas"], "total": round(g["total"], 2),
             "metaTotal": round(g["meta_total"], 2) if cobertura_total else None, "pct": pct,
+            "leitura": leitura,
         })
 
     # Passivos Rank — mesma heurística de risco por padrão de nome de _wwiMontarPassivosRank()
@@ -598,28 +626,64 @@ def gerar_narrativa(indicadores: dict) -> dict:
                               f"equilibrada já usado neste relatório é >=50), o padrão observado no ciclo está {perfil}.")
 
     # ===== 5 blocos estruturados (NOVO Estágio A) — mesmos nomes/formato do motor JS =====
+    #
+    # CORRIGIDO 15/08/2026 (Estágio A.1, WWI_ROADMAP_V1.md seção 15 — auditoria de contrato
+    # produtor×consumidor achou 3 bloqueantes reais: `_wwiRelProjetos`/`_wwiRelComposicaoPatrimonio`/
+    # `_wwiRelLiquidez`, em index.html, acessam `.linhas.map()`/`.linhas.length` SEM checar se o
+    # campo existe — se `narrativa` vier do Python sem `linhas` (ou com tipo errado), o PDF quebra
+    # com TypeError, não só perde detalhe visual. Cada bloco abaixo ganha `linhas` como ARRAY de
+    # `{label, valor}` — mesmo formato que o JS produz a partir das linhas de DOM já coletadas,
+    # aqui montado a partir dos mesmos números já calculados por este script (nenhum dado novo).
     projetos = []
     if b.get("metaMilhaoPct") is not None:
+        acumulado = dn.get("metaMilhaoAcumulado")
+        falta = dn.get("metaMilhaoFalta")
         projetos.append({
             "nome": "Meta do milhão", "pct": b["metaMilhaoPct"],
             "objetivo": "Acumular R$ 1.000.000 em patrimônio líquido.",
-            "acumulado": dn.get("metaMilhaoAcumulado"), "falta": dn.get("metaMilhaoFalta"),
+            "acumulado": acumulado, "falta": falta,
+            "linhas": [l for l in [
+                {"label": "Acumulado", "valor": _moeda(acumulado)} if acumulado is not None else None,
+                {"label": "Falta", "valor": _moeda(falta)} if falta is not None else None,
+            ] if l is not None],
+            "maturidade": _maturidade_projeto(b["metaMilhaoPct"]),
         })
     if dn.get("projetoCasaNovaPct") is not None:
+        capital = dn.get("capitalCasaNova")
+        falta = dn.get("projetoCasaNovaFalta")
         projetos.append({
             "nome": "Projeto casa nova", "pct": dn["projetoCasaNovaPct"],
             "objetivo": "Reunir capital (BTG/Necton + Caixa Lance) para viabilizar a compra da casa nova.",
-            "acumulado": dn.get("capitalCasaNova"), "falta": dn.get("projetoCasaNovaFalta"),
+            "acumulado": capital, "falta": falta,
+            "linhas": [l for l in [
+                {"label": "Capital disponível (BTG/Necton + Caixa Lance)", "valor": _moeda(capital)} if capital is not None else None,
+                {"label": "Falta", "valor": _moeda(falta)} if falta is not None else None,
+            ] if l is not None],
+            "maturidade": _maturidade_projeto(dn["projetoCasaNovaPct"]),
         })
     if b.get("consorcioCasaPagoPct") is not None:
+        acumulado = dn.get("consorcioCasaNovaAcumulado")
+        falta = dn.get("consorcioCasaNovaFalta")
         projetos.append({
             "nome": "Consórcio casa nova (I0464 · Cota 12)", "pct": b["consorcioCasaPagoPct"],
             "objetivo": "Consórcio I0464, Cota 12 — carta de crédito para a casa nova, via contemplação por sorteio ou lance.",
-            "acumulado": dn.get("consorcioCasaNovaAcumulado"), "falta": dn.get("consorcioCasaNovaFalta"),
+            "acumulado": acumulado, "falta": falta,
+            "linhas": [l for l in [
+                {"label": "Pago até o momento", "valor": _pctfmt(b["consorcioCasaPagoPct"])},
+                {"label": "Valor para quitação", "valor": _moeda(falta)} if falta is not None else None,
+            ] if l is not None],
+            "maturidade": _maturidade_projeto(b["consorcioCasaPagoPct"]),
         })
 
+    balanco = dn.get("balancoLinhas", {})
     composicao_patrimonio = {
-        "linhas": dn.get("balancoLinhas", {}),
+        "linhas": [l for l in [
+            {"label": "Ativos (Físico + Financeiro)", "valor": _moeda(balanco["ativosTotal"])} if balanco.get("ativosTotal") is not None else None,
+            {"label": "Patrimônio Físico", "valor": _moeda(balanco["fisicoTotal"])} if balanco.get("fisicoTotal") is not None else None,
+            {"label": "Patrimônio Financeiro", "valor": _moeda(balanco["patrimonioFinanceiro"])} if balanco.get("patrimonioFinanceiro") is not None else None,
+            {"label": "Passivos", "valor": _moeda(balanco["passivosTotal"])} if balanco.get("passivosTotal") is not None else None,
+            {"label": "Patrimônio Líquido Total", "valor": _moeda(balanco["patrimonioLiquido"])} if balanco.get("patrimonioLiquido") is not None else None,
+        ] if l is not None],
         "eixos": [
             {"label": "Eficiência patrimonial", "val": subscores.get("organizacaoFinanceira")},
             {"label": "Liquidez", "val": subscores.get("liquidez")},
@@ -631,14 +695,33 @@ def gerar_narrativa(indicadores: dict) -> dict:
     eixos_validos = [e["val"] for e in composicao_patrimonio["eixos"] if e["val"] is not None]
     composicao_patrimonio["nota"] = round(sum(eixos_validos) / len(eixos_validos)) if eixos_validos else None
 
+    liquidez_classificacao = (
+        None if subscores.get("liquidez") is None else
+        "Muito Forte" if subscores["liquidez"] >= 80 else
+        "Forte" if subscores["liquidez"] >= 60 else
+        "Adequada" if subscores["liquidez"] >= 40 else "Abaixo do recomendado")
+    # textoLiquidez — mesma frase/limiar já usados pelas regras liquidez_forte/media/fraca acima
+    # (não é redação nova, reaproveita o mesmo texto).
+    texto_liquidez = None
+    if b.get("reserva") is not None and b.get("liquidezCiclos") is not None:
+        if subscores.get("liquidez") is not None and subscores["liquidez"] >= 80:
+            qualificador = "bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta)"
+        elif subscores.get("liquidez") is not None and subscores["liquidez"] >= 40:
+            qualificador = "dentro da faixa considerada segura para o perfil"
+        else:
+            qualificador = "abaixo do recomendável, sem contar outras fontes de caixa disponíveis no sistema"
+        texto_liquidez = (f"A Reserva de Emergência ({_moeda(b['reserva'])}) cobre cerca de "
+                          f"{b['liquidezCiclos']:.1f} ciclos de compromisso fixo sozinha, {qualificador}.")
+
     liquidez_analise = {
-        "classificacao": (
-            None if subscores.get("liquidez") is None else
-            "Muito Forte" if subscores["liquidez"] >= 80 else
-            "Forte" if subscores["liquidez"] >= 60 else
-            "Adequada" if subscores["liquidez"] >= 40 else "Abaixo do recomendado"),
+        "classificacao": liquidez_classificacao,
         "liquidezCiclos": b.get("liquidezCiclos"),
         "independenciaFinanceira": indicadores.get("indices", {}).get("independenciaFinanceira"),
+        "textoLiquidez": texto_liquidez,
+        "linhas": [l for l in [
+            {"label": "Reserva de Emergência", "valor": _moeda(b["reserva"])} if b.get("reserva") is not None else None,
+            {"label": "Ciclos cobertos", "valor": f"{b['liquidezCiclos']:.1f}".replace(".", ",") + " ciclos"} if b.get("liquidezCiclos") is not None else None,
+        ] if l is not None],
     }
 
     return {
