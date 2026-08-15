@@ -942,6 +942,55 @@ const WallaceFinanceService = {
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar aplicacoes_ozivy`);
       return await resp.json();
     });
+  },
+  // NOVO 15/08/2026 (WWI Fase 2C — aba "Wealth Intelligence" permanente, pedido do usuário: "o WWI
+  // passa a ser a fonte primária, o PDF passa a ser a saída"). 3 métodos novos, mesmo padrão de
+  // cache dos demais (TTL 90s em memória — histórico muda só 1x/mês pelo job, não precisa de mais).
+  // getWwiHistoricoCompleto() busca `historico_relatorios` inteiro (score/dados_json/analise_ia)
+  // — mesma tabela/leitura pública já usada por wwiBuscarHistoricoRelatorios() em
+  // gerar-analise-financeira.js, só que aqui central na WallaceFinanceService pra reaproveitar
+  // cache/pattern com o resto do painel.
+  async getWwiHistoricoCompleto(){
+    return this._cache.obterOuBuscar('wwi_historico_completo', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/historico_relatorios?select=competencia,score,dados_json,analise_ia&order=competencia.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar historico_relatorios`);
+      return await resp.json();
+    });
+  },
+  // vw_wwi_metricas_historico (WWI Fase 2A) — formato longo (1 linha por competência×métrica),
+  // M/M・T/T・A/A já calculados, NULL explícito quando não há ponto de comparação (nunca fabrica
+  // tendência com histórico insuficiente — ver WWI_FASE2_PROPOSTA_ARQUITETURA.md seção 2).
+  async getWwiMetricasHistorico(){
+    return this._cache.obterOuBuscar('vw_wwi_metricas_historico', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_wwi_metricas_historico?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_wwi_metricas_historico`);
+      return await resp.json();
+    });
+  },
+  // vw_wwi_comparativo_mensal (WWI Fase 1, item 2) — score/patrimonioLiquido com M/M・T/T・A/A.
+  async getWwiComparativoMensal(){
+    return this._cache.obterOuBuscar('vw_wwi_comparativo_mensal', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_wwi_comparativo_mensal?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_wwi_comparativo_mensal`);
+      return await resp.json();
+    });
+  },
+  // vw_wwi_score_historico (WWI Fase 2B) — melhor/pior score por metodologia, média móvel de 3,
+  // tendência (só a partir do 4º ponto contíguo).
+  async getWwiScoreHistorico(){
+    return this._cache.obterOuBuscar('vw_wwi_score_historico', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_wwi_score_historico?select=*`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_wwi_score_historico`);
+      return await resp.json();
+    });
   }
 };
 

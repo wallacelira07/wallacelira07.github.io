@@ -42,11 +42,14 @@ const CAPA_DESTINOS = [
   {grupo:'Metas & análises', icone:'☀️', titulo:'Energia Solar', sub:'geração e economia', paneId:'solar', tituloSecao:null},
   {grupo:'Metas & análises', icone:'📈', titulo:'Gráficos', sub:'evolução e composição', paneId:'graficos', tituloSecao:null},
   {grupo:'Metas & análises', icone:'🛡️', titulo:'Cenários', sub:'crítico · déficit zero', paneId:'cenarios', tituloSecao:null},
+  // WWI (NOVO 15/08/2026, Fase 2C — aba permanente "Wealth Intelligence", fonte primária do WWI;
+  // o Tactical Wealth Report em PDF passa a ser só a exportação do que existe aqui).
+  {grupo:'Metas & análises', icone:'🧠', titulo:'Wealth Intelligence', sub:'histórico patrimonial e Wealth Score', paneId:'wwi', tituloSecao:null},
 ];
 
-// Nomes de exibicao dos 4 paineis - usados pelo indicador de pagina atual (.page-strip, parte 42) e
+// Nomes de exibicao dos paineis - usados pelo indicador de pagina atual (.page-strip, parte 42) e
 // por qualquer outro lugar que precise mostrar "onde o usuario esta" de forma consistente.
-const NOMES_PANE = {painel:'📊 Painel', graficos:'📈 Gráficos', cenarios:'🛡️ Cenários', balancov2:'🏛️ Balanço'};
+const NOMES_PANE = {painel:'📊 Painel', graficos:'📈 Gráficos', cenarios:'🛡️ Cenários', balancov2:'🏛️ Balanço', wwi:'🧠 Wealth Intelligence'};
 
 function renderCapaNav(){
   const wrap = $('coverNavGrid');

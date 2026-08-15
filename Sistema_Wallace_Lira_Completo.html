@@ -317,6 +317,7 @@
     <button type="button" class="master-tab" data-pane="solar" onclick="irParaPrimeiraSecao('solar')">☀️ Energia Solar</button>
     <button type="button" class="master-tab" data-pane="cenarios" onclick="irParaPrimeiraSecao('cenarios')">🛡️ Cenários</button>
     <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
+    <button type="button" class="master-tab" data-pane="wwi" onclick="irParaPrimeiraSecao('wwi')">🧠 Wealth Intelligence</button>
     <button type="button" class="master-tab" data-pane="emagrecimento" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️ Emagrecimento</button>
     <!-- ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: formulário de
          lançamento manual só existe dentro do card da Inbox Financeira, que fica bem abaixo na
@@ -1917,6 +1918,105 @@
       <!-- CORRIGIDO 13/08/2026 (achado de auditoria: class="v" órfã aqui - a regra CSS real é
            escopada ".row .v", e este div fica fora de qualquer .row; removida a classe sem efeito) -->
       <div id="emgAvisoCusto" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
+    </div>
+  </div>
+
+  <!-- NOVO 15/08/2026 (WWI Fase 2C — pedido do usuário: "aba própria permanente, disponível na
+       navegação principal, atualização automática ao abrir, consumir snapshots já persistidos, não
+       depender da geração do PDF"). Skeleton estático (mesmo padrão de #emagrecimento acima) — todo
+       o conteúdo é preenchido por src/relatorio/hydrate-wwi.js, chamado sob demanda (carregarWwiSob
+       Demanda()) toda vez que a aba abre (ver showMaster() em ui-navegacao-basica.js). Fonte: tabela
+       historico_relatorios + views vw_wwi_comparativo_mensal/vw_wwi_metricas_historico/
+       vw_wwi_score_historico (Fase 1/2A/2B). "Histórico em construção" é mostrado explicitamente
+       quando não há competências suficientes — nunca fabrica tendência (WWI_FASE2_PROPOSTA_
+       ARQUITETURA.md, princípio de design da seção 4). -->
+  <div id="wwi" class="master-pane">
+    <div class="section-num"><span class="n">01</span><h2>🧠 Resumo Executivo</h2></div>
+    <div class="kpi-strip" style="margin-bottom:1rem">
+      <div class="kpi"><div class="lbl">Wealth Score</div><div class="val" id="wwiKpiScore">—</div></div>
+      <div class="kpi"><div class="lbl">Patrimônio Líquido</div><div class="val" id="wwiKpiPatrimonio">—</div></div>
+      <div class="kpi"><div class="lbl">Patrimônio Financeiro</div><div class="val" id="wwiKpiPatrimonioFin">—</div></div>
+      <div class="kpi"><div class="lbl">Reserva de Emergência</div><div class="val" id="wwiKpiReserva">—</div></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.4rem">Competência de referência: <span id="wwiCompetenciaRef">—</span></div>
+      <p id="wwiResumoTexto" style="font-size:var(--fs-base);line-height:var(--lh-normal)">—</p>
+      <div id="wwiAviso" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem"></div>
+    </div>
+
+    <div class="section-num"><span class="n">02</span><h2>📈 Evolução Patrimonial</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="chart-box tall"><canvas id="cWwiPatrimonio"></canvas></div>
+      <div class="grid-3" style="margin-top:0.8rem">
+        <div class="row"><span class="k">M/M</span><span class="v" id="wwiPatrimonioMom">—</span></div>
+        <div class="row"><span class="k">T/T</span><span class="v" id="wwiPatrimonioQoq">—</span></div>
+        <div class="row"><span class="k">A/A</span><span class="v" id="wwiPatrimonioYoy">—</span></div>
+      </div>
+    </div>
+
+    <div class="section-num"><span class="n">03</span><h2>🏆 Wealth Score Histórico</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="chart-box"><canvas id="cWwiScore"></canvas></div>
+      <div class="kpi-strip" style="margin-top:0.8rem">
+        <div class="kpi"><div class="lbl">Melhor (metodologia atual)</div><div class="val" id="wwiScoreMelhor">—</div></div>
+        <div class="kpi"><div class="lbl">Pior (metodologia atual)</div><div class="val" id="wwiScorePior">—</div></div>
+        <div class="kpi"><div class="lbl">Média móvel (3 ciclos)</div><div class="val" id="wwiScoreMediaMovel">—</div></div>
+        <div class="kpi"><div class="lbl">Tendência</div><div class="val" id="wwiScoreTendencia">—</div></div>
+      </div>
+    </div>
+
+    <div class="section-num"><span class="n">04</span><h2>🎯 Meta do Milhão</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="row"><span class="k">Progresso atual</span><span class="v" id="wwiMetaMilhaoPct">—</span></div>
+      <div class="progress"><div class="fill" id="wwiMetaMilhaoBar" style="width:0%;background:var(--accent)"></div></div>
+      <div class="chart-box small" style="margin-top:0.8rem"><canvas id="cWwiMetaMilhao"></canvas></div>
+    </div>
+
+    <div class="section-num"><span class="n">05</span><h2>🏠 Projeto Casa Nova</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="row"><span class="k">Projeto Casa Nova (capital BTG/Necton + Caixa Lance)</span><span class="v" id="wwiProjetoCasaNovaPct">—</span></div>
+      <div class="row"><span class="k">Consórcio Casa Nova (I0464 · Cota 12) pago</span><span class="v" id="wwiConsorcioCasaNovaPct">—</span></div>
+      <div class="chart-box small" style="margin-top:0.8rem"><canvas id="cWwiCasaNova"></canvas></div>
+    </div>
+
+    <div class="section-num"><span class="n">06</span><h2>💧 Liquidez</h2></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="kpi-strip">
+        <div class="kpi"><div class="lbl">Classificação</div><div class="val" id="wwiLiquidezClassificacao">—</div></div>
+        <div class="kpi"><div class="lbl">Ciclos cobertos</div><div class="val" id="wwiLiquidezCiclos">—</div></div>
+        <div class="kpi"><div class="lbl">Independência Financeira</div><div class="val" id="wwiLiquidezIndependencia">—</div></div>
+        <div class="kpi"><div class="lbl">M/M</div><div class="val" id="wwiLiquidezMom">—</div></div>
+      </div>
+      <div class="chart-box small" style="margin-top:0.8rem"><canvas id="cWwiLiquidez"></canvas></div>
+    </div>
+
+    <div class="section-num"><span class="n">07</span><h2>⚠️ Riscos e Oportunidades</h2></div>
+    <div class="grid-2" style="margin-bottom:1rem">
+      <div class="card">
+        <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:var(--ls-label)">Riscos</div>
+        <div id="wwiListaRiscos"></div>
+      </div>
+      <div class="card">
+        <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:var(--ls-label)">Oportunidades</div>
+        <div id="wwiListaOportunidades"></div>
+      </div>
+    </div>
+
+    <div class="section-num"><span class="n">08</span><h2>📊 Comparativos M/M · T/T · A/A</h2></div>
+    <div class="card">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Métrica</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Atual</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">M/M</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">T/T</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">A/A</th>
+          </tr></thead>
+          <tbody id="wwiTabelaComparativos"></tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="wwiAvisoComparativos"></div>
     </div>
   </div>
 

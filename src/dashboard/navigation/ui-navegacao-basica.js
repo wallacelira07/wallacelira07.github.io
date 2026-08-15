@@ -41,6 +41,24 @@ function carregarGraficosCenariosLazySobDemanda(){
   return _promiseGraficosCenariosLazy;
 }
 
+// NOVO 15/08/2026 (WWI Fase 2C — aba "Wealth Intelligence" permanente, WWI_FASE2_PROPOSTA_
+// ARQUITETURA.md + decisão do usuário "não depender da geração do PDF, atualização automática ao
+// abrir"). Mesmo padrão de carregarGraficosCenariosLazySobDemanda() acima: script sob demanda,
+// promise memoizada, só baixa/roda quando o usuário realmente abre a aba pela 1ª vez.
+var _promiseWwiLazy = null;
+function carregarWwiSobDemanda(){
+  if (typeof initWwiDashboard === 'function') return Promise.resolve();
+  if (_promiseWwiLazy) return _promiseWwiLazy;
+  _promiseWwiLazy = new Promise(function(resolve, reject){
+    var script = document.createElement('script');
+    script.src = 'src/relatorio/hydrate-wwi.js' + (typeof __V !== 'undefined' ? '?v=' + __V : '');
+    script.onload = function(){ resolve(); };
+    script.onerror = function(){ _promiseWwiLazy = null; reject(new Error('falha ao carregar hydrate-wwi.js')); };
+    document.head.appendChild(script);
+  });
+  return _promiseWwiLazy;
+}
+
 // ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: o botão/form "＋ Lançar
 // transação" de app.js só existe dentro do card da Inbox Financeira — em qualquer aba muito
 // abaixo do topo, o usuário tinha que rolar por várias seções pra chegar nele). Reaproveita o
@@ -87,6 +105,16 @@ function showMaster(id){
       initSolarLazy();
     }).catch(function(err){
       console.error('Erro ao carregar módulo de Gráficos/Cenários (Solar) sob demanda', err);
+    });
+  }
+  // NOVO 15/08/2026 (WWI Fase 2C): "atualização automática ao abrir" — chama initWwiDashboard() TODA
+  // vez que a aba abre (não só na 1ª), pra sempre refletir o snapshot mais recente; o cache de 90s da
+  // WallaceFinanceService já evita rede redundante se o usuário reabrir a aba rapidamente.
+  if(id === 'wwi'){
+    carregarWwiSobDemanda().then(function(){
+      initWwiDashboard();
+    }).catch(function(err){
+      console.error('Erro ao carregar módulo WWI sob demanda', err);
     });
   }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
