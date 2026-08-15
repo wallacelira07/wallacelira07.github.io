@@ -39,3 +39,13 @@ Todos os 9 registros correspondentes nas tabelas de staging (2 conexões Pluggy 
 ## O que ainda resta pendente (41 itens)
 
 Não verificados individualmente nesta sessão — são ruído de sincronização de baixo valor (IOF internacional <R$5, arredondamentos de R$0,01, itens duplicados no mesmo timestamp) que os filtros client-side já suprimem visualmente, mesmo continuando `'pendente'` no banco. Não é urgente, mas pode ser revisado numa próxima faxina se o volume voltar a incomodar.
+
+## Correção 2 (15/08/2026) — Inbox ainda pegava assinatura como compra não registrada
+
+**Achado do usuário, mesmo dia**: a cobrança ANTHROPIC*CLAUDE SUB de R$110,00 (12/08, PENDING no Pluggy) reapareceu como pendente mesmo depois da correção acima — era a assinatura mensal "Claude" (`cronograma_assinaturas`, `TXS000002`), não uma compra nova.
+
+**Causa raiz**: o filtro de dedup (correção 1, itens 2 e 4 da função `arquivar_inbox_historico()`) só rejeitava por **valor exato** contra `transacoes`. Assinaturas internacionais com IOF variável (câmbio muda todo mês: R$113,72 num mês, R$117,18 no outro, R$116,42 no outro) nunca batem valor exato com nada — sobreviviam ao filtro e ficavam pendentes pra sempre, mesmo já orçadas em `cronograma_assinaturas`. Existia até uma detecção client-side pra esse exato problema (`descricaoBateAssinaturaConhecida`, `classificacao-inbox.js`, criada em 10/08/2026), mas ela só **mostrava um aviso** ("⚠ estabelecimento já é uma assinatura confirmada") — nunca filtrava o item da lista.
+
+**Correção**: migration `arquivar_inbox_historico_reconhece_assinaturas_conhecidas` — nova regra na função (itens 5 e 6): qualquer pendente, de qualquer ciclo, cuja descrição contenha o 1º radical (≥4 letras) do nome de uma assinatura ATIVA em `cronograma_assinaturas` → rejeitado automaticamente, sem depender de valor bater. Rodada uma vez manualmente pra reprocessar o acumulado: 3 itens Pluggy capturados na hora (incluindo o Claude). Roda sozinha daqui pra frente, junto com o resto da função.
+
+**Correção adicional, mesmo achado**: `cronograma_assinaturas`/`transacoes` (`TXS000002`, "Claude") estava orçado em R$110,00 flat, sem o IOF de compra internacional — subestimando o custo real (~R$113-117/mês). Corrigido pra R$113,72 (base + IOF 3,38% estimado), pedido explícito do usuário.
