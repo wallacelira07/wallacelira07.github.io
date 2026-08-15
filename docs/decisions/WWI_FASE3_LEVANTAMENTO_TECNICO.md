@@ -113,3 +113,67 @@ Mesma estratégia de 2 estágios já usada e validada no narrative engine (Está
 O achado mais importante deste levantamento: **a narrativa (textos/blocos estruturados) já é 100% WWI quando a competência está fechada** — isso foi resolvido na Fase 1. O que falta pra completar "WWI = fonte, PDF = saída" é migrar os **NÚMEROS** (`indicadores`, `comparativo`, parte dos KPIs) da mesma forma — e a maior parte disso (seção 3) é trivial, porque os campos já existem persistidos com o mesmo nome. As únicas partes genuinamente difíceis são: (a) o ciclo aberto sem WWI ainda (estrutural, sem solução — sempre vai precisar de fallback ao vivo), e (b) 2 KPIs (Liquidez Imediata, Geração de Caixa) sem campo persistido hoje, que exigem uma decisão de produto antes de qualquer trabalho técnico.
 
 **Nenhuma migração foi feita. Aguardando aprovação explícita pra iniciar 3A.**
+
+---
+
+## Execução (15/08/2026) — 3A + 3B concluídas em sequência, sem checkpoint intermediário
+
+Autorizada ponta a ponta ("considere esta mensagem como autorização explícita para executar a Fase 3 completa"). 8 "agentes" mapeados no pedido do usuário concentravam-se todos nos mesmos 2 arquivos (`index.html`, `gerar-analise-financeira.js`) — paralelismo de verdade ali corromperia por escrita concorrente (mesma situação já explicada no Estágio A.1); execução feita sequencial e diretamente.
+
+### 1. O que foi migrado
+
+- **`indicadores` (Wealth Score, 7 subscores, 4 índices, 16 campos de `indicadoresBrutos`)**: quando `historico.atual.dados_json` existe e tem o shape esperado (`indicadoresBrutos`+`subscores` presentes), `indicadores = historico.atual.dados_json` — WWI persistido, sem transformação (mesmo shape do retorno de `calcularIndicadoresEScores()`). Isso migra automaticamente, em cascata: **Reembolsos Wärtsilä**, **Score Wallace Lira (gauge)**, e **Capacidade de Investimento** (já lia `indicadoresBrutos.poupancaSobrou`).
+- **5 de 8 KPIs do Painel Executivo**: Patrimônio Financeiro, Patrimônio Total, Passivos Externos, Reserva Emergencial, Meta do Milhão — agora preferem `ib.*` (campo numérico já existente em `indicadoresBrutos`) sobre `pdfPegarKpi(dados.secoes, ...)` (DOM), com fallback pro DOM só se o campo não existir.
+- **Guarda por competência fechada** (Agente 5): checagem explícita de `historico.atual.dados_json.indicadoresBrutos`/`.subscores` antes de usar o snapshot.
+- **Fallback automático** (Agente 6): qualquer ausência do shape esperado cai pro cálculo ao vivo (`else if (typeof win.calcularIndicadoresEScores === 'function')`) — nunca lança exceção, nunca deixa `indicadores` indefinido.
+- **Shadow mode dos comparativos** (Agente 7): nova função `wwiCompararComparativoShadow()` — busca `vw_wwi_comparativo_mensal` pra competência atual e loga (M/M·T/T·A/A por calendário) ao lado do `comparativo` real (3/6/12 ciclos), só quando `indicadores` veio do WWI. Nunca substitui o texto exibido.
+
+### 2. O que permaneceu em fallback (deliberadamente)
+
+- **`comparativo`** (variação vs. ciclo anterior, janelas de 3/6/12 ciclos): continua 100% `compararComHistorico()` ao vivo. Migração pra WWI fica só em shadow — os 2 enquadramentos (calendário vs. contagem de ciclos) não são diretamente equivalentes, decisão de produto pendente (seção 4.3), classificado como fora do escopo desta execução por ser justamente uma "decisão de produto que afete comportamento do usuário" (uma das 4 condições de parada do usuário).
+- **Liquidez Imediata / Geração de Caixa** (2 dos 8 KPIs): sem campo persistido equivalente hoje, continuam vindo do DOM — mesma decisão pendente já registrada na seção 4.2, escopo explicitamente excluído pelo próprio usuário ("KPIs já persistidos", Agente 2).
+- **Metadados de capa** (`dados.cicloAtual`, `dados.geradoEm`): continuam do DOM — não são cálculo, mudar de significado (hora do job vs. hora de abertura do PDF) seria decisão de produto, não migração técnica.
+- **Competência aberta (antes do dia 25)**: sempre cai no fallback ao vivo — não é uma lacuna, é a natureza estrutural do ciclo sem WWI persistido ainda (seção 4.1).
+
+### 3. Divergências encontradas
+
+Nenhuma divergência foi observada nesta rodada — o shadow mode dos comparativos (item novo desta Fase) e o log de fonte de `indicadores` (`WWI Fase 3: indicadores desta geração vieram de...`) só produzem evidência real na próxima geração de relatório com o painel logado (mesma limitação já documentada: login real indisponível neste ambiente de desenvolvimento).
+
+### 4. Evidências de validação
+
+- Sintaxe verificada: balanceamento de chaves/parênteses **só nas linhas adicionadas** (não no arquivo inteiro, que já tinha desbalanceamento pré-existente de texto/prosa) — 0 introduzido em `index.html` e `gerar-analise-financeira.js`.
+- 0 IDs HTML duplicados após a mudança.
+- Revisão manual linha a linha do fluxo reordenado (`historico` agora buscado ANTES de `indicadores`, inversão necessária pra guarda funcionar) — confirmado que `comparativo`/`gerarPdfRelatorioFechamento()` continuam recebendo os mesmos parâmetros de sempre, só a origem de `indicadores` mudou condicionalmente.
+- **Não foi possível testar ao vivo** (mesma limitação de sempre) — validação funcional real só na próxima geração de relatório de fechamento com painel logado, competência `2026-07` (já tem `dados_json` persistido — deve exercitar o caminho `wwiIndicadoresFonte === 'wwi'` na prática).
+
+### 5. Commits realizados
+
+Ver seção "Commits" no encerramento desta fase, registrado também em `WWI_ROADMAP_V1.md`.
+
+### 6. Riscos remanescentes
+
+Nenhum risco novo introduzido — mesma classe de risco já mapeada na Fase 2 (dependência do job automático, consistência dos snapshots). Risco específico desta migração: se um snapshot `dados_json` de uma competência futura vier com `indicadoresBrutos` parcialmente preenchido (ex: só 5 dos 16 campos, por causa de alguma falha upstream não pega pela checagem de sanidade da Fase 2B), o PDF vai preferir esses valores parciais sobre o DOM completo pra qualquer campo que exista, mesmo que o resto do snapshot esteja ruim — mitigado parcialmente pela checagem de sanidade do job (Fase 2B, aviso em >30% ausente), mas não há uma segunda guarda no lado do PDF pra isso. Risco **Baixo** (mesmo já mitigado a montante), não corrigido nesta rodada por não ter sido observado na prática.
+
+### 7. Percentual de adoção WWI pelo Tactical Wealth Report
+
+| Bloco | Situação após Fase 3 |
+|---|---|
+| `indicadores` (Wealth Score/subscores/16 campos brutos) | ✅ WWI quando fechada (100% dos campos) |
+| Reembolsos Wärtsilä | ✅ WWI quando fechada (deriva de `indicadores`) |
+| Score Wallace Lira (gauge) | ✅ WWI quando fechada (deriva de `indicadores`) |
+| Narrativa (textos + 5 blocos estruturados) | ✅ WWI quando fechada (desde a Fase 1) |
+| Painel Executivo (KPIs) | 🟡 6 de 8 (75%) — Liquidez Imediata/Geração de Caixa seguem DOM |
+| `comparativo` (variação vs. histórico) | ⚪ Shadow mode só — 0% migrado, decisão de produto pendente |
+| Metadados de capa | ⚪ DOM (não é cálculo, fora de escopo) |
+
+**Adoção agregada: 5 de 7 blocos de cálculo (≈71%) já consomem WWI quando a competência está fechada** — os 2 que não migraram (comparativo, 2 KPIs sem fonte) ficaram assim por decisão deliberada (decisão de produto pendente), não por falta de execução.
+
+### 8. Recomendação para próxima fase
+
+Não abrir fase nova ainda. 2 itens continuam pendentes de **decisão de produto** (não de execução técnica), ambos já sinalizados como condição de parada pelo próprio usuário:
+1. `comparativo`: manter os 2 enquadramentos (3/6/12 ciclos + M/M·T/T·A/A) lado a lado, ou escolher 1 só pra exibir?
+2. Liquidez Imediata/Geração de Caixa: vale portar pro Python (2 campos novos, aditivo) pra fechar os 100% do Painel Executivo, ou aceitar ficar em 75% permanentemente?
+
+Recomendo deixar o shadow mode do comparativo rodar por 1 ciclo (mesmo critério já usado pro shadow mode da narrativa) antes de decidir o item 1 — e tratar o item 2 como pergunta direta ao usuário quando ele quiser fechar os 100%, não como trabalho técnico a fazer sozinho.
+
+**Fase 3 (3A+3B) concluída. Nenhuma decisão de produto foi tomada unilateralmente — ambos os itens pendentes aguardam decisão do usuário.**

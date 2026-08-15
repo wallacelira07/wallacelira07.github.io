@@ -849,9 +849,48 @@ function wwiCompararNarrativaShadow(narrativaPython, narrativaJs, competencia){
   return { divergencias, resumo };
 }
 
+// ---------------------------------------------------------------------------------------------
+// wwiCompararComparativoShadow(competencia, comparativoLive) — WWI Fase 3, Agente 7 (SHADOW MODE)
+// NOVO 15/08/2026 (WWI_FASE3_LEVANTAMENTO_TECNICO.md, seção 4.3 — decisão pendente: `comparativo`
+// exibido continua vindo de compararComHistorico() [janelas de 3/6/12 ciclos], NUNCA substituído
+// aqui). Busca vw_wwi_comparativo_mensal (score/patrimonioLiquido, M/M·T/T·A/A por calendário) só
+// pra log — mesmo espírito de wwiCompararNarrativaShadow(), sem persistir nada. Usa
+// WallaceFinanceService (já global neste ponto do boot — app.js carrega antes deste módulo).
+// ---------------------------------------------------------------------------------------------
+async function wwiCompararComparativoShadow(competencia, comparativoLive){
+  if(typeof WallaceFinanceService === 'undefined' || typeof WallaceFinanceService.getWwiComparativoMensal !== 'function'){
+    return null;
+  }
+  let linhaWwi = null;
+  try {
+    const serie = await WallaceFinanceService.getWwiComparativoMensal();
+    linhaWwi = Array.isArray(serie) ? serie.find(function(l){ return l.competencia === competencia; }) : null;
+  } catch(err){
+    console.warn('WWI Shadow Mode (comparativo): falha ao buscar vw_wwi_comparativo_mensal.', err);
+    return null;
+  }
+  console.groupCollapsed('WWI Shadow Mode (comparativo) — ' + competencia);
+  console.log('Live (compararComHistorico, janelas de 3/6/12 ciclos):', (comparativoLive && comparativoLive.frases) || []);
+  if(linhaWwi){
+    console.log('WWI (vw_wwi_comparativo_mensal, M/M·T/T·A/A por calendário):', {
+      delta_patrimonio_mom_pct: linhaWwi.delta_patrimonio_mom_pct,
+      delta_patrimonio_qoq: linhaWwi.delta_patrimonio_qoq,
+      delta_patrimonio_yoy: linhaWwi.delta_patrimonio_yoy,
+      delta_score_mom: linhaWwi.delta_score_mom,
+      delta_score_qoq: linhaWwi.delta_score_qoq,
+      delta_score_yoy: linhaWwi.delta_score_yoy,
+    });
+  } else {
+    console.log('WWI: sem linha em vw_wwi_comparativo_mensal pra esta competência (histórico em construção).');
+  }
+  console.groupEnd();
+  return linhaWwi;
+}
+
 window.calcularIndicadoresEScores = calcularIndicadoresEScores;
 window.gerarAnaliseFinanceira = gerarAnaliseFinanceira;
 window.compararComHistorico = compararComHistorico;
 window.wwiBuscarHistoricoRelatorios = wwiBuscarHistoricoRelatorios;
 window.wwiBuscarSaldoCaixaLance = wwiBuscarSaldoCaixaLance;
 window.wwiCompararNarrativaShadow = wwiCompararNarrativaShadow;
+window.wwiCompararComparativoShadow = wwiCompararComparativoShadow;

@@ -1374,15 +1374,26 @@
                 return score >= 70 ? { cls: 'g', txt: 'Verde' } : score >= 40 ? { cls: 'a', txt: 'Amarelo' } : { cls: 'r', txt: 'Vermelho' };
             }
             const pctPassivos = (ib.passivosTotal != null && ib.ativosTotal) ? _wwiFmtNumLocal((ib.passivosTotal / ib.ativosTotal) * 100, 1) : null;
-            const metaMilhaoAcumulado = pdfPegarKpi(dados.secoes, 'Meta do milhão', 'Acumulado');
+            // NOVO 15/08/2026 (WWI Fase 3, Agente 2 — WWI_FASE3_LEVANTAMENTO_TECNICO.md seção 3):
+            // 5 dos 8 KPIs já existem como campo numérico em `indicadoresBrutos` — mesmo quando
+            // `indicadores` veio do cálculo ao vivo (não só quando vem do WWI persistido), então
+            // preferir `ib.*` sempre que existir é estritamente melhor que o texto raspado do DOM
+            // (número puro, sem risco de parsing de rótulo mudar). Fallback pro DOM só quando o
+            // campo realmente não existe em `ib` (nunca quebra, mesma filosofia de sempre).
+            const metaMilhaoAcumulado = (indicadores && indicadores.dadosNarrativos && indicadores.dadosNarrativos.metaMilhaoAcumulado != null)
+                ? _wwiFmtR(indicadores.dadosNarrativos.metaMilhaoAcumulado)
+                : pdfPegarKpi(dados.secoes, 'Meta do milhão', 'Acumulado');
 
             const kpis = [
-                { lbl: 'Patrimônio Financeiro', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total'), sub: 'Reserva + investimentos + Caixa Lance', chip: _wwiChip(sc.investimentos) },
-                { lbl: 'Patrimônio Total', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido'), sub: 'Líquido de todas as dívidas externas', chip: _wwiChip(sc.protecaoPatrimonial) },
-                { lbl: 'Passivos Externos', val: pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total'), sub: pctPassivos !== null ? (pctPassivos + '% do ativo total — alavancagem ' + (sc.endividamento >= 70 ? 'baixa' : sc.endividamento >= 40 ? 'moderada' : 'alta')) : null, chip: _wwiChip(sc.endividamento) },
-                { lbl: 'Reserva Emergencial', val: pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência'), sub: ib.liquidezCiclos != null ? (_wwiFmtNumLocal(ib.liquidezCiclos, 1) + ' ciclos de compromisso fixo guardados') : null, chip: _wwiChip(sc.liquidez) },
+                { lbl: 'Patrimônio Financeiro', val: ib.patrimonioFinanceiro != null ? _wwiFmtR(ib.patrimonioFinanceiro) : pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Total'), sub: 'Reserva + investimentos + Caixa Lance', chip: _wwiChip(sc.investimentos) },
+                { lbl: 'Patrimônio Total', val: ib.patrimonioLiquido != null ? _wwiFmtR(ib.patrimonioLiquido) : (pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Patrimônio Líquido') || pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Patrimônio Líquido')), sub: 'Líquido de todas as dívidas externas', chip: _wwiChip(sc.protecaoPatrimonial) },
+                { lbl: 'Passivos Externos', val: ib.passivosTotal != null ? _wwiFmtR(ib.passivosTotal) : (pdfPegarKpi(dados.secoes, '🏦 Balanço Patrimonial', 'Passivos') || pdfPegarKpi(dados.secoes, '📉 Passivos Patrimoniais', 'Total')), sub: pctPassivos !== null ? (pctPassivos + '% do ativo total — alavancagem ' + (sc.endividamento >= 70 ? 'baixa' : sc.endividamento >= 40 ? 'moderada' : 'alta')) : null, chip: _wwiChip(sc.endividamento) },
+                { lbl: 'Reserva Emergencial', val: ib.reserva != null ? _wwiFmtR(ib.reserva) : pdfPegarKpi(dados.secoes, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência'), sub: ib.liquidezCiclos != null ? (_wwiFmtNumLocal(ib.liquidezCiclos, 1) + ' ciclos de compromisso fixo guardados') : null, chip: _wwiChip(sc.liquidez) },
+                // Liquidez Imediata e Geração de Caixa: sem campo persistido equivalente hoje
+                // (WWI_FASE3_LEVANTAMENTO_TECNICO.md seção 4.2) — continuam vindo do DOM de propósito,
+                // decisão de produto separada antes de portar pro Python.
                 { lbl: 'Liquidez Imediata', val: liquidezImediata, sub: 'Reserva + Caixa Lance + Caixa Variável', chip: _wwiChip(sc.liquidez) },
-                { lbl: 'Meta do Milhão', val: pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão'), sub: metaMilhaoAcumulado ? (metaMilhaoAcumulado + ' de R$ 1.000.000') : null, chip: _wwiChip(ib.metaMilhaoPct != null ? (ib.metaMilhaoPct >= 50 ? 90 : 55) : null) },
+                { lbl: 'Meta do Milhão', val: ib.metaMilhaoPct != null ? _wwiFmtNumLocal(ib.metaMilhaoPct, 2) + '%' : pdfPegarKpi(dados.secoes, 'Resumo executivo', 'Meta do Milhão'), sub: metaMilhaoAcumulado ? (metaMilhaoAcumulado + ' de R$ 1.000.000') : null, chip: _wwiChip(ib.metaMilhaoPct != null ? (ib.metaMilhaoPct >= 50 ? 90 : 55) : null) },
                 { lbl: 'Geração de Caixa (PIB Wallace)', val: pdfPegarKpi(dados.secoes, '📊 Fluxo Financeiro do Ciclo', 'Entradas totais'), sub: 'Salário líquido + reembolsos + rendimentos', chip: _wwiChip(sc.organizacaoFinanceira) },
                 { lbl: 'Capacidade de Investimento', val: capacidadeInvestimento, sub: 'Capacidade de aporte do ciclo, após despesas fixas', chip: _wwiChip(sc.execucaoDeMetas) },
             ].filter(function (k) { return k.val; });
@@ -1702,11 +1713,30 @@
                     ? win.wwiBuscarSaldoCaixaLance()
                     : Promise.resolve(null);
                 return promessaCaixaLance.then(function (caixaLanceSaldo) {
-                    const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados, caixaLanceSaldo) : null;
                     const promessaHistorico = (typeof win.wwiBuscarHistoricoRelatorios === 'function' && dados.competencia)
                         ? win.wwiBuscarHistoricoRelatorios(dados.competencia)
                         : Promise.resolve({ atual: null, anteriores: [] });
                     return promessaHistorico.then(function (historico) {
+                        // NOVO 15/08/2026 (WWI Fase 3A/3B — WWI_FASE3_LEVANTAMENTO_TECNICO.md: "WWI = fonte
+                        // de verdade, PDF = representação"). Guarda por competência fechada: só existe
+                        // snapshot WWI pra consumir quando o job de dia 25 já rodou nesta competência
+                        // (historico.atual.dados_json existe e tem o shape esperado). Fallback automático:
+                        // qualquer ausência/formato inesperado cai de volta pro cálculo ao vivo — nunca
+                        // quebra a geração do relatório (mesma filosofia defensiva do shadow mode da
+                        // narrativa, Estágio B). `indicadores` (Wealth Score/subscores/indicadoresBrutos)
+                        // tem exatamente o mesmo shape em `dados_json` e no retorno de
+                        // calcularIndicadoresEScores() — troca de fonte sem transformação nenhuma.
+                        let indicadores = null;
+                        let wwiIndicadoresFonte = 'live';
+                        if (historico.atual && historico.atual.dados_json &&
+                            historico.atual.dados_json.indicadoresBrutos && historico.atual.dados_json.subscores) {
+                            indicadores = historico.atual.dados_json;
+                            wwiIndicadoresFonte = 'wwi';
+                        } else if (typeof win.calcularIndicadoresEScores === 'function') {
+                            indicadores = win.calcularIndicadoresEScores(dados, caixaLanceSaldo);
+                        }
+                        console.log('WWI Fase 3: indicadores desta geração vieram de', wwiIndicadoresFonte === 'wwi' ? 'WWI persistido' : 'cálculo ao vivo', '—', dados.competencia);
+
                         let narrativa = null;
                         if (historico.atual && historico.atual.analise_ia) {
                             narrativa = historico.atual.analise_ia; // reutiliza — mesma narrativa da criação da competência
@@ -1725,9 +1755,19 @@
                         } else if (typeof win.gerarAnaliseFinanceira === 'function') {
                             narrativa = win.gerarAnaliseFinanceira(dados, caixaLanceSaldo); // gerada na hora só pra exibir, não persiste
                         }
+                        // Comparativo exibido continua vindo do cálculo ao vivo (janelas de 3/6/12 ciclos)
+                        // — a migração pras views WWI (M/M·T/T·A/A, framing por calendário) fica em SHADOW
+                        // MODE (Agente 7, Fase 3): compara e loga, nunca substitui o texto exibido, porque
+                        // os 2 enquadramentos não são diretamente equivalentes (decisão de produto pendente,
+                        // WWI_FASE3_LEVANTAMENTO_TECNICO.md seção 4.3).
                         const comparativo = (typeof win.compararComHistorico === 'function')
                             ? win.compararComHistorico(indicadores, historico.anteriores)
                             : { frases: [], temHistorico: false };
+                        if (wwiIndicadoresFonte === 'wwi' && typeof win.wwiCompararComparativoShadow === 'function') {
+                            win.wwiCompararComparativoShadow(dados.competencia, comparativo).catch(function (errShadow) {
+                                console.warn('WWI Shadow Mode (comparativo): falha ao comparar (não afeta o relatório exibido).', errShadow);
+                            });
+                        }
                         return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela);
                     });
                 });
