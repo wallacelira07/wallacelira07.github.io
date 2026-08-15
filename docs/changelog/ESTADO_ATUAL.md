@@ -70,6 +70,11 @@ O número "41" do redesenho de 14/08 estava desatualizado — o volume voltou a 
 ### 1.2b Webhook Pluggy — RESOLVIDO 15/08/2026
 Segredo hardcoded na Edge Function `pluggy-webhook` trocado por `Deno.env.get("PLUGGY_WEBHOOK_SECRET")` e o usuário configurou o secret no Supabase Dashboard. **Testado ao vivo** (`curl -X POST` com o header `X-Webhook-Secret` correto): retornou `200`. Linha de teste (`event='teste_verificacao'`) apagada de `pluggy_webhook_eventos` logo em seguida — não sobrou resíduo. Não reabrir.
 
+### 1.2d Backlog técnico registrado 15/08/2026 (decisão do usuário: não priorizar agora)
+Usuário revisou a lista de melhorias de médio prazo restantes da auditoria e decidiu explicitamente **adiar** (não é esquecimento, é priorização consciente por impacto no negócio):
+- **Lint/checagem de dependência entre os ~91 módulos `hydrate-*`** — escopo grande, sem ganho imediato de negócio. Retomar quando houver sinal concreto de bug de ordem de carregamento, não proativamente.
+- **~150 itens da Inbox Financeira** (144 Pluggy + 13 MP) que sobraram depois da faxina automática de 55 itens — precisam de classificação caso a caso, não automação. Relatório de classificação gerado (ver `docs/decisions/PROPOSTAS_15082026_WWI_SERVICES_BACKLOG.md`), execução da triagem fica pra quando o usuário tiver tempo/quiser.
+
 ### 1.3 Autor do `DELETE` que apagou a linha de `historico_relatorios` de julho — desconhecido, sem como recuperar
 A investigação sênior desta sessão confirmou que a linha foi gravada de verdade e depois apagada por um `DELETE` real (corretamente filtrado por competência), mas não há nenhum log/rastro de quem/quando — a tabela nunca teve trigger de auditoria antes de hoje. **Não reabrir como investigação** — não há mais evidência a extrair. O trigger novo (`trg_audit_historico_relatorios`) garante que isso nunca mais fique sem rastro.
 
