@@ -51,14 +51,22 @@ Recebida via mensagem do usuário (pergunta encaminhada de uma sessão de Claude
 ### 1.1 Instalação física do medidor DDSU666 — hoje é 15/08/2026, dia da instalação (Casa da Mãe)
 Fase 1 (sondagem, só leitura) está pronta: `scripts/sync/sondar_medidor_saj.py` + workflow `sondar_medidor_saj.yml` (disparo manual via GitHub Actions, do celular). **Se já é 15/08 ou depois quando esta sessão for lida**: confirmar se a sondagem já foi disparada e o que ela retornou antes de qualquer outra coisa relacionada a Solar. Detalhe completo em `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`.
 
-### 1.2 41 itens ainda pendentes na Inbox Financeira (baixo risco, não urgente)
-Depois do redesenho desta sessão (ver regra 12 acima e `docs/decisions/INBOX_FINANCEIRA_REDESIGN_FILTROS.md`), sobraram 41 itens (13 `mercadopago_eventos` + 28 Pluggy) sem match automático — ruído de sincronização de baixo valor (IOF <R$5, arredondamentos, duplicatas no mesmo timestamp). Não verificados individualmente. Só revisar se o usuário pedir ou se o volume voltar a crescer.
+### 1.2 Inbox Financeira — volume cresceu pra 211 (13 MP + 198 Pluggy), 55 processados nesta sessão, restam 144 Pluggy + 13 MP
+O número "41" do redesenho de 14/08 estava desatualizado — o volume voltou a crescer (198 Pluggy pendentes, não 28). Investigado e processado nesta sessão (15/08), sem esperar pedido do usuário (regra 6 do manual — agente processa a fila sozinho):
+
+1. **41 pares duplicados por sincronização multi-conta** — 2 conexões Pluggy diferentes (`wallace.termica@` e `wallace.servidor@`) sincronizam a MESMA conta Mercado Pago, então toda transação real aparece 2x com `descricao`/`valor`/`data` idênticos. Rejeitada a cópia extra de cada par (41 linhas), mantida 1 de cada. **⚠️ Isso é estrutural, vai continuar acontecendo a cada sync** — `arquivar_inbox_historico()` não detecta esse tipo de duplicata (só ciclo passado/já lançado); avaliar se vale ensinar a função a dedupli­car por `descricao+valor+data` entre contas do mesmo `banco='MeuPluggy'`.
+2. **11 taxas de IOF <R$5** — resíduo mecânico de compra internacional já contabilizada no valor da compra, não é "transação esquecida". Rejeitadas.
+3. **2 TEDs da Wärtsilä já lançadas** (R$340,00 de 06/08 = `TX000220`; R$6.682,76 de 13/08 = `TX000280`, ambas `confirmado` em `transacoes`) — rejeitadas como duplicata cross-source (Pluggy vê o extrato bancário, mas o lançamento já existe no ERP).
+
+**Restam 144 Pluggy + 13 MP não processados** — inclui itens de maior valor (4 outras TEDs Wärtsilä sem correspondência 1:1 óbvia em `transacoes`, provavelmente os depósitos brutos de salário antes de serem splitados em múltiplos aportes; R$2.015,58 recorrente 3x; RAIA DROGASIL, MERCADOLIVRE, pagamentos de conta). **Não processados às cegas de propósito** — passaram por checagem de correspondência com `transacoes` e não bateram, então não são duplicata óbvia; precisam de revisão mais cuidadosa (contexto de qual caixa/o que representam), não uma faxina automática.
+
+**⚠️ Achado que contradiz a pendência 1.4 abaixo**: a TED Wärtsilä de R$340,00 (06/08) TEM correspondência confirmada em `transacoes` (`TX000220`, `confirmado`, "Reembolso Wärtsilä recebido"). Ou seja, o dinheiro parece já ter chegado e sido lançado — mas `reembolso_wartsila_ciclo` (ciclo 2026-07) continua com `valor_a_receber=340.00`, como se ainda estivesse pendente. **Inconsistência real entre o ERP (`transacoes`) e a tabela de controle da cascata — não corrigida ainda, é dado financeiro sensível da cascata Wärtsilä, precisa confirmação do usuário antes de mexer.**
 
 ### 1.3 Autor do `DELETE` que apagou a linha de `historico_relatorios` de julho — desconhecido, sem como recuperar
 A investigação sênior desta sessão confirmou que a linha foi gravada de verdade e depois apagada por um `DELETE` real (corretamente filtrado por competência), mas não há nenhum log/rastro de quem/quando — a tabela nunca teve trigger de auditoria antes de hoje. **Não reabrir como investigação** — não há mais evidência a extrair. O trigger novo (`trg_audit_historico_relatorios`) garante que isso nunca mais fique sem rastro.
 
-### 1.4 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
-Sem mudança nesta sessão — ainda não confirmado como recebido.
+### 1.4 R$340,00 do ciclo Wärtsilä 2026-07 — achado novo: pode já ter chegado, mas `reembolso_wartsila_ciclo` não reflete isso
+**Revisitado nesta sessão (ver 1.2 acima)**: existe uma TED real de R$340,00 da WARTSILA BRASIL LTDA em 06/08 (extrato bancário, Pluggy) E uma transação confirmada em `transacoes` (`TX000220`, 07/08, "Reembolso Wärtsilä recebido... pra dentro da Caixa Wärtsilä") — mas `reembolso_wartsila_ciclo` (ciclo 2026-07) continua mostrando `valor_a_receber=340.00`, como se nada tivesse chegado. **Não corrigido** — pode ser (a) a tabela de controle ficou desatualizada depois do lançamento manual, ou (b) o `TX000220` é outra coisa que não fecha essa pendência específica (ex: adiantamento, não o reembolso oficial). Precisa da confirmação do usuário antes de tocar em `reembolso_wartsila_ciclo` — é dado financeiro da cascata.
 
 ### 1.5 LREI0004 (R$103,55) segue ativa
 Aguardando Caixa Manutenção acumular saldo suficiente (não conferido nesta sessão).
