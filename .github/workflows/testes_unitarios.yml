@@ -1,0 +1,38 @@
+name: Testes Unitários (FinanceEngine/Comparator/CycleEngine)
+
+# NOVO 15/08/2026 - achado da auditoria multidisciplinar de 43 especialistas (docs/decisions/
+# AUDITORIA_MULTIDISCIPLINAR_15082026.md, achado ALTA "Zero CI"): os 3 arquivos de teste em
+# tests/unit/ já existiam e presumivelmente passavam, mas nenhum workflow os executava - uma
+# regressão em src/services/{FinanceEngine,Comparator,CycleEngine}.js só seria pega por
+# auditoria manual. Scripts autocontidos (sem framework, sem npm install - só require() puro +
+# process.exit(0/1)), roda em qualquer push/PR que toque os arquivos relevantes.
+on:
+  push:
+    paths:
+      - 'src/services/FinanceEngine.js'
+      - 'src/services/Comparator.js'
+      - 'src/services/CycleEngine.js'
+      - 'tests/unit/**'
+  pull_request:
+    paths:
+      - 'src/services/FinanceEngine.js'
+      - 'src/services/Comparator.js'
+      - 'src/services/CycleEngine.js'
+      - 'tests/unit/**'
+  workflow_dispatch: {}
+jobs:
+  testes-unitarios:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: FinanceEngine.test.js
+        run: node tests/unit/FinanceEngine.test.js
+      - name: Comparator.test.js
+        run: node tests/unit/Comparator.test.js
+      - name: CycleEngine.test.js
+        run: node tests/unit/CycleEngine.test.js

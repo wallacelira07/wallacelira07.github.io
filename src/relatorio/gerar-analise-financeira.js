@@ -159,10 +159,18 @@ function calcularIndicadoresEScores(dados, caixaLanceSaldo){
     // deste usuário. 100% de dívida sobre patrimônio líquido = nota zero (dívida do tamanho do
     // patrimônio já é alavancagem alta pra pessoa física). Nenhum dado novo — `passivosTotal` e
     // `patrimonioLiquido` já eram calculados acima, só não eram cruzados dessa forma.
-    protecaoPatrimonial: (passivosTotal !== null && patrimonioLiquido) ?
+    // CORRIGIDO 15/08/2026 (achado ALTA da auditoria de 43 especialistas): a guarda usava
+    // `patrimonioLiquido` (truthy) em vez de `> 0` explícito — com patrimônio líquido NEGATIVO
+    // (alavancagem extrema), a divisão por um denominador negativo invertia o sinal e podia dar
+    // nota 100 (proteção patrimonial máxima) exatamente no pior cenário possível. Agora exige
+    // patrimônio líquido positivo pra calcular; negativo/zero vira `null` (nunca fabrica nota
+    // errada) — mesmo espírito de "nunca tratar ausência/cenário inválido como se fosse dado bom".
+    protecaoPatrimonial: (passivosTotal !== null && patrimonioLiquido > 0) ?
       _wwiClamp(100 - (passivosTotal / patrimonioLiquido * 100), 0, 100) : null,
     // Quanto do patrimônio líquido total é financeiro/líquido (vs físico/ilíquido). 40% líquido = nota máxima.
-    investimentos: (patrimonioFinanceiro !== null && patrimonioLiquido) ?
+    // Mesma guarda `> 0` explícita (ver protecaoPatrimonial acima) — patrimônio líquido negativo
+    // também inverteria essa proporção sem sentido.
+    investimentos: (patrimonioFinanceiro !== null && patrimonioLiquido > 0) ?
       _wwiClamp(patrimonioFinanceiro / patrimonioLiquido / 0.40 * 100, 0, 100) : null,
     // Alavancagem bruta: passivos sobre ATIVO TOTAL (não patrimônio líquido — ver protecaoPatrimonial
     // acima pro ângulo complementar). 50% de dívida sobre ativo = nota zero.

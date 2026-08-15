@@ -2,6 +2,26 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 10) — auditoria multidisciplinar de 43 especialistas seniores, 207 achados, 2 achados críticos de segurança reais
+
+Retomada do bloco 9 abaixo. Pedido explícito do usuário: montar uma "equipe de agentes especialistas, todos senior... trabalhando em equipe multidisciplinar" cobrindo 11 departamentos (Liderança/Estratégia, UX, Front-end, Back-end, Infra/Cloud, Segurança, Qualidade, Marketing, Dados/Finanças, IA, Conteúdo) somando 43 papéis nomeados, "escopo livre", para analisar, corrigir e melhorar o site.
+
+**Decisão de execução**: rodado como `Workflow` de 43 agentes em paralelo (1 por papel) + 1 agente de síntese — cada especialista com contexto do projeto (é sistema financeiro pessoal/familiar, não produto comercial) e instrução explícita de fase SOMENTE LEITURA (nenhuma edição de arquivo, nenhum commit). Justificativa: dado o volume de logica financeira sensivel e as regras já documentadas no manual (nunca commitar sem avisar, nunca aplicar mudança de dado sem confirmar, cuidado com V1×V2), aplicar 43 conjuntos de mudanças as cegas em paralelo seria o tipo de risco que o próprio manual pede pra evitar — a auditoria virou "achar e priorizar", não "corrigir direto"; a decisão de que corrigir fica com o usuário.
+
+**Resultado**: 207 achados brutos, consolidados no relatório final em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`. Achados mais importantes:
+- **2 CRÍTICOS de segurança real, confirmados ao vivo via Supabase** (DBA + Cybersecurity + Pentester, não é hipótese): a RPC `wwi_upsert_relatorio_mensal` é gravável por qualquer `anon`/`authenticated` sem checagem de autenticação (todas as outras 8 RPCs de escrita do sistema têm essa checagem, essa não tem); e a tabela `wallace_dados` (V1 legado) tem policy de SELECT pública — qualquer pessoa com a chave pública do site lê o blob financeiro completo da família sem login.
+- **ALTA**: motor Python do Wealth Score (`wwi_gerar_relatorio_mensal.py`) está estruturalmente incompleto — falta implementar 2 dos 7 sub-scores (`organizacaoFinanceira`, `construcaoPatrimonial`, 35% do peso), então diverge do motor JS por design, não só por bug pontual (achado por 4 papéis diferentes de forma independente).
+- **ALTA**: XSS corrigido em 14/08 cobriu só parte dos arquivos que interpolam texto de usuário em `innerHTML` sem escape — ainda falta em `render-livros-variaveis.js`, `render-parcelamentos.js`, `hydrate-onda9-livros-fixos.js`.
+- **ALTA**: regra "compra de cartão nunca reduz saldo real" (já violada 6x historicamente antes de virar regra documentada) não tem nenhuma constraint de banco que impeça reincidência.
+- **ALTA**: job de sondagem do medidor solar SAJ disparando ~144x/dia em vez de 2x/dia (achado antigo de 08/08, nunca resolvido, cadência configurada no cron-job.org externo, não no YAML).
+- **ALTA**: transação real duplicada não capturada pelo filtro da Inbox (Anthropic R$52,95 lançada 2x).
+- **ALTA**: zero CI — os 3 arquivos de teste unitário existentes (`tests/unit/*.test.js`) nunca rodam automaticamente em push/PR.
+- Lista completa de quick wins (acessibilidade, SEO, favicon, robots.txt), melhorias de médio prazo por tema, e uma lista de 11 itens que **exigem validação explícita do usuário** antes de qualquer implementação (a maioria toca dado financeiro real ou contradiz decisão já documentada) — tudo no documento.
+
+**Nota**: a síntese do workflow citou como achado "correção do Wealth Score pendente de commit" — isso é falso-positivo temporal: a auditoria rodou em paralelo com o commit `7d80c59` (bloco 9), então o agente de síntese não sabia que já tinha sido resolvido no meio do caminho. Corrigido no documento final.
+
+**Fechamento desta rodada**: nenhuma correção foi aplicada — é auditoria pura, por decisão de segurança (ver acima). Documentos atualizados (`ESTADO_ATUAL.md` seções 1.-2/1.-1, este arquivo, `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md` novo). Próximo passo real: usuário revisar o relatório e decidir prioridade, começando pelos 2 achados críticos de segurança.
+
 ## ▶️ Continuação 15/08/2026 (bloco 9) — correção de metodologia no Wealth Score do WWI: `protecaoPatrimonial` duplicava `endividamento`
 
 Retomada do bloco 8 abaixo. Sessão focada, achado único: auditoria de metodologia (analista financeiro sênior) no Wealth Score do WWI encontrou que o sub-score `protecaoPatrimonial` usava a fórmula EXATA de `endividamento` — `100 - (passivosTotal/ativosTotal*100)/50*100` nos dois, mesmo limiar de 50% de dívida sobre ativo total. Isso fazia o mesmo fato (nível de alavancagem) contar 2x na média ponderada dos 7 sub-scores, inflando o peso real da dívida pra 30% (15%+15%) sem que essa fosse a intenção documentada dos pesos (seção 4 de `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md`).

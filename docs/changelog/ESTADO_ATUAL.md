@@ -2,7 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 15/08/2026, bloco 9. Resumo: correção de metodologia no Wealth Score do WWI — sub-score `protecaoPatrimonial` duplicava exatamente `endividamento`, inflando o peso real da alavancagem pra 30% sem intenção documentada; agora mede debt-to-equity (passivos/patrimônio líquido), corrigido nos dois motores (JS e Python) pra manter paridade.
+Última reescrita: 15/08/2026, bloco 10. Resumo: correção de metodologia no Wealth Score do WWI (bloco 9, já commitado/publicado) e **auditoria multidisciplinar de 43 especialistas** (bloco 10, pedido explícito do usuário) — 207 achados, achou 2 problemas de segurança reais em produção (RPC gravável sem auth, tabela financeira pública sem login) que exigem decisão do usuário antes de qualquer correção. Relatório completo em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`.
 
 Sessão anterior: 14/08/2026, sessão longa (bloco 8). Resumo: correção de favicon mobile desatualizado, correção de crédito solar dessincronizado no link de compartilhamento, **auditoria completa do site (1 agente por aba)** que achou e corrigiu 8 bugs reais (Balanço, Livros Razão, Emagrecimento, WWI), decisões do usuário sobre Caixa Lance no WWI e eliminação de constantes hardcoded, investigação sênior que recuperou uma linha perdida de `historico_relatorios` com causa raiz real identificada, e **redesenho completo da Inbox Financeira** (de ~557 pendentes reais pra 41, com filtro automático rodando sozinho daqui pra frente).
 
@@ -23,8 +23,28 @@ Sessão anterior: 14/08/2026, sessão longa (bloco 8). Resumo: correção de fav
 
 ## 1. Pendências abertas AGORA (retomar por aqui)
 
-### 1.0 Correção do Wealth Score (`protecaoPatrimonial`) — commit pendente de aviso ao usuário
-`src/relatorio/gerar-analise-financeira.js` e `scripts/sync/wwi_gerar_relatorio_mensal.py` alterados nesta sessão (ver bloco 9 abaixo e seção 9.1 de `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md`), ainda não commitados — `git status` mostrava a mudança do `.js` como working-tree local antes desta rewrite; o `.py` foi corrigido agora pra manter paridade. Avisar o usuário e commitar/pushar antes de considerar isso fechado. Sem migration/dado envolvido — é só lógica de cálculo, roda no próximo relatório WWI gerado (manual ou pelo job mensal).
+### 1.0 Correção do Wealth Score (`protecaoPatrimonial`) — RESOLVIDO
+Commitado e publicado (`7d80c59`), autorizado pelo usuário. Não reabrir.
+
+### 1.-2 🔴 2 achados de segurança real da auditoria — RESOLVIDOS 15/08/2026
+`public.wwi_upsert_relatorio_mensal` (REVOKE de PUBLIC/anon/authenticated) e `public.wallace_dados` (policy de SELECT trocada pra `service_role`, mesmo padrão das policies de escrita). Aplicado direto via migration Supabase (MCP), confirmado sem consumidor legítimo quebrado (únicos leitores reais eram jobs Python já usando a chave service_role). Detalhe em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`, tabela de status. Não reabrir.
+
+### 1.-1 Auditoria multidisciplinar completa (43 especialistas) — 207 achados, resolvendo 1 por 1
+Rodada via `Workflow` a pedido do usuário ("equipe de agentes especialistas... escopo livre"), fase somente-leitura. Relatório completo em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`, com tabela de status no topo sendo atualizada conforme cada item é resolvido/descartado. 2 achados já descartados como falso-positivo pelo usuário (cadência SAJ intencional, "duplicata" Anthropic não é duplicata) — não reabrir nenhum dos dois.
+
+**7 itens já resolvidos** (usuário deu autonomia total pra continuar): 2 críticos de segurança (RPC/`wallace_dados`), XSS parcial (3 arquivos), constraint de banco pro cartão, CI dos testes unitários, Wealth Score Python (2 sub-scores implementados, sem reprocessar histórico), guard `patrimonioLiquido > 0`. Todo código ainda **não commitado** — ver pendência abaixo. Restam achados médios/quick wins do relatório, e o item de reprocessamento retroativo do histórico do WWI (decisão do usuário, não meramente técnico).
+
+### 1.0b NA FILA — Leitura solar 14/08 (casa "mae") bloqueada pelo trigger de plausibilidade, pergunta do Claude Chat
+Recebida via mensagem do usuário (encaminhando pergunta pronta de uma sessão de Claude Chat), ainda NÃO respondida/decidida — só registrada aqui pra não perder o contexto.
+
+Tentativa de `INSERT` em `energia_solar_leituras`: `casa='mae'`, `data='2026-08-14'`, `leitura_03=90` (13/08 era 81), `leitura_103=527` (13/08 era 477). Confirmado por 2 fotos reais do medidor enviadas pelo usuário — não é erro de digitação. Bloqueado por `validar_plausibilidade_leitura_solar()`: delta do dia (8,0 kWh código 03 / 50,0 kWh código 103) excede o teto fixo de `TETO_KWH_DIA = 40`, sem nenhum mecanismo de override.
+
+Perguntas em aberto (do Claude Chat, repassadas pelo usuário):
+1. O teto de 40 kWh/dia está certo pro código 103 (injetada), ou devia ser diferenciado por código (03 vs 103 podem ter perfis de geração bem diferentes)?
+2. Há motivo plausível pra um salto de 50 kWh/dia num único dia (dia de sol forte) ou ainda desconfia de erro de leitura mesmo com foto?
+3. Vale adicionar um mecanismo de override documentado (ex: coluna `confirmado_apesar_do_teto boolean`) pra quando há evidência fotográfica real, em vez de só endurecer o teto?
+
+Se a decisão for gravar direto: `casa='mae'`, `data='2026-08-14'`, `leitura_03=90`, `leitura_103=527`, `eh_leitura_oficial_energisa=false`. **Não gravado ainda** — aguardando decisão do usuário sobre as 3 perguntas acima antes de tocar no trigger ou inserir a leitura.
 
 ### 1.1 Instalação física do medidor DDSU666 — hoje é 15/08/2026, dia da instalação (Casa da Mãe)
 Fase 1 (sondagem, só leitura) está pronta: `scripts/sync/sondar_medidor_saj.py` + workflow `sondar_medidor_saj.yml` (disparo manual via GitHub Actions, do celular). **Se já é 15/08 ou depois quando esta sessão for lida**: confirmar se a sondagem já foi disparada e o que ela retornou antes de qualquer outra coisa relacionada a Solar. Detalhe completo em `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`.
@@ -53,6 +73,8 @@ Resumo executivo — detalhe completo em `docs/changelog/PASSAGEM_DE_TURNO.md`, 
 3. Corrigido nos dois motores — `src/relatorio/gerar-analise-financeira.js` (JS, botão manual) e `scripts/sync/wwi_gerar_relatorio_mensal.py` (job mensal) — pra não repetir o padrão de divergência JS×Python já visto e corrigido no bloco 8 (item "investimentos").
 
 **Pendente**: ver item 1.0 acima — mudança ainda não commitada/pushada, esperando aviso ao usuário. Nenhum dado/Supabase envolvido, é lógica pura de cálculo.
+
+Bloco 9 (correção Wealth Score) resumido acima na seção 1.0 (RESOLVIDO). Bloco 10 (auditoria de 43 especialistas) resumido nas seções 1.-2 e 1.-1 acima.
 
 Sessão anterior (14/08/2026, bloco 8) resumida: procedimento de baixa de fatura, favicon mobile, crédito solar do link compartilhado, auditoria de 6 agentes (8 bugs reais corrigidos), recuperação de `historico_relatorios`, migração de constantes do Déficit Zero pro Supabase, redesenho da Inbox Financeira (~557→41 pendentes). Todo commitado (`80c96f9`+`5d22216`+`35e2069`) e publicado — detalhe completo em `PASSAGEM_DE_TURNO.md` bloco 8.
 

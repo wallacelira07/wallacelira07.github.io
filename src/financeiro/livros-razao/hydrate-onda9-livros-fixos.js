@@ -17,6 +17,18 @@
 //
 // Rollback: comentar a chamada aplicarOnda9LivrosFixos() em app.js.
 
+// ADICIONADO 15/08/2026 (achado de auditoria de segurança: XSS real, mesma classe já corrigida em
+// inbox-financeira.js/dashboard-navegacao.js — nome/obs/descrição/responsável podem vir de texto
+// externo e iam direto pra innerHTML sem escapar).
+function _onda9EscapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function onda9MarcarIndisponivel(motivo){
   const msg = (cols) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2) — ${(motivo||'').replace(/"/g,'&quot;')}</td></tr>`;
   const lrsEl = $('lrsTbody'); if(lrsEl) lrsEl.innerHTML = msg(4);
@@ -51,7 +63,7 @@ async function aplicarOnda9LivrosFixos(){
   const lrsTbody = $('lrsTbody');
   if(lrsTbody && Array.isArray(assinaturas)){
     lrsTbody.innerHTML = assinaturas.map(a =>
-      `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${a.nome}</td><td class="r">${fmt(Number(a.valor))}</td></tr>`
+      `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${_onda9EscapeHtml(a.nome)}</td><td class="r">${fmt(Number(a.valor))}</td></tr>`
     ).join('');
     const somaLRS = Math.round(assinaturas.reduce((s,a)=>s+Number(a.valor),0)*100)/100;
     const tfEl = $('tfLRS'); if(tfEl) tfEl.textContent = fmt(somaLRS);
@@ -63,8 +75,8 @@ async function aplicarOnda9LivrosFixos(){
   if(lrrTbody && Array.isArray(recorrencias)){
     lrrTbody.innerHTML = recorrencias.map(r => {
       const estilo = r.cartao === 'Mastercard Black' ? ' style="background:rgba(233,196,106,0.08)"' : '';
-      const obs = r.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${r.obs}</span>` : '';
-      return `<tr${estilo}><td class="mono">${r.tx}</td><td>${r.nome}${obs}</td><td class="r">${fmt(Number(r.valor))}</td></tr>`;
+      const obs = r.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_onda9EscapeHtml(r.obs)}</span>` : '';
+      return `<tr${estilo}><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td><td class="r">${fmt(Number(r.valor))}</td></tr>`;
     }).join('');
     const somaLRR = Math.round(recorrencias.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     const tfEl = $('tfLRR'); if(tfEl) tfEl.textContent = fmt(somaLRR);
@@ -75,7 +87,7 @@ async function aplicarOnda9LivrosFixos(){
   const lrconTbody = $('lrconTbody');
   if(lrconTbody && Array.isArray(consorcios)){
     lrconTbody.innerHTML = consorcios.map(c =>
-      `<tr><td class="mono">${c.tx}</td><td>${c.nome}</td><td class="r">${fmt(Number(c.valor))}</td></tr>`
+      `<tr><td class="mono">${c.tx}</td><td>${_onda9EscapeHtml(c.nome)}</td><td class="r">${fmt(Number(c.valor))}</td></tr>`
     ).join('');
     const somaLRCON = Math.round(consorcios.reduce((s,c)=>s+Number(c.valor),0)*100)/100;
     const tfEl = $('tfLRCON'); if(tfEl) tfEl.textContent = fmt(somaLRCON);
@@ -86,7 +98,7 @@ async function aplicarOnda9LivrosFixos(){
   const lrdoaTbody = $('lrdoaTbody');
   if(lrdoaTbody && Array.isArray(doacoes)){
     lrdoaTbody.innerHTML = doacoes.map(d =>
-      `<tr><td class="mono">${d.tx}</td><td>${d.descricao}</td><td>${d.responsavel||'—'}</td><td class="r">${fmt(Number(d.valor))}</td></tr>`
+      `<tr><td class="mono">${d.tx}</td><td>${_onda9EscapeHtml(d.descricao)}</td><td>${d.responsavel ? _onda9EscapeHtml(d.responsavel) : '—'}</td><td class="r">${fmt(Number(d.valor))}</td></tr>`
     ).join('');
     const somaLRDOA = Math.round(doacoes.reduce((s,d)=>s+Number(d.valor),0)*100)/100;
     const tfEl = $('tfLRDOACAO'); if(tfEl) tfEl.textContent = fmt(somaLRDOA);

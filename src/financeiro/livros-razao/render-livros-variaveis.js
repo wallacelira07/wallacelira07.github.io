@@ -6,11 +6,22 @@
 // onDomPronto(renderLivrosVariaveis) em app.js, que continua igual (é só uma referência de função
 // global — precisa existir antes do app.js carregar, por isso este módulo é estático, ANTES do
 // app.js, mesmo padrão dos módulos hydrate-*). Nenhuma fórmula ou comportamento mudou.
+// ADICIONADO 15/08/2026 (achado de auditoria de segurança: XSS real, mesma classe já corrigida em
+// inbox-financeira.js/dashboard-navegacao.js — nome/obs/credora/devedora podem vir de texto externo
+// e iam direto pra innerHTML sem escapar).
+function _lrvEscapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 function renderLivrosVariaveis(){
   function linha(t, temTipo){
-    const obsHtml = t.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${t.obs}</span>` : '';
+    const obsHtml = t.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_lrvEscapeHtml(t.obs)}</span>` : '';
     if(temTipo) return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.tipo||'PIX'}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-    return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+    return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
   }
   function preencher(id, arr, temTipo){
     const tbody = $(id);
@@ -34,7 +45,7 @@ function renderLivrosVariaveis(){
     } else {
       lrpvTbody.innerHTML = VARS.LRPGV_TRANSACOES.map(t=>{
         const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
     const tfLRPVEl = $('tfLRPV');
@@ -52,7 +63,7 @@ function renderLivrosVariaveis(){
     } else {
       lrpvsaldoTbody.innerHTML = VARS.PV_TRANSACOES.map(t=>{
         const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
     const tfPVEl = $('tfPV');
@@ -72,7 +83,7 @@ function renderLivrosVariaveis(){
     } else {
       lrbdTbody.innerHTML = VARS.BENS_DURAVEIS_TRANSACOES.map(t=>{
         const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
     const tfBDEl = $('tfBD');
@@ -107,7 +118,7 @@ function renderLivrosVariaveis(){
     } else {
       tbody.innerHTML = arr.map(t=>{
         const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.nome}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
       }).join('');
     }
     const tfEl = $('tf_'+cfg.id);
@@ -142,7 +153,7 @@ function renderLivrosVariaveis(){
         const dataAbertura = new Date(hoje.getFullYear(), m-1, d);
         const idadeDias = Math.max(0, Math.round((hoje - dataAbertura)/(1000*60*60*24)));
         const corStatus = l.status === 'ATIVO' ? 'var(--text-danger)' : 'var(--green)';
-        return `<tr><td class="mono">${l.id}</td><td class="mono">${l.data}</td><td>${l.credora}</td><td>${l.devedora}</td><td class="r">${fmt(l.valor)}</td><td>${idadeDias}d</td><td style="color:${corStatus}">${l.status}</td></tr>`;
+        return `<tr><td class="mono">${l.id}</td><td class="mono">${l.data}</td><td>${_lrvEscapeHtml(l.credora)}</td><td>${_lrvEscapeHtml(l.devedora)}</td><td class="r">${fmt(l.valor)}</td><td>${idadeDias}d</td><td style="color:${corStatus}">${l.status}</td></tr>`;
       }).join('');
     }
   }

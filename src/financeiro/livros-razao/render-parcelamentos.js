@@ -3,6 +3,17 @@
 // VARS.PARCELAMENTOS_VISA/MP/TRANSACOES_CORPORATIVAS_MP. Extraído de app.js na modularização
 // (07/08/2026) — função autocontida (só usa VARS/$/fmt). Chamada via onDomPronto(renderParcelamentos)
 // em app.js, que continua igual. Nenhuma fórmula ou comportamento mudou.
+// ADICIONADO 15/08/2026 (achado de auditoria de segurança: XSS real, mesma classe já corrigida em
+// inbox-financeira.js/dashboard-navegacao.js — nome/descrição podem vir de texto externo e iam
+// direto pra innerHTML sem escapar).
+function _lrpEscapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 function renderParcelamentos(){
   const lrpTbody = $('lrpTbody');
   if(lrpTbody){
@@ -12,7 +23,7 @@ function renderParcelamentos(){
         const ultima = p.parcelaAtual === p.totalParcelas;
         const emoji = ultima ? ' 🔚' : '';
         const classe = ultima ? ' class="last-parcel"' : '';
-        return `<tr${classe}><td class="mono">${p.tx}</td><td>${p.nome}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
       }).join('');
   }
 
@@ -24,7 +35,7 @@ function renderParcelamentos(){
         const ultima = p.parcelaAtual === p.totalParcelas;
         const emoji = ultima ? ' 🔚' : '';
         const classe = ultima ? ' class="last-parcel"' : '';
-        return `<tr${classe}><td class="mono">${p.tx}</td><td>${p.nome}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
       }).join('');
   }
 
@@ -43,7 +54,7 @@ function renderParcelamentos(){
     });
     lrmpCorpTbody.innerHTML = itensDoCiclo.map(t=>{
       const tipoLabel = t.tipo === 'corp' ? 'corp.' : 'único';
-      return `<tr><td class="mono">${t.tx}</td><td>${t.nome}</td><td class="mono">${tipoLabel}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+      return `<tr><td class="mono">${t.tx}</td><td>${_lrpEscapeHtml(t.nome)}</td><td class="mono">${tipoLabel}</td><td class="r">${fmt(t.valor)}</td></tr>`;
     }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1rem 0">Nenhum item corporativo/avulso neste ciclo.</td></tr>';
   }
 

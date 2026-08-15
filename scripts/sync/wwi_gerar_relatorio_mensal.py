@@ -22,6 +22,17 @@ recalculado só com os eixos disponíveis (mesma lógica de renormalização de 
 tratando ausência de dado como zero. Quando uma fonte SQL confiável pra "compromisso fixo do ciclo"
 existir, ampliar aqui e em `calcularIndicadoresEScores()` (mesmo cálculo, duas linguagens).
 
+CORRIGIDO 15/08/2026 (achado ALTA da auditoria de 43 especialistas, docs/decisions/
+AUDITORIA_MULTIDISCIPLINAR_15082026.md): até aqui, `organizacaoFinanceira` e `construcaoPatrimonial`
+(35% do peso do Wealth Score) também ficavam `None` sempre — não por falta de fonte SQL, mas porque
+nunca tinham sido implementados neste lado. `construcaoPatrimonial` agora usa
+`pib_wallace_historico.snapshot->>'patrimonioLiquido'` do mês anterior (mesma fonte que o painel usa
+em `REG.pibWallace.patrimonioInicialCiclo`). `organizacaoFinanceira` no motor JS mede "% de seções do
+DOM extraídas sem erro" — sem navegador aqui, esse conceito não existe ao pé da letra; foi adaptado
+pra "% dos campos de `indicadores_brutos` que este job preencheu", mesmo espírito, fonte SQL em vez
+de DOM (ver comentário no ponto de cálculo, dentro de `coletar_indicadores()`). Reprocessamento
+retroativo de relatórios já gravados em `historico_relatorios` NÃO foi feito — decisão do usuário.
+
 Variáveis de ambiente necessárias:
   SUPABASE_URL  - https://bakdgacmwlopvrrppwdm.supabase.co
   SUPABASE_KEY  - **service_role**, não a chave pública (esta RPC não tem GRANT pra anon/authenticated
@@ -33,6 +44,15 @@ import sys
 from datetime import date, timedelta
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+
+
+def _mes_anterior(competencia: str) -> str:
+    """'2026-08' -> '2026-07', '2026-01' -> '2025-12'. Usado pra buscar o patrimônio líquido do
+    fechamento do ciclo anterior em pib_wallace_historico (ver construcaoPatrimonial abaixo)."""
+    ano, mes = (int(p) for p in competencia.split("-"))
+    if mes == 1:
+        return f"{ano - 1:04d}-12"
+    return f"{ano:04d}-{mes - 1:02d}"
 
 
 def _competencia_atual(hoje: date | None = None) -> str:
@@ -130,6 +150,19 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
     # (Consórcio Casa Nova, 0,42% pago) gravando 42% — 100x maior que o real. Removida.
     consorcio_casa_pago_pct = patrimonio.get("consorcio_casa_pago_pct")
 
+    # CORRIGIDO 15/08/2026 (achado ALTA da auditoria de 43 especialistas: motor Python faltava 2 dos
+    # 7 sub-scores do Wealth Score, 35% do peso, divergindo do motor JS por construção). Patrimônio
+    # líquido do FECHAMENTO do ciclo anterior tem fonte SQL confiável: pib_wallace_historico.snapshot
+    # ->>'patrimonioLiquido', gravado por registrar_pib_mensal() a cada fechamento de ciclo (mesma
+    # fonte que REG.pibWallace.patrimonioInicialCiclo usa no painel — recalcular-indicadores.js).
+    # Se o mês anterior nunca fechou ciclo (ainda não gravou snapshot), fica None — nunca fabricado.
+    hist_anterior = _rest_get(
+        supabase_url, headers,
+        f"pib_wallace_historico?select=snapshot&mes=eq.{_mes_anterior(competencia)}")
+    cresc_patrim_inicial = (hist_anterior[0]["snapshot"].get("patrimonioLiquido")
+                             if hist_anterior else None)
+    cresc_patrim_atual = patrimonio_liquido
+
     # NOTA: total_operacional (compromisso fixo do ciclo) não tem fonte SQL confiável hoje pra este
     # script - ver limitação documentada no topo do arquivo. liquidez/independenciaFinanceira/
     # disciplinaFinanceira ficam None aqui de propósito (nunca fabricados).
@@ -145,19 +178,30 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         "reembAReceber": reemb_a_receber,
         "reembTotalCiclo": reemb_total_ciclo,
         "consorcioCasaPagoPct": consorcio_casa_pago_pct,
-        "crescPatrimInicial": None,
-        "crescPatrimAtual": None,
+        "crescPatrimInicial": cresc_patrim_inicial,
+        "crescPatrimAtual": cresc_patrim_atual,
         "liquidezCiclos": None,
         "poupancaReceitas": None,
         "poupancaSobrou": None,
     }
 
-    subscores = {"liquidez": None, "organizacaoFinanceira": None, "construcaoPatrimonial": None}
+    subscores = {"liquidez": None}
+    # Mesma fórmula do motor JS (gerar-analise-financeira.js): variação % do patrimônio líquido entre
+    # o fechamento do ciclo anterior e agora, centrada em 50 (0% de crescimento = 50; a cada 2 pontos
+    # percentuais de crescimento, +1 na nota).
+    if cresc_patrim_inicial and cresc_patrim_atual is not None:
+        subscores["construcaoPatrimonial"] = _clamp(
+            50 + ((cresc_patrim_atual - cresc_patrim_inicial) / cresc_patrim_inicial * 100) / 2, 0, 100)
+    else:
+        subscores["construcaoPatrimonial"] = None
     # CORRIGIDO 15/08/2026 (paridade com gerar-analise-financeira.js — ver comentário lá): protecaoPatrimonial
     # media exatamente a mesma coisa que endividamento (passivos/ativoTotal), duplicando o peso real da
     # alavancagem no Wealth Score. Agora mede debt-to-equity (passivos/patrimônio líquido) — ângulo
     # complementar, não repetido.
-    if passivos_total is not None and patrimonio_liquido:
+    # CORRIGIDO 15/08/2026 (paridade com gerar-analise-financeira.js — mesmo achado ALTA da
+    # auditoria): guarda explícita `> 0`, não truthy — patrimônio líquido negativo invertia o sinal
+    # e podia dar nota 100 (proteção máxima) no pior cenário possível.
+    if passivos_total is not None and patrimonio_liquido and patrimonio_liquido > 0:
         subscores["protecaoPatrimonial"] = _clamp(100 - (passivos_total / patrimonio_liquido * 100), 0, 100)
     else:
         subscores["protecaoPatrimonial"] = None
@@ -165,12 +209,24 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         subscores["endividamento"] = _clamp(100 - (passivos_total / ativos_total * 100) / 50 * 100, 0, 100)
     else:
         subscores["endividamento"] = None
-    if patrimonio_financeiro is not None and patrimonio_liquido:
+    if patrimonio_financeiro is not None and patrimonio_liquido and patrimonio_liquido > 0:
         subscores["investimentos"] = _clamp(patrimonio_financeiro / patrimonio_liquido / 0.40 * 100, 0, 100)
     else:
         subscores["investimentos"] = None
     pcts_execucao = [v for v in [meta_milhao_pct, consorcio_casa_pago_pct] if v is not None]
     subscores["execucaoDeMetas"] = _clamp(sum(pcts_execucao) / len(pcts_execucao), 0, 100) if pcts_execucao else None
+
+    # organizacaoFinanceira: o motor JS mede "% das seções do relatório que o coletor de DOM
+    # conseguiu extrair sem erro" — não é replicável ao pé da letra aqui (este script não tem
+    # navegador, não existe DOM pra medir). ADAPTAÇÃO DELIBERADA (15/08/2026, mesmo espírito da
+    # métrica original, "o relatório teve dado suficiente pra se montar", só que medido na fonte SQL
+    # em vez do DOM): % dos campos de `indicadores_brutos` que este job conseguiu preencher (não
+    # None). Documentado explicitamente como proxy adaptado, não idêntico ao JS — se essa adaptação
+    # não for aceitável, o usuário pode decidir deixar `None` permanentemente aqui.
+    campos_totais = len(indicadores_brutos)
+    campos_preenchidos = sum(1 for v in indicadores_brutos.values() if v is not None)
+    subscores["organizacaoFinanceira"] = (
+        _clamp(campos_preenchidos / campos_totais * 100, 0, 100) if campos_totais else None)
 
     pesos = {"liquidez": 0.15, "protecaoPatrimonial": 0.15, "investimentos": 0.20, "endividamento": 0.15,
              "organizacaoFinanceira": 0.10, "execucaoDeMetas": 0.15, "construcaoPatrimonial": 0.10}
