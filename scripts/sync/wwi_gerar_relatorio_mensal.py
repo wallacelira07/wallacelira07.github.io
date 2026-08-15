@@ -67,9 +67,22 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
     saldos_caixas = _rest_get(supabase_url, headers, "vw_saldo_v2_por_caixa?select=caixa_nome,v2_saldo_calculado")
     caixa_lance = next((c["v2_saldo_calculado"] for c in saldos_caixas if c["caixa_nome"] == "Caixa Lance"), 0) or 0
 
-    metas = _rest_get(supabase_url, headers, "metas?select=nome,valor_atual,valor_alvo")
-    meta_milhao = next((m for m in metas if m["nome"] == "Meta do Milhão"), None)
-    meta_milhao_pct = round((meta_milhao["valor_atual"] / meta_milhao["valor_alvo"]) * 100, 2) if meta_milhao and meta_milhao["valor_alvo"] else None
+    # CORRIGIDO 14/08/2026 (auditoria achou tabela `metas` órfã — nenhum código de `src/` lê/escreve
+    # nela, e `metas.valor_atual` fica estático desde a criação enquanto o painel ao vivo usa outra
+    # fórmula: REG.patrimonio.metaMilhaoPct = (reserva+btgNecton+caixaLance+nectonContaCorrente)/1M,
+    # ver src/financeiro/patrimonio/reg-patrimonio.js linha 13. `metas` já tinha divergido R$2.474,63
+    # do valor real (12,03% vs 11,78%) e só cresceria, porque nada faz UPDATE nela. Em vez de ler de
+    # `metas`, calcula igual ao painel, direto — reserva/btg_necton/necton_conta_corrente já vêm de
+    # `patrimonio` (buscado acima como `vw_patrimonio_v2` pra patrimônio_financeiro), caixa_lance já
+    # veio de `saldos_caixas` também acima. Nenhuma query nova, nenhuma dependência de tabela parada.
+    reserva = patrimonio.get("reserva")
+    btg_necton = patrimonio.get("btg_necton")
+    necton_cc = patrimonio.get("necton_conta_corrente")
+    if None not in (reserva, btg_necton, necton_cc):
+        meta_milhao_total = reserva + btg_necton + necton_cc + caixa_lance
+        meta_milhao_pct = round(meta_milhao_total / 1_000_000 * 100, 2)
+    else:
+        meta_milhao_pct = None
 
     reembolso = _rest_get(supabase_url, headers, f"reembolso_wartsila_ciclo?select=*&ciclo_referencia=eq.{competencia}")
     reembolso = reembolso[0] if reembolso else None
@@ -77,18 +90,36 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
     reemb_a_receber = reembolso["valor_a_receber"] if reembolso else None
     reemb_total_ciclo = reembolso["valor_total_bruto"] if reembolso else None
 
+    # CORRIGIDO 14/08/2026 (auditoria seção 9 do WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md): antes,
+    # este script somava `consorcio_casa_pago` só na hora de montar `ativos_total`, fora de
+    # `patrimonio_financeiro` — enquanto o lado JS (`recalcular-patrimonio.js:31`, `bfin.total =
+    # reserva+btg+nectonContaCorrente+consorcioCasaPago`) sempre incluiu. Os TOTAIS finais
+    # (ativosTotal/patrimonioLiquido) batiam nos dois lados de qualquer jeito (é a mesma soma,
+    # só agrupada diferente), mas o NUMERADOR do sub-score "investimentos"
+    # (patrimonioFinanceiro/patrimonioLiquido) divergia em exatamente o valor do consórcio pago.
+    # Decisão: alinhar este lado ao JS, não o contrário — o próprio Balanço Patrimonial que
+    # alimenta o painel (fonte já auditada, não mexida aqui) classifica consórcio casa pago dentro
+    # de "🏛️ Patrimônio Financeiro", não dentro do bloco físico (`bf.total` = casa+apartamento+
+    # jazigo+solar+carro, nunca inclui consórcio). Consistência com essa classificação já
+    # estabelecida > escolher um critério novo só para o WWI.
     financeiro_sem_lance = patrimonio.get("patrimonio_financeiro_liquido_sem_lance")
-    patrimonio_financeiro = (financeiro_sem_lance + caixa_lance) if financeiro_sem_lance is not None else None
     fisico_total = patrimonio.get("fisico_total")
     consorcio_casa_pago = patrimonio.get("consorcio_casa_pago")
+    if None not in (financeiro_sem_lance, consorcio_casa_pago):
+        patrimonio_financeiro = financeiro_sem_lance + caixa_lance + consorcio_casa_pago
+    else:
+        patrimonio_financeiro = None
     passivo_financiamento_casa = patrimonio.get("passivo_financiamento_casa") or 0
     passivo_consorcio_auto = patrimonio.get("passivo_consorcio_auto") or 0
     passivos_total = passivo_financiamento_casa + passivo_consorcio_auto
 
     ativos_total = None
     patrimonio_liquido = None
-    if patrimonio_financeiro is not None and fisico_total is not None and consorcio_casa_pago is not None:
-        ativos_total = patrimonio_financeiro + fisico_total + consorcio_casa_pago
+    if patrimonio_financeiro is not None and fisico_total is not None:
+        # consorcio_casa_pago já está dentro de patrimonio_financeiro (ver acima) — não somar de
+        # novo aqui, senão conta 2x (mesmo cuidado que o JS toma: bfin.total já inclui consórcio,
+        # ativosTotal = bf.total + bfin.total, uma soma só).
+        ativos_total = patrimonio_financeiro + fisico_total
         patrimonio_liquido = ativos_total - passivos_total
 
     # CORRIGIDO 14/08/2026 (achado real testando o job pela 1ª vez, "Test Run" real disparado pelo

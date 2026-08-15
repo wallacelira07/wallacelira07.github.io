@@ -57,7 +57,21 @@ function criarVarsPatrimonio(){
   // é só usar ele". Removido o campo duplicado.
 
   // Passivos (Balanco)
-  passivoFinanciamentoCasa: 61326.91,
+  // CORRIGIDO 14/08/2026 (auditoria de consistência entre valores duplicados): este literal nunca foi
+  // atualizado desde a criação do arquivo (commit b83e165, "Conclusão da atualização V2") - ficou
+  // parado em R$61.326,91 enquanto a tabela V2 `financiamentos`/`patrimonio` (subtipo
+  // 'financiamento_casa') já registrava R$61.081,39 (data_snapshot 2026-08-05, amortização da
+  // prestação). Confirmado via SQL real (select * from vw_patrimonio_v2 e da tabela financiamentos
+  // direto): a Onda 4 (hydrate-onda4-patrimonio.js) já corrige a exibição da LINHA individual
+  // (bpFinanciamentoCasa/ppFinanciamentoCasa) pro valor V2, mas os TOTAIS compostos (balPassivosTotal/
+  // balPatrimonioLiquido/balPatrimonioTotalGeral/bal4qPatrimonio), calculados em
+  // recalcularPatrimonio() a partir deste literal, continuavam usando o valor V1 desatualizado - uma
+  // divergência real de R$245,52, maior que a tolerância de segurança (R$5) que trava a promoção
+  // automática em app.js (promoverCampoV2SeConfiavel), então ela nunca era corrigida sozinha. Mesma
+  // classe de bug do caso solar-compartilhado.html (fórmula duplicada em 2 lugares, uma delas
+  // desatualizada). Sincronizado aqui com o valor V2 atual - próxima amortização real da prestação
+  // precisa atualizar os dois lados de novo (VARS local E a tabela `patrimonio`/`financiamentos`).
+  passivoFinanciamentoCasa: 61081.39,
   passivoConsorcioAuto: 18998.83,
   // Metas que apareciam duplicadas em mais de um lugar do REG
   metaEscolaJulio: 9236.00,   // era literal em REG.patrimonio.metaEscolaJulio E em caixasOperacionais.escolaJulio.meta (2 copias)

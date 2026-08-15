@@ -97,13 +97,37 @@ const WWI_PESOS_SUBSCORES = {
   construcaoPatrimonial: 0.10,
 };
 
-function calcularIndicadoresEScores(dados){
-  const patrimonioLiquido = _wwiNum(_wwiLinha(dados, '🏦 Balanço Patrimonial', 'Patrimônio Líquido'));
-  const ativosTotal = _wwiNum(_wwiLinha(dados, '🏦 Balanço Patrimonial', 'Ativos (Físico'));
+// CORRIGIDO 14/08/2026 (auditoria: divergência de R$2.630,26 entre este motor JS e o job Python —
+// ver docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md). Causa raiz: os 3 valores abaixo
+// (patrimonioLiquido/ativosTotal/patrimonioFinanceiro) vêm do DOM do painel real, que por sua vez
+// usa `recalcularPatrimonio()`/`REG.patrimonio.total` (src/financeiro/patrimonio/recalcular-
+// patrimonio.js) — fórmula que EXCLUI Caixa Lance por design (correta para Balanço/Painel
+// Executivo, contextos onde essa exclusão foi auditada e confirmada). O job Python
+// (`wwi_gerar_relatorio_mensal.py`) sempre incluiu Caixa Lance nesses 3 campos. Decisão explícita
+// do usuário (14/08/2026): Caixa Lance DEVE entrar no Patrimônio Líquido do WWI — só do WWI, sem
+// alterar `recalcularPatrimonio()`/`REG.patrimonio.total`, que continuam sem Caixa Lance para todo
+// o resto do site. `caixaLanceSaldo` é buscado à parte (ver `wwiBuscarSaldoCaixaLance()` abaixo,
+// mesmo caminho já usado por `hydrate-onda3-caixalance.js`: `WallaceFinanceService.
+// getSaldosPorCaixa()` → `vw_saldo_v2_por_caixa`) e somado aqui, replicando exatamente o que o
+// Python já faz (`patrimonio_financeiro = financeiro_sem_lance + caixa_lance`).
+function calcularIndicadoresEScores(dados, caixaLanceSaldo){
+  const temCaixaLance = typeof caixaLanceSaldo === 'number' && Number.isFinite(caixaLanceSaldo);
+  const lance = temCaixaLance ? caixaLanceSaldo : 0;
+
+  let patrimonioLiquido = _wwiNum(_wwiLinha(dados, '🏦 Balanço Patrimonial', 'Patrimônio Líquido'));
+  let ativosTotal = _wwiNum(_wwiLinha(dados, '🏦 Balanço Patrimonial', 'Ativos (Físico'));
   const passivosTotal = _wwiNum(_wwiLinha(dados, '📉 Passivos Patrimoniais', 'Total'))
     ?? _wwiNum(_wwiLinha(dados, '🏦 Balanço Patrimonial', 'Passivos'));
-  const patrimonioFinanceiro = _wwiNum(_wwiLinha(dados, '🏛️ Patrimônio Financeiro', 'Total'));
+  let patrimonioFinanceiro = _wwiNum(_wwiLinha(dados, '🏛️ Patrimônio Financeiro', 'Total'));
   const reserva = _wwiNum(_wwiLinha(dados, '🏛️ Patrimônio Financeiro', 'Reserva de Emergência'));
+
+  // Soma da Caixa Lance só no escopo do WWI (ver comentário acima) — cada campo só é ajustado se
+  // já tinha um valor real vindo do DOM (nunca fabrica um total que o coletor não achou).
+  if(temCaixaLance){
+    if(patrimonioFinanceiro !== null) patrimonioFinanceiro += lance;
+    if(ativosTotal !== null) ativosTotal += lance;
+    if(patrimonioLiquido !== null) patrimonioLiquido += lance;
+  }
   const totalOperacional = _wwiNum(_wwiLinha(dados, 'Resumo executivo', 'Total operacional'));
   const metaMilhaoPct = _wwiNum(_wwiLinha(dados, 'Resumo executivo', 'Meta do Milhão'));
   const reembRecebidos = _wwiNum(_wwiLinha(dados, 'Reembolsos Wärtsilä', 'Recebidos no ciclo'));
@@ -347,8 +371,8 @@ function _wwiMontarLiquidez(dados, indicadores){
 // nunca recalculada dentro do mesmo ciclo (garantia de "narrativa estável", pedido do usuário).
 // ---------------------------------------------------------------------------------------------
 
-function gerarAnaliseFinanceira(dados){
-  const indicadoresCompletos = calcularIndicadoresEScores(dados);
+function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
+  const indicadoresCompletos = calcularIndicadoresEScores(dados, caixaLanceSaldo);
   const { wealthScore, subscores, indicadoresBrutos: b } = indicadoresCompletos;
   const pontosFortesTexto = [];
   const pontosFracosTexto = [];
@@ -608,7 +632,36 @@ async function wwiBuscarHistoricoRelatorios(competenciaAtual, limite){
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// wwiBuscarSaldoCaixaLance() — NOVO 14/08/2026, correção da divergência JS×Python descrita acima
+// de calcularIndicadoresEScores(). Reaproveita o MESMO caminho já estabelecido e em uso por
+// `hydrate-onda3-caixalance.js` (`WallaceFinanceService.getSaldosPorCaixa()` → cache →
+// `vw_saldo_v2_por_caixa`) — nenhuma chamada Supabase nova é criada aqui. Degrada graciosamente
+// (retorna null) se o serviço não existir ou a caixa não for encontrada: nesse caso
+// calcularIndicadoresEScores() simplesmente não soma nada, e os 3 campos do WWI voltam a ficar
+// idênticos ao resto do painel (mesmo comportamento de antes desta correção), nunca quebra a
+// geração do relatório.
+// ---------------------------------------------------------------------------------------------
+async function wwiBuscarSaldoCaixaLance(){
+  if(typeof WallaceFinanceService === 'undefined' || typeof WallaceFinanceService.getSaldosPorCaixa !== 'function'){
+    return null;
+  }
+  try {
+    const saldos = await WallaceFinanceService.getSaldosPorCaixa();
+    if(!Array.isArray(saldos)) return null;
+    const caixaLance = saldos.find(c => c.caixa_nome === 'Caixa Lance');
+    if(!caixaLance || caixaLance.v2_saldo_calculado === null || caixaLance.v2_saldo_calculado === undefined){
+      return null;
+    }
+    return Number(caixaLance.v2_saldo_calculado);
+  } catch(err){
+    console.warn('wwiBuscarSaldoCaixaLance: falha ao buscar Caixa Lance — WWI segue sem somá-la ao Patrimônio (mesmo comportamento de antes desta correção).', err);
+    return null;
+  }
+}
+
 window.calcularIndicadoresEScores = calcularIndicadoresEScores;
 window.gerarAnaliseFinanceira = gerarAnaliseFinanceira;
 window.compararComHistorico = compararComHistorico;
 window.wwiBuscarHistoricoRelatorios = wwiBuscarHistoricoRelatorios;
+window.wwiBuscarSaldoCaixaLance = wwiBuscarSaldoCaixaLance;

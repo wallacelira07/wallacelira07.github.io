@@ -725,15 +725,24 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   // liquidoSemTrabalhar (VARS.liquidoSemTrabalhar, ver vars-operacional.js), mas COM Periculosidade
   // (só entra quando há pelo menos 1 dia trabalhado). Fonte dos valores-base: `parametros_gerais`
   // (nome='taxasHoraFolhaPontoWartsila' e 'liquidoProjetadoProximoCiclo_memoria_calculo').
+  // MIGRADO 14/08/2026 (pedido do usuário: "nada de hardcode deve ser tolerado, se eu quiser mudar
+  // não precisa mexer na estrutura do site"): as 7 constantes abaixo eram literais fixos neste
+  // arquivo — auditoria achou que um reajuste salarial novo exigiria editar .js + deploy. Agora
+  // lidas de VARS.taxasHoraFolhaPontoWartsila (mesmo objeto de `parametros_gerais`, já carregado no
+  // boot via WALLACE_PARAMETROS_GERAIS_V2 em app.js — ver seção 1.4 do manual). O único campo que
+  // não existia nesse objeto (irrfBaseSemAdicionais) foi ACRESCENTADO a ele em 14/08/2026 (mesmo
+  // valor de antes, 2639.04) — não duplicado em outro nome. Os literais abaixo são só fallback (se
+  // o boot da V2 falhar), mesmo padrão defensivo já usado em VARS.ENERGISA_TARIFA_COMPOSICAO acima.
   const dzLabels = gerarMesesCiclo(12); // V165: baseado no ciclo financeiro
-  const SALARIO_BASE_GARANTIDO = 10913.66;
-  const PERICULOSIDADE_30PCT = 3274.10;   // 30% da base, provento fixo sempre que há ao menos 1 dia trabalhado
-  const SUPERVISAO_5PCT = 545.68;         // 5% da base, fixo desde que virou Supervisor
-  const AUXILIO_CRECHE = 445.00;          // fixo, não escala com o salário
-  const INSS_TETO = 988.07;               // no teto de contribuição, constante
-  const IRRF_BASE_SEM_ADICIONAIS = 2639.04; // residual: IRRF total do holerite (R$5.055,57) menos a parcela marginal 27,5% dos adicionais de hora extra
-  const SAUDE_DENTAL_FIXO = 413.15;       // dependente médica + odonto + dependente odonto
-  const PGBL_6PCT = 654.82;               // 6% da base
+  const THFW = VARS.taxasHoraFolhaPontoWartsila || {};
+  const SALARIO_BASE_GARANTIDO = THFW.salarioBaseFixoMensal ?? 10913.66;
+  const PERICULOSIDADE_30PCT = (THFW.periculosidadeCampoII && THFW.periculosidadeCampoII.valorAtual) ?? 3274.10; // 30% da base, provento fixo sempre que há ao menos 1 dia trabalhado
+  const SUPERVISAO_5PCT = (THFW.adicionalSupervisao5pct && THFW.adicionalSupervisao5pct.valorAtual) ?? 545.68;   // 5% da base, fixo desde que virou Supervisor
+  const AUXILIO_CRECHE = (THFW.auxilioCreche && THFW.auxilioCreche.valorAtual) ?? 445.00;                        // fixo, não escala com o salário
+  const INSS_TETO = (THFW.inssMes && THFW.inssMes.valorAtual) ?? 988.07;                                         // no teto de contribuição, constante
+  const IRRF_BASE_SEM_ADICIONAIS = (THFW.irrfBaseSemAdicionais && THFW.irrfBaseSemAdicionais.valorAtual) ?? 2639.04; // residual: IRRF total do holerite (R$5.055,57) menos a parcela marginal 27,5% dos adicionais de hora extra
+  const SAUDE_DENTAL_FIXO = (THFW.assistenciaMedicaOdontoBase && THFW.assistenciaMedicaOdontoBase.valorAtual) ?? 413.15; // dependente médica + odonto + dependente odonto
+  const PGBL_6PCT = (THFW.pgbl && THFW.pgbl.valorAtual) ?? 654.82;                                               // 6% da base
   const dzLiquido = Math.round((
     (SALARIO_BASE_GARANTIDO + PERICULOSIDADE_30PCT + SUPERVISAO_5PCT + AUXILIO_CRECHE)
     - (INSS_TETO + IRRF_BASE_SEM_ADICIONAIS + SAUDE_DENTAL_FIXO + PGBL_6PCT)

@@ -457,7 +457,13 @@ const WallaceFinanceService = {
   async getTransacoesPorCaixaIds(caixaIds){
     return this._cache.obterOuBuscar('transacoes_por_caixa:' + caixaIds.join(','), async () => {
       const lista = caixaIds.join(',');
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
+      // CORRIGIDO 14/08/2026 (auditoria: rodapé do Livro Razão soma TODA transação confirmada da
+      // caixa, inclusive compra de cartão ainda não paga — cartao_id preenchido + afeta_saldo_real=
+      // false — o que faz o total bater com "Disponível Real" e não com "Tem na Caixa", sem nenhum
+      // aviso na tela. A fórmula continua a mesma (não filtra nada) — só passou a trazer cartao_id e
+      // afeta_saldo_real no select pra hydrate-onda3-livro-razao.js poder rotular o rodapé quando isso
+      // acontecer, ver onda3AtualizarNotaDisponivelReal() lá.
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,tipo,valor,caixa_id,cartao_id,afeta_saldo_real&caixa_id=in.(${lista})&status=eq.confirmado&order=data.desc`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes por caixa`);
@@ -2710,7 +2716,18 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       // CORRIGIDO 13/08/2026 (achado de auditoria: texto continha jargao tecnico "V2 (Supabase
       // relacional)" exposto na tela pro usuario final - trocado por texto neutro; o detalhe tecnico
       // continua disponivel no atributo title, definido em promoverCampoV2SeConfiavel).
-      elPatV2.textContent = `✓ confirmado: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      // CORRIGIDO 14/08/2026 (achado de auditoria): o selo "✓ confirmado" era escrito de forma
+      // incondicional, mesmo quando a trava de seguranca (5 reais de tolerancia, mesma usada por
+      // promoverCampoV2SeConfiavel logo abaixo) rejeitava o valor por divergir demais do V1 - ex:
+      // bug de rpc_dashboard_resumo() que zerava 12 dos 13 itens de patrimonio (liquido caia pra
+      // R$100mil) ainda assim aparecia na tela como "✓ confirmado: R$ 100.000,00". Agora o selo só
+      // aparece quando o mesmo criterio de confianca de promoverCampoV2SeConfiavel é satisfeito.
+      const elPatV1Ref = document.getElementById('balPatrimonioLiquido');
+      const vAtualPatV1 = elPatV1Ref ? parseFloat(elPatV1Ref.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.')) : NaN;
+      const patrimonioV2Confiavel = !isNaN(vAtualPatV1) && Math.abs(vAtualPatV1 - resumoV2.patrimonio_resumo.liquido) < 5;
+      elPatV2.textContent = patrimonioV2Confiavel
+        ? `✓ confirmado: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`
+        : `V2: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})} (não confere com V1 - não promovido)`;
       // PROMOVIDO 06/08/2026 (parte 136, refatorado parte 137 pra usar promoverCampoV2SeConfiavel -
       // funcao com hoisting, definida mais abaixo neste mesmo bloco, ja disponivel aqui). Patrimonio
       // Liquido foi o primeiro campo promovido a fonte EXIBIDA (trava de seguranca <R$5 de diferenca).

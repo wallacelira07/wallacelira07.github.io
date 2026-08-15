@@ -64,6 +64,31 @@ function onda3FormatarDataV2(dataIso){
   return `${dia}/${mes}`;
 }
 
+// NOVO 14/08/2026 (auditoria: rodapé do LR soma real gasto + compromisso de cartão ainda não pago
+// no mesmo total, sem aviso — achado real via SQL: Bens Duráveis, rodapé −R$104,30 = 583,99
+// (saldo real) − 688,29 (comprometido). A conta está certa, só falta deixar claro que o total é
+// "Disponível Real" e não "Tem na Caixa" quando há transação de cartão pendente na tabela. Mesmo
+// rótulo/estilo já usado nos cards das 6 caixas temáticas (hydrate-comprometido-caixas-tematicas-v2.js,
+// bloco ".comprometido-tematica" / "Disponível real") — reaproveitado aqui, não inventado.
+function onda3AtualizarNotaDisponivelReal(tfEl, temComprometidoNoCartao){
+  if(!tfEl) return;
+  const tfootEl = tfEl.closest('.tfoot');
+  if(!tfootEl) return;
+  const proximo = tfootEl.nextElementSibling;
+  let nota = (proximo && proximo.classList && proximo.classList.contains('lr-nota-disponivel-real')) ? proximo : null;
+  if(!temComprometidoNoCartao){
+    if(nota) nota.remove(); // caixa sem transação de cartão pendente neste ciclo — total já É "Tem na Caixa", nota não se aplica
+    return;
+  }
+  if(!nota){
+    nota = document.createElement('div');
+    nota.className = 'lr-nota-disponivel-real';
+    nota.style.cssText = 'padding:0.3rem 0.5rem 0.5rem;margin-top:-0.3rem;font-size:var(--fs-2xs);color:var(--amber)';
+    tfootEl.insertAdjacentElement('afterend', nota);
+  }
+  nota.textContent = '(=) Este total é o Disponível real: já desconta o comprometido no cartão (compra ainda não paga) deste ciclo.';
+}
+
 function onda3LinhaTransacao(t){
   const tipo = t.tipo === 'entrada' ? 'Entrada' : 'Saída';
   const cor = tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
@@ -113,6 +138,11 @@ async function aplicarOnda3LivroRazao(){
     const soma = Math.round(linhas.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
     const tfEl = $(tfId);
     if(tfEl) tfEl.textContent = fmt(soma);
+    // NOVO 14/08/2026 (auditoria de rótulo, ver onda3AtualizarNotaDisponivelReal acima): soma acima
+    // continua somando TODAS as transações confirmadas (fórmula inalterada) — só rotula quando pelo
+    // menos uma delas é compra de cartão ainda não paga (cartao_id preenchido + afeta_saldo_real=false).
+    const temComprometidoNoCartao = linhas.some(t => t.cartao_id && t.afeta_saldo_real === false);
+    onda3AtualizarNotaDisponivelReal(tfEl, temComprometidoNoCartao);
     const qtdEl = $(qtdId);
     if(qtdEl) qtdEl.textContent = linhas.length + ' lançamento(s)';
     // CORRIGIDO 10/08/2026 (achado do usuário: "tela já usa V2, busca ainda usa V1"): antes só o
@@ -135,4 +165,15 @@ async function aplicarOnda3LivroRazao(){
   });
   window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO = relatorio;
   console.log('Onda3LivroRazao: relatório completo em window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO', relatorio);
+  // CORRIGIDO 14/08/2026 (auditoria de LRs: achado real — botão "LRBD - Bens Duráveis" ficava preso em
+  // "(2)" pra sempre, mesmo a tabela V2 mostrando 6 lançamentos reais). Causa: aplicarOnda3LrwLrv(),
+  // aplicarOnda10LrcLimbo() e aplicarOnda12CaixasPequenasV2() já chamam atualizarContadoresAbasLR() no
+  // fim de cada um (mesmo padrão citado no comentário de hydrate-onda3-lrwlrv.js), mas esta função —
+  // que sobrescreve o tbody das 13 caixas de ONDA3_LR_MAPA — nunca chamava. No boot, onDomPronto()
+  // registra este fetch assíncrono ANTES de onDomPronto(atualizarContadoresAbasLR) (app.js), então o
+  // contador roda cedo demais, contando o <tbody> ainda em V1 (array hardcoded, quase sempre menor que
+  // a V2 real) — e como esta função nunca recontava depois, o número errado ficava preso até o próximo
+  // atualizarPainelAposLancamento() (salvar um lançamento novo, trocar de ciclo). Mesmo fix já aplicado
+  // nos módulos irmãos, replicado aqui.
+  if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
 }

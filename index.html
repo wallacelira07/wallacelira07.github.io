@@ -1624,21 +1624,32 @@
             Promise.resolve().then(function () {
                 const win = iframe.contentWindow;
                 const dados = win.coletarDadosRelatorioFechamento();
-                const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados) : null;
-                const promessaHistorico = (typeof win.wwiBuscarHistoricoRelatorios === 'function' && dados.competencia)
-                    ? win.wwiBuscarHistoricoRelatorios(dados.competencia)
-                    : Promise.resolve({ atual: null, anteriores: [] });
-                return promessaHistorico.then(function (historico) {
-                    let narrativa = null;
-                    if (historico.atual && historico.atual.analise_ia) {
-                        narrativa = historico.atual.analise_ia; // reutiliza — mesma narrativa da criação da competência
-                    } else if (typeof win.gerarAnaliseFinanceira === 'function') {
-                        narrativa = win.gerarAnaliseFinanceira(dados); // gerada na hora só pra exibir, não persiste
-                    }
-                    const comparativo = (typeof win.compararComHistorico === 'function')
-                        ? win.compararComHistorico(indicadores, historico.anteriores)
-                        : { frases: [], temHistorico: false };
-                    return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela);
+                // CORRIGIDO 14/08/2026: WWI soma Caixa Lance ao Patrimônio (decisão explícita do
+                // usuário, ver comentário em calcularIndicadoresEScores() no motor de análise) —
+                // busca o saldo ANTES de calcular indicadores/narrativa, mesmo caminho já usado por
+                // hydrate-onda3-caixalance.js (WallaceFinanceService.getSaldosPorCaixa(), cacheado).
+                // Só altera o cálculo dentro do WWI; recalcularPatrimonio()/REG.patrimonio.total
+                // (Painel Executivo/Balanço) continuam sem Caixa Lance, sem nenhuma mudança aqui.
+                const promessaCaixaLance = (typeof win.wwiBuscarSaldoCaixaLance === 'function')
+                    ? win.wwiBuscarSaldoCaixaLance()
+                    : Promise.resolve(null);
+                return promessaCaixaLance.then(function (caixaLanceSaldo) {
+                    const indicadores = (typeof win.calcularIndicadoresEScores === 'function') ? win.calcularIndicadoresEScores(dados, caixaLanceSaldo) : null;
+                    const promessaHistorico = (typeof win.wwiBuscarHistoricoRelatorios === 'function' && dados.competencia)
+                        ? win.wwiBuscarHistoricoRelatorios(dados.competencia)
+                        : Promise.resolve({ atual: null, anteriores: [] });
+                    return promessaHistorico.then(function (historico) {
+                        let narrativa = null;
+                        if (historico.atual && historico.atual.analise_ia) {
+                            narrativa = historico.atual.analise_ia; // reutiliza — mesma narrativa da criação da competência
+                        } else if (typeof win.gerarAnaliseFinanceira === 'function') {
+                            narrativa = win.gerarAnaliseFinanceira(dados, caixaLanceSaldo); // gerada na hora só pra exibir, não persiste
+                        }
+                        const comparativo = (typeof win.compararComHistorico === 'function')
+                            ? win.compararComHistorico(indicadores, historico.anteriores)
+                            : { frases: [], temHistorico: false };
+                        return gerarPdfRelatorioFechamento(dados, narrativa, indicadores, comparativo, janela);
+                    });
                 });
             }).catch(function (err) {
                 console.error('gerarRelatorioFechamentoPDF: falha ao gerar PDF.', err);

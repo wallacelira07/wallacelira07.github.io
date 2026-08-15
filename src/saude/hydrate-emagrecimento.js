@@ -34,6 +34,16 @@ async function aplicarEmagrecimento(){
   const promessaOzivyAplicacoes = aplicarOzivyAplicacoes();
   const promessaSaldosPorCaixa = WallaceFinanceService.getSaldosPorCaixa();
   promessaSaldosPorCaixa.catch(function(){});
+  // CORRIGIDO 14/08/2026 (achado de auditoria: esta aba mostrava só "Tem na Caixa" — 100% correto
+  // pela regra 1.3.5 do manual, que a compra no cartão nunca reduz o saldo real — mas SEM o bloco
+  // "(−) Comprometido no cartão / (=) Disponível Real" que o card-resumo desta mesma caixa já mostra
+  // no dashboard (ver hydrate-comprometido-caixas-tematicas-v2.js, CAIXAS_TEMATICAS_COMPROMETIDO_V2).
+  // Resultado: quem olhasse só esta aba via "R$278,89" e podia achar que tinha esse valor livre pra
+  // gastar, quando na real R$278,89 já está comprometido no cartão (1ª compra do Ozivy) e o
+  // Disponível Real é R$0 — mesmo dado, duas telas, uma incompleta. Mesmo ID de caixa usado lá.
+  const EMAGRECIMENTO_CAIXA_ID = 'd6be6a08-9d7b-4664-9c85-1e367aa620b9';
+  const promessaComprometidoCaixa = WallaceFinanceService.getComprometidoPorCaixaV2(EMAGRECIMENTO_CAIXA_ID);
+  promessaComprometidoCaixa.catch(function(){});
 
   let pesagens;
   try {
@@ -133,12 +143,15 @@ async function aplicarEmagrecimento(){
   // saldo já usado em todo o resto do site (vw_saldo_v2_por_caixa).
   $('emgAporteMensal').textContent = fmt(VARS.saudeEmagrecimentoAporte)+'/mês';
   const elAvisoCusto = $('emgAvisoCusto');
+  const elComprometido = $('emgComprometidoRow');
+  let saldoAtualCaixa = null;
   try {
     const saldos = await promessaSaldosPorCaixa;
     const caixa = Array.isArray(saldos) ? saldos.find(c => c.caixa_nome === 'Emagrecimento') : null;
     if(caixa){
-      $('emgSaldoCaixa').textContent = fmt(Number(caixa.v2_saldo_calculado));
-      if(elAvisoCusto) elAvisoCusto.textContent = Number(caixa.v2_saldo_calculado) === 0
+      saldoAtualCaixa = Number(caixa.v2_saldo_calculado);
+      $('emgSaldoCaixa').textContent = fmt(saldoAtualCaixa);
+      if(elAvisoCusto) elAvisoCusto.textContent = saldoAtualCaixa === 0
         ? 'Nenhuma compra lançada ainda nesta caixa — o aporte mensal acima ainda não teve uma transação real registrada.'
         : '';
     } else {
@@ -148,6 +161,28 @@ async function aplicarEmagrecimento(){
   } catch(err){
     console.error('Emagrecimento: falha ao buscar saldo da caixa.', err);
     $('emgSaldoCaixa').textContent = '⚠ Indisponível (V2)';
+  }
+
+  // Bloco "Comprometido no cartão / Disponível Real" — mesma fórmula/regra 1.3.5 já usada no
+  // card-resumo do dashboard pra esta mesma caixa. Só mostra a linha quando há valor comprometido
+  // (> 0) e o saldo já carregou, mesmo critério de hydrate-comprometido-caixas-tematicas-v2.js.
+  if(elComprometido){
+    try {
+      const comprometido = await promessaComprometidoCaixa;
+      if(typeof comprometido === 'number' && !isNaN(comprometido) && comprometido > 0 && saldoAtualCaixa !== null){
+        const disponivelReal = Math.round((saldoAtualCaixa - comprometido) * 100) / 100;
+        const corPositiva = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#34c98a';
+        const corNegativa = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
+        elComprometido.innerHTML =
+          '<div class="row"><span class="k">(&minus;) Comprometido no cart&atilde;o</span><span class="v" style="color:var(--amber)">' + fmt(comprometido) + '</span></div>' +
+          '<div class="row"><span class="k">(=) Dispon&iacute;vel real</span><span class="v" style="font-weight:600;color:' + (disponivelReal < 0 ? corNegativa : corPositiva) + '">' + fmt(disponivelReal) + '</span></div>';
+      } else {
+        elComprometido.innerHTML = '';
+      }
+    } catch(err){
+      console.error('Emagrecimento: falha ao buscar comprometido no cartão.', err);
+      elComprometido.innerHTML = '';
+    }
   }
 
   window.WALLACE_EMAGRECIMENTO_RELATORIO = {
