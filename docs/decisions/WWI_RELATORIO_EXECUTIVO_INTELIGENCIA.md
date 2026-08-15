@@ -91,6 +91,10 @@ Login real não é possível neste ambiente de desenvolvimento. Todos os rótulo
 - `.github/workflows/wwi_regenerar_relatorio_mensal.yml` (novo) — mesmo padrão `workflow_dispatch`+`workflow_call` dos outros jobs, sem `schedule` nativo (nunca funcionou neste repositório).
 - **Pendente, só o usuário pode fazer**: criar o agendamento mensal (dia 25) no painel do cron-job.org apontando pra este workflow via API do GitHub — mesmo mecanismo já usado pelos outros jobs (`atualizar_geracao_saj`, `atualizar_cotacoes_acoes`, etc.), o agente não tem acesso a essa conta externa.
 
+## 9.1 Correção de metodologia — `protecaoPatrimonial` duplicava `endividamento` (15/08/2026)
+
+Achado de auditoria de metodologia (analista financeiro sênior): `protecaoPatrimonial` e `endividamento` usavam a fórmula EXATA (`100 - passivos/ativoTotal*100/50*100`), inflando o peso real de "quanto existe de dívida" pra 30% do Wealth Score (15%+15%) sem que isso fosse a intenção documentada dos 7 pesos da seção 4. `protecaoPatrimonial` agora mede debt-to-equity — passivos sobre **patrimônio líquido**, não sobre ativo total: `100 - passivos/patrimonioLiquido*100`, zero quando a dívida iguala o patrimônio líquido. Mais sensível quando o ativo é majoritariamente ilíquido (caso deste usuário — imóvel). `endividamento` continua medindo alavancagem bruta (passivos/ativoTotal), inalterado. Nenhum dado novo — `passivosTotal` e `patrimonioLiquido` já eram calculados nos dois motores, só não eram cruzados dessa forma. Corrigido nos dois lados (`gerar-analise-financeira.js:calcularIndicadoresEScores` e `wwi_gerar_relatorio_mensal.py`), mesma régua de paridade JS×Python da seção 9 abaixo.
+
 ## 9. Alinhamento da composição de `patrimonioFinanceiro` JS×Python — sub-score "investimentos" (14/08/2026)
 
 **Origem**: seção 8 já tinha identificado essa nuance como pendente ("registrado aqui para o usuário decidir se quer unificar também essa composição no futuro") — o usuário autorizou resolver agora, na mesma sessão.

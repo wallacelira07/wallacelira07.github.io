@@ -149,12 +149,23 @@ function calcularIndicadoresEScores(dados, caixaLanceSaldo){
     // 24 ciclos (~2 anos) de reserva sozinha = nota máxima. Benchmark alto de propósito — reserva de
     // emergência tende a ficar bem redundante neste sistema (política interna já é manter R$100k fixos).
     liquidez: liquidezCiclos !== null ? _wwiClamp(liquidezCiclos / 24 * 100, 0, 100) : null,
-    // Proteção = inverso da alavancagem (passivos/ativos). 50% de dívida sobre ativo = nota zero.
-    protecaoPatrimonial: (passivosTotal !== null && ativosTotal) ?
-      _wwiClamp(100 - (passivosTotal / ativosTotal * 100) / 50 * 100, 0, 100) : null,
+    // CORRIGIDO 15/08/2026 (auditoria de metodologia — analista financeiro sênior): esta fórmula era
+    // idêntica à de `endividamento` (mesmo passivos/ativos, mesmo limiar de 50%) — o mesmo fato de
+    // alavancagem contava 2x na média ponderada, inflando o peso real de "quanto dívida existe" pra
+    // 30% do Wealth Score (15%+15%) sem que isso fosse a intenção documentada dos 7 pesos. Agora mede
+    // um ângulo de crédito genuinamente diferente e padrão de mercado (debt-to-equity: passivos sobre
+    // PATRIMÔNIO LÍQUIDO, não sobre ativo total) — "quanto sobra de capital próprio de verdade depois
+    // de honrar as dívidas", mais sensível quando o ativo é majoritariamente ilíquido (imóvel), caso
+    // deste usuário. 100% de dívida sobre patrimônio líquido = nota zero (dívida do tamanho do
+    // patrimônio já é alavancagem alta pra pessoa física). Nenhum dado novo — `passivosTotal` e
+    // `patrimonioLiquido` já eram calculados acima, só não eram cruzados dessa forma.
+    protecaoPatrimonial: (passivosTotal !== null && patrimonioLiquido) ?
+      _wwiClamp(100 - (passivosTotal / patrimonioLiquido * 100), 0, 100) : null,
     // Quanto do patrimônio líquido total é financeiro/líquido (vs físico/ilíquido). 40% líquido = nota máxima.
     investimentos: (patrimonioFinanceiro !== null && patrimonioLiquido) ?
       _wwiClamp(patrimonioFinanceiro / patrimonioLiquido / 0.40 * 100, 0, 100) : null,
+    // Alavancagem bruta: passivos sobre ATIVO TOTAL (não patrimônio líquido — ver protecaoPatrimonial
+    // acima pro ângulo complementar). 50% de dívida sobre ativo = nota zero.
     endividamento: (passivosTotal !== null && ativosTotal) ?
       _wwiClamp(100 - (passivosTotal / ativosTotal * 100) / 50 * 100, 0, 100) : null,
     // Proxy v1 de organização: % das seções do relatório que o coletor conseguiu extrair sem erro.

@@ -2,6 +2,16 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 9) — correção de metodologia no Wealth Score do WWI: `protecaoPatrimonial` duplicava `endividamento`
+
+Retomada do bloco 8 abaixo. Sessão focada, achado único: auditoria de metodologia (analista financeiro sênior) no Wealth Score do WWI encontrou que o sub-score `protecaoPatrimonial` usava a fórmula EXATA de `endividamento` — `100 - (passivosTotal/ativosTotal*100)/50*100` nos dois, mesmo limiar de 50% de dívida sobre ativo total. Isso fazia o mesmo fato (nível de alavancagem) contar 2x na média ponderada dos 7 sub-scores, inflando o peso real da dívida pra 30% (15%+15%) sem que essa fosse a intenção documentada dos pesos (seção 4 de `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md`).
+
+**Correção**: `protecaoPatrimonial` agora mede um ângulo genuinamente diferente — debt-to-equity, passivos sobre **patrimônio líquido** (não ativo total): `100 - (passivosTotal/patrimonioLiquido*100)`, nota zero quando a dívida iguala o patrimônio líquido inteiro. Mais sensível quando o ativo é majoritariamente ilíquido (caso deste usuário, imóvel pesa muito no ativo total) — "quanto sobra de capital próprio de verdade depois de honrar as dívidas" é uma pergunta diferente de "quanto do ativo bruto é dívida". `endividamento` continua medindo alavancagem bruta (passivos/ativoTotal), sem mudança. Nenhum dado novo precisou ser coletado — `passivosTotal` e `patrimonioLiquido` já eram calculados nos dois motores, só não eram cruzados dessa forma antes.
+
+Corrigido em `src/relatorio/gerar-analise-financeira.js` (`calcularIndicadoresEScores`, botão manual/JS) **e** em `scripts/sync/wwi_gerar_relatorio_mensal.py` (job mensal/Python) — a paridade entre os dois motores já é uma régua conhecida deste projeto (bloco 8, item do sub-score "investimentos" tinha o mesmo tipo de divergência JS×Python). Documentado em `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md`, seção 9.1 nova.
+
+**Pendente de fechamento**: mudança ainda não commitada — avisar o usuário e commitar/pushar (sem migration, é lógica pura, entra em vigor no próximo relatório WWI gerado). Nenhuma regra de negócio nova nem domínio V2 novo — não exigiu atualização dos documentos do Google Drive (Custom Instructions / Manual).
+
 ## ▶️ Continuação 14/08/2026 (bloco 8) — auditoria completa do site (1 agente por aba), 8 bugs reais corrigidos, Inbox Financeira redesenhada, favicon mobile e crédito solar corrigidos
 
 Retomada do bloco 7 abaixo (mesmo dia). Sessão longa, várias frentes encadeadas.

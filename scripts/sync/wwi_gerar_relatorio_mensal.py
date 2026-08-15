@@ -153,12 +153,17 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
     }
 
     subscores = {"liquidez": None, "organizacaoFinanceira": None, "construcaoPatrimonial": None}
-    if passivos_total is not None and ativos_total:
-        alavancagem = _clamp(100 - (passivos_total / ativos_total * 100) / 50 * 100, 0, 100)
-        subscores["protecaoPatrimonial"] = alavancagem
-        subscores["endividamento"] = alavancagem
+    # CORRIGIDO 15/08/2026 (paridade com gerar-analise-financeira.js — ver comentário lá): protecaoPatrimonial
+    # media exatamente a mesma coisa que endividamento (passivos/ativoTotal), duplicando o peso real da
+    # alavancagem no Wealth Score. Agora mede debt-to-equity (passivos/patrimônio líquido) — ângulo
+    # complementar, não repetido.
+    if passivos_total is not None and patrimonio_liquido:
+        subscores["protecaoPatrimonial"] = _clamp(100 - (passivos_total / patrimonio_liquido * 100), 0, 100)
     else:
         subscores["protecaoPatrimonial"] = None
+    if passivos_total is not None and ativos_total:
+        subscores["endividamento"] = _clamp(100 - (passivos_total / ativos_total * 100) / 50 * 100, 0, 100)
+    else:
         subscores["endividamento"] = None
     if patrimonio_financeiro is not None and patrimonio_liquido:
         subscores["investimentos"] = _clamp(patrimonio_financeiro / patrimonio_liquido / 0.40 * 100, 0, 100)

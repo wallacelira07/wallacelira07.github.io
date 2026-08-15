@@ -2,7 +2,9 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 14/08/2026, sessão longa (bloco 8). Resumo: correção de favicon mobile desatualizado, correção de crédito solar dessincronizado no link de compartilhamento, **auditoria completa do site (1 agente por aba)** que achou e corrigiu 8 bugs reais (Balanço, Livros Razão, Emagrecimento, WWI), decisões do usuário sobre Caixa Lance no WWI e eliminação de constantes hardcoded, investigação sênior que recuperou uma linha perdida de `historico_relatorios` com causa raiz real identificada, e **redesenho completo da Inbox Financeira** (de ~557 pendentes reais pra 41, com filtro automático rodando sozinho daqui pra frente).
+Última reescrita: 15/08/2026, bloco 9. Resumo: correção de metodologia no Wealth Score do WWI — sub-score `protecaoPatrimonial` duplicava exatamente `endividamento`, inflando o peso real da alavancagem pra 30% sem intenção documentada; agora mede debt-to-equity (passivos/patrimônio líquido), corrigido nos dois motores (JS e Python) pra manter paridade.
+
+Sessão anterior: 14/08/2026, sessão longa (bloco 8). Resumo: correção de favicon mobile desatualizado, correção de crédito solar dessincronizado no link de compartilhamento, **auditoria completa do site (1 agente por aba)** que achou e corrigiu 8 bugs reais (Balanço, Livros Razão, Emagrecimento, WWI), decisões do usuário sobre Caixa Lance no WWI e eliminação de constantes hardcoded, investigação sênior que recuperou uma linha perdida de `historico_relatorios` com causa raiz real identificada, e **redesenho completo da Inbox Financeira** (de ~557 pendentes reais pra 41, com filtro automático rodando sozinho daqui pra frente).
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -20,6 +22,9 @@
 12. **NOVO 14/08/2026 — Inbox Financeira agora se auto-filtra** (`arquivar_inbox_historico()`, roda sozinha a cada sincronização). Não assumir mais que "muitos pendentes acumulados" é normal — se o volume voltar a crescer muito, é sinal de que algo na função nova quebrou, não que precisa de outra faxina manual em massa.
 
 ## 1. Pendências abertas AGORA (retomar por aqui)
+
+### 1.0 Correção do Wealth Score (`protecaoPatrimonial`) — commit pendente de aviso ao usuário
+`src/relatorio/gerar-analise-financeira.js` e `scripts/sync/wwi_gerar_relatorio_mensal.py` alterados nesta sessão (ver bloco 9 abaixo e seção 9.1 de `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md`), ainda não commitados — `git status` mostrava a mudança do `.js` como working-tree local antes desta rewrite; o `.py` foi corrigido agora pra manter paridade. Avisar o usuário e commitar/pushar antes de considerar isso fechado. Sem migration/dado envolvido — é só lógica de cálculo, roda no próximo relatório WWI gerado (manual ou pelo job mensal).
 
 ### 1.1 Instalação física do medidor DDSU666 — hoje é 15/08/2026, dia da instalação (Casa da Mãe)
 Fase 1 (sondagem, só leitura) está pronta: `scripts/sync/sondar_medidor_saj.py` + workflow `sondar_medidor_saj.yml` (disparo manual via GitHub Actions, do celular). **Se já é 15/08 ou depois quando esta sessão for lida**: confirmar se a sondagem já foi disparada e o que ela retornou antes de qualquer outra coisa relacionada a Solar. Detalhe completo em `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`.
@@ -39,20 +44,17 @@ Aguardando Caixa Manutenção acumular saldo suficiente (não conferido nesta se
 ### 1.6 Previsão de geração baseada em irradiância solar — sugerido, não implementado
 Sem mudança — usuário ainda não decidiu se quer essa feature.
 
-## 2. O que foi feito nesta sessão (14/08/2026, bloco 8)
+## 2. O que foi feito nesta sessão (15/08/2026, bloco 9)
 
-Resumo executivo — detalhe passo a passo completo em `docs/changelog/PASSAGEM_DE_TURNO.md`, bloco 8:
+Resumo executivo — detalhe completo em `docs/changelog/PASSAGEM_DE_TURNO.md`, bloco 9, e `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md` seção 9.1:
 
-1. Procedimento de baixa da fatura do cartão decidido (fecha pendência do bloco 7).
-2. Medidor DDSU666 Fase 1 preparada (commit `147a5eb`, sessão anterior a este bloco).
-3. Favicon mobile desatualizado corrigido (PNGs regenerados a partir do SVG atual).
-4. Crédito solar do link de compartilhamento corrigido (Fluxo 2 projetado igual ao painel privado) — commit `5d22216`.
-5. Auditoria completa (6 agentes, 1 por aba) achou e corrigiu 8 bugs reais: `passivoFinanciamentoCasa` desatualizado, RPC `rpc_dashboard_resumo` zerando patrimônio, selo "✓ confirmado" incondicional, Emagrecimento sem bloco de Comprometido/Disponível, contador de LR travado, rodapé de LR sem rótulo, Caixa Lance faltando no WWI, `metas.valor_atual` órfã.
-6. `historico_relatorios` vazia investigada a fundo (causa raiz real: `DELETE` sem rastro) e recuperada com dado revalidado do zero.
-7. Constantes do "Déficit Zero" migradas pro Supabase (nenhum hardcode financeiro novo daqui pra frente).
-8. Inbox Financeira redesenhada — filtro automático de ciclo passado/duplicata, rodando sozinho a cada sincronização. ~557 pendentes reais → 41.
+1. Achado de metodologia no Wealth Score do WWI: sub-score `protecaoPatrimonial` era matematicamente idêntico a `endividamento` (mesma fórmula, passivos/ativoTotal) — dobrava o peso real da alavancagem pra 30% do score sem intenção documentada.
+2. `protecaoPatrimonial` corrigido pra medir debt-to-equity (passivos/patrimônio líquido) — ângulo complementar ao `endividamento` (que continua passivos/ativoTotal, inalterado).
+3. Corrigido nos dois motores — `src/relatorio/gerar-analise-financeira.js` (JS, botão manual) e `scripts/sync/wwi_gerar_relatorio_mensal.py` (job mensal) — pra não repetir o padrão de divergência JS×Python já visto e corrigido no bloco 8 (item "investimentos").
 
-Todo o código desta sessão está commitado (`80c96f9` + `5d22216` + `35e2069`, todos com merge do bump automático de `__V`) e publicado em produção. Migrations do Supabase já aplicadas em produção (não passam por commit git).
+**Pendente**: ver item 1.0 acima — mudança ainda não commitada/pushada, esperando aviso ao usuário. Nenhum dado/Supabase envolvido, é lógica pura de cálculo.
+
+Sessão anterior (14/08/2026, bloco 8) resumida: procedimento de baixa de fatura, favicon mobile, crédito solar do link compartilhado, auditoria de 6 agentes (8 bugs reais corrigidos), recuperação de `historico_relatorios`, migração de constantes do Déficit Zero pro Supabase, redesenho da Inbox Financeira (~557→41 pendentes). Todo commitado (`80c96f9`+`5d22216`+`35e2069`) e publicado — detalhe completo em `PASSAGEM_DE_TURNO.md` bloco 8.
 
 ## 3. Protocolo de sessão nova
 
@@ -60,5 +62,5 @@ Todo o código desta sessão está commitado (`80c96f9` + `5d22216` + `35e2069`,
 2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
 3. Se aparecer erro de push tipo `bad object refs/heads/claude/desktop.ini`: é o Google Drive sincronizando `.git/` de novo (regra 6 acima) — rodar `find .git -iname desktop.ini -delete` antes de tentar de novo, não é bug de código.
 4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-5. Retomar pela seção 1 — o item com data mais urgente é 1.1 (instalação do DDSU666, hoje/15/08).
-6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`. Nesta sessão, os 2 documentos do Google Drive (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` e `MANUAL_OPERACIONAL_AGENTES.md`) foram sincronizados com todas as regras novas (fatura, Déficit Zero no Supabase, Caixa Lance no WWI, Inbox auto-filtrada).
+5. Retomar pela seção 1 — o item 1.0 (commit pendente do Wealth Score) e o 1.1 (instalação do DDSU666, hoje/15/08) são os mais urgentes.
+6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`. Nesta sessão (bloco 9), a mudança é só metodologia de cálculo interna (fórmula já documentada como "v1, não fixa em pedra" na seção 4 do doc WWI) — não configura regra de negócio nova nem domínio V2 novo, então os documentos do Google Drive (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`/`MANUAL_OPERACIONAL_AGENTES.md`) não precisaram de atualização.
