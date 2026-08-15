@@ -850,8 +850,8 @@
     <div class="progress-lbl"><span class="v" id="pcnMeta">—</span><span class="v" id="pcnFalta">—</span></div>
   </div>
 
-  <!-- 16 -->
-  <div class="section-num"><span class="n">16</span><h2>Meta de investimento</h2></div>
+  <!-- 15 -->
+  <div class="section-num"><span class="n">15</span><h2>Meta de investimento</h2></div>
   <div class="card" style="border-left:3px solid var(--green)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)" class="v">Meta mensal (20% do salário)</div><div class="v" style="font-weight:600" id="metaInvMensal">—</div></div>
@@ -862,8 +862,8 @@
     <div class="row"><span class="k">Excedente acima da meta</span><span class="v" style="color:var(--green)" id="metaInvExcedente">—</span></div>
   </div>
 
-  <!-- 17 -->
-  <div class="section-num"><span class="n">17</span><h2>Carteira de opções</h2></div>
+  <!-- 16 -->
+  <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
   <div class="card">
     <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
     <div class="grid-2" style="margin-bottom:0.7rem">
@@ -952,8 +952,8 @@
   de vez em vez de deixar comentado - a versao ativa (grid-2 + tabela acima) ja cobre tudo isso,
   conectada a VARS.opcoesVendidasDetalhe. -->
 
-  <!-- 18 -->
-  <div class="section-num"><span class="n">18</span><h2>Operações P2P</h2></div>
+  <!-- 17 -->
+  <div class="section-num"><span class="n">17</span><h2>Operações P2P</h2></div>
   <div class="card">
     <div class="grid-4">
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
@@ -964,8 +964,8 @@
     <div class="v" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
   </div>
 
-  <!-- 19 -->
-  <div class="section-num"><span class="n">19</span><h2>Reembolsos Wärtsilä</h2></div>
+  <!-- 18 -->
+  <div class="section-num"><span class="n">18</span><h2>Reembolsos Wärtsilä</h2></div>
   <!-- REORGANIZADA 12/08/2026 (pedido do usuário: "letras e espaçamentos brigando por espaço") —
        rótulos das 7 linhas da cascata eram frases longas com explicação embutida (ex: "4. MP pessoal
        (o que você deve na fatura)", "7. Sobra disponível (= Cobertura Garantida)"), competindo com o
@@ -1000,8 +1000,8 @@
     <div class="v" id="legLinha4vs5MP" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
-  <!-- 20 -->
-  <div class="section-num"><span class="n">20</span><h2>Indicadores e evolução da necessidade</h2></div>
+  <!-- 19 -->
+  <div class="section-num"><span class="n">19</span><h2>Indicadores e evolução da necessidade</h2></div>
   <div class="grid-3" style="margin-bottom:1rem">
     <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:var(--fs-label);color:var(--text-dim)">Compromissos fixos do ciclo: boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
     <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:var(--fs-label);color:var(--text-dim)">—</div></div>
@@ -1032,8 +1032,8 @@
     <div class="v" id="legTotalOperacionalDefinicao" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
 
-  <!-- 21 -->
-  <div class="section-num"><span class="n">21</span><h2>Resumo executivo</h2></div>
+  <!-- 20 -->
+  <div class="section-num"><span class="n">20</span><h2>Resumo executivo</h2></div>
   <div class="card">
     <div class="row"><span class="k" style="font-weight:600">Patrimônio Líquido</span><span class="v" style="font-size:var(--fs-lg);font-weight:700" id="r21Patrimonio">—</span></div>
     <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span class="v" id="r21MetaMilhaoPct">—</span>%</span></div>
@@ -1054,14 +1054,14 @@
 
   <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
 
-  <!-- 22 -->
+  <!-- 21 -->
   <!-- V400 (03/08/2026) Etapa 1 - Inbox Financeira: componente central do projeto de automacao de
        captura (brief V400). Continua/nao filtrada por ciclo (mesma classe de LREI/boletos). Comeca
        vazia - nenhuma automacao de captura (Pluggy/Email/Telegram/OCR/Corretoras) existe ainda,
        populavel via inboxAdicionarItem() no console/app.js ate essas automacoes chegarem em etapas
        futuras. Aprovar/Rejeitar so muda o status aqui dentro - nunca lanca automaticamente no livro
        razao (ver app.js, funcao inboxAprovar). -->
-  <div class="section-num"><span class="n">22</span><h2>📥 Inbox Financeira</h2></div>
+  <div class="section-num"><span class="n">21</span><h2>📥 Inbox Financeira</h2></div>
   <div class="card">
     <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
     <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
@@ -1458,11 +1458,11 @@
       </div>
       <div class="grid-2">
         <div>
-          <label style="font-size:var(--fs-label);color:var(--text-mid)">Consumo mensal (kWh)</label>
+          <label for="simConsumo" style="font-size:var(--fs-label);color:var(--text-mid)">Consumo mensal (kWh)</label>
           <input type="number" id="simConsumo" value="300" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:var(--fs-label);color:var(--text-mid)">Tipo de ligação</label>
+          <label for="simLigacao" style="font-size:var(--fs-label);color:var(--text-mid)">Tipo de ligação</label>
           <select id="simLigacao" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0.4rem;color:var(--text);margin-top:0.2rem">
             <option value="MONO">Monofásico (30 kWh)</option>
             <option value="BI">Bifásico (50 kWh)</option>
@@ -1470,15 +1470,15 @@
           </select>
         </div>
         <div>
-          <label style="font-size:var(--fs-label);color:var(--text-mid)">Geração mensal estimada (kWh)</label>
+          <label for="simGeracao" style="font-size:var(--fs-label);color:var(--text-mid)">Geração mensal estimada (kWh)</label>
           <input type="number" id="simGeracao" value="850" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:var(--fs-label);color:var(--text-mid)">Investimento total (R$)</label>
+          <label for="simInvestimento" style="font-size:var(--fs-label);color:var(--text-mid)">Investimento total (R$)</label>
           <input type="number" id="simInvestimento" value="14800" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0.4rem;color:var(--text);margin-top:0.2rem">
         </div>
         <div>
-          <label style="font-size:var(--fs-label);color:var(--text-mid)">Período de forecast</label>
+          <label for="simMeses" style="font-size:var(--fs-label);color:var(--text-mid)">Período de forecast</label>
           <select id="simMeses" style="width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0.4rem;color:var(--text);margin-top:0.2rem">
             <option value="12">12 meses</option>
             <option value="24">24 meses</option>
@@ -1677,7 +1677,7 @@
       <div class="row"><span class="k">Jazigo (quitado, Parque da Paz, 12/09/2024)</span><span class="v" id="bfJazigo">—</span></div>
       <div class="row"><span class="k">Sistema de geração solar (custo)</span><span class="v" id="bfSolar">—</span></div>
       <div class="row"><span class="k">Honda Civic Touring CVT 2020 (consórcio contemplado 20/12/2024)</span><span class="v" id="bfCarro">—</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFisicoTotal">R$ 430.800,00</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFisicoTotal">—</span></div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Carro pelo valor de compra/NF em 20/12/2024 — pode não refletir o valor de mercado atual (depreciação de carro usado), não ajustado por falta de avaliação recente.</div>
     </div>
 
@@ -1691,13 +1691,13 @@
       <div class="row"><span class="k">BTG/Necton (94 LFTS11)</span><span class="v" id="bfinBTG">—</span></div>
       <div class="row"><span class="k">Consórcio da Casa (2 parcelas pagas, Porto Seguro, não contemplado)</span><span class="v" id="bfinConsorcioCasa">—</span></div>
       <div class="row"><span class="k">Necton — conta corrente (parado, fora do LFTS11)</span><span class="v" id="bfinNectonCC">—</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFinanceiroTotal">R$ 118.068,05</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--green)" id="balFinanceiroTotal">—</span></div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Consórcio do Auto saiu daqui — foi contemplado em 20/12/2024, agora o carro está no Patrimônio Físico e o saldo devedor virou Passivo real (ver abaixo). Consórcio da Casa (Porto Seguro, Grupo I0464) segue não contemplado, continua como poupança compulsória.</div>
     </div>
 
     <div class="card" style="border-left:3px solid var(--purple);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balPgbl">R$ 132.214,74</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Previdência Privada (PGBL) · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balPgbl">—</div></div>
         <span class="badge bp">Não líquido</span>
       </div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">Igual ao INSS — só desconta do salário, não é gestão ativa do Wallace. Aparece aqui junto ao patrimônio para visibilidade, mas <strong>não entra no total do Patrimônio Financeiro nem na Meta do Milhão</strong> (que é patrimônio líquido de gestão ativa dele).</div>
@@ -1705,7 +1705,7 @@
 
     <div class="card" style="border-left:3px solid var(--purple);margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">FGTS · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balFgts">R$ 77.683,60</div></div>
+        <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">FGTS · Wärtsilä</div><div class="v" style="font-size:1.4rem;font-weight:700" id="balFgts">—</div></div>
         <span class="badge bp">Não líquido</span>
       </div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">Mesmo tratamento do PGBL — recurso compulsório, saque condicionado, não gerido ativamente. Não entra no total do Patrimônio Financeiro nem na Meta do Milhão.</div>
@@ -1716,7 +1716,7 @@
     <div class="card">
       <div class="row"><span class="k">Financiamento da casa (saldo devedor)</span><span class="v" style="color:var(--red)" id="bpFinanciamentoCasa">—</span></div>
       <div class="row"><span class="k">Consórcio do Auto (contemplado 20/12/2024, alienação fiduciária)</span><span class="v" style="color:var(--red)" id="bpConsorcioAuto">—</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--red)" id="balPassivosTotal">R$ 80.325,74</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total</span><span class="v" style="color:var(--red)" id="balPassivosTotal">—</span></div>
       <div class="v" id="balPassivosTotalV2" style="font-size:var(--fs-label);color:var(--text-dim);text-align:right;margin-top:0.15rem"></div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Consórcio do Auto voltou aqui — agora que foi contemplado e o carro tem alienação fiduciária, é dívida real garantida pelo veículo. Consórcio da Casa não entra (ainda não contemplado, segue no Patrimônio Financeiro).</div>
     </div>
@@ -1724,10 +1724,10 @@
     <!-- 4 -->
     <div class="section-num"><span class="n">04</span><h2>🏦 Balanço Patrimonial</h2></div>
     <div class="card" style="border-left:3px solid var(--accent)">
-      <div class="row"><span class="k">Ativos (Físico + Financeiro)</span><span class="v" id="balAtivosTotal">R$ 548.868,05</span></div>
+      <div class="row"><span class="k">Ativos (Físico + Financeiro)</span><span class="v" id="balAtivosTotal">—</span></div>
       <div class="v" id="balAtivosTotalV2" style="font-size:var(--fs-label);color:var(--text-dim);text-align:right;margin-top:-0.2rem;margin-bottom:0.2rem"></div>
-      <div class="row"><span class="k">Passivos</span><span class="v" style="color:var(--red)" id="balPassivosTotal2">R$ 80.325,74</span></div>
-      <div class="row" style="font-weight:700;font-size:var(--fs-lg);border-top:1px solid var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Patrimônio Líquido</span><span class="v" style="color:var(--green)" id="balPatrimonioLiquido">R$ 468.542,31</span></div>
+      <div class="row"><span class="k">Passivos</span><span class="v" style="color:var(--red)" id="balPassivosTotal2">—</span></div>
+      <div class="row" style="font-weight:700;font-size:var(--fs-lg);border-top:1px solid var(--border);margin-top:0.5rem;padding-top:0.5rem"><span class="k">Patrimônio Líquido</span><span class="v" style="color:var(--green)" id="balPatrimonioLiquido">—</span></div>
       <div class="v" id="balPatrimonioLiquidoV2" style="font-size:var(--fs-label);color:var(--text-dim);text-align:right;margin-top:0.15rem"></div>
       <div class="v" id="legPGBLFGTSForaBalanco" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
     </div>
@@ -1742,19 +1742,19 @@
     <!-- 5 -->
     <div class="section-num"><span class="n">05</span><h2>📦 Gestão das Reservas</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Escola de Júlio</span><span class="v" id="balResEscola">R$ 1.006,74</span></div>
-      <div class="row"><span class="k">Caixa Lance</span><span class="v" id="balResLance">R$ 3.482,51</span></div>
-      <div class="row"><span class="k">Caixa Manutenção</span><span class="v" id="balResManut">R$ 345,39</span></div>
-      <div class="row"><span class="k">Caixa Eventos e Viagens</span><span class="v" id="balResEventos">R$ 0,00 (usada no ciclo)</span></div>
-      <div class="row"><span class="k">Caixa Churrasco</span><span class="v" id="balResChurrasco">R$ 0,00</span></div>
-      <div class="row"><span class="k">Saúde da Família</span><span class="v" id="balResSaude">R$ 0,00</span></div>
-      <div class="row"><span class="k">Seguro e Emplacamento</span><span class="v" id="balResSeguro">R$ 0,00</span></div>
-      <div class="row"><span class="k">Aniversário de Júlio</span><span class="v" id="balResAniv">R$ 200,10</span></div>
+      <div class="row"><span class="k">Escola de Júlio</span><span class="v" id="balResEscola">—</span></div>
+      <div class="row"><span class="k">Caixa Lance</span><span class="v" id="balResLance">—</span></div>
+      <div class="row"><span class="k">Caixa Manutenção</span><span class="v" id="balResManut">—</span></div>
+      <div class="row"><span class="k">Caixa Eventos e Viagens</span><span class="v" id="balResEventos">—</span></div>
+      <div class="row"><span class="k">Caixa Churrasco</span><span class="v" id="balResChurrasco">—</span></div>
+      <div class="row"><span class="k">Saúde da Família</span><span class="v" id="balResSaude">—</span></div>
+      <div class="row"><span class="k">Seguro e Emplacamento</span><span class="v" id="balResSeguro">—</span></div>
+      <div class="row"><span class="k">Aniversário de Júlio</span><span class="v" id="balResAniv">—</span></div>
       <div class="row"><span class="k">PIX Vanessa <span style="color:var(--text-dim);font-weight:400">(reserva do Wallace, PV)</span></span><span class="v" id="balResPixVanessa">—</span></div>
       <div class="row"><span class="k">Combustível</span><span class="v" id="balResCombustivel">—</span></div>
       <div class="row"><span class="k">Bens Duráveis</span><span class="v" id="balResBensDuraveis">—</span></div>
       <div class="row"><span class="k">Fundo de Suavização</span><span class="v" id="balResSuavizacao">—</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balReservasTotal">R$ 1.439,47</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Total reservado</span><span class="v" style="color:var(--green)" id="balReservasTotal">—</span></div>
     </div>
 
     <!-- 6 -->
@@ -1794,9 +1794,9 @@
     <!-- 8 -->
     <div class="section-num"><span class="n">08</span><h2>📊 Fluxo Financeiro do Ciclo</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">R$ 38.623,76</span></div>
-      <div class="row"><span class="k">Obrigações + Custos Variáveis + Aportes</span><span class="v" style="color:var(--red)" id="balFluxoSaidas">R$ 14.317,00</span></div>
-      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Resultado (Superávit)</span><span class="v" style="color:var(--green)" id="balFluxoResultado">R$ 21.821,37</span></div>
+      <div class="row"><span class="k">Entradas totais</span><span class="v" style="color:var(--green)" id="balFluxoEntradas">—</span></div>
+      <div class="row"><span class="k">Obrigações + Custos Variáveis + Aportes</span><span class="v" style="color:var(--red)" id="balFluxoSaidas">—</span></div>
+      <div class="row" style="font-weight:600;border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k">Resultado (Superávit)</span><span class="v" style="color:var(--green)" id="balFluxoResultado">—</span></div>
       <div class="v" id="legDestinoExcedente" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">—</div>
       <!-- V150: nota de "ciclo de transicao" removida - Fluxo agora e 100% calculado dinamicamente (entradas/saidas/resultado), nao ha mais distorcao fixa a explicar. -->
     </div>
@@ -1804,10 +1804,10 @@
     <!-- 9 -->
     <div class="section-num"><span class="n">09</span><h2>🛡️ As 4 perguntas dos cenários</h2></div>
     <div class="card">
-      <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">Normal</strong></span></div>
-      <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span class="v" id="bal4qTotalOp">R$ 11.117,00</span> (Total Operacional)</span></div>
-      <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qPatrimonio">R$ 468.542,31</span> (Líquido, Balanço)</span></div>
-      <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qExcedente">R$ 21.821,37</span> (Excedente/Saldo do Ciclo)</span></div>
+      <div class="row"><span class="k">Quanto preciso ganhar?</span><span class="v">Modo Operacional: <strong style="color:var(--green)" id="bal4qModo">—</strong></span></div>
+      <div class="row"><span class="k">Quanto preciso manter em operação?</span><span class="v"><span class="v" id="bal4qTotalOp">—</span> (Total Operacional)</span></div>
+      <div class="row"><span class="k">Quanto possuo de patrimônio?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qPatrimonio">—</span> (Líquido, Balanço)</span></div>
+      <div class="row"><span class="k">Quanto consigo investir?</span><span class="v" style="color:var(--green)"><span class="v" id="bal4qExcedente">—</span> (Excedente/Saldo do Ciclo)</span></div>
     </div>
 
     <!-- MOVIDO 05/08/2026 (parte 97, usuario apontou: "o painel PIB esta aparecendo dentro das abas

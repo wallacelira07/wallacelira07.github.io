@@ -75,7 +75,7 @@ async function criarLinkCompartilhamentoSolar(){
       el.innerHTML = `✅ Link criado, válido até <strong>${fmtDataHoraCompartilhamentoSolar(dado.expira_em)}</strong>` +
         `<div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap">` +
         `<a href="${link}" target="_blank" rel="noopener" class="btn-pill" style="text-decoration:none"><span class="btn-pill-label">☀️ Abrir página</span></a>` +
-        `<button type="button" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" class="solar-share-btn" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.4rem 0.8rem;font-size:0.78rem;cursor:pointer">📋 Copiar link</button>` +
+        `<button type="button" onclick="_copiarLinkCompartilhamentoSolar('${link}', this)" class="solar-share-btn" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.4rem 0.8rem;font-size:0.78rem;cursor:pointer">📋 Copiar link</button>` +
         `</div>`;
     }
     renderizarLinksCompartilhamentoSolar();
@@ -83,6 +83,21 @@ async function criarLinkCompartilhamentoSolar(){
     console.error('criarLinkCompartilhamentoSolar: falha ao criar link.', err);
     if(el) el.textContent = '⚠ Não consegui criar o link — tenta de novo em alguns segundos.';
   }
+}
+
+// CORRIGIDO 15/08/2026 (achado de auditoria de design: erro ao desativar usava alert(), quebrando
+// o padrão inline elegante que a própria criação de link já usa 15 linhas acima — inconsistência
+// dentro do mesmo arquivo, não falta de solução). Reaproveita o mesmo elemento #solarLinkGerado.
+function _copiarLinkCompartilhamentoSolar(link, btn){
+  navigator.clipboard.writeText(link).then(() => {
+    if(!btn) return;
+    const textoOriginal = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => { btn.textContent = textoOriginal; }, 1500);
+  }).catch(() => {
+    const el = $('solarLinkGerado');
+    if(el) el.innerHTML += '<div style="color:var(--red);margin-top:0.4rem;font-size:0.78rem">⚠ Não consegui copiar — selecione o link manualmente.</div>';
+  });
 }
 
 async function desativarLinkCompartilhamentoSolar(token){
@@ -96,7 +111,9 @@ async function desativarLinkCompartilhamentoSolar(token){
     renderizarLinksCompartilhamentoSolar();
   } catch(err){
     console.error('desativarLinkCompartilhamentoSolar: falha ao desativar.', err);
-    alert('Não consegui desativar o link — tenta de novo em alguns segundos.');
+    const el = $('solarLinkGerado');
+    if(el) el.innerHTML = '⚠ Não consegui desativar o link — tenta de novo em alguns segundos.';
+    else alert('Não consegui desativar o link — tenta de novo em alguns segundos.');
   }
 }
 

@@ -98,6 +98,20 @@ function fluxoEnergiaToggle(idCard){
   card.setAttribute('aria-expanded', abrir ? 'true' : 'false');
 }
 
+// ADICIONADO 15/08/2026 (achado de auditoria de acessibilidade: os 7 cards do Fluxo de energia têm
+// role="button"+tabindex="0" — focáveis via Tab — mas só escutam "click", não Enter/Espaço. Um
+// <div role="button"> não ganha ativação por teclado de graça do navegador como um <button> real
+// teria. Listener delegado no document, único, cobre os 7 cards de hoje e qualquer [role="button"]
+// futuro sem precisar adicionar handler individual em cada um — mesmo espírito do listener de clique
+// fora do Livro Razão logo abaixo.
+document.addEventListener('keydown', function(ev){
+  if(ev.key !== 'Enter' && ev.key !== ' ') return;
+  const alvo = ev.target.closest && ev.target.closest('[role="button"]');
+  if(!alvo) return;
+  ev.preventDefault();
+  alvo.click();
+});
+
 // Clicar fora do bloco "Livros razão" (barra de abas #lrTabs + a tabela do livro aberto) fecha
 // qualquer lista aberta, mesmo padrão de UX de um dropdown/accordion. `#lrTabs` e cada `.pane` são
 // filhos diretos do mesmo `.card` (ver Sistema_Wallace_Lira_Completo.html, seção 07) - usa esse

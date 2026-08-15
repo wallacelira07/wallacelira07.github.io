@@ -123,6 +123,14 @@ function hydrateROC(){
     const opcoesVencidas = VARS.opcoesVendidasDetalhe.filter(o => o.vencida && !o.exercida);
     const opcoesExercidas = VARS.opcoesVendidasDetalhe.filter(o => o.vencida && o.exercida);
     const opcoesOrdenadas = VARS.opcoesVendidasDetalhe.filter(o => !o.vencida).sort((a,b) => parseVencimento(a.vencimento) - parseVencimento(b.vencimento));
+    // ADICIONADO 15/08/2026 (achado de auditoria de design: tabela ficava só com cabeçalho, sem
+    // nenhum aviso, quando não há posição ativa nenhuma — usuário não sabia se era "zero posições"
+    // ou "travou". Mesmo padrão de estado vazio já usado em render-livros-variaveis.js). NUNCA usar
+    // `return` aqui — isso pularia o preenchimento de opcoesVencidas/opcoesExercidas mais abaixo,
+    // que rodam dentro do mesmo bloco `if(opcoesTbodyEl)`.
+    if(!opcoesOrdenadas.length){
+      opcoesTbodyEl.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma posição ativa no momento.</td></tr>';
+    } else {
     opcoesTbodyEl.innerHTML = opcoesOrdenadas.map(o => {
       // CORRIGIDO 01/08/2026: antes a cor vermelha do valorMercado vinha "de graca" de um bug
       // (classe .r colidindo entre "alinhar a direita" e "cor vermelha", ver styles.css) - o Strike
@@ -179,6 +187,7 @@ function hydrateROC(){
       const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
       return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
+    }
     // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
     // absoluto fixo por frescor relativo (montarBadgeFrescor), recalculado a cada 60s. hydrateROC()
     // não é async — os limites (indicadores) são buscados numa IIFE à parte, sem bloquear o resto

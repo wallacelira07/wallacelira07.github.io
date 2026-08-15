@@ -16,7 +16,18 @@
     <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/images/favicon-192.png">
     <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
-    
+
+    <!-- ADICIONADO 14/08/2026 (correção de arquitetura de auditoria: index.html duplicava valores de
+         cor/raio/sombra do design system sem carregar assets/css/styles.css). Link vem ANTES do
+         <style> inline abaixo de propósito: qualquer regra deste arquivo que colida em especificidade
+         igual com uma regra de styles.css (mesmo seletor, ex: `body`) é declarada DEPOIS no documento,
+         então continua vencendo a cascata normalmente - nada muda visualmente só por causa do link.
+         Conferido por grep que nenhuma classe/id usada aqui (.login-brand, #loginScreen, .form-group,
+         etc.) colide com nenhum seletor genérico de styles.css (que só define .card/.kpi/.tab/.row/
+         etc., todos nomes usados exclusivamente DENTRO do painel) - a única sobreposição real é o
+         seletor de elemento `body`, inofensiva pelo motivo acima. -->
+    <link rel="stylesheet" href="assets/css/styles.css?v=277">
+
     <style>
         * {
             margin: 0;
@@ -29,10 +40,18 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            /* ADICIONADO 14/08/2026 (junto do link de styles.css acima): color/line-height explícitos
+               pra este `body` continuar 100% independente do `body{}` de styles.css (que define
+               color:var(--text) e line-height:var(--lh-normal)) - mesma especificidade, este vence por
+               vir depois no documento, mas declarar explícito documenta a intenção e blinda contra
+               qualquer reordenação futura do <link>/<style>. Nenhum texto real herda a cor daqui (todo
+               elemento visível do login/cabeçalho já define a própria cor) - é só reforço redundante. */
+            color: initial;
+            line-height: normal;
             background:
                 radial-gradient(560px 420px at 18% 8%, rgba(76,142,242,0.14), transparent 60%),
                 radial-gradient(620px 480px at 88% 92%, rgba(144,133,233,0.12), transparent 60%),
-                #0a0b10;
+                var(--bg, #0a0b10);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -61,7 +80,7 @@
             position: relative;
             background: linear-gradient(180deg, #17191d 0%, #131518 100%);
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 14px;
+            border-radius: var(--radius-3xl, 14px);
             box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.04);
             padding: 38px 36px 34px;
             max-width: 380px;
@@ -98,7 +117,7 @@
             justify-content: center;
             width: 52px;
             height: 52px;
-            border-radius: 14px;
+            border-radius: var(--radius-3xl, 14px);
             background: linear-gradient(135deg, rgba(76,142,242,0.28), rgba(144,133,233,0.2));
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
@@ -149,7 +168,7 @@
             padding: 12px 12px 12px 38px;
             background: rgba(255,255,255,0.03);
             border: 1px solid #2a2d31;
-            border-radius: 10px;
+            border-radius: var(--radius-xl, 10px);
             color: #e8e6df;
             /* CORRIGIDO (mobile perf): 14px < 16px dispara zoom automatico do iOS Safari ao focar
                o campo de login (bug conhecido do WebKit) - 16px é o minimo que evita o zoom. */
@@ -164,7 +183,7 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #4c8ef2;
+            border-color: var(--accent, #4c8ef2);
             background: rgba(76,142,242,0.06);
             box-shadow: 0 0 0 3px rgba(76,142,242, 0.15);
         }
@@ -209,8 +228,8 @@
         }
         .eye-toggle-btn.ativo {
             background: rgba(76,142,242, 0.16);
-            border-color: #4c8ef2;
-            color: #4c8ef2;
+            border-color: var(--accent, #4c8ef2);
+            color: var(--accent, #4c8ef2);
         }
         .eye-icon {
             position: absolute;
@@ -241,10 +260,10 @@
             width: 100%;
             padding: 13px;
             margin-top: 6px;
-            background: linear-gradient(135deg, #4c8ef2, #7c6fe0);
+            background: linear-gradient(135deg, var(--accent, #4c8ef2), #7c6fe0);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: var(--radius-xl, 10px);
             font-size: 15px;
             font-weight: 600;
             font-family: inherit;
@@ -297,13 +316,13 @@
         }
 
         .error-message {
-            color: #ef5b56;
+            color: var(--red, #ef5b56);
             font-size: 13px;
             margin-top: 16px;
             padding: 10px 12px;
             background: rgba(239,91,86, 0.12);
             border: 1px solid rgba(239,91,86, 0.3);
-            border-radius: 8px;
+            border-radius: var(--radius-lg, 8px);
             display: none;
             text-align: center;
             animation: loginErrorIn 0.2s ease;
@@ -360,7 +379,7 @@
             width: 36px;
             height: 36px;
             font-size: 18px;
-            border-radius: 10px;
+            border-radius: var(--radius-xl, 10px);
             background: linear-gradient(135deg, rgba(76,142,242,0.22), rgba(144,133,233,0.16));
             border: 1px solid rgba(255,255,255,0.09);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
@@ -453,17 +472,30 @@
             min-width: 280px;
             background: #1d2024;
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 10px;
+            border-radius: var(--radius-xl, 10px);
             overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34);
+            box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34));
             z-index: 50;
         }
         #dashboardScreen header .header-search-item {
+            /* CORRIGIDO 15/08/2026 (achado de auditoria: era <div onclick>, inacessível por teclado —
+               virou <button> real, que ganha foco/Enter/Espaço de graça do navegador; reset dos
+               estilos padrão de <button> pra manter exatamente a mesma aparência de antes). */
+            display: block;
+            width: 100%;
+            background: none;
+            border: none;
+            font-family: inherit;
+            text-align: left;
             padding: 8px 12px;
             font-size: 12px;
             color: #c8c6bf;
             cursor: pointer;
             border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        #dashboardScreen header .header-search-item:focus-visible {
+            outline: none;
+            box-shadow: inset 0 0 0 2px rgba(76,142,242,0.5);
         }
         #dashboardScreen header .header-search-item:last-child { border-bottom: none; }
         #dashboardScreen header .header-search-item:hover { background: rgba(76,142,242,0.12); color: #eceae4; }
@@ -574,8 +606,8 @@
             font-weight: 500;
             white-space: nowrap;
             padding: 5px 10px;
-            border-radius: 6px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34);
+            border-radius: var(--radius-md, 6px);
+            box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34));
             opacity: 0;
             pointer-events: none;
             transform: translateY(-3px);
@@ -596,7 +628,7 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #4c8ef2, #9085e9);
+            background: linear-gradient(135deg, var(--accent, #4c8ef2), var(--purple, #9085e9));
             color: #fff;
             font-size: 13px;
             font-weight: 700;
@@ -636,7 +668,7 @@
         #dashboardScreen header .logout-btn:hover {
             background: rgba(239,91,86, 0.12);
             border-color: rgba(239,91,86, 0.55);
-            color: #ef5b56;
+            color: var(--red, #ef5b56);
             transform: translateY(-1px);
             box-shadow: 0 4px 14px rgba(239,91,86, 0.18);
         }
@@ -697,7 +729,7 @@
                 width: 30px;
                 height: 30px;
                 font-size: 15px;
-                border-radius: 8px;
+                border-radius: var(--radius-lg, 8px);
             }
             #dashboardScreen header h1 {
                 font-size: 13px;
@@ -897,27 +929,31 @@
          estado de hover/focus/active, destoando do resto do arquivo que trata isso com cuidado). -->
     <style>
       #modalSenhaEsconderValoresBtnCancelar{transition:background 0.15s ease,border-color 0.15s ease}
-      #modalSenhaEsconderValoresBtnCancelar:hover{background:rgba(255,255,255,0.05);border-color:#363b45}
+      #modalSenhaEsconderValoresBtnCancelar:hover{background:rgba(255,255,255,0.05);border-color:var(--border-strong,#363b45)}
       #modalSenhaEsconderValoresBtnCancelar:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(76,142,242,0.18)}
       #senhaEsconderValoresBtnConfirmar{transition:filter 0.15s ease,box-shadow 0.15s ease}
       #senhaEsconderValoresBtnConfirmar:hover{filter:brightness(1.1)}
       #senhaEsconderValoresBtnConfirmar:active{filter:brightness(0.95)}
       #senhaEsconderValoresBtnConfirmar:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(76,142,242,0.35)}
-      #senhaEsconderValoresInput:focus{outline:none;border-color:#4c8ef2;box-shadow:0 0 0 3px rgba(76,142,242,0.15)}
+      #senhaEsconderValoresInput:focus{outline:none;border-color:var(--accent,#4c8ef2);box-shadow:0 0 0 3px rgba(76,142,242,0.15)}
     </style>
+    <!-- ADICIONADO 14/08/2026 (mesma migração de token acima): valores inline deste modal eram
+         cópias literais dos tokens --surface/--border/--text/--text-mid/--bg/--red/--accent/
+         --radius-2xl/--radius-lg definidos em assets/css/styles.css - trocados por var(--token, valor
+         antigo) com fallback idêntico, zero mudança visual, só passa a citar a fonte única. -->
     <div id="modalSenhaEsconderValores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
-      <div style="background:#14161b;border:1px solid #262a32;border-radius:12px;padding:1.5rem;width:90%;max-width:320px;">
-        <div style="font-weight:600;color:#f0eee6;margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
-        <div style="font-size:0.78rem;color:#adaba3;margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
+      <div style="background:var(--surface,#14161b);border:1px solid var(--border,#262a32);border-radius:var(--radius-2xl,12px);padding:1.5rem;width:90%;max-width:320px;">
+        <div style="font-weight:600;color:var(--text,#f0eee6);margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
+        <div style="font-size:0.78rem;color:var(--text-mid,#adaba3);margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
         <input type="password" id="senhaEsconderValoresInput" placeholder="PIN" inputmode="numeric" maxlength="4" autocomplete="off"
-          style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:1px solid #262a32;background:#0a0b10;color:#f0eee6;font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
+          style="width:100%;padding:0.6rem 0.75rem;border-radius:var(--radius-lg,8px);border:1px solid var(--border,#262a32);background:var(--bg,#0a0b10);color:var(--text,#f0eee6);font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
           onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores();">
-        <div id="senhaEsconderValoresErro" style="display:none;color:#ef5b56;font-size:0.78rem;margin-bottom:0.5rem;"></div>
+        <div id="senhaEsconderValoresErro" style="display:none;color:var(--red,#ef5b56);font-size:0.78rem;margin-bottom:0.5rem;"></div>
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
           <button type="button" id="modalSenhaEsconderValoresBtnCancelar" onclick="fecharModalSenhaEsconderValores()"
-            style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid #262a32;background:transparent;color:#adaba3;cursor:pointer;">Cancelar</button>
+            style="flex:1;padding:0.55rem;border-radius:var(--radius-lg,8px);border:1px solid var(--border,#262a32);background:transparent;color:var(--text-mid,#adaba3);cursor:pointer;">Cancelar</button>
           <button type="button" id="senhaEsconderValoresBtnConfirmar" onclick="confirmarSenhaEsconderValores()"
-            style="flex:1;padding:0.55rem;border-radius:8px;border:none;background:#4c8ef2;color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>
+            style="flex:1;padding:0.55rem;border-radius:var(--radius-lg,8px);border:none;background:var(--accent,#4c8ef2);color:#fff;cursor:pointer;font-weight:600;">Confirmar</button>
         </div>
       </div>
     </div>
@@ -1223,12 +1259,17 @@
             }).join('') + '</ol>';
         }
 
+        // AMPLIADO 14/08/2026 (gap "Leitura" do artefato de referência — 4ª coluna da tabela de
+        // Centros de Custo). `g.leitura` (gerar-analise-financeira.js, _wwiMontarCentrosDeCusto) só
+        // vem preenchido quando TODAS as caixas do grupo têm teto/meta conhecido — nos demais grupos
+        // (ex: "Estratégicos", que inclui Caixa Lance/Wärtsilä/Suavização, sem teto de poupança por
+        // design) a célula fica vazia de propósito, nunca com uma frase genérica no lugar.
         function _wwiRelCentrosDeCusto(grupos) {
             if (!grupos || !grupos.length) return '';
-            return '<div class="tbl-wrap"><table><thead><tr><th>Fundo</th><th>Centros de custo</th><th class="num">Saldo agregado</th></tr></thead><tbody>' +
+            return '<div class="tbl-wrap"><table><thead><tr><th>Fundo</th><th>Centros de custo</th><th class="num">Saldo agregado</th><th>Leitura</th></tr></thead><tbody>' +
                 grupos.map(function (g) {
                     return '<tr><td style="font-weight:700">' + _wwiRelEsc(g.nome) + '</td><td>' + _wwiRelEsc(g.caixas.join(' &middot; ')) +
-                        '</td><td class="num">' + _wwiRelEsc(_wwiFmtR(g.total)) + '</td></tr>';
+                        '</td><td class="num">' + _wwiRelEsc(_wwiFmtR(g.total)) + '</td><td>' + (g.leitura ? _wwiRelEsc(g.leitura) : '') + '</td></tr>';
                 }).join('') + '</tbody></table></div>';
         }
 
@@ -1457,16 +1498,20 @@
             // 09. Oportunidades de Aceleração — CONSOLIDADO 14/08/2026 (antes eram 2 seções separadas,
             // "Oportunidades de Crescimento" + "Matriz de Riscos"; o artefato tem só 1 seção "Oportu-
             // nidades de Aceleração" cobrindo os dois temas).
+            // AMPLIADO 14/08/2026 (gap "Capital envolvido" — 4ª coluna do artefato de referência):
+            // riscosTexto/oportunidadesTexto/recomendacoesTexto agora são `{texto, valor}` (ver
+            // gerar-analise-financeira.js) — `valor` só existe quando a própria regra que gerou a
+            // frase já tinha um número em R$ real associado; célula fica vazia quando `null`.
             const itensAceleracao = narrativa ? [].concat(
-                (narrativa.riscosTexto || []).map(function (t) { return { tag: 'Risco', texto: t }; }),
-                (narrativa.oportunidadesTexto || []).map(function (t) { return { tag: 'Oportunidade', texto: t }; }),
-                (narrativa.recomendacoesTexto || []).map(function (t) { return { tag: 'Recomendação', texto: t }; })
+                (narrativa.riscosTexto || []).map(function (t) { return { tag: 'Risco', texto: t.texto, valor: t.valor }; }),
+                (narrativa.oportunidadesTexto || []).map(function (t) { return { tag: 'Oportunidade', texto: t.texto, valor: t.valor }; }),
+                (narrativa.recomendacoesTexto || []).map(function (t) { return { tag: 'Recomendação', texto: t.texto, valor: t.valor }; })
             ) : [];
             if (itensAceleracao.length) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Oportunidades de Aceleração', 'Onde o capital pode trabalhar mais') +
-                    '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Tipo</th><th>Leitura</th></tr></thead><tbody>' +
+                    '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Tipo</th><th>Leitura</th><th class="num">Capital envolvido</th></tr></thead><tbody>' +
                     itensAceleracao.map(function (it, i) {
-                        return '<tr><td>' + (i + 1) + '</td><td>' + _wwiRelEsc(it.tag) + '</td><td>' + _wwiRelEsc(it.texto) + '</td></tr>';
+                        return '<tr><td>' + (i + 1) + '</td><td>' + _wwiRelEsc(it.tag) + '</td><td>' + _wwiRelEsc(it.texto) + '</td><td class="num">' + (it.valor !== null && it.valor !== undefined ? _wwiRelEsc(_wwiFmtR(it.valor)) : '') + '</td></tr>';
                     }).join('') + '</tbody></table></div></section>');
             }
 
@@ -1486,10 +1531,20 @@
             // aparece se houver dado real pra responder — nunca fabrica resposta sem base em `narrativa`.
             const perguntasParecer = [];
             if (narrativa && narrativa.riscosTexto && narrativa.riscosTexto.length) {
-                perguntasParecer.push({ q: 'Qual é o principal risco?', r: narrativa.riscosTexto.join(' ') });
+                perguntasParecer.push({ q: 'Qual é o principal risco?', r: narrativa.riscosTexto.map(function (t) { return t.texto; }).join(' ') });
             }
             if (narrativa && narrativa.oportunidadesTexto && narrativa.oportunidadesTexto.length) {
-                perguntasParecer.push({ q: 'Qual é a principal oportunidade?', r: narrativa.oportunidadesTexto.join(' ') });
+                perguntasParecer.push({ q: 'Qual é a principal oportunidade?', r: narrativa.oportunidadesTexto.map(function (t) { return t.texto; }).join(' ') });
+            }
+            // ADICIONADAS 14/08/2026 (2 perguntas extras do Parecer Final do artefato de referência) —
+            // ambas só aparecem quando `narrativa.proximoSaltoTexto`/`perfilConstrucaoTexto` (gerar-
+            // analise-financeira.js) vêm preenchidos, mesmo padrão condicional das perguntas acima
+            // (nunca fabrica resposta sem base real).
+            if (narrativa && narrativa.proximoSaltoTexto) {
+                perguntasParecer.push({ q: 'Quanto falta para o próximo salto patrimonial?', r: narrativa.proximoSaltoTexto });
+            }
+            if (narrativa && narrativa.perfilConstrucaoTexto) {
+                perguntasParecer.push({ q: 'O patrimônio está sendo administrado como investidor comum ou como construtor de riqueza?', r: narrativa.perfilConstrucaoTexto });
             }
             if (narrativa && narrativa.parecerFinalTexto) {
                 perguntasParecer.push({ q: 'Leitura de encerramento', r: narrativa.parecerFinalTexto });
@@ -1802,11 +1857,11 @@
                 return;
             }
             wrap.innerHTML = secoes.map(s =>
-                `<div class="header-search-item" onclick="headerSearchNavegar('secao',${s.idx})">${s.rotulo}</div>`
+                `<button type="button" class="header-search-item" onclick="headerSearchNavegar('secao',${s.idx})">${s.rotulo}</button>`
             ).join('') + transacoes.map(t =>
-                `<div class="header-search-item" onclick="headerSearchNavegar('transacao',${t.idx})">`
+                `<button type="button" class="header-search-item" onclick="headerSearchNavegar('transacao',${t.idx})">`
                 + `<strong>${t.tx}</strong> · ${t.nome} · <strong>${t.valor}</strong>`
-                + `<span class="hs-sub">${t.data || ''} — ${t.livro}${t.obs ? ' — ' + t.obs : ''}</span></div>`
+                + `<span class="hs-sub">${t.data || ''} — ${t.livro}${t.obs ? ' — ' + t.obs : ''}</span></button>`
             ).join('');
             wrap.style.display = 'block';
         }
@@ -2153,8 +2208,13 @@
         });
 
         // VERIFICAR SE JÁ ESTÁ LOGADO
+        // CORRIGIDO 15/08/2026 (achado de auditoria: sessionStorage.getItem() sem try/catch, ao
+        // contrário do padrão já usado em outros pontos deste mesmo arquivo — em navegador/perfil
+        // com storage desabilitado por política, isso lançaria exceção não capturada dentro do
+        // listener de load, travando o usuário na tela de login mesmo já logado).
         window.addEventListener('load', () => {
-            const auth = sessionStorage.getItem('auth');
+            let auth = null;
+            try { auth = sessionStorage.getItem('auth'); } catch (e) { auth = null; }
             if (auth) {
                 try {
                     window.authObj = JSON.parse(auth);

@@ -423,12 +423,23 @@ function irParaTransacaoNoLivro(t, livro){
   }, 40);
 }
 
+// ADICIONADO 15/08/2026 (achado de auditoria de segurança: XSS real — nome/descrição/obs de
+// transação podem vir de texto que um terceiro escolheu livremente num pagamento/extrato bancário,
+// e iam direto pra innerHTML sem escapar. Mesmo padrão de correção usado em inbox-financeira.js).
+function _buscaEscapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 function renderResultadoTransacao(t, livro){
   const div = document.createElement('div');
   div.className = 'busca-resultado-item busca-resultado-transacao';
   const nomeLivroCurto = livro.replace('_TRANSACOES','').replace('HISTORICO_ERP_TODOS_CICLOS','Histórico');
-  div.innerHTML = `<strong>${t.tx||'—'}</strong> · ${t.nome||t.descricao||'(sem descrição)'} · <strong>${fmt(t.valor)}</strong>`
-    + `<span class="busca-resultado-sub"> ${t.data||''} — ${nomeLivroCurto}${t.obs ? ' — '+t.obs : ''}</span>`;
+  div.innerHTML = `<strong>${_buscaEscapeHtml(t.tx)||'—'}</strong> · ${_buscaEscapeHtml(t.nome||t.descricao)||'(sem descrição)'} · <strong>${fmt(t.valor)}</strong>`
+    + `<span class="busca-resultado-sub"> ${_buscaEscapeHtml(t.data)||''} — ${_buscaEscapeHtml(nomeLivroCurto)}${t.obs ? ' — '+_buscaEscapeHtml(t.obs) : ''}</span>`;
   // CORRIGIDO 05/08/2026 (pedido do usuario, clique nao fazia nada): agora navega ate a aba do
   // Livro Razao correto e destaca a linha da transacao, quando existe mapeamento conhecido pra
   // aquele livro (ver LIVRO_PARA_TAB_LR acima) - sem mapeamento, so leva ate a secao geral.

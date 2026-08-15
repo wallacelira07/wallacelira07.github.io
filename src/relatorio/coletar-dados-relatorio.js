@@ -87,6 +87,22 @@ function _extrairLinhasSecao(elSectionNum){
 // só pra esse formato: label = primeiro filho direto do card que não é o valor nem a barra de
 // progresso; valor = primeiro `.v` FILHO DIRETO do card (via :scope, pra não pegar os `.v` da
 // barra/progress-lbl, que são % e meta, não o saldo).
+//
+// AMPLIADO 14/08/2026 (gap "Leitura" da tabela de Centros de Custo do WWI — ver gerar-analise-
+// financeira.js, _wwiMontarCentrosDeCusto): além de label/valor, tenta capturar também o TETO/meta
+// da caixa (span dentro de `.progress-lbl`), quando existir. O conteúdo de `.progress-lbl` é
+// heterogêneo entre caixas — algumas mostram "R$ 4.550,77" puro (meta de poupança de verdade);
+// outras mostram prosa tipo "Fatura R$ 1.200,00" (Wärtsilä, provisionamento de fatura, conceito
+// diferente de teto) ou "Meta R$ 12.000,00" (Suavização, rótulo embutido no próprio texto). Em vez
+// de mapear caixa por caixa (frágil — quebra silenciosamente se um card mudar de rótulo), este
+// extrator só aceita o texto que bate EXATAMENTE o padrão "R$ <número>" sem nenhum prefixo/sufixo —
+// qualquer coisa com texto extra é ignorada de propósito, porque não dá pra saber com certeza que
+// representa o mesmo conceito de "teto" sem uma leitura semântica caixa a caixa que este extrator
+// genérico não faz. `meta` fica `null` quando a caixa não tem span nesse formato (comportamento
+// esperado pra Caixa Lance, Wärtsilä, Suavização — todas sem teto de poupança por design, ver a
+// própria legenda do painel: "Caixa Lance e BTG/Necton não têm meta própria — contribuem para a
+// Meta do Milhão").
+const _RE_META_PURA = /^R\$\s?[\d.,]+$/;
 function _extrairLinhasCards(elSectionNum){
   const linhas = [];
   let el = elSectionNum.nextElementSibling;
@@ -99,7 +115,11 @@ function _extrairLinhasCards(elSectionNum){
       if(!labelEl) return;
       const label = labelEl.textContent.trim().replace(/\s+/g, ' ');
       const valor = valEl.textContent.trim().replace(/\s+/g, ' ');
-      if(label && valor && valor !== '—') linhas.push({ label, valor });
+      if(!label || !valor || valor === '—') return;
+      const metaEl = Array.from(card.querySelectorAll('.progress-lbl .v'))
+        .find(el2 => _RE_META_PURA.test(el2.textContent.trim()));
+      const meta = metaEl ? metaEl.textContent.trim() : null;
+      linhas.push({ label, valor, meta });
     });
     el = el.nextElementSibling;
   }

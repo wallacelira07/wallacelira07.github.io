@@ -6,6 +6,21 @@
 // (onclick inline gerado em renderInboxFinanceira, ou de dentro de outras funções de
 // reconciliação/classificação — pluggy-reconciliacao.js/classificacao-inbox.js). Só modularização,
 // nenhuma fórmula ou comportamento mudou.
+// ADICIONADO 15/08/2026 (achado de auditoria de segurança: XSS real — descrição de transação vem
+// direto do texto que o PAGADOR escolhe livremente num Pix/pagamento Mercado Pago/extrato bancário
+// (mercadopago_sync.py/sincronizar_pluggy.py gravam o campo "description"/"descricao" sem
+// sanitização), e ia direto pra innerHTML sem escapar. Qualquer um que mande um pagamento com
+// descrição tipo "<img src=x onerror=...>" executaria script no contexto do painel logado, com
+// acesso ao token de sessão em sessionStorage. Usado em todo campo de texto de origem externa
+// antes de entrar em innerHTML — nunca usar STRING_EXTERNA direto num template literal de HTML.
+function _inboxEscapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 let _inboxContadorId = null;
 function gerarProximoInboxId(){
   if(_inboxContadorId === null){
@@ -194,16 +209,16 @@ function renderInboxLinha(it){
   const acoes = it.status==='PENDENTE'
     ? `<button type="button" class="inbox-btn inbox-btn-ok" onclick="inboxAprovar('${it.id}')">✔ Aprovar</button><button type="button" class="inbox-btn inbox-btn-no" onclick="inboxRejeitar('${it.id}')">✘ Rejeitar</button>`
     : '—';
-  const descTitle = String(it.descricaoCompleta||it.descricao||'').replace(/"/g,'&quot;');
+  const descTitle = _inboxEscapeHtml(it.descricaoCompleta||it.descricao||'');
   // NOVO 08/08/2026 (correção de usabilidade — itens com mesma origem/valor/data pareciam
   // duplicados): linha de identificação abaixo da descrição, prioridade pagador > ID externo
   // (hora/minuto do evento não está disponível na fonte — mercadopago_sync.py só grava a data,
   // ver auditoria em PLANO_UNIFICACAO_V1_V2.md). Só exibe o que existir, nunca inventa campo.
   const identPartes = [];
-  if(it.metadata && it.metadata.payer) identPartes.push(`Pagador: ${it.metadata.payer}`);
-  if(it.idExterno) identPartes.push(`ID: ${it.idExterno}`);
+  if(it.metadata && it.metadata.payer) identPartes.push(`Pagador: ${_inboxEscapeHtml(it.metadata.payer)}`);
+  if(it.idExterno) identPartes.push(`ID: ${_inboxEscapeHtml(it.idExterno)}`);
   const identLinha = identPartes.length ? `<div class="inbox-ident-txt" style="color:var(--text-dim);font-size:0.65rem">${identPartes.join(' · ')}</div>` : '';
-  return `<tr data-inbox-id="${it.id}"><td class="mono">${it.id}</td><td>${it.origem}</td><td><span class="inbox-desc-txt" title="${descTitle}">${it.descricao}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${it.livroSugerido}</span>`:''}${identLinha}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${it.data}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${it.status}</span></td><td>${acoes}</td></tr>`;
+  return `<tr data-inbox-id="${it.id}"><td class="mono">${it.id}</td><td>${_inboxEscapeHtml(it.origem)}</td><td><span class="inbox-desc-txt" title="${descTitle}">${_inboxEscapeHtml(it.descricao)}</span>${it.livroSugerido?` <span style="color:var(--text-dim);font-size:0.65rem">→ ${_inboxEscapeHtml(it.livroSugerido)}</span>`:''}${identLinha}</td><td class="r">${fmt(it.valor)}</td><td class="mono">${_inboxEscapeHtml(it.data)}</td><td class="r">${conf}</td><td><span class="badge ${classeStatus}">${_inboxEscapeHtml(it.status)}</span></td><td>${acoes}</td></tr>`;
 }
 
 // NOVO 12/08/2026 (Fase 4, achado da auditoria: aprovar/rejeitar 1 item reconstruía a tabela

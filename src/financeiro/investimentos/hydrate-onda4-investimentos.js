@@ -18,7 +18,7 @@ const ONDA4_INVESTIMENTOS_IDS_RESUMO = ['opcoesValorMercado','opcoesPremioTotal'
 function onda4InvestimentosMarcarIndisponivel(motivo){
   marcarIndisponivelV2(ONDA4_INVESTIMENTOS_IDS_RESUMO, motivo);
   const tbody = $('opcoesTbody');
-  if(tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-danger);padding:1.2rem 0">⚠ Indisponível (V2) — '+(motivo||'falha ao buscar dado')+'</td></tr>';
+  if(tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-danger);padding:1.2rem 0">⚠ Indisponível (V2) — '+(motivo||'falha ao buscar dado')+'</td></tr>';
 }
 
 async function aplicarOnda4Investimentos(){

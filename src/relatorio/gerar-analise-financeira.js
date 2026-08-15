@@ -310,18 +310,38 @@ const WWI_FAMILIAS_CAIXA = [
   { nome: 'Familiares', padrao: /sa[uú]de|pix|anivers[aá]rio|emagrecimento|churrasco|evento/i },
   { nome: 'De Objetivos', padrao: /escola|dur[aá]vel|duravel/i },
 ];
+// ADICIONADO 14/08/2026 (gap "Leitura" do artefato de referência — coluna 4 da tabela de Centros de
+// Custo, ex: "Caixa Lance tem apenas R$X de liquidez livre real"). Investigado: não existe hoje
+// nenhum julgamento subjetivo derivável com segurança (o dado de "teto"/meta por caixa é
+// heterogêneo — ver comentário de `_extrairLinhasCards` em coletar-dados-relatorio.js: algumas
+// caixas têm meta de poupança de verdade, outras não têm teto por design, tipo Caixa Lance/
+// Wärtsilä/Suavização). Em vez de inventar uma frase, a "leitura" aqui é 100% aritmética: soma do
+// teto de CADA caixa do grupo (campo `meta`, já filtrado no coletor pra só aceitar valor numérico
+// puro e inequívoco) contra o saldo agregado do grupo — e SÓ é exibida quando TODAS as caixas do
+// grupo têm teto conhecido (cobertura parcial produziria um "% do teto" artificialmente inflado/
+// distorcido, o que seria uma forma de fabricar leitura). Grupos sem cobertura total (ex:
+// "Estratégicos", que inclui caixas sem teto por design) ficam sem `leitura` — célula vazia no
+// render, documentado ali (_wwiRelCentrosDeCusto, index.html), nunca uma frase genérica.
 function _wwiMontarCentrosDeCusto(dados){
   const secao = _wwiSecao(dados, '📦 Todas as Caixas');
   if(!secao || !secao.linhas.length) return [];
-  const grupos = WWI_FAMILIAS_CAIXA.map(f => ({ nome: f.nome, padrao: f.padrao, caixas: [], total: 0 }));
-  const outros = { nome: 'Outros', caixas: [], total: 0 };
+  const grupos = WWI_FAMILIAS_CAIXA.map(f => ({ nome: f.nome, padrao: f.padrao, caixas: [], total: 0, metaTotal: 0, comMeta: 0 }));
+  const outros = { nome: 'Outros', caixas: [], total: 0, metaTotal: 0, comMeta: 0 };
   secao.linhas.forEach(l => {
     const valor = _wwiNum(l.valor) || 0;
     const grupo = grupos.find(g => g.padrao.test(l.label)) || outros;
     grupo.caixas.push(l.label);
     grupo.total += valor;
+    const meta = _wwiNum(l.meta);
+    if(meta !== null){ grupo.metaTotal += meta; grupo.comMeta += 1; }
   });
-  return grupos.concat(outros.caixas.length ? [outros] : []).filter(g => g.caixas.length);
+  return grupos.concat(outros.caixas.length ? [outros] : []).filter(g => g.caixas.length).map(g => {
+    const coberturaTotal = g.comMeta === g.caixas.length && g.metaTotal > 0;
+    const pct = coberturaTotal ? _wwiClamp(g.total / g.metaTotal * 100, 0, 999) : null;
+    const leitura = coberturaTotal ?
+      `R$ ${_wwiFmtMoeda(g.total)} de R$ ${_wwiFmtMoeda(g.metaTotal)} do teto agregado (${_wwiFmtNum(pct, 1)}%).` : null;
+    return { nome: g.nome, caixas: g.caixas, total: g.total, leitura };
+  });
 }
 
 // Análise de Patrimônio (grid-2 + gauge de 5 eixos do artefato) — tabela = linhas já coletadas do
@@ -376,6 +396,13 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   const { wealthScore, subscores, indicadoresBrutos: b } = indicadoresCompletos;
   const pontosFortesTexto = [];
   const pontosFracosTexto = [];
+  // AMPLIADO 14/08/2026 (gap "Capital envolvido" na seção Oportunidades de Aceleração do artefato de
+  // referência): riscosTexto/oportunidadesTexto/recomendacoesTexto passam de array de STRING pra
+  // array de `{ texto, valor }`. `valor` só é preenchido quando já existe, no ponto exato onde a
+  // frase é montada, um número REAL que essa frase descreve (nunca um número novo calculado só pra
+  // preencher a coluna) — fica `null` nos itens onde a frase não tem um valor em R$ associado (ex:
+  // itens que só citam percentual, sem R$ coletado). pontosFortesTexto/pontosFracosTexto continuam
+  // string pura — não fazem parte da tabela "Oportunidades de Aceleração", não precisam do valor.
   const riscosTexto = [];
   const oportunidadesTexto = [];
   const recomendacoesTexto = [];
@@ -393,6 +420,15 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   const totalCaixasSecao = _wwiSecao(dados, '📦 Todas as Caixas');
   const qtdCaixas = totalCaixasSecao ? totalCaixasSecao.linhas.length : null;
   const caixasZeradas = totalCaixasSecao ? totalCaixasSecao.linhas.filter(l => _wwiNum(l.valor) === 0).length : null;
+  // ADICIONADO 14/08/2026 (gap "Capital envolvido"): saldo real da caixa Escola de Júlio (já
+  // coletado em "📦 Todas as Caixas", só não estava sendo lido aqui) — usado como valor da linha de
+  // risco 'escola_julio_baixo', em vez do % isolado que já é citado no texto.
+  const escolaJulioCaixaSaldo = totalCaixasSecao ?
+    _wwiNum((totalCaixasSecao.linhas.find(l => /escola de j[uú]lio/i.test(l.label)) || {}).valor) : null;
+  // ADICIONADO 14/08/2026 (gap "Capital envolvido"): "Valor para quitação" do Consórcio Casa Nova —
+  // mesmo campo/regex já usado por `_wwiAcumuladoFalta` pros cards de Projetos Estratégicos,
+  // reaproveitado aqui como valor da linha de risco 'casa_nova_pre_contemplacao'.
+  const consorcioCasaNovaFalta = _wwiNum(_wwiLinha(dados, 'Consórcio casa nova (I0464 · Cota 12)', 'Valor para quita'));
 
   function regra(nome, condicao, fn){
     if(!condicao) return;
@@ -409,8 +445,10 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   });
   regra('liquidez_fraca', subscores.liquidez !== null && subscores.liquidez < 40, () => {
     pontosFracosTexto.push(`Liquidez abaixo do recomendável: a Reserva cobriria só ${_wwiFmtNum(b.liquidezCiclos, 1)} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.`);
-    riscosTexto.push('Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.');
-    recomendacoesTexto.push('Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.');
+    // valor = R$ da Reserva de Emergência hoje (b.reserva) — é o capital exatamente em jogo nesta
+    // regra (a folga de caixa disponível/insuficiente que o risco e a recomendação descrevem).
+    riscosTexto.push({ texto: 'Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.', valor: b.reserva });
+    recomendacoesTexto.push({ texto: 'Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.', valor: b.reserva });
   });
 
   // ===== Endividamento / alavancagem =====
@@ -423,14 +461,16 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   });
   regra('alavancagem_alta', subscores.endividamento !== null && subscores.endividamento < 40, () => {
     pontosFracosTexto.push(`Alavancagem elevada: passivos já representam ${_wwiFmtNum((b.passivosTotal / b.ativosTotal) * 100, 1)}% do ativo total.`);
-    riscosTexto.push('Nível de dívida sobre ativos merece monitoramento antes de assumir novos compromissos financeiros de longo prazo.');
+    // valor = b.passivosTotal — mesmo número usado no % citado no ponto fraco irmão desta mesma regra.
+    riscosTexto.push({ texto: 'Nível de dívida sobre ativos merece monitoramento antes de assumir novos compromissos financeiros de longo prazo.', valor: b.passivosTotal });
   });
 
   // ===== Composição do patrimônio (financeiro vs. físico) =====
   regra('concentracao_fisica', subscores.investimentos !== null && subscores.investimentos < 50, () => {
     const pctFinanceiro = b.patrimonioLiquido ? _wwiFmtNum((b.patrimonioFinanceiro / b.patrimonioLiquido) * 100, 1) : null;
     pontosFracosTexto.push(`Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos (casa, apartamento, carro, jazigo)${pctFinanceiro !== null ? ` — só ${pctFinanceiro}% do patrimônio líquido está em capital financeiro realmente alocável` : ''}. Não é um erro por si só (é típico de quem construiu patrimônio via consumo disciplinado), mas concentra o risco numa única classe de ativo.`);
-    oportunidadesTexto.push('Redirecionar o próximo ciclo de aportes para ativos financeiros líquidos ajuda a equilibrar a composição do patrimônio e reduz a dependência de valorização imobiliária/veicular.');
+    // valor = b.patrimonioFinanceiro — o capital líquido hoje disponível pra ser redirecionado, exatamente o que a oportunidade descreve.
+    oportunidadesTexto.push({ texto: 'Redirecionar o próximo ciclo de aportes para ativos financeiros líquidos ajuda a equilibrar a composição do patrimônio e reduz a dependência de valorização imobiliária/veicular.', valor: b.patrimonioFinanceiro });
   });
   regra('investimentos_bem_alocados', subscores.investimentos !== null && subscores.investimentos >= 90, () => {
     pontosFortesTexto.push('Boa proporção de patrimônio financeiro/líquido frente ao total — alocação madura para o perfil, com capital disponível para realocar sem depender de vender um bem físico.');
@@ -450,7 +490,8 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
 
   // ===== Escola de Júlio =====
   regra('escola_julio_baixo', escolaJulioPct !== null && escolaJulioPct < 30, () => {
-    riscosTexto.push(`Escola de Júlio em ${_wwiFmtNum(escolaJulioPct, 1)}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte, não só o que sobrar do mês.`);
+    // valor = saldo real hoje na caixa Escola de Júlio (já coletado em "📦 Todas as Caixas"), não o %.
+    riscosTexto.push({ texto: `Escola de Júlio em ${_wwiFmtNum(escolaJulioPct, 1)}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte, não só o que sobrar do mês.`, valor: escolaJulioCaixaSaldo });
   });
   regra('escola_julio_ok', escolaJulioPct !== null && escolaJulioPct >= 30, () => {
     pontosFortesTexto.push(`Escola de Júlio com ${_wwiFmtNum(escolaJulioPct, 1)}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.`);
@@ -458,16 +499,19 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
 
   // ===== Projeto/Consórcio Casa Nova =====
   regra('casa_nova_pre_contemplacao', b.consorcioCasaPagoPct !== null && b.consorcioCasaPagoPct < 5, () => {
-    riscosTexto.push(`Consórcio Casa Nova ainda em fase pré-contemplação (${_wwiFmtNum(b.consorcioCasaPagoPct, 2)}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo. Vale já ter uma política definida de quando/se usar lance para acelerar, em vez de depender só do sorteio.`);
+    // valor = "Valor para quitação" do consórcio, já coletado na própria seção do Consórcio Casa Nova.
+    riscosTexto.push({ texto: `Consórcio Casa Nova ainda em fase pré-contemplação (${_wwiFmtNum(b.consorcioCasaPagoPct, 2)}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo. Vale já ter uma política definida de quando/se usar lance para acelerar, em vez de depender só do sorteio.`, valor: consorcioCasaNovaFalta });
   });
   regra('projeto_casa_nova_capital', projetoCasaNovaPct !== null, () => {
-    oportunidadesTexto.push(`Projeto Casa Nova em ${_wwiFmtNum(projetoCasaNovaPct, 1)}% de maturidade${capitalCasaNova !== null ? `, com R$ ${_wwiFmtMoeda(capitalCasaNova)} de capital hoje disponível (LFTS11 + Caixa Lance) para eventual lance` : ''}.`);
+    // valor = capitalCasaNova — já citado na própria frase quando disponível.
+    oportunidadesTexto.push({ texto: `Projeto Casa Nova em ${_wwiFmtNum(projetoCasaNovaPct, 1)}% de maturidade${capitalCasaNova !== null ? `, com R$ ${_wwiFmtMoeda(capitalCasaNova)} de capital hoje disponível (LFTS11 + Caixa Lance) para eventual lance` : ''}.`, valor: capitalCasaNova });
   });
 
   // ===== Reembolsos Wärtsilä =====
   regra('wartsila_pendencia', b.reembAReceber !== null && b.reembAReceber > 0, () => {
     const pctPendente = b.reembTotalCiclo ? _wwiFmtNum((b.reembAReceber / b.reembTotalCiclo) * 100, 1) : null;
-    oportunidadesTexto.push(`Reembolso Wärtsilä do ciclo tem R$ ${_wwiFmtMoeda(b.reembAReceber)} ainda pendente de confirmação${pctPendente !== null ? ` (${pctPendente}% do total do ciclo)` : ''} — não trava nenhuma obrigação (a cascata de adiantamento via Caixa Lance já cobre isso), mas vale acompanhar até a confirmação definitiva.`);
+    // valor = b.reembAReceber — já citado na própria frase.
+    oportunidadesTexto.push({ texto: `Reembolso Wärtsilä do ciclo tem R$ ${_wwiFmtMoeda(b.reembAReceber)} ainda pendente de confirmação${pctPendente !== null ? ` (${pctPendente}% do total do ciclo)` : ''} — não trava nenhuma obrigação (a cascata de adiantamento via Caixa Lance já cobre isso), mas vale acompanhar até a confirmação definitiva.`, valor: b.reembAReceber });
   });
   regra('wartsila_recuperacao_alta', (b.reembRecebidos !== null && b.reembTotalCiclo), () => {
     const eficiencia = b.reembTotalCiclo ? (b.reembRecebidos / b.reembTotalCiclo) * 100 : null;
@@ -478,7 +522,9 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
 
   // ===== Capacidade de investimento (Meta investimento, Resumo executivo) =====
   regra('capacidade_investimento', !!metaInvestimentoTexto, () => {
-    oportunidadesTexto.push(`Capacidade de investimento do ciclo: ${metaInvestimentoTexto}.`);
+    // valor = tentativa de parsear o próprio texto já coletado como número (ex: "R$ 1.200,00
+    // disponíveis"); null quando o texto não é numérico (ex: frase totalmente descritiva).
+    oportunidadesTexto.push({ texto: `Capacidade de investimento do ciclo: ${metaInvestimentoTexto}.`, valor: _wwiNum(metaInvestimentoTexto) });
   });
 
   // ===== Centros de custo =====
@@ -543,9 +589,45 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   }
   const parecerFinalTexto = frasesParecer.join(' ');
 
+  // ADICIONADO 14/08/2026 (gap "Quanto falta para o próximo salto patrimonial?" do Parecer Final do
+  // artefato de referência) — aritmética pura sobre `b.patrimonioLiquido` já coletado, sem nenhum
+  // julgamento novo: marcos redondos fixos (mesma lógica de "meta redonda" já usada pra Meta do
+  // Milhão, que é o próprio R$ 1.000.000 hardcoded em WWI_OBJETIVO_PROJETO/regra
+  // 'meta_milhao_inicial' acima), generalizada pra além de R$1M pro caso do patrimônio já ter
+  // passado dessa marca. "Falta R$X" é só `próximo marco - patrimônio líquido`, nunca uma opinião.
+  const WWI_MARCOS_PATRIMONIO = [100000, 250000, 500000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000, 50000000];
+  let proximoSaltoTexto = null;
+  if(b.patrimonioLiquido !== null){
+    const proximoMarco = WWI_MARCOS_PATRIMONIO.find(m => m > b.patrimonioLiquido);
+    if(proximoMarco !== undefined){
+      const falta = proximoMarco - b.patrimonioLiquido;
+      proximoSaltoTexto = `Com o patrimônio líquido atual em R$ ${_wwiFmtMoeda(b.patrimonioLiquido)}, faltam R$ ${_wwiFmtMoeda(falta)} para atingir o próximo marco redondo de R$ ${_wwiFmtMoeda(proximoMarco)}.`;
+    } else {
+      proximoSaltoTexto = `O patrimônio líquido atual (R$ ${_wwiFmtMoeda(b.patrimonioLiquido)}) já superou todos os marcos redondos de referência deste relatório (até R$ ${_wwiFmtMoeda(WWI_MARCOS_PATRIMONIO[WWI_MARCOS_PATRIMONIO.length - 1])}).`;
+    }
+  }
+
+  // ADICIONADO 14/08/2026 (gap "administrado como investidor comum ou construtor de riqueza?" do
+  // Parecer Final) — só implementado porque existe uma regra OBJETIVA reaproveitando 2 limiares que
+  // JÁ são usados em outro lugar deste mesmo arquivo pra classificar o mesmo tipo de dado (não são
+  // limiares novos inventados pra esta pergunta): taxa de poupança >=25% já é chamada de "nível de
+  // elite" na regra 'poupanca_alta' acima; subscores.investimentos >=50 é o mesmo corte que separa
+  // "concentração física" (regra 'concentracao_fisica', <50) de uma composição mais equilibrada. A
+  // frase deixa a régua explícita no texto (não é um selo/opinião solta) — o leitor vê exatamente
+  // os 2 números e os 2 limiares que geraram a leitura, pode discordar da classificação sem discordar
+  // do dado. Fica `null` quando falta um dos 2 insumos (nunca classifica com dado pela metade).
+  let perfilConstrucaoTexto = null;
+  if(b.poupancaReceitas && b.poupancaSobrou !== null && subscores.investimentos !== null){
+    const taxaPoupanca = (b.poupancaSobrou / b.poupancaReceitas) * 100;
+    const poupancaElite = taxaPoupanca >= 25;
+    const alocacaoEquilibrada = subscores.investimentos >= 50;
+    const perfil = poupancaElite && alocacaoEquilibrada ? 'mais próximo de um construtor de riqueza ativo' : 'ainda mais próximo do padrão de um investidor comum';
+    perfilConstrucaoTexto = `Combinando taxa de poupança do ciclo (${_wwiFmtNum(taxaPoupanca, 1)}%, limiar de "elite" já usado neste relatório é ${'>='}25%) com a proporção de patrimônio financeiro/líquido bem alocado (nota ${_wwiArredonda(subscores.investimentos, 0)}/100, limiar de composição equilibrada já usado neste relatório é ${'>='}50), o padrão observado no ciclo está ${perfil} — leitura derivada só desses 2 números, não um selo fixo.`;
+  }
+
   return {
     pontosFortesTexto, pontosFracosTexto, riscosTexto, oportunidadesTexto, recomendacoesTexto,
-    resumoAberturaTexto, parecerFinalTexto, regrasAplicadas,
+    resumoAberturaTexto, parecerFinalTexto, proximoSaltoTexto, perfilConstrucaoTexto, regrasAplicadas,
     projetos: _wwiMontarProjetos(dados),
     passivosRank: _wwiMontarPassivosRank(dados),
     centrosDeCusto: _wwiMontarCentrosDeCusto(dados),
