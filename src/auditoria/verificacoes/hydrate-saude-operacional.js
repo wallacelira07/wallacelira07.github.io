@@ -14,6 +14,14 @@ const SAUDE_JOBS_LIMIARES = {
   mercadopago:     { atencaoH: 36, falhaH: 72, label: 'Sincronização Mercado Pago' },
   cotacoes_acoes:  { atencaoH: 36, falhaH: 72, label: 'Cotações de ações' },
   geracao_solar:   { atencaoH: 24, falhaH: 48, label: 'Geração solar (SAJ)' },
+  // ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas: os 2 jobs abaixo já gravam
+  // heartbeat via _heartbeat.py — backup_externo_criptografado.py/wwi_gerar_relatorio_mensal.py —
+  // mas nunca apareciam neste painel, então uma falha silenciosa neles não seria notada.
+  // backup_externo.yml roda semanalmente (ver workflow); WWI só no dia 25 (virada de ciclo) —
+  // limiares bem mais largos que os jobs diários acima, de propósito, pra não marcar "atenção"
+  // por dias sem rodar quando isso é o comportamento esperado.
+  backup_externo:     { atencaoH: 24 * 10, falhaH: 24 * 16, label: 'Backup externo (Supabase → GitHub)' },
+  wwi_relatorio_mensal: { atencaoH: 24 * 33, falhaH: 24 * 40, label: 'WWI — relatório mensal' },
 };
 
 function saudeOperacionalClassificar(job){

@@ -116,7 +116,11 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 
 ---
 
-## 4. Melhorias de médio prazo (por tema)
+## 4. Melhorias de médio prazo (por tema) — 8 de ~16 resolvidas 15/08/2026 (pedido do usuário: "resolva tudo com prioridade 0")
+
+✅ **Resolvidas**: 12 tabelas financeiras ganharam trigger de `audit_log` (reaproveitando `fn_audit_log_generic()` já existente); `pib_wallace_historico` restrita a login Firebase válido (mesmo padrão de `wallace_dados`); `concurrency:` adicionada em 6 workflows de sync (nunca mais 2 disparos sobrepostos); falha parcial de sincronização (Mercado Pago/Pluggy) agora reflete corretamente no heartbeat/Saúde Operacional em vez de aparecer como "sucesso"; painel de Saúde Operacional passou a cobrir backup externo e relatório WWI mensal; Chart.js ganhou SRI (hash real via `api.cdnjs.com`, testado ao vivo — `window.Chart` carrega normal); ambiguidade da redação das "4 caixas em V1" corrigida no manual (era exceção formal já aceita, não pendência).
+
+⏸️ **Não resolvidas, motivo registrado**: segredo do webhook Pluggy (precisa o usuário configurar o secret `PLUGGY_WEBHOOK_SECRET` no Supabase antes de eu poder trocar o código, senão quebra o webhook em produção); `src/services/*.js` (pergunta arquitetural, precisa decisão do usuário); `graficos-cenarios-lazy.js` on-demand (risco de quebrar renderização sem mais investigação); lint dos 91 módulos `hydrate-*` (escopo grande); os 3 itens de UX (scroll position, confirmação de Rejeitar, atalho do formulário) e o arquivamento do `PASSAGEM_DE_TURNO.md` por competência (baixo risco mas não priorizados nesta rodada).
 
 **Observabilidade e automação**
 - Painel de Saúde Operacional não cobre backup externo nem relatório WWI mensal (SRE) — faltam 2 chaves em `SAUDE_JOBS_LIMIARES`.

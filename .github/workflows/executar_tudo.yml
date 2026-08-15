@@ -17,6 +17,12 @@ name: Executar Tudo (SAJ + Cotações + Pluggy + Mercado Pago)
 # tenha falhado - "erros tratados com logs claros", não silenciosamente ignorados.
 on:
   workflow_dispatch: {}
+# NOVO 15/08/2026 (achado da auditoria de 43 especialistas): sem concurrency, 2 disparos do
+# orquestrador completo (ex: retry do webhook do cron-job.org) podiam rodar em paralelo,
+# duplicando as 4 sincronizações. cancel-in-progress:false enfileira em vez de cancelar.
+concurrency:
+  group: executar-tudo
+  cancel-in-progress: false
 jobs:
   seguranca_views:
     name: "0/6 - Verificar Segurança (views endurecidas)"

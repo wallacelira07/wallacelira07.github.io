@@ -273,13 +273,24 @@ def main():
     if erros and len(erros) == len(tokens):
         # TODAS as contas falharam - isso sim e um erro real do job inteiro.
         raise RuntimeError(f"mercadopago_sync: todas as {len(tokens)} conta(s) falharam: {'; '.join(erros)}")
+    # CORRIGIDO 15/08/2026 (achado da auditoria de 43 especialistas: falha parcial de sincronizacao
+    # registrada como "sucesso" no heartbeat - se 1 de 2 contas falhasse, o job inteiro terminava
+    # sem levantar excecao e o painel de Saude Operacional mostrava "OK" apesar de uma conta real
+    # ter parado de sincronizar). Retorna a lista de erros parciais pro bloco __main__ decidir o
+    # heartbeat corretamente - continua NAO travando o job (mesma resiliencia de antes).
+    return erros, len(tokens)
 
 
 if __name__ == "__main__":
     from _heartbeat import registrar_execucao
     try:
-        main()
-        registrar_execucao("mercadopago", "sucesso")
+        _erros_parciais, _total_contas = main()
+        if _erros_parciais:
+            registrar_execucao("mercadopago", "erro",
+                detalhe=f"{len(_erros_parciais)}/{_total_contas} conta(s) falharam (as demais sincronizaram): " + "; ".join(_erros_parciais))
+            sys.exit(1)
+        else:
+            registrar_execucao("mercadopago", "sucesso")
     except SystemExit as _e:
         # main() ja chama sys.exit(1) no caso de variavel de ambiente faltando - respeita o
         # codigo original, so registra o heartbeat de acordo.

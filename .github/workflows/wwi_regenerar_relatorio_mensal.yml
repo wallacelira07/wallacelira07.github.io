@@ -12,6 +12,12 @@ name: WWI — Regenerar Relatório Mensal
 on:
   workflow_dispatch: {}
   workflow_call: {}
+# NOVO 15/08/2026 (achado da auditoria de 43 especialistas): sem concurrency, um disparo manual
+# podia sobrepor o disparo automático. cancel-in-progress:false enfileira em vez de cancelar
+# (o script já é idempotente, mas rodar 2 ao mesmo tempo ainda é desperdício/race desnecessária).
+concurrency:
+  group: wwi-regenerar-relatorio-mensal
+  cancel-in-progress: false
 jobs:
   gerar-relatorio-wwi:
     runs-on: ubuntu-latest

@@ -9,6 +9,12 @@ name: Atualizar Geração Solar (SAJ → Supabase)
 on:
   workflow_dispatch: {}
   workflow_call: {}
+# NOVO 15/08/2026 (achado da auditoria de 43 especialistas): sem concurrency, um disparo manual
+# podia sobrepor o disparo automático via executar_tudo.yml. cancel-in-progress:false enfileira
+# em vez de cancelar - nunca interrompe uma sincronização no meio.
+concurrency:
+  group: atualizar-geracao-saj
+  cancel-in-progress: false
 jobs:
   atualizar-geracao:
     runs-on: ubuntu-latest

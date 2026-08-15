@@ -9,6 +9,12 @@ name: Atualizar Cotações de Ações (PETR4/ITUB4)
 on:
   workflow_dispatch: {}
   workflow_call: {}
+# NOVO 15/08/2026 (achado da auditoria de 43 especialistas): sem concurrency, um disparo manual
+# podia sobrepor o disparo automático via executar_tudo.yml. cancel-in-progress:false enfileira
+# em vez de cancelar - nunca interrompe uma sincronização no meio.
+concurrency:
+  group: atualizar-cotacoes-acoes
+  cancel-in-progress: false
 jobs:
   atualizar-cotacoes:
     runs-on: ubuntu-latest

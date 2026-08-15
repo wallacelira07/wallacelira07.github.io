@@ -2,6 +2,25 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 13) — Inbox Financeira processada (55 itens), "prioridade 0" das melhorias de médio prazo da auditoria
+
+Retomada do bloco 12 abaixo. Duas frentes:
+
+**1. Inbox Financeira** (pedido do usuário "e as 41 pende[ncias]", volume real tinha crescido pra 211): processados 55 sem risco — 41 duplicatas de sincronização multi-conta (`wallace.termica@`/`wallace.servidor@` lendo a mesma conta Mercado Pago 2x, achado estrutural, vai continuar acontecendo a cada sync até `arquivar_inbox_historico()` aprender a dedupli­car entre conexões), 11 taxas de IOF residuais, 2 TEDs Wärtsilä já lançadas no ERP (`TX000220`/`TX000280`). Achado inicial de que isso contradizia a pendência de R$340 do ciclo 2026-07 foi descartado pelo próprio usuário — são reembolsos diferentes, coincidência de valor. Restam 144 Pluggy + 13 MP que precisam de revisão caso a caso (maior valor, sem correspondência óbvia em `transacoes`).
+
+**2. "Resolva tudo com prioridade 0"** (melhorias de médio prazo da auditoria de 43 especialistas, seção 4 do relatório): resolvidos 8 dos ~16 itens, todos aplicados direto via Supabase MCP + commit de código:
+- 12 tabelas financeiras ganharam trigger de `audit_log` (patrimonio, financiamentos, parcelas, emprestimos_internos, reembolso_wartsila_ciclo, reembolso_wartsila_recebimentos, reembolsos, cartoes, investimentos, contas_bancarias, metas, usuarios) — reaproveitando `fn_audit_log_generic()` já existente, mesma régua que fechou o incidente de `historico_relatorios`.
+- `pib_wallace_historico` restrita a login Firebase válido (era SELECT público) — confirmado antes que o único consumidor real (`Sistema_Wallace_Lira_Completo.html`) já manda o JWT real quando logado.
+- `concurrency:` adicionada em 6 workflows (sincronizar_pluggy, mercadopago_sync, atualizar_geracao_saj, atualizar_cotacoes_acoes, backup_externo, wwi_regenerar_relatorio_mensal, executar_tudo) — `cancel-in-progress:false`, nunca mais 2 disparos sobrepostos duplicando sincronização.
+- Falha parcial de sync (Mercado Pago/Pluggy) corrigida — antes, se 1 de N contas/bancos falhasse, o job inteiro terminava "sucesso" no heartbeat porque só travava quando TODAS falhavam. Agora reflete a falha parcial real no painel de Saúde Operacional, sem travar a resiliência original (as contas que deram certo continuam sincronizando).
+- Painel de Saúde Operacional ganhou 2 entradas que já gravavam heartbeat mas nunca apareciam (`backup_externo`, `wwi_relatorio_mensal`).
+- Chart.js ganhou SRI (hash sha512 real via `api.cdnjs.com`, não inventado) nos 2 arquivos que carregam via CDN — testado ao vivo no navegador, `window.Chart` continua carregando normal.
+- Ambiguidade de redação corrigida no manual: "4 caixas em V1" parecia pendência em aberto, na verdade é exceção formal já aceita (`docs/decisions/EXCECOES_FORMAIS_DESLIGAMENTO_V1.md`).
+
+**Não resolvido, motivo registrado em cada caso** (não são pendências esquecidas, são decisões conscientes de não mexer sem mais informação/decisão do usuário): segredo do webhook Pluggy (`PLUGGY_WEBHOOK_SECRET` hardcoded na Edge Function — preciso que o usuário configure o secret no Supabase antes, senão a troca de código quebra o webhook em produção sem eu conseguir testar); pergunta arquitetural sobre `src/services/*.js` (FinanceEngine/Comparator/CycleEngine parcialmente morto); `graficos-cenarios-lazy.js` carregado sempre apesar do nome "lazy" (precisa investigar o gatilho de carregamento antes de mexer, risco de quebrar renderização); lint dos ~91 módulos `hydrate-*`; 3 itens de UX (scroll position ao trocar aba, confirmação no botão Rejeitar da Inbox, atalho pro formulário de lançamento); arquivamento do `PASSAGEM_DE_TURNO.md` por competência.
+
+Relatório atualizado com status completo em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`.
+
 ## ▶️ Continuação 15/08/2026 (bloco 12) — leitura solar bloqueada pelo trigger: causa raiz era data errada (não o teto), corrigido com evidência fotográfica
 
 Retomada do bloco 11 abaixo (mesmo dia). Pendência deixada na fila desde antes do bloco 10 (pergunta encaminhada de uma sessão de Claude Chat): `INSERT` de leitura solar manual (casa "mãe", 14/08, `leitura_03=90`/`leitura_103=527`, 2 fotos reais) bloqueado por `validar_plausibilidade_leitura_solar()` — delta contra a linha de "13/08" (81/477) dava 50 kWh/dia no código 103, acima do teto de 40.

@@ -7,6 +7,14 @@ on:
   workflow_dispatch: {}
   workflow_call: {}
 
+# NOVO 15/08/2026 (achado da auditoria de 43 especialistas: nenhum workflow de sync declarava
+# concurrency, sem protecao contra execucoes sobrepostas - risco real quando um disparo manual
+# coincide com o disparo automatico via executar_tudo.yml). cancel-in-progress:false enfileira em
+# vez de cancelar - nunca interrompe uma sincronizacao de dado financeiro no meio.
+concurrency:
+  group: sincronizar-pluggy
+  cancel-in-progress: false
+
 jobs:
   sincronizar-pluggy:
     runs-on: ubuntu-latest

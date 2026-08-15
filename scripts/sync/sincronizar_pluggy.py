@@ -637,7 +637,13 @@ def main() -> int:
         else:
             print("\nAVISO: SUPABASE_URL/SUPABASE_KEY não definidos - só imprimindo, não salvando.", file=sys.stderr)
 
-        return 0
+        # CORRIGIDO 15/08/2026 (achado da auditoria de 43 especialistas: falha parcial de
+        # sincronização registrada como "sucesso" no heartbeat - se 1 banco/investimento falhasse
+        # ao buscar detalhes, `resultado["erros"]` já era populado e IMPRESSO como aviso, mas o
+        # job ainda retornava 0 e o painel de Saúde Operacional mostrava "OK"). O Supabase já foi
+        # atualizado normalmente com o que deu certo (não muda) - só o código de saída/heartbeat
+        # final passa a refletir a falha parcial real.
+        return 1 if resultado["erros"] else 0
     except Exception as e:
         print(f"ERRO: {e}", file=sys.stderr)
         return 1
