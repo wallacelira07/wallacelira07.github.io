@@ -448,6 +448,24 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
         "capacidadeInvestimentoDisponivel": False,
     }
 
+    # CHECAGEM DE SANIDADE (NOVO 15/08/2026, WWI Fase 2B — WWI_FASE2_PROPOSTA_ARQUITETURA.md seção 5,
+    # risco "Consistência dos snapshots"): se uma fonte SQL upstream mudar de estrutura sem o job ser
+    # atualizado junto, o snapshot deste mês fica silenciosamente incompleto. Nunca bloqueia a
+    # gravação (isso quebraria o pipeline) — só conta quantos campos vieram `None` em
+    # `indicadoresBrutos` (excluindo `capacidadeInvestimentoDisponivel`, que é um gap ACEITO, não um
+    # sintoma de quebra) e, se a proporção ausente passar de 30%, imprime um aviso visível (mesmo
+    # padrão de heartbeat já usado pelos outros jobs) pra alguém notar antes do próximo ciclo.
+    campos_indicadores_brutos = [v for k, v in indicadores_brutos.items()]
+    ausentes = sum(1 for v in campos_indicadores_brutos if v is None)
+    total_campos = len(campos_indicadores_brutos)
+    pct_ausente = (ausentes / total_campos * 100) if total_campos else 0
+    if pct_ausente > 30:
+        print(f"AVISO WWI: {ausentes}/{total_campos} campos de indicadoresBrutos vieram None "
+              f"({pct_ausente:.1f}%) na competência {competencia} — possível quebra de fonte SQL "
+              f"upstream (vw_patrimonio_v2/vw_saldo_v2_por_caixa/pib_wallace_historico/caixas). "
+              f"Snapshot gravado mesmo assim (nunca bloqueia o job), mas revisar antes do próximo ciclo.",
+              file=sys.stderr)
+
     return {"wealthScore": wealth_score, "subscores": subscores, "indices": indices,
             "indicadoresBrutos": indicadores_brutos, "metodologiaVersao": METODOLOGIA_VERSAO,
             "dadosNarrativos": dados_narrativos}
