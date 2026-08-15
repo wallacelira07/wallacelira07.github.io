@@ -1,8 +1,8 @@
 # WWI_ROADMAP_V1 — Wallace Wealth Intelligence como funcionalidade permanente
 
-**Status: PROPOSTA DE ROADMAP, aguardando validação do usuário. Nenhum código escrito, nenhuma migration aplicada.**
+**Status: ROADMAP VALIDADO pelo usuário (15/08/2026). Cron externo confirmado pelo usuário. Nenhum código escrito, nenhuma migration aplicada ainda — aguardando autorização final pra iniciar a implementação da Fase 1.**
 
-Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois de descartar reprocessamento retroativo de histórico (princípio formal: "nenhum dado histórico será criado artificialmente") e adiar `src/services/*.js`/lint `hydrate-*`/Inbox como não-prioritários enquanto o WWI estiver em construção.
+Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois de descartar reprocessamento retroativo de histórico (princípio formal: "nenhum dado histórico será criado artificialmente") e adiar `src/services/*.js`/lint `hydrate-*`/Inbox como não-prioritários enquanto o WWI estiver em construção. Reconfirmado pelo usuário na mesma data, com o cron dado como validado ("como acabamos de executar um disparo manual do cron, considero o processo de captura histórica validado") — ver nota na seção 3.
 
 **Objetivo do projeto**: transformar o WWI de "botão que gera um relatório sob demanda" em **funcionalidade permanente** do sistema — histórico confiável, comparativos automáticos, narrativa sem duplicação, e relatório executivo que existe todo mês sem precisar de clique manual.
 
@@ -62,7 +62,7 @@ Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois d
 | Motor de cálculo Python (job mensal, único escritor) | ✅ | `scripts/sync/wwi_gerar_relatorio_mensal.py` |
 | RPC de gravação (upsert idempotente) | ✅ | `wwi_upsert_relatorio_mensal()`, restrita a `authenticated`/`service_role` |
 | Trigger de auditoria na tabela | ✅ | `trg_audit_historico_relatorios` (fechou o incidente do `DELETE` sem rastro) |
-| Disparo automático mensal | ⚠️ parcial | Workflow `wwi_regenerar_relatorio_mensal.yml` existe, mas depende de agendamento externo (`cron-job.org`) que **nunca foi confirmado ativo** — ver Risco 1 |
+| Disparo automático mensal | ✅ confirmado pelo usuário | Workflow `wwi_regenerar_relatorio_mensal.yml` existe. Verificação cruzada: GitHub Actions mostra só 1 execução histórica, manual (`workflow_dispatch`, 14/08/2026) — nenhum disparo automático registrado ainda, mas isso é esperado, o próximo vencimento é dia 25/08 e ainda não chegou. Documentação interna tinha uma contradição (uma nota dizia "pendente", outra dizia "concluído com agendamento dia 25, 9h") — **usuário confirmou diretamente que o cron está configurado e validou o processo com um disparo manual**. Sem acesso à conta `cron-job.org`, não consigo confirmar de forma 100% independente — fica registrado que a validação final veio do usuário, não de uma checagem minha via API. |
 | PDF do relatório | ✅ | Botão client-side, já com fidelidade visual aprovada (sessão de 14/08) |
 | `metodologia_versao` (rastreabilidade de fórmula) | ❌ | Não existe ainda — Fase 1 |
 | Comparativo automático entre competências | ❌ | Não existe — cada linha é isolada — Fase 1 |
@@ -134,7 +134,7 @@ Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois d
 
 | Risco | Fase afetada | Mitigação proposta |
 |---|---|---|
-| `cron-job.org` nunca foi confirmado ativo pro dia 25 — se falhar, a série não cresce, silenciosamente | Todas | Confirmar com o usuário antes/durante a Fase 1; considerar reativar tentativa de usar o `schedule:` nativo do GitHub Actions como redundância (já documentado como "nunca funcionou" em tentativas anteriores, mas vale re-investigar causa raiz antes de descartar de vez — achado de médio prazo já registrado na auditoria) |
+| ~~`cron-job.org` nunca confirmado ativo~~ — **RESOLVIDO**, usuário confirmou. Risco residual menor: sem checagem independente do lado do GitHub até o dia 25, uma falha silenciosa na conta externa só apareceria via atraso no painel de Saúde Operacional (24-72h depois do esperado) | Todas | Acompanhar o painel de Saúde Operacional depois do dia 25/08 pra confirmar o 1º disparo automático real; considerar reativar investigação do `schedule:` nativo do GitHub Actions como redundância futura (achado de médio prazo já registrado na auditoria, não bloqueador) |
 | Unificar o narrative engine é mudança no núcleo financeiro | Fase 1 | Sessão dedicada, com plano de teste explícito antes de aplicar; preservar o comportamento visível de hoje (prévia local quando job não rodou) exatamente igual, só eliminando a duplicação de regra por baixo |
 | Usuário (ou terceiro que veja o relatório) interpretar histórico curto como tendência real | Fase 2/3 | Aviso explícito na UI enquanto houver menos de 3 competências — parte da entrega, não opcional |
 | Tabela nova (`wwi_patrimonio_snapshot`) crescer sem RLS/auditoria adequada | Fase 2 | Mesma régua de segurança já aplicada a `energia_solar_leituras`/`historico_relatorios` — RLS restrita a login Firebase válido + trigger de `audit_log` desde a criação, não como correção posterior |
@@ -148,7 +148,7 @@ Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois d
 - [ ] `metodologia_versao` presente em toda linha de `historico_relatorios`, incluindo a de julho (retroativo).
 - [ ] `vw_wwi_comparativo_mensal` criada e testada — mesmo com 1 única competência real, deve retornar "sem comparação disponível" corretamente (não erro, não dado fabricado).
 - [ ] Narrative engine: só 1 implementação de regra de negócio produz o texto que fica gravado; JS não recalcula narrativa por conta própria quando já existe uma persistida pra aquela competência.
-- [ ] Usuário confirmou (ou eu confirmei via teste) que o disparo do dia 25 está de fato agendado.
+- [x] Usuário confirmou que o disparo do dia 25 está de fato agendado (15/08/2026) — validação final de checagem em produção fica pro próprio dia 25.
 
 ### Fase 2 — pronta quando:
 - [ ] Toda virada de ciclo grava um snapshot patrimonial completo (por subtipo) atrelado à competência, com RLS/auditoria desde a criação.
@@ -164,9 +164,12 @@ Aprovado pelo usuário em 15/08/2026 como frente principal de trabalho, depois d
 ## 9. Ordem de execução recomendada
 
 **Fase 1 primeiro, sem paralelizar com 2/3** — é a única que não depende de mais nada, e as outras duas dependem dela. Dentro da Fase 1, a ordem sugerida:
-1. Confirmar o cron externo (bloqueador de tudo, zero código).
+1. ~~Confirmar o cron externo~~ — ✅ feito, usuário confirmou (15/08/2026).
 2. `metodologia_versao` (aditivo, baixo risco, rápido).
 3. `vw_wwi_comparativo_mensal` (view, baixo risco, não toca dado existente).
-4. Narrative engine unificado (maior risco da fase — deixar por último, com sessão própria).
+4. Validar que o snapshot de julho (já reprocessado) está persistido corretamente com os campos novos — checagem, não mudança.
+5. Narrative engine unificado (maior risco da fase — deixar por último, com sessão própria).
 
-**Este documento não implementa nada.** Aguardando validação do roadmap antes de qualquer código ou migration.
+**Nomenclatura confirmada com o usuário (15/08/2026, 2ª rodada)**: Fase 2 cobre "evolução patrimonial automática, análises de tendência, parecer executivo baseado em histórico" — mesmo escopo já descrito nas seções 4/5 acima (snapshot patrimonial consolidado + card de evolução), só reafirmando os termos de negócio. Fase 3 cobre "geração completa do Tactical Wealth Report, PDF premium, persistência das análises geradas" — mesmo escopo do "relatório executivo automático" já descrito, usando o nome do artefato original (Tactical Wealth Report) que deu origem ao WWI.
+
+**Este documento não implementa nada ainda.** Roadmap validado pelo usuário — aguardando autorização explícita pra começar a escrever código/migration da Fase 1 (itens 2-3 acima, os únicos sem dependência restante).
