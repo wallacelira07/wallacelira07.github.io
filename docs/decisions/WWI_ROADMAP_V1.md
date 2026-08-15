@@ -533,4 +533,29 @@ Script de validação automatizada simulou os acessos EXATOS dos renderizadores 
 
 ---
 
+## 17. ESTÁGIO B — Liberado, shadow mode implementado (15/08/2026)
+
+**Decisão do usuário**: Estágio B APROVADO. `capacidade_investimento` e `parecerFinalTexto` registrados formalmente: o 1º como divergência aceita/documentada, o 2º como dívida técnica de qualidade narrativa (não bloqueador operacional). Diretriz: não remover o motor JS ainda — implementar **shadow mode** primeiro (Python gera a narrativa oficial, JS continua disponível como fallback E como comparador de sombra, divergências registradas). Critério pra encerrar o shadow mode: ≥1 ciclo completo, 0 divergência bloqueante, nenhuma regressão, compatibilidade estável. Local de registro escolhido: **console do navegador** (zero schema novo, zero infraestrutura — só observabilidade nesta fase; tabela `wwi_shadow_divergencias` fica pra discussão futura, só se necessário).
+
+### O que foi implementado
+
+- **`src/relatorio/gerar-analise-financeira.js`**: nova função `wwiCompararNarrativaShadow(narrativaPython, narrativaJs, competencia)`, exposta em `window`. Compara: (1) risco estrutural real — os mesmos 3 campos `linhas` que causavam `TypeError` antes do Estágio A.1 (se reaparecerem aqui é regressão grave, classificado `ERROR`); (2) cobertura de `regrasAplicadas` (regra do JS ausente no Python → `WARNING`, exceto `capacidade_investimento` → `INFO`, gap já aceito); (3) contagem de itens em `projetos`/`passivosRank`/`centrosDeCusto` (Python com menos itens que o JS → `WARNING`; mais itens nunca gera divergência, é melhoria); (4) profundidade de `parecerFinalTexto` (Python com menos de 60% do tamanho do JS → `WARNING`). Imprime um resumo (`WWI Shadow Mode — <competência>`, contagens de Bloqueantes/Altas/Médias/Baixas) e cada divergência individual (`console.error`/`warn`/`info` conforme severidade). **Nunca persiste nada no banco.**
+- **`index.html`** (`gerarRelatorioFechamentoPDF`): quando o PDF reaproveita a narrativa Python persistida (`historico.atual.analise_ia`), agora TAMBÉM calcula `gerarAnaliseFinanceira()` só pra comparação — dentro de `try/catch`, nunca substitui `narrativa` (a exibida ao usuário continua sendo 100% a do Python, sem exceção) e nunca pode quebrar a geração do relatório mesmo se a própria comparação falhar.
+
+### Comportamento visível para o usuário
+
+**Nenhum.** A narrativa exibida no PDF continua exatamente a mesma de antes (a persistida pelo Python, quando existe). A única mudança observável é no console do navegador (DevTools), só visível pra quem abrir o relatório com o console aberto.
+
+### Verificação
+
+Sintaxe conferida (balanceamento de chaves/parênteses nos 2 arquivos, edição cirúrgica e pequena). **Não foi possível testar ao vivo** (login real não disponível neste ambiente de desenvolvimento, limitação já documentada desde a criação do motor JS) — a validação de fato só acontece na próxima vez que o usuário gerar o relatório de fechamento com o painel logado, reaproveitando narrativa já persistida (competência `2026-07`).
+
+### Próximo passo
+
+Aguardar pelo menos 1 ciclo completo de uso real (gerar o relatório de fechamento algumas vezes ao longo do ciclo, com o DevTools aberto) e revisar o resumo do Shadow Mode no console. Só depois disso — e só se 0 divergências bloqueantes forem observadas — discutir se vale criar `wwi_shadow_divergencias` pra histórico persistido, ou encerrar o shadow mode e avançar pra simplificação definitiva do JS.
+
+**A partir daqui, por diretriz do usuário, o foco de esforço do WWI muda de "equivalência JS×Python" para a Fase 2 do roadmap (Snapshot Patrimonial Completo — comparativos mensais/trimestrais/anuais, evolução patrimonial e de Wealth Score). Trabalho de equivalência JS×Python só volta a ser prioridade se o shadow mode revelar algo inesperado.**
+
+---
+
 **Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).

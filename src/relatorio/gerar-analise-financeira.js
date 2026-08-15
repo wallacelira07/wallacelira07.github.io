@@ -761,8 +761,97 @@ async function wwiBuscarSaldoCaixaLance(){
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// wwiCompararNarrativaShadow(narrativaPython, narrativaJs, competencia) — WWI SHADOW MODE
+// NOVO 15/08/2026 (Estágio B, WWI_ROADMAP_V1.md — decisão do usuário: Python passa a ser fonte
+// oficial da narrativa; JS continua disponível como fallback E, durante o período de transição,
+// como comparador de sombra). Roda só quando o PDF reaproveita narrativa Python persistida —
+// nesse momento o JS TAMBÉM calcula a própria versão só pra comparar, nunca pra exibir (o que é
+// mostrado ao usuário continua sendo 100% a narrativa Python, sem exceção). Classifica cada
+// divergência em ERROR (risco real de quebra de renderização — mesma classe dos 3 bloqueantes já
+// corrigidos no Estágio A.1; se reaparecer aqui é regressão grave)/WARNING (perda de conteúdo
+// relevante, não quebra nada)/INFO (diferença conhecida/aceita ou cosmética). NUNCA persiste nada
+// no banco — só console.log, por decisão explícita do usuário nesta fase ("observabilidade, não
+// infraestrutura").
+// ---------------------------------------------------------------------------------------------
+const WWI_SHADOW_GAPS_ACEITOS = ['capacidade_investimento'];
+function wwiCompararNarrativaShadow(narrativaPython, narrativaJs, competencia){
+  const divergencias = [];
+  function reg(campo, valorPython, valorJs, severidade){
+    divergencias.push({ campo, valorPython, valorJs, severidade });
+  }
+  if(!narrativaPython || !narrativaJs){
+    return { divergencias, resumo: null };
+  }
+
+  // Risco estrutural real — os mesmos 3 pontos que causavam TypeError antes do Estágio A.1.
+  (narrativaPython.projetos || []).forEach(function(p, i){
+    if(!Array.isArray(p.linhas)) reg('projetos[' + i + '].linhas', typeof p.linhas, 'array', 'ERROR');
+  });
+  if(narrativaPython.composicaoPatrimonio && !Array.isArray(narrativaPython.composicaoPatrimonio.linhas)){
+    reg('composicaoPatrimonio.linhas', typeof narrativaPython.composicaoPatrimonio.linhas, 'array', 'ERROR');
+  }
+  if(narrativaPython.liquidezAnalise && !Array.isArray(narrativaPython.liquidezAnalise.linhas)){
+    reg('liquidezAnalise.linhas', typeof narrativaPython.liquidezAnalise.linhas, 'array', 'ERROR');
+  }
+
+  // Cobertura de regras — WARNING se o Python perder uma regra que o JS tem e que NÃO é gap
+  // já aceito; INFO se for o gap aceito, ou se for uma regra que só o Python tem (nunca perda).
+  const regrasPython = new Set(narrativaPython.regrasAplicadas || []);
+  const regrasJs = new Set(narrativaJs.regrasAplicadas || []);
+  regrasJs.forEach(function(r){
+    if(!regrasPython.has(r)){
+      reg('regrasAplicadas (falta no Python)', 'ausente', r, WWI_SHADOW_GAPS_ACEITOS.indexOf(r) !== -1 ? 'INFO' : 'WARNING');
+    }
+  });
+  regrasPython.forEach(function(r){
+    if(!regrasJs.has(r)) reg('regrasAplicadas (só no Python)', r, 'ausente', 'INFO');
+  });
+
+  // Contagem de itens nos blocos — WARNING só se o Python tiver MENOS que o JS (Python com mais
+  // itens, ex. passivosRank com LREI, é melhoria, não perda — não gera divergência aqui).
+  ['projetos', 'passivosRank', 'centrosDeCusto'].forEach(function(bloco){
+    const qtdPy = (narrativaPython[bloco] || []).length;
+    const qtdJs = (narrativaJs[bloco] || []).length;
+    if(qtdPy < qtdJs) reg(bloco + '.length', qtdPy, qtdJs, 'WARNING');
+  });
+
+  // parecerFinalTexto — profundidade (achado conhecido desde a validação da seção 14 do roadmap;
+  // nunca ERROR, não quebra nada, só fica mais raso).
+  const lenPy = (narrativaPython.parecerFinalTexto || '').length;
+  const lenJs = (narrativaJs.parecerFinalTexto || '').length;
+  if(lenJs > 0 && lenPy < lenJs * 0.6){
+    reg('parecerFinalTexto (profundidade)', lenPy + ' chars', lenJs + ' chars', 'WARNING');
+  }
+
+  const resumo = {
+    competencia: competencia,
+    divergenciasEncontradas: divergencias.length,
+    bloqueantes: divergencias.filter(function(d){ return d.severidade === 'ERROR'; }).length,
+    altas: divergencias.filter(function(d){ return d.severidade === 'WARNING'; }).length,
+    medias: 0,
+    baixas: divergencias.filter(function(d){ return d.severidade === 'INFO'; }).length,
+  };
+
+  console.groupCollapsed('WWI Shadow Mode — ' + competencia);
+  console.log('Competência:', competencia);
+  console.log('Divergências encontradas:', resumo.divergenciasEncontradas);
+  console.log('Bloqueantes:', resumo.bloqueantes);
+  console.log('Altas:', resumo.altas);
+  console.log('Médias:', resumo.medias);
+  console.log('Baixas:', resumo.baixas);
+  divergencias.forEach(function(d){
+    const metodo = d.severidade === 'ERROR' ? console.error : d.severidade === 'WARNING' ? console.warn : console.info;
+    metodo.call(console, '[' + d.severidade + '] ' + d.campo + ' — Python:', d.valorPython, '| JS:', d.valorJs);
+  });
+  console.groupEnd();
+
+  return { divergencias, resumo };
+}
+
 window.calcularIndicadoresEScores = calcularIndicadoresEScores;
 window.gerarAnaliseFinanceira = gerarAnaliseFinanceira;
 window.compararComHistorico = compararComHistorico;
 window.wwiBuscarHistoricoRelatorios = wwiBuscarHistoricoRelatorios;
 window.wwiBuscarSaldoCaixaLance = wwiBuscarSaldoCaixaLance;
+window.wwiCompararNarrativaShadow = wwiCompararNarrativaShadow;

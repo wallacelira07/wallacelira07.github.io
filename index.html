@@ -1710,6 +1710,18 @@
                         let narrativa = null;
                         if (historico.atual && historico.atual.analise_ia) {
                             narrativa = historico.atual.analise_ia; // reutiliza — mesma narrativa da criação da competência
+                            // NOVO 15/08/2026 (Estágio B — WWI_ROADMAP_V1.md: Python é a fonte oficial da
+                            // narrativa; JS vira SHADOW COMPARATOR durante a transição, nunca é exibido
+                            // quando existe narrativa Python persistida). Calcula a versão JS só pra
+                            // comparar — resultado nunca substitui `narrativa`, só vai pro console.
+                            if (typeof win.gerarAnaliseFinanceira === 'function' && typeof win.wwiCompararNarrativaShadow === 'function') {
+                                try {
+                                    const narrativaSombraJs = win.gerarAnaliseFinanceira(dados, caixaLanceSaldo);
+                                    win.wwiCompararNarrativaShadow(narrativa, narrativaSombraJs, dados.competencia);
+                                } catch (errSombra) {
+                                    console.warn('WWI Shadow Mode: falha ao comparar narrativa Python×JS (não afeta o relatório exibido).', errSombra);
+                                }
+                            }
                         } else if (typeof win.gerarAnaliseFinanceira === 'function') {
                             narrativa = win.gerarAnaliseFinanceira(dados, caixaLanceSaldo); // gerada na hora só pra exibir, não persiste
                         }
