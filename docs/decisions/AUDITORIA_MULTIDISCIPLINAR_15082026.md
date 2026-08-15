@@ -122,7 +122,9 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 
 ✅ **Resolvidas depois (15/08, mesmo dia)**: segredo do webhook Pluggy — código trocado pra `Deno.env.get`, deployado, usuário configurou o secret no Supabase e foi testado ao vivo (`curl` → 200). 2 dos 3 itens de UX: confirmação + desfazer no "✘ Rejeitar" da Inbox; atalho fixo "＋ Lançar" na barra `.master-tabs`. `graficos-cenarios-lazy.js` on-demand — resolvido por um agente especialista dedicado: o ARQUIVO (não só a renderização) agora carrega só quando o usuário abre Gráficos/Cenários/Solar pela 1ª vez, mesmo padrão já validado do html2canvas, risco verificado (único caller sem guard defensivo era `showMaster()`, corrigido).
 
-⏸️ **Não resolvidas, motivo registrado**: `src/services/*.js` (pergunta arquitetural, precisa decisão do usuário); **scroll position ao trocar de aba — usuário confirmou explicitamente pra não fazer** (conflita com decisão de 11/08/2026 já em produção, "quando eu clicar sobre a aba deveria vir para cima desse menu"; não reabrir); lint dos 91 módulos `hydrate-*` (escopo grande); arquivamento do `PASSAGEM_DE_TURNO.md` por competência (baixo risco, não priorizado).
+✅ **Resolvida também**: `PASSAGEM_DE_TURNO.md` arquivado por competência — tinha passado de 1500 linhas nunca arquivadas; blocos de 13/08/2026 pra trás movidos pra `docs/changelog/PASSAGEM_DE_TURNO_ARQUIVO_ATE_13082026.md` (conteúdo integral, nada editado/resumido, só realocado), arquivo principal ficou só com 14-15/08.
+
+⏸️ **Não resolvidas, motivo registrado**: `src/services/*.js` (pergunta arquitetural, precisa decisão do usuário); **scroll position ao trocar de aba — usuário confirmou explicitamente pra não fazer** (conflita com decisão de 11/08/2026 já em produção, "quando eu clicar sobre a aba deveria vir para cima desse menu"; não reabrir); lint dos 91 módulos `hydrate-*` (escopo grande).
 
 **Observabilidade e automação**
 - Painel de Saúde Operacional não cobre backup externo nem relatório WWI mensal (SRE) — faltam 2 chaves em `SAUDE_JOBS_LIMIARES`.
@@ -157,7 +159,7 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 - Nenhum workflow de sync declara `concurrency:`, sem proteção contra execuções sobrepostas (Dev Back-end Senior).
 
 **Documentação**
-- `PASSAGEM_DE_TURNO.md` com 1433+ linhas, só anexado, nunca arquivado por competência (Content Manager).
+- ~~`PASSAGEM_DE_TURNO.md` com 1433+ linhas, só anexado, nunca arquivado por competência~~ (Content Manager) — ✅ RESOLVIDO 15/08/2026, ver tabela de status.
 - `PLANO_UNIFICACAO_V1_V2.md` (1933 linhas) sem selo de status apesar da migração estar formalmente encerrada (Content Manager).
 - 4 caixas ainda dependem do valor V1 na tela apesar da migração "formalmente encerrada" — redação ambígua entre "congelado por decisão" e "pendência ativa" (Business Analyst).
 
