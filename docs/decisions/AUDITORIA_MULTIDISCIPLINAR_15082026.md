@@ -21,7 +21,20 @@ Rodada via `Workflow` (43 agentes especialistas em paralelo, 1 por papel, fase s
 | 6 | Wealth Score: motor Python estruturalmente incompleto (`organizacaoFinanceira`/`construcaoPatrimonial` ausentes, 35% do peso) | ✅ **RESOLVIDO parcialmente, sem reprocessar histórico** — `construcaoPatrimonial` implementado usando `pib_wallace_historico.snapshot->>'patrimonioLiquido'` do mês anterior (mesma fonte que o painel usa). `organizacaoFinanceira` implementado como proxy adaptado (% de campos de `indicadoresBrutos` preenchidos, já que não há DOM no job Python — documentado explicitamente como adaptação, não equivalência exata). **Reprocessamento retroativo de relatórios já gravados em `historico_relatorios` NÃO foi feito** — decisão do usuário, ver item 2 da lista de validação abaixo. |
 | 7 | Guard `patrimonioLiquido > 0` ausente (`protecaoPatrimonial`/`investimentos`) | ✅ **RESOLVIDO** — guarda trocada de truthy pra `> 0` explícito nos dois motores (JS e Python). Corrige um cenário real onde patrimônio líquido negativo invertia o sinal e dava nota 100 (proteção patrimonial máxima) no pior caso possível. |
 
-Demais itens da seção 2 ainda pendentes de decisão/execução (o motor Python de fato ficar completo ainda depende de decisão sobre reprocessamento — ver seção 5), sendo resolvidos um por um a pedido do usuário.
+| 8 | Quick win: `robots.txt` + `<meta robots noindex>` | ✅ **RESOLVIDO** — `robots.txt` novo na raiz (`Disallow: /`) + meta tag em `index.html`, `solar-compartilhado.html`, `404.html`. |
+| 9 | Quick win: `scope="col"` nos `<th>` do Livro Razão | ✅ **RESOLVIDO** — 48 `<th>` (Sistema_Wallace_Lira_Completo.html + index.html), mecânico, sem `colspan`/`rowspan` envolvido. |
+| 10 | Quick win: contraste do placeholder de login | ✅ **RESOLVIDO** — `#6f6d66` → `#8c8a82`, mesmo valor sugerido no relatório. |
+| 11 | Quick win: `aria-pressed`/`aria-label` no botão de esconder valores | ✅ **RESOLVIDO** — helper `_syncBtnEsconderValoresAria()` novo, usado nos 3 pontos que já alternavam o estado visual. |
+| 12 | Quick win: `role="dialog"` + Escape + `aria-live` no modal de PIN | ✅ **RESOLVIDO** — `role="dialog"`/`aria-modal`/`aria-labelledby` no modal, `role="alert"`/`aria-live="assertive"` no erro, Escape fecha (input já tinha foco automático ao abrir). |
+| 13 | Quick win: comentário desatualizado na Inbox Financeira | ✅ **RESOLVIDO** — comentário em `vars-operacional.js` reescrito pra refletir que Pluggy/Mercado Pago já alimentam a Inbox automaticamente (V2), não é mais "nenhuma automação implementada". |
+| 14 | Quick win: remover `teste_cron.yml` | ✅ **RESOLVIDO** — arquivo removido (workflow de diagnóstico esquecido, sem referência em nenhum outro lugar do repo). |
+| 15 | Quick win: favicon `#3987e5` → `#4c8ef2` | ✅ **RESOLVIDO** — SVG corrigido (os 2 stops do gradiente, alinhados ao `--accent`/`--accent-2` reais) + os 3 PNGs (32/192/apple-touch-icon) regenerados com Pillow, mesma geometria de antes, mesmas dimensões. |
+| 16 | Quick win: `apple-touch-icon` ausente em `solar-compartilhado.html`/`404.html` | ✅ **RESOLVIDO** — linha adicionada nos 2 arquivos, mesmo padrão de `index.html`. |
+| 17 | Quick win: `atualizar_mercadopago_eventos` sem guard `service_role` explícito | ✅ **RESOLVIDO** — trocado de blocklist (`IN ('anon','authenticated')`) pra allowlist (`IS DISTINCT FROM 'service_role'`), mesmo padrão de `atualizar_pluggy_contas`. Grants confirmados inalterados. |
+| 18 | Quick win: `ORDER BY` explícito em `DISTINCT ON` de `atualizar_pluggy_contas` | ✅ **RESOLVIDO** — as 4 ocorrências de `DISTINCT ON` na função ganharam `ORDER BY` determinístico (tiebreaker por representação textual do JSON ou pelos campos extraídos). Testado isoladamente (fora da função, sem tocar tabela real): dedup agora é determinístico entre execuções. |
+| 19 | Quick win: retry/backoff no `_request()` do Pluggy | ✅ **RESOLVIDO** — mesmo padrão de `mercadopago_sync.py._get()` portado: retry em 429/5xx, até 3 tentativas, backoff `2×tentativa` segundos. |
+
+**12 de 13 quick wins do relatório resolvidos nesta rodada** (o 13º, CI, já tinha sido feito antes). Restam só as "Melhorias de médio prazo" da seção 4 do relatório — nenhuma urgente, e a decisão de reprocessamento retroativo do Wealth Score (item 2 da lista de validação abaixo).
 
 ---
 
@@ -85,7 +98,7 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 
 ---
 
-## 3. Quick wins (baixo esforço, alto impacto, não toca lógica financeira)
+## 3. Quick wins (baixo esforço, alto impacto, não toca lógica financeira) — ✅ TODOS RESOLVIDOS 15/08/2026 (ver tabela de status, itens 8-19)
 
 - **CI mínimo**: workflow que roda os 3 testes unitários existentes em push/PR.
 - **`robots.txt` + `<meta name="robots" content="noindex,nofollow">`** em `index.html`, `solar-compartilhado.html`, `404.html` — hoje o site inteiro é indexável por padrão (SEO Técnico, SEO de Conteúdo, Marketing Digital, 3 papéis convergindo no mesmo achado).

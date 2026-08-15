@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ADICIONADO 15/08/2026 (quick win da auditoria de 43 especialistas): página pública mas com token
+     por link, nunca deve aparecer em buscador nem ser cacheada por crawler. -->
+<meta name="robots" content="noindex, nofollow">
 <title>Energia Solar — Sistema Wallace Lira</title>
 <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/favicon-192.png">
+<link rel="apple-touch-icon" href="/assets/images/apple-touch-icon.png">
 <!-- PÁGINA PÚBLICA, SEM LOGIN, DE PROPÓSITO (10/08/2026) — item aprovado pelo usuário
      ("compartilhamento público (só leitura) da aba Energia Solar", ver PASSAGEM_DE_TURNO.md e
      ESTADO_ATUAL.md). Acesso controlado só pelo token na URL (?token=...), validado pela RPC

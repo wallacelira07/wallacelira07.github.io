@@ -235,13 +235,16 @@ function criarVarsOperacional(){
   ],
   // V400 (03/08/2026, Etapa 1 - Inbox Financeira): componente central do projeto de automacao de
   // captura. Continuo, nao filtrado por ciclo (mesma classe de LREI/boletos - ver Politicas secao 20) -
-  // um item pendente nao "expira" na virada do dia 25. Comeca vazio: nenhuma automacao de captura
-  // (Pluggy/Email/Telegram/OCR/Corretoras, Etapas 2-9 do brief) esta implementada ainda nesta sessao
-  // (sem acesso a rede/conectores externos aqui) - populado manualmente via inboxAdicionarItem() ate
-  // essas automacoes existirem. Status parado em PENDENTE ate uma decisao humana (aprovar/rejeitar);
-  // aprovacao NAO lanca automaticamente no livro razao (isso seria "lançar transação sem confirmação",
-  // proibicao explicita do brief) - so marca a intencao, o lancamento real continua seguindo o fluxo
-  // manual ja existente (Claude classifica e lanca, referenciando o ID do item da Inbox por rastreio).
+  // um item pendente nao "expira" na virada do dia 25. Este array literal e' o esqueleto V1 original,
+  // ja SUBSTITUIDO na pratica: Pluggy e Mercado Pago sincronizam automaticamente pras tabelas V2
+  // (mercadopago_eventos/pluggy_transacoes/pluggy_triagem, ver src/auditoria/inbox/inbox-financeira.js
+  // e docs/decisions/INBOX_FINANCEIRA_REDESIGN_FILTROS.md, 14/08/2026) - a Inbox real ja roda
+  // automatizada, com filtro de ciclo passado/duplicata proprio (arquivar_inbox_historico()). Fica
+  // vazio aqui de proposito (nao e mais a fonte real). Status continua parado em PENDENTE ate decisao
+  // humana (aprovar/rejeitar); aprovacao NAO lanca automaticamente no livro razao (isso seria "lançar
+  // transação sem confirmação", proibicao explicita do brief) - so marca a intencao, o lancamento real
+  // continua seguindo o fluxo manual ja existente (Claude classifica e lanca, referenciando o ID do
+  // item da Inbox por rastreio).
   INBOX_FINANCEIRA: [
   ],
   // NOVO 04/08/2026 (parte 57, pedido explicito do usuario: "precisamos manter os livros dos ciclos

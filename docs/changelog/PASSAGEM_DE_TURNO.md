@@ -2,6 +2,21 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 11) — usuário deu autonomia total ("faça o melhor"), 17 achados adicionais da auditoria resolvidos (5 ALTA + 12 quick wins)
+
+Retomada direta do bloco 10 abaixo (mesma auditoria de 43 especialistas). Depois de corrigir 2 falsos-positivos apontados pelo usuário (cadência do job SAJ é intencional — 10 em 10 minutos, não bug; "duplicata" Anthropic R$52,95 não é duplicata) e resolver os 2 críticos de segurança + a constraint de cartão (registrados no bloco 10), o usuário disse "vai resolvendo 1 por 1" e depois "faça o melhor, você tem autonomia" — resolvidos mais 17 achados nesta sessão, todos código/config (nenhuma correção de dado financeiro real, nenhum reprocessamento retroativo de relatório já publicado).
+
+**5 achados ALTA (commit `c4906df`)**:
+1. XSS parcial — escape aplicado nos 3 arquivos que faltavam (`render-livros-variaveis.js`, `render-parcelamentos.js`, `hydrate-onda9-livros-fixos.js`).
+2. Constraint `chk_cartao_nao_afeta_saldo_real` em `transacoes` — impede fisicamente repetir o bug (já visto 6x no passado) de compra de cartão reduzindo saldo real. Testada ao vivo (BEGIN/ROLLBACK) antes de aplicar.
+3. CI novo (`testes_unitarios.yml`) rodando os 3 testes unitários que nunca eram executados automaticamente.
+4. Wealth Score do Python: implementados `construcaoPatrimonial` (via `pib_wallace_historico`, mesma fonte do painel) e `organizacaoFinanceira` (proxy adaptado, sem DOM) — antes sempre `None`, 35% do peso do score. Reprocessamento retroativo do histórico NÃO feito, decisão fica pro usuário.
+5. Guard `patrimonioLiquido > 0` explícito (era truthy) em `protecaoPatrimonial`/`investimentos`, nos dois motores — corrige um cenário onde patrimônio líquido negativo dava nota 100 (proteção máxima) no pior caso possível.
+
+**12 quick wins** (mesma sessão, ainda não commitados no momento em que este bloco foi escrito): `robots.txt` + `<meta robots noindex>` (3 páginas), `scope="col"` em 48 `<th>`, contraste do placeholder de login, `aria-pressed`/`aria-label` no botão de esconder valores, `role="dialog"`+Escape+`aria-live` no modal de PIN, comentário desatualizado da Inbox Financeira corrigido, `teste_cron.yml` removido (workflow de diagnóstico esquecido, `actions:write` em produção), favicon realinhado ao `--accent` real do CSS (SVG + 3 PNGs regenerados com Pillow), `apple-touch-icon` adicionado em `solar-compartilhado.html`/`404.html`, guard da RPC `atualizar_mercadopago_eventos` padronizado pra allowlist (era blocklist, inconsistente com a RPC irmã), `ORDER BY` determinístico nos 4 `DISTINCT ON` de `atualizar_pluggy_contas` (testado isoladamente, sem tocar tabela real), retry/backoff no `_request()` do Pluggy (mesmo padrão já usado no Mercado Pago).
+
+Relatório de status completo, item por item, em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md` (tabela no topo). Restam só as "Melhorias de médio prazo" da seção 4 (nenhuma urgente) e a decisão sobre reprocessar ou não o histórico do WWI com a metodologia nova do Wealth Score.
+
 ## ▶️ Continuação 15/08/2026 (bloco 10) — auditoria multidisciplinar de 43 especialistas seniores, 207 achados, 2 achados críticos de segurança reais
 
 Retomada do bloco 9 abaixo. Pedido explícito do usuário: montar uma "equipe de agentes especialistas, todos senior... trabalhando em equipe multidisciplinar" cobrindo 11 departamentos (Liderança/Estratégia, UX, Front-end, Back-end, Infra/Cloud, Segurança, Qualidade, Marketing, Dados/Finanças, IA, Conteúdo) somando 43 papéis nomeados, "escopo livre", para analisar, corrigir e melhorar o site.

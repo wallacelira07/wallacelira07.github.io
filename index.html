@@ -6,6 +6,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ADICIONADO 15/08/2026 (quick win da auditoria de 43 especialistas: site inteiro indexável por
+         padrão, sem meta robots nem robots.txt) - painel privado, nunca deve aparecer em buscador. -->
+    <meta name="robots" content="noindex, nofollow">
     <title>Sistema Wallace Lira - Login</title>
 
     <!-- ATUALIZADO 12/08/2026 (pedido do usuário: "troque esse ícone... pelo que você usou na tela de
@@ -178,7 +181,11 @@
         }
 
         .form-group input::placeholder {
-            color: #6f6d66;
+            /* CORRIGIDO 15/08/2026 (achado de Acessibilidade da auditoria de 43 especialistas):
+               #6f6d66 sobre o fundo escuro do card de login ficava abaixo de 4,5:1 (WCAG AA) —
+               tom mais claro mantém a hierarquia visual (ainda mais apagado que o texto real
+               #e8e6df) mas com contraste suficiente pra leitura. */
+            color: #8c8a82;
         }
 
         .form-group input:focus {
@@ -898,7 +905,7 @@
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                         </button>
-                        <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" class="eye-toggle-btn">
+                        <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" aria-pressed="false" class="eye-toggle-btn">
                             <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -941,14 +948,20 @@
          cópias literais dos tokens --surface/--border/--text/--text-mid/--bg/--red/--accent/
          --radius-2xl/--radius-lg definidos em assets/css/styles.css - trocados por var(--token, valor
          antigo) com fallback idêntico, zero mudança visual, só passa a citar a fonte única. -->
-    <div id="modalSenhaEsconderValores" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <!-- ADICIONADO 15/08/2026 (achado de Acessibilidade da auditoria de 43 especialistas): modal sem
+         nenhuma semântica de diálogo — leitor de tela não anunciava abertura nem tinha jeito de
+         fechar via teclado sem Tab até o botão Cancelar. role="dialog"+aria-modal informam o
+         diálogo e seu título (aria-labelledby); Escape fecha (ver fecharModalSenhaEsconderValores
+         chamado no keydown global logo abaixo do modal); aria-live="assertive" no erro faz o leitor
+         de tela anunciar "PIN incorreto" assim que aparece, sem precisar navegar até lá. -->
+    <div id="modalSenhaEsconderValores" role="dialog" aria-modal="true" aria-labelledby="modalSenhaEsconderValoresTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
       <div style="background:var(--surface,#14161b);border:1px solid var(--border,#262a32);border-radius:var(--radius-2xl,12px);padding:1.5rem;width:90%;max-width:320px;">
-        <div style="font-weight:600;color:var(--text,#f0eee6);margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
+        <div id="modalSenhaEsconderValoresTitulo" style="font-weight:600;color:var(--text,#f0eee6);margin-bottom:0.4rem;font-size:0.95rem;">Digite o PIN pra mostrar os valores</div>
         <div style="font-size:0.78rem;color:var(--text-mid,#adaba3);margin-bottom:1rem;">O modo de privacidade só desativa com o PIN.</div>
         <input type="password" id="senhaEsconderValoresInput" placeholder="PIN" inputmode="numeric" maxlength="4" autocomplete="off"
           style="width:100%;padding:0.6rem 0.75rem;border-radius:var(--radius-lg,8px);border:1px solid var(--border,#262a32);background:var(--bg,#0a0b10);color:var(--text,#f0eee6);font-size:1.1rem;letter-spacing:0.3em;text-align:center;margin-bottom:0.5rem;"
-          onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores();">
-        <div id="senhaEsconderValoresErro" style="display:none;color:var(--red,#ef5b56);font-size:0.78rem;margin-bottom:0.5rem;"></div>
+          onkeydown="if(event.key==='Enter') confirmarSenhaEsconderValores(); else if(event.key==='Escape') fecharModalSenhaEsconderValores();">
+        <div id="senhaEsconderValoresErro" role="alert" aria-live="assertive" style="display:none;color:var(--red,#ef5b56);font-size:0.78rem;margin-bottom:0.5rem;"></div>
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
           <button type="button" id="modalSenhaEsconderValoresBtnCancelar" onclick="fecharModalSenhaEsconderValores()"
             style="flex:1;padding:0.55rem;border-radius:var(--radius-lg,8px);border:1px solid var(--border,#262a32);background:transparent;color:var(--text-mid,#adaba3);cursor:pointer;">Cancelar</button>
@@ -1191,7 +1204,7 @@
             // dedução "(–) ..." ficam com a célula de % vazia por design — % de uma dedução sobre o
             // ativo bruto não é uma leitura útil. Cabeçalho também renomeado para "% do ativo bruto",
             // igual ao artefato, no lugar do genérico "% do Total").
-            return '<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% do ativo bruto</th></tr></thead><tbody>' +
+            return '<div class="tbl-wrap"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Valor</th><th scope="col" class="num">% do ativo bruto</th></tr></thead><tbody>' +
                 linhas.map(function (l, i) {
                     const ehDeducao = /^\s*[\(（]?[−–-]/.test(String(l.label));
                     const pct = (!ehDeducao && valores[i] !== null) ? (Math.abs(valores[i]) / Math.abs(base) * 100) : null;
@@ -1266,7 +1279,7 @@
         // design) a célula fica vazia de propósito, nunca com uma frase genérica no lugar.
         function _wwiRelCentrosDeCusto(grupos) {
             if (!grupos || !grupos.length) return '';
-            return '<div class="tbl-wrap"><table><thead><tr><th>Fundo</th><th>Centros de custo</th><th class="num">Saldo agregado</th><th>Leitura</th></tr></thead><tbody>' +
+            return '<div class="tbl-wrap"><table><thead><tr><th scope="col">Fundo</th><th scope="col">Centros de custo</th><th scope="col" class="num">Saldo agregado</th><th scope="col">Leitura</th></tr></thead><tbody>' +
                 grupos.map(function (g) {
                     return '<tr><td style="font-weight:700">' + _wwiRelEsc(g.nome) + '</td><td>' + _wwiRelEsc(g.caixas.join(' &middot; ')) +
                         '</td><td class="num">' + _wwiRelEsc(_wwiFmtR(g.total)) + '</td><td>' + (g.leitura ? _wwiRelEsc(g.leitura) : '') + '</td></tr>';
@@ -1509,7 +1522,7 @@
             ) : [];
             if (itensAceleracao.length) {
                 blocos.push('<section>' + secaoEyebrowTitulo('Oportunidades de Aceleração', 'Onde o capital pode trabalhar mais') +
-                    '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Tipo</th><th>Leitura</th><th class="num">Capital envolvido</th></tr></thead><tbody>' +
+                    '<div class="tbl-wrap"><table><thead><tr><th scope="col">#</th><th scope="col">Tipo</th><th scope="col">Leitura</th><th scope="col" class="num">Capital envolvido</th></tr></thead><tbody>' +
                     itensAceleracao.map(function (it, i) {
                         return '<tr><td>' + (i + 1) + '</td><td>' + _wwiRelEsc(it.tag) + '</td><td>' + _wwiRelEsc(it.texto) + '</td><td class="num">' + (it.valor !== null && it.valor !== undefined ? _wwiRelEsc(_wwiFmtR(it.valor)) : '') + '</td></tr>';
                     }).join('') + '</tbody></table></div></section>');
@@ -1715,6 +1728,16 @@
             });
         }
 
+        // ADICIONADO 15/08/2026 (achado de Acessibilidade da auditoria de 43 especialistas): botão
+        // de esconder/mostrar valores não expunha o estado pra leitor de tela (só uma classe CSS
+        // visual). aria-pressed reflete o estado real do toggle; aria-label muda pra descrever a
+        // PRÓXIMA ação (mesmo padrão de botões toggle acessíveis).
+        function _syncBtnEsconderValoresAria(btn, ativo) {
+            if (!btn) return;
+            btn.classList.toggle('ativo', !!ativo);
+            btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+            btn.setAttribute('aria-label', ativo ? 'Mostrar valores' : 'Esconder valores');
+        }
         function toggleEsconderValoresHeader() {
             const iframe = document.getElementById('mainIframe');
             const btn = document.getElementById('btnEsconderValoresHeader');
@@ -1726,7 +1749,7 @@
             }
             try {
                 const ativo = iframe.contentWindow.toggleEsconderValores();
-                if (btn) btn.classList.toggle('ativo', !!ativo);
+                _syncBtnEsconderValoresAria(btn, ativo);
             } catch (e) {
                 console.error('Nao foi possivel alternar valores no painel:', e);
             }
@@ -1767,7 +1790,7 @@
             const btn = document.getElementById('btnEsconderValoresHeader');
             if (iframe && iframe.contentWindow) {
                 const ativo = iframe.contentWindow.toggleEsconderValores();
-                if (btn) btn.classList.toggle('ativo', !!ativo);
+                _syncBtnEsconderValoresAria(btn, ativo);
             }
             fecharModalSenhaEsconderValores();
         }
@@ -1779,7 +1802,7 @@
             try {
                 const btn = document.getElementById('btnEsconderValoresHeader');
                 if (btn && localStorage.getItem('wallace_esconder_valores') === '1') {
-                    btn.classList.add('ativo');
+                    _syncBtnEsconderValoresAria(btn, true);
                 }
             } catch (e) {}
         });

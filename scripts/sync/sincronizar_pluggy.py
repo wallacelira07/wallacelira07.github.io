@@ -67,6 +67,7 @@ extrair_reservas_pluggy()/lancar_reservas_pluggy()/CAIXA_PLUGGY_MAPA/CAIXA_PLUGG
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -97,7 +98,13 @@ CAIXA_PLUGGY_MAPA = {
 CAIXA_PLUGGY_CUTOFF = datetime(2026, 8, 13, 23, 59, 59, tzinfo=timezone.utc)
 
 
-def _request(url: str, method: str = "GET", headers: dict | None = None, body: dict | None = None) -> dict:
+# ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas): faltava retry/backoff aqui,
+# mesmo padrão já existente em mercadopago_sync.py._get() ("mesma filosofia de resiliência do
+# script Pluggy" - comentário lá que descrevia um comportamento que na verdade só existia do lado
+# do Mercado Pago). Retry só em erro transitório (429 rate-limit / 5xx), nunca em erro do cliente
+# (4xx que não seja 429) - repetir uma requisição malformada não vai virar bem-sucedida.
+def _request(url: str, method: str = "GET", headers: dict | None = None, body: dict | None = None,
+             tentativa: int = 1) -> dict:
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req_headers = {"Content-Type": "application/json"}
     if headers:
@@ -107,9 +114,15 @@ def _request(url: str, method: str = "GET", headers: dict | None = None, body: d
         with urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except HTTPError as e:
+        if (e.code == 429 or e.code >= 500) and tentativa <= 3:
+            time.sleep(2 * tentativa)
+            return _request(url, method, headers, body, tentativa + 1)
         corpo = e.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"HTTP {e.code} em {method} {url}: {corpo}") from e
     except URLError as e:
+        if tentativa <= 3:
+            time.sleep(2 * tentativa)
+            return _request(url, method, headers, body, tentativa + 1)
         raise RuntimeError(f"Falha de rede em {url}: {e}") from e
 
 

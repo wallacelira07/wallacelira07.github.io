@@ -519,7 +519,7 @@
     </div>
 
     <div id="lrw" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrwTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrwTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRW_TRANSACOES -->
       </tbody></table>
       <!-- 12/08/2026 (auditoria: fallback V2→V1 era silencioso, só log no console) — aviso visível
@@ -530,7 +530,7 @@
     </div>
 
     <div id="lrv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrvTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRV_TRANSACOES -->
       </tbody></table>
       <!-- mesmo padrão do aviso em #lrw acima (mesma busca V2, mesmo fallback) -->
@@ -546,7 +546,7 @@
            vazio, preenchido ao vivo por aplicarOnda8CronogramaBoletos() a partir de
            VARS.CRONOGRAMA_BOLETOS_FIXOS (V2) — rodapé passa a ser a SOMA real desses mesmos itens,
            nunca mais um número de outra fonte. -->
-      <table><thead><tr><th>TX</th><th>Item</th><th class="r">Valor</th></tr></thead><tbody id="lrbTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Item</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrbTbody">
       <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="v" id="legAguaGasMedintech" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">—</div>
@@ -554,7 +554,7 @@
     </div>
 
     <div id="lrp" class="pane">
-      <table><thead><tr><th>TX</th><th>Compra</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody id="lrpTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Compra</th><th scope="col">Parc.</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpTbody">
       <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.PARCELAMENTOS_VISA -->
       </tbody></table>
       <div class="v" id="legParcelamentosVisaAuto" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.4rem">—</div>
@@ -569,7 +569,7 @@
          mostradas, sempre — nunca mais um número de outra fonte que pode dessincronizar (mesmo
          problema já corrigido no LRB/Boletos mais cedo hoje). -->
     <div id="lrs" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody id="lrsTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Serviço</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrsTbody">
       <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="v" id="legMigracaoAssinaturasMB" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.4rem">—</div>
@@ -577,7 +577,7 @@
     </div>
 
     <div id="lrr" class="pane">
-      <table><thead><tr><th>TX</th><th>Serviço</th><th class="r">Valor</th></tr></thead><tbody id="lrrTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Serviço</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrrTbody">
       <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtdLRR">—</span><span class="total v" id="tfLRR">—</span></div>
@@ -585,7 +585,7 @@
     </div>
 
     <div id="lrcon" class="pane">
-      <table><thead><tr><th>TX</th><th>Descrição</th><th class="r">Valor</th></tr></thead><tbody id="lrconTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrconTbody">
       <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtdLRCON">—</span><span class="total v" id="tfLRCON">—</span></div>
@@ -593,7 +593,7 @@
     </div>
 
     <div id="lrc" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Estabelecimento</th><th class="r">Valor</th></tr></thead><tbody id="lrcLimboTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcLimboTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRC_LIMBO_TRANSACOES -->
       </tbody></table>
       <!-- 12/08/2026 (auditoria: fallback V2→V1 era silencioso, só log no console) — aviso visível
@@ -605,7 +605,7 @@
     </div>
 
     <div id="lrmp" class="pane">
-      <table><thead><tr><th>TX</th><th>Descrição</th><th>Parc.</th><th class="r">Valor</th></tr></thead><tbody id="lrmpTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Descrição</th><th scope="col">Parc.</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmpTbody">
       <!-- Gerado dinamicamente por renderParcelamentos() a partir de VARS.PARCELAMENTOS_MP -->
       </tbody>
       <tbody id="lrmpCorpTbody">
@@ -617,7 +617,7 @@
     </div>
 
     <div id="lrcv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrcvTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRCV_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Filtro por ciclo: mostrando só as movimentações de PIX/repasses da Caixa Variável no ciclo atual — consulte o ciclo fechado no seletor de ciclo no topo do painel para ver o histórico completo.</div>
@@ -625,13 +625,13 @@
     </div>
 
     <div id="lrei" class="pane">
-      <table><thead><tr><th>ID</th><th>Data</th><th>Credora</th><th>Devedora</th><th class="r">Valor</th><th>Idade</th><th>Status</th></tr></thead><tbody id="lreiTbody">
+      <table><thead><tr><th scope="col">ID</th><th scope="col">Data</th><th scope="col">Credora</th><th scope="col">Devedora</th><th scope="col" class="r">Valor</th><th scope="col">Idade</th><th scope="col">Status</th></tr></thead><tbody id="lreiTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LREI_ATIVAS -->
       </tbody></table>
     </div>
 
     <div id="lrdoacao" class="pane">
-      <table><thead><tr><th>TX</th><th>Descrição</th><th>Responsável</th><th class="r">Valor</th></tr></thead><tbody id="lrdoaTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Descrição</th><th scope="col">Responsável</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrdoaTbody">
       <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="callout ok v" id="legP2PCustoWallace">—</div>
@@ -639,7 +639,7 @@
     </div>
 
     <div id="lrpvsaldo" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrpvsaldoTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvsaldoTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.PV_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Reserva do Wallace para apoiar a Vanessa — aportes mensais + reforços diretos à PGV quando o saldo dela fica baixo (regra: repor quando PGV cai abaixo de R$50,00, seção 7 Políticas).</div>
@@ -647,7 +647,7 @@
     </div>
 
     <div id="lrbd" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrbdTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrbdTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.BENS_DURAVEIS_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Compras de bem durável (eletrônico, roupa, calçado, panela) — centro de custo separado da Caixa Variável (mesma lógica do custo corporativo), mesmo sendo cobrado na mesma fatura Mastercard Black. Desde 05/08/2026 esse custo NÃO entra mais no comprometido/disponível da Caixa Variável (fica só aqui e no total da fatura do cartão) — isso libera saldo na Caixa Variável. Aporte alvo R$250,00/mês. Saldo pode ficar negativo quando a compra acontece antes da reserva cobrir — isso é normal, não indica erro.</div>
@@ -659,63 +659,63 @@
          Mesma estrutura exata do LRBD acima, renderizadas pelo bloco generico CAIXAS_LR_SIMPLES em
          renderLivrosVariaveis() (app.js). -->
     <div id="lrlance" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrlanceTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrlanceTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CAIXA_LANCE_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrlance">—</span><span class="total v" id="tf_lrlance">—</span></div>
     </div>
 
     <div id="lrmanut" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrmanutTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmanutTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MANUTENCAO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrmanut">—</span><span class="total v" id="tf_lrmanut">—</span></div>
     </div>
 
     <div id="lraniv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lranivTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lranivTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.ANIVERSARIO_JULIO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lraniv">—</span><span class="total v" id="tf_lraniv">—</span></div>
     </div>
 
     <div id="lreventos" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lreventosTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lreventosTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.EVENTOS_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lreventos">—</span><span class="total v" id="tf_lreventos">—</span></div>
     </div>
 
     <div id="lrsaude" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrsaudeTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrsaudeTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SAUDE_FAMILIA_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrsaude">—</span><span class="total v" id="tf_lrsaude">—</span></div>
     </div>
 
     <div id="lrseguro" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrseguroTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrseguroTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SEGURO_EMPLACAMENTO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrseguro">—</span><span class="total v" id="tf_lrseguro">—</span></div>
     </div>
 
     <div id="lrcomb" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrcombTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcombTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.COMBUSTIVEL_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrcomb">—</span><span class="total v" id="tf_lrcomb">—</span></div>
     </div>
 
     <div id="lrchurrasco" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrchurrascoTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrchurrascoTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CHURRASCO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrchurrasco">—</span><span class="total v" id="tf_lrchurrasco">—</span></div>
     </div>
 
     <div id="lrmci" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrmciTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmciTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MASTERCARD_INFINITE_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Guarda o valor pra pagar as faturas Visa Infinite + Mastercard Black. Aportes reais avisados pelo usuário (não são pagamentos que saíram desta caixa).</div>
@@ -723,7 +723,7 @@
     </div>
 
     <div id="lrpv" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lrpvTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRPGV_TRANSACOES -->
       </tbody></table>
       <div class="v callout ok" id="legPGVSaldoResidual">—</div>
@@ -731,7 +731,7 @@
     </div>
 
     <div id="lremag" class="pane">
-      <table><thead><tr><th>TX</th><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead><tbody id="lremagTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lremagTbody">
       <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtd_lremag">—</span><span class="total v" id="tf_lremag">—</span></div>
@@ -908,7 +908,7 @@
     </div>
 
     <div style="overflow-x:auto">
-    <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Qtd</th><th class="r">Strike</th><th>Vencimento</th><th class="r">Ação agora</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Valor de mercado</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesTbody">
+    <table><thead><tr><th scope="col">Ativo</th><th scope="col">Ticker</th><th scope="col" class="r">Qtd</th><th scope="col" class="r">Strike</th><th scope="col">Vencimento</th><th scope="col" class="r">Ação agora</th><th scope="col" class="r">Prêmio bruto</th><th scope="col" class="r">Custos</th><th scope="col" class="r">Prêmio líquido</th><th scope="col" class="r">Valor de mercado</th><th scope="col" class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesTbody">
     </tbody></table>
     </div>
     <div class="v" id="legOpcoesCotacoes" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem">—</div>
@@ -923,7 +923,7 @@
     <div id="opcoesVencidasWrap" style="display:none;margin-top:1rem;padding-top:0.9rem;border-top:1px dashed var(--border)">
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:0.5rem">Posições vencidas</div>
       <div style="overflow-x:auto">
-      <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Qtd</th><th class="r">Strike</th><th>Vencimento</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesVencidasTbody">
+      <table><thead><tr><th scope="col">Ativo</th><th scope="col">Ticker</th><th scope="col" class="r">Qtd</th><th scope="col" class="r">Strike</th><th scope="col">Vencimento</th><th scope="col" class="r">Prêmio bruto</th><th scope="col" class="r">Custos</th><th scope="col" class="r">Prêmio líquido</th><th scope="col" class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesVencidasTbody">
       </tbody></table>
       </div>
       <div class="v" id="legOpcoesVencidas" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem"></div>
@@ -938,7 +938,7 @@
     <div id="opcoesExercidasWrap" style="display:none;margin-top:1rem;padding-top:0.9rem;border-top:1px dashed var(--border)">
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:0.5rem">Posições exercidas</div>
       <div style="overflow-x:auto">
-      <table><thead><tr><th>Ativo</th><th>Ticker</th><th class="r">Qtd</th><th class="r">Strike</th><th>Vencimento</th><th class="r">Prêmio bruto</th><th class="r">Custos</th><th class="r">Prêmio líquido</th><th class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesExercidasTbody">
+      <table><thead><tr><th scope="col">Ativo</th><th scope="col">Ticker</th><th scope="col" class="r">Qtd</th><th scope="col" class="r">Strike</th><th scope="col">Vencimento</th><th scope="col" class="r">Prêmio bruto</th><th scope="col" class="r">Custos</th><th scope="col" class="r">Prêmio líquido</th><th scope="col" class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesExercidasTbody">
       </tbody></table>
       </div>
       <div class="v" id="legOpcoesExercidas" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem"></div>
@@ -1073,7 +1073,7 @@
     <div id="lancarTxSlot" style="margin-bottom:0.8rem"></div>
     <div class="v" id="inboxFinanceiraResumo" style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
     <div style="overflow-x:auto">
-      <table id="inboxFinanceiraTable"><thead><tr><th>ID</th><th>Origem</th><th>Descrição</th><th class="r">Valor</th><th>Data</th><th class="r">Confiança</th><th>Status</th><th>Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
+      <table id="inboxFinanceiraTable"><thead><tr><th scope="col">ID</th><th scope="col">Origem</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th><th scope="col">Data</th><th scope="col" class="r">Confiança</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
       </tbody></table>
     </div>
   </div>
@@ -1496,7 +1496,7 @@
 
       <div style="overflow-x:auto">
       <table style="width:100%;margin-top:1rem;font-size:0.75rem;border-collapse:collapse">
-        <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th style="padding:0.3rem 0">Ano</th><th>Economia acumulada</th><th>Payback estimado</th></tr></thead>
+        <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th scope="col" style="padding:0.3rem 0">Ano</th><th scope="col">Economia acumulada</th><th scope="col">Payback estimado</th></tr></thead>
         <tbody id="simTabelaAnual"></tbody>
       </table>
       </div>
@@ -1562,10 +1562,10 @@
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Não trabalha: fórmula validada</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">O que NUNCA é cortado</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Não trabalha: fórmula validada</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">O que NUNCA é cortado</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
           </tr></thead>
           <tbody id="psTableBody"></tbody>
         </table>
@@ -1636,10 +1636,10 @@
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Salário base + 35% garantido</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Total Operacional</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Salário base + 35% garantido</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Total Operacional</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
           </tr></thead>
           <tbody id="dzTableBody"></tbody>
         </table>
@@ -1654,10 +1654,10 @@
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Líquido</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Necessidade Líquida</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Mês</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Líquido</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Necessidade Líquida</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Diferença</th>
           </tr></thead>
           <tbody id="snTableBody"></tbody>
         </table>
@@ -1885,9 +1885,9 @@
       <div style="overflow-x:auto;margin-top:0.8rem">
         <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
           <thead><tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Data</th>
-            <th style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Dose</th>
-            <th style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Observação</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Data</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Dose</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Observação</th>
           </tr></thead>
           <tbody id="ozTableBody"></tbody>
         </table>
