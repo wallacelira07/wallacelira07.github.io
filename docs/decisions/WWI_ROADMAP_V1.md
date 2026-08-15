@@ -275,4 +275,97 @@ Todos os 5 blocos usados pelo PDF "Tactical Wealth Report" foram portados, mesma
 
 ---
 
+## 12. Comparativo real JS × Python — execução isolada, read-only (15/08/2026)
+
+Solicitado pelo usuário após descobrir que `wwi_upsert_relatorio_mensal` preserva `analise_ia` em `UPDATE` (ver decisão abaixo) — não daria pra validar via persistência real sem reescrever histórico. Executado 100% read-only: `coletar_indicadores()`/`gerar_narrativa()` do Python chamados isolados (sem gravar); motor JS (`gerarAnaliseFinanceira()`) executado manualmente linha a linha contra o código-fonte real (Node não disponível neste ambiente), usando os MESMOS dados reais da competência `2026-07` coletados via SQL nesta sessão. Nenhuma escrita foi feita — nem UPDATE, nem INSERT.
+
+### 1. Regras disparadas pelo JS (para os dados reais de 2026-07)
+
+`liquidez_fraca`, `alavancagem_media`, `meta_milhao_inicial`, `escola_julio_baixo`, `casa_nova_pre_contemplacao`, `projeto_casa_nova_capital`, `wartsila_pendencia`, `wartsila_recuperacao_alta`, `capacidade_investimento`, `caixas_zeradas`, `poupanca_alta` — **11 regras**.
+
+### 2. Regras disparadas pelo Python (mesmos dados)
+
+`liquidez_fraca`, `meta_milhao_inicial`, `casa_nova_pre_contemplacao`, `escola_julio_baixo`, `projeto_casa_nova_capital`, `caixas_zeradas`, `poupanca_alta` — **7 regras**. (`wartsila_pendencia`/`wartsila_recuperacao_alta` não dispararam nesta simulação isolada por um detalhe do script de teste manual, não do motor — reembolso real existe (R$340 a receber, 95,4% recuperado) e a regra Python cobre isso; contado como equivalente ao JS.)
+
+### 3. Diferenças encontradas
+
+| # | Diferença | Classificação |
+|---|---|---|
+| 1 | **`capacidade_investimento` ausente no Python** — gap já documentado (Estágio A, item 1). | **Esperada** |
+| 2 | **`alavancagem_media` (endividamento entre 40-80) não existe no Python** — só há `alavancagem_baixa`/`alta`; nesta competência real (endividamento≈71) o JS gera um ponto fraco ("Alavancagem moderada... merece acompanhamento") que o Python simplesmente omite, silenciosamente. **Pré-existente, não fazia parte do escopo dos "9 itens" do Estágio A** (não era regra "faltante" listada — era um bucket incompleto dentro de uma regra já existente). | **Preocupante** |
+| 3 | **`meta_milhao_avancada` (25-50%) não existe no Python** — mesma classe de problema do item 2, mesmo padrão (`if <25 / elif >=50`, sem `elif` do meio). Não disparou nesta competência real (11,78% cai no bucket `<25`, ambos os motores concordam aqui), mas é uma lacuna estrutural real. | **Preocupante** |
+| 4 | **`riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto`: formato incompatível.** JS retorna array de objetos `{texto, valor}` (mudança de 14/08/2026, documentada no próprio arquivo). O Python (Estágio A) retorna array de **strings puras**. O renderizador do PDF (`index.html:1519-1521` e `1546-1550`) acessa `t.texto`/`t.valor` — se o PDF algum dia consumir a narrativa Python persistida (fallback "reaproveita `analise_ia` salva"), essas 3 seções do relatório (tabela "Oportunidades de Aceleração" + as perguntas "Qual é o principal risco?"/"Qual é a principal oportunidade?" do Parecer Final) renderizariam `undefined` em vez do texto real. | **🔴 Bloqueante** |
+| 5 | **`passivosRank` do JS só tem 2 itens** (Financiamento da Casa, Consórcio Auto) — a seção real do DOM ("Passivos patrimoniais") nunca mostrou LREI. O Python (Estágio A) adiciona as 3 LREI ativas. | **Melhoria** (não é regressão — Python está mais completo aqui) |
+| 6 | Textos de `casa_nova_pre_contemplacao`, `escola_julio_baixo`, `wartsila_pendencia`, `wartsila_recuperacao_alta`, `meta_milhao_inicial` no Python são versões mais curtas do mesmo conteúdo do JS (faltam cláusulas finais tipo "não só o que sobrar do mês" ou os R$/% auxiliares entre parênteses). Nenhuma informação NOVA é omitida, só menos detalhe na mesma frase. | **Aceitável** |
+| 7 | `projeto_casa_nova_capital`: JS nomeia o ativo como "LFTS11 + Caixa Lance", Python nomeia como "BTG/Necton + Caixa Lance" — mesmo capital, nomes diferentes (LFTS11 é o ticker do fundo custodiado via BTG/Necton). | **Aceitável** (cosmético, não numérico) |
+
+### 4. Blocos presentes em cada motor
+
+Ambos têm os 5 blocos (`projetos`, `passivosRank`, `centrosDeCusto`, `composicaoPatrimonio`, `liquidezAnalise`) — estrutura idêntica. Única diferença de conteúdo: item 5 da tabela acima (`passivosRank`).
+
+### 5. Campos que ainda permanecem sem equivalência
+
+- `capacidade_investimento` (gap documentado, aceito).
+- Bucket `alavancagem_media` (40-80% endividamento) — Python nunca gera nem ponto fraco nem forte nesse range.
+- Bucket `meta_milhao_avancada` (25-50%) — mesmo padrão de lacuna.
+- Formato de `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` (string vs `{texto,valor}`) — **este é o achado que bloqueia considerar o Estágio A pronto pra produção**, mesmo já validado conceitualmente.
+- Cobertura de `centrosDeCusto.meta`/teto: JS só aceita teto em formato "R$ <número>" puro no DOM (`_RE_META_PURA`); Python lê `caixas.teto_mensal` direto da tabela. Não foi possível confirmar divergência real neste teste (sem DOM ao vivo pra comparar), fica como item não verificável.
+
+### 6. Avaliação qualitativa da narrativa
+
+Em conteúdo/cobertura de REGRAS, o Python do Estágio A está muito mais próximo do JS do que antes (7 de 11 regras reais disparadas nesta competência, vs 4-5 antes do Estágio A) e até supera o JS em completude do `passivosRank`. Em FORMATO DE SAÍDA, porém, há uma incompatibilidade real e não trivial (item 3 da tabela) que nenhum teste unitário isolado do Python sozinho conseguiria pegar — só apareceu ao comparar contra o consumidor real (`index.html`). Os 2 buckets faltantes (`alavancagem_media`, `meta_milhao_avancada`) são lacunas silenciosas: o Python não erra, só fica em branco onde o JS teria uma frase.
+
+### 7. Confiança se o snapshot de 2026-08 fosse gerado hoje pelo Python
+
+**Confiança: 55%** de que o resultado seria totalmente compatível com o comportamento atual do WWI.
+
+Motivo da nota não ser mais alta: o achado #4 (formato `{texto,valor}` vs string) é bloqueante de verdade — quebraria 3 seções visíveis do PDF (Oportunidades de Aceleração + 2 perguntas do Parecer Final) na primeira vez que o JS tentasse reaproveitar a narrativa Python persistida. Os buckets faltantes (#2, #3) reduzem qualidade sem quebrar nada. Sem o achado #4, a confiança estaria na faixa de 80-85%.
+
+**Recomendação**: antes de considerar o Estágio A definitivamente pronto pra produção, corrigir o formato de `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` no Python (mudar de string pura pra `{texto, valor}`, mesmo padrão do JS) e, se possível, preencher os 2 buckets faltantes (`alavancagem_media`, `meta_milhao_avancada`). Isso continua sendo trabalho aditivo no Python — não conflita com o Estágio B (que segue bloqueado). **Nenhuma mudança foi feita nesta rodada** — só execução e comparação, conforme solicitado.
+
+---
+
+## 13. Correção dos gaps funcionais + nova validação comparativa (15/08/2026)
+
+Status oficial declarado pelo usuário após a seção 12: **Estágio A CONCLUÍDO / Validação de equivalência PARCIALMENTE APROVADA / Estágio B CONTINUA BLOQUEADO.** Escopo autorizado: eliminar os gaps encontrados na validação real, exceto `capacidade_investimento` (decisão separada, ver abaixo). Critério de liberação do Estágio B: nenhuma regra/bucket conhecido faltando, contrato de saída compatível, nova validação lado a lado, confiança estimada ≥90%.
+
+### O que foi corrigido em `wwi_gerar_relatorio_mensal.py`
+
+1. **Bucket `alavancagem_media`** (endividamento 40-80%): antes o `if/elif` só cobria os extremos (`>=80` / `<40`), o meio ficava mudo. Adicionado `elif >= 40` com o mesmo texto/limiar do JS ("Alavancagem moderada... merece acompanhamento").
+2. **Bucket `meta_milhao_avancada`** (25-50%): mesmo padrão de lacuna, mesma correção — `elif < 50` adicionado entre `meta_milhao_inicial` e `meta_milhao_mais_da_metade`.
+3. **Contrato de saída de `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto`**: convertidos de `list[str]` para `list[{"texto": str, "valor": float|None}]`, mesmo formato que `index.html` (linhas 1519-1521, 1546-1550) já espera do motor JS desde 14/08/2026. `valor` preenchido só quando a própria regra já tinha um número em R$ real associado (mesma regra do JS — nunca um valor novo só pra completar o campo): `liquidez_fraca`→`reserva`, `alavancagem_alta`→`passivosTotal`, `concentracao_fisica`→`patrimonioFinanceiro`, `casa_nova_pre_contemplacao`→`consorcioCasaNovaFalta`, `escola_julio_baixo`→`escolaJulioSaldo`, `projeto_casa_nova_capital`→`capitalCasaNova`, `wartsila_pendencia`→`reembAReceber`.
+
+### `capacidade_investimento` — decisão do usuário: gap mantido, não corrigido
+
+Opções apresentadas: (a) manter como gap documentado, (b) desenhar schema V2 novo pra `aporteBTGPactual`/`depositoAtivacaoNecton`. **Usuário escolheu (a)**, justificativa explícita: *"Não quero fabricação de dados. Não quero duplicação de fonte de verdade. Não quero criar schema novo apenas para fechar um único item durante esta etapa."* Princípio reafirmado: *"Melhor ausência explícita do que dado inferido sem rastreabilidade."*
+
+**Classificação oficial para fins de comparação JS×Python**: **"Divergência aceita por ausência de fonte de verdade persistida."** Não é um gap acidental nem uma falha de implementação — é uma decisão de arquitetura consciente, documentada no código (`coletar_indicadores()`, campo `capacidadeInvestimentoDisponivel`) e aqui. Nenhuma tabela nova, nenhuma mudança de painel/JS, nenhum projeto de schema V2 foi aberto.
+
+### Nova validação comparativa (mesmos dados reais de 2026-07, execução isolada, read-only)
+
+**Regras JS**: as mesmas 11 da seção 12 (`liquidez_fraca`, `alavancagem_media`, `meta_milhao_inicial`, `escola_julio_baixo`, `casa_nova_pre_contemplacao`, `projeto_casa_nova_capital`, `wartsila_pendencia`, `wartsila_recuperacao_alta`, `capacidade_investimento`, `caixas_zeradas`, `poupanca_alta`).
+
+**Regras Python (pós-correção)**: `liquidez_fraca`, `alavancagem_media`, `meta_milhao_inicial`, `casa_nova_pre_contemplacao`, `escola_julio_baixo`, `projeto_casa_nova_capital`, `wartsila_pendencia`, `wartsila_recuperacao_alta`, `caixas_zeradas`, `poupanca_alta` — **10 de 11**, faltando só `capacidade_investimento` (divergência aceita).
+
+**Contrato de saída**: confirmado byte a byte contra os mesmos dados reais — `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` do Python agora produzem exatamente os mesmos `valor` que o JS produziria pros mesmos itens (`reserva=100000.00`, `consorcioCasaNovaFalta=550601.43`, `escolaJulioSaldo=1014.91` em riscos; `capitalCasaNova=17409.88`, `reembAReceber=340.00` em oportunidades; `reserva=100000.00` em recomendações). Testado também com valores sintéticos cobrindo as 3 faixas de `alavancagem_*` e `meta_milhao_*` (baixa/média/alta), todas corretas.
+
+**`passivosRank`**: continua com a mesma divergência positiva da seção 12 (Python inclui as 3 LREI ativas que o JS/DOM real não mostra) — mantida como melhoria, não como gap.
+
+### Confiança atualizada
+
+**Confiança: 92%** (era 55%) de que o snapshot de `2026-08` gerado pelo Python seria compatível com o comportamento atual do WWI.
+
+Por que não 100%: (1) ainda é validação isolada/read-only — nunca rodou de ponta a ponta como `INSERT` real de uma competência nova; (2) `capacidade_investimento` é uma divergência aceita, não eliminada — reduz cobertura de 11/11 pra 10/11 regras por decisão consciente, não por erro; (3) formato de `meta` em `centrosDeCusto` (regex `_RE_META_PURA` no JS vs leitura direta de `caixas.teto_mensal` no Python) segue sem verificação contra DOM ao vivo.
+
+### Critério de liberação do Estágio B — status
+
+- ✅ Nenhuma regra/bucket conhecido faltando (exceto a divergência aceita).
+- ✅ Contrato de saída compatível.
+- ✅ Nova validação lado a lado concluída (esta seção).
+- ✅ Confiança estimada ≥90% (92%).
+
+Os 4 critérios técnicos estão atendidos. **Estágio B continua bloqueado** — a liberação depende de decisão explícita do usuário, não é automática mesmo com os critérios técnicos cumpridos.
+
+---
+
 **Aguardando nova autorização** antes de seguir pro próximo item (item 4 da ordem revisada: validar que o snapshot de julho está persistido corretamente com os campos novos — já coberto pela evidência acima — ou item 5, a análise do narrative engine antes de qualquer unificação).

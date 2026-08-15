@@ -410,10 +410,13 @@ def coletar_indicadores(supabase_url: str, headers: dict, competencia: str) -> d
             "patrimonioLiquido": patrimonio_liquido, "fisicoTotal": fisico_total,
             "patrimonioFinanceiro": patrimonio_financeiro,
         },
-        # GAP DOCUMENTADO (Estágio A, ver WWI_NARRATIVE_ENGINE_ANALISE.md seção 5): "capacidade de
-        # investimento" (regra 'capacidade_investimento' do JS) depende de aporteBTGPactual/
-        # depositoAtivacaoNecton — hoje literais editados à mão em vars-patrimonio.js, sem tabela V2
-        # correspondente. Sem fonte SQL confiável, fica de fora aqui de propósito (nunca fabricado).
+        # GAP DOCUMENTADO E ACEITO (decisão do usuário, 15/08/2026, WWI_ROADMAP_V1.md seção 13):
+        # "capacidade de investimento" (regra 'capacidade_investimento' do JS) depende de
+        # aporteBTGPactual/depositoAtivacaoNecton — literais editados à mão em vars-patrimonio.js,
+        # sem tabela/coluna V2 que os espelhe. Decisão explícita: NÃO criar schema novo só pra
+        # fechar este item — "Melhor ausência explícita do que dado inferido sem rastreabilidade."
+        # Classificação oficial pra fins de comparação JS×Python: "Divergência aceita por ausência
+        # de fonte de verdade persistida." Fica `False`/ausente de propósito, nunca fabricado.
         "capacidadeInvestimentoDisponivel": False,
     }
 
@@ -431,9 +434,24 @@ def gerar_narrativa(indicadores: dict) -> dict:
     escola_julio_baixo/ok, projeto_casa_nova_capital, caixas_zeradas, poupanca_alta) usando fontes
     SQL achadas durante a investigação (ver WWI_NARRATIVE_ENGINE_ANALISE.md) — principalmente
     `pib_wallace_historico` da PRÓPRIA competência (não só do mês anterior), que carrega
-    receita/despesa/poupança já calculados pelo painel a cada boot. 1 regra do JS
-    ('capacidade_investimento') continua de fora — gap documentado, sem fonte SQL confiável (ver
-    comentário em `coletar_indicadores()`, campo `capacidadeInvestimentoDisponivel`)."""
+    receita/despesa/poupança já calculados pelo painel a cada boot.
+
+    CORRIGIDO 15/08/2026 (WWI_ROADMAP_V1.md, seção 12 — validação comparativa real JS×Python
+    revelou 3 gaps que a validação isolada anterior não pegou):
+    1. `alavancagem_media`/`meta_milhao_avancada`: faltavam os buckets do MEIO (endividamento
+       40-80%, metaMilhaoPct 25-50%) — só existiam os extremos, produzindo silêncio onde o JS
+       gera uma frase. Portados agora, mesmo texto/limiar do JS.
+    2. `riscosTexto`/`oportunidadesTexto`/`recomendacoesTexto` eram array de STRING; o motor JS
+       (desde 14/08/2026) usa array de `{texto, valor}` — o renderizador do PDF (`index.html`)
+       acessa `.texto`/`.valor` diretamente. Contrato de saída corrigido pra bater com o
+       consumidor real, não só com o "espírito" do JS — `valor` só é preenchido quando a própria
+       regra já tinha um número em R$ real associado (mesma regra do JS: nunca um valor novo só
+       pra completar a coluna).
+
+    1 regra do JS ('capacidade_investimento') continua de fora — gap documentado, sem fonte SQL
+    confiável (ver comentário em `coletar_indicadores()`, campo `capacidadeInvestimentoDisponivel`;
+    depende de aporteBTGPactual/depositoAtivacaoNecton, literais de vars-patrimonio.js sem tabela
+    V2 correspondente — decisão de arquitetura pendente, não resolvida nesta rodada)."""
     b = indicadores["indicadoresBrutos"]
     subscores = indicadores["subscores"]
     dn = indicadores.get("dadosNarrativos", {})
@@ -446,6 +464,9 @@ def gerar_narrativa(indicadores: dict) -> dict:
         regras_aplicadas.append(nome)
         fn()
 
+    def item(texto, valor=None):
+        return {"texto": texto, "valor": valor}
+
     # ===== Liquidez (NOVO Estágio A) =====
     regra("liquidez_forte", subscores.get("liquidez") is not None and subscores["liquidez"] >= 80, lambda: (
         pontos_fortes.append(f"Liquidez de nível muito forte: a Reserva de Emergência (R$ {b['reserva']:.2f}) cobre sozinha cerca de {b['liquidezCiclos']:.1f} ciclos de compromisso fixo — bem acima do padrão de mercado (6 meses/ciclos costuma ser considerado uma reserva robusta).")))
@@ -453,8 +474,8 @@ def gerar_narrativa(indicadores: dict) -> dict:
         pontos_fortes.append(f"Liquidez em nível saudável: a Reserva de Emergência cobre cerca de {b['liquidezCiclos']:.1f} ciclos de compromisso fixo, dentro da faixa considerada segura para o perfil.")))
     def _liquidez_fraca():
         pontos_fracos.append(f"Liquidez abaixo do recomendável: a Reserva cobriria só {b['liquidezCiclos']:.1f} ciclos de compromisso fixo sozinha, sem contar outras fontes de caixa disponíveis no sistema.")
-        riscos.append("Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.")
-        recomendacoes.append("Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.")
+        riscos.append(item("Um imprevisto financeiro grande (perda de renda, despesa médica, reparo urgente) encontraria o sistema com pouca folga de caixa imediata, exigindo recorrer a caixas patrimoniais ou empréstimo interno antes do previsto.", b.get("reserva")))
+        recomendacoes.append(item("Priorizar reforço da Reserva de Emergência no próximo ciclo antes de qualquer novo aporte discricionário — é a base sobre a qual o resto da estratégia patrimonial se apoia.", b.get("reserva")))
     regra("liquidez_fraca", subscores.get("liquidez") is not None and subscores["liquidez"] < 40, _liquidez_fraca)
 
     if subscores.get("endividamento") is not None:
@@ -462,16 +483,22 @@ def gerar_narrativa(indicadores: dict) -> dict:
             pontos_fortes.append(
                 f"Alavancagem controlada: passivos representam {round((b['passivosTotal']/b['ativosTotal'])*100, 1)}% do ativo total.")
             regras_aplicadas.append("alavancagem_baixa")
-        elif subscores["endividamento"] < 40:
+        elif subscores["endividamento"] >= 40:
+            # NOVO 15/08/2026 (achado #2 da validação comparativa, WWI_ROADMAP_V1.md seção 12) —
+            # bucket do meio que faltava; mesmo texto/limiar de 'alavancagem_media' no JS.
+            pontos_fracos.append(
+                f"Alavancagem moderada: passivos representam {round((b['passivosTotal']/b['ativosTotal'])*100, 1)}% do ativo total — não é crítico, mas merece acompanhamento nos próximos ciclos.")
+            regras_aplicadas.append("alavancagem_media")
+        else:
             pontos_fracos.append(
                 f"Alavancagem elevada: passivos já representam {round((b['passivosTotal']/b['ativosTotal'])*100, 1)}% do ativo total.")
-            riscos.append("Nível de dívida sobre ativos merece monitoramento antes de novos compromissos de longo prazo.")
+            riscos.append(item("Nível de dívida sobre ativos merece monitoramento antes de novos compromissos de longo prazo.", b.get("passivosTotal")))
             regras_aplicadas.append("alavancagem_alta")
 
     if subscores.get("investimentos") is not None:
         if subscores["investimentos"] < 50:
             pontos_fracos.append("Patrimônio concentrado majoritariamente em ativos físicos/ilíquidos.")
-            oportunidades.append("Redirecionar o próximo ciclo de aportes para ativos líquidos ajuda a equilibrar a composição do patrimônio.")
+            oportunidades.append(item("Redirecionar o próximo ciclo de aportes para ativos líquidos ajuda a equilibrar a composição do patrimônio.", b.get("patrimonioFinanceiro")))
             regras_aplicadas.append("concentracao_fisica")
         elif subscores["investimentos"] >= 90:
             pontos_fortes.append("Boa proporção de patrimônio financeiro/líquido frente ao total.")
@@ -481,25 +508,30 @@ def gerar_narrativa(indicadores: dict) -> dict:
         if b["metaMilhaoPct"] < 25:
             pontos_fracos.append(f"Meta do Milhão ainda em fase inicial: {b['metaMilhaoPct']}% do caminho percorrido.")
             regras_aplicadas.append("meta_milhao_inicial")
-        elif b["metaMilhaoPct"] >= 50:
+        elif b["metaMilhaoPct"] < 50:
+            # NOVO 15/08/2026 (achado #3 da validação comparativa) — bucket do meio (25-50%) que
+            # faltava; mesmo texto/limiar de 'meta_milhao_avancada' no JS.
+            pontos_fortes.append(f"Meta do Milhão em {b['metaMilhaoPct']}% do caminho percorrido — progresso real, mesmo que ainda distante da metade.")
+            regras_aplicadas.append("meta_milhao_avancada")
+        else:
             pontos_fortes.append(f"Meta do Milhão já em {b['metaMilhaoPct']}% — mais da metade do caminho percorrido.")
             regras_aplicadas.append("meta_milhao_mais_da_metade")
 
     regra("casa_nova_pre_contemplacao", b.get("consorcioCasaPagoPct") is not None and b["consorcioCasaPagoPct"] < 5, lambda: (
-        riscos.append(f"Consórcio Casa Nova ainda em fase pré-contemplação ({b['consorcioCasaPagoPct']:.2f}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo.")))
+        riscos.append(item(f"Consórcio Casa Nova ainda em fase pré-contemplação ({b['consorcioCasaPagoPct']:.2f}% pago): a parcela mensal é um compromisso certo para um benefício (a contemplação, por sorteio ou lance) ainda incerto em prazo.", dn.get("consorcioCasaNovaFalta")))))
 
     # ===== Escola de Júlio (NOVO Estágio A) =====
     regra("escola_julio_baixo", dn.get("escolaJulioPct") is not None and dn["escolaJulioPct"] < 30, lambda: (
-        riscos.append(f"Escola de Júlio em {dn['escolaJulioPct']:.1f}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte.")))
+        riscos.append(item(f"Escola de Júlio em {dn['escolaJulioPct']:.1f}% do valor necessário acumulado — se o prazo do próximo ciclo escolar estiver próximo, esse é um compromisso com data certa que merece prioridade de aporte.", dn.get("escolaJulioSaldo")))))
     regra("escola_julio_ok", dn.get("escolaJulioPct") is not None and dn["escolaJulioPct"] >= 30, lambda: (
         pontos_fortes.append(f"Escola de Júlio com {dn['escolaJulioPct']:.1f}% do valor necessário já acumulado, dentro do esperado para o momento do ciclo escolar.")))
 
     # ===== Projeto Casa Nova — capital via BTG/Necton + Caixa Lance (NOVO Estágio A) =====
     regra("projeto_casa_nova_capital", dn.get("projetoCasaNovaPct") is not None, lambda: (
-        oportunidades.append(f"Projeto Casa Nova em {dn['projetoCasaNovaPct']:.1f}% de maturidade, com R$ {dn['capitalCasaNova']:.2f} de capital hoje disponível (BTG/Necton + Caixa Lance) para eventual lance.")))
+        oportunidades.append(item(f"Projeto Casa Nova em {dn['projetoCasaNovaPct']:.1f}% de maturidade, com R$ {dn['capitalCasaNova']:.2f} de capital hoje disponível (BTG/Necton + Caixa Lance) para eventual lance.", dn.get("capitalCasaNova")))))
 
     if b.get("reembAReceber"):
-        oportunidades.append(f"Reembolso Wärtsilä do ciclo tem R$ {b['reembAReceber']:.2f} ainda pendente de confirmação.")
+        oportunidades.append(item(f"Reembolso Wärtsilä do ciclo tem R$ {b['reembAReceber']:.2f} ainda pendente de confirmação.", b.get("reembAReceber")))
         regras_aplicadas.append("wartsila_pendencia")
     if b.get("reembRecebidos") is not None and b.get("reembTotalCiclo"):
         eficiencia = (b["reembRecebidos"] / b["reembTotalCiclo"]) * 100
