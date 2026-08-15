@@ -62,10 +62,8 @@ O número "41" do redesenho de 14/08 estava desatualizado — o volume voltou a 
 
 **Achado inicial descartado, esclarecido pelo usuário**: a TED Wärtsilä de R$340,00 (06/08, `TX000220`) é um reembolso DIFERENTE do que a pendência 1.4 rastreia — coincidência de valor, não é o mesmo evento. `TX000220` e `TX000280` (R$6.682,76) já estavam corretamente computados; a pendência de R$340,00 do ciclo 2026-07 (`reembolso_wartsila_ciclo.valor_a_receber`) continua real e sem relação com essas 2 TEDs. Não é inconsistência — `reembolso_wartsila_ciclo` está certo. Não reabrir essa dúvida.
 
-### 1.2b 🔴 URGENTE — webhook Pluggy retornando 500 até o usuário configurar 1 secret no Supabase
-Achado da auditoria (segredo hardcoded no código-fonte da Edge Function `pluggy-webhook`) corrigido — código trocado pra `Deno.env.get("PLUGGY_WEBHOOK_SECRET")`, deployado (`version: 2`), sem fallback hardcoded (fail-safe: recusa tudo com 500 se a env var não existir). **Efeito colateral esperado até o usuário agir**: o webhook está recusando toda requisição da Pluggy agora, porque a secret ainda não existe no Supabase.
-
-**Ação pendente, só o usuário consegue fazer** (sem CLI/token de Management API disponível neste ambiente pra fazer por script): Supabase Dashboard → Project Settings → Edge Functions → `pluggy-webhook` → Manage secrets → adicionar `PLUGGY_WEBHOOK_SECRET` = `LjfvwItOK5e0K+gAT5iDJSFMgD2B+vbXCxddTNJukV8=` (MESMO valor que já estava hardcoded — não foi rotacionado, só movido de lugar, pra não precisar re-registrar o webhook na Pluggy).
+### 1.2b Webhook Pluggy — RESOLVIDO 15/08/2026
+Segredo hardcoded na Edge Function `pluggy-webhook` trocado por `Deno.env.get("PLUGGY_WEBHOOK_SECRET")` e o usuário configurou o secret no Supabase Dashboard. **Testado ao vivo** (`curl -X POST` com o header `X-Webhook-Secret` correto): retornou `200`. Linha de teste (`event='teste_verificacao'`) apagada de `pluggy_webhook_eventos` logo em seguida — não sobrou resíduo. Não reabrir.
 
 ### 1.3 Autor do `DELETE` que apagou a linha de `historico_relatorios` de julho — desconhecido, sem como recuperar
 A investigação sênior desta sessão confirmou que a linha foi gravada de verdade e depois apagada por um `DELETE` real (corretamente filtrado por competência), mas não há nenhum log/rastro de quem/quando — a tabela nunca teve trigger de auditoria antes de hoje. **Não reabrir como investigação** — não há mais evidência a extrair. O trigger novo (`trg_audit_historico_relatorios`) garante que isso nunca mais fique sem rastro.

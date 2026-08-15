@@ -120,9 +120,9 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 
 ✅ **Resolvidas**: 12 tabelas financeiras ganharam trigger de `audit_log` (reaproveitando `fn_audit_log_generic()` já existente); `pib_wallace_historico` restrita a login Firebase válido (mesmo padrão de `wallace_dados`); `concurrency:` adicionada em 6 workflows de sync (nunca mais 2 disparos sobrepostos); falha parcial de sincronização (Mercado Pago/Pluggy) agora reflete corretamente no heartbeat/Saúde Operacional em vez de aparecer como "sucesso"; painel de Saúde Operacional passou a cobrir backup externo e relatório WWI mensal; Chart.js ganhou SRI (hash real via `api.cdnjs.com`, testado ao vivo — `window.Chart` carrega normal); ambiguidade da redação das "4 caixas em V1" corrigida no manual (era exceção formal já aceita, não pendência).
 
-✅ **Resolvidas depois (15/08, mesmo dia)**: segredo do webhook Pluggy — código trocado pra `Deno.env.get`, deployado; **falta só o usuário configurar o secret no Supabase** (ver `ESTADO_ATUAL.md` seção 1.2b, urgente — webhook rejeitando tudo até lá). 2 dos 3 itens de UX: confirmação + desfazer no "✘ Rejeitar" da Inbox; atalho fixo "＋ Lançar" na barra `.master-tabs`. `graficos-cenarios-lazy.js` on-demand — resolvido por um agente especialista dedicado: o ARQUIVO (não só a renderização) agora carrega só quando o usuário abre Gráficos/Cenários/Solar pela 1ª vez, mesmo padrão já validado do html2canvas, risco verificado (único caller sem guard defensivo era `showMaster()`, corrigido).
+✅ **Resolvidas depois (15/08, mesmo dia)**: segredo do webhook Pluggy — código trocado pra `Deno.env.get`, deployado, usuário configurou o secret no Supabase e foi testado ao vivo (`curl` → 200). 2 dos 3 itens de UX: confirmação + desfazer no "✘ Rejeitar" da Inbox; atalho fixo "＋ Lançar" na barra `.master-tabs`. `graficos-cenarios-lazy.js` on-demand — resolvido por um agente especialista dedicado: o ARQUIVO (não só a renderização) agora carrega só quando o usuário abre Gráficos/Cenários/Solar pela 1ª vez, mesmo padrão já validado do html2canvas, risco verificado (único caller sem guard defensivo era `showMaster()`, corrigido).
 
-⏸️ **Não resolvidas, motivo registrado**: `src/services/*.js` (pergunta arquitetural, precisa decisão do usuário); scroll position ao trocar de aba (**decidido não fazer** — conflita direto com uma decisão explícita do usuário registrada em código de 11/08/2026, "quando eu clicar sobre a aba deveria vir para cima desse menu"); lint dos 91 módulos `hydrate-*` (escopo grande); arquivamento do `PASSAGEM_DE_TURNO.md` por competência (baixo risco, não priorizado).
+⏸️ **Não resolvidas, motivo registrado**: `src/services/*.js` (pergunta arquitetural, precisa decisão do usuário); **scroll position ao trocar de aba — usuário confirmou explicitamente pra não fazer** (conflita com decisão de 11/08/2026 já em produção, "quando eu clicar sobre a aba deveria vir para cima desse menu"; não reabrir); lint dos 91 módulos `hydrate-*` (escopo grande); arquivamento do `PASSAGEM_DE_TURNO.md` por competência (baixo risco, não priorizado).
 
 **Observabilidade e automação**
 - Painel de Saúde Operacional não cobre backup externo nem relatório WWI mensal (SRE) — faltam 2 chaves em `SAUDE_JOBS_LIMIARES`.
@@ -152,7 +152,7 @@ Guard usa truthy em vez de `> 0` explícito em `src/relatorio/gerar-analise-fina
 
 **Integrações externas (Pluggy/Mercado Pago/SAJ)**
 - Status real do pagamento Mercado Pago (`approved`/`refunded`/`rejected`) capturado mas nunca usado para decidir nada na Inbox (Meios de Pagamento) — **financeiro_sensivel, ver seção 5**.
-- Segredo do webhook Pluggy em texto puro na Edge Function, sem rotação — mover para `Deno.env.get` (Meios de Pagamento).
+- ~~Segredo do webhook Pluggy em texto puro na Edge Function, sem rotação~~ — ✅ RESOLVIDO 15/08/2026, testado ao vivo (`curl` retornou 200 com o secret configurado no Supabase).
 - Falha parcial de sincronização (Mercado Pago/Pluggy) registrada como "sucesso" no heartbeat (Dev Back-end Senior, Data Engineer).
 - Nenhum workflow de sync declara `concurrency:`, sem proteção contra execuções sobrepostas (Dev Back-end Senior).
 
