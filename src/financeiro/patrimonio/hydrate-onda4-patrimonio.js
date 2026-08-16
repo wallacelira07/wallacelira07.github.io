@@ -145,6 +145,27 @@ async function aplicarOnda4Patrimonio(){
   t('bpFinanciamentoCasa', fmt(finCasa));
   t('bpConsorcioAuto', fmt(consorcioAuto));
 
+  // NOVO 15/08/2026 (achado de auditoria + pedido do usuário "corrija os dois" — mesma classe de bug
+  // do LRW/LRV corrigido nesta sessão): REG.balanco.passivos.financiamentoCasa/consorcioAutoContemplado
+  // e os totais derivados (bp.total/ativosTotal/patrimonioLiquido/patrimonioTotalGeral) nunca eram
+  // resincronizados aqui — as linhas individuais acima (bpFinanciamentoCasa/bpConsorcioAuto) já
+  // mostravam V2 ao vivo, mas os TOTAIS compostos do Balanço continuavam presos no literal
+  // VARS.passivoFinanciamentoCasa/passivoConsorcioAuto capturado só uma vez no boot síncrono
+  // (reg-balanco.js). Atualiza REG e re-renderiza hydrateBalanco() inteiro (mesmo padrão já usado
+  // acima pra hydrateResumoExecutivo()/hydrateCenarios() — reaproveita a função de render real em vez
+  // de duplicar cada t(id, valor) individualmente).
+  {
+    const r2 = x => Math.round(x*100)/100;
+    const bp = REG.balanco.passivos;
+    bp.financiamentoCasa = finCasa;
+    bp.consorcioAutoContemplado = consorcioAuto;
+    bp.total = r2(bp.financiamentoCasa + bp.consorcioAutoContemplado);
+    REG.balanco.ativosTotal = r2(REG.balanco.fisico.total + REG.balanco.financeiro.total);
+    REG.balanco.patrimonioLiquido = r2(REG.balanco.ativosTotal - bp.total);
+    REG.balanco.patrimonioTotalGeral = r2(REG.balanco.ativosTotal + REG.balanco.pgbl + REG.balanco.fgts - bp.total);
+    if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  }
+
   // Resincroniza kpiPatrimonio/kpiPatrimonioPct/r21Patrimonio/r21MetaMilhaoPct (hydrateResumoExecutivo,
   // chamada antes desta função no boot) agora que REG.patrimonio.total/metaMilhaoPct foram atualizados acima.
   hydrateResumoExecutivo();
