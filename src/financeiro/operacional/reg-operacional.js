@@ -40,7 +40,25 @@ function criarRegOperacional(){
       necessidadeLiquidaProximoCiclo: 0 // V138: DERIVADO em recalcularAgregadosDerivados() = evolucao.necessidadeLiquida[1] (2o ponto da serie, Ago/26). Era literal duplicado do mesmo numero ja presente no array.
     },
     deficitZero: {
-      liquidoSemTrabalhar: VARS.liquidoSemTrabalhar, // REGRA_CENARIO_FICOU_EM_CASA
+      // CORRIGIDO 16/08/2026 (achado #18 da auditoria de 9 agentes: liquidoSemTrabalhar escapou da
+      // migração de constantes pro Supabase feita em 14/08/2026 pro simulador Déficit Zero — ver
+      // seção 1.4 do manual/graficos-cenarios-lazy.js). Mesma metodologia de "salário seco sem hora
+      // extra" (Base+Supervisão5%+Creche−INSS−IRRF−Saúde/Dental−PGBL), agora lida de
+      // VARS.taxasHoraFolhaPontoWartsila em vez de literal fixo — reajuste salarial passa a refletir
+      // aqui sem precisar editar/deployar código. Fallback pro literal antigo (VARS.liquidoSemTrabalhar,
+      // R$8.109,74) só se o objeto não tiver carregado no boot.
+      liquidoSemTrabalhar: (() => {
+        const T = VARS.taxasHoraFolhaPontoWartsila;
+        if(!T) return VARS.liquidoSemTrabalhar;
+        const base = T.salarioBaseFixoMensal ?? 10913.66;
+        const supervisao = (T.adicionalSupervisao5pct && T.adicionalSupervisao5pct.valorAtual) ?? 545.68;
+        const creche = (T.auxilioCreche && T.auxilioCreche.valorAtual) ?? 445.00;
+        const inss = (T.inssMes && T.inssMes.valorAtual) ?? 988.07;
+        const irrf = (T.irrfSemPericulosidade && T.irrfSemPericulosidade.valorAtual) ?? 1738.56;
+        const saude = (T.assistenciaMedicaOdontoBase && T.assistenciaMedicaOdontoBase.valorAtual) ?? 413.15;
+        const pgbl = (T.pgbl && T.pgbl.valorAtual) ?? 654.82;
+        return Math.round(((base+supervisao+creche) - (inss+irrf+saude+pgbl)) * 100) / 100;
+      })(), // REGRA_CENARIO_FICOU_EM_CASA
       // CORRIGIDO 04/08/2026 (parte 77, bug real apontado pelo usuario: "porque dezembro ficou maior
       // se a tendencia e das contas acabarem?"): Nov/26 e Dez/26 tinham valores MAIORES que Out/26, o
       // que e matematicamente impossivel dado que nada nesta formula reinicia antes de Jan/27 (parcelas

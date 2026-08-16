@@ -197,6 +197,10 @@ function criarVarsOperacional(){
   // CORRIGIDO 13/08/2026 (achado de auditoria: discrepancia de R$0,10 na conta do comentario acima
   // - 0,275 x 3274,10 = 900,4775 (nao 900,00), IRRF = 2639,04-900,4775 = 1738,5625≈1738,56 (nao
   // 1738,66); descontos totais = 3794,60 (nao 3794,70); liquido = 11904,34-3794,60 = 8109,74).
+  // MIGRADO 16/08/2026 (achado #18 da auditoria de 9 agentes): reg-operacional.js agora calcula
+  // REG.deficitZero.liquidoSemTrabalhar a partir de VARS.taxasHoraFolhaPontoWartsila (Supabase),
+  // mesmo padrão das outras 7 constantes do Déficit Zero migradas em 14/08/2026. Este literal é
+  // só fallback se o boot da V2 falhar — nunca mais fonte primária.
   liquidoSemTrabalhar: 8109.74,            // REGRA_CENARIO_FICOU_EM_CASA
   desvioPadraoSalario: 9273.21,
   seguroEmplacamentoAporte: 425,

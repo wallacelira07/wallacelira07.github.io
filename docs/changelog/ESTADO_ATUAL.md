@@ -2,16 +2,16 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 15-16/08/2026, bloco 18. Resumo: sessão dedicada a uma **auditoria de 9 agentes em paralelo** (8 abas do painel, 1 inventário de "dado disfarçado de texto" em toda a base) — 21 achados reais catalogados, **Grupo A do inventário (dado hardcoded reaproveitável) priorizado como Prioridade 0**. Lote 1 de correções (11 achados) já commitado e publicado (`4e5fd1a`). Sessão foi interrompida pelo **limite semanal de uso** (reset 18/08/2026 02h, America/Sao_Paulo) com 2 correções adicionais completas mas **ainda não commitadas** na working tree.
+Última reescrita: 16/08/2026, continuação do bloco 18 (usuário liberou trabalho autônomo — "pode continuar, eu vou tomar banho e dormir"). Resumo: sessão dedicada a uma **auditoria de 9 agentes em paralelo** (8 abas do painel, 1 inventário de "dado disfarçado de texto" em toda a base) — 21 achados reais catalogados. Lote 1 (11 achados, `4e5fd1a`) e lote 2 (título congelado + Balanço, `b4d3e45`) já commitados e publicados. Achados #4 e #18 corrigidos nesta continuação, ainda **não commitados** — ver seção "Estado imediato" abaixo. Achado #5 investigado a fundo e **reclassificado** (não é uma correção pendente, é um mecanismo morto nos dois lados — ver seção 1.3).
 
 ## ⚠️ Estado imediato ao reabrir a sessão (ler antes de qualquer coisa)
 
 **Há trabalho terminado e não commitado na working tree** (`git status` confirma 3 arquivos modificados):
-- `Sistema_Wallace_Lira_Completo.html`
-- `src/financeiro/cartoes/hydrate-resumo-cartoes.js`
-- `src/financeiro/patrimonio/hydrate-onda4-patrimonio.js`
+- `src/dashboard/charts/graficos-cenarios-lazy.js`
+- `src/financeiro/operacional/reg-operacional.js`
+- `src/financeiro/operacional/vars-operacional.js`
 
-Esse diff resolve 2 achados da auditoria (ver seção 1.2 abaixo) e está **completo e coerente** (não é um corte no meio de uma edição) — só falta revisar com o usuário e commitar. **Avisar o usuário do conteúdo antes de rodar `git commit`**, mesmo com autorização permanente (regra do manual, seção 8) — não commitar às cegas só porque "estava terminado quando a sessão caiu".
+Esse diff resolve os achados #4 e #18 (ver seção 1.2 abaixo) e está **completo e coerente** — só falta revisar com o usuário e commitar. **Avisar o usuário do conteúdo antes de rodar `git commit`**, mesmo com autorização permanente (regra do manual, seção 8). **Não foi validado em navegador real** (sem credenciais de login disponíveis nesta continuação autônoma) — só revisão de código/sintaxe. Testar no painel ao vivo (aba Cenários — gráfico "Piso mínimo garantido" e card "Não trabalha" — e aba Energia Solar — "Estimativa pra hoje" na Unidade Geradora) antes ou logo depois de commitar.
 
 ## 1. Auditoria de 9 agentes (15-16/08/2026) — status
 
@@ -28,18 +28,26 @@ Corrigidos e no `origin/main`:
 
 Ver mensagem completa do commit (`git show 4e5fd1a`) para a lista exata.
 
-### 1.2 Correções adicionais completas, NÃO commitadas (working tree atual)
-Feitas depois do lote 1, sessão caiu no limite de uso antes de revisar/commitar:
-- **Título "Jul/26 a Mar/27" congelado** (Gráficos seção 06 + Painel, 3 pontos) — `Sistema_Wallace_Lira_Completo.html` ganhou `<span id="labelUltimoCicloEvolucao1/2">`/`<span id="labelJanelaEvolucao12M">`; `hydrate-resumo-cartoes.js` calcula a janela real de 12 ciclos localmente (mesmo padrão já usado pra `totalOpMar27` no topo do arquivo — recalculado ali porque `gerarMesesCiclo()` mora no módulo lazy de gráficos, que pode não ter carregado ainda no boot síncrono).
-- **Balanço — 9 colunas de `vw_patrimonio_v2` nunca lidas** (achado #9: casa/apartamento/jazigo/solar/carro/pgbl/fgts/consórcio-casa-pago) — `hydrate-onda4-patrimonio.js` agora popula `REG.balanco.fisico.*`, `REG.balanco.pgbl`, `REG.balanco.fgts`, `REG.balanco.financeiro.consorcioCasaPago` a partir da V2, e recalcula `bfin.total`/`ativosTotal`/`patrimonioTotalGeral` a partir desses componentes em vez de literais do boot síncrono. Isso também dá uma rede de sincronização real a `balFinanceiroTotal` (achado #8 da lista original), que antes não tinha nenhuma.
+### 1.2 Lote 2 — commitado e publicado (`b4d3e45`, +2 achados, 13 de 21 no total)
+- **Título "Jul/26 a Mar/27" congelado** (achado #3, Gráficos seção 06 + Painel, 3 pontos) — `Sistema_Wallace_Lira_Completo.html` ganhou `<span id="labelUltimoCicloEvolucao1/2">`/`<span id="labelJanelaEvolucao12M">`; `hydrate-resumo-cartoes.js` calcula a janela real de 12 ciclos localmente.
+- **Balanço — 9 colunas de `vw_patrimonio_v2` nunca lidas** (achado #9: casa/apartamento/jazigo/solar/carro/pgbl/fgts/consórcio-casa-pago) — `hydrate-onda4-patrimonio.js` agora popula `REG.balanco.fisico.*`, `REG.balanco.pgbl`, `REG.balanco.fgts`, `REG.balanco.financeiro.consorcioCasaPago` a partir da V2, e recalcula `bfin.total`/`ativosTotal`/`patrimonioTotalGeral` a partir desses componentes. Também dá rede de sincronização real a `balFinanceiroTotal` (achado #8), que antes não tinha nenhuma.
 
-### 1.3 Ainda não iniciados (10 dos 21 achados)
-- Energia Solar: "crédito estimado hoje" calculado por 2 fórmulas diferentes na mesma função (uma dia-a-dia real, outra média achatada) — podem divergir em dias de sol/nublado atípico.
-- Energia Solar: link público (`solar-compartilhado.html`) pula a trava de "leitura desatualizada" (≥10 dias) que o painel privado já respeita.
-- Cenários: `liquidoSemTrabalhar` escapou da migração de constantes pro Supabase feita em 14/08 — ainda hardcoded no `.js`.
-- Demais itens do lote original (ver bloco 18 do `PASSAGEM_DE_TURNO.md` para a lista consolidada completa de 21 achados) — **reconferir contra o código atual antes de assumir status**, a reconstrução exata de "o que já foi tocado" ficou sujeita a interpretação nesta reescrita; não tratar esta seção como garantia, e sim como ponto de partida pra retomar.
+### 1.3 Continuação autônoma 16/08/2026 — achados #4, #5, #18 (usuário liberou "pode continuar, vou dormir")
 
-### 1.4 Grupo A do inventário "dado disfarçado de texto" — ainda não iniciado
+**#4 corrigido, NÃO commitado ainda** (ver "Estado imediato" no topo) — Energia Solar tinha 2 fórmulas diferentes pro mesmo conceito ("crédito líquido estimado pra hoje"): a Previsão (Fluxo 1) já usava `VARS._creditoLiquidoProjetadoHoje` (dia a dia real do robô SAJ, com average só de fallback pontual), mas o card "📊 Estimativa pra hoje" (Unidade Geradora) recalculava com a fórmula antiga, só de média achatada. `graficos-cenarios-lazy.js` corrigido pra reaproveitar a mesma projeção.
+
+**#18 corrigido, NÃO commitado ainda** — `liquidoSemTrabalhar` (Cenários, gráfico "Piso mínimo garantido") era literal hardcoded (R$8.109,74), tinha escapado da migração de 7 constantes do Déficit Zero pro Supabase feita em 14/08. Corrigido em 2 passos:
+1. **Dado**: adicionado campo novo `irrfSemPericulosidade` (R$1.738,56) dentro de `parametros_gerais.taxasHoraFolhaPontoWartsila` — o IRRF do cenário "não trabalha" é diferente do IRRF já existente ali (`irrfBaseSemAdicionais`, R$2.639,04), que é especificamente o do cenário COM Periculosidade. Escrito direto no Supabase (JSONB aditivo, mesmo padrão da migração original), com `set_config('audit.origem', ...)` antes.
+2. **Código**: `reg-operacional.js` (`REG.deficitZero.liquidoSemTrabalhar`) agora calcula a partir de `VARS.taxasHoraFolhaPontoWartsila` em vez do literal — mesma metodologia documentada (Base+Supervisão+Creche−INSS−IRRF−Saúde/Dental−PGBL), com fallback pro literal antigo se o boot da V2 falhar. `graficos-cenarios-lazy.js` só passou a ler o valor já calculado (não duplica a fórmula).
+
+**#5 investigado e RECLASSIFICADO, sem alteração de código** — a suspeita original era "o link público pula uma trava de 10 dias que o painel privado respeita". Investigação achou que essa trava (`LIMITE_DIAS_DESCOMPASSO_SEGURO`, `graficos-cenarios-lazy.js`) depende de `ultimaSolar.geracaoAcumuladaData`, campo que **nunca é populado em lugar nenhum do sistema** (é sempre `null`, ver `app.js` linha ~1330 — "não existe em energia_solar_leituras (V2), nunca fabricado"). Ou seja: a trava está adormecida também no painel privado, não é um mecanismo funcional que o público esteja pulando. Copiar o mesmo gate morto pro `solar-compartilhado.html` não protegeria nada de verdade — decisão de NÃO fazer isso, documentar como achado corrigido (a premissa do achado original estava errada) em vez de "consertar no escuro". Se o usuário quiser essa trava funcionando de verdade em algum momento, precisa de uma fonte real pra `geracaoAcumuladaData` — isso é trabalho novo, não retomar sem pedido explícito.
+
+**Validação**: revisão de código/sintaxe feita (sem `node` disponível no ambiente pra `--check`, releitura manual das edições). **Sem validação em navegador real** — sem credenciais de login disponíveis nesta continuação autônoma. Testar no painel ao vivo assim que possível (ver "Estado imediato" no topo).
+
+### 1.4 Status dos 21 achados originais — só falta o Grupo A do inventário
+Dos 20 achados reais de bug (1-19, mais #20 que já era "confirmação boa, sem ação"), todos os 19 foram corrigidos ou investigados e formalmente reclassificados nesta sessão (lote 1 + lote 2 + esta continuação). **Nenhum achado de bug/inconsistência da auditoria original segue pendente.** O único item aberto da auditoria completa é o Grupo A do inventário de hardcode (seção 1.5), que é uma frente separada, ainda não iniciada.
+
+### 1.5 Grupo A do inventário "dado disfarçado de texto" — ainda não iniciado
 Achado paralelo do agente de inventário (~28 itens: "2 parcelas pagas" hardcoded, rateio solar fixo 0.71/0.29, percentual do consórcio sem fonte viva, etc.) — usuário pediu **"Grupo A agora"** como Prioridade 0, mas a sessão foi interrompida pelo lote de bugs 🔴 antes de começar essa frente. Reaproveita a mesma infraestrutura de `legendas`/`parametros_gerais` já em produção. Grupo B (rótulos fixos de interface, 600-700 strings) foi explicitamente adiado pelo agente de inventário como decisão separada, não retomar sem pedido novo.
 
 ## 2. Incidente técnico da sessão (resolvido, sem perda de dado)
@@ -62,7 +70,7 @@ Durante o `git push` do lote 1, um rebase foi interrompido pelo Google Drive (me
 13. **Leitura manual de `energia_solar_leituras` sempre usa a data/hora REAL da foto**, nunca "hoje" no momento de gravar.
 14. **Medidor solar DDSU666: modelo certo (313270) só libera 25/08/2026.** Não sondar API antes dessa data.
 15. **WWI (Wallace Wealth Intelligence) congelado funcionalmente, em período de observação** desde 15/08/2026. Ver `docs/decisions/WWI_ROADMAP_V1.md`. Não abrir fase nova sem evidência real de divergência ou pedido explícito.
-16. **NOVO 15-16/08/2026 — Auditoria de 8 agentes achou 21 bugs/inconsistências reais no painel.** 11 corrigidos e publicados (`4e5fd1a`), 2 corrigidos mas não commitados (seção 1.2), 10 ainda abertos (seção 1.3) + Grupo A do inventário de hardcode (seção 1.4, Prioridade 0 do usuário, ainda não iniciado). Não é uma auditoria genérica — retomar exatamente por aqui, não repetir a varredura dos 9 agentes do zero.
+16. **NOVO 15-16/08/2026 — Auditoria de 9 agentes achou 21 bugs/inconsistências reais no painel — TODOS os 20 achados de bug já corrigidos ou reclassificados** (13 commitados/publicados, 2 corrigidos mas ainda não commitados — seção 1.3 — e 1 reclassificado como mecanismo já morto, sem ação de código). **Só falta o Grupo A do inventário de hardcode** (seção 1.5, Prioridade 0 do usuário, ainda não iniciado). Não é uma auditoria genérica — não repetir a varredura dos 9 agentes do zero, o trabalho real que resta é o Grupo A.
 
 ## 3. Pendências abertas de sessões anteriores (sem mudança nesta sessão)
 
@@ -85,7 +93,7 @@ Lint dos ~91 módulos `hydrate-*`; previsão de geração solar por irradiância
 
 1. Este arquivo primeiro, depois o bloco 18 (mais recente) de `docs/changelog/PASSAGEM_DE_TURNO.md` pro passo a passo completo da auditoria.
 2. `git status` **antes de qualquer coisa** — há diff real pendente de revisão/commit (seção "Estado imediato" no topo deste arquivo).
-3. Retomar a auditoria pela seção 1 acima (1.2 → revisar e commitar; 1.3 → achados 🔴/🟡/🟢 ainda abertos; 1.4 → Grupo A do inventário, Prioridade 0 do usuário).
+3. Retomar pela seção 1 acima: 1.3 tem o diff pendente de revisar/commitar (achados #4 e #18); depois disso, o único trabalho real que resta da auditoria é o Grupo A do inventário (seção 1.5), Prioridade 0 do usuário.
 4. Se aparecer erro de push tipo `bad object refs/heads/claude/desktop.ini`: Google Drive sincronizando `.git/` de novo — ver regra 6. Se o problema for arquivo sumindo da working tree (não do `.git`) durante um rebase: ver seção 2 (procedimento de recuperação testado nesta sessão).
 5. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
 6. **Sobre o WWI: NÃO retomar trabalho novo por conta própria** — congelado, regra 15.

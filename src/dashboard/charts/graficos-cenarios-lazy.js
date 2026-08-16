@@ -780,6 +780,11 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   // contrário do gráfico acima) — por isso psPiso/psLiquido repetem o mesmo valor nos 12 meses de
   // propósito, não é bug.
   const psLabels = dzLabels; // mesma janela de 12 meses, mesma âncora de ciclo
+  // CORRIGIDO 16/08/2026 (achado #18 da auditoria de 9 agentes: liquidoSemTrabalhar escapou da
+  // migração de constantes pro Supabase feita em 14/08/2026, continuava só como literal hardcoded
+  // em vars-operacional.js). REG.deficitZero.liquidoSemTrabalhar agora é calculado dinamicamente em
+  // reg-operacional.js a partir de VARS.taxasHoraFolhaPontoWartsila (mesma fonte de THFW acima) — só
+  // lido aqui, cálculo não duplicado.
   const psLiquido = REG.deficitZero.liquidoSemTrabalhar;
   const psPiso = psLabels.map(() => REG.reserva.piso);
   const psDeficit = psPiso.map(p => Math.round((psLiquido - p) * 100) / 100);
@@ -1566,8 +1571,16 @@ async function _lazyRenderSolarSecao(){
     const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? geracaoAcum / diasDesdeAtivacao : 0;
     const consumoMedioMensalMae = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
     const consumoMedioDiarioMae = consumoMedioMensalMae / 30;
+    // CORRIGIDO 16/08/2026 (achado de auditoria: este card ("Estimativa pra hoje") e a Previsão
+    // (Fluxo 1, ~linha 2103) calculavam o mesmo conceito com 2 fórmulas diferentes — esta aqui usava
+    // só a média achatada desde a ativação; a Previsão já usa VARS._creditoLiquidoProjetadoHoje
+    // (dia a dia real do robô SAJ quando existe, average só como fallback pontual — ver bloco ~1396).
+    // Reaproveita o mesmo número em vez de recalcular com a fórmula menos precisa; só cai pro cálculo
+    // local se a projeção não tiver sido calculada (ex: sem geracaoAcumulada real ainda).
     const saldoLiquidoEstimado = temGeracao
-      ? Math.round((saldoLiquidoAcum + diasDesdeLeitura * (geracaoMediaDiaria - consumoMedioDiarioMae)) * 100) / 100
+      ? Math.round((VARS._creditoLiquidoProjetadoHoje != null
+          ? VARS._creditoLiquidoProjetadoHoje
+          : saldoLiquidoAcum + diasDesdeLeitura * (geracaoMediaDiaria - consumoMedioDiarioMae)) * 100) / 100
       : null;
 
     const ugEstimativaEl = $('ugSaldoLiquidoEstimado');
