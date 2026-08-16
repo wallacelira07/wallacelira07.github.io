@@ -680,6 +680,13 @@
   .verif-ico{flex:none;font-size:var(--fs-label);opacity:0.9}
   .verif-txt strong{color:var(--text)}
 
+  /* NOVO 15/08/2026 (achado do usuário: cards "Composição" com donut — Patrimônio/Visa/Mastercard
+     Black — sobrando espaço vazio embaixo). Causa: .grid-2 é display:grid sem align-items definido,
+     então o default (stretch) esticava o card do donut pra bater a altura do card irmão (bem mais
+     texto/linhas ao lado) — o chart-box continuava com os mesmos 190px, só a área do card ficava
+     maior que o conteúdo. Escopado só a esses 3 cards (não mexe em .grid-2 global, reusada em várias
+     outras seções que já dependem do stretch pra ficarem visualmente parelhas). */
+  .card-composicao-centrada{display:flex;flex-direction:column;justify-content:center}
   .chart-box{position:relative;width:100%;height:190px;margin-top:0.5rem}
   .chart-box.tall{height:280px}
   .chart-box.wide{height:230px}
