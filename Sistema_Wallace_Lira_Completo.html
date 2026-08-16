@@ -1074,7 +1074,6 @@
        razao (ver app.js, funcao inboxAprovar). -->
   <div class="section-num"><span class="n">21</span><h2>📥 Inbox Financeira</h2></div>
   <div class="card">
-    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Ponto único de entrada para tudo que for capturado automaticamente (Pluggy, e-mail, Telegram, OCR, corretoras — Fase V400). Nada aqui é lançado no livro razão sozinho: aprovar só marca a intenção, o lançamento definitivo continua manual.</div>
     <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
          mais do que ajuda" — decisão: remover o atalho global flutuante, deixar só nos lugares que já
          fazem sentido). Formulário "＋ Lançar" (lancar_transacao_manual, V2) migrado do dock flutuante
@@ -1082,10 +1081,19 @@
          onde já existe o mesmo tipo de ação (revisar/confirmar um lançamento). Populado por
          app.js (mesmo código/lógica de sempre, só o alvo de injeção mudou). -->
     <div id="lancarTxSlot" style="margin-bottom:0.8rem"></div>
-    <div class="v" id="inboxFinanceiraResumo" style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
-    <div style="overflow-x:auto">
-      <table id="inboxFinanceiraTable"><thead><tr><th scope="col">ID</th><th scope="col">Origem</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th><th scope="col">Data</th><th scope="col" class="r">Confiança</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
-      </tbody></table>
+    <!-- DESATIVADO 15/08/2026 (pedido explícito do usuário: "desative o inbox, isso só gera
+         duplicidade" — itens já resolvidos/explicados reapareciam na fila, sem memória do que já
+         tinha sido decidido). Escondido da tela, não deletado: a sincronização Pluggy/Mercado Pago
+         (aplicarOnda6MercadoPago/pluggy-reconciliacao.js) continua rodando por baixo, porque outras
+         telas (ex. renderMercadoPagoDashboard) ainda leem VARS.INBOX_FINANCEIRA — só a exibição/
+         interação com a fila (resumo + tabela + aprovar/rejeitar) foi tirada da vista do usuário.
+         Reverter: remover este comentário/display:none. -->
+    <div style="display:none">
+      <div class="v" id="inboxFinanceiraResumo" style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
+      <div style="overflow-x:auto">
+        <table id="inboxFinanceiraTable"><thead><tr><th scope="col">ID</th><th scope="col">Origem</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th><th scope="col">Data</th><th scope="col" class="r">Confiança</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
+        </tbody></table>
+      </div>
     </div>
   </div>
 

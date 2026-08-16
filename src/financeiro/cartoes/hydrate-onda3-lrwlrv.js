@@ -1,16 +1,22 @@
 // MÓDULO: Onda 3, prioridade 2 — LRW/LRV (compromisso de cartão por pessoa) lendo V2 (08/08/2026).
 //
-// CORRIGIDO 12/08/2026 (achado do usuário, madrugada de reconciliação: "as abas dos LR estão
-// erradas" — card mbLRW mostrando R$1.213,76, mas a auditoria/REG.mbDetalhe.wallace, reconciliado
-// linha a linha contra a fatura REAL do Bradesco nesta mesma sessão, apurou R$2.027,89. Dois
-// números diferentes pro mesmo conceito, um sobrescrevendo o outro sem aviso). Causa: esta função
-// buscava vw_compromisso_cartao_por_pessoa (agregação de `transacoes` com cartao_id preenchido) e
-// SOBRESCREVIA o texto do card mbLRW/mbLRV direto no DOM, por cima do valor já reconciliado. A view
-// tem gaps conhecidos e documentados (Parte B, PLANO_UNIFICACAO_V1_V2.md seção 21: 5 linhas sem
-// usuario_id ficam de fora) — não é confiável o bastante pra ser a fonte do headline. A fatura real
-// (reconciliação manual, VARS.mbLRWConfirmado/mbLRVConfirmado) é mais precisa. Não sobrescreve mais
-// o card — só a lista detalhada abaixo continua vindo da V2 (transparência linha a linha, mesmo que
-// a soma dela não bata 100% com o card por causa dos gaps documentados).
+// CORRIGIDO 15/08/2026 (pedido explícito do usuário: "isso é pra ser automático, não pode ser
+// manual"): card mbLRW/mbLRV deixa de ler VARS.mbLRWConfirmado/mbLRVConfirmado como número
+// reconciliado à mão contra a fatura real — passa a ser SEMPRE a soma da própria lista detalhada
+// (aplicarOnda3LrwLrvListaDetalhada, mais abaixo), o mesmo padrão já usado em livroLRC (Onda 10) e
+// mbLRRConfirmado (Onda 9). Card e lista nunca mais divergem, nunca mais fica número velho esperando
+// conferência manual. Trade-off aceito explicitamente pelo usuário: perde a função de "checagem
+// contra a fatura real do banco" que o número manual tinha (não existia nenhum alerta automático
+// ligado a essa divergência mesmo antes — mbNaoReconciliado sempre foi um literal fixo em 0, nunca
+// calculado de verdade — então nada de segurança ativa está sendo removido aqui).
+//
+// Histórico anterior (12/08/2026, revertido nesta correção): card mbLRW mostrando R$1.213,76 vs
+// reconciliação manual R$2.027,89 — na época, a decisão foi manter o número manual como fonte porque
+// a view tinha lacunas reais (transações do Mastercard Black sem usuario_id preenchido, ficavam
+// invisíveis tanto no card quanto na lista). Essas lacunas foram investigadas e resolvidas 1 a 1 em
+// 15/08 (2 transações identificadas e atribuídas à Vanessa; as demais já eram Recorrências,
+// contabilizadas à parte em cronograma_recorrencias) — a lista deixou de ter motivo pra ser menos
+// confiável que o número digitado à mão.
 //
 // Rollback: comentar a chamada aplicarOnda3LrwLrv() em app.js.
 
@@ -42,8 +48,13 @@ async function aplicarOnda3LrwLrv(){
     window.WALLACE_ONDA3_LRWLRV_RELATORIO = { status: 'sem_dado_v2' };
     return aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe);
   }
-  // Não sobrescreve mais mbLRW/mbLRV no DOM (ver comentário no topo do arquivo) — só loga a
-  // divergência pra quem quiser investigar depois, o card confia na reconciliação manual.
+  // CORRIGIDO 15/08/2026: card não lê mais valor manual (ver comentário no topo do arquivo) — este
+  // bloco vira só um diagnóstico cruzado (esta view × a lista que vai recalcular o card logo abaixo,
+  // em aplicarOnda3LrwLrvListaDetalhada), útil pra pegar divergência entre as 2 fontes V2 diferentes
+  // sem travar nada. valorV1/reconciliacaoManual no relatório abaixo mantêm o nome por compatibilidade
+  // com quem já lê window.WALLACE_ONDA3_LRWLRV_RELATORIO, mas agora é "VARS.mbLRWConfirmado no
+  // momento deste fetch" (ainda o valor da carga anterior — a atualização de verdade só acontece
+  // depois, na lista), não mais reconciliação manual de fato.
   const relatorio = [];
   ONDA3_LRWLRV_MAPA.forEach(({usuarioNome, getValorV1}) => {
     const linha = compromissos.find(c => c.usuario_nome === usuarioNome);
@@ -59,7 +70,7 @@ async function aplicarOnda3LrwLrv(){
     const diferenca = valorV1 !== null ? Math.round((valorV1 - valorV2)*100)/100 : null;
 
     if(diverge){
-      console.log(`Onda3LrwLrv [${usuarioNome}]: reconciliação manual=${valorV1!==null?fmt(valorV1):'?'} × view vw_compromisso_cartao_por_pessoa=${fmt(valorV2)} — diferem${diferenca!==null?' em R$'+Math.abs(diferenca).toFixed(2):''} (esperado, view tem gaps conhecidos — Parte B, PLANO_UNIFICACAO_V1_V2.md seção 21). Card mostra a reconciliação manual.`);
+      console.log(`Onda3LrwLrv [${usuarioNome}]: valor anterior=${valorV1!==null?fmt(valorV1):'?'} × view vw_compromisso_cartao_por_pessoa=${fmt(valorV2)} — diferem${diferenca!==null?' em R$'+Math.abs(diferenca).toFixed(2):''} (só diagnóstico, o card é recalculado a partir da lista logo abaixo).`);
     }
     relatorio.push({ usuario: usuarioNome, reconciliacaoManual: valorV1, viewV2: valorV2, qtdV2: linha.qtd_transacoes, diverge, diferenca });
   });
@@ -108,6 +119,18 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
       };
       onda3InserirNaPosicaoCronologica(VARS.LRW_TRANSACOES, { tx:'TX000132', data:'22/07', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99 });
       onda3InserirNaPosicaoCronologica(VARS.LRV_TRANSACOES, { tx:'TX000154', data:'24/07', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97 });
+      // NOVO 15/08/2026 (card 100% automático, ver comentário no topo do arquivo): mbLRWConfirmado/
+      // mbLRVConfirmado deixam de ser número digitado à mão — recalculados aqui, toda carga, a partir
+      // da MESMA lista que acabou de ser montada acima (nunca 2 fontes independentes pra mesma coisa,
+      // mesma garantia que livroLRC/mbLRRConfirmado já tinham nos módulos irmãos).
+      VARS.mbLRWConfirmado = Math.round(VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0)*100)/100;
+      VARS.mbLRVConfirmado = Math.round(VARS.LRV_TRANSACOES.reduce((s,t)=>s+t.valor,0)*100)/100;
+      if(typeof REG !== 'undefined' && REG.mbDetalhe){
+        REG.mbDetalhe.wallace = VARS.mbLRWConfirmado;
+        REG.mbDetalhe.vanessa = VARS.mbLRVConfirmado;
+      }
+      const mbLRWEl = $('mbLRW'); if(mbLRWEl) mbLRWEl.textContent = fmt(VARS.mbLRWConfirmado);
+      const mbLRVEl = $('mbLRV'); if(mbLRVEl) mbLRVEl.textContent = fmt(VARS.mbLRVConfirmado);
       if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
       // CORRIGIDO 12/08/2026 (achado do usuário: botão da aba "LRV - Vanessa (16)" não batia com a
       // tabela real embaixo, 6 linhas) — renderLivrosVariaveis() acima redesenha a tabela, mas o

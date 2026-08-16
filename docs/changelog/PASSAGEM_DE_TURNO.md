@@ -2,6 +2,23 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 17) — LRW/LRV vira 100% automático, Inbox Financeira desativada da UI
+
+Retomada do bloco 16 abaixo (mesmo dia, sessão contínua com o usuário reportando achados ao vivo).
+
+**1. Card mbLRW/mbLRV deixa de ser número manual — pedido explícito do usuário ("isso é pra ser automático, não pode ser manual")**: `hydrate-onda3-lrwlrv.js` agora recalcula `VARS.mbLRWConfirmado`/`mbLRVConfirmado` a partir da própria lista detalhada (mesma soma que já era exibida), toda carga — mesmo padrão já usado em `livroLRC` (Onda 10) e `mbLRRConfirmado` (Onda 9). Card e lista nunca mais divergem. Trade-off aceito pelo usuário via `AskUserQuestion`: perde a função de "checagem contra fatura real do banco" que o número manual tinha — mas essa checagem já não existia de verdade (`mbNaoReconciliado` sempre foi um literal fixo em 0, nunca calculado).
+
+**2. Investigação da causa raiz do gap card×lista**: achadas 9 transações do Mastercard Black sem `usuario_id` (R$1.613,26 total), invisíveis tanto no card quanto na lista. Resolvidas 1 a 1 com o usuário:
+- TX000256/TX000258 (H57Store, R$59,92) → atribuídas à Vanessa.
+- 4 delas (Digna R$152,41, 2x Conta Vivo somando R$539,08, Campo Santo R$77,79) já eram Recorrências existentes em `cronograma_recorrencias` — confirmado, nenhuma ação necessária.
+- TX000243 (Mercado Livre R$551,01) — usuário confirmou que já foi desmembrada em outros lançamentos existentes anteriormente; não mexido, por instrução explícita de não reabrir.
+- TX000272 (Tokio Marine*Auto, seguro do carro, R$200,99) — **erro meu corrigido na hora**: cheguei a criar uma linha nova em `cronograma_recorrencias` sem checar o histórico primeiro; o usuário apontou que a cobrança de julho (TXP000008, mesma seguradora/valor) já existia com `usuario_id` do Wallace. Linha nova removida, TX000272 atribuída ao Wallace (mesmo padrão da de julho) — não é recorrência agendada à parte, é compra pessoal normal que se repete.
+- Amazon BR (R$32,06) segue sem `usuario_id`, sem ação — não foi resolvida nesta sessão.
+
+**3. Inbox Financeira desativada da UI — pedido explícito do usuário ("desative o inbox, isso só gera duplicidade")**: itens já resolvidos/explicados pelo usuário reapareciam na fila sem memória da decisão anterior, gerando frustração repetida. Resumo + tabela + botões aprovar/rejeitar escondidos (`display:none`) em `Sistema_Wallace_Lira_Completo.html`, seção 21 — **não deletado**: a sincronização Pluggy/Mercado Pago continua rodando por baixo (outras telas, como o dashboard do Mercado Pago, ainda leem `VARS.INBOX_FINANCEIRA`). O formulário "＋ Lançar" (lançamento manual, no mesmo card) continua visível e funcionando normal, intocado. Se o usuário quiser reverter, é só remover o `display:none`.
+
+**Nota pra sessão futura**: a causa raiz de por que a Inbox "não funciona"/reabre item resolvido não foi investigada a fundo (usuário preferiu desativar direto em vez de esperar a investigação) — se for revisitar essa frente, começar por aí antes de tentar reativar a UI.
+
 ## ▶️ Continuação 15/08/2026 (bloco 16) — série de achados de UI/dado reportados ao vivo pelo usuário, todos corrigidos
 
 Retomada do bloco 15 abaixo. Usuário foi reportando achados reais em sequência, olhando o painel ao vivo — cada um investigado com evidência (código e/ou SQL direto no Supabase) antes de corrigir, nenhum "consertado no escuro".
