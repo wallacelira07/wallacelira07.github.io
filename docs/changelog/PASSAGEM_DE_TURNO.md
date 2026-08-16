@@ -2,6 +2,50 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ⏸️ Interrompido por limite de uso 15-16/08/2026 (bloco 18) — auditoria de 9 agentes, lote 1 corrigido e publicado
+
+Sessão nova, não continuação do bloco 17. Pedido do usuário: "Lançando 7 agentes especialistas em paralelo, um por aba do painel, procurando bugs, inconsistências e números hardcoded — só leitura, sem editar nada." Na prática rodaram 9 agentes (8 abas do painel — Painel, Gráficos, Energia Solar, Cenários, Balanço, Emagrecimento, Wealth Intelligence, Home — mais 1 agente de inventário separado sobre "todo dado disfarçado de texto fixo" na base inteira).
+
+**Resultado da auditoria — 21 achados reais consolidados** (🔴 12 bugs de fórmula/lógica, 🟡 5 textos/valores desatualizados, 🟢 3 hardcode/limpeza menor, sendo 1 desses "confirmação boa" sem ação):
+1. Painel: card MP com data de fatura de ciclo já fechado, texto congelado sem `id`.
+2. Gráficos: donut "Composição da fatura" (seção 02) mostrava só Visa — irmã (gráfico de barras) já corrigida em 26/07.
+3. Gráficos/Painel: título "Jul/26 a Mar/27" congelado em 3 pontos, enquanto a janela de 12 meses já rola sozinha.
+4. Energia Solar: "crédito estimado hoje" calculado por 2 fórmulas diferentes na mesma função.
+5. Energia Solar: link público pula a trava de "leitura desatualizada" que o painel privado respeita.
+6. Cenários: "Superávit projetado" usava Necessidade Bruta, resto da seção usa Líquida.
+7. Cenários: "Excedente estimado" sempre "Modo Normal", mesmo em outros modos.
+8. Balanço: `balFinanceiroTotal` sem nenhuma rede de sincronização — batia por coincidência.
+9. Balanço: 9 colunas de `vw_patrimonio_v2` nunca lidas pelo front (casa/apartamento/jazigo/solar/carro/PGBL/FGTS/consórcio casa pago).
+10. Home: race condition — `aplicarOnda4Patrimonio()` nunca avisava `hydrateResumoP2P()`, KPIs podiam ficar presos em V1.
+11. WWI: fallback do KPI "Projeto Casa Nova" nunca funcionava (tipo errado na comparação).
+12. WWI: gráfico pareava 2 séries por posição no array, não por competência.
+13. Cenários: R$8.109,64 no texto vs R$8.109,74 já corrigido em outro lugar.
+14. Cenários: texto citava ciclo já encerrado (25/06-24/07).
+15. Cenários: desvio padrão 44,7% desatualizado (real ~46,2%).
+16. Emagrecimento: aviso "sem meta definida" mesmo com a meta de 110kg já implementada.
+17. Energia Solar: `usinaAindaGerandoHoje` usava hora local da máquina em vez do helper de fuso Brasília.
+18. Cenários: `liquidoSemTrabalhar` escapou da migração de constantes pro Supabase de 14/08.
+19. Energia Solar: constante morta `solarGeracaoDiariaEstimada` sobrava no código.
+20. Balanço: confirmação boa — `rpc_dashboard_resumo` não regrediu, correção de 14/08 continua firme (sem ação).
+
+**Achado paralelo do agente de inventário** ("todo dado que devia vir do banco mas está hardcoded no HTML/JS"): dividiu em 2 grupos.
+- **Grupo A** (~28 itens, "2 parcelas pagas" hardcoded, rateio solar fixo 0.71/0.29, percentual de consórcio sem fonte viva, etc.) — viável numa sessão, reaproveita infraestrutura já em produção (`legendas`, `parametros_gerais`).
+- **Grupo B** (~600-700 strings fixas de interface — títulos/botões/cabeçalhos de coluna) — reescrita estrutural, escala comparável à modularização inteira (Fase 4), recomendado como decisão separada, não extensão natural do dia.
+
+**Decisão do usuário**: "Grupo A agora - faça só o grupo A" + "São 21 itens reais. Prioridade 0 para corrigir" — ou seja, os 21 bugs entraram como Prioridade 0 antes mesmo do Grupo A ser iniciado.
+
+**Lote 1 corrigido e publicado** (commit `4e5fd1a`, 11 dos 21 achados — ver mensagem do commit pra lista exata): #1 (Painel/MP), #2 (donut Visa+MB), #6 (Superávit Líquida), #7 (Modo real no Estimador de Salário), #10 (race condition Home), #11+#12 (WWI), #13+#14+#15 (textos Cenários), #16 (Emagrecimento), #17 (fuso solar), #19 (constante morta).
+
+**Incidente técnico durante o push do lote 1**: rebase interrompido pelo Google Drive fez `hydrate-emagrecimento.js` sumir do disco (só sobrou `desktop.ini`) — susto real, mas o `HEAD` local tinha o commit completo. Recuperado com `git checkout HEAD -- .` (restauração total a partir do commit), rebase repetido, push confirmado em `origin/main`. Sem perda de trabalho. Não é recorrência do bug já resolvido na raiz (regra 6 do `ESTADO_ATUAL.md`, sobre `.git/` sendo indexado) — é um caso novo de interrupção de I/O do Drive durante rebase, mesma causa de fundo, procedimento de recuperação documentado pra próxima vez que acontecer.
+
+**Trabalho adicional, completo mas NÃO commitado quando a sessão bateu o limite de uso** (`git status` no início da próxima sessão vai mostrar 3 arquivos modificados — revisar com o usuário antes de commitar):
+- Achado #3 (título congelado): `Sistema_Wallace_Lira_Completo.html` ganhou `<span id="labelUltimoCicloEvolucao1/2">`/`<span id="labelJanelaEvolucao12M">` nos 3 pontos; `hydrate-resumo-cartoes.js` calcula a janela real de 12 ciclos localmente.
+- Achados #8+#9 (Balanço): `hydrate-onda4-patrimonio.js` passa a popular `REG.balanco.fisico.*`/`pgbl`/`fgts`/`financeiro.consorcioCasaPago` a partir de `vw_patrimonio_v2` (9 colunas que nunca eram lidas), e recalcula `financeiro.total`/`ativosTotal`/`patrimonioTotalGeral` a partir desses componentes — dando ao mesmo tempo uma rede de sincronização real a `balFinanceiroTotal`, que antes não tinha nenhuma.
+
+**Ainda não iniciados**: achados #4, #5, #18 (ver lista acima) + Grupo A inteiro do inventário de hardcode.
+
+**Sessão interrompida pelo limite semanal de uso** (mensagem do sistema: "You've hit your weekly limit · resets Aug 18, 2am (America/Sao_Paulo)") logo depois de terminar o trabalho do Balanço acima, antes de revisar/commitar. `docs/changelog/ESTADO_ATUAL.md` reescrito nesta reabertura pra deixar o estado exato (o que foi commitado, o que está pronto mas pendente de commit, o que falta) registrado — próxima sessão deve começar por lá.
+
 ## ▶️ Continuação 15/08/2026 (bloco 17) — LRW/LRV vira 100% automático, Inbox Financeira desativada da UI
 
 Retomada do bloco 16 abaixo (mesmo dia, sessão contínua com o usuário reportando achados ao vivo).

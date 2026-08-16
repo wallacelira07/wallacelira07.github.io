@@ -154,13 +154,28 @@ async function aplicarOnda4Patrimonio(){
   // (reg-balanco.js). Atualiza REG e re-renderiza hydrateBalanco() inteiro (mesmo padrão já usado
   // acima pra hydrateResumoExecutivo()/hydrateCenarios() — reaproveita a função de render real em vez
   // de duplicar cada t(id, valor) individualmente).
+  // AMPLIADO 15/08/2026 (2º achado de auditoria, mesma classe): vw_patrimonio_v2 já expõe
+  // casa/apartamento/jazigo/solar/carro/fisico_total/consorcio_casa_pago/pgbl/fgts — nenhuma dessas
+  // 9 colunas era lida aqui, então REG.balanco.fisico.*/pgbl/fgts/financeiro.consorcioCasaPago (e o
+  // total balFinanceiroTotal, que não tinha NENHUMA rede de sincronização) continuavam presos nos
+  // literais VARS.pat*/consorcioCasaParcela*Pagas do boot síncrono. Batiam por coincidência até agora
+  // — mesmo estado em que passivoFinanciamentoCasa estava antes desta sessão.
   {
     const r2 = x => Math.round(x*100)/100;
+    const bf = REG.balanco.fisico;
+    bf.casa = num(p.casa); bf.apartamento = num(p.apartamento); bf.jazigo = num(p.jazigo);
+    bf.solar = num(p.solar); bf.carro = num(p.carro);
+    bf.total = num(p.fisico_total) != null ? num(p.fisico_total) : r2(bf.casa+bf.apartamento+bf.jazigo+bf.solar+bf.carro);
+    REG.balanco.pgbl = num(p.pgbl);
+    REG.balanco.fgts = num(p.fgts);
+    const bfin = REG.balanco.financeiro;
+    bfin.consorcioCasaPago = num(p.consorcio_casa_pago);
+    bfin.total = r2(bfin.reserva + bfin.btg + bfin.nectonContaCorrente + bfin.consorcioCasaPago);
     const bp = REG.balanco.passivos;
     bp.financiamentoCasa = finCasa;
     bp.consorcioAutoContemplado = consorcioAuto;
     bp.total = r2(bp.financiamentoCasa + bp.consorcioAutoContemplado);
-    REG.balanco.ativosTotal = r2(REG.balanco.fisico.total + REG.balanco.financeiro.total);
+    REG.balanco.ativosTotal = r2(bf.total + bfin.total);
     REG.balanco.patrimonioLiquido = r2(REG.balanco.ativosTotal - bp.total);
     REG.balanco.patrimonioTotalGeral = r2(REG.balanco.ativosTotal + REG.balanco.pgbl + REG.balanco.fgts - bp.total);
     if(typeof hydrateBalanco === 'function') hydrateBalanco();

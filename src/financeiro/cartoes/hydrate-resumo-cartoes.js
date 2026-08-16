@@ -67,11 +67,26 @@ function hydrateResumoCartoes(){
   }
   t('s03TituloPat', fmt(R.patrimonio.total));
 
+  // CORRIGIDO 15/08/2026 (achado de auditoria: "Mar/27" era texto fixo no h2/rótulos desta seção,
+  // enquanto a janela real de 12 ciclos (gerarMesesCiclo, graficos-utilitarios.js) já rola sozinha
+  // com a data — hoje a janela real é diferente do texto congelado). Recalcula localmente (mesmo
+  // motivo já documentado no topo do arquivo pra totalOpMar27: gerarMesesCiclo mora no módulo lazy,
+  // que pode não ter carregado ainda no boot síncrono).
+  const _nomesMesesEvol = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const _hojeEvol = new Date();
+  const _baseMonthEvol = _hojeEvol.getDate() >= 25 ? _hojeEvol.getMonth()+1 : _hojeEvol.getMonth();
+  const _dIniEvol = new Date(_hojeEvol.getFullYear(), _baseMonthEvol, 1);
+  const _dFimEvol = new Date(_hojeEvol.getFullYear(), _baseMonthEvol+11, 1);
+  const _labelIniEvol = _nomesMesesEvol[_dIniEvol.getMonth()]+'/'+String(_dIniEvol.getFullYear()).slice(-2);
+  const _labelFimEvol = _nomesMesesEvol[_dFimEvol.getMonth()]+'/'+String(_dFimEvol.getFullYear()).slice(-2);
+  t('labelUltimoCicloEvolucao1', _labelFimEvol);
+  t('labelJanelaEvolucao12M', _labelIniEvol+' a '+_labelFimEvol);
+
   // alivio (Evolucao Total Operacional)
   const alivioTotal = R.operacional.totalOperacional - totalOpMar27;
   t('aliv1', '− '+fmt(alivioTotal));
   t('aliv2', '− '+fmt(alivioTotal));
-  t('alivioBadgeMar27', 'Alívio '+fmt(alivioTotal)+' até Mar/27');
+  t('alivioBadgeMar27', 'Alívio '+fmt(alivioTotal)+' até '+_labelFimEvol);
 
   // piso absoluto (O que NUNCA e cortado)
   // REMOVIDO 14/08/2026 (pedido do usuario): linha "Consorcios" tirada da lista - desde 11/08/2026
