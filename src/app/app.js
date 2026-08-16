@@ -946,6 +946,30 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 16/08/2026 (aba Emagrecimento, pedido do usuário: "adicione campos para receber medição de
+  // pressão e leitura de glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo
+  // padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert feito
+  // manualmente/via agente conforme cada medição real acontece, sem formulário no painel).
+  async getPressaoArterial(){
+    return this._cache.obterOuBuscar('pressao_arterial', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/pressao_arterial?select=data,sistolica,diastolica&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pressao_arterial`);
+      return await resp.json();
+    });
+  },
+  // NOVO 16/08/2026 (aba Emagrecimento, mesmo pedido acima). Tabela `glicose_leituras` (mesmo padrão
+  // de `pesagens`/`pressao_arterial`; `periodo` é opcional — ex: "jejum"/"pós-refeição"/"aleatório").
+  async getGlicoseLeituras(){
+    return this._cache.obterOuBuscar('glicose_leituras', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/glicose_leituras?select=data,glicose_mgdl,periodo&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar glicose_leituras`);
+      return await resp.json();
+    });
+  },
   // NOVO 15/08/2026 (WWI Fase 2C — aba "Wealth Intelligence" permanente, pedido do usuário: "o WWI
   // passa a ser a fonte primária, o PDF passa a ser a saída"). 3 métodos novos, mesmo padrão de
   // cache dos demais (TTL 90s em memória — histórico muda só 1x/mês pelo job, não precisa de mais).
@@ -1936,7 +1960,7 @@ function calcularAporteIncrementalPorCiclo(i){
   let v = VARS.seguroEmplacamentoAporte + VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO + VARS.saudeEmagrecimentoAporte; // continuos, sem data de termino conhecida
   if(i < 2) v += 200;                              // Aniversario Julio - completa Set/26 (14/09)
   if(i < 4) v += 500;                               // Escola Julio ciclo atual - completa Nov/26 (01/11)
-  if(i < 16) v += 100;                              // Saude Familia - projeta completar ~Nov/27
+  if(i < 16) v += VARS.aporteSaudeFamilia;           // Saude Familia - projeta completar ~Nov/27. CORRIGIDO 16/08/2026: era literal 100 solto (4a copia divergente do mesmo dado, achado de auditoria) - agora le a mesma fonte usada em todo o resto do sistema (vars-caixas.js).
   if(i >= 6 && i <= 16) v += VARS.escolaJulio2027Aporte; // Escola Julio 2027 - Jan/27 a Nov/27 (11 meses)
   return Math.round(v*100)/100;
 }

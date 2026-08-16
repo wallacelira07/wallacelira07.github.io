@@ -69,7 +69,9 @@ function criarVarsOperacional(){
     legMBVisaLiquidoCV: `Mastercard Black + Visa Infinite líquidos de Caixa Variável. A Caixa Variável já cobre 100% de LRW+LRV — aqui só entra o que ela NÃO cobre (parcelas, assinaturas, recorrências, consórcios, corporativo), comparado com o Disponível real em caixa.`,
     // CORRIGIDO 13/08/2026 (achado de auditoria: mesma legenda, frase única longa demais) —
     // quebrada em tópicos curtos, mesmos fatos e datas.
-    legLegendaCaixasIncrementais: `Prazos das caixas incrementais: Aniversário Júlio (R$200/mês) para em Set/26. Escola Júlio ciclo atual (R$500/mês) para em Nov/26. Seguro/Emplacamento (R$425/mês) é contínuo, não gera alívio. Escola Júlio 2027 reinicia em Jan/27 (R$839,64/mês até Nov/27). Saúde Família (R$100/mês) projeta completar perto de Nov/27.`,
+    // ATUALIZADO 16/08/2026 (pedido do usuário: consulta de endócrino nova no aporte Saúde Família,
+    // ver vars-caixas.js aporteSaudeFamilia — era R$100/mês, agora R$177,50/mês).
+    legLegendaCaixasIncrementais: `Prazos das caixas incrementais: Aniversário Júlio (R$200/mês) para em Set/26. Escola Júlio ciclo atual (R$500/mês) para em Nov/26. Seguro/Emplacamento (R$425/mês) é contínuo, não gera alívio. Escola Júlio 2027 reinicia em Jan/27 (R$839,64/mês até Nov/27). Saúde Família (R$177,50/mês) projeta completar perto de Nov/27.`,
     // CORRIGIDO 14/08/2026 (achado do usuário: R$9.223,66 embutido no texto era o mesmo literal
     // congelado de VARS.reservaPiso, dessincronizado do valor real R$7.831,17 desde 11/08 — ver
     // recalcular-necessidade.js). Esta chave PAROU de ser usada como texto fixo — hydrateResumoExecutivo()
@@ -455,7 +457,7 @@ function criarVarsOperacional(){
     {tx:'TX000085', data:'17/07/2026', livro:'LRCV', nome:'PIX_VANESSA', valor:399.13},
     {tx:'TX000133', data:'23/07/2026', livro:'LRCV', nome:'ELCIO_DA_SILVA_SANTOS', valor:40.0},
     {tx:'TX000131', data:'23/07/2026', livro:'LRV-I', nome:'H57STORE', valor:17.98},
-    {tx:'TX000132', data:'23/07/2026', livro:'LRW-MB', nome:'GOOGLE_SUNSURVEYORAPP', valor:56.99},
+    {tx:'TX000132', data:'22/07/2026', livro:'LRW-MB', nome:'GOOGLE_SUNSURVEYORAPP', valor:56.99}, // CORRIGIDO 16/08/2026: era 23/07 (divergia do banco real, confirmado 22/07 via Supabase). Código vestigial (sobrescrito por WALLACE_HISTORICO_ERP_V2 no boot), higiene só.
     {tx:'TX000134', data:'21/06/2026', livro:'LRS', nome:'AMAZON_PRIME_CANAIS', valor:19.99},
     {tx:'TX000135', data:'30/06/2026', livro:'LRW-I', nome:'AMAZON_PRIME_ALUGUEL', valor:9.99},
     {tx:'TX000165', data:'27/07/2026', livro:'LRCL', nome:'LREI0002', valor:164.94},

@@ -24,14 +24,36 @@ const SAUDE_JOBS_LIMIARES = {
   wwi_relatorio_mensal: { atencaoH: 24 * 33, falhaH: 24 * 40, label: 'WWI — relatório mensal' },
 };
 
+// CORRIGIDO 16/08/2026 (achado do usuário, print real: badge de "Cotações de ações" mostrando
+// 🟡 42h/esperado 36h numa segunda-feira de manhã — falso positivo, "isso não é um erro, o mercado
+// é só em dias da semana"). A B3 não negocia sábado/domingo, então um job que só roda em dia útil
+// fica normalmente ~60h+ parado entre a sexta e a segunda — os limiares fixos (36h/72h) não sabiam
+// disso. Conta só HORAS ÚTEIS (seg-sex) entre a última execução e agora pra decidir o nível — fim de
+// semana nunca conta contra o limiar. Só aplicado ao job de cotações (o único calendário-dependente
+// desse jeito); os outros jobs (Pluggy, Mercado Pago, solar) rodam todo dia, sem essa folga.
+function _horasUteisDesde(dataInicioISO){
+  const inicio = new Date(dataInicioISO);
+  const fim = new Date();
+  if(isNaN(inicio.getTime()) || inicio >= fim) return 0;
+  let horas = 0;
+  for(let cursor = inicio.getTime(); cursor < fim.getTime(); cursor += 3600000){
+    const dia = new Date(cursor).getDay(); // 0=domingo, 6=sábado
+    if(dia !== 0 && dia !== 6) horas++;
+  }
+  return horas;
+}
+
 function saudeOperacionalClassificar(job){
   const cfg = SAUDE_JOBS_LIMIARES[job.job_nome] || { atencaoH: 48, falhaH: 96, label: job.job_nome };
   if(job.ultimo_status === 'erro'){
     return { nivel: 'falha', emoji: '🔴', texto: 'última execução terminou com erro' };
   }
   const h = Number(job.horas_desde_ultima_execucao);
-  if(h > cfg.falhaH) return { nivel: 'falha', emoji: '🔴', texto: `sem sincronizar há ${Math.round(h)}h (esperado até ${cfg.falhaH}h)` };
-  if(h > cfg.atencaoH) return { nivel: 'atencao', emoji: '🟡', texto: `sem sincronizar há ${Math.round(h)}h (esperado até ${cfg.atencaoH}h)` };
+  const ehJobDiaUtil = job.job_nome === 'cotacoes_acoes' && job.ultima_execucao;
+  const hClassificar = ehJobDiaUtil ? _horasUteisDesde(job.ultima_execucao) : h;
+  const sufixoLimiar = ehJobDiaUtil ? 'h úteis (fim de semana não conta)' : 'h';
+  if(hClassificar > cfg.falhaH) return { nivel: 'falha', emoji: '🔴', texto: `sem sincronizar há ${Math.round(h)}h (esperado até ${cfg.falhaH}${sufixoLimiar})` };
+  if(hClassificar > cfg.atencaoH) return { nivel: 'atencao', emoji: '🟡', texto: `sem sincronizar há ${Math.round(h)}h (esperado até ${cfg.atencaoH}${sufixoLimiar})` };
   return { nivel: 'ok', emoji: '🟢', texto: `sincronizado há ${h < 1 ? Math.round(h*60)+'min' : Math.round(h)+'h'}` };
 }
 

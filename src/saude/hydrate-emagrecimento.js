@@ -32,6 +32,12 @@ async function aplicarEmagrecimento(){
   // pra não gerar "unhandled rejection" no caminho de erro de pesagens (return antecipado logo
   // abaixo) — o catch de verdade continua isolado, mais abaixo, exatamente como antes.
   const promessaOzivyAplicacoes = aplicarOzivyAplicacoes();
+  // NOVO 16/08/2026 (pedido do usuário: "adicione campos para receber medição de pressão e leitura
+  // de glicose, tipo igual do peso com gráfico") — mesmo padrão de aplicarOzivyAplicacoes() acima:
+  // disparadas em paralelo, cada uma trata o próprio erro internamente (nunca rejeita pro chamador),
+  // só espera terminar mais abaixo.
+  const promessaPressaoArterial = aplicarPressaoArterial();
+  const promessaGlicoseLeituras = aplicarGlicoseLeituras();
   const promessaSaldosPorCaixa = WallaceFinanceService.getSaldosPorCaixa();
   promessaSaldosPorCaixa.catch(function(){});
   // CORRIGIDO 14/08/2026 (achado de auditoria: esta aba mostrava só "Tem na Caixa" — 100% correto
@@ -140,6 +146,8 @@ async function aplicarEmagrecimento(){
   // em paralelo com pesagens/saldos no topo desta função (ver comentário 14/08/2026 acima) — só
   // espera terminar aqui, na mesma posição de sempre.
   await promessaOzivyAplicacoes;
+  await promessaPressaoArterial;
+  await promessaGlicoseLeituras;
 
   // Custo do tratamento (caneta Ozivy Semaglutida) — caixa dedicada, mesmo padrão de leitura de
   // saldo já usado em todo o resto do site (vw_saldo_v2_por_caixa).
@@ -268,4 +276,201 @@ async function aplicarOzivyAplicacoes(){
     proximaPrevista: proxima.toISOString().slice(0,10),
   };
   console.log('Emagrecimento: relatório de aplicações do Ozivy em window.WALLACE_OZIVY_RELATORIO', window.WALLACE_OZIVY_RELATORIO);
+}
+
+// NOVO 16/08/2026 (pedido do usuário: "adicione campos para receber medição de pressão e leitura de
+// glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo padrão de `pesagens`/
+// `aplicacoes_ozivy`: 1 linha por data, RLS só leitura, insert feito manualmente/via agente conforme
+// cada medição real acontece — sem formulário de insert no painel). Classificação clínica usa a
+// referência padrão da American Heart Association (Normal / Elevada / Hipertensão estágio 1 e 2 /
+// Crise hipertensiva) — é só rótulo informativo, não substitui avaliação médica. Diferente do
+// gráfico de peso/Ozivy (1 série só), este tem 2 séries (sistólica e diastólica) no mesmo canvas,
+// por isso a legenda fica visível em vez de escondida.
+async function aplicarPressaoArterial(){
+  const fmtDataBR = iso => iso.split('-').reverse().join('/');
+  const elAviso = $('paAviso');
+
+  const classificarPressao = (sist, diast) => {
+    if(sist >= 180 || diast >= 120) return 'Crise hipertensiva';
+    if(sist >= 140 || diast >= 90) return 'Hipertensão estágio 2';
+    if(sist >= 130 || diast >= 80) return 'Hipertensão estágio 1';
+    if(sist >= 120) return 'Elevada';
+    return 'Normal';
+  };
+
+  let leituras;
+  try {
+    leituras = await WallaceFinanceService.getPressaoArterial();
+  } catch(err){
+    console.error('Emagrecimento: falha ao buscar pressão arterial.', err);
+    if(elAviso) elAviso.textContent = '⚠ Indisponível (V2) — não foi possível carregar as leituras de pressão.';
+    window.WALLACE_PRESSAO_RELATORIO = { status: 'erro_leituras', erro: String(err) };
+    return;
+  }
+
+  if(!Array.isArray(leituras) || !leituras.length){
+    const elTotal = $('paTotalLeituras');
+    if(elTotal) elTotal.textContent = '0';
+    const elUltima = $('paUltima');
+    if(elUltima) elUltima.textContent = '—';
+    const elClass = $('paClassificacao');
+    if(elClass) elClass.textContent = '';
+    if(elAviso) elAviso.textContent = 'Nenhuma leitura de pressão registrada ainda.';
+    window.WALLACE_PRESSAO_RELATORIO = { qtdLeituras: 0 };
+    return;
+  }
+
+  const elTotal = $('paTotalLeituras');
+  if(elTotal) elTotal.textContent = String(leituras.length);
+  const ultima = leituras[leituras.length-1];
+  const sistUltima = Number(ultima.sistolica);
+  const diastUltima = Number(ultima.diastolica);
+  const classeUltima = classificarPressao(sistUltima, diastUltima);
+  const elUltima = $('paUltima');
+  if(elUltima) elUltima.textContent = `${sistUltima}/${diastUltima} mmHg`;
+  const elClass = $('paClassificacao');
+  if(elClass) elClass.textContent = classeUltima;
+  if(elAviso) elAviso.textContent = `${leituras.length} leitura(s) registrada(s) — classificação segue a referência padrão da American Heart Association, não substitui avaliação médica.`;
+
+  const paTbody = $('pressaoTableBody');
+  if(paTbody){
+    paTbody.innerHTML = leituras.slice().reverse().map(l => (
+      '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+fmtDataBR(l.data)+'</td>'+
+      '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+Number(l.sistolica)+'/'+Number(l.diastolica)+' mmHg</td>'+
+      '<td style="padding:0.3rem 0.5rem;color:var(--text-dim)">'+classificarPressao(Number(l.sistolica), Number(l.diastolica))+'</td>'+
+      '</tr>'
+    )).join('');
+  }
+
+  const canvas = $('cPressaoArterial');
+  if(canvas && typeof Chart !== 'undefined'){
+    const existente = Chart.getChart(canvas);
+    if(existente) existente.destroy();
+    const grid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#262a32';
+    const corSist = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
+    const corDiast = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4c8ef2';
+    const labels = leituras.map(l => fmtDataBR(l.data));
+    const sistolicas = leituras.map(l => Number(l.sistolica));
+    const diastolicas = leituras.map(l => Number(l.diastolica));
+    new Chart(canvas, {
+      type:'line',
+      data:{labels, datasets:[
+        {data:sistolicas, label:'Sistólica',
+          borderColor:corSist, backgroundColor:corSist+'15',
+          borderWidth:2.5, pointBackgroundColor:corSist, pointRadius:4, fill:false, tension:0.3},
+        {data:diastolicas, label:'Diastólica',
+          borderColor:corDiast, backgroundColor:corDiast+'15',
+          borderWidth:2.5, pointBackgroundColor:corDiast, pointRadius:4, fill:false, tension:0.3}
+      ]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:true, labels:{font:{size:10}}},
+          tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.raw+' mmHg'}}},
+        scales:{x:{grid:{display:false}, ticks:{font:{size:10}}},
+          y:{grid:{color:grid}, ticks:{font:{size:10}}}}}
+    });
+  }
+
+  window.WALLACE_PRESSAO_RELATORIO = {
+    qtdLeituras: leituras.length,
+    ultimaLeitura: ultima,
+    classificacaoUltima: classeUltima,
+  };
+  console.log('Emagrecimento: relatório de pressão arterial em window.WALLACE_PRESSAO_RELATORIO', window.WALLACE_PRESSAO_RELATORIO);
+}
+
+// NOVO 16/08/2026 (mesmo pedido acima). Tabela `glicose_leituras` (mesmo padrão de `pesagens`/
+// `pressao_arterial`). Classificação (referência de jejum: Normal <100, Pré-diabetes 100-125,
+// Diabetes ≥126) só é aplicada quando `periodo` é "jejum" ou não foi informado — outros períodos
+// (pós-refeição, aleatório) variam demais fisiologicamente pra usar a mesma régua sem inventar um
+// diagnóstico fora de contexto; nesses casos só o valor é mostrado, sem rótulo. Gráfico de linha
+// simples (1 série), mesmo estilo visual do gráfico de peso (legenda escondida).
+async function aplicarGlicoseLeituras(){
+  const fmtDataBR = iso => iso.split('-').reverse().join('/');
+  const elAviso = $('glcAviso');
+
+  const classificarGlicose = (valor, periodo) => {
+    const p = (periodo||'').toLowerCase().trim();
+    if(p && p !== 'jejum') return null;
+    if(valor < 100) return 'Normal (jejum)';
+    if(valor < 126) return 'Pré-diabetes (jejum)';
+    return 'Diabetes (jejum)';
+  };
+
+  let leituras;
+  try {
+    leituras = await WallaceFinanceService.getGlicoseLeituras();
+  } catch(err){
+    console.error('Emagrecimento: falha ao buscar glicose.', err);
+    if(elAviso) elAviso.textContent = '⚠ Indisponível (V2) — não foi possível carregar as leituras de glicose.';
+    window.WALLACE_GLICOSE_RELATORIO = { status: 'erro_leituras', erro: String(err) };
+    return;
+  }
+
+  if(!Array.isArray(leituras) || !leituras.length){
+    const elTotal = $('glcTotalLeituras');
+    if(elTotal) elTotal.textContent = '0';
+    const elUltima = $('glcUltima');
+    if(elUltima) elUltima.textContent = '—';
+    const elClass = $('glcClassificacao');
+    if(elClass) elClass.textContent = '';
+    if(elAviso) elAviso.textContent = 'Nenhuma leitura de glicose registrada ainda.';
+    window.WALLACE_GLICOSE_RELATORIO = { qtdLeituras: 0 };
+    return;
+  }
+
+  const elTotal = $('glcTotalLeituras');
+  if(elTotal) elTotal.textContent = String(leituras.length);
+  const ultima = leituras[leituras.length-1];
+  const valorUltima = Number(ultima.glicose_mgdl);
+  const classeUltima = classificarGlicose(valorUltima, ultima.periodo);
+  const elUltima = $('glcUltima');
+  if(elUltima) elUltima.textContent = `${valorUltima} mg/dL` + (ultima.periodo ? ` (${ultima.periodo})` : '');
+  const elClass = $('glcClassificacao');
+  if(elClass) elClass.textContent = classeUltima || '';
+  if(elAviso) elAviso.textContent = `${leituras.length} leitura(s) registrada(s)` +
+    (classeUltima ? ' — classificação segue a referência padrão de jejum, não substitui avaliação médica.' : '.');
+
+  const glcTbody = $('glicoseTableBody');
+  if(glcTbody){
+    glcTbody.innerHTML = leituras.slice().reverse().map(l => {
+      const valor = Number(l.glicose_mgdl);
+      const classe = classificarGlicose(valor, l.periodo);
+      return '<tr style="border-bottom:1px solid var(--border)">'+
+        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+fmtDataBR(l.data)+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+valor+' mg/dL</td>'+
+        '<td style="padding:0.3rem 0.5rem;color:var(--text-dim)">'+(l.periodo||'—')+'</td>'+
+        '<td style="padding:0.3rem 0.5rem;color:var(--text-dim)">'+(classe||'—')+'</td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  const canvas = $('cGlicose');
+  if(canvas && typeof Chart !== 'undefined'){
+    const existente = Chart.getChart(canvas);
+    if(existente) existente.destroy();
+    const grid = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#262a32';
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4c8ef2';
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#16181b';
+    const labels = leituras.map(l => fmtDataBR(l.data));
+    const dados = leituras.map(l => Number(l.glicose_mgdl));
+    new Chart(canvas, {
+      type:'line',
+      data:{labels, datasets:[{data:dados,
+        borderColor:accent, backgroundColor:accent+'15',
+        borderWidth:2.5, pointBackgroundColor:accent, pointBorderColor:bg,
+        pointBorderWidth:2, pointRadius:4, fill:true, tension:0.3}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.raw+' mg/dL'}}},
+        scales:{x:{grid:{display:false}, ticks:{font:{size:10}}},
+          y:{grid:{color:grid}, ticks:{font:{size:10}}}}}
+    });
+  }
+
+  window.WALLACE_GLICOSE_RELATORIO = {
+    qtdLeituras: leituras.length,
+    ultimaLeitura: ultima,
+    classificacaoUltima: classeUltima,
+  };
+  console.log('Emagrecimento: relatório de glicose em window.WALLACE_GLICOSE_RELATORIO', window.WALLACE_GLICOSE_RELATORIO);
 }

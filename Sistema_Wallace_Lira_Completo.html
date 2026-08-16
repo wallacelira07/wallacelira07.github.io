@@ -1913,7 +1913,57 @@
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="ozAviso"></div>
     </div>
 
-    <div class="section-num"><span class="n">03</span><h2>💰 Custo do Tratamento</h2></div>
+    <!-- NOVO 16/08/2026 (pedido do usuário: "adicione campos para receber medição de pressão e
+         leitura de glicose, tipo igual do peso com gráfico") — mesmo padrão visual da seção de peso
+         acima (kpi-strip simplificado + chart-box + tabela de histórico). Sem formulário de insert
+         no painel, mesmo padrão de peso/Ozivy — dados entram manualmente/via agente. Ver
+         src/saude/hydrate-emagrecimento.js (aplicarPressaoArterial()). -->
+    <div class="section-num"><span class="n">03</span><h2>🩺 Pressão Arterial</h2></div>
+    <div class="grid-3" style="margin-bottom:1rem">
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total de leituras</div><div class="v" style="font-weight:600;font-size:1.4rem" id="paTotalLeituras">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Última leitura</div><div class="v" style="font-weight:600;font-size:1.4rem" id="paUltima">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Classificação</div><div class="v" style="font-weight:600;font-size:1.4rem" id="paClassificacao">—</div></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="chart-box"><canvas id="cPressaoArterial"></canvas></div>
+      <div style="overflow-x:auto;margin-top:0.8rem">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Data</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Pressão</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Classificação</th>
+          </tr></thead>
+          <tbody id="pressaoTableBody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="paAviso"></div>
+    </div>
+
+    <!-- NOVO 16/08/2026 (mesmo pedido acima). Ver aplicarGlicoseLeituras() em
+         src/saude/hydrate-emagrecimento.js. -->
+    <div class="section-num"><span class="n">04</span><h2>🩸 Glicose</h2></div>
+    <div class="grid-3" style="margin-bottom:1rem">
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total de leituras</div><div class="v" style="font-weight:600;font-size:1.4rem" id="glcTotalLeituras">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Última leitura</div><div class="v" style="font-weight:600;font-size:1.4rem" id="glcUltima">—</div></div>
+      <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Classificação</div><div class="v" style="font-weight:600;font-size:1.4rem" id="glcClassificacao">—</div></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="chart-box"><canvas id="cGlicose"></canvas></div>
+      <div style="overflow-x:auto;margin-top:0.8rem">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-2xs);white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Data</th>
+            <th scope="col" style="text-align:right;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Glicose</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Período</th>
+            <th scope="col" style="text-align:left;padding:0.35rem 0.5rem;color:var(--text-dim);font-weight:600">Classificação</th>
+          </tr></thead>
+          <tbody id="glicoseTableBody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="glcAviso"></div>
+    </div>
+
+    <div class="section-num"><span class="n">05</span><h2>💰 Custo do Tratamento</h2></div>
     <div class="card">
       <div class="row"><span class="k">Caneta</span><span class="v">Ozivy Semaglutida</span></div>
       <div class="row"><span class="k">Aporte mensal</span><span class="v" id="emgAporteMensal">—</span></div>

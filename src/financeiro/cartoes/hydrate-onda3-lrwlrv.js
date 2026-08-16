@@ -142,6 +142,10 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
       // Sucesso confirmado contra a V2 nesta carga — apaga o aviso de fallback, se estava aceso de
       // uma tentativa anterior (12/08/2026, auditoria: fallback não podia ficar "grudado" na tela).
       exibirAvisoFallbackLrwLrv(false);
+      // CORRIGIDO 16/08/2026 (achado do usuário: "Pessoal (s/ corporativo)" não batia com a soma das
+      // categorias) — mbLRW/mbLRV acabaram de mudar acima, mbPessoal/mbLRNaoReconciliado precisam
+      // recalcular junto (ver comentário completo em hydrate-visa-mb.js).
+      if(typeof recalcularEHidratarMbPessoal === 'function') recalcularEHidratarMbPessoal();
     } else {
       console.warn('Onda3LrwLrv: resposta inesperada de vw_transacoes_cartao_variavel_por_pessoa — lista detalhada de LRW/LRV mantida em V1 (pode divergir do card acima).');
       exibirAvisoFallbackLrwLrv(true);

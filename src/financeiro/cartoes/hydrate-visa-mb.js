@@ -40,3 +40,38 @@ function hydrateVisaMB(){
   t('mbLRC', fmt(R.mbDetalhe.corp));
   t('mbLRNaoReconciliado', fmt(R.mbDetalhe.naoReconciliado)); // NOVO 11/08/2026: residuo soma-livros x fatura-real, mesma logica ja usada no Visa (visaLRNaoReconciliado)
 }
+
+// CORRIGIDO 16/08/2026 (achado do usuário, print real: "Pessoal (s/ corporativo)" R$3.942,01 vs soma
+// das categorias detalhadas R$4.518,73 — gap de R$576,72 "escondido"). Causa raiz: mbDetalhe.corp/
+// wallace/vanessa viraram 100% dinâmicos (Onda 3 recalcula wallace/vanessa da V2, Onda 10 recalcula
+// corp da V2), mas cada Onda só atualiza o DOM que ela mesma conhece (mbLRW/mbLRV a Onda 3; tfLRC a
+// Onda 10) — NENHUMA delas recalculava mbPessoal nem mbLRNaoReconciliado depois, e mbNaoReconciliado
+// (VARS) sempre foi um literal fixo em 0 (nunca calculado de verdade, achado documentado desde
+// 11/08/2026). Resultado: a divergência real entre o total manualmente reconciliado (VARS.cartaoMBTotal,
+// "a fatura sempre vence", nunca deve virar soma automática — ver seção 1 do manual) e a soma ao vivo
+// das categorias ficava invisível, mostrando sempre "Não reconciliado: R$0,00" mesmo quando não era.
+// Esta função resincroniza mbDetalhe.corp/wallace/vanessa com os VARS mais recentes, recalcula
+// naoReconciliado de verdade (mesma soma-auditada usada no Visa, ver comentário de reg-mercado-pago.js)
+// e re-hidrata só os 3 campos que dependem disso (mbLRC/mbPessoal/mbLRNaoReconciliado) — chamada no
+// FIM de aplicarOnda3LrwLrv() e aplicarOnda10LrcLimbo(), idempotente, nunca sobrescreve com dado velho
+// (só lê o que já está em VARS no momento da chamada).
+function recalcularEHidratarMbPessoal(){
+  if(typeof REG === 'undefined' || !REG.mbDetalhe) return;
+  const R = REG;
+  const D = R.mbDetalhe;
+  D.corp = VARS.mbLRCConfirmado;
+  D.wallace = VARS.mbLRWConfirmado;
+  D.vanessa = VARS.mbLRVConfirmado;
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios) * 100) / 100;
+  D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
+  const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  t('mbLRC', fmt(D.corp));
+  t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - D.corp)));
+  t('mbLRNaoReconciliado', fmt(D.naoReconciliado));
+  // Donut "Composição" (seção 10) foi desenhado no boot com o mbDetalhe de então — atualiza junto,
+  // mesmo padrão de atualizarGraficoCaixas()/atualizarGraficoPatrimonio() já usados no resto do arquivo.
+  if(window.WALLACE_CHARTS && window.WALLACE_CHARTS.mbComposicao){
+    window.WALLACE_CHARTS.mbComposicao.data.datasets[0].data = Object.values(D);
+    window.WALLACE_CHARTS.mbComposicao.update();
+  }
+}

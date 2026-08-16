@@ -2,6 +2,30 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ 16/08/2026 (bloco 19) — usuário voltou ao vivo, 9 achados reais reportados em sequência
+
+Usuário retomou a sessão olhando o painel ao vivo (celular), mandando achados um atrás do outro, pedindo pra abrir mais frentes de trabalho em paralelo pois "vou sair e não posso passar muito tempo com você". Todos investigados com evidência (código + Supabase direto) antes de corrigir.
+
+1. **Badge "Cotações de ações" falso-positivo em fim de semana** (print real, 🟡 42h numa segunda de manhã) — "isso não é um erro, o mercado é só em dias da semana". `_horasUteisDesde()` nova em `hydrate-saude-operacional.js`, conta só horas úteis pro job `cotacoes_acoes` especificamente.
+
+2. **"Pessoal (s/ corporativo)" do Mastercard Black não batia com a soma das categorias — usuário mandou a conta pronta, achando R$576,72 de diferença sozinho.** Investigação confirmou: o número está certo matematicamente, mas a FONTE errada — `mbPessoal` usa `cartaoMBTotal` (total manualmente reconciliado contra a fatura real, "a fatura sempre vence") menos corporativo, não a soma das categorias — e as categorias (`mbLRW`/`mbLRV`) viraram 100% dinâmicas em sessões passadas sem que `mbPessoal`/`mbLRNaoReconciliado` fossem recalculados junto. Campo `mbNaoReconciliado` (que deveria mostrar exatamente esse resíduo) sempre foi um literal fixo em 0, nunca calculado — o gap ficava invisível em vez de documentado. Corrigido com uma função de resincronização chamada no fim das 2 Ondas relevantes. Achado colateral: o donut de composição do MB só tinha 7 das 8 fatias com rótulo — corrigido junto.
+
+3. **Gráficos "Composição" pequenos dentro de cards grandes** (print mostrando um donut pequeno cercado de espaço vazio) — a correção de centralização de 15/08 só redistribuiu o vazio, não fez o gráfico crescer. `.chart-box` dentro desses 3 cards agora usa `flex:1` até 340px.
+
+4. **Legenda "Consumo médio diário" sem marcador de cor** no gráfico de geração solar por dia — "faltou a marcação na frente de consumo pra saber quem ele é, que é o tracejado". A linha tracejada de verdade é desenhada por um plugin canvas à parte (não pelo próprio Chart.js), então o dataset não tinha `backgroundColor` pra legenda usar. Adicionado, só pra legenda.
+
+5. **Botão "+ Lançar" cortado na borda da barra de abas** (print com círculo vermelho) — rolagem horizontal já existia (15/08), mas sem indício visual nenhum de que dava pra rolar mais. Fade na borda direita (`mask-image`) + padding extra.
+
+6. **Recalculado o aporte da Caixa Saúde Família** — usuário pediu pra somar 1 consulta de endócrino dele. 2 rodadas de esclarecimento necessárias (primeira mensagem disse "a cada 3 meses" a R$440, resposta seguinte corrigiu pra "2x/ano" a R$450 — perguntei antes de aplicar, confirmado 2x/ano). Composição final confirmada pelo usuário: Ginecologista Vanessa 1x R$450 + Pediatra Júlio 2x R$390 + Endócrino Wallace 2x R$450 = R$2.130,00/ano ÷ 12 = **R$177,50/mês**. Isso também resolveu de vez a divergência R$100×R$135 que eu tinha flagrado no bloco 18 (não escolhi nenhuma das 2 hipóteses antigas — usei o valor real que o usuário deu). 4 lugares atualizados (VARS fonte única + 3 leitores), e a 4ª cópia hardcoded que causava a divergência original (`calcularAporteIncrementalPorCiclo`) parou de existir — agora lê a mesma fonte.
+
+7. **Investigação do bug de data/posição do limbo (TX000132/TX000154)** — usuário mandou 2 screenshots achando a data/posição erradas. Delegado a um agente de investigação (leitura de código + consulta direta ao Supabase). Resultado: **o código atual já está certo** — convenção do site é ascendente (mais antigo primeiro, confirmado em 3 lugares), TX000132 é 22/07 no banco real (bate com o código), posição no topo é correta dado que é a transação mais antiga do ciclo. A correção real desse bug já tinha acontecido em 15/08/2026 (trocado `.unshift()` por inserção cronológica). Só corrigi um literal vestigial sem efeito visual (`vars-operacional.js:460`, tinha "23/07" errado, código morto). **Fica pendente perguntar ao usuário** se o print dele era de antes do deploy de 15/08 ou se ele na verdade queria a convenção inversa (mais recente primeiro) — não decidi isso sozinho.
+
+8. **Pergunta direta do usuário respondida**: "isso é referente ao ciclo atual?" sobre o card "Taxa de Poupança" — sim, 100% do ciclo selecionado no seletor (`recalcular-indicadores.js`), tanto receita quanto despesa.
+
+9. **Feature nova delegada a um agente em background** (usuário pediu explicitamente mais paralelismo): pressão arterial + glicose na aba Emagrecimento, mesmo padrão exato de peso/Ozivy (tabelas Supabase novas com RLS idêntica, gráfico de linha, tabela de histórico, sem formulário de insert). Ainda não verificado por mim quando este bloco foi escrito — **revisar o resultado do agente antes de considerar pronto e antes de commitar**.
+
+**Nenhum destes 9 itens foi commitado ainda** — usuário estava saindo, priorizei aplicar tudo com evidência (nada "no escuro") sobre parar pra commitar a cada item. `ESTADO_ATUAL.md` seção 0 tem a lista completa de arquivos pendentes de commit + o que falta verificar.
+
 ## ▶️ Continuação autônoma 16/08/2026 (bloco 18, parte 4) — Grupo A fechado (9 de 9), achado extra encontrado
 
 Retomada da parte 3 abaixo. Usuário respondeu "continue" depois do resumo dos 7/9 — implementei os 2 achados que eu tinha deixado de propósito por serem mais arriscados.

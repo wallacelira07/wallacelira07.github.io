@@ -625,6 +625,37 @@
             opacity: 1;
             transform: translateY(0);
         }
+        /* NOVO 16/08/2026 (achado do usuário: comparou o tooltip nativo title="" — cinza claro,
+           padrão do navegador — com o tooltip escuro/estilizado do e-mail acima, pediu "deixe esses
+           avisos igual o do email"). Versão reutilizável em CSS puro do MESMO estilo (mesma cor de
+           fundo #1d2024, mesma borda, mesmo texto #c8c6bf) via data-tooltip + ::after, sem depender
+           de JS novo — troca só o title="" desses botões por data-tooltip="" (aria-label já cobre a
+           acessibilidade, então nada se perde pra leitor de tela). */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: #1d2024;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #c8c6bf;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            padding: 5px 10px;
+            border-radius: var(--radius-md, 6px);
+            box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,0.22), 0 8px 20px -6px rgba(0,0,0,0.34));
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-3px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 70;
+        }
+        [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
         /* NOVO 10/08/2026 (pedido do usuário: avatar só com a inicial, "como sites modernos") -
            mesmo diâmetro (34px) dos outros botões circulares do cabeçalho (busca/olho/sair), pra
            ficar tudo alinhado na mesma "fileira de ícones" em vez do chip alongado com email inteiro. */
@@ -835,7 +866,7 @@
 
     <div id="dashboardScreen">
         <header>
-            <div class="brand" id="brandLogo" role="button" tabindex="0" title="Voltar ao Painel">
+            <div class="brand" id="brandLogo" role="button" tabindex="0" data-tooltip="Voltar ao Painel">
                 <span class="brand-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="11" width="4" height="9" rx="0.5"></rect>
@@ -898,14 +929,14 @@
                     </div>
                     <div class="header-divider" aria-hidden="true"></div>
                     <div class="header-actions">
-                        <button id="btnRelatorioPdfHeader" onclick="gerarRelatorioFechamentoPDF()" title="Gerar relatório executivo patrimonial (WWI)" aria-label="Gerar relatório executivo patrimonial" class="pdf-report-btn">
+                        <button id="btnRelatorioPdfHeader" onclick="gerarRelatorioFechamentoPDF()" data-tooltip="Gerar relatório executivo patrimonial (WWI)" aria-label="Gerar relatório executivo patrimonial" class="pdf-report-btn">
                             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                         </button>
-                        <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" title="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" aria-pressed="false" class="eye-toggle-btn">
+                        <button id="btnEsconderValoresHeader" onclick="toggleEsconderValoresHeader()" data-tooltip="Esconder/mostrar valores (modo apresentação)" aria-label="Esconder valores" aria-pressed="false" class="eye-toggle-btn">
                             <svg class="eye-icon eye-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -916,7 +947,7 @@
                                 <line x1="1" y1="1" x2="23" y2="23"></line>
                             </svg>
                         </button>
-                        <button id="logoutBtn" class="logout-btn" title="Sair" aria-label="Sair">
+                        <button id="logoutBtn" class="logout-btn" data-tooltip="Sair" aria-label="Sair">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                                 <polyline points="16 17 21 12 16 7"></polyline>

@@ -49,6 +49,11 @@ async function aplicarOnda10LrcLimbo(){
     // resultado do boot, antes da V2 corrigir o valor). Se LRC entrar em alguma das relações que a
     // auditoria confere, o badge ficaria desatualizado sem este re-cálculo.
     if(typeof auditoriaAutomatica === 'function') auditoriaAutomatica();
+    // CORRIGIDO 16/08/2026 (achado do usuário: "Pessoal (s/ corporativo)" não batia com a soma das
+    // categorias) — mbLRCConfirmado (corp) acabou de mudar acima, mas nunca propagava pra
+    // REG.mbDetalhe.corp nem pro DOM de mbLRC/mbPessoal/mbLRNaoReconciliado (ver comentário completo
+    // em hydrate-visa-mb.js).
+    if(typeof recalcularEHidratarMbPessoal === 'function') recalcularEHidratarMbPessoal();
     window.WALLACE_ONDA10_LRCLIMBO_RELATORIO = { status: 'ok', exibindo: 'V2', qtd: detalhe.length };
     console.log('Onda10LrcLimbo: LRC_LIMBO agora V2 — relatório em window.WALLACE_ONDA10_LRCLIMBO_RELATORIO', window.WALLACE_ONDA10_LRCLIMBO_RELATORIO);
     // Sucesso confirmado contra a V2 nesta carga — apaga o aviso de fallback, se estava aceso de uma

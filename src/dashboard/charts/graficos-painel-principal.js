@@ -69,11 +69,16 @@ function renderGraficosPainelPrincipal(){
   });
 
   { const __chartExistente = Chart.getChart($('cVisaMB')); if (__chartExistente) __chartExistente.destroy(); }
-  new Chart($('cVisaMB'), {
+  window.WALLACE_CHARTS.mbComposicao = new Chart($('cVisaMB'), {
     type:'doughnut',
-    data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa'],
+    // CORRIGIDO 16/08/2026 (achado do usuário sobre "Pessoal (s/ corporativo)" divergindo — mesma
+    // investigação): REG.mbDetalhe sempre teve 8 chaves (a 8ª, naoReconciliado, ficava invisível
+    // porque era sempre 0), mas este gráfico só tinha 7 labels/cores — agora que naoReconciliado
+    // passou a ser calculado de verdade (pode ser != 0), faltava o rótulo/cor da 8ª fatia. Mesmo par
+    // já usado no donut irmão do Visa (VISA_DETALHE_LABELS/CORES, app.js).
+    data:{labels:['Parcelas','Consórcios','Wallace','Recorrências','Corp.','Assinaturas','Vanessa','Não Reconciliado'],
       datasets:[{data:Object.values(REG.mbDetalhe),
-      backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0'],
+      backgroundColor:['#3987e5','#9085e9','#e8a63a','#34c98a','#6f6d66','#e2554f','#e879b0','#4a4d52'],
       borderColor:'#16181b',borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10}}},

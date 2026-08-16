@@ -452,7 +452,10 @@ const CAIXAS_OPERACIONAIS_INFO = {
   pixVanessa:         { label:'PIX Vanessa',          notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta'+(s===0?' (zerada)':'') },
   manutencao:         { label:'Manutenção',           nota:'LREI0001 quitado (21/07) — depósito direto do reembolso Wärtsilä' },
   eventos:            { label:'Eventos e Viagens',    nota:'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo' },
-  saudeFamilia:       { label:'Saúde Família',        nota:'2x Júlio + 1x Vanessa/ano · aporte R$100/mês' },
+  // ATUALIZADO 16/08/2026 (pedido do usuário: nova consulta de endócrino, ver vars-caixas.js
+  // aporteSaudeFamilia) — composição real: 1x Ginecologista Vanessa + 2x Pediatra Júlio + 2x
+  // Endocrinologista Wallace, R$2.130,00/ano ÷ 12 = R$177,50/mês (era R$100/mês, sem endócrino).
+  saudeFamilia:       { label:'Saúde Família',        notaFn:()=> '2x Júlio + 1x Vanessa + 2x Endócrino Wallace/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês' },
   aniversarioJulio:   { label:'Aniversário Júlio',    notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta · aporte R$200/mês até 14/09' },
   seguroEmplacamento: { label:'Seguro/Emplacamento',  nota:'Aporte R$425/mês (permanente)' },
   bensDuraveis:       { label:'Bens Duráveis',        nota:'Nasceu em -R$355,00 (fone + cortador de pelo, comprados antes da caixa existir) · aporte R$250/mês' },
@@ -1913,7 +1916,14 @@ async function _lazyRenderSolarSecao(){
       plugins:[linhaConsumoMedioPlugin],
       data:{labels:labelsPorDia, datasets:[
         {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
-        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', __linhaConsumoMedio:true, borderColor:'#ff6b6b', borderWidth:0, pointRadius:0, fill:false, order:0}
+        // CORRIGIDO 16/08/2026 (achado do usuário: "faltou a marcação na frente de consumo pra saber
+        // quem ele é no gráfico, que é o tracejado") — a linha tracejada de verdade é desenhada por
+        // cima via linhaConsumoMedioPlugin (canvas custom, ver abaixo), não pelo Chart.js — por isso
+        // este dataset ficava com borderWidth:0 (invisível) e SEM backgroundColor, e a legenda
+        // automática do Chart.js (que lê backgroundColor pro quadradinho) não tinha cor nenhuma pra
+        // mostrar. Adicionado backgroundColor igual à cor real do tracejado, só pra legenda — o
+        // desenho do gráfico em si continua 100% a cargo do plugin, sem mudança de comportamento.
+        {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', __linhaConsumoMedio:true, borderColor:'#ff6b6b', backgroundColor:'rgba(255,107,107,0.8)', borderWidth:0, pointRadius:0, fill:false, order:0}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:legendStd2,tooltip:{callbacks:{

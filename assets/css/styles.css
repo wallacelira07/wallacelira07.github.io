@@ -257,6 +257,17 @@
        comportamento PADRÃO, em qualquer largura — em telas largas o bastante pra caber tudo, não
        muda nada visualmente (scrollWidth <= clientWidth, sem barra de rolagem nenhuma aparecendo). */
     overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+    /* CORRIGIDO 16/08/2026 (achado do usuário, print real: "+ Lançar" cortado na borda direita da
+       barra) — a rolagem horizontal de 15/08 funciona, mas não tinha NENHUM indício visual de que dava
+       pra rolar mais; o último botão (aqui, "+ Lançar") ficava espremido bem na borda, parecendo
+       cortado/quebrado em vez de "role pra ver mais". mask-image aplica sobre a CAIXA do próprio
+       elemento (não sobre o conteúdo rolado) — o degradê fica sempre fixo na borda visível, mesmo
+       rolando por baixo, mesmo padrão "fade" usado em listas horizontais do Gmail/Android. Sutil o
+       bastante pra não incomodar quando NÃO há overflow (a maior parte da largura fica 100% opaca).
+       Também some quando .master-tabs--escondida (opacity:0 já cobre isso, sem precisar de regra à parte). */
+    mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    -webkit-mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    padding-right:calc(0.45rem + 20px);
   }
   .master-tabs::-webkit-scrollbar{display:none}
   /* NOVO 12/08/2026 (pedido do usuário, print real do celular circulando esta barra: "toma muito
@@ -691,6 +702,13 @@
      maior que o conteúdo. Escopado só a esses 3 cards (não mexe em .grid-2 global, reusada em várias
      outras seções que já dependem do stretch pra ficarem visualmente parelhas). */
   .card-composicao-centrada{display:flex;flex-direction:column;justify-content:center}
+  /* CORRIGIDO 16/08/2026 (achado do usuário: "gráficos pequenos dentro dos menus" — os 3 donuts de
+     Composição, Patrimônio/Visa/Mastercard Black, ficavam presos em 190px fixo dentro de um card
+     esticado (grid-2 stretch) pra bater a altura do card irmão bem mais alto — a correção de 15/08
+     (centralizar em vez de deixar vazio embaixo) só redistribuiu o espaço vazio, não fez o gráfico
+     usar esse espaço de verdade. Agora o chart-box cresce (flex:1) até um teto de 340px em vez de
+     ficar travado no mesmo tamanho de um chart-box comum de 1 linha só. */
+  .card-composicao-centrada .chart-box{flex:1 1 auto;height:auto;min-height:190px;max-height:340px}
   .chart-box{position:relative;width:100%;height:190px;margin-top:0.5rem}
   .chart-box.tall{height:280px}
   .chart-box.wide{height:230px}
