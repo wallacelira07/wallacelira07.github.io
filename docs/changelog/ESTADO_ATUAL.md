@@ -2,11 +2,7 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 15/08/2026, bloco 13+. Resumo: sessão longa dedicada quase inteira à auditoria multidisciplinar de 43 especialistas (`docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`) — 207 achados, praticamente todos os itens seguros já resolvidos (2 críticos de segurança, XSS, constraint de cartão, CI, Wealth Score Python, 12 quick wins, 8 melhorias de médio prazo incluindo `audit_log` em +12 tabelas, `graficos-cenarios-lazy.js` sob demanda, webhook Pluggy). Também: correção de metodologia do Wealth Score (bloco 9), leitura solar bloqueada corrigida (causa raiz era data errada, RPC nova `registrar_leitura_solar_manual`), 55 itens da Inbox Financeira processados, `PASSAGEM_DE_TURNO.md` arquivado por competência (era >1500 linhas — histórico até 13/08 agora em `PASSAGEM_DE_TURNO_ARQUIVO_ATE_13082026.md`).
-
-**Fechamento do dia, decisão do usuário sobre prioridade**: usuário priorizou as pendências restantes por impacto no negócio (`docs/decisions/PROPOSTAS_15082026_WWI_SERVICES_BACKLOG.md`) — aprovou não fabricar histórico do WWI, não migrar `src/services/*.js` agora, manter lint `hydrate-*` e a Inbox (~150 itens) em backlog. **Wallace Wealth Intelligence virou a frente principal** — roadmap de 3 fases entregue em `docs/decisions/WWI_ROADMAP_V1.md` (Fase 1: narrative engine unificado + comparativos automáticos + `metodologia_versao`; Fase 2: snapshot patrimonial consolidado + card de evolução; Fase 3: relatório executivo automático + PDF premium). **Nenhum código da Fase 1 foi escrito ainda** — usuário quer validar o roadmap completo antes de qualquer implementação.
-
-Sessão anterior: 14/08/2026, sessão longa (bloco 8). Resumo: correção de favicon mobile desatualizado, correção de crédito solar dessincronizado no link de compartilhamento, **auditoria completa do site (1 agente por aba)** que achou e corrigiu 8 bugs reais (Balanço, Livros Razão, Emagrecimento, WWI), decisões do usuário sobre Caixa Lance no WWI e eliminação de constantes hardcoded, investigação sênior que recuperou uma linha perdida de `historico_relatorios` com causa raiz real identificada, e **redesenho completo da Inbox Financeira** (de ~557 pendentes reais pra 41, com filtro automático rodando sozinho daqui pra frente).
+Última reescrita: 15/08/2026, bloco 14. Resumo: sessão inteira dedicada ao **WWI (Wallace Wealth Intelligence)** — do roadmap de 3 fases (definido no fim da sessão anterior) até a conclusão completa de Fase 1, Fase 2 e Fase 3, com o sistema entrando formalmente em **período de observação/estabilização operacional**, congelado funcionalmente por decisão explícita do usuário.
 
 ## 🎯 Regras permanentes de sessões anteriores (não reabrir sem pedido novo)
 
@@ -15,99 +11,73 @@ Sessão anterior: 14/08/2026, sessão longa (bloco 8). Resumo: correção de fav
 3. **Visa Infinite** — cobertura baixa de `cartao_id`/histórico, congelado por decisão explícita. Cartão 4845 (Vanessa) ATIVO; só o 4844 (Wallace) aposentado.
 4. **"Estimado só na ausência de valor final"** — ao destravar campo antes manual/estimado, auditar quem mais consumia a versão antiga.
 5. **Rendimento por cofrinho do Mercado Pago não é automatizável** — não reabrir sem pista nova concreta.
-6. **Nunca deixar o Google Drive sincronizar a pasta `.git/`** — **CONTINUA ACONTECENDO** (achado de novo nesta sessão, `refs/heads/claude/desktop.ini`). As limpezas anteriores (13-14/08) foram sempre reativas, nunca eliminaram a causa raiz (o Drive ainda vê `.git/` como sincronizável). Se aparecer de novo, o procedimento é sempre o mesmo: `find .git -iname desktop.ini -delete` antes de qualquer `git push`.
+6. **Nunca deixar o Google Drive sincronizar a pasta `.git/`** — se aparecer `refs/heads/.../desktop.ini` de novo, `find .git -iname desktop.ini -delete` antes de qualquer `git push`.
 7. **Boot do painel: ~1,7-1,8s de `aplicarOnda6MercadoPago`/`aplicarOnda7Pluggy` NÃO é bug de código** — contenção de thread já investigada a fundo, não reabrir sem medir de novo.
 8. **Compra de cartão NUNCA reduz o saldo real de nenhuma caixa** (seção 1.3.5 do manual). `cartao_id` preenchido → `afeta_saldo_real=false`, sempre, em qualquer caixa.
-9. **Procedimento de baixa da fatura, decidido 14/08/2026**: quando a fatura vence e é paga de verdade, `UPDATE` na MESMA linha de `transacoes` (`afeta_saldo_real` false→true). Nunca criar uma segunda transação.
-10. **NOVO 14/08/2026 — nenhuma constante financeira nova deve nascer hardcoded no `.js`** se já existe (ou faz sentido existir) um lugar correspondente em `parametros_gerais`/`indicadores`. Mudar um valor deve ser sempre uma edição de dado no Supabase, nunca deploy de código.
-11. **NOVO 14/08/2026 — Caixa Lance ENTRA no Patrimônio Líquido do WWI** (relatório executivo), mas continua FORA da fórmula usada pelo Painel Executivo/Balanço (`recalcularPatrimonio()`) — são 2 contextos diferentes, decisão intencional, não confundir nem "corrigir" um pelo outro.
-12. **NOVO 14/08/2026 — Inbox Financeira agora se auto-filtra** (`arquivar_inbox_historico()`, roda sozinha a cada sincronização). Não assumir mais que "muitos pendentes acumulados" é normal — se o volume voltar a crescer muito, é sinal de que algo na função nova quebrou, não que precisa de outra faxina manual em massa.
-13. **NOVO 15/08/2026 — leitura manual de `energia_solar_leituras` sempre usa a data/hora que o USUÁRIO informa que tirou a foto, nunca "a data de hoje" no momento de gravar.** Já causou 2 achados de "salto implausível" que na verdade eram data errada (não erro de leitura) — o mais recente: leitura real de 12/08 21:49 gravada como 13/08 porque cruzou a meia-noite de Brasília entre o usuário mandar a foto e o agente gravar. Se o trigger `validar_plausibilidade_leitura_solar()` bloquear algo, a 1ª hipótese a checar é data errada na leitura anterior, não "o teto está errado".
+9. **Procedimento de baixa da fatura**: quando a fatura vence e é paga de verdade, `UPDATE` na MESMA linha de `transacoes` (`afeta_saldo_real` false→true). Nunca criar uma segunda transação.
+10. **Nenhuma constante financeira nova deve nascer hardcoded no `.js`** se já existe (ou faz sentido existir) um lugar correspondente em `parametros_gerais`/`indicadores`. Mudar um valor deve ser sempre uma edição de dado no Supabase, nunca deploy de código.
+11. **Caixa Lance ENTRA no Patrimônio Líquido do WWI** (relatório executivo), mas continua FORA da fórmula usada pelo Painel Executivo/Balanço (`recalcularPatrimonio()`) — 2 contextos diferentes, decisão intencional.
+12. **Inbox Financeira se auto-filtra** (`arquivar_inbox_historico()`, roda sozinha a cada sincronização). Se o volume voltar a crescer muito, é sinal de que algo na função quebrou, não que precisa de faxina manual em massa.
+13. **Leitura manual de `energia_solar_leituras` sempre usa a data/hora REAL da foto (RPC `registrar_leitura_solar_manual`, `timestamptz` explícito), nunca "a data de hoje" no momento de gravar** — já causou 2 achados de "salto implausível" que eram data errada.
+14. **NOVO 15/08/2026 — Medidor solar DDSU666: modelo errado (313269, sem RS485) foi instalado; modelo certo (313270) só libera 25/08/2026.** Não disparar sondagem SAJ nem investigar dado novo da API antes dessa data.
+15. **NOVO 15/08/2026 — WWI (Wallace Wealth Intelligence) congelado funcionalmente, em período de observação.** Ver seção dedicada abaixo — não abrir fase nova, não expandir escopo, não refatorar sem evidência real de divergência ou pedido explícito do usuário.
 
-## 1. Pendências abertas AGORA (retomar por aqui)
+## 1. WWI (Wallace Wealth Intelligence) — status oficial 15/08/2026
 
-### 1.0 Correção do Wealth Score (`protecaoPatrimonial`) — RESOLVIDO
-Commitado e publicado (`7d80c59`), autorizado pelo usuário. Não reabrir.
+**Fases 1, 2 e 3 concluídas.** Shadow Mode em observação. Estágio B da unificação JS×Python bloqueado. Ver `docs/decisions/WWI_ROADMAP_V1.md` (18 seções, log de execução completo), `docs/decisions/WWI_NARRATIVE_ENGINE_ANALISE.md`, `docs/decisions/WWI_FASE2_PROPOSTA_ARQUITETURA.md` e `docs/decisions/WWI_FASE3_LEVANTAMENTO_TECNICO.md` para o detalhe técnico de cada etapa.
 
-### 1.-2 🔴 2 achados de segurança real da auditoria — RESOLVIDOS 15/08/2026
-`public.wwi_upsert_relatorio_mensal` (REVOKE de PUBLIC/anon/authenticated) e `public.wallace_dados` (policy de SELECT trocada pra `service_role`, mesmo padrão das policies de escrita). Aplicado direto via migration Supabase (MCP), confirmado sem consumidor legítimo quebrado (únicos leitores reais eram jobs Python já usando a chave service_role). Detalhe em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`, tabela de status. Não reabrir.
+### 1.1 Fase 1 — narrative engine unificado, comparativos, metodologia_versao
+- `metodologiaVersao`/`METODOLOGIA_VERSAO` rastreiam mudança de fórmula do Wealth Score por competência (JS e Python).
+- `vw_wwi_comparativo_mensal` (SQL): M/M·T/T·A/A de score/patrimônio líquido, `NULL` explícito sem ponto de comparação — nunca fabrica tendência.
+- **Estágio A** (aditivo, motor Python): 8 das 9 regras de narrativa que faltavam portadas do JS (liquidez, Escola de Júlio, Projeto Casa Nova, caixas zeradas, poupança), 5 blocos estruturados (`projetos`/`passivosRank`/`centrosDeCusto`/`composicaoPatrimonio`/`liquidezAnalise`). `capacidade_investimento` fica como **gap aceito e documentado** — depende de `aporteBTGPactual`/`depositoAtivacaoNecton` (literais de `vars-patrimonio.js`, sem tabela V2), decisão explícita de não fabricar dado nem criar schema novo só pra fechar 1 item.
+- **Estágio A.1** (correção de contrato): auditoria produtor×consumidor contra os renderizadores REAIS do PDF (`index.html`) achou 3 bloqueantes de verdade (`TypeError` real, não só perda de texto) — `projetos[i].linhas`, `composicaoPatrimonio.linhas`, `liquidezAnalise.linhas` ausentes/tipo errado no Python. Todos corrigidos e validados (simulação dos acessos exatos dos renderizadores, 0 erros).
+- **Estágio B** (shadow mode, NÃO é substituição): quando o PDF reaproveita narrativa Python persistida, o JS TAMBÉM calcula a própria versão só pra comparar (`wwiCompararNarrativaShadow`, `gerar-analise-financeira.js`) — nunca substitui o que é exibido, só loga divergência no console. **Motor JS nunca foi tocado/removido.**
 
-### 1.-1 Auditoria multidisciplinar completa (43 especialistas) — 207 achados, resolvendo 1 por 1
-Rodada via `Workflow` a pedido do usuário ("equipe de agentes especialistas... escopo livre"), fase somente-leitura. Relatório completo em `docs/decisions/AUDITORIA_MULTIDISCIPLINAR_15082026.md`, com tabela de status no topo sendo atualizada conforme cada item é resolvido/descartado. 2 achados já descartados como falso-positivo pelo usuário (cadência SAJ intencional, "duplicata" Anthropic não é duplicata) — não reabrir nenhum dos dois.
+### 1.2 Fase 2 — Snapshot Patrimonial Completo
+- **2A**: view nova `vw_wwi_metricas_historico` (formato longo, 1 linha por competência×métrica) — 14 métricas (patrimonioFinanceiro/ativosTotal/passivosTotal/reserva/liquidezCiclos/metaMilhaoPct/consorcioCasaPagoPct/projetoCasaNovaPct + 7 subscores), M/M·T/T·A/A com checagem de contiguidade de calendário (nunca compara meses não-consecutivos como se fossem M/M) e flag de mudança de metodologia.
+- **2B**: view nova `vw_wwi_score_historico` — melhor/pior score separado por `metodologia_versao` (nunca compara réguas diferentes) + absoluto, média móvel de 3 competências (só com 3 pontos contíguos), tendência (alta/queda/estável, só a partir do 4º ponto contíguo). Checagem de sanidade no job Python: avisa em `stderr` quando >30% de `indicadoresBrutos` vier `None`, nunca bloqueia a gravação.
+- **2C**: aba permanente **"🧠 Wealth Intelligence"** (`#wwi`) no painel principal, carregada sob demanda (`src/relatorio/hydrate-wwi.js`, mesmo padrão lazy de `graficos-cenarios-lazy.js`), atualizada toda vez que abre. 8 seções: Resumo Executivo, Evolução Patrimonial, Wealth Score Histórico, Meta do Milhão, Projeto Casa Nova, Liquidez, Riscos e Oportunidades, Comparativos M/M·T/T·A/A. **Consome 100% de dado já persistido, nunca depende da geração do PDF** — "Histórico em construção" explícito quando não há competências suficientes, nunca gráfico/tendência fabricado.
 
-**19+ itens resolvidos** (usuário deu autonomia total pra continuar): 2 críticos de segurança (RPC/`wallace_dados`), XSS parcial (3 arquivos), constraint de banco pro cartão, CI dos testes unitários, Wealth Score Python (2 sub-scores implementados), guard `patrimonioLiquido > 0`, os 12 quick wins do relatório, e 9 melhorias de médio prazo. Tudo commitado e publicado.
+### 1.3 Fase 3 — PDF (Tactical Wealth Report) como consumidor do WWI
+- Levantamento técnico confirmou: `indicadores` (Wealth Score/subscores/16 campos brutos) era SEMPRE recalculado ao vivo pelo JS, mesmo quando a narrativa já vinha do WWI — achado da Fase 1/Estágio A.1 (seção 15 do roadmap).
+- **Migrado**: `indicadores` passa a ler `historico_relatorios.dados_json` quando a competência está fechada (guarda + fallback automático pro cálculo ao vivo se o shape não bater — nunca quebra o relatório). Isso migra em cascata Reembolsos Wärtsilä e o gauge do Wealth Score. 5 dos 8 KPIs do Painel Executivo passam a preferir o campo já persistido sobre o texto raspado do DOM.
+- **Shadow mode dos comparativos** (`wwiCompararComparativoShadow`): compara `vw_wwi_comparativo_mensal` contra `compararComHistorico()` ao vivo, só loga — o texto exibido continua vindo do cálculo ao vivo (framing por calendário vs. ciclos ainda é decisão de produto pendente, por escolha do usuário).
+- **Fica em fallback deliberado**: `comparativo` (decisão de produto adiada — usuário quer observar 1 ciclo antes de escolher entre os 2 enquadramentos), Liquidez Imediata/Geração de Caixa (2 dos 8 KPIs, sem campo persistido equivalente — usuário decidiu NÃO portar, "71%→100% é meta técnica, não meta de negócio, prefiro estabilidade"), metadados de capa (não é cálculo).
+- **Adoção WWI pelo PDF: ≈71% dos blocos de cálculo** (5 de 7) já consomem WWI quando a competência está fechada.
 
-### 1.2c Reprocessamento do histórico do WWI — RESOLVIDO 15/08/2026, autorizado pelo usuário
-Único registro existente em `historico_relatorios` (competência `2026-07`) recalculado com a metodologia nova (correção de `protecaoPatrimonial` + sub-scores `organizacaoFinanceira`/`construcaoPatrimonial` novos). `UPDATE` direto via SQL (a RPC `wwi_upsert_relatorio_mensal` exige `service_role`/JWT válido, indisponível no contexto de execução SQL do MCP — mesmo resultado final, só sem passar pela RPC).
+### 1.4 Status final e diretriz vigente
+```
+Fase 1: ✅ Concluída
+Fase 2: ✅ Concluída
+Fase 3: ✅ Concluída
+Shadow Mode: 🟡 Em observação (narrativa + comparativo)
+Estágio B da unificação: 🔒 Continua bloqueado
+```
+**Diretriz do usuário (15/08/2026): "WWI entra oficialmente em modo de estabilização operacional."** Não abrir fases novas, não criar métricas novas, não expandir escopo, não refatorar por refatorar. Acompanhar só: shadow mode da narrativa, shadow mode dos comparativos, geração real do próximo fechamento, logs/divergências observadas. **Só divergência real observada em produção justifica nova intervenção** — qualquer melhoria sem essa evidência entra em backlog, não em execução. Ver `[project_wwi_status_1508.md]` na memória do agente para o resumo condensado.
 
-**Antes → Depois**: Wealth Score `53` → **`58`** (cruza o limiar de 55, "Nível de Atenção" → "**Nível Estável**"). `protecaoPatrimonial` 70,96 → 83,01 (não é mais idêntico a `endividamento`, que ficou em 70,96 sem mudança). `organizacaoFinanceira` novo: 75,00 (12 de 16 campos de `indicadoresBrutos` preenchidos). `construcaoPatrimonial` novo: 50,21 (patrimônio líquido cresceu R$1.986,11 de junho pra julho, +0,42%). Narrativa preservada — só o `parecerFinalTexto` (que cita o score/nível por extenso) foi atualizado pra bater com o número novo; `regrasAplicadas` ganhou uma tag documentando o reprocessamento. Não reabrir.
+## 2. Pendências abertas de sessões anteriores (sem mudança nesta sessão)
 
-### 1.0b Leitura solar 14/08 (casa "mãe") bloqueada pelo trigger de plausibilidade — RESOLVIDO 15/08/2026, causa raiz era data errada, não o teto
-Recebida via mensagem do usuário (pergunta encaminhada de uma sessão de Claude Chat). `validar_plausibilidade_leitura_solar()` bloqueou o `INSERT` de `casa='mae'`, `data='2026-08-14'`, `leitura_03=90`, `leitura_103=527` (fotos reais confirmadas) — delta contra a linha de `13/08` (81/477) dava 50 kWh/dia no código 103, acima do teto de 40.
+### 2.1 Instalação física do medidor solar — TROCA DE MODELO, só libera 25/08/2026
+Modelo errado (313269, sem RS485) instalado; modelo certo (313270) encomendado, chega 25/08/2026. Não disparar sondagem SAJ nem investigar API antes dessa data.
 
-**Causa raiz real** (achada por análise + confirmação do usuário com as fotos originais das 2 leituras): a linha de "13/08" estava com a DATA ERRADA — a leitura (81/477) foi tirada de foto real do medidor no dia **12/08 às 21:49**, não no dia 13. `created_at` da linha era `2026-08-13 03:14 UTC` = `13/08 00:14` em Brasília — já tinha virado o dia civil quando alguém gravou a linha, e usou "a data de agora" em vez da data real informada pelo usuário. Não houve leitura nenhuma no dia 13/08.
+### 2.2 Inbox Financeira — ~144 Pluggy + 13 MP não processados
+Precisam de revisão caso a caso (maior valor, sem correspondência óbvia em `transacoes`). Não automatizar às cegas.
 
-**Correção aplicada**: `UPDATE` na linha existente (`id=aab7d71e-...`), `data` `2026-08-13`→`2026-08-12`, evidência atualizada explicando a correção. Depois, `INSERT` da leitura de 14/08 (90/527) — passou no trigger sem bloqueio (delta real: 12/08→14/08, 2 dias, 4,5 kWh/dia código 03 e 25,0 kWh/dia código 103, dentro do teto).
+### 2.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não confirmados como recebidos
+Sem mudança. Não é a mesma coisa que as 2 TEDs já lançadas (`TX000220`/`TX000280`) — não confundir de novo.
 
-**Resposta às 3 perguntas do Claude Chat**: não mexer no teto de 40 kWh/dia (já pegou 2 erros reais de digitação/data até hoje, incluindo este) e não criar mecanismo de override — nenhum dos dois era o problema real.
+### 2.4 LREI0004 (R$103,55) segue ativa
+Aguardando Caixa Manutenção acumular saldo suficiente.
 
-**⚠️ Risco sistêmico pra registrar como regra**: pelo menos 2 vezes agora (este caso e o de `08/08`, documentado na evidência da linha de `07/08`) uma leitura manual do medidor solar entrou com data errada/implausível e o trigger foi quem pegou. Quem grava leitura manual em `energia_solar_leituras` (Claude Chat, tipicamente) precisa usar a data/hora que o USUÁRIO informa que tirou a foto, nunca "a data de hoje" no momento de gravar — o hiato entre o usuário mandar a foto e o agente processar/gravar pode cruzar a virada do dia civil em Brasília.
-
-**Fechamento estrutural (não só o dado pontual)**: usuário pediu "corrigir o problema de UTC" antes da instalação do DDSU666 (hoje, 15/08/2026). Criada RPC nova `registrar_leitura_solar_manual(p_casa, p_leitura_03, p_leitura_103, p_data_hora_leitura timestamptz, p_eh_leitura_oficial_energisa, p_evidencia)` — não existia nenhuma função dedicada antes, leituras manuais entravam via `INSERT` direto sem validação de fuso nenhuma. A função exige o instante REAL da leitura como `timestamptz` (fuso explícito, sem ambiguidade) e deriva a data civil de Brasília via `AT TIME ZONE 'America/Sao_Paulo'` — testado isoladamente (12/08 21:49 → deriva `2026-08-12` corretamente). `GRANT` só pra `authenticated`/`service_role` (mesmo padrão de `lancar_transacao_manual`). Documentado como obrigatório em `docs/MANUAL_OPERACIONAL_AGENTES.md` (seção 1.1, linha da tabela de Energia solar) e sincronizado no Google Drive (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md` e `MANUAL_OPERACIONAL_AGENTES.md`, ambos sobrescritos, não cópias novas) — Claude Chat precisa usar essa RPC a partir de agora, nunca mais `INSERT` cru.
-
-### 1.1 Instalação física do medidor — TROCA DE MODELO, só libera 25/08/2026
-**Atualizado 15/08/2026 pelo usuário**: o medidor que chegou/foi instalado é o **modelo 313269**, que **não tem comunicação RS485** — inadequado pro que o domínio Solar precisa (integração Modbus/RS485 com o inversor SAJ, ver `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`). Usuário já encomendou o **modelo 313270** (com RS485), mas só libera/chega no dia **25/08/2026**. Toda a parte elétrica/física já está instalada — só falta trocar o medidor em si pelo modelo certo. **Não disparar a sondagem (`sondar_medidor_saj.yml`) nem investigar dado novo da API SAJ antes de 25/08** — não vai ter nada de RS485 pra achar com o 313269 instalado agora. Retomar essa frente só depois da troca.
-
-### 1.2 Inbox Financeira — volume cresceu pra 211 (13 MP + 198 Pluggy), 55 processados nesta sessão, restam 144 Pluggy + 13 MP
-O número "41" do redesenho de 14/08 estava desatualizado — o volume voltou a crescer (198 Pluggy pendentes, não 28). Investigado e processado nesta sessão (15/08), sem esperar pedido do usuário (regra 6 do manual — agente processa a fila sozinho):
-
-1. **41 pares duplicados por sincronização multi-conta** — 2 conexões Pluggy diferentes (`wallace.termica@` e `wallace.servidor@`) sincronizam a MESMA conta Mercado Pago, então toda transação real aparece 2x com `descricao`/`valor`/`data` idênticos. Rejeitada a cópia extra de cada par (41 linhas), mantida 1 de cada. **⚠️ Isso é estrutural, vai continuar acontecendo a cada sync** — `arquivar_inbox_historico()` não detecta esse tipo de duplicata (só ciclo passado/já lançado); avaliar se vale ensinar a função a dedupli­car por `descricao+valor+data` entre contas do mesmo `banco='MeuPluggy'`.
-2. **11 taxas de IOF <R$5** — resíduo mecânico de compra internacional já contabilizada no valor da compra, não é "transação esquecida". Rejeitadas.
-3. **2 TEDs da Wärtsilä já lançadas** (R$340,00 de 06/08 = `TX000220`; R$6.682,76 de 13/08 = `TX000280`, ambas `confirmado` em `transacoes`) — rejeitadas como duplicata cross-source (Pluggy vê o extrato bancário, mas o lançamento já existe no ERP).
-
-**Restam 144 Pluggy + 13 MP não processados** — inclui itens de maior valor (4 outras TEDs Wärtsilä sem correspondência 1:1 óbvia em `transacoes`, provavelmente os depósitos brutos de salário antes de serem splitados em múltiplos aportes; R$2.015,58 recorrente 3x; RAIA DROGASIL, MERCADOLIVRE, pagamentos de conta). **Não processados às cegas de propósito** — passaram por checagem de correspondência com `transacoes` e não bateram, então não são duplicata óbvia; precisam de revisão mais cuidadosa (contexto de qual caixa/o que representam), não uma faxina automática.
-
-**Achado inicial descartado, esclarecido pelo usuário**: a TED Wärtsilä de R$340,00 (06/08, `TX000220`) é um reembolso DIFERENTE do que a pendência 1.4 rastreia — coincidência de valor, não é o mesmo evento. `TX000220` e `TX000280` (R$6.682,76) já estavam corretamente computados; a pendência de R$340,00 do ciclo 2026-07 (`reembolso_wartsila_ciclo.valor_a_receber`) continua real e sem relação com essas 2 TEDs. Não é inconsistência — `reembolso_wartsila_ciclo` está certo. Não reabrir essa dúvida.
-
-### 1.2b Webhook Pluggy — RESOLVIDO 15/08/2026
-Segredo hardcoded na Edge Function `pluggy-webhook` trocado por `Deno.env.get("PLUGGY_WEBHOOK_SECRET")` e o usuário configurou o secret no Supabase Dashboard. **Testado ao vivo** (`curl -X POST` com o header `X-Webhook-Secret` correto): retornou `200`. Linha de teste (`event='teste_verificacao'`) apagada de `pluggy_webhook_eventos` logo em seguida — não sobrou resíduo. Não reabrir.
-
-### 1.2d Backlog técnico registrado 15/08/2026 (decisão do usuário: não priorizar agora)
-Usuário revisou a lista de melhorias de médio prazo restantes da auditoria e decidiu explicitamente **adiar** (não é esquecimento, é priorização consciente por impacto no negócio):
-- **Lint/checagem de dependência entre os ~91 módulos `hydrate-*`** — escopo grande, sem ganho imediato de negócio. Retomar quando houver sinal concreto de bug de ordem de carregamento, não proativamente.
-- **~150 itens da Inbox Financeira** (144 Pluggy + 13 MP) que sobraram depois da faxina automática de 55 itens — precisam de classificação caso a caso, não automação. Relatório de classificação gerado (ver `docs/decisions/PROPOSTAS_15082026_WWI_SERVICES_BACKLOG.md`), execução da triagem fica pra quando o usuário tiver tempo/quiser.
-
-### 1.3 Autor do `DELETE` que apagou a linha de `historico_relatorios` de julho — desconhecido, sem como recuperar
-A investigação sênior desta sessão confirmou que a linha foi gravada de verdade e depois apagada por um `DELETE` real (corretamente filtrado por competência), mas não há nenhum log/rastro de quem/quando — a tabela nunca teve trigger de auditoria antes de hoje. **Não reabrir como investigação** — não há mais evidência a extrair. O trigger novo (`trg_audit_historico_relatorios`) garante que isso nunca mais fique sem rastro.
-
-### 1.4 R$340,00 do ciclo Wärtsilä 2026-07 ainda não chegaram
-Sem mudança — ainda não confirmado como recebido. **Confirmado pelo usuário 15/08/2026**: as 2 TEDs achadas na Inbox (`TX000220`/`TX000280`, ver 1.2) são reembolsos diferentes, já computados — não têm relação com esta pendência específica. Não confundir os dois de novo.
-
-### 1.5 LREI0004 (R$103,55) segue ativa
-Aguardando Caixa Manutenção acumular saldo suficiente (não conferido nesta sessão).
-
-### 1.6 Previsão de geração baseada em irradiância solar — sugerido, não implementado
-Sem mudança — usuário ainda não decidiu se quer essa feature.
-
-## 2. O que foi feito nesta sessão (15/08/2026, bloco 9)
-
-Resumo executivo — detalhe completo em `docs/changelog/PASSAGEM_DE_TURNO.md`, bloco 9, e `docs/decisions/WWI_RELATORIO_EXECUTIVO_INTELIGENCIA.md` seção 9.1:
-
-1. Achado de metodologia no Wealth Score do WWI: sub-score `protecaoPatrimonial` era matematicamente idêntico a `endividamento` (mesma fórmula, passivos/ativoTotal) — dobrava o peso real da alavancagem pra 30% do score sem intenção documentada.
-2. `protecaoPatrimonial` corrigido pra medir debt-to-equity (passivos/patrimônio líquido) — ângulo complementar ao `endividamento` (que continua passivos/ativoTotal, inalterado).
-3. Corrigido nos dois motores — `src/relatorio/gerar-analise-financeira.js` (JS, botão manual) e `scripts/sync/wwi_gerar_relatorio_mensal.py` (job mensal) — pra não repetir o padrão de divergência JS×Python já visto e corrigido no bloco 8 (item "investimentos").
-
-**Pendente**: ver item 1.0 acima — mudança ainda não commitada/pushada, esperando aviso ao usuário. Nenhum dado/Supabase envolvido, é lógica pura de cálculo.
-
-Bloco 9 (correção Wealth Score) resumido acima na seção 1.0 (RESOLVIDO). Bloco 10 (auditoria de 43 especialistas) resumido nas seções 1.-2 e 1.-1 acima.
-
-Sessão anterior (14/08/2026, bloco 8) resumida: procedimento de baixa de fatura, favicon mobile, crédito solar do link compartilhado, auditoria de 6 agentes (8 bugs reais corrigidos), recuperação de `historico_relatorios`, migração de constantes do Déficit Zero pro Supabase, redesenho da Inbox Financeira (~557→41 pendentes). Todo commitado (`80c96f9`+`5d22216`+`35e2069`) e publicado — detalhe completo em `PASSAGEM_DE_TURNO.md` bloco 8.
+### 2.5 Backlog técnico adiado (decisão consciente do usuário)
+Lint dos ~91 módulos `hydrate-*` (retomar só com sinal concreto de bug de ordem de carregamento); previsão de geração solar por irradiância (usuário ainda não decidiu se quer).
 
 ## 3. Protocolo de sessão nova
 
-1. Este arquivo, depois o bloco mais recente de `PASSAGEM_DE_TURNO.md`.
-2. `git status`/`git log -5` antes de assumir o que está pendente/concluído.
-3. Se aparecer erro de push tipo `bad object refs/heads/claude/desktop.ini`: é o Google Drive sincronizando `.git/` de novo (regra 6 acima) — rodar `find .git -iname desktop.ini -delete` antes de tentar de novo, não é bug de código.
+1. Este arquivo, depois o(s) bloco(s) mais recente(s) de `docs/changelog/PASSAGEM_DE_TURNO.md` (bloco 14 em diante = trabalho do WWI desta sessão).
+2. `git status`/`git log -15` antes de assumir o que está pendente/concluído — muitos commits desta sessão (Fases 1-3 do WWI), todos já publicados em `origin/main`.
+3. Se aparecer erro de push tipo `bad object refs/heads/claude/desktop.ini`: Google Drive sincronizando `.git/` de novo — `find .git -iname desktop.ini -delete` antes de tentar de novo.
 4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
-5. Retomar pela seção 1 — o item 1.0 (commit pendente do Wealth Score) e o 1.1 (instalação do DDSU666, hoje/15/08) são os mais urgentes.
-6. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`. Nesta sessão (bloco 9), a mudança é só metodologia de cálculo interna (fórmula já documentada como "v1, não fixa em pedra" na seção 4 do doc WWI) — não configura regra de negócio nova nem domínio V2 novo, então os documentos do Google Drive (`CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`/`MANUAL_OPERACIONAL_AGENTES.md`) não precisaram de atualização.
+5. **Sobre o WWI: NÃO retomar trabalho novo por conta própria.** Está formalmente congelado (seção 1.4 acima) — só agir se o usuário pedir explicitamente ou se houver divergência real reportada pelos shadow modes (narrativa e comparativo). Se o usuário mencionar "abrir o console e ver os logs do WWI" ou algo parecido, é isso que está sendo observado.
+6. Retomar pendências reais por aqui: seção 2 acima (Inbox, medidor solar, reembolso Wärtsilä).
+7. **Sempre que "atualizar passagem de turno" for pedido**: checklist completa da seção 5/10 do `docs/MANUAL_OPERACIONAL_AGENTES.md`. Nesta sessão (bloco 14), o trabalho tocou schema (3 views SQL novas, todas aditivas/CREATE OR REPLACE, nenhuma destrutiva) e uma regra de negócio nova (WWI como fonte de verdade, PDF como exportação) — avaliar se o manual/Google Drive precisam de atualização na próxima sessão se essa arquitetura for referenciada por outro domínio.

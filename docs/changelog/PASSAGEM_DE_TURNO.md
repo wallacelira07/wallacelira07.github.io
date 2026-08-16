@@ -2,6 +2,36 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 Encerramento 15/08/2026 (bloco 14) — WWI: Fases 1, 2 e 3 concluídas, sistema entra em estabilização operacional
+
+Retomada do bloco 13 abaixo. Sessão inteira dedicada ao **WWI (Wallace Wealth Intelligence)**, que já tinha virado a frente principal no fechamento do bloco 13. Arco completo: roadmap de 3 fases → execução das 3 → shadow mode → congelamento funcional por decisão do usuário. Detalhe técnico completo em `docs/decisions/WWI_ROADMAP_V1.md` (18 seções), `WWI_NARRATIVE_ENGINE_ANALISE.md`, `WWI_FASE2_PROPOSTA_ARQUITETURA.md`, `WWI_FASE3_LEVANTAMENTO_TECNICO.md`.
+
+**Fase 1 — narrative engine unificado** (aprovada em etapas, checkpoint a checkpoint):
+- `metodologia_versao` + `vw_wwi_comparativo_mensal` (M/M·T/T·A/A de score/patrimônio, `NULL` explícito sem histórico suficiente) — item 1 e 2, aprovados separadamente antes do resto.
+- Análise pré-unificação exigida pelo usuário (`WWI_NARRATIVE_ENGINE_ANALISE.md`) antes de qualquer código: achou que o JS tinha 15 regras de narrativa contra 6 do Python — estratégia de 2 estágios proposta e aprovada.
+- **Estágio A** (aditivo): 8 das 9 regras faltantes + 5 blocos estruturados portados pro Python, usando `pib_wallace_historico` da própria competência (descoberta chave — é escrita a cada boot do painel, não só no fechamento) + `caixas.teto_mensal` + `emprestimos_internos`. `capacidade_investimento` fica gap aceito (sem fonte SQL, decisão de não fabricar).
+- Validação real (não só comparação de JSON) achou 2 rodadas de gap: contrato `{texto,valor}` errado (corrigido) e, numa auditoria mais funda contra os RENDERIZADORES reais do PDF, **3 bloqueantes de verdade** (`projetos[i].linhas`/`composicaoPatrimonio.linhas`/`liquidezAnalise.linhas` — causariam `TypeError` real, não só perda de texto). Corrigidos e validados por simulação dos acessos exatos dos renderizadores.
+- **Estágio B liberado como SHADOW MODE, não substituição**: usuário foi explícito — motor JS continua funcionando normalmente, nunca é removido; quando a narrativa Python persistida é reaproveitada, o JS calcula a própria versão só pra comparar e loga divergência no console (`wwiCompararNarrativaShadow`).
+
+**Fase 2 — Snapshot Patrimonial Completo** (autorizada ponta a ponta, sem checkpoint entre 2A/2B/2C):
+- Proposta de arquitetura completa antes de qualquer código (`WWI_FASE2_PROPOSTA_ARQUITETURA.md`) — achado principal: os 12 campos "obrigatórios" já eram persistidos desde o Estágio A, nenhuma tabela nova necessária.
+- **2A**: `vw_wwi_metricas_historico` (formato longo, 14 métricas, M/M·T/T·A/A com checagem de contiguidade de calendário — nunca compara meses não-consecutivos como M/M).
+- **2B**: `vw_wwi_score_historico` (melhor/pior por metodologia, média móvel de 3, tendência só a partir do 4º ponto) + checagem de sanidade no job (avisa em >30% de campo ausente, nunca bloqueia).
+- **2C**: aba permanente `#wwi` ("🧠 Wealth Intelligence") no painel — decisão de produto pausada 1x pra perguntar onde deveria morar (condição de parada do próprio usuário), decidiu aba permanente na navegação principal. 8 seções, consome 100% de dado persistido, zero dependência do PDF.
+
+**Fase 3 — PDF como consumidor do WWI** (autorizada ponta a ponta):
+- Levantamento técnico primeiro (`WWI_FASE3_LEVANTAMENTO_TECNICO.md`): achou que `indicadores` era SEMPRE recalculado ao vivo, mesmo com WWI persistido disponível — achado que só apareceu porque a Fase 1/Estágio A.1 já tinha mapeado esse detalhe.
+- Migrado: `indicadores` (Wealth Score/subscores/16 campos) lê `dados_json` quando a competência está fechada, com guarda + fallback automático (nunca quebra o relatório). Migra em cascata Reembolsos Wärtsilä e o gauge do Score. 5 de 8 KPIs do Painel Executivo passam a preferir o campo persistido.
+- Shadow mode novo pro comparativo (`wwiCompararComparativoShadow`) — não substitui o texto exibido, só compara e loga.
+- **2 decisões de produto explicitamente adiadas pelo usuário** (não é pendência técnica): manter os 2 enquadramentos do comparativo em shadow mode até observar ≥1 ciclo real; NÃO portar Liquidez Imediata/Geração de Caixa pro Python agora ("71%→100% é meta técnica, não meta de negócio, prefiro estabilidade").
+- Adoção final: **≈71% dos blocos de cálculo do PDF já consomem WWI** quando a competência está fechada.
+
+**Encerramento formal, diretriz do usuário**: *"WWI entra oficialmente em modo de estabilização operacional."* Fases 1/2/3 concluídas, Shadow Mode em observação, Estágio B continua bloqueado. Não abrir fase nova, não criar métrica nova, não expandir escopo, não refatorar por refatorar — só agir se houver divergência real observada nos logs de shadow mode ou pedido explícito. Memória de agente salva (`project_wwi_status_1508.md`) pra sessões futuras não reabrirem sem necessidade.
+
+**Padrão operacional desta sessão, repetido várias vezes**: "8 agentes especializados em paralelo" pedido pelo usuário pra cada fase — na prática, quase todo o trabalho concentrava em 1-2 arquivos por vez (`gerar-analise-financeira.js`, `index.html`, `wwi_gerar_relatorio_mensal.py`), então paralelismo de verdade ali corromperia por escrita concorrente. Executado sequencial e diretamente em todos os casos, com nota explícita disso em cada entrega. Nenhum checkpoint pedido pelo usuário foi pulado quando ele pediu explicitamente pra parar em algo (ex: escolha de onde a aba WWI deveria morar) — só os checkpoints intermediários que ele mesmo dispensou ("não retorne até a fase inteira estar concluída") foram de fato pulados.
+
+**Commits desta sessão** (todos publicados em `origin/main`, verificar `git log` pra hashes exatos): metodologia_versao + vw_wwi_comparativo_mensal; correção Estágio A (8 regras + 5 blocos); correção de gaps funcionais (buckets + contrato `{texto,valor}`); correção de contrato Estágio A.1 (3 bloqueantes reais); shadow mode da narrativa (Estágio B); proposta de arquitetura Fase 2; job sanity check (2B); aba Wealth Intelligence (2C); Fase 3 (3A+3B, indicadores + shadow mode do comparativo); levantamento técnico Fase 3; encerramento/registro de cada fase nos docs. Views SQL (`vw_wwi_metricas_historico`, `vw_wwi_score_historico`, extensão de `vw_wwi_comparativo_mensal`) aplicadas direto via Supabase MCP, mesmo padrão já usado desde a Fase 1 — não versionadas como arquivo de migration local.
+
 ## ▶️ Continuação 15/08/2026 (bloco 13) — Inbox Financeira processada (55 itens), "prioridade 0" das melhorias de médio prazo da auditoria
 
 Retomada do bloco 12 abaixo. Duas frentes:
