@@ -2,6 +2,16 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação 15/08/2026 (bloco 15) — bug crônico do Drive sincronizando `.git/` corrigido na raiz (não mais reativo)
+
+Retomada do bloco 14 abaixo. Pedido do usuário depois de eu limpar mais um `desktop.ini` de rotina: "como resolver isso de vez?". Regra 6 do `ESTADO_ATUAL.md` já registrava que as limpezas anteriores (13-14/08, 15/08) eram sempre reativas e nunca eliminavam a causa raiz — o Google Drive para desktop no Windows não tem exclusão seletiva de subpasta dentro de uma pasta já sincronizada, então `.git/` (com milhares de arquivos pequenos trocando o tempo todo) sempre voltava a ser indexado, gerando `desktop.ini` dentro de `.git/objects/` e quebrando `git push`/`git pull` com `bad object refs/heads/.../desktop.ini`.
+
+**Confirmação ao vivo do problema antes de corrigir**: logo após um `git pull` limpo, 2 `desktop.ini` novos já tinham aparecido dentro de `.git/objects/` — o Drive indexa em tempo real, não é um evento raro.
+
+**Correção aplicada**: `.git` real movido pra fora da árvore sincronizada pelo Drive, pra `C:\Users\WLI015\.git-repos\Site.git` — mecanismo padrão do próprio Git (o mesmo usado por submodules/worktrees): o diretório `.git` da pasta do projeto virou um arquivo de 1 linha (`gitdir: C:/Users/WLI015/.git-repos/Site.git`), e o `core.worktree` no `.git` relocado aponta de volta pra `G:/My Drive/Livro Razão/Site`. Testado ao vivo: `git status`, `git log`, `git pull` (trouxe o commit `f3bbdab` que estava pendente) — tudo funcionando idêntico a antes, working tree limpa.
+
+**Escopo da correção**: é local à máquina `WLI015`, não ao repositório (não é algo que vá pro GitHub). Se este repositório for aberto numa máquina nova sem essa pasta `.git-repos`, o Git vai reclamar que não é um repositório — não é bug, é reconfiguração de uma vez por máquina nova (mesma raciocínio de qualquer `git clone` novo). Documentado em `ESTADO_ATUAL.md`, regra 6 (marcada RESOLVIDO NA RAIZ, não mais mitigação).
+
 ## 🏁 Encerramento 15/08/2026 (bloco 14) — WWI: Fases 1, 2 e 3 concluídas, sistema entra em estabilização operacional
 
 Retomada do bloco 13 abaixo. Sessão inteira dedicada ao **WWI (Wallace Wealth Intelligence)**, que já tinha virado a frente principal no fechamento do bloco 13. Arco completo: roadmap de 3 fases → execução das 3 → shadow mode → congelamento funcional por decisão do usuário. Detalhe técnico completo em `docs/decisions/WWI_ROADMAP_V1.md` (18 seções), `WWI_NARRATIVE_ENGINE_ANALISE.md`, `WWI_FASE2_PROPOSTA_ARQUITETURA.md`, `WWI_FASE3_LEVANTAMENTO_TECNICO.md`.
