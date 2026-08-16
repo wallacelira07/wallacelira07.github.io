@@ -2,6 +2,18 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação autônoma 16/08/2026 (bloco 18, parte 4) — Grupo A fechado (9 de 9), achado extra encontrado
+
+Retomada da parte 3 abaixo. Usuário respondeu "continue" depois do resumo dos 7/9 — implementei os 2 achados que eu tinha deixado de propósito por serem mais arriscados.
+
+**Achado #5 (cluster `CAIXAS_OPERACIONAIS_INFO`)**: as 4 notas com "X% da meta" (boletos/pixVanessa/aniversarioJulio/escolaJulio) viraram `notaFn(saldo,meta)`, calculadas de `REG.caixasOperacionais` a cada render — mesmos campos que o próprio gráfico já usa pra desenhar as barras. As outras 5 notas (texto de evento passado ou regra estável, sem percentual) ficaram como estavam.
+
+**Achado #6 (cluster `alivioEventos`)**: os valores em R$ de cada marco do gráfico "Alívio de pressão" viraram a diferença real entre pontos consecutivos de `alivioData` (já calculado de `calcularAporteIncrementalPorCiclo()`), nunca mais podem divergir do que o gráfico desenha. **Investigando esse achado, encontrei um problema mais fundo que o esperado**: o evento único do índice 16 ("Saúde Família + Escola Júlio 2027 completam — R$939,64/mês") na verdade juntava 2 transições que a fórmula real não faz no mesmo ciclo — conferindo `calcularAporteIncrementalPorCiclo()` linha a linha, Saúde Família para de contar em `i<16` (transição no índice 16) mas Escola Júlio 2027 só para em `i<=16` (transição no índice 17, 1 ciclo depois). O texto original tratava como simultâneo algo que na fórmula acontece em 2 ciclos diferentes. Corrigido separando em 2 eventos (índice 16 só Saúde Família, índice 17 só Escola Júlio 2027) — mais preciso que o original, não só "menos hardcoded".
+
+**Achado NOVO, fora do escopo original, encontrado nessa mesma investigação**: pra calcular a diferença dos eventos, fui conferir o valor real do aporte de Saúde Família e achei uma divergência de verdade — `VARS.aporteSaudeFamilia` (`vars-caixas.js`) vale R$135,00 e alimenta um card real (`cxSaudeAporteTxt`, mostra "R$135,00/mês" pro usuário agora), mas **3 fontes independentes concordam em R$100,00**: o literal dentro de `calcularAporteIncrementalPorCiclo()` (que alimenta de verdade a Necessidade Líquida projetada), a nota da Saúde Família no mesmo `CAIXAS_OPERACIONAIS_INFO`, e a legenda `legLegendaCaixasIncrementais`. **Não corrigi nada disso** — não tenho evidência de qual dos 2 valores é o real (seria inventar um número financeiro sem confirmação, proibido pelo manual). Se for R$135 o correto, o CÁLCULO de Necessidade Líquida está subestimando R$35/mês há um tempo — isso teria impacto real, não é só cosmético. Documentado em `ESTADO_ATUAL.md` seção 1.6, com pedido explícito pra perguntar ao usuário assim que a sessão reabrir.
+
+**Resultado final do Grupo A**: 9 de 9 achados de confiança alta/média implementados. Diff ainda não commitado (mesma pendência de revisão/teste no navegador já registrada na parte 3).
+
 ## ▶️ Continuação autônoma 16/08/2026 (bloco 18, parte 3) — Grupo A do inventário de hardcode, 7 de 9 achados implementados
 
 Retomada da parte 2 abaixo, mesma sessão autônoma. Com os 20 achados de bug fechados, sobrou só o Grupo A do inventário de "dado disfarçado de texto" que o usuário tinha pedido como Prioridade 0 ("Grupo A agora - faça só o grupo A") mas que a sessão original nunca chegou a iniciar (interrompida pelo lote de bugs 🔴 antes).

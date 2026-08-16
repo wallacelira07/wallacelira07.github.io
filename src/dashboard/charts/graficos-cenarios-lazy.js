@@ -440,16 +440,23 @@ function atualizarGraficoCaixas(){
 // antigo ("Escola Júlio"), e a Escola Julio de verdade (9a chave) ficava sem rotulo nenhum. Corrigido
 // derivando os rotulos/notas de um MAPA por chave (nao mais por posicao) - assim uma caixa nova nunca
 // mais desalinha as que vem depois dela, so precisa de uma entrada nova no mapa abaixo.
+// CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #5): as 4 entradas abaixo tinham
+// "X% da meta" escrito cru — cópia solta de saldo/meta, ambos já vivos em REG.caixasOperacionais (o
+// próprio gráfico já desenha as barras a partir desses mesmos campos, 1 linha abaixo). Viravam texto
+// desatualizado a cada lançamento na caixa. Trocado `nota` fixo por `notaFn(saldo,meta)` só nessas 4
+// — as demais notas são texto explicativo estável (evento passado, regra de negócio), não um fato que
+// muda a cada transação, ficam como estavam.
+const fmtPctCaixaInfo = v => v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const CAIXAS_OPERACIONAIS_INFO = {
-  boletos:            { label:'Boletos',             nota:'23,6% da meta' },
-  pixVanessa:         { label:'PIX Vanessa',          nota:'0% da meta (zerada)' },
+  boletos:            { label:'Boletos',             notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta' },
+  pixVanessa:         { label:'PIX Vanessa',          notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta'+(s===0?' (zerada)':'') },
   manutencao:         { label:'Manutenção',           nota:'LREI0001 quitado (21/07) — depósito direto do reembolso Wärtsilä' },
   eventos:            { label:'Eventos e Viagens',    nota:'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo' },
   saudeFamilia:       { label:'Saúde Família',        nota:'2x Júlio + 1x Vanessa/ano · aporte R$100/mês' },
-  aniversarioJulio:   { label:'Aniversário Júlio',    nota:'50% da meta · aporte R$200/mês até 14/09' },
+  aniversarioJulio:   { label:'Aniversário Júlio',    notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta · aporte R$200/mês até 14/09' },
   seguroEmplacamento: { label:'Seguro/Emplacamento',  nota:'Aporte R$425/mês (permanente)' },
   bensDuraveis:       { label:'Bens Duráveis',        nota:'Nasceu em -R$355,00 (fone + cortador de pelo, comprados antes da caixa existir) · aporte R$250/mês' },
-  escolaJulio:        { label:'Escola Júlio',         nota:'5,5% da meta · meta R$9.236,00, fora da Meta do Milhão (P5)' },
+  escolaJulio:        { label:'Escola Júlio',         notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta · meta '+fmt(m)+', fora da Meta do Milhão (P5)' },
   // CORRIGIDO 13/08/2026 (achado de auditoria: mapa mapeava só 9 das 10 chaves de
   // REG.caixasOperacionais — pixGeralVanessa, criada 07/08/2026, faltava aqui. A 10ª barra do
   // gráfico aparecia com o nome cru da variável em vez de um rótulo legível).
@@ -458,7 +465,12 @@ const CAIXAS_OPERACIONAIS_INFO = {
 const caixasChaves = Object.keys(REG.caixasOperacionais);
 const caixasLabels = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].label) || k);
 const caixasMeta =  caixasChaves.map(k=>REG.caixasOperacionais[k].meta);
-const caixasNotas = caixasChaves.map(k => (CAIXAS_OPERACIONAIS_INFO[k] && CAIXAS_OPERACIONAIS_INFO[k].nota) || '');
+const caixasNotas = caixasChaves.map(k => {
+  const info = CAIXAS_OPERACIONAIS_INFO[k];
+  if(!info) return '';
+  if(info.notaFn) return info.notaFn(REG.caixasOperacionais[k].saldo, REG.caixasOperacionais[k].meta);
+  return info.nota;
+});
 
 const caixasValuePlugin = {
   id:'caixasValuePlugin',
@@ -510,11 +522,23 @@ const alivioLabels = ['Jul/26','Ago/26','Set/26','Out/26','Nov/26','Dez/26','Jan
 // projecao de Necessidade Liquida (secao 05) agora usa, nunca mais 2 implementacoes separadas da
 // mesma logica. Bens Duraveis (R$250/mes, sem data de termino) adicionada, faltava aqui.
 const alivioData = alivioLabels.map((_,i)=> calcularAporteIncrementalPorCiclo(i));
+// CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #6): os valores em R$ de cada
+// marco eram cópia solta calculada uma vez a mão — agora são a DIFERENÇA real entre pontos
+// consecutivos do próprio alivioData (mesma fonte, calcularAporteIncrementalPorCiclo, já calculada
+// acima), nunca mais podem divergir do que o gráfico de fato desenha. Os índices e as datas (14/09,
+// 01/11) continuam fixos de propósito — são marcos de calendário reais já validados com o usuário,
+// não recalculados aqui (exigiria fonte de calendário própria, fora de escopo).
+// CORRIGIDO no mesmo achado: o evento único no índice 16 ("Saúde Família + Escola Júlio 2027
+// completam") juntava 2 transições que a própria calcularAporteIncrementalPorCiclo() não faz no
+// mesmo ciclo — Saúde Família para de contar em i<16 (cai no índice 16) e Escola Júlio 2027 para em
+// i<=16 (cai só no índice 17, o último da janela) — 1 ciclo de diferença entre as duas. Separado em
+// 2 eventos pra bater exatamente com a fórmula.
 const alivioEventos = {
-  2: {tipo:'alivio',  texto:'Aniversário Júlio completa (14/09) — R$200,00/mês liberados'},
-  4: {tipo:'alivio',  texto:'Escola Júlio (ciclo atual) completa (01/11) — R$500,00/mês liberados'},
-  6: {tipo:'aumento', texto:'Escola Júlio 2027 inicia (do zero) — +R$839,64/mês'},
-  16:{tipo:'alivio',  texto:'Saúde Família + Escola Júlio 2027 completam — R$939,64/mês liberados'}
+  2: {tipo:'alivio',  texto:'Aniversário Júlio completa (14/09) — '+fmt(alivioData[1]-alivioData[2])+'/mês liberados'},
+  4: {tipo:'alivio',  texto:'Escola Júlio (ciclo atual) completa (01/11) — '+fmt(alivioData[3]-alivioData[4])+'/mês liberados'},
+  6: {tipo:'aumento', texto:'Escola Júlio 2027 inicia (do zero) — +'+fmt(alivioData[6]-alivioData[5])+'/mês'},
+  16:{tipo:'alivio',  texto:'Saúde Família completa — '+fmt(alivioData[15]-alivioData[16])+'/mês liberados'},
+  17:{tipo:'alivio',  texto:'Escola Júlio 2027 completa — '+fmt(alivioData[16]-alivioData[17])+'/mês liberados'}
 };
 
 const alivioStepPlugin = {
