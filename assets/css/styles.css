@@ -250,7 +250,15 @@
     padding:0.45rem;box-shadow:0 2px 10px rgba(0,0,0,0.18);
     position:sticky;top:0;z-index:40;
     transition:transform 0.25s ease, opacity 0.25s ease;
+    /* CORRIGIDO 15/08/2026, 2ª rodada (achado do usuário: "torto em todas as abas" — a correção
+       anterior só rolava horizontalmente abaixo de 640px; em larguras entre 640px e a tela cheia
+       (tablet, painel embutido, janela não maximizada) a barra ainda usava flex:1 1 0 sem rolagem,
+       espremendo os 8 botões numa linha só e cortando/sobrepondo texto). Rolagem horizontal vira
+       comportamento PADRÃO, em qualquer largura — em telas largas o bastante pra caber tudo, não
+       muda nada visualmente (scrollWidth <= clientWidth, sem barra de rolagem nenhuma aparecendo). */
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   }
+  .master-tabs::-webkit-scrollbar{display:none}
   /* NOVO 12/08/2026 (pedido do usuário, print real do celular circulando esta barra: "toma muito
      espaço fixo, tem que recolher ao rolar como o Gmail/Android faz"). .master-tabs só aparece
      DENTRO das abas (Painel/Gráficos/Energia Solar/Cenários/Balanço — nunca na Home, que usa
@@ -268,7 +276,7 @@
     background:var(--bg);z-index:-1;
   }
   .master-tab{
-    flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:0.6rem;
+    flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:0.6rem;
     background:none;border:none;color:var(--text-dim);font-family:inherit;
     font-size:var(--fs-lg);font-weight:600;padding:1.15rem 1.2rem;cursor:pointer;
     border-radius:var(--radius-lg);white-space:nowrap;
@@ -283,15 +291,11 @@
   .master-tab.active{color:var(--text);background:linear-gradient(135deg, rgba(76,142,242,0.20), rgba(76,142,242,0.09));box-shadow:var(--shadow-master-tab-active)}
   .master-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent-lg)}
   @media (max-width:640px){
-    /* CORRIGIDO 15/08/2026 (achado do usuário: botão "+ Lançar" e a aba "Wealth Intelligence"
-       apareciam tortas/cortadas no celular) — de flex-wrap:wrap com flex-basis fixa em 40% pra
-       rolagem horizontal (mesmo padrão Gmail/Android já citado no comentário do auto-hide acima).
-       Com 8 abas agora (era 5 quando o wrap em 2 colunas foi desenhado), texto mais longo como
-       "Wealth Intelligence" não cabia nos 40% e a última aba de uma linha ímpar esticava sozinha,
-       torta. Rolagem preserva cada aba no tamanho natural do próprio conteúdo, nunca corta texto. */
-    .master-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;top:0}
-    .master-tabs::-webkit-scrollbar{display:none}
-    .master-tab{flex:0 0 auto;font-size:var(--fs-base);padding:0.85rem 0.9rem}
+    /* CORRIGIDO 15/08/2026 (achado do usuário: "+ Lançar"/"Wealth Intelligence" tortos/cortados) —
+       rolagem horizontal e flex:0 0 auto viraram regra base acima (aplicam em qualquer largura, não
+       só aqui). Sobra só o ajuste de tamanho pra caber mais confortável em tela pequena. */
+    .master-tabs{top:0}
+    .master-tab{font-size:var(--fs-base);padding:0.85rem 0.9rem}
   }
 
   .masthead{
