@@ -1108,6 +1108,19 @@ async function _lazyRenderSolarSecao(){
   if(residualTbodyEl){
     const comp = VARS.ENERGISA_TARIFA_COMPOSICAO || {};
     const fioBFracaoDaDistribuicao = (VARS.FIO_B_COBRANCA_2026_PCT/100) * (VARS.FIO_B_PCT_DA_DISTRIBUICAO/100); // 0,168
+    // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #4): "16,8%"/"83,2%" (e os 2
+    // percentuais que os compõem) estavam escritos crus no texto explicativo do card — o cronograma
+    // da Lei 14.300 sobe FIO_B_COBRANCA_2026_PCT todo ano (era 45% em 2025, sobe pra 75% em 2027), e
+    // o texto ficaria errado sozinho sem ninguém perceber. Calculado a partir da mesma fonte usada
+    // 2 linhas acima, nunca mais escrito a mão.
+    { const set1=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+      const fmtPct1 = v => v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+      set1('fioBPctCobranca2026', VARS.FIO_B_COBRANCA_2026_PCT);
+      set1('fioBPctDaDistribuicao', VARS.FIO_B_PCT_DA_DISTRIBUICAO);
+      set1('fioBFormula', VARS.FIO_B_COBRANCA_2026_PCT+'%×'+VARS.FIO_B_PCT_DA_DISTRIBUICAO+'%');
+      set1('fioBPctCobrado', fmtPct1(fioBFracaoDaDistribuicao*100));
+      set1('fioBPctCompensado', fmtPct1(100-fioBFracaoDaDistribuicao*100));
+    }
     const unidades = [
       { chave:'apartamento_wallace', nome:'Apartamento (Wallace)', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
       { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
@@ -1641,8 +1654,18 @@ async function _lazyRenderSolarSecao(){
       : consumoMsg);
     setFluxo('feExportacaoDetalhe', 'Enviado pra rede da Energisa (código 103), vira crédito: <strong>'+fmtKwhPtBr(exportadoAcum)+' kWh</strong>'+(consumoDiretoConfiavel ? ' (~'+exportacaoDaGeracaoPct+'% da geração total)' : '')+'.');
     setFluxo('feCreditosDetalhe', 'Saldo líquido acumulado (exportado − importado à noite): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(saldoLiquidoAcum)+' kWh</strong>. É esse valor que é dividido entre Wallace e Wellida pelo rateio.');
-    setFluxo('feWallaceDetalhe', 'Fatia do Wallace (71% do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioWallace*100)/100)+' kWh</strong>.');
-    setFluxo('feWellidaDetalhe', 'Fatia da Wellida (29% do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioIrma*100)/100)+' kWh</strong>.');
+    // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #1): "71%"/"29%" escritos crus
+    // em 4 pontos do HTML (cards do Fluxo de Energia, título da seção 05, detalhe de cada card) —
+    // cópias soltas de VARS.solarRateioWallace/solarRateioIrma, que já é a fonte real usada em todo
+    // cálculo de crédito (esta mesma função, linhas acima). solar-compartilhado.html já lê o rateio
+    // vivo da RPC — esse era o painel principal que ainda tinha o número congelado.
+    const rateioWallacePctTxt = fmtKwhPtBr(Math.round(VARS.solarRateioWallace*1000)/10)+'%';
+    const rateioIrmaPctTxt = fmtKwhPtBr(Math.round(VARS.solarRateioIrma*1000)/10)+'%';
+    [['feRateioWallacePct',rateioWallacePctTxt],['feRateioWellidaPct',rateioIrmaPctTxt],
+     ['solarRateioTituloWallacePct',rateioWallacePctTxt],['solarRateioTituloIrmaPct',rateioIrmaPctTxt]]
+      .forEach(([id,txt]) => { const el=$(id); if(el) el.textContent = txt; });
+    setFluxo('feWallaceDetalhe', 'Fatia do Wallace ('+rateioWallacePctTxt+' do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioWallace*100)/100)+' kWh</strong>.');
+    setFluxo('feWellidaDetalhe', 'Fatia da Wellida ('+rateioIrmaPctTxt+' do saldo líquido acumulado): <strong>'+(saldoLiquidoAcum>=0?'+':'')+fmtKwhPtBr(Math.round(saldoLiquidoAcum*VARS.solarRateioIrma*100)/100)+' kWh</strong>.');
     setFluxo('feImportacaoDetalhe', 'Puxado da rede à noite (código 03, quando as placas não geram): <strong>'+fmtKwhPtBr(importadoAcum)+' kWh</strong> desde a ativação.');
 
     // Status: so usa dado 100% real (saldo liquido = 103-03), nao depende da geracao do inversor

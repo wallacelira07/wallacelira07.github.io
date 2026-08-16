@@ -43,6 +43,10 @@ function hydrateCaixas(){
     const pctBens = Math.max(0, pctOf(C.bensDuraveis.saldo, C.bensDuraveis.meta));
     const elBar = $('cxBensDuraveisBar'); if(elBar) elBar.style.width = pctBens+'%';
     const elAporte = $('cxBensDuraveisAporte'); if(elAporte) elAporte.textContent = 'Aporte alvo: '+fmt(VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO)+'/mês';
+    // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #7): o callout do Livro Razão
+    // Bens Duráveis (seção "Livros razão") tinha "R$250,00" cru no texto, cópia solta do mesmo
+    // VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO já usado 2 linhas acima.
+    const elAporteLR = $('lrbdAporteAlvo'); if(elAporteLR) elAporteLR.textContent = fmt(VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO);
   }
   t('cxEventosSaldo', fmt(C.eventos.saldo));        t('cxEventosMeta', fmtInt(C.eventos.meta));
   t('cxEventosPct', pctOf(C.eventos.saldo,C.eventos.meta).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');

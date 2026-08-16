@@ -36,4 +36,16 @@ function hydrateEstimadorSalario(){
   // Crítico/Baixo/Alto de verdade — R.operacional.modoOperacional já existe, calculado em
   // recalcular-necessidade.js, só nunca tinha sido ligado aqui).
   t('estExcedente', fmt(excedenteEst)+' · Modo '+R.operacional.modoOperacional);
+
+  // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #3): a tabela "Fórmula exata"
+  // tinha INSS/Saúde-Dental escritos crus no HTML — já dessincronizados de verdade (382,67 no HTML
+  // vs 413,15 real em parametros_gerais.taxasHoraFolhaPontoWartsila.assistenciaMedicaOdontoBase,
+  // mesma fonte já usada em reg-operacional.js/graficos-cenarios-lazy.js pro Déficit Zero).
+  const THFW = VARS.taxasHoraFolhaPontoWartsila;
+  if(THFW){
+    const inss = (THFW.inssMes && THFW.inssMes.valorAtual) ?? 988.07;
+    const saudeDental = (THFW.assistenciaMedicaOdontoBase && THFW.assistenciaMedicaOdontoBase.valorAtual) ?? 413.15;
+    t('estFormulaInss', fmt(inss));
+    t('estFormulaSaudeDental', fmt(saudeDental));
+  }
 }

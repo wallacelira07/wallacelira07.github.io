@@ -2,6 +2,27 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ▶️ Continuação autônoma 16/08/2026 (bloco 18, parte 3) — Grupo A do inventário de hardcode, 7 de 9 achados implementados
+
+Retomada da parte 2 abaixo, mesma sessão autônoma. Com os 20 achados de bug fechados, sobrou só o Grupo A do inventário de "dado disfarçado de texto" que o usuário tinha pedido como Prioridade 0 ("Grupo A agora - faça só o grupo A") mas que a sessão original nunca chegou a iniciar (interrompida pelo lote de bugs 🔴 antes).
+
+**1. Levantamento preciso**: como só tinha 4 exemplos do resumo original (não a lista completa de ~28 itens), rodei um agente de varredura só-leitura pra reconstruir a lista com evidência (arquivo:linha + confirmação de que existe fonte viva paralela já usada em outro lugar do código) — nunca "inventar" um item sem confirmar. Voltou com 9 itens de confiança alta/média (cada um com a fonte viva confirmada por código lido) e 3 duvidosos (sinalizados, sem fonte viva confirmada).
+
+**2. Implementados** (diff completo, revisão de sintaxe feita, NÃO commitado — ver `ESTADO_ATUAL.md` seção 1.5 pra lista completa de arquivos):
+- Rateio Solar "71%/29%" (4 pontos no HTML) → IDs novos + `graficos-cenarios-lazy.js` popula de `VARS.solarRateioWallace/Irma`.
+- "2 parcelas pagas" do Consórcio da Casa (Balanço) → `hydrate-balanco.js` lê `VARS.consorcioCasaParcelasPagas`.
+- Tabela "Fórmula exata" do Estimador de Salário — corrigidos só INSS e Saúde/Dental, os 2 únicos com **drift já confirmado ao vivo** (HTML dizia R$382,67, fonte real hoje é R$413,15 — achado real, não hipotético). Percentuais de taxa e a dedução fixa do IRRF ficaram como estão (constantes de lei, não fato pessoal).
+- Fio B "16,8%/83,2%" (Energia Solar) → calculado de `VARS.FIO_B_COBRANCA_2026_PCT × FIO_B_PCT_DA_DISTRIBUICAO`, para de ficar errado sozinho quando o cronograma da Lei 14.300 subir a cobrança em 2027.
+- "Aporte alvo R$250,00/mês" (Livro Razão Bens Duráveis) → `hydrate-caixas.js` lê `VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO` (mesma fonte já usada 2 linhas acima).
+- "R$2.000" do teto da Caixa Variável (card ECC) → `hydrate-simulador-ciclo.js` lê `VARS.tetoOficial`.
+- 3 legendas do Déficit Zero (`legCenarioFicaEmCasa`/`legPisoSemTrabalhar`/`legDeficitSemEmbarque`) migradas pro mesmo padrão dinâmico das outras 4 legendas calculadas do arquivo — `REG.deficitZero` ganhou campo novo `pisoGarantidoTrabalhando` (mesma metodologia de `liquidoSemTrabalhar` do achado #18, mas com Periculosidade).
+
+**3. NÃO implementados, de propósito** (mais arriscados de mexer sem poder testar ao vivo, deixados pro usuário decidir): o cluster de 9 notas de tooltip do gráfico "Caixas Operacionais" (percentuais "X% da meta" calculados a mão) e o cluster de datas de marco do gráfico "Alívio de pressão" (índices fixos no array, deveriam vir de `calcularAporteIncrementalPorCiclo()`). Também não mexi nos 3 itens duvidosos que o agente sinalizou sem fonte viva confirmada (texto da Conta Vivo, nota histórica Tokio Marine, tarifa-âncora Jun/2026) — nenhum dos 3 tinha evidência suficiente pra eu decidir sozinho sem o usuário.
+
+**Validação**: só revisão manual de sintaxe/lógica (releitura de cada diff) — continua sem acesso a login pra testar no navegador real. Deixei uma lista específica de telas pra testar assim que possível em `ESTADO_ATUAL.md`.
+
+**Parada por aqui**: decidi não avançar pros 2 clusters não implementados nem insistir nos 3 itens duvidosos sem supervisão — o risco de erro sutil em texto financeiro sem conseguir validar visualmente cresce, e o essencial (todos os 20 bugs + a maioria do Grupo A) já está feito. Diff completo esperando revisão/commit do usuário.
+
 ## ▶️ Continuação autônoma 16/08/2026 (bloco 18, parte 2) — achados #4/#5/#18 fechados, usuário foi dormir
 
 Retomada do bloco 18 abaixo, mesma sessão. Usuário autorizou trabalho autônomo explicitamente: "pode continuar, eu vou tomar banho e dormir".

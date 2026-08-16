@@ -132,4 +132,22 @@ function hydrateResumoExecutivo(){
   if(legMPImpactoEl){
     legMPImpactoEl.innerHTML = `Mercado Pago corporativo (compras Wärtsilä, reembolsáveis) não entra — impacto real é sempre R$0. Escola Júlio é preservada sempre que possível, mas não faz parte deste piso absoluto. Mesmo no cenário mais crítico, <span class="v">${fmt(R.reserva.piso)}</span> têm que sair todo ciclo. Ordem de corte quando o modo é Baixo/Crítico: Churrasco → Combustível → Eventos → Manutenção.`;
   }
+
+  // ADICIONADAS 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9, mesmo tratamento das 4
+  // legendas acima): as 3 tinham o valor do "salário seco" (com/sem Periculosidade) escrito cru no
+  // texto — desde o achado #18 (mesma auditoria) esses 2 valores já vivem em REG.deficitZero
+  // (liquidoSemTrabalhar/pisoGarantidoTrabalhando, calculados de VARS.taxasHoraFolhaPontoWartsila) —
+  // excluídas do loop genérico de hydrate-roc.js (ver LEGENDAS_CALCULADAS lá).
+  const legCenarioEl = $('legCenarioFicaEmCasa');
+  if(legCenarioEl){
+    legCenarioEl.innerHTML = `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>${fmt(R.deficitZero.liquidoSemTrabalhar)}/mês</strong>.`;
+  }
+  const legPisoSemTrabEl = $('legPisoSemTrabalhar');
+  if(legPisoSemTrabEl){
+    legPisoSemTrabEl.innerHTML = `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>${fmt(R.deficitZero.liquidoSemTrabalhar)}/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`;
+  }
+  const legDeficitEmbarqueEl = $('legDeficitSemEmbarque');
+  if(legDeficitEmbarqueEl){
+    legDeficitEmbarqueEl.innerHTML = `Compara o piso mínimo líquido que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo — salário seco, sem hora extra: Base + Periculosidade 30% + Supervisão 5% + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL = <strong>${fmt(R.deficitZero.pisoGarantidoTrabalhando)}/mês</strong>, nunca cai abaixo disso — contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`;
+  }
 }

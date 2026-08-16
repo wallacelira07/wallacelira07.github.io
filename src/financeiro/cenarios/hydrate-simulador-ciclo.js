@@ -117,6 +117,9 @@ function hydrateSimuladorCiclo(){
   }
   set('eccValor', fmt(cv.disponivel));
   set('eccFolego', fmt(folego));
+  // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #8): "R$2.000" no texto
+  // explicativo do card ECC era cópia solta de VARS.tetoOficial (meta oficial da Caixa Variável).
+  set('eccTetoOficialTxt', fmt(VARS.tetoOficial));
 
   // Badge "Queda total" (Necessidade líquida) - calculado ao vivo a partir da MESMA serie usada
   // no grafico (18/07/2026, V85: estava hardcoded, descolado do dado real ha varias rodadas).

@@ -59,6 +59,23 @@ function criarRegOperacional(){
         const pgbl = (T.pgbl && T.pgbl.valorAtual) ?? 654.82;
         return Math.round(((base+supervisao+creche) - (inss+irrf+saude+pgbl)) * 100) / 100;
       })(), // REGRA_CENARIO_FICOU_EM_CASA
+      // NOVO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9: legDeficitSemEmbarque tinha
+      // "R$10.483,36" cru no texto — mesmo conceito de liquidoSemTrabalhar acima, mas COM
+      // Periculosidade Campo II (garantido sempre que há ≥1 dia trabalhado no ciclo, ver
+      // graficos-cenarios-lazy.js "dzLiquido"). Mesma fonte/fallback.
+      pisoGarantidoTrabalhando: (() => {
+        const T = VARS.taxasHoraFolhaPontoWartsila;
+        if(!T) return 10483.36;
+        const base = T.salarioBaseFixoMensal ?? 10913.66;
+        const periculosidade = (T.periculosidadeCampoII && T.periculosidadeCampoII.valorAtual) ?? 3274.10;
+        const supervisao = (T.adicionalSupervisao5pct && T.adicionalSupervisao5pct.valorAtual) ?? 545.68;
+        const creche = (T.auxilioCreche && T.auxilioCreche.valorAtual) ?? 445.00;
+        const inss = (T.inssMes && T.inssMes.valorAtual) ?? 988.07;
+        const irrf = (T.irrfBaseSemAdicionais && T.irrfBaseSemAdicionais.valorAtual) ?? 2639.04;
+        const saude = (T.assistenciaMedicaOdontoBase && T.assistenciaMedicaOdontoBase.valorAtual) ?? 413.15;
+        const pgbl = (T.pgbl && T.pgbl.valorAtual) ?? 654.82;
+        return Math.round(((base+periculosidade+supervisao+creche) - (inss+irrf+saude+pgbl)) * 100) / 100;
+      })(),
       // CORRIGIDO 04/08/2026 (parte 77, bug real apontado pelo usuario: "porque dezembro ficou maior
       // se a tendencia e das contas acabarem?"): Nov/26 e Dez/26 tinham valores MAIORES que Out/26, o
       // que e matematicamente impossivel dado que nada nesta formula reinicia antes de Jan/27 (parcelas

@@ -77,7 +77,10 @@ function hydrateROC(){
   // ADICIONADA 14/08/2026 (achado do usuário, mesmo tratamento): legMPCorporativoImpacto tinha
   // "R$9.223,66" fixo — agora calculada em hydrateResumoExecutivo() a cada render (ver
   // recalcular-necessidade.js pra causa raiz do valor congelado).
-  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida', 'legOrcamentoOperacionalComposicao', 'legPGVSaldoResidual', 'legMPCorporativoImpacto']);
+  // ADICIONADAS 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9, mesmo tratamento):
+  // legCenarioFicaEmCasa/legPisoSemTrabalhar/legDeficitSemEmbarque tinham "R$8.109,74"/"R$10.483,36"
+  // fixos — agora calculadas em hydrateResumoExecutivo() a partir de REG.deficitZero.
+  const LEGENDAS_CALCULADAS = new Set(['legNecessidadeBrutaLiquida', 'legOrcamentoOperacionalComposicao', 'legPGVSaldoResidual', 'legMPCorporativoImpacto', 'legCenarioFicaEmCasa', 'legPisoSemTrabalhar', 'legDeficitSemEmbarque']);
   Object.keys(VARS.LEGENDAS).forEach(id => {
     if(LEGENDAS_CALCULADAS.has(id)) return;
     const el = $(id);

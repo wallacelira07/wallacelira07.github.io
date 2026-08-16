@@ -79,26 +79,32 @@ function criarVarsOperacional(){
     legMPCorporativoImpacto: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.reserva.piso)`,
     legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
     legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Não há fórmula CLT/convenção implementada como derivado — atualizar manualmente se o salário-base mudar.`,
-    // CORRIGIDO 15/08/2026 (achado de auditoria: R$8.109,64 ficou pra trás da correção de R$0,10 do
-    // liquidoSemTrabalhar, feita em 13/08/2026 — legPisoSemTrabalhar já reflete o valor certo, este
-    // texto não).
-    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$8.109,74/mês</strong>.`,
+    // MIGRADA 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9, mesmo padrão de
+    // legPGVSaldoResidual/legNecessidadeBrutaLiquida/legOrcamentoOperacionalComposicao/
+    // legMPCorporativoImpacto acima) — hydrateResumoExecutivo() agora calcula o conteúdo real de
+    // #legCenarioFicaEmCasa a cada render, a partir de REG.deficitZero.liquidoSemTrabalhar (excluída
+    // do loop genérico em hydrate-roc.js). Literal abaixo mantido só como histórico/fallback morto.
+    legCenarioFicaEmCasa: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.deficitZero.liquidoSemTrabalhar)`,
     // ATUALIZADO 11/08/2026 (pedido do usuário: gráfico 06 "Operação Déficit Zero" virou o gráfico
     // 04, atrelado à seção "O que NUNCA é cortado" — trocou o que compara: antes era líquido fixo
     // sem trabalhar × piso absoluto de gastos fixos, agora é o piso mínimo GARANTIDO por lei sempre
     // que há pelo menos 1 dia trabalhado no ciclo (salário base + Periculosidade 30% + Supervisão
     // 5% = base×1,35, nunca cai abaixo disso) × a Evolução real do Total Operacional (mesma série
     // viva do gráfico gêmeo da aba Gráficos, cai conforme parcelas terminam).
-    legDeficitSemEmbarque: `Compara o piso mínimo líquido que você recebe garantido por lei sempre que trabalha pelo menos 1 dia no ciclo — salário seco, sem hora extra: Base R$10.913,66 + Periculosidade 30% + Supervisão 5% + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL = <strong>R$10.483,36/mês</strong>, nunca cai abaixo disso — contra a Evolução real do Total Operacional — a diferença diminui sozinha conforme parcelas do Visa Infinite e do Mercado Pago vão terminando, sem cortar nada.`,
+    // MIGRADA 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9, mesmo padrão das outras
+    // legendas calculadas): hydrateResumoExecutivo() calcula a partir de
+    // REG.deficitZero.pisoGarantidoTrabalhando (VARS.taxasHoraFolhaPontoWartsila + Periculosidade).
+    legDeficitSemEmbarque: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.deficitZero.pisoGarantidoTrabalhando)`,
     // NOVO 11/08/2026 (pedido do usuário, gráfico idêntico ao de cima com 2 eixos diferentes):
     // compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" já
     // usada na seção 01, base+5%+creche, sem periculosidade) contra o piso absoluto de gastos que
     // nunca é cortado (seção 03, mesmo valor de pisoTotal). Os 2 valores são constantes mês a mês
     // (diferente do gráfico de cima, que usa a Evolução real do Total Operacional) — a diferença se
     // repete igual nos 12 meses, é o esperado, não é bug.
-    // CORRIGIDO 13/08/2026 (achado de auditoria: R$0,10 de discrepancia entre este texto e a conta
-    // real - ver comentario de liquidoSemTrabalhar mais abaixo). Era R$8.109,64/mes.
-    legPisoSemTrabalhar: `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>R$8.109,74/mês</strong>) contra o piso absoluto de gastos que nunca é cortado, nem no cenário crítico (seção 03 acima). Os dois valores são fixos mês a mês — a diferença se repete igual nos 12 meses de propósito.`,
+    // MIGRADA 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #9, mesmo padrão das outras
+    // legendas calculadas): hydrateResumoExecutivo() calcula a partir de
+    // REG.deficitZero.liquidoSemTrabalhar.
+    legPisoSemTrabalhar: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.deficitZero.liquidoSemTrabalhar)`,
     legPGBLFGTSForaBalanco: `PGBL e FGTS (<span id="balPgblFgtsSoma">—</span> juntos) não estão incluídos aqui — são não líquidos e não geridos ativamente, ficam só como cards informativos acima.`,
     legReservasPagamentoDefinicao: `"Reservas de Pagamento" = dinheiro já separado para cobrir compromissos (cartões, boletos) + o saldo de trabalho do ciclo atual. PIX Geral Vanessa é conta autônoma dela, listada aqui só por transparência — nunca soma no total.`,
     // CORRIGIDO 07/08/2026 (mudança de regra de negócio): a legenda antiga condicionava o

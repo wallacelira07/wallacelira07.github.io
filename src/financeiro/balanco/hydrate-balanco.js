@@ -31,6 +31,10 @@ function hydrateBalanco(){
   t('bfinReserva', fmt(B.financeiro.reserva));
   t('bfinBTG', fmt(B.financeiro.btg));
   t('bfinConsorcioCasa', fmt(B.financeiro.consorcioCasaPago));
+  // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #2: "2 parcelas pagas" era texto
+  // cru no HTML, cópia solta de VARS.consorcioCasaParcelasPagas — já usado por recalcularPatrimonio()
+  // pra derivar consorcioCasaPago, mas o texto não avançava sozinho quando a próxima parcela é paga).
+  t('bfinConsorcioParcelasPagas', VARS.consorcioCasaParcelasPagas);
   t('bfinNectonCC', fmt(B.financeiro.nectonContaCorrente));
   t('bpFinanciamentoCasa', fmt(B.passivos.financiamentoCasa));
   t('bpConsorcioAuto', fmt(B.passivos.consorcioAutoContemplado));
