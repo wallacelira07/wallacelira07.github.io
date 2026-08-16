@@ -32,5 +32,8 @@ function hydrateEstimadorSalario(){
   // evolucao.necessidadeLiquida[0], que e o mesmo ciclo atual usado em liquidoMes(0).
   t('estNecLiquida', fmt(R.evolucao.necessidadeLiquida[0]));
   const excedenteEst = liquidoMes(0) - R.evolucao.necessidadeLiquida[0];
-  t('estExcedente', fmt(excedenteEst)+' · Modo Normal');
+  // CORRIGIDO 15/08/2026 (achado de auditoria: "· Modo Normal" era texto fixo, nunca refletia
+  // Crítico/Baixo/Alto de verdade — R.operacional.modoOperacional já existe, calculado em
+  // recalcular-necessidade.js, só nunca tinha sido ligado aqui).
+  t('estExcedente', fmt(excedenteEst)+' · Modo '+R.operacional.modoOperacional);
 }

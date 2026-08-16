@@ -20,4 +20,19 @@ function hydrateMercadoPago(){
   }
   t('mpProprias', fmt(R.totalOpDetalhe.provMP));
   t('mpTransporteCorp', fmt(R.operacional.reembolsoPagaMPCorporativo));
+  // NOVO 15/08/2026 (achado de auditoria: "Fecha 29/07 · Vence 04/08" era texto fixo no HTML, nunca
+  // atualizado — mostrava datas de um ciclo já fechado há semanas). Fatura Mercado Pago sempre fecha
+  // dia 29 e vence dia 04 do mês seguinte (regra confirmada, mesma usada nos comentários históricos
+  // desta seção); calcula qual fechamento/vencimento é o da fatura ATUALMENTE aberta.
+  {
+    const elDatas = $('mpFaturaCicloDatas');
+    if(elDatas){
+      const hoje = new Date();
+      const fechaMes = hoje.getDate() >= 29 ? hoje.getMonth()+1 : hoje.getMonth();
+      const dataFecha = new Date(hoje.getFullYear(), fechaMes, 29);
+      const dataVence = new Date(hoje.getFullYear(), fechaMes+1, 4);
+      const fmtDiaMes = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+      elDatas.textContent = 'Fecha '+fmtDiaMes(dataFecha)+' · Vence '+fmtDiaMes(dataVence);
+    }
+  }
 }

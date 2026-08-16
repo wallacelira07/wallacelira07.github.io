@@ -79,7 +79,10 @@ function criarVarsOperacional(){
     legMPCorporativoImpacto: `(obsoleta — ver hydrateResumoExecutivo(), calculada dinamicamente a partir de REG.reserva.piso)`,
     legCoparticipacaoSaude: `⚠ Co-participação de saúde/odonto (uso real de plano) é imprevisível — variou de R$0 a R$231,63/mês nos últimos 12 meses. Usando média histórica de R$87,36/mês. Não é uma alíquota, é uso real do plano.`,
     legTaxasPorHoraAviso: `Taxas por hora (confiança média, ±15%) — ⚠️ valores fixos, não recalculam automaticamente com o salário. Não há fórmula CLT/convenção implementada como derivado — atualizar manualmente se o salário-base mudar.`,
-    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$8.109,64/mês</strong>.`,
+    // CORRIGIDO 15/08/2026 (achado de auditoria: R$8.109,64 ficou pra trás da correção de R$0,10 do
+    // liquidoSemTrabalhar, feita em 13/08/2026 — legPisoSemTrabalhar já reflete o valor certo, este
+    // texto não).
+    legCenarioFicaEmCasa: `Cenário "fica em casa" (sem Periculosidade): Base + Supervisão(5%) + Auxílio Creche − INSS − IRRF − Saúde/Dental − PGBL ≈ <strong>R$8.109,74/mês</strong>.`,
     // ATUALIZADO 11/08/2026 (pedido do usuário: gráfico 06 "Operação Déficit Zero" virou o gráfico
     // 04, atrelado à seção "O que NUNCA é cortado" — trocou o que compara: antes era líquido fixo
     // sem trabalhar × piso absoluto de gastos fixos, agora é o piso mínimo GARANTIDO por lei sempre

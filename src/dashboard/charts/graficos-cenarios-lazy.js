@@ -109,17 +109,6 @@ window.WALLACE_CHARTS.gPatrim = new Chart($('g_cPatrim'), {
     plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
 });
 
-{ const __chartExistente = Chart.getChart($('g_cVisa')); if (__chartExistente) __chartExistente.destroy(); }
-new Chart($('g_cVisa'), {
-  type:'doughnut',
-  data:{labels:VISA_DETALHE_LABELS,
-    datasets:[{data:Object.values(REG.visaDetalhe),
-    backgroundColor:VISA_DETALHE_CORES,
-    borderColor:'#16181b',borderWidth:2}]},
-  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
-    plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
-});
-
 // CORRIGIDO 26/07/2026 (V166, pedido do usuario): "Composição da fatura Mastercard Black e Visa
 // Infinite" so mostrava dados do Visa (visaDetalhe) - titulo prometia os 2 cartoes, grafico so
 // entregava 1. Novo dataset COMBINADO: cada categoria soma o componente do Visa + o do Mastercard.
@@ -138,6 +127,22 @@ const FATURA_COMBINADA_VALORES = [
   REG.visaDetalhe.vanessa + REG.mbDetalhe.vanessa,
   REG.visaDetalhe.naoReconciliado + REG.mbDetalhe.naoReconciliado,
 ];
+
+// CORRIGIDO 15/08/2026 (achado de auditoria: o donut g_cVisa, primeiro card da seção 02, continuava
+// mostrando só REG.visaDetalhe (Visa Infinite) mesmo depois do V166 ter corrigido o gráfico de
+// barras irmão pro dataset COMBINADO — mesmo bug, 2 elementos da mesma seção, um corrigido e um
+// esquecido). Passa a usar o mesmo FATURA_COMBINADA_LABELS/VALORES do g_cVisaBar logo abaixo.
+{ const __chartExistente = Chart.getChart($('g_cVisa')); if (__chartExistente) __chartExistente.destroy(); }
+new Chart($('g_cVisa'), {
+  type:'doughnut',
+  data:{labels:FATURA_COMBINADA_LABELS,
+    datasets:[{data:FATURA_COMBINADA_VALORES,
+    backgroundColor:VISA_DETALHE_CORES,
+    borderColor:'#16181b',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:legendStd,tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
+});
+
 { const __chartExistente = Chart.getChart($('g_cVisaBar')); if (__chartExistente) __chartExistente.destroy(); }
 new Chart($('g_cVisaBar'), {
   type:'bar',

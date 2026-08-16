@@ -141,17 +141,29 @@ async function initWwiDashboard(){
   // ===== 05. Projeto Casa Nova =====
   const seriePcn = _wwiSeriePorMetrica(metricas, 'projetoCasaNovaPct');
   const serieCcn = _wwiSeriePorMetrica(metricas, 'consorcioCasaPagoPct');
-  const atualPcn = seriePcn.length ? seriePcn[seriePcn.length - 1].valor : (narrativa.projetos || []).find(function(p){ return p.nome === 'Projeto casa nova'; });
+  // CORRIGIDO 15/08/2026 (achado de auditoria: fallback comparava o OBJETO de projeto inteiro contra
+  // typeof 'number' — nunca era número, então o fallback nunca funcionava de verdade, mesmo quando
+  // narrativa.projetos tinha o dado real. O objeto tem o percentual em .pct, ver
+  // wwi_gerar_relatorio_mensal.py).
+  const projetoCasaNovaFallback = (narrativa.projetos || []).find(function(p){ return p.nome === 'Projeto casa nova'; });
+  const atualPcn = seriePcn.length ? seriePcn[seriePcn.length - 1].valor : (projetoCasaNovaFallback ? projetoCasaNovaFallback.pct : null);
   t('wwiProjetoCasaNovaPct', typeof atualPcn === 'number' ? _wwiFmtPct(atualPcn) : '—');
   const atualCcn = serieCcn.length ? serieCcn[serieCcn.length - 1].valor : b.consorcioCasaPagoPct;
   t('wwiConsorcioCasaNovaPct', atualCcn != null ? _wwiFmtPct(atualCcn) : '—');
   _wwiDestruirGrafico('cWwiCasaNova');
   if(seriePcn.length > 1 || serieCcn.length > 1){
-    const labelsBase = (seriePcn.length >= serieCcn.length ? seriePcn : serieCcn).map(function(m){ return m.competencia; });
+    // CORRIGIDO 15/08/2026 (achado de auditoria: as 2 séries eram pareadas por POSIÇÃO no array, não
+    // por competência — se projetoCasaNovaPct e consorcioCasaPagoPct cobrirem meses diferentes (cada
+    // uma tem seu próprio guard "if X is not None" no Python), os pontos caem no mês errado do eixo X
+    // silenciosamente). Une as competências das 2 séries, ordena, e busca o valor de cada série por
+    // competência real — mês sem dado vira null (Chart.js abre um vão no gráfico, não erra o mês).
+    const mapaPcn = {}; seriePcn.forEach(function(m){ mapaPcn[m.competencia] = m.valor; });
+    const mapaCcn = {}; serieCcn.forEach(function(m){ mapaCcn[m.competencia] = m.valor; });
+    const labelsBase = Array.from(new Set(seriePcn.concat(serieCcn).map(function(m){ return m.competencia; }))).sort();
     new Chart($('cWwiCasaNova'), { type:'line', data:{ labels:labelsBase,
       datasets:[
-        { label:'Projeto Casa Nova', data:seriePcn.map(function(m){ return m.valor; }), borderColor:'#3987e5', fill:false, tension:0.25 },
-        { label:'Consórcio', data:serieCcn.map(function(m){ return m.valor; }), borderColor:'#34c98a', fill:false, tension:0.25 },
+        { label:'Projeto Casa Nova', data:labelsBase.map(function(c){ return mapaPcn[c] != null ? mapaPcn[c] : null; }), borderColor:'#3987e5', fill:false, tension:0.25, spanGaps:true },
+        { label:'Consórcio', data:labelsBase.map(function(c){ return mapaCcn[c] != null ? mapaCcn[c] : null; }), borderColor:'#34c98a', fill:false, tension:0.25, spanGaps:true },
       ] },
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:8, font:{size:10}}}}, scales:{y:{min:0, max:100}} } });
   }

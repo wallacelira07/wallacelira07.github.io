@@ -77,8 +77,11 @@ async function aplicarOnda5QualidadeGeracao(){
   // CORRIGIDO 09/08/2026 (pedido do usuário): "(parcial)" só faz sentido enquanto a usina ainda pode
   // gerar mais naquele dia. Ela roda das 05:30 às 18:00 (horário real informado pelo usuário) - fora
   // dessa janela a leitura de hoje já é o valor final do dia, não tem mais nada "parcial" nela.
-  const agora = new Date();
-  const minutosDoDia = agora.getHours()*60 + agora.getMinutes();
+  // CORRIGIDO 15/08/2026 (achado de auditoria: usava agora.getHours() — hora LOCAL da máquina, não
+  // de Brasília. Mesmo truque de fuso já usado em agoraEfetivoFrescorSolar()/hojeStr acima, neste
+  // mesmo arquivo: desloca -3h e lê os getters UTC do resultado).
+  const spDeslocadoAgora = new Date(Date.now() - 3*3600*1000);
+  const minutosDoDia = spDeslocadoAgora.getUTCHours()*60 + spDeslocadoAgora.getUTCMinutes();
   const usinaAindaGerandoHoje = minutosDoDia >= (5*60+30) && minutosDoDia < 18*60;
   t('qgProducaoHoje', registroHoje ? fmtKwh(registroHoje.kwh) + (usinaAindaGerandoHoje ? ' (parcial)' : '') : 'Sem leitura ainda hoje');
 

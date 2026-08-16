@@ -107,7 +107,9 @@ async function aplicarEmagrecimento(){
         elFalta.style.color = '';
       }
     }
-    if(elAviso) elAviso.textContent = `${pesagens.length} pesagem(ns) registrada(s). Sem meta definida — só evolução real, por enquanto.`;
+    // CORRIGIDO 15/08/2026 (achado de auditoria: texto ainda dizia "Sem meta definida", contradizendo
+    // o kpi-strip da mesma tela — a meta de 110kg foi implementada em 13/08/2026, ver metaKg acima).
+    if(elAviso) elAviso.textContent = `${pesagens.length} pesagem(ns) registrada(s). Meta: ${fmtKg(metaKg)}.`;
 
     const labels = pesagens.map(p => p.data.split('-').reverse().slice(0,2).join('/'));
     const dados = pesagens.map(p => Number(p.peso_kg));

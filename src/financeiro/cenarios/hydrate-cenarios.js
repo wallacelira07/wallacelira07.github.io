@@ -24,6 +24,15 @@ function hydrateCenarios(){
   const saldoDe = liquido => liquido + R.operacional.reembolsoSobraPessoal - R.operacional.necessidadeTotalBruta;
   t('chMediana', CH.mediana.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('chDesvpad', CH.desvioPadrao.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  // CORRIGIDO 15/08/2026 (achado de auditoria: "44,7% da média" era texto fixo no HTML, calculado
+  // contra uma média antiga — hoje (desvioPadrao/media) bate ~46,2%, não 44,7%). Calculado em runtime.
+  if(CH.media) t('chDesvpadPct', (CH.desvioPadrao/CH.media*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+  // CORRIGIDO 15/08/2026 (achado de auditoria: "(do ciclo atual, 25/06-24/07)" era texto fixo, citava
+  // um ciclo já encerrado há semanas). Mesmo padrão já usado em hydrateEstimadorSalario() (estStatusFonte).
+  {
+    const snapCiclo = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+    if(snapCiclo) t('csCicloPeriodo', snapCiclo.periodo);
+  }
   t('chPiorValor', fmt(CH.piorMes));
   t('chPiorSaldo', fmtSign(saldoDe(CH.piorMes)));
   t('chEquilibrio', fmt(R.operacional.necessidadeTotalBruta - R.operacional.reembolsoSobraPessoal));

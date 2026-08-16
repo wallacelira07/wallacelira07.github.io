@@ -176,6 +176,13 @@ async function aplicarOnda4Patrimonio(){
   // e some se a aba Gráficos/Cenários nunca foi aberta — atualizarGraficoPainelPatrimonio() (sempre
   // carregada) cobre o gráfico do Painel principal nesse caso.
   if(typeof atualizarGraficoPainelPatrimonio === 'function') atualizarGraficoPainelPatrimonio();
+  // NOVO 15/08/2026 (achado de auditoria: race condition real) — coverPatrimonioTotal/coverPatrimonio/
+  // coverMetaPct (KPIs da Home) são escritos por hydrateResumoP2P(), chamada ANTES desta função no
+  // boot (Onda 5 roda em paralelo com esta Onda 4, sem await entre elas). Se a Onda 5 (P2P) responder
+  // antes da Onda 4 (Patrimônio), a Home fica presa nos valores V1 pré-promoção enquanto o Painel já
+  // mostra V2 — mesmo padrão já resolvido em hydrate-onda3-livro-razao.js/hydrate-deficit-caixas-sem-
+  // lrei.js/hydrate-comprometido-caixa-variavel-v2.js, só que faltava aqui.
+  if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
 
   // CORRIGIDO 13/08/2026 (pedido explícito do usuário): removida a comparação/aviso contra
   // hydratePatrimonio() (V1) — a migração V1→V2 está formalmente encerrada, V2 é a fonte de

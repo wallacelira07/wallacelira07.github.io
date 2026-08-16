@@ -78,7 +78,9 @@ function criarVarsEnergiaSolar(){
   // dias = 7,38 kWh/dia. Usada so pra estimar o consumo total das 3 casas (grafico "Geracao por dia");
   // NAO entra no rateio Wallace/Irma (essa casa e a fonte, nao uma recebedora de credito).
   solarConsumoDiarioMae: 1572/213,      // 7,38 kWh/dia (media real ponderada por dias, so meses com leitura de verdade - fatura Energisa confirmada)
-  solarGeracaoDiariaEstimada: 25.6,   // kWh/dia bruto (app SAJ), usado so como fallback quando faltar leitura real
+  // REMOVIDO 15/08/2026 (achado de auditoria: solarGeracaoDiariaEstimada, 25.6 kWh/dia, era codigo
+  // morto - zero referencias reais em src/, so sobrevivia em comentario, contrariando a propria regra
+  // "SEM ESTIMATIVAS" v250 documentada na linha ~131 abaixo, "nunca mais usar solarGeracaoDiariaEstimada").
   // NOVO 31/07/2026: quando o usuario informar o valor REAL da fatura pos-solar de um mes (a partir da
   // fatura de 21/08), a chave (mesmo nome usado em mesesPares: 'Jul','Ago',...) entra aqui e passa a
   // valer sobre o calculo/projecao daquele mes no grafico da secao 09. Comeca vazio - nenhuma fatura

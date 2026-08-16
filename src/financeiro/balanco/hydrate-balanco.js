@@ -11,7 +11,10 @@ function hydrateBalanco(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   const R = REG;
 
-  t('snCicloAtual', '+ '+fmt(liquidoMes(0) - R.superavitNormal.necessidade[0]));
+  // CORRIGIDO 15/08/2026 (achado de auditoria: R.superavitNormal.necessidade = necessidadeBRUTA, mas a
+  // tabela/gráfico da mesma seção 08 usa necessidadeLIQUIDA desde 12/08/2026 — o rodapé "Superávit
+  // projetado" divergia da última linha da tabela logo acima, exatamente pela Cobertura Garantida).
+  t('snCicloAtual', '+ '+fmt(liquidoMes(0) - R.evolucao.necessidadeLiquida[0]));
 
   t('csNecTotal', R.operacional.necessidadeTotalBruta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   t('csReembolsos', R.operacional.reembolsoSobraPessoal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));

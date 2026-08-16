@@ -812,7 +812,7 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Fatura atual (aberta)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="mpFatura">—</div></div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Fecha 29/07 · Vence 04/08</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim)" id="mpFaturaCicloDatas">—</div>
     </div>
     <div class="row"><span class="k">Parcelas próprias (LRMP)</span><span class="v" id="mpProprias">—</span></div>
     <div class="row"><span class="k">Transporte corporativo</span><span class="v" id="mpTransporteCorp">—</span></div>
@@ -1532,8 +1532,8 @@
     <div class="card">
       <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.8rem">4 referências: quando você não trabalha, o ponto de empate, sua média real e a média dos seus meses bons. Verde = sobra. Vermelho = falta.</div>
       <div class="chart-box"><canvas id="cCenarioSalario"></canvas></div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong> (do ciclo atual, 25/06-24/07): Necessidade Total (R$<span class="v" id="csNecTotal">—</span>) − Reembolso pessoal, após pagar Wärtsilä + corporativo MP + corporativo cartão (R$<span class="v" id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$<span class="v" id="chMediana">—</span> · Desvio padrão: R$<span class="v" id="chDesvpad">—</span> (44,7% da média — renda muito instável mês a mês).</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem"><strong>Não trabalha</strong>: fórmula validada (base+5%+creche, sem periculosidade). <strong>Ponto de empate</strong> (do ciclo atual, <span class="v" id="csCicloPeriodo">—</span>): Necessidade Total (R$<span class="v" id="csNecTotal">—</span>) − Reembolso pessoal, após pagar Wärtsilä + corporativo MP + corporativo cartão (R$<span class="v" id="csReembolsos">—</span>). <strong>Média</strong>: real dos 12 meses. <strong>Meses bons</strong>: média dos 5 meses que passaram do patamar Alto (R$19.815,51) — este ciclo, dez/25, jan/26, nov/25 e abr/26.</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Mediana 12m: R$<span class="v" id="chMediana">—</span> · Desvio padrão: R$<span class="v" id="chDesvpad">—</span> (<span class="v" id="chDesvpadPct">—</span> da média — renda muito instável mês a mês).</div>
     </div>
 
     <div class="section-num"><span class="n">02</span><h2>Pontos de virada (dados reais)</h2></div>
