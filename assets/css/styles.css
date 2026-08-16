@@ -283,8 +283,15 @@
   .master-tab.active{color:var(--text);background:linear-gradient(135deg, rgba(76,142,242,0.20), rgba(76,142,242,0.09));box-shadow:var(--shadow-master-tab-active)}
   .master-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent-lg)}
   @media (max-width:640px){
-    .master-tabs{flex-wrap:wrap;top:0}
-    .master-tab{flex:1 1 40%;font-size:var(--fs-base);padding:0.85rem 0.7rem}
+    /* CORRIGIDO 15/08/2026 (achado do usuário: botão "+ Lançar" e a aba "Wealth Intelligence"
+       apareciam tortas/cortadas no celular) — de flex-wrap:wrap com flex-basis fixa em 40% pra
+       rolagem horizontal (mesmo padrão Gmail/Android já citado no comentário do auto-hide acima).
+       Com 8 abas agora (era 5 quando o wrap em 2 colunas foi desenhado), texto mais longo como
+       "Wealth Intelligence" não cabia nos 40% e a última aba de uma linha ímpar esticava sozinha,
+       torta. Rolagem preserva cada aba no tamanho natural do próprio conteúdo, nunca corta texto. */
+    .master-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;top:0}
+    .master-tabs::-webkit-scrollbar{display:none}
+    .master-tab{flex:0 0 auto;font-size:var(--fs-base);padding:0.85rem 0.9rem}
   }
 
   .masthead{

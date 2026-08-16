@@ -33,22 +33,15 @@ function montarAlertasNegocio(){
     const nivel = maxIdade<=30 ? {icone:'ℹ️',cor:'#3987e5'} : maxIdade<=60 ? {icone:'⚠️',cor:'#e8a63a'} : {icone:'🔴',cor:'#e2554f'};
     alertas.push({icone:nivel.icone, cor:nivel.cor, txto:`${q.lreiAtivos} empréstimo(s) interno(s) ativo(s) — mais antigo com ${maxIdade} dias`});
   }
-  // NOVO 05/08/2026 (parte 100, pendencia deixada em aberto na parte 97: "aplique uma solucao
-  // profissional" pro mecanismo de emprestimo interno da Bens Duraveis). Mesmo padrao ja usado pras
-  // outras 2 LREI ativas (Caixa Lance emprestando pra Saude Familia/Fatura MP) - so um ALERTA
-  // automatico sinalizando a OPORTUNIDADE quando o saldo vira positivo, nunca cria o LREI sozinho
-  // (lancamento continua manual/confirmado pelo usuario, regra 04 do manual - nunca lancar no escuro).
-  // Enquanto negativo, mostra nota neutra confirmando que isso e esperado (nao e erro, nao significa
-  // que saiu dinheiro da Caixa Variavel - ver callout da aba LRBD).
   // CORRIGIDO 12/08/2026 (achado do usuário: alerta mostrava R$-355,00, saldo real V2 já é
   // R$-583,99 — mesma classe de bug do caso PGV/PV acima, só que faltava aqui: esta função lia
   // VARS.caixaBensDuraveis direto, nunca sabendo que a Onda 2 já tinha promovido o card visível
   // pra V2. Mesmo padrão: prefere window.WALLACE_ONDA2_V2_RELATORIO quando disponível.
+  // REMOVIDO 15/08/2026 (pedido do usuário: "retire essa nova, não acrescenta nada") — alerta de
+  // oportunidade de LREI quando saldo vira positivo. Continua só a nota neutra pro caso negativo.
   const bdV2 = window.WALLACE_ONDA2_V2_RELATORIO?.find(r => r.caixa === 'Caixa Bens Duráveis');
   const saldoBD = (bdV2 && typeof bdV2.v2 === 'number') ? bdV2.v2 : VARS.caixaBensDuraveis;
-  if(saldoBD > 0){
-    alertas.push({icone:'💡', cor:'#3987e5', txto:`Caixa Bens Duráveis com saldo positivo (${fmt(saldoBD)}) — pode virar empréstimo interno (LREI) pra ajudar a cobrir a fatura do Mastercard, mesmo mecanismo já usado com a Caixa Lance. Precisa de confirmação explícita antes de lançar.`});
-  } else if(saldoBD < 0){
+  if(saldoBD < 0){
     alertas.push({icone:'ℹ️', cor:'#3987e5', txto:`Caixa Bens Duráveis negativa (${fmt(saldoBD)}) — normal, é só o medidor de quanto falta reservar pra compras já feitas; não significa que saiu dinheiro da Caixa Variável.`});
   }
   // CORRIGIDO 19/07/2026: condicao e valor exibido usavam cv.disponivel (Saldo Real - Comprometido, o ECC),

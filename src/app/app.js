@@ -445,7 +445,10 @@ const WallaceFinanceService = {
   // os dois vêm da mesma fonte.
   async getTransacoesCartaoVariavelDetalhe(){
     return this._cache.obterOuBuscar('transacoes_cartao_variavel_detalhe', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor`, {
+      // CORRIGIDO 15/08/2026 (achado do usuário: itens do "limbo" apareciam na posição/data errada
+      // na lista) — faltava order explícito aqui (mesmo padrão que getTransacoesCorporativoCartaoDetalhe/
+      // LRC_LIMBO já usa, order=data.asc); sem isso a ordem vinha do Postgres sem garantia nenhuma.
+      const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor&order=data.asc`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_transacoes_cartao_variavel_por_pessoa`);

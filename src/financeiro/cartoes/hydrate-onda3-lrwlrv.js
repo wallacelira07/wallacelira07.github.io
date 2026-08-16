@@ -95,12 +95,19 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
       // lançamentos do limbo (22-24/07) que SÃO do ciclo atual — eles só não têm data >= 25/07
       // porque a fatura fechou antes. Sem isso, TX000132/TX000154 (que já existem como literal
       // fixo em vars-mercado-pago.js) sumiam da lista toda vez que a Onda 3 recarregava.
-      if(!VARS.LRW_TRANSACOES.some(t => t.tx === 'TX000132')){
-        VARS.LRW_TRANSACOES.unshift({ tx:'TX000132', data:'22/07', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99 });
-      }
-      if(!VARS.LRV_TRANSACOES.some(t => t.tx === 'TX000154')){
-        VARS.LRV_TRANSACOES.unshift({ tx:'TX000154', data:'24/07', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97 });
-      }
+      // CORRIGIDO 15/08/2026 (achado do usuário: "não tá correto a data e a posição" — o .unshift()
+      // colocava o item sempre no topo/posição 0, aparecendo como se fosse a compra mais recente,
+      // mesmo sendo a data mais antiga do ciclo — 22/07, antes de tudo que já vem ordenado data.asc
+      // da view acima). Troca unshift() por inserção na posição cronológica correta.
+      const onda3InserirNaPosicaoCronologica = (lista, item) => {
+        if(lista.some(t => t.tx === item.tx)) return;
+        const chaveData = d => { const [dd, mm] = (d || '').split('/').map(Number); return (mm || 0) * 100 + (dd || 0); };
+        const chaveItem = chaveData(item.data);
+        const idx = lista.findIndex(t => chaveData(t.data) > chaveItem);
+        if(idx === -1) lista.push(item); else lista.splice(idx, 0, item);
+      };
+      onda3InserirNaPosicaoCronologica(VARS.LRW_TRANSACOES, { tx:'TX000132', data:'22/07', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99 });
+      onda3InserirNaPosicaoCronologica(VARS.LRV_TRANSACOES, { tx:'TX000154', data:'24/07', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97 });
       if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
       // CORRIGIDO 12/08/2026 (achado do usuário: botão da aba "LRV - Vanessa (16)" não batia com a
       // tabela real embaixo, 6 linhas) — renderLivrosVariaveis() acima redesenha a tabela, mas o

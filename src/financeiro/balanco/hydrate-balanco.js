@@ -72,16 +72,10 @@ function hydrateBalanco(){
   // ciclo) apesar do rótulo dizer "ciclo atual". Agora mostra o corporativo do ciclo de verdade,
   // calculado por competência (REG.balanco.corporativoMPDoCiclo, ver recalcularAgregadosDerivados()).
   t('balObrWartsila', fmt(REG.balanco.corporativoMPDoCiclo));
-  // NOVO 07/08/2026: indicador separado, só informativo — reembolso Wärtsilá pendente acumulado.
-  // NÃO participa de nenhuma conta de ciclo (Mercado Pago líquido, Fatura do Ciclo, Corporativo do
-  // Ciclo, necessidade do ciclo) — é só "quanto ainda falta a Wärtsilá me devolver", histórico.
-  // REVISADO 09/08/2026: usuário pediu pra checar se esse valor (R$1.544,11, parado desde 27/07) já
-  // estava contido no "Amount Due Employee" da Wärtsilá (R$6.700,61, confirmado hoje) - decisão
-  // explícita: NÃO corrigir/zerar/recalcular sem evidência (falta confirmar o detalhamento do sistema
-  // da Wärtsilá). Mantido apontando pra VARS.faturaMPCorporativoPendente como estava - só ganhou aviso
-  // de "necessita confirmação" no HTML (ver Sistema_Wallace_Lira_Completo.html, mesma linha do card).
-  const elWartsilaAcumulado = $('balReembolsoWartsilaAcumulado');
-  if(elWartsilaAcumulado) elWartsilaAcumulado.textContent = fmt(VARS.faturaMPCorporativoPendente);
+  // REMOVIDO 15/08/2026 (pedido do usuário: "Pendente acumulado, não comunica nada") — indicador
+  // separado (VARS.faturaMPCorporativoPendente/#balReembolsoWartsilaAcumulado) tirado do card. Ficava
+  // travado em confirmação desde 09/08 (dúvida se já estava contido no Amount Due Employee da
+  // Wärtsilá) sem nunca resolver — decisão do usuário foi remover em vez de manter aberto.
   // CORRIGIDO 30/07/2026 (V208): balLreiAtivos era texto FIXO "Nenhum (LREI0001 quitado 21/07)" -
   // mesmo depois de LREI0002+LREI0003 ficarem ativas (27/07), esse card resumo do Balanço nunca foi
   // conectado ao array real (a aba LREI dedicada ja tinha sido corrigida em V189, mas ESTE card,

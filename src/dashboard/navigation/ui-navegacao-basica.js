@@ -71,6 +71,12 @@ function abrirFormLancarTxRapido(){
     alert('O formulário de lançamento ainda está carregando — tente de novo em alguns segundos.');
     return;
   }
+  // CORRIGIDO 15/08/2026 (achado do usuário: "botão lançar só funciona na aba painel") — o form só
+  // existe dentro do pane #painel; fora dessa aba ele ficava visível (style.display='block') mas
+  // escondido atrás de um .master-pane inativo (display:none), então o clique parecia "não fazer
+  // nada". Troca pra aba Painel primeiro (mesma showMaster() usada pelas outras abas) — só então o
+  // form fica realmente visível, em qualquer aba que o usuário estava.
+  if(typeof showMaster === 'function') showMaster('painel');
   form.style.display = 'block';
   form.scrollIntoView({behavior:'smooth', block:'center'});
 }
