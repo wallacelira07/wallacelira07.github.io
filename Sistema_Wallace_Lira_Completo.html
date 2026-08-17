@@ -1483,6 +1483,37 @@
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real <strong>soma</strong> Taxa Mínima/Custo de Disponibilidade (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Fio B calculado acima + Iluminação Pública + Encargos setoriais — os 4 juntos, não o maior entre eles. Base sempre a fatura pré-solar mais recente disponível (Ago/26 quando existir).</div>
     </div>
 
+    <!-- NOVO 16/08/2026 (pedido do usuário: previsão de geração pros próximos dias, calibrada com
+         irradiância real). Ver src/solar/previsao-geracao-solar.js pro modelo completo (regressão
+         linear treinada no navegador, a cada carga, com o histórico real de VARS.SOLAR_GERACAO_DIARIA)
+         e docs/decisions/PREVISAO_GERACAO_SOLAR_IRRADIANCIA.md pra decisão documentada (dados usados,
+         calibração, R², por que foi implementado mesmo com poucos dias de histórico). Numerado "08"
+         de propósito (não "07") pra não colidir com o Simulador Regulatório logo abaixo, que já usa
+         "07" internamente mesmo estando oculto (display:none) — se um dia ele for reativado, os
+         números não colidem. Oculto por padrão (display:none) até o JS calibrar com sucesso — nunca
+         mostra número antigo/inventado se a API falhar ou não houver dado real suficiente (mesmo
+         padrão de qgClima em hydrate-clima-solar.js). -->
+    <div id="previsaoSolarBloco" style="display:none">
+      <div class="section-num"><span class="n">08</span><h2>🔮 Previsão de geração (próximos dias)</h2></div>
+      <div class="card" style="border-left:3px solid var(--amber)">
+        <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">
+          <strong>Isto é uma PROJEÇÃO baseada em previsão do tempo, não dado real</strong> — usa a
+          previsão de irradiância solar dos próximos dias (Open-Meteo, radiação de ondas curtas) e um
+          modelo de calibração simples (regressão linear) treinado com a geração REAL da sua usina
+          (robô SAJ). Nunca substitui a geração real capturada pelo robô — o dia some desta lista assim
+          que a leitura real dele existir.
+        </div>
+        <div id="previsaoSolarDiagnostico" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">—</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
+            <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th scope="col" style="padding:0.3rem 0">Dia</th><th scope="col">Irradiância prevista</th><th scope="col">Geração estimada</th></tr></thead>
+            <tbody id="previsaoSolarTabela"></tbody>
+          </table>
+        </div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">⚠️ Erro típico do modelo (medido contra o próprio histórico real de treino) e quantos dias entraram na calibração: ver linha de diagnóstico acima. Quanto menos dias de histórico real existirem, menos confiável a previsão — o modelo recalibra sozinho a cada carregamento, sem nenhum coeficiente fixo no código.</div>
+      </div>
+    </div>
+
     <!-- NOVO 08/08/2026 (pedido explícito do usuário): "07 — Simulador Regulatório" removido da
          INTERFACE e da navegação da aba Solar — "não agrega valor operacional... é teórico e não
          influencia minhas decisões do dia a dia". Código/markup mantidos intactos de propósito (não
@@ -2284,6 +2315,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/investimentos/hydrate-onda5-p2p.js',
   'src/solar/hydrate-onda5-qualidade-geracao.js',
   'src/solar/hydrate-clima-solar.js',
+  'src/solar/previsao-geracao-solar.js',
   'src/solar/compartilhamento-solar.js',
   'src/financeiro/patrimonio/hydrate-patrimonio.js',
   'src/financeiro/indicadores/hydrate-indicadores.js',

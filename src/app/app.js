@@ -2292,6 +2292,10 @@ function hydrate(){
   // NOVO 11/08/2026 (pedido do usuário: ícone de clima atual junto do card de desempenho da usina,
   // "geração baixa mas está chovendo, aí eu já sei o porque"). Ver hydrate-clima-solar.js.
   if(typeof aplicarClimaSolar === 'function') aplicarClimaSolar();
+  // NOVO 16/08/2026 (pedido do usuário: previsão de geração calibrada com irradiância real, não um
+  // fator chutado). Ver src/solar/previsao-geracao-solar.js e
+  // docs/decisions/PREVISAO_GERACAO_SOLAR_IRRADIANCIA.md pra decisão completa.
+  if(typeof aplicarPrevisaoGeracaoSolar === 'function') aplicarPrevisaoGeracaoSolar();
 }
 // NOVO 12/08/2026: marca o boot como concluído pro aviso de timeout em Sistema_Wallace_Lira_Completo.html
 // (window.__wallaceBootTimeoutId) — hydrate() é síncrona e já deixa o painel com números reais (V1),
