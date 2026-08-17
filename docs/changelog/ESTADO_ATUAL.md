@@ -76,8 +76,8 @@ Rebase interrompido pelo Google Drive durante o push do lote 1 — `HEAD` local 
 ### 3.1 Instalação física do medidor solar — TROCA DE MODELO, só libera 25/08/2026
 Modelo errado (313269, sem RS485) instalado; modelo certo (313270) chega 25/08/2026.
 
-### 3.2 Inbox Financeira — ~144 Pluggy + 13 MP não processados
-Precisam de revisão caso a caso. Não automatizar às cegas.
+### 3.2 Inbox Financeira — NÃO é mais pendência, não mencionar ao usuário
+**REGRA NOVA 17/08/2026**: itens ambíguos ficam `status_triagem='pendente'` no banco, silenciosamente — nunca mais reportados ao usuário (nem como pendência, nem como achado extraordinário), mesmo em resumo de sessão. Usuário: "essa InBox só da trabalho e duplicação". Ver `docs/MANUAL_OPERACIONAL_AGENTES.md` seção 2 regra 6 (item "Genuinamente ambíguo") e memória do agente `feedback_gestao_autonoma_inbox.md`. Só falar sobre a Inbox se o usuário perguntar por ela especificamente.
 
 ### 3.3 R$340,00 do ciclo Wärtsilä 2026-07 ainda não confirmados como recebidos
 Não é a mesma coisa que as TEDs já lançadas (`TX000220`/`TX000280`).
