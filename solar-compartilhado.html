@@ -132,6 +132,10 @@ function fmt(v){ return (v==null || isNaN(v)) ? '—' : 'R$ ' + Number(v).toLoca
 function fmtKwh(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' kWh'; }
 function fmtPct(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%'; }
 function fmtData(iso){ if(!iso) return '—'; const [a,m,d] = iso.slice(0,10).split('-'); return d+'/'+m+'/'+a; }
+// NOVO 17/08/2026 (card do medidor Tuya, pedido do usuário "quero esse também lá") — mesmo formato
+// já usado em compartilhamento-solar.js (fmtDataHoraCompartilhamentoSolar), mas essa página é
+// autocontida (não importa esse módulo), então reimplementado aqui, mesma lógica.
+function fmtDataHora(iso){ if(!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); }
 
 // ATUALIZADO 12/08/2026 (pedido do usuário: trocar os emojis soltos ☀️ pelo mesmo ícone de marca do
 // resto do site) — versão inline (vertical-align ajustado pra encaixar no meio de texto de heading).
@@ -390,6 +394,7 @@ async function carregar(){
   const geracaoDiaria = dados.geracaoDiaria || [];
   const ciclo = dados.cicloAberto || null;
   const ciclosFechados = dados.ciclosFechados || [];
+  const medidorUltima = dados.medidorTuyaUltima || null;
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
 
   // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
@@ -620,6 +625,11 @@ async function carregar(){
     <div class="card">
       <div class="stat-lbl" style="margin-bottom:0.8rem">Geração diária (kWh)</div>
       <div class="chart-wrap"><canvas id="cGeracaoDiaria"></canvas></div>
+      <!-- NOVO 17/08/2026 (pedido do usuário: "coloque essa legenda no compartilhado também" — mesmo
+           parágrafo explicativo que já existe no painel privado, legGeracaoPorDia em
+           graficos-cenarios-lazy.js, nunca tinha sido replicado aqui). Calculado logo abaixo, no
+           mesmo bloco que monta o gráfico (usa `ultimos`/CONSUMO_MEDIO_3_CASAS_KWH, já em escopo). -->
+      <div class="stat-sub" id="legGeracaoDiariaCompartilhado" style="margin-top:0.6rem"></div>
     </div>
 
     ${mesesHistorico.length ? `<div class="card">
@@ -627,10 +637,73 @@ async function carregar(){
       <div class="chart-wrap"><canvas id="cHistoricoMensal"></canvas></div>
     </div>` : ''}
 
-    ${ciclosFechados.length ? `<div class="card">
-      <div class="stat-lbl" style="margin-bottom:0.8rem">Rateio Solar — crédito por casa, por ciclo fechado</div>
+    <!-- AMPLIADO 17/08/2026 (pedido do usuário: "quero esse gráfico no compartilhado" + "com essa
+         parte de baixo também" — versão anterior só mostrava 2 barras por ciclo FECHADO (Crédito
+         Wallace/Wellida), sem "Consumo esperado" nenhum. Reconstruído pra bater com o gráfico do
+         painel privado (seção 05, cSolarRateio em graficos-cenarios-lazy.js): 4 barras por mês
+         (crédito gerado × consumo esperado, Wallace e Irmã), 12 meses fixos (Jul-Jun, mesmo array
+         kwhAnoAnterior/solarConsumoIrmaAnoAnterior copiados como literais — mesmo padrão já usado
+         nesta página pra CONSUMO_DIARIO_WALLACE_KWH etc). Mês do ciclo ainda ABERTO fica sem barra
+         verde de propósito (mesmo princípio "não fabricar dado" do resto do site — a projeção ao
+         vivo do crédito em formação usa uma fórmula do painel privado não replicada aqui; só ciclos
+         JÁ FECHADOS têm crédito real e conhecido). Sempre mostra o card (removida a condição
+         ciclosFechados.length, que escondia o gráfico inteiro sem nenhum ciclo fechado ainda). -->
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">Rateio Solar — crédito por casa (Wallace 71% / Irmã 29%)</div>
       <div class="chart-wrap"><canvas id="cRateioSolar"></canvas></div>
+      <div class="stat-sub" id="legRateioSolarCompartilhado" style="margin-top:0.6rem"></div>
+    </div>
+
+    ${ciclosFechados.length ? `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">📁 Histórico de ciclos fechados</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa — o crédito daquele período fica congelado, e um novo ciclo abre automaticamente.</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.78rem">
+        <thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Período</th><th style="padding:0.4rem 0.6rem">Crédito líquido</th><th style="padding:0.4rem 0.6rem">Wallace</th><th style="padding:0.4rem 0.6rem">Wellida</th></tr></thead>
+        <tbody>${ciclosFechados.slice().reverse().map(c => `<tr style="border-top:1px solid var(--border)"><td style="padding:0.5rem 0.6rem 0.5rem 0">${fmtData(c.dataInicio)} – ${fmtData(c.dataFim)}</td><td style="padding:0.5rem 0.6rem">${fmtKwh(c.creditoLiquidoKwh)}</td><td style="padding:0.5rem 0.6rem">${fmtKwh(c.creditoWallaceKwh)}</td><td style="padding:0.5rem 0.6rem">${fmtKwh(c.creditoIrmaKwh)}</td></tr>`).join('')}</tbody>
+      </table></div>
     </div>` : ''}
+
+    <!-- NOVO 17/08/2026 (pedido do usuário: "quero esse também lá, no compartilhamento coloca o
+         título como 'consumo em tempo real Apartamento Wallace'" — mesmo card do medidor Tuya que
+         existe no painel privado, ver hydrate-medidor-tuya.js). Dado vem de
+         dados.medidorTuyaUltima/medidorTuyaCicloBase (RPC consultar_solar_compartilhado, ampliada
+         nesta sessão pra expor esses campos também — mesmo padrão de curadoria SECURITY DEFINER já
+         usado pros campos solares). -->
+    ${medidorUltima ? `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Apartamento Wallace</div>
+      <div class="stat-grid">
+        <div><div class="stat-lbl">Potência atual</div><div class="stat-val">${medidorUltima.potenciaW!=null ? Number(medidorUltima.potenciaW).toLocaleString('pt-BR',{maximumFractionDigits:0})+' W' : '—'}</div></div>
+        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorUltima.energiaHojeKwh)}</div></div>
+        <div><div class="stat-lbl">Energia total acumulada</div><div class="stat-val">${fmtKwh(medidorUltima.energiaTotalKwh)}</div></div>
+        <div><div class="stat-lbl">Tensão / Corrente</div><div class="stat-val" style="font-size:1.05rem">${medidorUltima.tensaoV!=null?Number(medidorUltima.tensaoV).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'} V / ${medidorUltima.correnteA!=null?Number(medidorUltima.correnteA).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'} A</div></div>
+      </div>
+      <div class="stat-sub" style="margin-top:0.8rem">Estado do medidor: <strong>${({working:'Funcionando',monitor:'Monitorando',close:'Desligado',warning:'Atenção'})[medidorUltima.estado] || medidorUltima.estado || '—'}</strong> · última leitura ${fmtDataHora(medidorUltima.capturadoEm)}</div>
+    </div>` : ''}
+
+    <!-- NOVO 17/08/2026 (pedido do usuário: "quero esse também lá" — mesmo card "Consumo real ×
+         crédito que cabe a você" do painel privado, barra de progresso em vez de gráfico de barras
+         Chart.js — mesmo motivo já documentado no painel privado: "1 valor contra o outro" fica
+         feio como série. Consumo = soma de medidorTuyaConsumoDiario desde cicloAberto.dataInicio
+         (mesma janela do gráfico Rateio Solar/Fluxo 2 do painel privado, dia 8 da GD). Crédito =
+         soma real dos ciclos FECHADOS + nenhuma projeção do ciclo aberto (mesmo motivo de "não
+         fabricar dado" do gráfico Rateio acima) - por isso este card só aparece com pelo menos 1
+         ciclo já fechado, pra ter um crédito real (não zero/null) pra comparar. -->
+    ${(medidorUltima && ciclo && ciclosFechados.length) ? (() => {
+      const diarioApto = dados.medidorTuyaConsumoDiario || [];
+      const inicioCicloGD = ciclo.dataInicio;
+      const consumoCicloGDKwh = Math.round(diarioApto.filter(r => r.data >= inicioCicloGD && r.kwhConsumido != null).reduce((s,r)=>s+Number(r.kwhConsumido),0)*100)/100;
+      const ultimoFechado = ciclosFechados[ciclosFechados.length-1];
+      const creditoRef = ultimoFechado ? Number(ultimoFechado.creditoWallaceKwh) : null;
+      const pctConsumido = creditoRef>0 ? Math.min(100, Math.max(0, Math.round((consumoCicloGDKwh/creditoRef)*100))) : 0;
+      const saldoRef = creditoRef!=null ? Math.round((creditoRef - consumoCicloGDKwh)*100)/100 : null;
+      return `<div class="card">
+        <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
+        <div class="stat-sub" style="margin-bottom:0.6rem">Barra = quanto do último crédito fechado (referência) já foi consumido de verdade, medido pelo medidor Tuya, desde o início do ciclo atual da GD (${fmtData(inicioCicloGD)}).</div>
+        <div style="height:14px;background:var(--surface-2);border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.3)"><div style="height:100%;border-radius:6px;width:${pctConsumido}%;min-width:6px;background:${creditoRef!=null && saldoRef<0 ? 'var(--red)' : 'var(--blue)'}"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.95rem"><strong>${fmtKwh(consumoCicloGDKwh)} consumidos</strong><strong style="color:var(--blue)">${pctConsumido}%</strong></div>
+        <div class="stat-sub" style="margin-top:0.6rem">${creditoRef!=null ? (saldoRef>=0 ? 'Crédito de referência ('+fmtKwh(creditoRef)+') cobre com sobra de '+fmtKwh(saldoRef) : 'Consumo já passou o crédito de referência em '+fmtKwh(Math.abs(saldoRef))) : 'Sem crédito de referência ainda.'}</div>
+      </div>`;
+    })() : ''}
 
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
@@ -646,7 +719,11 @@ async function carregar(){
       data: {
         labels: ultimos.map(r => fmtData(r.data)),
         datasets: [
-          { data: ultimos.map(r => r.kwh), backgroundColor: '#e8a63a', borderRadius: 3 },
+          // CORRIGIDO 17/08/2026 (achado do usuário: legenda mostrando "undefined" + cor diferente do
+          // painel privado — faltava `label` nesse dataset, e a cor (#e8a63a, laranja) não batia com
+          // o gráfico equivalente do site privado (cGeracaoPorDia, graficos-cenarios-lazy.js), que usa
+          // verde (#34c98a) pra geração real do dia — mesmo dado, duas cores diferentes sem motivo).
+          { label: 'Geração real do dia (kWh)', data: ultimos.map(r => r.kwh), backgroundColor: '#34c98a', borderRadius: 3 },
           // NOVO 12/08/2026 (pedido do usuário: "gráfico de geração diária precisa da linha de consumo
           // médio das 3 casas como aparece no meu site") — linha tracejada constante, mesma ideia do
           // painel privado (graficos-cenarios-lazy.js), aqui como dataset 'line' nativo do Chart.js
@@ -668,6 +745,17 @@ async function carregar(){
       },
       plugins: [barValuePlugin],
     });
+    // NOVO 17/08/2026 (pedido do usuário: "coloque essa legenda no compartilhado também" — mesmo
+    // texto/números em destaque vermelho do painel privado, legGeracaoPorDia em
+    // graficos-cenarios-lazy.js, calculado aqui com os mesmos `ultimos`/CONSUMO_MEDIO_3_CASAS_KWH).
+    const legGeracaoEl = document.getElementById('legGeracaoDiariaCompartilhado');
+    if(legGeracaoEl){
+      const valoresReais = ultimos.map(r=>r.kwh).filter(v=>typeof v==='number');
+      const mediaGeracaoReal = valoresReais.length ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/valoresReais.length)*100)/100 : null;
+      legGeracaoEl.innerHTML = valoresReais.length
+        ? valoresReais.length+' dia(s) com geração real (barra verde), média de <strong style="color:var(--red)">'+fmtKwh(mediaGeracaoReal)+'/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas = <strong style="color:var(--red)">'+fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)+'/dia</strong>.'
+        : 'Ainda sem geração diária real suficiente pra calcular a média.';
+    }
   }
 
   if(mesesHistorico.length && window.Chart){
@@ -699,28 +787,61 @@ async function carregar(){
     });
   }
 
-  if(ciclosFechados.length && window.Chart){
+  // AMPLIADO 17/08/2026 (pedido do usuário: "quero esse gráfico no compartilhado", igual ao gráfico
+  // do painel privado, seção 05/cSolarRateio em graficos-cenarios-lazy.js). Cópia deliberada dos
+  // arrays de referência (mesmo padrão já usado nesta página pra CONSUMO_DIARIO_WALLACE_KWH etc) —
+  // 12 meses fixos Jul-Jun, índice 0=Jul (mesmo esquema kwhAnoAnterior/solarConsumoIrmaAnoAnterior
+  // do painel privado). Mês do ciclo ABERTO fica sem barra verde de propósito — sem a projeção ao
+  // vivo do painel privado (fórmula complexa não replicada aqui), mostrar "0" ou um valor estimado
+  // seria fabricar dado; melhor deixar em branco até o ciclo fechar de verdade.
+  const KWH_WALLACE_ANO_ANTERIOR = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul,Ago,Set,Out,Nov,Dez,Jan,Fev,Mar,Abr,Mai,Jun
+  const KWH_IRMA_ANO_ANTERIOR = [90,74,70,82,103,127,122,138,142,172,140,100]; // mesmo esquema
+  const MESES_ABREV_RATEIO = ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'];
+  const idxMesRateio = mesNum1a12 => (mesNum1a12 - 7 + 12) % 12; // 'YYYY-MM-DD' mês -> índice 0=Jul
+
+  const creditoWallacePorIdx = new Array(12).fill(null);
+  const creditoIrmaPorIdx = new Array(12).fill(null);
+  ciclosFechados.forEach(c => {
+    if(!c.dataFim) return;
+    const idx = idxMesRateio(Number(c.dataFim.slice(5,7)));
+    creditoWallacePorIdx[idx] = Number(c.creditoWallaceKwh);
+    creditoIrmaPorIdx[idx] = Number(c.creditoIrmaKwh);
+  });
+
+  if(window.Chart){
     { const __chartExistente = Chart.getChart(document.getElementById('cRateioSolar')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cRateioSolar'), {
       type: 'bar',
       data: {
-        labels: ciclosFechados.map(c => fmtData(c.dataFim)),
+        labels: MESES_ABREV_RATEIO,
         datasets: [
-          { label:'Crédito Wallace', data: ciclosFechados.map(c=>c.creditoWallaceKwh), backgroundColor:'#34c98a', borderRadius:3 },
-          { label:'Crédito Wellida', data: ciclosFechados.map(c=>c.creditoIrmaKwh), backgroundColor:'#9085e9', borderRadius:3 },
+          { label:'Crédito Wallace (gerado)', data: creditoWallacePorIdx, backgroundColor:'#34c98a', borderRadius:3 },
+          { label:'Consumo esperado Wallace', data: KWH_WALLACE_ANO_ANTERIOR, backgroundColor:'#e8a63a', borderRadius:3 },
+          { label:'Crédito Irmã (gerado)', data: creditoIrmaPorIdx, backgroundColor:'#14b8a6', borderRadius:3 },
+          { label:'Consumo esperado Irmã', data: KWH_IRMA_ANO_ANTERIOR, backgroundColor:'#a9861f', borderRadius:3 },
         ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 18 } },
-        plugins: { legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} }, tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw+' kWh' } } },
+        plugins: {
+          legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} },
+          tooltip: { callbacks: { label: c => c.raw==null ? c.dataset.label+': sem leitura ainda' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' } },
+        },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
+          x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.9, barPercentage:0.35 },
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
         },
       },
       plugins: [barValuePlugin],
     });
+  }
+  const legRateioEl = document.getElementById('legRateioSolarCompartilhado');
+  if(legRateioEl){
+    const mesesComLeitura = creditoWallacePorIdx.filter(v=>v!=null).length;
+    legRateioEl.textContent = mesesComLeitura
+      ? mesesComLeitura+' de 12 meses já têm leitura de crédito confirmada; os demais ficam sem barra verde até a leitura chegar. Consumo esperado vem do histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida).'
+      : 'Ainda sem nenhum ciclo fechado com crédito confirmado — as barras de crédito aparecem aqui assim que o primeiro ciclo fechar.';
   }
 }
 

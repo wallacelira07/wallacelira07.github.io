@@ -1538,8 +1538,13 @@
     <div class="card" style="margin-top:1rem">
       <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
       <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Barra = quanto do crédito que cabe a você (71% do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
-      <div class="progress"><div class="fill" id="consumoApartamentoBar" style="width:0%;background:var(--accent)"></div></div>
-      <div class="progress-lbl"><span class="v" id="consumoApartamentoFracao">—</span><span class="v" id="consumoApartamentoPct">—</span></div>
+      <!-- AUMENTADO 17/08/2026 (achado do usuário: "deixe bem visual" — em ciclos com consumo ainda
+           baixo (%, poucos dias desde a instalação), a barra padrão de 6px de altura fica quase
+           invisível). Só esta barra específica ganha altura maior (14px) e a fração em destaque
+           (fonte maior, cor forte) — não mexe na classe .progress/.progress-lbl global, que
+           continua igual em Fluxo 1/2 e no resto do site. -->
+      <div class="progress" style="height:14px"><div class="fill" id="consumoApartamentoBar" style="width:0%;min-width:6px;background:var(--accent)"></div></div>
+      <div class="progress-lbl" style="margin-top:0.5rem"><span class="v" id="consumoApartamentoFracao" style="font-size:var(--fs-base);font-weight:600;color:var(--text)">—</span><span class="v" id="consumoApartamentoPct" style="font-size:var(--fs-lg);font-weight:700;color:var(--accent)">—</span></div>
       <div class="grid-3" style="margin-top:0.5rem">
         <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Ciclo da GD</div><div class="v" style="font-weight:600" id="consumoApartamentoPeriodo">—</div></div>
         <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Crédito que cabe a você</div><div class="v" style="font-weight:600" id="consumoApartamentoCredito">—</div></div>
