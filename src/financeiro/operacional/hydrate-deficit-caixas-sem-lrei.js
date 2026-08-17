@@ -127,6 +127,13 @@ async function aplicarDeficitCaixasSemLrei(){
   // presos no número de ANTES desta função recalcular a Necessidade, mesma classe de bug já corrigida
   // pros outros hydrates da lista acima.
   if(typeof hydrateEstimadorSalario === 'function') hydrateEstimadorSalario();
+  // ADICIONADO 17/08/2026 (achado do usuário com print real: gráfico "Necessidade líquida — próximos
+  // ciclos" mostrava queda de R$13.260→R$11.813 (~R$1.447), mas o badge "Queda total" dizia R$224,42
+  // — os dois usam a MESMA série REG.evolucao.necessidadeLiquida, mas hydrateSimuladorCiclo() (dono do
+  // badge) só rodava 1x no boot, antes do recalcularNecessidade() acima terminar de reprocessar essa
+  // série — mesma classe de bug do hydrateEstimadorSalario logo acima, só que esta função ficou de
+  // fora da lista na 1ª rodada.
+  if(typeof hydrateSimuladorCiclo === 'function') hydrateSimuladorCiclo();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
   // CORRIGIDO 10/08/2026: atualizarGraficosNecessidade() mora no módulo lazy (graficos-cenarios-lazy.js)
   // e some quando a aba Gráficos/Cenários nunca foi aberta - atualizarGraficosPainelPrincipal() (sempre

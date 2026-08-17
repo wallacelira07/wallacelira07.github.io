@@ -126,6 +126,14 @@ function hydrateSimuladorCiclo(){
   const nlSerie = alignSeriesCiclo(REG.evolucao.necessidadeLiquida); // V165: baseado no ciclo financeiro
   const quedaTotal = Math.round((nlSerie[0] - nlSerie[nlSerie.length-1])*100)/100;
   set('quedaTotalNL', 'Queda total: '+fmt(quedaTotal));
+  // NOVO 17/08/2026 (pedido do usuário, junto do achado do badge desatualizado: "era bom ver a queda
+  // de um mês para o seguinte, no caso desse ciclo para o próximo"): mesma série, só ciclo atual (índice
+  // 0) contra o próximo (índice 1) em vez do último da série inteira — mesma convenção de sinal do
+  // badge "Queda total" ao lado (positivo = caiu, negativo = subiu).
+  if(nlSerie.length > 1){
+    const quedaProximoCiclo = Math.round((nlSerie[0] - nlSerie[1])*100)/100;
+    set('quedaProximoCicloNL', 'Deste → próx. ciclo: '+fmt(quedaProximoCiclo));
+  }
   const r21EccEl = $('r21ECC');
   if(r21EccEl){
     r21EccEl.textContent = cv.disponivel >= 0 ? 'Zerado' : (folego >= 0 ? 'Ativo (na tolerância)' : 'Ativo (estourado)');
