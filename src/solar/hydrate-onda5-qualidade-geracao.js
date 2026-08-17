@@ -33,14 +33,16 @@ const SOLAR_JANELA_LEITURA_FIM_H = 18;
 
 // NOVO 17/08/2026 (pedido do usuário, prioridade 0 — substitui o modelo linear de "esperado até
 // agora" abaixo). Coordenadas EXATAS do gerador: Rua Gildete Gomes Bezerra, 79 - Nova Brasília,
-// Campina Grande/PB (mesmo endereço da UC 573.702.053-77, ver vars-energia-solar.js linha 73-74),
-// geocodificadas via OpenStreetMap Nominatim — substitui a aproximação de centro-de-cidade
-// (-7.2306/-35.8811) usada em hydrate-clima-solar.js e previsao-geracao-solar.js até então (~2,8km
-// de diferença). Duplicada aqui de propósito, mesmo motivo já documentado em
-// previsao-geracao-solar.js: módulos da base carregam em paralelo (s.async=true), sem ordem
+// Campina Grande/PB (mesmo endereço da UC 573.702.053-77, ver vars-energia-solar.js linha 73-74).
+// CORRIGIDO 17/08/2026 (mesma sessão): valor inicial veio de geocodificação por endereço
+// (OpenStreetMap Nominatim, ~2,8km melhor que o centro-de-cidade usado antes, mas ainda
+// aproximado); substituído pela leitura GPS real no local, exportada do app Sun Surveyor pelo
+// usuário (arquivo KML, ponto único no telhado do gerador) — agora é a posição real, não mais
+// geocodificação por texto de endereço. Duplicada aqui de propósito, mesmo motivo já documentado
+// em previsao-geracao-solar.js: módulos da base carregam em paralelo (s.async=true), sem ordem
 // garantida, então não dá pra depender de uma const top-level de outro <script>.
-const SOLAR_GERADOR_LAT = -7.2155123;
-const SOLAR_GERADOR_LON = -35.8569923;
+const SOLAR_GERADOR_LAT = -7.215406;
+const SOLAR_GERADOR_LON = -35.856661;
 
 // Ângulo de elevação solar (graus) pra uma lat/lon/instante — fórmula padrão de posição solar
 // (PVEducation/NOAA simplificada: declinação por Cooper's equation + equação do tempo + ângulo

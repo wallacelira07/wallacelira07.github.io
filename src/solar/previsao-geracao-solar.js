@@ -83,10 +83,11 @@ async function aplicarPrevisaoGeracaoSolar(){
     // __carregarScriptsParalelo em Sistema_Wallace_Lira_Completo.html, s.async=true) — depender de
     // uma const top-level de OUTRO <script> arriscaria ReferenceError se este arquivo executasse
     // primeiro. Mesmo valor (mesma usina), mesma lógica de duplicação já usada pro r2Sim em
-    // energia-solar.js. CORRIGIDO 17/08/2026: era aproximação de centro-de-cidade (-7.2306/-35.8811,
-    // ~2,8km de erro) — trocado pela coordenada real geocodificada (mesmo valor agora usado em
-    // hydrate-clima-solar.js e hydrate-onda5-qualidade-geracao.js).
-    const lat = -7.2155123, lon = -35.8569923;
+    // energia-solar.js. CORRIGIDO 17/08/2026 (2x na mesma sessão): 1ª correção trocou o
+    // centro-de-cidade (-7.2306/-35.8811, ~2,8km de erro) por geocodificação de endereço; 2ª
+    // correção trocou por leitura GPS real no local (app Sun Surveyor, exportada pelo usuário) —
+    // mesmo valor agora usado em hydrate-clima-solar.js e hydrate-onda5-qualidade-geracao.js.
+    const lat = -7.215406, lon = -35.856661;
 
     const maisAntigo = diasCompletos.reduce((min,r) => r.data < min ? r.data : min, diasCompletos[0].data);
     const diasDesdeMaisAntigo = Math.round((new Date(hojeStr) - new Date(maisAntigo)) / 86400000);
