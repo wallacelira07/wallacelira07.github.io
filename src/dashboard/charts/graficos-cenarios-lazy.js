@@ -1934,9 +1934,15 @@ async function _lazyRenderSolarSecao(){
     }); });
     const legGeracaoPorDiaEl = $('legGeracaoPorDia');
     if(legGeracaoPorDiaEl){
-      const qtdReal = Object.keys(diariosPorData).length;
-      legGeracaoPorDiaEl.textContent = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
+      const valoresReais = Object.values(diariosPorData);
+      const qtdReal = valoresReais.length;
+      // NOVO 17/08/2026 (pedido do usuário: "coloque nessa legenda o valor médio da geração, em cor
+      // vermelha"): média dos dias com geração REAL (mesmo conjunto que soma qtdReal, nunca inclui
+      // hoje se ainda não fechou - diariosPorData vem de VARS.SOLAR_GERACAO_DIARIA). Usa innerHTML só
+      // pra colorir esse número (antes era texto puro via textContent) - resto da frase idêntico.
+      const mediaGeracaoReal = qtdReal ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/qtdReal)*100)/100 : null;
+      legGeracaoPorDiaEl.innerHTML = qtdReal
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:var(--red)">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
         : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
