@@ -266,6 +266,20 @@ function construirIndiceBuscaGlobal(){
         const detalhesAlvo = sumEl.closest('details') || sumEl;
         if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: detalhesAlvo});
       });
+      // NOVO 17/08/2026 (achado do usuário: "as alterações novas e menus novos não estão sendo
+      // achados na pesquisa, todos os dados devem poder ser achados" — cards novos como "⚡ Medidor
+      // de energia..."/"📊 Consumo real × crédito..." não apareciam buscando pelo próprio título).
+      // Terceiro padrão de rótulo usado no site, além de `.row .k` e `[color:var(--text-mid)]`
+      // acima: título de card em negrito puro (`font-weight:600`, sem cor especial) — usado quando
+      // um .card tem seu próprio "cabeçalho" interno em vez de depender só do título da seção pai.
+      // `:first-child` restringe ao PRIMEIRO elemento do card (o título), nunca um valor numérico
+      // qualquer no meio do card que também use negrito (ex: `.v` com font-weight:600 pra destacar
+      // um número) — esses não são "título", indexá-los junto poluiria a busca com números soltos.
+      conteudo.querySelectorAll('.card > div:first-child[style*="font-weight:600"]').forEach(tituloEl => {
+        const rotulo = tituloEl.textContent.trim();
+        const cardAlvo = tituloEl.closest('.card') || tituloEl;
+        if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloSecao, paneId, alvo: cardAlvo});
+      });
       conteudo = conteudo.nextElementSibling;
     }
   });
