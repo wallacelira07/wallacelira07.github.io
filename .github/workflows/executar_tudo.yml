@@ -39,48 +39,55 @@ jobs:
     uses: ./.github/workflows/atualizar_cotacoes_acoes.yml
     secrets: inherit
   cotacoes_opcoes:
-    name: "3/7 - Atualizar Cotações de Opções (PETR4)"
+    name: "3/8 - Atualizar Cotações de Opções (PETR4)"
     needs: cotacoes
     if: always()
     uses: ./.github/workflows/atualizar_cotacoes_opcoes.yml
     secrets: inherit
-  pluggy:
-    name: "4/7 - Sincronizar Pluggy"
+  medidor_tuya:
+    name: "4/8 - Atualizar Medidor de Energia (Tuya)"
     needs: cotacoes_opcoes
+    if: always()
+    uses: ./.github/workflows/atualizar_medidor_tuya.yml
+    secrets: inherit
+  pluggy:
+    name: "5/8 - Sincronizar Pluggy"
+    needs: medidor_tuya
     if: always()
     uses: ./.github/workflows/sincronizar_pluggy.yml
     secrets: inherit
   mercadopago:
-    name: "5/7 - Sincronizar Mercado Pago"
+    name: "6/8 - Sincronizar Mercado Pago"
     needs: pluggy
     if: always()
     uses: ./.github/workflows/mercadopago_sync.yml
     secrets: inherit
   backup_externo:
-    name: "6/7 - Backup Externo Criptografado"
+    name: "7/8 - Backup Externo Criptografado"
     needs: mercadopago
     if: always()
     uses: ./.github/workflows/backup_externo.yml
     secrets: inherit
   resumo:
     name: "Resumo da execução"
-    needs: [seguranca_views, saj, cotacoes, cotacoes_opcoes, pluggy, mercadopago, backup_externo]
+    needs: [seguranca_views, saj, cotacoes, cotacoes_opcoes, medidor_tuya, pluggy, mercadopago, backup_externo]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Reportar status de cada etapa
         run: |
           echo "===== RESUMO DA EXECUÇÃO ====="
-          echo "0/7 Verificar segurança:     ${{ needs.seguranca_views.result }}"
-          echo "1/7 SAJ (geração solar):     ${{ needs.saj.result }}"
-          echo "2/7 Cotações de ações:       ${{ needs.cotacoes.result }}"
-          echo "3/7 Cotações de opções:      ${{ needs.cotacoes_opcoes.result }}"
-          echo "4/7 Pluggy (bancos):         ${{ needs.pluggy.result }}"
-          echo "5/7 Mercado Pago:            ${{ needs.mercadopago.result }}"
-          echo "6/7 Backup externo:          ${{ needs.backup_externo.result }}"
+          echo "0/8 Verificar segurança:     ${{ needs.seguranca_views.result }}"
+          echo "1/8 SAJ (geração solar):     ${{ needs.saj.result }}"
+          echo "2/8 Cotações de ações:       ${{ needs.cotacoes.result }}"
+          echo "3/8 Cotações de opções:      ${{ needs.cotacoes_opcoes.result }}"
+          echo "4/8 Medidor de energia:      ${{ needs.medidor_tuya.result }}"
+          echo "5/8 Pluggy (bancos):         ${{ needs.pluggy.result }}"
+          echo "6/8 Mercado Pago:            ${{ needs.mercadopago.result }}"
+          echo "7/8 Backup externo:          ${{ needs.backup_externo.result }}"
           echo "==============================="
-          if [ "${{ needs.seguranca_views.result }}" != "success" ] || [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.cotacoes_opcoes.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ] || [ "${{ needs.backup_externo.result }}" != "success" ]; then
+          if [ "${{ needs.seguranca_views.result }}" != "success" ] || [ "${{ needs.saj.result }}" != "success" ] || [ "${{ needs.cotacoes.result }}" != "success" ] || [ "${{ needs.cotacoes_opcoes.result }}" != "success" ] || [ "${{ needs.medidor_tuya.result }}" != "success" ] || [ "${{ needs.pluggy.result }}" != "success" ] || [ "${{ needs.mercadopago.result }}" != "success" ] || [ "${{ needs.backup_externo.result }}" != "success" ]; then
             echo "::warning::Pelo menos uma etapa não terminou com sucesso - confira os logs de cada job acima."
             exit 1
           fi
-          echo "Todas as 7 etapas rodaram com sucesso."
+          echo "Todas as 8 etapas rodaram com sucesso."

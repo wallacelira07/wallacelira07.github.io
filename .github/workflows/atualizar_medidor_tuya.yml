@@ -1,0 +1,33 @@
+name: Atualizar Medidor de Energia (Tuya/Smart Life)
+
+# NOVO 17/08/2026 (Fase 2 da integração — ver docs/decisions/INTEGRACAO_MEDIDOR_SMART_LIFE_TUYA.md
+# e scripts/sync/atualizar_medidor_tuya.py). Mesmo padrão dos outros robôs deste sistema: workflow
+# reutilizável (workflow_call) chamado pelo orquestrador executar_tudo.yml, com workflow_dispatch
+# também disponível pra rodar manualmente pela aba Actions.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+concurrency:
+  group: atualizar-medidor-tuya
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependências
+        run: pip install tinytuya
+      - name: Rodar atualização
+        env:
+          TUYA_ACCESS_ID: ${{ secrets.TUYA_ACCESS_ID }}
+          TUYA_ACCESS_SECRET: ${{ secrets.TUYA_ACCESS_SECRET }}
+          TUYA_DEVICE_ID: ${{ secrets.TUYA_DEVICE_ID }}
+          TUYA_API_REGION: ${{ secrets.TUYA_API_REGION }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_medidor_tuya.py

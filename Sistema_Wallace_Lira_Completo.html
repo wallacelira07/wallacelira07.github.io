@@ -1121,6 +1121,25 @@
     </div>
   </div>
 
+  <!-- NOVO 17/08/2026: card "Medidor de Energia (Tomada Geral)" — medidor EKAZA CT 80A instalado na
+       tomada geral da casa, integrado via Tuya Cloud API (robô scripts/sync/atualizar_medidor_tuya.py,
+       tabela medidor_tuya_leituras). Colocado na aba "Painel" (genérica) e não em "Energia Solar"
+       porque este medidor mede o consumo geral da casa, não a geração/leitura do inversor solar —
+       forçar pra dentro da aba Solar misturaria dois domínios diferentes. Ver hydrate-medidor-tuya.js. -->
+  <div class="section-num"><span class="n">22</span><h2>⚡ Medidor de Energia (Tomada Geral)</h2></div>
+  <div class="kpi-strip" style="margin-bottom:1rem">
+    <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaPotencia">—</div></div>
+    <div class="kpi"><div class="lbl">Energia hoje</div><div class="val" id="medTuyaEnergiaHoje">—</div></div>
+    <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaEnergiaTotal">—</div></div>
+    <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaIdade">—</div></div>
+  </div>
+  <div class="card">
+    <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaTensao">—</span></div>
+    <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaCorrente">—</span></div>
+    <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaEstado">—</span></div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaAviso"></div>
+  </div>
+
   </div>
 
   <div id="graficos" class="master-pane">
@@ -2347,6 +2366,8 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/auditoria/inbox/inbox-financeira.js',
   'src/integrations/pluggy/pluggy-reconciliacao.js',
   'src/integrations/pluggy/hydrate-onda7-pluggy.js',
+  // NOVO 17/08/2026: card "Medidor de Energia (Tomada Geral)", ver hydrate-medidor-tuya.js.
+  'src/integrations/tuya/hydrate-medidor-tuya.js',
   'src/financeiro/caixas/hydrate-onda8-cronograma-boletos.js',
   'src/financeiro/caixas/hydrate-onda11-boletos-extrato-v2.js',
   'src/financeiro/caixas/hydrate-onda12-caixas-pequenas-v2.js',
@@ -2469,6 +2490,29 @@ var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase
   }
 }).catch(function(e){
   console.warn('Nao consegui buscar energia_solar_geracao_diaria (V2) do Supabase:', e);
+});
+
+// NOVO 17/08/2026 (medidor EKAZA CT 80A na tomada geral da casa, integrado via Tuya Cloud API):
+// busca as últimas ~50 leituras da tabela `medidor_tuya_leituras` (backend/robô já prontos, ver
+// scripts/sync/atualizar_medidor_tuya.py) em paralelo, mesmo padrão de segurança/RLS do Solar acima
+// (JWT Firebase via __wallaceAuthHeader(), não leitura pública anônima). Sem V1 nenhuma pra este
+// domínio (medidor é novo), então não existe fallback a considerar — se falhar/offline,
+// window.WALLACE_MEDIDOR_TUYA_V2 fica null e o card mostra "Sem leitura ainda", nunca quebra o site.
+// 50 leituras (não só 1) porque dá pra fazer um mini-histórico depois, mesmo a 1ª versão do card só
+// usando a mais recente (rows[0], já que veio ordenado por capturado_em desc).
+window.WALLACE_MEDIDOR_TUYA_V2 = null;
+var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,tensao_v,corrente_a,potencia_w,energia_hoje_kwh,energia_total_kwh,estado&order=capturado_em.desc&limit=50', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_MEDIDOR_TUYA_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar medidor_tuya_leituras do Supabase, card mostra "Sem leitura ainda":', e);
 });
 
 // NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,

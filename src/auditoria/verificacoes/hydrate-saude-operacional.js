@@ -16,6 +16,10 @@ const SAUDE_JOBS_LIMIARES = {
   // ADICIONADO 17/08/2026: novo job (scripts/sync/atualizar_cotacoes_opcoes.py, card ROC/opções),
   // mesma cadência/limiar de cotacoes_acoes (roda no mesmo orquestrador, logo depois).
   cotacoes_opcoes: { atencaoH: 36, falhaH: 72, label: 'Cotações de opções (PETR4)' },
+  // ADICIONADO 17/08/2026: novo job (scripts/sync/atualizar_medidor_tuya.py, medidor EKAZA CT 80A
+  // via Tuya Cloud), roda no mesmo orquestrador que pluggy/mercadopago, sem dependência de mercado
+  // (mesmo limiar, sem exceção de hora útil).
+  medidor_tuya:    { atencaoH: 36, falhaH: 72, label: 'Medidor de energia (Tuya)' },
   geracao_solar:   { atencaoH: 24, falhaH: 48, label: 'Geração solar (SAJ)' },
   // ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas: os 2 jobs abaixo já gravam
   // heartbeat via _heartbeat.py — backup_externo_criptografado.py/wwi_gerar_relatorio_mensal.py —
