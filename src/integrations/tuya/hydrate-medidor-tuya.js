@@ -40,24 +40,6 @@
 // nenhuma pra cair de volta, então "sem dado" é sempre o estado normal de quem acabou de instalar o
 // medidor, nunca um erro — por isso mostra "Sem leitura ainda" em vez de "⚠ Indisponível".
 //
-// NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
-// consumido", depois refinado pra "só meu apartamento" + "algo como o gráfico de rateio"): agrega o
-// consumo diário JÁ CALCULADO E PERSISTIDO (tabela medidor_tuya_consumo_diario, mantida por um
-// trigger no Postgres a cada leitura nova — ver comentário no bootstrap do HTML) em totais por MÊS
-// civil de Brasília, pra comparar contra VARS_HISTORICO_WALLACE (consumo esperado, 12 meses,
-// graficos-cenarios-lazy.js) no gráfico novo "Consumo do apartamento: esperado × real". Retorna
-// [{mes:'YYYY-MM', kwh}] — mês corrente incluso mesmo incompleto (soma só os dias que já existem).
-function calcularConsumoMensalApartamento(diarioAscendente){
-  if(!Array.isArray(diarioAscendente) || !diarioAscendente.length) return [];
-  const porMes = {};
-  diarioAscendente.forEach(r => {
-    if(r.kwh_consumido == null || !r.data) return;
-    const mes = r.data.slice(0,7); // 'YYYY-MM-DD' -> 'YYYY-MM'
-    porMes[mes] = Math.round(((porMes[mes]||0) + Number(r.kwh_consumido)) * 100) / 100;
-  });
-  return Object.keys(porMes).sort().map(mes => ({ mes, kwh: porMes[mes] }));
-}
-
 // Limiares de "leitura desatualizada" (36h/72h) — mesmos números já configurados em
 // SAUDE_JOBS_LIMIARES.medidor_tuya (src/auditoria/verificacoes/hydrate-saude-operacional.js),
 // repetidos aqui como literal só pra badge deste card específico, sem reimplementar aquela lógica.
@@ -76,12 +58,6 @@ async function aplicarMedidorTuya(){
   const elAviso = $('medTuyaAviso');
   const elCicloExplicacao = $('medTuyaCicloExplicacao');
   const leituras = window.WALLACE_MEDIDOR_TUYA_V2;
-
-  // Roda independente do restante da função (não depende de `leituras` ter dado) — o gráfico novo
-  // "Consumo do apartamento: esperado × real" (graficos-cenarios-lazy.js) lê este global direto,
-  // precisa existir mesmo se o resto do card mostrar "Sem leitura ainda". window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2
-  // já vem pronto do bootstrap do HTML (tabela persistida, ver comentário lá) — só agrega por mês aqui.
-  window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 = calcularConsumoMensalApartamento(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2);
 
   if(!Array.isArray(leituras) || !leituras.length){
     ['medTuyaEnergiaHoje','medTuyaEnergiaTotal','medTuyaIdade','medTuyaTensao','medTuyaCorrente','medTuyaEstado','medTuyaConsumoCiclo'].forEach(id => {

@@ -1942,7 +1942,7 @@ async function _lazyRenderSolarSecao(){
       // pra colorir esse número (antes era texto puro via textContent) - resto da frase idêntico.
       const mediaGeracaoReal = qtdReal ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/qtdReal)*100)/100 : null;
       legGeracaoPorDiaEl.innerHTML = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:var(--red)">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:var(--red)">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = <strong style="color:var(--red)">'+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>).'
         : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
@@ -2042,36 +2042,35 @@ async function _lazyRenderSolarSecao(){
   }
 
   // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
-  // consumido", refinado 2x: 1º "só meu apartamento... algo como o gráfico de rateio", depois "eu não
-  // pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor com os CRÉDITOS" —
-  // a 1ª versão comparava consumo real × consumo esperado (fatura antiga); esta comparação é
-  // DIFERENTE por pedido explícito: consumo real medido × crédito que cabe a Wallace (71% do
-  // gerado pela usina, MESMA fonte/array creditoMensalWallace já usado no gráfico de Rateio Solar
-  // logo acima — não recalcula nada, só reaproveita). DDSU666 da Casa da Mãe e o medidor da Irmã
-  // ainda não existem, só o Tuya do apartamento tem leitura online confirmada; juntar os 3 fica pra
-  // quando os outros 2 chegarem. Eixo = só os meses que window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2
-  // já tem — nunca mostra mês anterior à instalação do medidor (17/08/2026), mesmo que
-  // creditoMensalWallace tivesse um valor pra ele (mostrar só a barra verde sem a azul correspondente
-  // enganaria, parecendo que o medidor já existia antes). mesesPares/creditoMensalWallace são os
-  // MESMOS arrays já usados no gráfico de Rateio Solar acima (mesmo escopo desta função) — índice por
-  // NOME de mês, não por posição no calendário (ver mapMesParaIndiceAnoAnterior, nome mantido do
-  // kwhAnoAnterior original só porque os dois arrays compartilham o mesmo esquema de índice).
-  const consumoMensalApto = window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 || [];
-  if(consumoMensalApto.length){
-    const NOMES_MES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    // 'YYYY-MM' -> índice em creditoMensalWallace/kwhAnoAnterior/mesesPares (Jul=índice 0, ver linha ~948/949).
-    const mapMesParaIndiceAnoAnterior = ym => {
-      const mesNum = Number(ym.slice(5,7)); // 1-12
-      return (mesNum - 7 + 12) % 12;
-    };
-    const labelsConsumoApto = consumoMensalApto.map(r => NOMES_MES_ABREV[Number(r.mes.slice(5,7))-1]+'/'+r.mes.slice(2,4));
-    const creditoConsumoApto = consumoMensalApto.map(r => creditoMensalWallace[mapMesParaIndiceAnoAnterior(r.mes)] ?? null);
-    const realConsumoApto = consumoMensalApto.map(r => r.kwh);
+  // consumido", refinado 3x na mesma sessão: 1º "só meu apartamento... algo como o gráfico de
+  // rateio", 2º "eu não pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor
+  // com os CRÉDITOS", 3º achado real do usuário: "o ciclo de agosto fechou dia 8, esqueceu? toda
+  // geração agora é pro próximo ciclo" — a versão anterior agrupava o consumo real por MÊS CALENDÁRIO
+  // e cruzava com creditoMensalWallace[mês], mas o crédito "em formação" (idxCicloAberto) NÃO
+  // pertence ao mês calendário corrente — pertence ao ciclo da GD, que fecha no dia 8 e já rolou pro
+  // mês seguinte (ex: 17/08 já é ciclo "07/08→08/09", cujo crédito vai contar em setembro). Rotular
+  // esse crédito como "Ago/26" atribuía a agosto um número que já é de outro período.
+  //
+  // CORRIGIDO: eixo agora é o CICLO da GD (mesma janela de cicloSolarAberto.data_inicio já usada no
+  // Fluxo 2/seção 12 abaixo), não mês calendário. Consumo real = soma de
+  // window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 (tabela persistida, hydrate-medidor-tuya.js) desde
+  // essa mesma data de início — os dois lados da comparação passam a cobrir EXATAMENTE a mesma
+  // janela de tempo. Só mostra 1 barra (o ciclo aberto) por enquanto: o medidor foi instalado
+  // 17/08/2026, então não existe nenhum ciclo FECHADO com consumo real medido ainda — a próxima
+  // virada (fechamento em ~08/09) começa a acumular histórico de ciclos fechados aqui.
+  const diarioApto = window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 || [];
+  if(cicloSolarAberto && idxCicloAberto != null && diarioApto.length){
+    const inicioCicloStr = cicloSolarAberto.data_inicio; // 'YYYY-MM-DD'
+    const diasDoCicloComDado = diarioApto.filter(r => r.data >= inicioCicloStr && r.kwh_consumido != null);
+    const consumoCicloAtualKwh = Math.round(diasDoCicloComDado.reduce((s,r)=>s+Number(r.kwh_consumido),0)*100)/100;
+    const creditoCicloAtual = creditoMensalWallace[idxCicloAberto];
+    const fmtDataBrCiclo = iso => iso ? iso.split('-').reverse().join('/') : '—';
+    const labelCiclo = fmtDataBrCiclo(inicioCicloStr)+' → hoje';
     observeAndRenderChart($('cConsumoApartamento'), () => { const __chartExistente = Chart.getChart($('cConsumoApartamento')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cConsumoApartamento'), {
       type:'bar',
-      data:{labels:labelsConsumoApto, datasets:[
-        {label:'Crédito que cabe a você (71%, gerado pela usina)', data:creditoConsumoApto, backgroundColor:'#34c98a', borderRadius:3},
-        {label:'Consumo real medido (Tuya)', data:realConsumoApto, backgroundColor:'#3987e5', borderRadius:3}
+      data:{labels:[labelCiclo], datasets:[
+        {label:'Crédito que cabe a você (71%, gerado pela usina)', data:[creditoCicloAtual ?? null], backgroundColor:'#34c98a', borderRadius:3},
+        {label:'Consumo real medido (Tuya)', data:[consumoCicloAtualKwh], backgroundColor:'#3987e5', borderRadius:3}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:legendStd2,tooltip:{callbacks:{
@@ -2082,15 +2081,13 @@ async function _lazyRenderSolarSecao(){
     }); });
     const legConsumoApartamentoEl = $('legConsumoApartamento');
     if(legConsumoApartamentoEl){
-      const ultimoMes = consumoMensalApto[consumoMensalApto.length-1];
-      const creditoDoMesAtual = creditoMensalWallace[mapMesParaIndiceAnoAnterior(ultimoMes.mes)];
-      const saldo = creditoDoMesAtual!=null ? Math.round((creditoDoMesAtual - ultimoMes.kwh)*100)/100 : null;
-      legConsumoApartamentoEl.textContent = 'Mês atual ('+labelsConsumoApto[labelsConsumoApto.length-1]+', ainda em andamento): '+ultimoMes.kwh.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh medidos até agora'
-        + (saldo!=null ? ' vs. '+creditoDoMesAtual.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh de crédito já formado — '+(saldo>=0 ? 'crédito cobre com sobra de '+saldo.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' : 'consumo já passou o crédito formado em '+Math.abs(saldo).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh')+' (os dois ainda em andamento, mês não fechou)' : '') + '.';
+      const saldo = creditoCicloAtual!=null ? Math.round((creditoCicloAtual - consumoCicloAtualKwh)*100)/100 : null;
+      legConsumoApartamentoEl.textContent = 'Ciclo da GD em andamento ('+labelCiclo+'): '+consumoCicloAtualKwh.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh medidos até agora'
+        + (saldo!=null ? ' vs. '+creditoCicloAtual.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh de crédito já formado — '+(saldo>=0 ? 'crédito cobre com sobra de '+saldo.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' : 'consumo já passou o crédito formado em '+Math.abs(saldo).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh')+' (os dois ainda em andamento, ciclo não fechou)' : '') + '.';
     }
   } else {
     const legConsumoApartamentoEl = $('legConsumoApartamento');
-    if(legConsumoApartamentoEl) legConsumoApartamentoEl.textContent = 'Ainda sem nenhum dia completo de consumo real medido — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 virada de dia pra calcular o primeiro valor.';
+    if(legConsumoApartamentoEl) legConsumoApartamentoEl.textContent = 'Ainda sem dado suficiente pra comparar — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 dia de leitura dentro do ciclo aberto da GD.';
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
