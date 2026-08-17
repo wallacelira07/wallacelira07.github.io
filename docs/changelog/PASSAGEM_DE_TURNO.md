@@ -2,6 +2,37 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏁 17/08/2026 (bloco 20) — modelo solar, medidor Tuya em produção (o grosso do dia), cotações de opções ampliadas
+
+Sessão longa e inteiramente ao vivo — usuário testando cada mudança em tempo real (celular/print) e corrigindo o rumo várias vezes assim que via o resultado. Commits `b720064` → `44863b3`.
+
+**Modelo de geração solar** (`b720064`, `f37ddee`): selo "Hoje" sempre mostrava falso "abaixo do esperado" de manhã e "acima" à tarde — regra de 3 linear contra janela fixa, geração real segue curva em S. Substituído por modelo de elevação solar real (fórmula PVEducation/NOAA) na coordenada GPS exata do gerador (corrigida de geocodificação por endereço pro ponto real, exportado pelo usuário via app Sun Surveyor).
+
+**Correções pontuais** (`c47b4db`): badge "Queda Total" dessincronizado do gráfico (faltava `hydrateSimuladorCiclo()` na cadeia de re-hidratação — mesma classe de bug já vista antes) + badge novo "Deste → próx. ciclo".
+
+**Cotação de opções automatizada, ampliada durante a sessão** (`8b0002b`, depois `db29aae`/`ba4ece5`): implementei 1ª versão só com PETR4 (brapi.dev, único ativo-objeto livre sem token no endpoint de opções). Usuário rejeitou: "não pode ser só PETR4". Pesquisei alternativas (OpLab: só no plano pago, R$97-185/mês) e achei `opcoes.net.br`, que publica cotação pública (últimos 5 pregões, sem login) pra qualquer opção da B3 — apresentei o trade-off (scraping é mais frágil que API oficial) via pergunta direta, usuário escolheu essa via conscientemente. Robô agora tenta brapi primeiro, cai pro scraping quando a brapi exige token — testado localmente com ITUBT424, retornou R$2,63 batendo com o site.
+
+**Medidor de energia Tuya — o grosso do dia**, com evolução ao vivo por 3 rodadas de correção depois de feedback direto:
+
+1. Sondagem revelou que o produto (`EKAZA Medidor de Transf de corrente 80A`) nunca teve schema registrado no modo "Standard" da Tuya — resolvido trocando pro modo "DP Instruction" no painel deles, só depois disso a API passou a devolver dado real.
+2. Backend completo (tabela, RPC, robô, workflow) construído e publicado (`40d8380`).
+3. Card criado na aba Painel — usuário corrigiu na hora: "esse medidor é no meu apartamento", movido pra aba Solar, junto da seção do apartamento (`7e3ad74`).
+4. Usuário pediu gráfico "comparativo entre o gerado e o consumido" — **1ª versão** misturou consumo do apartamento com geração da usina no gráfico "Geração por dia" já existente. Usuário esclareceu: "por enquanto algo só do meu apartamento... os outros 2 medidores (irmã, Casa da Mãe) ainda não existem" — revertido, card novo dedicado criado (`c8f1320`).
+5. **2ª versão** desse card novo comparava consumo real × consumo ESPERADO (fatura antiga). Usuário corrigiu: "eu não pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor com os CRÉDITOS" — trocado por crédito (71%, mesma fonte do gráfico Rateio Solar) (`0fb6c64`).
+6. **3ª versão** agrupava por mês calendário. Usuário pegou o erro na hora, olhando o print: "o ciclo de agosto fechou dia 8, esqueceu? toda geração agora é pro próximo ciclo" — corrigido pra usar o ciclo real da GD (dia 8) como eixo, não mês calendário (`17ccf7b`).
+7. Consumo diário passou a ser calculado e persistido no PRÓPRIO BANCO via trigger Postgres (`c8f1320`), substituindo uma abordagem que buscava até 5000 leituras brutas e recalculava tudo no navegador a cada carga de página.
+8. **Achado real em produção**: medidor ficou horas reportando os mesmos valores — usuário resetou o disjuntor fisicamente, voltou a funcionar. Detecção automática desse cenário adicionada ao card por pedido do usuário (`ee813ee`).
+9. **Achado sobre a arquitetura de automação real deste sistema**: guiei o usuário pela tela do GitHub Actions e descobrimos juntos que `executar_tudo.yml` quase não dispara sozinho na prática (10 execuções, todas manuais) — o padrão real é cada workflow ter sua própria tarefa no cron-job.org. Usuário criou a tarefa dedicada do medidor (10min) copiando a configuração da tarefa do SAJ.
+10. Usuário pediu uma nota nova de "geração cobre as 3 casas" mas somando o CICLO INTEIRO (não só 1 dia) — implementada reaproveitando a mesma fórmula/fontes já usadas na nota de 1 dia (`c3c4b70`).
+
+**UI — barra de abas travada no desktop** (`b12b6f2`, `4b667c0`): rolagem horizontal já existia mas só funcionava com gesto de toque — corrigido com roda do mouse (1ª tentativa) + setas visíveis (usuário reportou que a 1ª não era descobrível sozinha).
+
+**Financeiro**: 3 transações categorizadas via SQL direto (Boletos/Saúde/Compras Online, badge deve virar 414/414), glicose/pressão registradas, 2 compras manuais lançadas (Galeteria).
+
+**Incidente técnico**: Google Drive Desktop caiu por completo no meio da sessão (processo parado, não travado) — diagnosticado via `Get-Process`/`Get-PSDrive`, reiniciado, confirmado sem perda de trabalho (`git status` limpo antes/depois).
+
+**Documentação**: `docs/decisions/INTEGRACAO_MEDIDOR_SMART_LIFE_TUYA.md` reescrita completa (Fase 1 planejada → Fase 2 em produção), `docs/decisions/COTACOES_OPCOES_AO_VIVO_PETR4.md` atualizada (dual-source), `ESTADO_ATUAL.md` reescrito (bloco 20).
+
 ## ▶️ 16/08/2026 (bloco 19) — usuário voltou ao vivo, 9 achados reais reportados em sequência
 
 Usuário retomou a sessão olhando o painel ao vivo (celular), mandando achados um atrás do outro, pedindo pra abrir mais frentes de trabalho em paralelo pois "vou sair e não posso passar muito tempo com você". Todos investigados com evidência (código + Supabase direto) antes de corrigir.
