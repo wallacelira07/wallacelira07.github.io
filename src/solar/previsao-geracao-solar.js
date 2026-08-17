@@ -77,13 +77,16 @@ async function aplicarPrevisaoGeracaoSolar(){
       return;
     }
 
-    // Coordenadas de Campina Grande/PB — duplicadas de propósito aqui (não referenciam a const de
-    // hydrate-clima-solar.js): os módulos da base carregam em paralelo, sem ordem garantida entre
-    // eles (ver __carregarScriptsParalelo em Sistema_Wallace_Lira_Completo.html, s.async=true) —
-    // depender de uma const top-level de OUTRO <script> arriscaria ReferenceError se este arquivo
-    // executasse primeiro. Mesmo valor (mesma usina), mesma lógica de duplicação já usada pro
-    // r2Sim em energia-solar.js (comentário lá: "escopo diferente, versão própria aqui").
-    const lat = -7.2306, lon = -35.8811;
+    // Coordenadas EXATAS do gerador (Rua Gildete Gomes Bezerra, 79 - Nova Brasília, Campina
+    // Grande/PB) — duplicadas de propósito aqui (não referenciam a const de hydrate-clima-solar.js):
+    // os módulos da base carregam em paralelo, sem ordem garantida entre eles (ver
+    // __carregarScriptsParalelo em Sistema_Wallace_Lira_Completo.html, s.async=true) — depender de
+    // uma const top-level de OUTRO <script> arriscaria ReferenceError se este arquivo executasse
+    // primeiro. Mesmo valor (mesma usina), mesma lógica de duplicação já usada pro r2Sim em
+    // energia-solar.js. CORRIGIDO 17/08/2026: era aproximação de centro-de-cidade (-7.2306/-35.8811,
+    // ~2,8km de erro) — trocado pela coordenada real geocodificada (mesmo valor agora usado em
+    // hydrate-clima-solar.js e hydrate-onda5-qualidade-geracao.js).
+    const lat = -7.2155123, lon = -35.8569923;
 
     const maisAntigo = diasCompletos.reduce((min,r) => r.data < min ? r.data : min, diasCompletos[0].data);
     const diasDesdeMaisAntigo = Math.round((new Date(hojeStr) - new Date(maisAntigo)) / 86400000);

@@ -7,10 +7,14 @@
 // enganoso: se a API falhar, o bloco simplesmente não aparece (display:none, já é o padrão no HTML) —
 // nunca mostra um clima antigo/inventado como se fosse agora.
 //
-// Coordenadas de Campina Grande/PB fixas aqui de propósito (mesma lógica de CAIXA_VARIAVEL_ID_V2 em
-// app.js — constante estável, não precisa vir de configuração externa pra um valor que não muda).
-const CLIMA_SOLAR_LAT = -7.2306;
-const CLIMA_SOLAR_LON = -35.8811;
+// Coordenadas EXATAS do gerador (Rua Gildete Gomes Bezerra, 79 - Nova Brasília, Campina Grande/PB,
+// mesma UC 573.702.053-77) fixas aqui de propósito (mesma lógica de CAIXA_VARIAVEL_ID_V2 em app.js —
+// constante estável, não precisa vir de configuração externa pra um valor que não muda). CORRIGIDO
+// 17/08/2026: eram uma aproximação de centro-de-cidade (-7.2306/-35.8811, ~2,8km de erro) — trocado
+// pela coordenada real geocodificada, mesmo valor agora usado em hydrate-onda5-qualidade-geracao.js
+// e previsao-geracao-solar.js (duplicado nos 3 arquivos de propósito, ver comentário lá).
+const CLIMA_SOLAR_LAT = -7.2155123;
+const CLIMA_SOLAR_LON = -35.8569923;
 
 // Códigos WMO (documentação oficial Open-Meteo) -> {emoji, texto}. Cobre os códigos realmente
 // possíveis pro clima brasileiro (sem neve) + os poucos que podem aparecer por precaução.

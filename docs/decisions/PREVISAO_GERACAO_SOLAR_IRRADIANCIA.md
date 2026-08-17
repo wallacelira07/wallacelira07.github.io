@@ -104,3 +104,15 @@ Se o usuário achar que mesmo com esses guarda-corpos a seção ainda transmite 
 
 - Histórico real passar de ~60-90 dias (cobrindo mais de uma estação) — vale reexecutar esta análise offline (mesmo método, mais dados) e atualizar os números da seção 4 aqui, comparando se R²/MAE melhoraram como esperado.
 - Se o medidor bidirecional novo (DDSU666, ver `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`) passar a fornecer geração instantânea/horária, dá pra evoluir de "irradiância diária total → geração diária total" pra um modelo horário, capturando a distribuição da nebulosidade ao longo do dia (uma das limitações apontadas na seção 4) — não faz sentido investir nisso antes de ter esse dado.
+
+## 8. Modelo intradiário separado, implementado 17/08/2026 (curva de elevação solar)
+
+Diferente do modelo acima (previsão de dias FUTUROS via regressão com irradiância), o card "Qualidade da geração" (`src/solar/hydrate-onda5-qualidade-geracao.js`) tem seu próprio problema: comparar a leitura PARCIAL de hoje contra "quanto já deveria ter gerado até agora". Até 17/08/2026 isso usava regra de 3 linear sobre a janela 05:30-18:00 — o usuário reportou, com prints reais de um app de posição solar (sunrise/sunset) e do Shadowmap na coordenada exata do gerador, que o selo "Hoje" ficava sistematicamente 🔴 de manhã e 🟢 à tarde, todo santo dia.
+
+**Causa raiz**: geração solar real não é uma reta ao longo do dia — é uma curva em S (baixa perto do nascer/pôr do sol, mais alta perto do meio-dia). Comparada com uma reta que sobe em ritmo constante, a curva real fica sistematicamente ABAIXO da reta de manhã e ACIMA à tarde, convergindo de novo perto do fim do dia.
+
+**Correção**: `__fracaoAcumuladaCurvaSolar()` (mesmo arquivo) calcula o ângulo de elevação solar real (fórmula padrão de posição solar — declinação por Cooper's equation + equação do tempo + ângulo horário, sem correção de refração) a cada 10 minutos do dia, na coordenada EXATA do gerador (`SOLAR_GERADOR_LAT/LON = -7.2155123/-35.8569923`, Rua Gildete Gomes Bezerra 79, geocodificada via OpenStreetMap Nominatim — substitui a aproximação de centro-de-cidade usada até então em todo o subsistema solar, ~2,8km de erro). Usa `max(0, sen(elevação))` como peso instantâneo (proxy padrão de irradiância direta em céu limpo) e integra pra achar a fração do total do dia já esperada até um dado horário — validado offline contra nascer/pôr do sol real de 3 datas do ano (erro de poucos minutos, aceitável pro propósito).
+
+Continua sendo uma estimativa de CÉU LIMPO — não considera nuvens do dia específico, isso é dito explicitamente no texto da UI (legenda `legQgHojeParcial`, tabela `legendas`). Não fabrica dado de produção horária real (que não existe — o robô só grava total do dia); é um modelo astronômico, não uma leitura.
+
+Coordenadas exatas também corrigidas em `hydrate-clima-solar.js` e neste mesmo arquivo (seção 2.2 acima) pra consistência — não fazia sentido o subsistema solar ter 2 "verdades" de localização diferentes.

@@ -15,9 +15,10 @@
 // selo (🔴/🟡/🟢) usa o ÚLTIMO DIA COMPLETO (ontem, ou o mais recente antes de hoje) comparado
 // à média dos dias completos anteriores a ele.
 //
-// P1 — dados que NÃO existem e não são fabricados aqui: produção por hora (o robô só grava total
-// do dia) e "esperado até agora" intradiário (exigiria uma curva-modelo do formato do dia, que não
-// existe) — ambos ficam de fora deste card, documentados como bloqueio real, não estimados.
+// P1 — dado que NÃO existe e não é fabricado aqui: produção por hora (o robô só grava total do
+// dia). "Esperado até agora" intradiário EXISTE desde 17/08/2026 via curva de elevação solar
+// (__fracaoAcumuladaCurvaSolar, mais abaixo) — é uma estimativa de céu limpo, não produção horária
+// real, e isso é dito explicitamente no texto exibido ("estimativa").
 //
 // Rollback: comentar a chamada aplicarOnda5QualidadeGeracao() em app.js.
 
@@ -29,6 +30,58 @@
 // (Brasil não tem mais horário de verão desde 2019, então isso não precisa de biblioteca de fuso).
 const SOLAR_JANELA_LEITURA_INICIO_H = 6;
 const SOLAR_JANELA_LEITURA_FIM_H = 18;
+
+// NOVO 17/08/2026 (pedido do usuário, prioridade 0 — substitui o modelo linear de "esperado até
+// agora" abaixo). Coordenadas EXATAS do gerador: Rua Gildete Gomes Bezerra, 79 - Nova Brasília,
+// Campina Grande/PB (mesmo endereço da UC 573.702.053-77, ver vars-energia-solar.js linha 73-74),
+// geocodificadas via OpenStreetMap Nominatim — substitui a aproximação de centro-de-cidade
+// (-7.2306/-35.8811) usada em hydrate-clima-solar.js e previsao-geracao-solar.js até então (~2,8km
+// de diferença). Duplicada aqui de propósito, mesmo motivo já documentado em
+// previsao-geracao-solar.js: módulos da base carregam em paralelo (s.async=true), sem ordem
+// garantida, então não dá pra depender de uma const top-level de outro <script>.
+const SOLAR_GERADOR_LAT = -7.2155123;
+const SOLAR_GERADOR_LON = -35.8569923;
+
+// Ângulo de elevação solar (graus) pra uma lat/lon/instante — fórmula padrão de posição solar
+// (PVEducation/NOAA simplificada: declinação por Cooper's equation + equação do tempo + ângulo
+// horário), sem correção de refração atmosférica — validada offline contra nascer/pôr do sol real
+// dessa coordenada em 3 datas diferentes do ano (erro de poucos minutos, aceitável: aqui só
+// precisamos do FORMATO da curva ao longo do dia, não do instante exato de nascer/pôr do sol).
+function __elevacaoSolarGraus(lat, lon, timestampMs){
+  const rad = Math.PI/180;
+  const d = new Date(timestampMs);
+  const inicioAno = Date.UTC(d.getUTCFullYear(), 0, 1);
+  const diaDoAno = Math.floor((timestampMs - inicioAno) / 86400000) + 1;
+  const B = (360/365) * (diaDoAno - 81) * rad;
+  const eot = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B); // equação do tempo, minutos
+  const declinacao = 23.45*rad*Math.sin((360/365) * (284+diaDoAno) * rad); // já em radianos
+  const horaUTC = d.getUTCHours() + d.getUTCMinutes()/60 + d.getUTCSeconds()/3600;
+  const horaSolarLocal = horaUTC + lon/15 + eot/60; // UTC corresponde ao meridiano 0°
+  const hra = 15 * (horaSolarLocal - 12) * rad; // ângulo horário
+  const latRad = lat * rad;
+  const seno = Math.sin(declinacao)*Math.sin(latRad) + Math.cos(declinacao)*Math.cos(latRad)*Math.cos(hra);
+  return Math.asin(Math.max(-1, Math.min(1, seno))) / rad;
+}
+
+// Fração do total do dia já "acumulada" até um dado minuto-do-dia (Brasília), usando
+// max(0, sen(elevação)) como peso instantâneo — proxy padrão de irradiância direta em plano
+// horizontal sob céu limpo (ignora nuvens/difusa de propósito: aqui só molda a FORMA relativa da
+// curva ao longo do dia; o valor absoluto de geração continua vindo de VARS.SOLAR_GERACAO_DIARIA,
+// dado real do robô SAJ). Resultado é uma curva em S (baixa de manhã/tarde, íngreme ao meio-dia) —
+// fisicamente correta e sensível à estação do ano (se ajusta sozinha a nascer/pôr do sol de cada
+// data, sem precisar de janela fixa 05:30-18:00 hardcoded).
+function __fracaoAcumuladaCurvaSolar(dataISO, minutosDoDiaAgora){
+  const PASSO_MIN = 10;
+  const [ano, mes, dia] = dataISO.split('-').map(Number);
+  const baseUTC = Date.UTC(ano, mes-1, dia, 3, 0, 0); // 00:00 Brasília = 03:00 UTC
+  let somaTotal = 0, somaAteAgora = 0;
+  for(let m = 0; m < 24*60; m += PASSO_MIN){
+    const peso = Math.max(0, Math.sin(__elevacaoSolarGraus(SOLAR_GERADOR_LAT, SOLAR_GERADOR_LON, baseUTC + m*60000) * Math.PI/180));
+    somaTotal += peso;
+    if(m <= minutosDoDiaAgora) somaAteAgora += peso;
+  }
+  return somaTotal > 0 ? somaAteAgora / somaTotal : 0;
+}
 function agoraEfetivoFrescorSolar(){
   const agora = new Date();
   const TRES_HORAS_MS = 3*3600*1000;
@@ -140,28 +193,28 @@ async function aplicarOnda5QualidadeGeracao(){
     else { elStatus.textContent = '—'; elStatus.style.color = ''; }
   }
 
-  // NOVO 12/08/2026 (pedido do usuário: "quero ver se HOJE está abaixo, normal ou acima do
-  // esperado", não só o último dia completo/ontem). Estimativa por regra de 3 simples: assume
-  // ritmo LINEAR ao longo da janela de geração (05:30-18:00, mesma janela de usinaAindaGerandoHoje
-  // acima) — é uma aproximação grosseira (geração solar real não é linear, é mais baixa de manhã/
-  // fim de tarde e maior perto do meio-dia), documentada como tal na UI ("estimativa"). Só passa a
-  // valer um cálculo mais fiel quando energia_solar_geracao_intraday (NOVO 12/08/2026,
-  // atualizar_geracao_saj.py agora grava um INSERT por execução) acumular dias suficientes pra
-  // construir uma curva real "quanto costuma ter gerado até tal horário" - até lá, linear é a
-  // melhor aproximação disponível sem fabricar dado que não existe.
+  // NOVO 12/08/2026, MODELO SUBSTITUÍDO 17/08/2026 (pedido do usuário: "quero ver se HOJE está
+  // abaixo, normal ou acima do esperado", não só o último dia completo/ontem). Até 17/08/2026 isso
+  // usava regra de 3 LINEAR sobre a janela 05:30-18:00 — aproximação grosseira que sempre acusava
+  // falso "abaixo do esperado" de manhã e falso "acima do esperado" à tarde, porque geração solar
+  // real segue uma curva em S (baixa perto do nascer/pôr do sol, íngreme ao meio-dia), não uma
+  // reta. Trocado por __fracaoAcumuladaCurvaSolar() (acima nesse arquivo): calcula o ângulo de
+  // elevação solar real na coordenada exata do gerador a cada 10min do dia e usa max(0,sen(elevação))
+  // como peso — curva fisicamente correta, se ajusta sozinha à estação do ano (nascer/pôr do sol
+  // variam), sem depender de janela fixa. Continua sendo uma estimativa de CÉU LIMPO (não considera
+  // nuvens do dia) — é dito explicitamente no texto abaixo ("estimativa"), mesmo padrão de honestidade
+  // já usado em previsao-geracao-solar.js.
   const elStatusHoje = $('qgStatusHoje');
   if(elStatusHoje){
     const mediaTodosDiasCompletos = diasCompletos.length
       ? Math.round((diasCompletos.reduce((s,r)=>s+r.kwh,0) / diasCompletos.length) * 100) / 100
       : null;
-    const JANELA_INICIO_MIN = 5*60+30, JANELA_FIM_MIN = 18*60;
-    const minutosDecorridos = Math.min(Math.max(minutosDoDia, JANELA_INICIO_MIN), JANELA_FIM_MIN) - JANELA_INICIO_MIN;
-    const fracaoJanela = minutosDecorridos / (JANELA_FIM_MIN - JANELA_INICIO_MIN);
-    const esperadoAteAgora = mediaTodosDiasCompletos !== null ? Math.round(mediaTodosDiasCompletos * fracaoJanela * 100) / 100 : null;
+    const fracaoCurvaSolar = __fracaoAcumuladaCurvaSolar(hojeStr, minutosDoDia);
+    const esperadoAteAgora = mediaTodosDiasCompletos !== null ? Math.round(mediaTodosDiasCompletos * fracaoCurvaSolar * 100) / 100 : null;
     if(!registroHoje){
       elStatusHoje.textContent = 'Hoje: sem leitura ainda';
       elStatusHoje.style.color = '';
-    } else if(esperadoAteAgora === null || fracaoJanela <= 0){
+    } else if(esperadoAteAgora === null || fracaoCurvaSolar <= 0.005){
       elStatusHoje.textContent = 'Hoje: aguardando dados suficientes pra estimar';
       elStatusHoje.style.color = '';
     } else {
