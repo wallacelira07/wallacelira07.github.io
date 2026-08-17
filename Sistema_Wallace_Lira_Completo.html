@@ -1511,6 +1511,9 @@
       <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaEstado">—</span></div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaCicloExplicacao">—</div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaAviso"></div>
+      <!-- NOVO 17/08/2026 (achado real: medidor ficou horas reportando o mesmo valor, mesmo com o
+           robô rodando com sucesso — ver detecção de "platô" em hydrate-medidor-tuya.js). -->
+      <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaTravamento"></div>
     </div>
 
     <!-- NOVO 17/08/2026 (pedido do usuário, refinado depois de ver a 1ª tentativa: "precisa ser por

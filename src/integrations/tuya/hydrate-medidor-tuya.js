@@ -90,6 +90,7 @@ async function aplicarMedidorTuya(){
     if($('medTuyaPotencia')) $('medTuyaPotencia').textContent = 'Sem leitura ainda';
     if(elAviso) elAviso.textContent = 'Nenhuma leitura do medidor chegou ainda — assim que o robô sincronizar pela primeira vez, os dados aparecem aqui.';
     if(elCicloExplicacao) elCicloExplicacao.textContent = '';
+    if($('medTuyaTravamento')) $('medTuyaTravamento').textContent = '';
     window.WALLACE_MEDIDOR_TUYA_RELATORIO = { qtdLeituras: 0 };
     return;
   }
@@ -102,6 +103,41 @@ async function aplicarMedidorTuya(){
   if($('medTuyaEnergiaHoje')) $('medTuyaEnergiaHoje').textContent = fmtNum(ultima.energia_hoje_kwh, 2, 'kWh');
   if($('medTuyaEnergiaTotal')) $('medTuyaEnergiaTotal').textContent = fmtNum(ultima.energia_total_kwh, 1, 'kWh');
   if($('medTuyaEstado')) $('medTuyaEstado').textContent = ultima.estado ? (ESTADOS_TUYA[ultima.estado] || ultima.estado) : '—';
+
+  // NOVO 17/08/2026 (achado real em produção: o medidor ficou HORAS reportando exatamente os mesmos
+  // números — energia_total_kwh, potência, tudo idêntico — mesmo com o robô rodando com sucesso a
+  // cada execução; o heartbeat de Saúde Operacional não pega esse caso, porque a chamada à API da
+  // Tuya funciona normal, só o VALOR devolvido é que está congelado do lado do aparelho/nuvem Tuya).
+  // Detecta isso aqui: anda pelas últimas leituras (já ordenadas capturado_em desc) enquanto
+  // energia_total_kwh for IDÊNTICO ao da mais recente; se esse "platô" já dura 60min+ E tem pelo
+  // menos 2 leituras nele (1 leitura só nunca conta como travamento, é só a mais recente), avisa.
+  // 60min é uma folga generosa: no consumo real observado (~350-430W), o contador (resolução de
+  // 0,001 kWh) deveria se mover várias vezes nesse intervalo — ficar bit-a-bit igual por tanto tempo
+  // não acontece por acaso com o aparelho funcionando normalmente.
+  const elTravamento = $('medTuyaTravamento');
+  if(elTravamento){
+    let travado = false, minutosTravado = null;
+    const totalUltima = ultima.energia_total_kwh != null ? Number(ultima.energia_total_kwh) : null;
+    if(totalUltima != null){
+      let i = 0;
+      while(i < leituras.length && leituras[i].energia_total_kwh != null && Number(leituras[i].energia_total_kwh) === totalUltima) i++;
+      if(i >= 2){
+        const maisAntigaDoPlato = leituras[i-1];
+        const tsAntigo = maisAntigaDoPlato.capturado_em ? new Date(maisAntigaDoPlato.capturado_em) : null;
+        if(tsAntigo && !isNaN(tsAntigo.getTime())){
+          minutosTravado = Math.round((Date.now() - tsAntigo.getTime())/60000);
+          travado = minutosTravado >= 60;
+        }
+      }
+    }
+    if(travado){
+      const corVermelha = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
+      elTravamento.textContent = `⚠️ Possível travamento: o valor não muda há ${minutosTravado>=120 ? Math.round(minutosTravado/60)+'h' : minutosTravado+'min'}, mesmo com leituras chegando normalmente — o medidor pode ter parado de reportar de verdade (já aconteceu em 17/08/2026, resolvido com reset físico do aparelho).`;
+      elTravamento.style.color = corVermelha;
+    } else {
+      elTravamento.textContent = '';
+    }
+  }
 
   // Consumo real do ciclo Energisa em andamento (desde o último dia 21) — energia_total_kwh é um
   // contador que só cresce, então a diferença entre a leitura de agora e a leitura-base do ciclo É o
