@@ -1120,26 +1120,6 @@
       </div>
     </div>
   </div>
-
-  <!-- NOVO 17/08/2026: card "Medidor de Energia (Tomada Geral)" — medidor EKAZA CT 80A instalado na
-       tomada geral da casa, integrado via Tuya Cloud API (robô scripts/sync/atualizar_medidor_tuya.py,
-       tabela medidor_tuya_leituras). Colocado na aba "Painel" (genérica) e não em "Energia Solar"
-       porque este medidor mede o consumo geral da casa, não a geração/leitura do inversor solar —
-       forçar pra dentro da aba Solar misturaria dois domínios diferentes. Ver hydrate-medidor-tuya.js. -->
-  <div class="section-num"><span class="n">22</span><h2>⚡ Medidor de Energia (Tomada Geral)</h2></div>
-  <div class="kpi-strip" style="margin-bottom:1rem">
-    <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaPotencia">—</div></div>
-    <div class="kpi"><div class="lbl">Energia hoje</div><div class="val" id="medTuyaEnergiaHoje">—</div></div>
-    <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaEnergiaTotal">—</div></div>
-    <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaIdade">—</div></div>
-  </div>
-  <div class="card">
-    <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaTensao">—</span></div>
-    <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaCorrente">—</span></div>
-    <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaEstado">—</span></div>
-    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaAviso"></div>
-  </div>
-
   </div>
 
   <div id="graficos" class="master-pane">
@@ -1493,6 +1473,34 @@
       <div class="chart-box tall"><canvas id="cEnergiaSolar"></canvas></div>
       <div class="legend-note v" id="legEnergiaSolar">—</div>
       <div class="legend-note" style="font-size:var(--fs-2xs);margin-top:0.3rem">Ano anterior: tarifa Jun/2026 (R$1,0625/kWh). Mai/26 (*) interpolado. Verde escuro = fatura real informada · verde claro = calculado a partir da geração real do medidor (mês atual) ou projeção (demais meses, projeção = Disponibilidade + Fio B + Iluminação + Encargos, ver card abaixo).</div>
+    </div>
+
+    <!-- NOVO 17/08/2026: card "Medidor de Energia (Apartamento)" — medidor EKAZA CT 80A instalado na
+         tomada geral do apartamento do Wallace, integrado via Tuya Cloud API (robô
+         scripts/sync/atualizar_medidor_tuya.py, tabela medidor_tuya_leituras). Movido pra dentro da
+         aba Solar (era "Painel" numa 1ª versão) porque o usuário confirmou: este medidor É o consumo
+         do apartamento, mesma unidade da seção 06 acima/residual abaixo — mede consumo real em tempo
+         real pela 1ª vez neste sistema (antes só existia o valor da fatura em PDF, semanas depois do
+         ciclo fechar). "Consumo real neste ciclo" usa o mesmo dia de leitura Energisa (21) já usado
+         em graficos-cenarios-lazy.js (DIA_LEITURA_WALLACE) — dado NOVO, adicional, não substitui nem
+         recalcula o gráfico R$ acima nem a tabela residual abaixo (que continuam vindo da fatura em
+         PDF, mês a mês) - ver comentário no topo de hydrate-medidor-tuya.js sobre por que essa fase
+         foi deliberadamente deixada de fora (mesmo princípio de "não pular fases" do medidor DDSU666
+         da Casa da Mãe). -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">⚡ Medidor de energia do apartamento (tempo real)</div>
+      <div class="kpi-strip" style="margin-bottom:0.8rem">
+        <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaPotencia">—</div></div>
+        <div class="kpi"><div class="lbl">Consumo real neste ciclo</div><div class="val" id="medTuyaConsumoCiclo">—</div></div>
+        <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaEnergiaTotal">—</div></div>
+        <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaIdade">—</div></div>
+      </div>
+      <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaTensao">—</span></div>
+      <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaCorrente">—</span></div>
+      <div class="row"><span class="k">Energia hoje</span><span class="v" id="medTuyaEnergiaHoje">—</span></div>
+      <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaEstado">—</span></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaCicloExplicacao">—</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaAviso"></div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra
@@ -2366,7 +2374,7 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/auditoria/inbox/inbox-financeira.js',
   'src/integrations/pluggy/pluggy-reconciliacao.js',
   'src/integrations/pluggy/hydrate-onda7-pluggy.js',
-  // NOVO 17/08/2026: card "Medidor de Energia (Tomada Geral)", ver hydrate-medidor-tuya.js.
+  // NOVO 17/08/2026: card "Medidor de energia do apartamento" (aba Solar), ver hydrate-medidor-tuya.js.
   'src/integrations/tuya/hydrate-medidor-tuya.js',
   'src/financeiro/caixas/hydrate-onda8-cronograma-boletos.js',
   'src/financeiro/caixas/hydrate-onda11-boletos-extrato-v2.js',
@@ -2513,6 +2521,38 @@ var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/res
   }
 }).catch(function(e){
   console.warn('Nao consegui buscar medidor_tuya_leituras do Supabase, card mostra "Sem leitura ainda":', e);
+});
+
+// NOVO 17/08/2026 (consumo real do apartamento por ciclo Energisa — pedido do usuário: "integrar com
+// os gráficos do meu apartamento"): busca a leitura MAIS ANTIGA do medidor a partir do início do
+// ciclo de leitura Energisa (dia 21, mesmo DIA_LEITURA_WALLACE já usado em graficos-cenarios-lazy.js)
+// — serve de linha de base pra calcular quanto foi consumido DESDE então (energia_total_kwh agora −
+// energia_total_kwh dessa leitura). Busca separada da lista de 50 acima de propósito: o orquestrador
+// roda várias vezes ao dia, então 50 leituras cobrem bem menos que os ~30 dias de um ciclo — filtrar
+// direto pela data certa é mais confiável que confiar que a leitura-base ainda esteja nas últimas 50.
+// Horário fixo -03:00 (Brasília, sem horário de verão desde 2019 — mesmo padrão já usado em
+// scripts/sync/atualizar_geracao_saj.py) pra não depender do fuso do navegador de quem estiver vendo.
+window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2 = null;
+var __cicloInicioWallace = (function(){
+  var hoje = new Date();
+  var anoBase = hoje.getFullYear(), mesBase = hoje.getMonth(); // mesBase é 0-indexado
+  if(hoje.getDate() < 21){ mesBase -= 1; } // ainda não chegou o dia 21 deste mês - ciclo atual começou no mês anterior
+  var pad = n => String(n).padStart(2,'0');
+  var d = new Date(anoBase, mesBase, 21);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T00:00:00-03:00';
+})();
+var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,energia_total_kwh&capturado_em=gte.'+encodeURIComponent(__cicloInicioWallace)+'&order=capturado_em.asc&limit=1', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2 = rows[0];
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar a leitura-base do ciclo do medidor Tuya:', e);
 });
 
 // NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,

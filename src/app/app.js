@@ -2392,8 +2392,9 @@ onDomPronto(medirOnda('aplicarOnda11BoletosExtratoV2', aplicarOnda11BoletosExtra
 onDomPronto(medirOnda('aplicarOnda12CaixasPequenasV2', aplicarOnda12CaixasPequenasV2));
 // NOVA 12/08/2026: aba "Emagrecimento" (peso + custo da caneta), ver hydrate-emagrecimento.js.
 onDomPronto(aplicarEmagrecimento);
-// NOVO 17/08/2026: card "Medidor de Energia (Tomada Geral)" — medidor EKAZA CT 80A via Tuya Cloud
-// API, aba Painel (não é domínio Solar, mede a casa inteira). Ver hydrate-medidor-tuya.js.
+// NOVO 17/08/2026 (movido pra aba Solar minutos depois, mesma sessão — usuário confirmou que o
+// medidor é o apartamento dele): card "Medidor de energia do apartamento", via Tuya Cloud API.
+// Ver hydrate-medidor-tuya.js.
 onDomPronto(aplicarMedidorTuya);
 onDomPronto(medirOnda('aplicarOnda9LivrosFixos', aplicarOnda9LivrosFixos));
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
