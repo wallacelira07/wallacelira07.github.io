@@ -128,11 +128,19 @@ async function renderizarLinksCompartilhamentoSolar(){
     const linhas = await resp.json();
     const ativos = (linhas || []).filter(l => l.ativo && new Date(l.expira_em) > new Date());
     if(!ativos.length){ el.textContent = ''; return; }
-    el.innerHTML = 'Links ativos: ' + ativos.map(l =>
-      `<span style="display:inline-block;margin:0.2rem 0.4rem 0.2rem 0;padding:0.15rem 0.5rem;background:var(--surface-2);border-radius:var(--radius-md)">` +
+    // CORRIGIDO 17/08/2026 (achado do usuário: "como vejo o link que estou compartilhando?" — a
+    // lista de links já ativos (diferente do feedback logo após CRIAR um link, que já mostrava
+    // "Abrir página"/"Copiar link") só mostrava a validade + revogar, nunca o link em si — o token
+    // sempre esteve disponível (usado no onclick de revogar), só faltava reconstruir a URL com
+    // _linkCompartilhamentoSolarUrl(), mesma função já usada na criação.
+    el.innerHTML = 'Links ativos: ' + ativos.map(l => {
+      const linkAtivo = _linkCompartilhamentoSolarUrl(l.token);
+      return `<span style="display:inline-block;margin:0.2rem 0.4rem 0.2rem 0;padding:0.15rem 0.5rem;background:var(--surface-2);border-radius:var(--radius-md)">` +
       `válido até ${fmtDataHoraCompartilhamentoSolar(l.expira_em)} ` +
-      `<a href="#" onclick="desativarLinkCompartilhamentoSolar('${l.token}');return false;" class="solar-revoke-link" style="color:var(--red);margin-left:0.3rem">revogar</a></span>`
-    ).join('');
+      `<a href="${linkAtivo}" target="_blank" rel="noopener" style="margin-left:0.3rem">abrir</a>` +
+      `<a href="#" onclick="_copiarLinkCompartilhamentoSolar('${linkAtivo}', this);return false;" style="margin-left:0.3rem">copiar</a>` +
+      `<a href="#" onclick="desativarLinkCompartilhamentoSolar('${l.token}');return false;" class="solar-revoke-link" style="color:var(--red);margin-left:0.3rem">revogar</a></span>`;
+    }).join('');
   } catch(err){
     console.warn('renderizarLinksCompartilhamentoSolar: falha ao listar links (não bloqueia o painel).', err);
   }

@@ -1521,22 +1521,31 @@
       <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaTravamento"></div>
     </div>
 
-    <!-- NOVO 17/08/2026 (pedido do usuário, refinado 3x na mesma sessão: 1º "algo só do meu
+    <!-- NOVO 17/08/2026 (pedido do usuário, refinado 4x na mesma sessão: 1º "algo só do meu
          apartamento... como o gráfico de rateio", 2º "eu não pedi pra cruzar o consumo da fatura com
          o medidor, pedi pra cruzar o medidor com os CRÉDITOS", 3º achado real: "o ciclo de agosto
-         fechou dia 8, toda geração agora é pro próximo ciclo" — eixo mudou de mês calendário pra
-         CICLO da GD, mesma janela de cicloSolarAberto.data_inicio já usada no Fluxo 2/seção 12
-         abaixo). Compara consumo real medido × crédito que cabe a Wallace (71% do gerado, mesma
-         fonte creditoMensalWallace do gráfico Rateio Solar acima), sempre na MESMA janela de tempo
-         dos dois lados. Escopo é só o apartamento do Wallace, não as 3 casas, já que só este medidor
-         tem leitura online confirmada até agora. Só aparece o ciclo aberto por enquanto (medidor
-         instalado 17/08/2026 — ainda não existe ciclo fechado com consumo real medido). Ver o bloco
-         cConsumoApartamento em graficos-cenarios-lazy.js. -->
+         fechou dia 8, toda geração agora é pro próximo ciclo", 4º "muito feio esse gráfico, veja um
+         modelo mais adequado" — com só 1 categoria (o ciclo aberto) e 2 valores de escala MUITO
+         diferente (137kWh de crédito x 1kWh de consumo real, medidor instalado hoje), um gráfico de
+         barras Chart.js sempre ia ficar feio (1 barra gigante, 1 fiapo quase invisível do lado). Um
+         gráfico de barras é pra SÉRIE (vários meses/dias lado a lado) — pra "1 valor contra o outro"
+         o padrão certo já existe neste mesmo site: barra de progresso + grade de KPIs, EXATAMENTE
+         como "Fluxo 1/Fluxo 2" (seção 03, renderFluxo1Fechado/renderPrevisao em
+         graficos-cenarios-lazy.js). Trocado de gráfico pra esse padrão — mesma comparação
+         (consumo real medido × crédito que cabe a Wallace, 71%, ambos no CICLO da GD, dia 8), só
+         que na forma visual certa pra esse tipo de dado. Ver o bloco de atualização em
+         graficos-cenarios-lazy.js (mesma função que populava cConsumoApartamento antes). -->
     <div class="card" style="margin-top:1rem">
       <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
-      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Verde = crédito que cabe a você (71% do que a usina gerou, mesmo valor da barra "Crédito Wallace (gerado)" no Rateio Solar acima). Azul = consumo real medido pelo medidor Tuya. Eixo é o CICLO da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo. Uma barra nova só aparece quando um ciclo fecha com pelo menos 1 dia de leitura real do medidor (instalado 17/08/2026).</div>
-      <div class="chart-box"><canvas id="cConsumoApartamento"></canvas></div>
-      <div class="legend-note v" id="legConsumoApartamento">—</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Barra = quanto do crédito que cabe a você (71% do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
+      <div class="progress"><div class="fill" id="consumoApartamentoBar" style="width:0%;background:var(--accent)"></div></div>
+      <div class="progress-lbl"><span class="v" id="consumoApartamentoFracao">—</span><span class="v" id="consumoApartamentoPct">—</span></div>
+      <div class="grid-3" style="margin-top:0.5rem">
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Ciclo da GD</div><div class="v" style="font-weight:600" id="consumoApartamentoPeriodo">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Crédito que cabe a você</div><div class="v" style="font-weight:600" id="consumoApartamentoCredito">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo</div><div class="v" style="font-weight:600" id="consumoApartamentoSaldo">—</div></div>
+      </div>
+      <div class="legend-note v" id="legConsumoApartamento" style="margin-top:0.5rem">—</div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra
