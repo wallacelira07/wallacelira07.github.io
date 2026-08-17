@@ -88,8 +88,8 @@ Aguardando Caixa Manutenção acumular saldo suficiente.
 ### 3.5 Backlog técnico adiado (decisão consciente do usuário)
 Lint dos ~91 módulos `hydrate-*`; previsão de geração solar por irradiância.
 
-### 3.6 NOVO — projeto "Agente financeiro no WhatsApp" (proposto pelo usuário, não iniciado)
-Usuário trouxe um resumo técnico detalhado (WhatsApp Business API + orquestração tipo n8n + Claude com MCP no mesmo Supabase). Marcado explicitamente como "ponto de partida pra discussão", não uma tarefa pra executar — não iniciar implementação sem o usuário retomar o assunto.
+### 3.6 ENCERRADO 17/08/2026 — projeto "Agente financeiro no WhatsApp/Telegram", tentado e desfeito
+Usuário pediu implementação (WhatsApp primeiro, depois Telegram como alternativa sem custo/mais simples quando soube que hospedagem/conta business teriam custo/complexidade). Ambos os protótipos foram construídos (`whatsapp-agent/`, `telegram-agent/`, código completo com a regra de confirmação em código, nunca delegada ao modelo) e chegaram a ser commitados/publicados. **Usuário pediu cancelamento total logo em seguida**: não quer rodar um processo no próprio computador, e o custo da API da Anthropic (inevitável em qualquer canal — Telegram/WhatsApp são grátis, mas o Claude cobra por uso) não era aceitável pra ele, mesmo sendo pequeno (estimado abaixo de R$10-20/mês de uso pessoal). Ambas as pastas foram removidas (`git rm -r`) e o commit de remoção publicado. **Não retomar este projeto sem pedido explícito novo e sem ANTES deixar claríssimo, por escrito, que qualquer canal (WhatsApp/Telegram/email/outro) vai ter custo de API da Anthropic, mesmo que o canal em si seja gratuito** — essa foi a causa raiz do cancelamento, não a arquitetura em si.
 
 ## 4. Protocolo de sessão nova
 
