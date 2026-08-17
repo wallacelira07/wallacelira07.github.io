@@ -158,4 +158,27 @@ function recalcularNecessidade(){
   // V138: elimina duplicacao - antes o mesmo numero vivia em REG.estimador.necessidadeLiquidaProximoCiclo
   // (literal solto) E em REG.evolucao.necessidadeLiquida[1] (array). Agora so o array e fonte, o estimador le dele.
   REG.estimador.necessidadeLiquidaProximoCiclo = REG.evolucao.necessidadeLiquida[1];
+
+  // NOVO 16/08/2026 (pedido do usuário: "quero recalcular a Necessidade Líquida gravada no Supabase,
+  // não só ao vivo no site" — antes disso, quem perguntasse "quanto é minha necessidade agora" via
+  // Chat/Supabase direto não tinha como saber, porque este cálculo inteiro só existia em memória no
+  // navegador, nunca persistido. Mesmo padrão exato de registrar_pib_mensal (recalcular-indicadores.js):
+  // RPC própria (`registrar_indicador`), protegida por login, fire-and-forget (não trava o render se a
+  // rede falhar) — grava só o RESULTADO final, não muda onde/como o cálculo acontece (continua 100%
+  // síncrono em JS, esta linha só persiste o output). Roda toda vez que a Necessidade recalcula (boot +
+  // toda vez que aplicarDeficitCaixasSemLrei() reprocessa), mesma cadência de registrar_pib_mensal.
+  if(typeof fetch !== 'undefined'){
+    const tokenAuthIndicador = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+    const registrarIndicador = (nome, valor) => fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/registrar_indicador', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg',
+        'Authorization': 'Bearer ' + tokenAuthIndicador
+      },
+      body: JSON.stringify({ p_nome: nome, p_valor: valor })
+    }).catch(err => console.warn(`registrar_indicador(${nome}): erro de rede (não crítico, tela já mostra o valor calculado)`, err));
+    registrarIndicador('necessidadeTotalBruta', REG.operacional.necessidadeTotalBruta);
+    registrarIndicador('necessidadeLiquida', REG.operacional.necessidadeLiquida);
+  }
 }
