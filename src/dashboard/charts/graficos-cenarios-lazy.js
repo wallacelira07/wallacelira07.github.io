@@ -1865,20 +1865,10 @@ async function _lazyRenderSolarSecao(){
     // null onde nao tem dado daquele tipo naquela data (Chart.js pula null sem quebrar a barra do lado).
     const diariosPorData = {};
     (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r=>{ diariosPorData[r.data] = r.kwh; });
-    // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e
-    // o consumido", depois de integrar o medidor Tuya do apartamento): consumo REAL por dia do
-    // apartamento (Wallace), calculado em hydrate-medidor-tuya.js a partir do contador do medidor —
-    // ver window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2. Diferente da linha vermelha tracejada abaixo
-    // (que é uma MÉDIA fixa somando as 3 casas), esta é medição real de UMA casa só (o apartamento) —
-    // por isso vira barra própria, nunca somada/comparada direto com a linha tracejada sem essa
-    // ressalva (ver texto explicativo em legGeracaoPorDia mais abaixo).
-    const consumoApartamentoPorData = {};
-    (window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2||[]).forEach(r=>{ consumoApartamentoPorData[r.data] = r.kwh; });
-    const todasDatas = Array.from(new Set([...Object.keys(mediasPorData), ...Object.keys(diariosPorData), ...Object.keys(consumoApartamentoPorData)])).sort();
+    const todasDatas = Array.from(new Set([...Object.keys(mediasPorData), ...Object.keys(diariosPorData)])).sort();
     const labelsPorDia = todasDatas.map(d=>{ const [,mes,dia] = d.split('-'); return dia+'/'+mes; });
     const valoresPorDia = todasDatas.map(d=> mediasPorData[d] ?? null);
     const valoresDiarioReal = todasDatas.map(d=> diariosPorData[d] ?? null);
-    const valoresConsumoApartamento = todasDatas.map(d=> consumoApartamentoPorData[d] ?? null);
     // CORRIGIDO 05/08/2026 (parte 96, pedido do usuario): "essa barra de media por intervalo historico
     // nao faz sentido, remova... o que voce podia por e seria interessante seria a media de consumo das
     // 3 casas somadas, ai da pra ver se o gerado e suficiente". Barra laranja removida. Linha vermelha
@@ -1926,10 +1916,6 @@ async function _lazyRenderSolarSecao(){
       plugins:[linhaConsumoMedioPlugin],
       data:{labels:labelsPorDia, datasets:[
         {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
-        // NOVO 17/08/2026: consumo REAL do apartamento (medidor Tuya), ver comentário acima de
-        // valoresConsumoApartamento. Barra própria (não linha) pra ficar visualmente clara como
-        // medição de UMA casa, ao lado da barra de geração (que serve as 3).
-        {label:'Consumo real do apartamento (Wallace, medidor Tuya)', data:valoresConsumoApartamento, backgroundColor:'#3987e5', borderRadius:4, order:1},
         // CORRIGIDO 16/08/2026 (achado do usuário: "faltou a marcação na frente de consumo pra saber
         // quem ele é no gráfico, que é o tracejado") — a linha tracejada de verdade é desenhada por
         // cima via linhaConsumoMedioPlugin (canvas custom, ver abaixo), não pelo Chart.js — por isso
@@ -1949,16 +1935,9 @@ async function _lazyRenderSolarSecao(){
     const legGeracaoPorDiaEl = $('legGeracaoPorDia');
     if(legGeracaoPorDiaEl){
       const qtdReal = Object.keys(diariosPorData).length;
-      const qtdConsumoApto = Object.keys(consumoApartamentoPorData).length;
-      // NOVO 17/08/2026: 3ª frase explicando a barra azul (consumo real do apartamento) — deixa
-      // explícito que é UMA casa só, não confundir com a linha tracejada (soma das 3). Só aparece
-      // quando já existe pelo menos 1 dia calculado (medidor instalado 17/08/2026, cresce sozinho).
-      const textoConsumoApto = qtdConsumoApto
-        ? ' Barra azul = consumo real medido do apartamento (medidor Tuya, '+qtdConsumoApto+' dia(s) com dado) — é só a casa do Wallace, não confundir com a linha tracejada (soma das 3 casas).'
-        : ' Barra azul de consumo real do apartamento aparece a partir de amanhã (medidor instalado 17/08/2026 — precisa de pelo menos 2 dias seguidos de leitura pra calcular o 1º delta).';
       legGeracaoPorDiaEl.textContent = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'+textoConsumoApto
-        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).'+textoConsumoApto;
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
+        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
 
@@ -2054,6 +2033,54 @@ async function _lazyRenderSolarSecao(){
       ? ' A barra mais CLARA/transparente é o ciclo AINDA ABERTO (estimativa ao vivo, cresce todo dia até fechar de verdade) — as barras sólidas são ciclos já fechados e congelados.'
       : '';
     legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+fmtKwhPtBr(ultimaSolar.creditoLiquido)+' kWh</strong> (Wallace '+fmtKwhPtBr(ultimaSolar.creditoWallace)+' kWh · Irmã '+fmtKwhPtBr(ultimaSolar.creditoIrma)+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa+avisoCicloAberto;
+  }
+
+  // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
+  // consumido", refinado pra "só meu apartamento... algo como o gráfico de rateio" — DDSU666 da Casa
+  // da Mãe e o medidor da Irmã ainda não existem, só o Tuya do apartamento tem leitura online
+  // confirmada; juntar os 3 num gráfico só fica pra quando os outros 2 chegarem). Eixo = só os meses
+  // que window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 já tem (agregado no navegador a partir da
+  // tabela persistida medidor_tuya_consumo_diario, ver hydrate-medidor-tuya.js) — nunca mostra mês
+  // anterior à instalação do medidor (17/08/2026), mesmo que kwhAnoAnterior tivesse um valor esperado
+  // pra ele (mostrar só a barra dourada sem a azul correspondente enganaria, parecendo que o medidor
+  // já existia antes). mesesPares/kwhAnoAnterior são os MESMOS arrays já usados no gráfico de Rateio
+  // Solar acima (mesmo escopo desta função) — índice por NOME de mês, não por posição no calendário
+  // (ver mapMesParaIndiceAnoAnterior).
+  const consumoMensalApto = window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 || [];
+  if(consumoMensalApto.length){
+    const NOMES_MES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    // 'YYYY-MM' -> índice em kwhAnoAnterior/mesesPares (que começam em Jul=índice 0, ver linha ~948/949).
+    const mapMesParaIndiceAnoAnterior = ym => {
+      const mesNum = Number(ym.slice(5,7)); // 1-12
+      return (mesNum - 7 + 12) % 12;
+    };
+    const labelsConsumoApto = consumoMensalApto.map(r => NOMES_MES_ABREV[Number(r.mes.slice(5,7))-1]+'/'+r.mes.slice(2,4));
+    const esperadoConsumoApto = consumoMensalApto.map(r => kwhAnoAnterior[mapMesParaIndiceAnoAnterior(r.mes)] ?? null);
+    const realConsumoApto = consumoMensalApto.map(r => r.kwh);
+    observeAndRenderChart($('cConsumoApartamento'), () => { const __chartExistente = Chart.getChart($('cConsumoApartamento')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cConsumoApartamento'), {
+      type:'bar',
+      data:{labels:labelsConsumoApto, datasets:[
+        {label:'Consumo esperado (histórico Energisa)', data:esperadoConsumoApto, backgroundColor:'#e8a63a', borderRadius:3},
+        {label:'Consumo real medido (Tuya)', data:realConsumoApto, backgroundColor:'#3987e5', borderRadius:3}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:legendStd2,tooltip:{callbacks:{
+          label:c=>c.raw==null ? c.dataset.label+': sem dado' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh'
+        }}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}}},
+          y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+    }); });
+    const legConsumoApartamentoEl = $('legConsumoApartamento');
+    if(legConsumoApartamentoEl){
+      const ultimoMes = consumoMensalApto[consumoMensalApto.length-1];
+      const ultimoEsperado = kwhAnoAnterior[mapMesParaIndiceAnoAnterior(ultimoMes.mes)];
+      const diffPct = ultimoEsperado ? Math.round(((ultimoMes.kwh - ultimoEsperado)/ultimoEsperado)*1000)/10 : null;
+      legConsumoApartamentoEl.textContent = 'Mês atual ('+labelsConsumoApto[labelsConsumoApto.length-1]+', ainda em andamento): '+ultimoMes.kwh.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh medidos até agora'
+        + (diffPct!=null ? ' — '+(diffPct>=0?'+':'')+diffPct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% vs. o esperado ('+ultimoEsperado+' kWh, mês fechado, não é comparação justa ainda)' : '') + '.';
+    }
+  } else {
+    const legConsumoApartamentoEl = $('legConsumoApartamento');
+    if(legConsumoApartamentoEl) legConsumoApartamentoEl.textContent = 'Ainda sem nenhum dia completo de consumo real medido — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 virada de dia pra calcular o primeiro valor.';
   }
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====

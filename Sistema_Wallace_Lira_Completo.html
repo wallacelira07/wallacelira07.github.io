@@ -1453,7 +1453,7 @@
         <div style="font-weight:600">Geração por dia vs. consumo médio das casas</div>
         <button type="button" class="btn-print-secao" data-print-titulo="geracao-por-dia-vs-consumo" title="Baixar este gráfico como JPEG" aria-label="Baixar gráfico Geração por dia como JPEG">⬇</button>
       </div>
-      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Barra azul = consumo real do apartamento (Wallace), medido pelo medidor Tuya. Linha vermelha tracejada = consumo médio diário somado das 3 casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.8rem" id="legGeracaoPorDiaIntro">Barra verde = geração real daquele dia, capturada pelo robô SAJ (a cada 10 minutos, durante o dia). Linha vermelha tracejada = consumo médio diário somado das casas (referência fixa, não varia dia a dia) — dá pra ver de relance se a geração está cobrindo o consumo.</div>
       <div class="chart-box"><canvas id="cGeracaoPorDia"></canvas></div>
       <div class="legend-note v" id="legGeracaoPorDia">—</div>
     </div>
@@ -1511,6 +1511,23 @@
       <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaEstado">—</span></div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaCicloExplicacao">—</div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaAviso"></div>
+    </div>
+
+    <!-- NOVO 17/08/2026 (pedido do usuário, refinado depois de ver a 1ª tentativa: "precisa ser por
+         enquanto algo só do meu apartamento... algo como o gráfico de rateio" — estilo de referência é
+         a seção 05/RATEIO SOLAR acima, mas escopo é só o apartamento do Wallace, não as 3 casas, já
+         que só este medidor tem leitura online confirmada até agora). Compara mês a mês o consumo
+         ESPERADO (histórico Energisa, kwhAnoAnterior — mesma fonte da barra amarela "Consumo esperado
+         Wallace" no gráfico de Rateio) contra o consumo REAL medido pelo Tuya (soma diária persistida,
+         ver medidor_tuya_consumo_diario). Só aparece mês que já tem pelo menos 1 dia de dado real do
+         medidor — nada fabricado pra meses anteriores à instalação (17/08/2026). Ver
+         calcularConsumoMensalApartamento em hydrate-medidor-tuya.js e o bloco cConsumoApartamento em
+         graficos-cenarios-lazy.js. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo do apartamento: esperado × real medido</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Dourado = consumo esperado (histórico Energisa, mesmo valor da barra "Consumo esperado Wallace" no Rateio Solar acima). Azul = consumo real medido pelo medidor Tuya. Só mostra meses com pelo menos 1 dia de leitura real do medidor (instalado 17/08/2026).</div>
+      <div class="chart-box"><canvas id="cConsumoApartamento"></canvas></div>
+      <div class="legend-note v" id="legConsumoApartamento">—</div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra
@@ -2566,15 +2583,15 @@ var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supaba
 });
 
 // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
-// consumido" — depois de "integrar com os gráficos do meu apartamento"): busca o HISTÓRICO completo
-// de energia_total_kwh do medidor (ordenado ascendente) pra calcular consumo real POR DIA do
-// apartamento (última leitura de cada dia − última leitura do dia anterior) — usado por
-// hydrate-medidor-tuya.js pra montar window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, que o gráfico
-// "Geração por dia" (seção 04, graficos-cenarios-lazy.js) passa a mostrar como 3ª série. Busca só
-// capturado_em+energia_total_kwh (2 campos, payload pequeno por linha) — limit generoso (5000) pra
-// não truncar conforme o histórico cresce; o medidor é novo (17/08/2026), muito longe disso ainda.
-window.WALLACE_MEDIDOR_TUYA_HISTORICO_V2 = null;
-var __promiseMedidorTuyaHistoricoV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,energia_total_kwh&order=capturado_em.asc&limit=5000', {
+// consumido", depois refinado: "por hora, algo que pegue só meu apartamento... os dados devem ser
+// calculados e salvos em algum lugar"). CORRIGIDO na mesma sessão: a 1ª versão buscava o HISTÓRICO
+// COMPLETO de leituras brutas (até 5000 linhas) e calculava o consumo por dia no navegador, toda
+// carga de página — trabalho jogado fora a cada visita e cresce sem limite conforme o medidor
+// acumula leituras. Substituído por uma tabela persistida (`medidor_tuya_consumo_diario`), mantida
+// automaticamente por um TRIGGER no Postgres (trg_medidor_tuya_consumo_diario) a cada nova leitura —
+// o navegador só busca ~1 linha por dia já pronta, nunca recalcula nada. Ver hydrate-medidor-tuya.js.
+window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 = null;
+var __promiseMedidorTuyaConsumoDiarioV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_consumo_diario?select=data,kwh_consumido&order=data.asc&limit=1000', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2582,10 +2599,10 @@ var __promiseMedidorTuyaHistoricoV2 = fetch('https://bakdgacmwlopvrrppwdm.supaba
   return null;
 }).then(function(rows){
   if(Array.isArray(rows) && rows.length){
-    window.WALLACE_MEDIDOR_TUYA_HISTORICO_V2 = rows;
+    window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 = rows;
   }
 }).catch(function(e){
-  console.warn('Nao consegui buscar o historico completo do medidor Tuya:', e);
+  console.warn('Nao consegui buscar o consumo diario do medidor Tuya:', e);
 });
 
 // NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,

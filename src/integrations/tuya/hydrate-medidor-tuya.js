@@ -26,38 +26,36 @@
 //                                                Energisa atual (dia 21, ver __cicloInicioWallace no
 //                                                bootstrap) — linha de base pra medir o consumo do
 //                                                ciclo em andamento.
+//   window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 — já vem AGREGADO POR DIA do Supabase (tabela
+//                                                medidor_tuya_consumo_diario, mantida por um TRIGGER
+//                                                no Postgres a cada INSERT em medidor_tuya_leituras —
+//                                                ver trg_medidor_tuya_consumo_diario). CORRIGIDO
+//                                                17/08/2026 na mesma sessão: a 1ª versão buscava até
+//                                                5000 leituras brutas e recalculava isso no navegador
+//                                                a cada carga de página — trabalho jogado fora e sem
+//                                                limite de crescimento; o trigger resolve isso 1x só,
+//                                                no banco, no momento em que cada leitura chega.
 //
 // Diferente do domínio Solar "clássico" (V2-exclusivo, sem fallback pra V1): aqui não existe V1
 // nenhuma pra cair de volta, então "sem dado" é sempre o estado normal de quem acabou de instalar o
 // medidor, nunca um erro — por isso mostra "Sem leitura ainda" em vez de "⚠ Indisponível".
 //
 // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
-// consumido"): calcula consumo real do apartamento POR DIA a partir do histórico completo de
-// energia_total_kwh (contador que só cresce) — pega a ÚLTIMA leitura de cada dia (horário de
-// Brasília) e subtrai a última leitura do dia ANTERIOR. Só produz um valor quando os dois dias são
-// consecutivos (diffDias===1) — um buraco no meio (ex: medidor ficou 3 dias sem reportar) não vira um
-// "consumo do dia" fabricado somando 3 dias num só; o dia problemático simplesmente fica sem barra,
-// mesmo princípio de "não fabricar dado" já usado em todo o resto deste sistema. Retorna
-// [{data:'YYYY-MM-DD', kwh}], consumido por graficos-cenarios-lazy.js (gráfico "Geração por dia",
-// seção 04) via window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2.
-function calcularConsumoDiarioApartamento(historicoAscendente){
-  if(!Array.isArray(historicoAscendente) || historicoAscendente.length < 2) return [];
-  const TRES_HORAS_MS = 3*3600*1000;
-  const diaBrasilia = iso => new Date(new Date(iso).getTime() - TRES_HORAS_MS).toISOString().slice(0,10);
-  const ultimaPorDia = {}; // 'YYYY-MM-DD' -> energia_total_kwh da última leitura daquele dia (histórico vem em ordem asc, então a última atribuição de cada chave já é a mais recente do dia)
-  historicoAscendente.forEach(r => {
-    if(r.energia_total_kwh == null || !r.capturado_em) return;
-    ultimaPorDia[diaBrasilia(r.capturado_em)] = r.energia_total_kwh;
+// consumido", depois refinado pra "só meu apartamento" + "algo como o gráfico de rateio"): agrega o
+// consumo diário JÁ CALCULADO E PERSISTIDO (tabela medidor_tuya_consumo_diario, mantida por um
+// trigger no Postgres a cada leitura nova — ver comentário no bootstrap do HTML) em totais por MÊS
+// civil de Brasília, pra comparar contra VARS_HISTORICO_WALLACE (consumo esperado, 12 meses,
+// graficos-cenarios-lazy.js) no gráfico novo "Consumo do apartamento: esperado × real". Retorna
+// [{mes:'YYYY-MM', kwh}] — mês corrente incluso mesmo incompleto (soma só os dias que já existem).
+function calcularConsumoMensalApartamento(diarioAscendente){
+  if(!Array.isArray(diarioAscendente) || !diarioAscendente.length) return [];
+  const porMes = {};
+  diarioAscendente.forEach(r => {
+    if(r.kwh_consumido == null || !r.data) return;
+    const mes = r.data.slice(0,7); // 'YYYY-MM-DD' -> 'YYYY-MM'
+    porMes[mes] = Math.round(((porMes[mes]||0) + Number(r.kwh_consumido)) * 100) / 100;
   });
-  const dias = Object.keys(ultimaPorDia).sort();
-  const resultado = [];
-  for(let i=1;i<dias.length;i++){
-    const diffDias = Math.round((new Date(dias[i]+'T00:00:00Z') - new Date(dias[i-1]+'T00:00:00Z')) / 86400000);
-    if(diffDias !== 1) continue; // dias não consecutivos - buraco no histórico, não estima o que aconteceu nele
-    const delta = Math.round((ultimaPorDia[dias[i]] - ultimaPorDia[dias[i-1]]) * 100) / 100;
-    if(delta >= 0) resultado.push({ data: dias[i], kwh: delta });
-  }
-  return resultado;
+  return Object.keys(porMes).sort().map(mes => ({ mes, kwh: porMes[mes] }));
 }
 
 // Limiares de "leitura desatualizada" (36h/72h) — mesmos números já configurados em
@@ -79,10 +77,11 @@ async function aplicarMedidorTuya(){
   const elCicloExplicacao = $('medTuyaCicloExplicacao');
   const leituras = window.WALLACE_MEDIDOR_TUYA_V2;
 
-  // Roda independente do restante da função (não depende de `leituras` ter dado) — o gráfico
-  // "Geração por dia" (seção 04) lê este global direto, precisa existir mesmo se o resto do card
-  // mostrar "Sem leitura ainda".
-  window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 = calcularConsumoDiarioApartamento(window.WALLACE_MEDIDOR_TUYA_HISTORICO_V2);
+  // Roda independente do restante da função (não depende de `leituras` ter dado) — o gráfico novo
+  // "Consumo do apartamento: esperado × real" (graficos-cenarios-lazy.js) lê este global direto,
+  // precisa existir mesmo se o resto do card mostrar "Sem leitura ainda". window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2
+  // já vem pronto do bootstrap do HTML (tabela persistida, ver comentário lá) — só agrega por mês aqui.
+  window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 = calcularConsumoMensalApartamento(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2);
 
   if(!Array.isArray(leituras) || !leituras.length){
     ['medTuyaEnergiaHoje','medTuyaEnergiaTotal','medTuyaIdade','medTuyaTensao','medTuyaCorrente','medTuyaEstado','medTuyaConsumoCiclo'].forEach(id => {
