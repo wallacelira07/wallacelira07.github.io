@@ -2042,31 +2042,35 @@ async function _lazyRenderSolarSecao(){
   }
 
   // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
-  // consumido", refinado pra "só meu apartamento... algo como o gráfico de rateio" — DDSU666 da Casa
-  // da Mãe e o medidor da Irmã ainda não existem, só o Tuya do apartamento tem leitura online
-  // confirmada; juntar os 3 num gráfico só fica pra quando os outros 2 chegarem). Eixo = só os meses
-  // que window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 já tem (agregado no navegador a partir da
-  // tabela persistida medidor_tuya_consumo_diario, ver hydrate-medidor-tuya.js) — nunca mostra mês
-  // anterior à instalação do medidor (17/08/2026), mesmo que kwhAnoAnterior tivesse um valor esperado
-  // pra ele (mostrar só a barra dourada sem a azul correspondente enganaria, parecendo que o medidor
-  // já existia antes). mesesPares/kwhAnoAnterior são os MESMOS arrays já usados no gráfico de Rateio
-  // Solar acima (mesmo escopo desta função) — índice por NOME de mês, não por posição no calendário
-  // (ver mapMesParaIndiceAnoAnterior).
+  // consumido", refinado 2x: 1º "só meu apartamento... algo como o gráfico de rateio", depois "eu não
+  // pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor com os CRÉDITOS" —
+  // a 1ª versão comparava consumo real × consumo esperado (fatura antiga); esta comparação é
+  // DIFERENTE por pedido explícito: consumo real medido × crédito que cabe a Wallace (71% do
+  // gerado pela usina, MESMA fonte/array creditoMensalWallace já usado no gráfico de Rateio Solar
+  // logo acima — não recalcula nada, só reaproveita). DDSU666 da Casa da Mãe e o medidor da Irmã
+  // ainda não existem, só o Tuya do apartamento tem leitura online confirmada; juntar os 3 fica pra
+  // quando os outros 2 chegarem. Eixo = só os meses que window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2
+  // já tem — nunca mostra mês anterior à instalação do medidor (17/08/2026), mesmo que
+  // creditoMensalWallace tivesse um valor pra ele (mostrar só a barra verde sem a azul correspondente
+  // enganaria, parecendo que o medidor já existia antes). mesesPares/creditoMensalWallace são os
+  // MESMOS arrays já usados no gráfico de Rateio Solar acima (mesmo escopo desta função) — índice por
+  // NOME de mês, não por posição no calendário (ver mapMesParaIndiceAnoAnterior, nome mantido do
+  // kwhAnoAnterior original só porque os dois arrays compartilham o mesmo esquema de índice).
   const consumoMensalApto = window.WALLACE_MEDIDOR_TUYA_CONSUMO_MENSAL_V2 || [];
   if(consumoMensalApto.length){
     const NOMES_MES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    // 'YYYY-MM' -> índice em kwhAnoAnterior/mesesPares (que começam em Jul=índice 0, ver linha ~948/949).
+    // 'YYYY-MM' -> índice em creditoMensalWallace/kwhAnoAnterior/mesesPares (Jul=índice 0, ver linha ~948/949).
     const mapMesParaIndiceAnoAnterior = ym => {
       const mesNum = Number(ym.slice(5,7)); // 1-12
       return (mesNum - 7 + 12) % 12;
     };
     const labelsConsumoApto = consumoMensalApto.map(r => NOMES_MES_ABREV[Number(r.mes.slice(5,7))-1]+'/'+r.mes.slice(2,4));
-    const esperadoConsumoApto = consumoMensalApto.map(r => kwhAnoAnterior[mapMesParaIndiceAnoAnterior(r.mes)] ?? null);
+    const creditoConsumoApto = consumoMensalApto.map(r => creditoMensalWallace[mapMesParaIndiceAnoAnterior(r.mes)] ?? null);
     const realConsumoApto = consumoMensalApto.map(r => r.kwh);
     observeAndRenderChart($('cConsumoApartamento'), () => { const __chartExistente = Chart.getChart($('cConsumoApartamento')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cConsumoApartamento'), {
       type:'bar',
       data:{labels:labelsConsumoApto, datasets:[
-        {label:'Consumo esperado (histórico Energisa)', data:esperadoConsumoApto, backgroundColor:'#e8a63a', borderRadius:3},
+        {label:'Crédito que cabe a você (71%, gerado pela usina)', data:creditoConsumoApto, backgroundColor:'#34c98a', borderRadius:3},
         {label:'Consumo real medido (Tuya)', data:realConsumoApto, backgroundColor:'#3987e5', borderRadius:3}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
@@ -2079,10 +2083,10 @@ async function _lazyRenderSolarSecao(){
     const legConsumoApartamentoEl = $('legConsumoApartamento');
     if(legConsumoApartamentoEl){
       const ultimoMes = consumoMensalApto[consumoMensalApto.length-1];
-      const ultimoEsperado = kwhAnoAnterior[mapMesParaIndiceAnoAnterior(ultimoMes.mes)];
-      const diffPct = ultimoEsperado ? Math.round(((ultimoMes.kwh - ultimoEsperado)/ultimoEsperado)*1000)/10 : null;
+      const creditoDoMesAtual = creditoMensalWallace[mapMesParaIndiceAnoAnterior(ultimoMes.mes)];
+      const saldo = creditoDoMesAtual!=null ? Math.round((creditoDoMesAtual - ultimoMes.kwh)*100)/100 : null;
       legConsumoApartamentoEl.textContent = 'Mês atual ('+labelsConsumoApto[labelsConsumoApto.length-1]+', ainda em andamento): '+ultimoMes.kwh.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh medidos até agora'
-        + (diffPct!=null ? ' — '+(diffPct>=0?'+':'')+diffPct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% vs. o esperado ('+ultimoEsperado+' kWh, mês fechado, não é comparação justa ainda)' : '') + '.';
+        + (saldo!=null ? ' vs. '+creditoDoMesAtual.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh de crédito já formado — '+(saldo>=0 ? 'crédito cobre com sobra de '+saldo.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' : 'consumo já passou o crédito formado em '+Math.abs(saldo).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh')+' (os dois ainda em andamento, mês não fechou)' : '') + '.';
     }
   } else {
     const legConsumoApartamentoEl = $('legConsumoApartamento');

@@ -1516,19 +1516,19 @@
       <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaTravamento"></div>
     </div>
 
-    <!-- NOVO 17/08/2026 (pedido do usuário, refinado depois de ver a 1ª tentativa: "precisa ser por
-         enquanto algo só do meu apartamento... algo como o gráfico de rateio" — estilo de referência é
-         a seção 05/RATEIO SOLAR acima, mas escopo é só o apartamento do Wallace, não as 3 casas, já
-         que só este medidor tem leitura online confirmada até agora). Compara mês a mês o consumo
-         ESPERADO (histórico Energisa, kwhAnoAnterior — mesma fonte da barra amarela "Consumo esperado
-         Wallace" no gráfico de Rateio) contra o consumo REAL medido pelo Tuya (soma diária persistida,
-         ver medidor_tuya_consumo_diario). Só aparece mês que já tem pelo menos 1 dia de dado real do
-         medidor — nada fabricado pra meses anteriores à instalação (17/08/2026). Ver
+    <!-- NOVO 17/08/2026 (pedido do usuário, refinado 2x na mesma sessão: 1º "algo só do meu
+         apartamento... como o gráfico de rateio", depois "eu não pedi pra cruzar o consumo da fatura
+         com o medidor, pedi pra cruzar o medidor com os CRÉDITOS" — 1ª versão comparava consumo real
+         × consumo esperado (fatura antiga), TROCADO por consumo real × crédito que cabe a Wallace
+         (71% do gerado, mesma fonte creditoMensalWallace do gráfico Rateio Solar acima). Escopo é só
+         o apartamento do Wallace, não as 3 casas, já que só este medidor tem leitura online
+         confirmada até agora. Só aparece mês que já tem pelo menos 1 dia de dado real do medidor —
+         nada fabricado pra meses anteriores à instalação (17/08/2026). Ver
          calcularConsumoMensalApartamento em hydrate-medidor-tuya.js e o bloco cConsumoApartamento em
          graficos-cenarios-lazy.js. -->
     <div class="card" style="margin-top:1rem">
-      <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo do apartamento: esperado × real medido</div>
-      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Dourado = consumo esperado (histórico Energisa, mesmo valor da barra "Consumo esperado Wallace" no Rateio Solar acima). Azul = consumo real medido pelo medidor Tuya. Só mostra meses com pelo menos 1 dia de leitura real do medidor (instalado 17/08/2026).</div>
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoApartamentoIntro">Verde = crédito que cabe a você (71% do que a usina gerou, mesmo valor da barra "Crédito Wallace (gerado)" no Rateio Solar acima). Azul = consumo real medido pelo medidor Tuya. Só mostra meses com pelo menos 1 dia de leitura real do medidor (instalado 17/08/2026).</div>
       <div class="chart-box"><canvas id="cConsumoApartamento"></canvas></div>
       <div class="legend-note v" id="legConsumoApartamento">—</div>
     </div>
