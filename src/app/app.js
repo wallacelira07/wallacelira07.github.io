@@ -946,6 +946,19 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 17/08/2026 (card "Créditos e Cupons", pedido do usuário — item 1 da lista de 4 pendências):
+  // saldo de Uber/Shell Box/KMV Ipiranga migrado de literal hardcoded (vars-operacional.js) pra
+  // tabela própria (`beneficios_creditos`), pra dar pro usuário debitar via Chat sem precisar de
+  // deploy de código toda vez que usar um crédito. Mesmo padrão de fetch/cache das demais.
+  async getBeneficiosCreditos(){
+    return this._cache.obterOuBuscar('beneficios_creditos', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/beneficios_creditos?select=nome,saldo`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar beneficios_creditos`);
+      return await resp.json();
+    });
+  },
   // NOVO 16/08/2026 (aba Emagrecimento, pedido do usuário: "adicione campos para receber medição de
   // pressão e leitura de glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo
   // padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert feito
@@ -2347,6 +2360,9 @@ onDomPronto(medirOnda('aplicarOnda9LivrosFixos', aplicarOnda9LivrosFixos));
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.
 onDomPronto(aplicarSaudeOperacional);
+// NOVO 17/08/2026: card "Créditos e Cupons" (Uber/Shell Box/KMV Ipiranga) migrado de literal VARS
+// pra tabela beneficios_creditos. Ver hydrate-roc.js.
+onDomPronto(aplicarBeneficiosCreditosV2);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.

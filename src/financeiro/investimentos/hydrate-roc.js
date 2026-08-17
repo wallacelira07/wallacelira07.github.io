@@ -89,6 +89,9 @@ function hydrateROC(){
   // NOVO 31/07/2026 (V219): alivio de agosto - calculo real, ver VARS.alivioProximoMes acima.
   const legAlivioEl = $('legAlivioAgosto');
   if(legAlivioEl) legAlivioEl.innerHTML = `Alívio de <span class="v">${fmt(VARS.alivioProximoMes)}</span>/mês a partir do próximo ciclo (parcelas do Visa Infinite + Mercado Pago que terminam agora) — não considera ainda o fim do seguro auto em outubro/2026`;
+  // NOVO 17/08/2026: valores abaixo são só o fallback do boot síncrono — aplicarBeneficiosCreditosV2()
+  // (final deste arquivo) sobrescreve com a tabela `beneficios_creditos` (Supabase) assim que a busca
+  // terminar, mesmo padrão V1→V2 já usado no resto do site.
   t('credUberTotal', fmt(VARS.creditoUberBalance));
   t('credShellBox', fmt(VARS.creditoShellBox));
   t('credKmv', fmt(VARS.creditoKmvIpiranga)); // CORRIGIDO 31/07/2026 (V224): usuario esclareceu que os 600 sao R$600,00 (reais), nao pontos - era concatenado como "600 pontos", corrigido pra formatar como moeda igual aos outros creditos.
@@ -297,4 +300,34 @@ function hydrateROC(){
         : '';
     }
   }
+}
+
+// NOVO 17/08/2026 (pedido do usuário, item 1 da lista de 4 pendências: "Créditos e Cupons" migrado
+// pra tabela própria — ver WallaceFinanceService.getBeneficiosCreditos()). Card "Uber/Shell Box/KMV
+// Ipiranga" carregava só do literal VARS (sem tabela nenhuma antes disso); agora essa tabela é a
+// fonte real, atualizável via Chat sem precisar de deploy. Fallback: se a busca falhar, o literal
+// VARS já escrito por hydrateROC() continua na tela — nunca fica em branco.
+async function aplicarBeneficiosCreditosV2(){
+  let creditos;
+  try {
+    creditos = await WallaceFinanceService.getBeneficiosCreditos();
+  } catch(err){
+    console.error('BeneficiosCreditosV2: falha ao buscar beneficios_creditos — mantido o literal VARS (fallback).', err);
+    window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO = { status: 'erro_v2', erro: String(err) };
+    return;
+  }
+  if(!Array.isArray(creditos)){
+    console.warn('BeneficiosCreditosV2: resposta inesperada — mantido o literal VARS (fallback).');
+    window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO = { status: 'sem_dado_v2' };
+    return;
+  }
+  const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  const MAPA_CREDITO_DOM = { uber: 'credUberTotal', shell_box: 'credShellBox', kmv_ipiranga: 'credKmv' };
+  creditos.forEach(c => {
+    const idDom = MAPA_CREDITO_DOM[c.nome];
+    if(!idDom) return;
+    t(idDom, fmt(Number(c.saldo)));
+  });
+  window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO = { status: 'ok', creditos };
+  console.log('BeneficiosCreditosV2: card Créditos e Cupons atualizado da V2 — relatório em window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO', window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO);
 }
