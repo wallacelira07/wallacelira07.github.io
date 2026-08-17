@@ -1,52 +1,57 @@
 #!/usr/bin/env python3
 """
-Automação de cotações de OPÇÕES (brapi.dev) -> Supabase (Sistema Wallace Lira)
-=================================================================================
-Busca o preço de mercado atual (campo "close" da última negociação) de séries de
-opções específicas na brapi.dev, endpoint /api/v2/options/chain.
+Automação de cotações de OPÇÕES (brapi.dev + opcoes.net.br) -> Supabase (Sistema Wallace Lira)
+=================================================================================================
+Busca o preço de mercado atual (último negócio) de séries de opções específicas e grava no
+Supabase — o site sobrepõe esse preço ao literal estático de vars-roc.js quando disponível
+(ver hydrate-roc.js), sem nunca reescrever o arquivo JS.
 
-IMPORTANTE (pesquisado em 17/08/2026, pedido do usuário: "procure uma fonte
-gratuita, tente implementar" pro card ROC/opções, que até aqui só atualizava o
-"valor de mercado" manualmente via nota de corretagem): o endpoint de opções da
-brapi só é gratuito (sem token) para o ativo-objeto PETR4, em modo sandbox — os
-demais ativos (incluindo ITUB4, que também tem posição aberta no sistema) exigem
-o plano Pro (R$139,99/mês, pesquisado na mesma data) - desproporcional só pra
-acompanhar 1 posição pequena. Por isso este script cobre SÓ séries de PETR4;
-ITUB4 continua manual (VARS.opcoesVendidasDetalhe em vars-roc.js, como sempre foi).
+DUAS FONTES, nessa ordem de tentativa por série:
+1. brapi.dev, endpoint /api/v2/options/chain — só devolve sem token pro ativo-objeto PETR4
+   (sandbox gratuito, pesquisado e testado ao vivo em 17/08/2026). Qualquer outro ativo
+   (ITUB4 incluso) devolve MISSING_TOKEN sem o plano Pro (R$139,99/mês).
+2. AMPLIADO 17/08/2026 (pedido do usuário: "não pode ser só PETR4" — pesquisei alternativas
+   gratuitas reais antes de implementar, ver docs/decisions/COTACOES_OPCOES_AO_VIVO_PETR4.md):
+   opcoes.net.br publica uma tabela de cotação pública (`https://opcoes.net.br/<symbol>`, HTML
+   simples, sem login/token) com os últimos 5 pregões de QUALQUER opção da B3 — usado como
+   fallback quando a brapi não cobre o ativo-objeto. É EOD (fechamento do último pregão, não
+   tempo real) — suficiente pro uso deste sistema (referência de valor de mercado atualizada
+   periodicamente, não day-trading). Mais frágil que uma API oficial (scraping de HTML, quebra
+   se o layout do site mudar) — por isso só é usado como fallback, nunca substitui a brapi
+   quando ela já funciona de graça (PETR4).
 
-SÉRIES_MONITORADAS abaixo é a lista de opções ATIVAS de PETR4 hoje - precisa ser
-atualizada manualmente quando o usuário abrir/fechar uma posição (mesmo espírito
-de VARS.opcoesVendidasDetalhe em vars-roc.js: dado externo, não deriva de nada
-interno, precisa ser mantido por humano/agente de tempos em tempos).
+SÉRIES_MONITORADAS abaixo precisa ser atualizada manualmente quando o usuário abrir/fechar uma
+posição (mesmo espírito de VARS.opcoesVendidasDetalhe em vars-roc.js: dado externo, mantido por
+humano/agente de tempos em tempos).
 
-Grava o resultado no Supabase (função atualizar_cotacoes_opcoes, tabela
-cotacoes_opcoes) - o site sobrepõe esse preço ao literal estático de vars-roc.js
-quando disponível (ver hydrate-roc.js), sem nunca reescrever o arquivo JS.
-
-Variáveis de ambiente necessárias (mesmas já usadas por atualizar_cotacoes_acoes.py
-- nenhum secret novo, nenhum token novo, sem custo):
+Variáveis de ambiente necessárias (mesmas já usadas por atualizar_cotacoes_acoes.py - nenhum
+secret novo, nenhum token novo, sem custo):
   SUPABASE_URL
   SUPABASE_KEY
 """
 import json
 import os
+import re
 import sys
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-# Séries ATIVAS de PETR4 hoje (17/08/2026) - ver vars-roc.js VARS.opcoesVendidasDetalhe
-# pro detalhe completo de cada posição (prêmio, custo, quantidade). Atualizar esta
-# lista quando uma posição de PETR4 for aberta/fechada; ITUB4 (ITUBT424) fica de fora
-# de propósito, sem fonte gratuita disponível.
+# Todas as posições ATIVAS hoje (17/08/2026) - ver vars-roc.js VARS.opcoesVendidasDetalhe pro
+# detalhe completo de cada uma (prêmio, custo, quantidade). Atualizar esta lista quando uma
+# posição for aberta/fechada. PETRT379 usa a brapi (grátis, sem fallback necessário); ITUBT424
+# usa o fallback opcoes.net.br (brapi exige token pra ITUB4).
 SERIES_MONITORADAS = [
     {"symbol": "PETRT379", "underlying": "PETR4", "expirationDate": "2026-08-21"},
+    {"symbol": "ITUBT424", "underlying": "ITUB4", "expirationDate": "2026-08-21"},
 ]
 
 BRAPI_CHAIN_URL = "https://brapi.dev/api/v2/options/chain"
+OPCOES_NET_URL = "https://opcoes.net.br/{symbol}"
 
 
-def buscar_preco_serie(underlying: str, expiration_date: str, symbol: str) -> float | None:
-    """Busca a chain inteira do vencimento (única forma do endpoint) e filtra a série."""
+def buscar_preco_brapi(underlying: str, expiration_date: str, symbol: str) -> float | None:
+    """Busca a chain inteira do vencimento (única forma do endpoint) e filtra a série. Só funciona
+    sem token pra underlying=PETR4 (sandbox gratuito da brapi.dev)."""
     url = f"{BRAPI_CHAIN_URL}?underlying={underlying}&expirationDate={expiration_date}"
     req = Request(url, headers={"Accept": "application/json"}, method="GET")
     try:
@@ -54,30 +59,84 @@ def buscar_preco_serie(underlying: str, expiration_date: str, symbol: str) -> fl
             dados = json.loads(resp.read().decode("utf-8"))
     except HTTPError as e:
         corpo = e.read().decode("utf-8", errors="replace")
-        print(f"AVISO: HTTP {e.code} ao buscar chain {underlying}/{expiration_date}: {corpo}", file=sys.stderr)
+        print(f"AVISO: HTTP {e.code} na brapi pra {underlying}/{expiration_date}: {corpo}", file=sys.stderr)
         return None
     except URLError as e:
-        print(f"AVISO: falha de rede ao buscar chain {underlying}/{expiration_date}: {e}", file=sys.stderr)
+        print(f"AVISO: falha de rede na brapi pra {underlying}/{expiration_date}: {e}", file=sys.stderr)
+        return None
+
+    if dados.get("error"):
+        # Caso esperado pra qualquer underlying != PETR4 (MISSING_TOKEN) - não é uma falha real,
+        # só significa "essa série precisa do fallback opcoes.net.br".
         return None
 
     series = dados.get("series", [])
     alvo = next((s for s in series if s.get("symbol") == symbol), None)
     if alvo is None:
-        print(f"AVISO: série {symbol} não encontrada na chain de {underlying}/{expiration_date} (venceu? ticker mudou?)", file=sys.stderr)
+        print(f"AVISO: série {symbol} não encontrada na chain brapi de {underlying}/{expiration_date} (venceu? ticker mudou?)", file=sys.stderr)
         return None
 
     preco = alvo.get("close")
     if preco is None or preco <= 0:
-        # "close" pode vir 0/None em dia sem negociação - bid/ask são o fallback mais
-        # honesto (preço que realmente compraria/venderia agora), nunca inventar 0.
+        # "close" pode vir 0/None em dia sem negociação - bid/ask são o fallback mais honesto
+        # (preço que realmente compraria/venderia agora), nunca inventar 0.
         bid, ask = alvo.get("bid") or 0, alvo.get("ask") or 0
         if bid > 0 and ask > 0:
             preco = round((bid + ask) / 2, 4)
         elif ask > 0:
             preco = ask
         else:
-            print(f"AVISO: {symbol} sem close/bid/ask válidos hoje - não atualiza (mantém o valor anterior).", file=sys.stderr)
             return None
+    return preco
+
+
+def buscar_preco_opcoes_net(symbol: str) -> float | None:
+    """Fallback pra séries que a brapi não cobre de graça (qualquer ativo-objeto != PETR4). Faz
+    scraping de uma tabela HTML pública (sem login/token) com os últimos 5 pregões da opção -
+    extrai a coluna "Ult" (preço do último negócio) da linha mais recente. Existem 2 tabelas na
+    página: a primeira (class="table table-bordered table-condensed top-buffer-20") tem o
+    histórico de cotação real da própria opção - é essa que interessa. A segunda (id="miniGrid")
+    é só navegação entre strikes/vencimentos, nunca usar essa. Mais frágil que uma API oficial
+    (quebra se o site mudar o layout do HTML) - por isso só é chamado quando a brapi já falhou."""
+    url = OPCOES_NET_URL.format(symbol=symbol)
+    req = Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; WallaceLiraBot/1.0)"}, method="GET")
+    try:
+        with urlopen(req, timeout=20) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+    except (HTTPError, URLError) as e:
+        print(f"AVISO: falha ao buscar {url} (fallback opcoes.net.br): {e}", file=sys.stderr)
+        return None
+
+    tabela = re.search(
+        r'<table class="table table-bordered table-condensed top-buffer-20">.*?<tbody>(.*?)</tbody>',
+        html, re.S,
+    )
+    if not tabela:
+        print(f"AVISO: tabela de cotação não encontrada em {url} — layout do site pode ter mudado.", file=sys.stderr)
+        return None
+    primeira_linha = re.search(r"<tr>(.*?)</tr>", tabela.group(1), re.S)
+    if not primeira_linha:
+        return None
+    celulas = re.findall(r"<td[^>]*>(.*?)</td>", primeira_linha.group(1), re.S)
+    # Colunas: [0]=data, [1]=Min, [2]=Pri(meira), [3]=Med(ia), [4]=Ult(imo), [5]=Max
+    if len(celulas) < 5:
+        return None
+    ult_str = celulas[4].strip().replace(".", "").replace(",", ".")
+    try:
+        preco = float(ult_str)
+    except ValueError:
+        return None
+    return preco if preco > 0 else None
+
+
+def buscar_preco_serie(underlying: str, expiration_date: str, symbol: str) -> float | None:
+    preco = buscar_preco_brapi(underlying, expiration_date, symbol)
+    if preco is not None:
+        return preco
+    print(f"AVISO: brapi sem cobertura gratuita pra {underlying} ({symbol}) — tentando fallback opcoes.net.br...", file=sys.stderr)
+    preco = buscar_preco_opcoes_net(symbol)
+    if preco is None:
+        print(f"AVISO: {symbol} sem cotação válida em nenhuma fonte hoje — não atualiza (mantém o valor anterior).", file=sys.stderr)
     return preco
 
 
@@ -116,7 +175,7 @@ def main() -> int:
         return 1
 
     try:
-        print(f"Buscando cotações de opções na brapi.dev ({len(SERIES_MONITORADAS)} série(s), grátis/sem token, só PETR4)...")
+        print(f"Buscando cotações de opções ({len(SERIES_MONITORADAS)} série(s): brapi.dev p/ PETR4, opcoes.net.br p/ demais)...")
         cotacoes = buscar_cotacoes()
         for symbol, info in cotacoes.items():
             print(f"{symbol}: R${info['preco']}")

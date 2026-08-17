@@ -1,33 +1,47 @@
-# Cotação ao vivo de opções (PETR4) — implementado, cobertura parcial documentada
+# Cotação ao vivo de opções — implementado, PETR4 + ITUB4 (2 fontes gratuitas)
 
-**Status: IMPLEMENTADO em 17/08/2026.** Pedido do usuário: *"procure uma fonte gratuita, tente implementar"*, depois de eu apontar que o "valor de mercado" das puts vendidas (card ROC) nunca foi automatizado — sempre dependeu do usuário colar uma nota de corretagem nova em `vars-roc.js` manualmente.
+**Status: IMPLEMENTADO em 17/08/2026, AMPLIADO na mesma sessão.** Pedido original do usuário: *"procure uma fonte gratuita, tente implementar"*, depois de eu apontar que o "valor de mercado" das puts vendidas (card ROC) nunca foi automatizado — sempre dependeu do usuário colar uma nota de corretagem nova em `vars-roc.js` manualmente. Ampliado depois que o usuário rejeitou a 1ª versão ("pedi para implementar algo para todas as ações ou as principais, não pode ser só PETR4").
 
 ## 1. O que mudou
 
-`o.cotacaoAtual`/`o.valorMercado` de séries de **PETR4** com posição ativa (hoje só `PETRT379`) passam a vir de uma cotação real, buscada 2x/dia (mesmo cron do resto das automações) na brapi.dev, endpoint público de opções (`/api/v2/options/chain`).
+`o.cotacaoAtual`/`o.valorMercado` de **todas** as séries com posição ativa (`PETRT379`/PETR4 e `ITUBT424`/ITUB4) passam a vir de cotação real, buscada 2x/dia (mesmo cron do resto das automações). Nenhuma série com posição ativa continua 100% manual.
 
-`ITUB4` (`ITUBT424`) **continua manual** — não é falta de esforço, é limite real da fonte gratuita (seção 2).
+## 2. Duas fontes, por quê
 
-## 2. Por que só PETR4
+Pesquisado e testado ao vivo em 17/08/2026: o endpoint de opções da brapi.dev só é gratuito (sem token, sandbox) para o ativo-objeto **PETR4**. Qualquer outro ativo (ITUB4 incluso) devolve `MISSING_TOKEN` sem o plano **Pro** (**R$139,99/mês**). Pesquisei alternativas antes de aceitar essa limitação como definitiva:
 
-Pesquisado em 17/08/2026: o endpoint de opções da brapi.dev só é gratuito (sem token, sandbox) para o ativo-objeto **PETR4**. Qualquer outro ativo (incluindo ITUB4) devolve `MISSING_TOKEN` sem o plano **Pro** (**R$139,99/mês**, pesquisado na mesma data) — desproporcional para acompanhar 1 posição de ~R$100 de valor de mercado. Testado ao vivo (`curl`) antes de decidir: PETR4 funciona sem token, ITUB4 não.
+| Fonte | Custo | Cobertura | Decisão |
+|---|---|---|---|
+| **brapi.dev** (`/api/v2/options/chain`) | Grátis (sandbox) | Só PETR4 sem token | Fonte primária — já funciona, não mexer |
+| **OpLab** (oplab.com.br) | R$97–185/mês (plano PRO obrigatório pra API) | Qualquer ativo | Descartado — mais caro que brapi Pro pra resolver o mesmo problema |
+| **opcoes.net.br** (scraping HTML público) | Grátis | Qualquer opção da B3 | **Escolhido como fallback** (usuário optou explicitamente por essa via ao ser apresentado o trade-off: scraping é mais frágil que API oficial, mas sem custo) |
 
-Se o usuário abrir novas posições em ativos além de PETR4/ITUB4 no futuro, a mesma limitação provavelmente se aplica — vale testar o ticker específico antes de assumir que vai funcionar de graça.
+## 3. Como funciona (dual-source, por série)
 
-## 3. Como funciona
+1. **Tenta brapi.dev primeiro** (`buscar_preco_brapi`) — igual antes, só funciona de graça pra PETR4.
+2. **Se a brapi não cobrir** (qualquer `underlying` ≠ PETR4, ou falha de qualquer tipo), cai pro **fallback `opcoes.net.br`** (`buscar_preco_opcoes_net`): busca `https://opcoes.net.br/<symbol>` (ex: `https://opcoes.net.br/ITUBT424`), uma página pública sem login/token, e extrai via regex a coluna **"Ult"** (último negócio) da linha mais recente da tabela de cotação da própria opção — **não** a segunda tabela da página (`id="miniGrid"`, que é só navegação entre strikes, nunca cotação).
+3. Se nenhuma das duas fontes tiver preço válido pro dia, **não atualiza** — mantém o valor anterior (nunca inventa `0`).
 
-- **Fonte**: `https://brapi.dev/api/v2/options/chain?underlying=PETR4&expirationDate=<venc>` — devolve a chain inteira do vencimento; o script filtra a série pelo `symbol`. Preço = `close` (último negócio); se vier `0`/ausente (dia sem negociação), cai pro meio de `bid`/`ask`; se nada disso existir, não atualiza (nunca inventa `0`).
-- **Robô**: `scripts/sync/atualizar_cotacoes_opcoes.py` — lista `SERIES_MONITORADAS` (hoje só `PETRT379`) precisa ser **atualizada manualmente** quando o usuário abrir/fechar uma posição de PETR4 (mesmo espírito de `vars-roc.js`: dado externo, mantido por humano/agente).
-- **Armazenamento**: tabela nova `cotacoes_opcoes` (Supabase) + RPC `atualizar_cotacoes_opcoes` (mesmo padrão de segurança de `atualizar_cotacoes_acoes`: só `service_role` grava, leitura pública via `anon`).
-- **Orquestração**: `.github/workflows/atualizar_cotacoes_opcoes.yml`, chamado pelo orquestrador `executar_tudo.yml` (agora 7 etapas, era 6) logo depois de "Cotações de Ações". Nenhum secret novo — reaproveita `SUPABASE_URL`/`SUPABASE_KEY` já existentes; nem precisa de `BRAPI_TOKEN` (série de PETR4 é sandbox gratuito).
-- **Cliente**: `WallaceFinanceService.getCotacoesOpcoes()` (app.js) + `aplicarCotacoesOpcoesV2()` (hydrate-roc.js) — sobrepõe o preço ao vivo em cima de `VARS.opcoesVendidasDetalhe` (nunca reescreve `vars-roc.js`), recalcula `valorMercado = quantidade × cotacaoAtual` e a soma consolidada (`aplicarStatusVencidoEValorMercadoOpcoes()`), redesenha a tabela. Linha com preço ao vivo ganha um ícone 🔄 com tooltip de horário — nunca fica ambíguo se é automático ou manual.
-- **Observabilidade**: job `cotacoes_opcoes` adicionado ao painel Saúde Operacional (mesmo limiar/exceção de fim de semana de `cotacoes_acoes` — bolsa fechada sábado/domingo).
+**Importante sobre a fonte de fallback**: `opcoes.net.br` mostra os **últimos 5 pregões (EOD, fechamento)**, não cotação em tempo real — página explicitamente diz "para dados em tempo real... é necessário ser assinante". Suficiente pro uso deste sistema (referência de valor de mercado atualizada periodicamente, não day-trading), mas é **scraping de HTML**, mais frágil que uma API oficial: quebra se o site mudar o layout da tabela. Se isso acontecer, o robô vai logar `AVISO: tabela de cotação não encontrada... layout do site pode ter mudado` e simplesmente não atualizar aquela série (heartbeat registra `erro` só se NENHUMA série atualizar — 1 série falhando não derruba as outras).
 
-## 4. Custo
+## 4. Implementação técnica
 
-**Zero.** Sandbox gratuito, sem token, sem cadastro, reaproveitando infraestrutura (GitHub Actions, secrets, cron) já paga/configurada para as outras automações.
+- **Robô**: `scripts/sync/atualizar_cotacoes_opcoes.py` — `SERIES_MONITORADAS` agora tem `PETRT379` (PETR4) e `ITUBT424` (ITUB4); precisa ser **atualizada manualmente** quando o usuário abrir/fechar uma posição.
+- **Armazenamento**: tabela `cotacoes_opcoes` (Supabase) + RPC `atualizar_cotacoes_opcoes` — inalterados, mesma estrutura já usada desde a 1ª versão, só recebe mais 1 símbolo agora.
+- **Orquestração**: `.github/workflows/atualizar_cotacoes_opcoes.yml`, chamado por `executar_tudo.yml` — inalterado, nenhum secret novo (scraping não precisa de autenticação).
+- **Cliente**: `WallaceFinanceService.getCotacoesOpcoes()` + `aplicarCotacoesOpcoesV2()` (hydrate-roc.js) — já cobriam qualquer symbol presente na tabela, nenhuma mudança necessária; ITUB4 passa a ganhar o ícone 🔄 (preço ao vivo) automaticamente assim que a 1ª cotação real chegar.
+- **Observabilidade**: job `cotacoes_opcoes` no painel Saúde Operacional — inalterado.
 
-## 5. Revisitar quando
+## 5. Custo
 
-- Usuário abrir posição nova em PETR4 → adicionar em `SERIES_MONITORADAS` (`atualizar_cotacoes_opcoes.py`).
-- Usuário decidir que vale pagar o plano Pro da brapi (R$139,99/mês) → dá pra estender `SERIES_MONITORADAS` pra ITUB4 e qualquer outro ativo, só trocando o token usado na chamada (mesmo padrão já usado em `atualizar_cotacoes_acoes.py` pros tickers pagos).
+**Zero.** As duas fontes são gratuitas; nenhuma infraestrutura nova (mesmo cron, mesmos secrets).
+
+## 6. Risco aceito conscientemente
+
+Scraping de HTML de um site de terceiros (`opcoes.net.br`) é **estruturalmente mais frágil** que consumir uma API documentada — não há contrato de estabilidade, o layout pode mudar sem aviso. O usuário foi informado desse trade-off explicitamente (opção "scraping de site público" apresentada ao lado de "manter manual" e "pagar plano pago") e escolheu essa via. Se o scraping quebrar no futuro, revisitar as 2 outras opções descartadas (aceitar manual de novo, ou pagar brapi Pro/OpLab) em vez de tentar consertar o parser às cegas sem conferir se o site mudou de fato.
+
+## 7. Revisitar quando
+
+- Usuário abrir posição nova em qualquer ativo → adicionar em `SERIES_MONITORADAS` (`atualizar_cotacoes_opcoes.py`) — a fonte de fallback (`opcoes.net.br`) cobre qualquer ativo-objeto da B3, não só PETR4/ITUB4, então nenhum ativo novo deveria ficar sem cobertura automática de novo.
+- `AVISO: tabela de cotação não encontrada` aparecer nos logs → o layout do `opcoes.net.br` mudou, o parser (`buscar_preco_opcoes_net`) precisa ser ajustado.
+- Usuário decidir que vale pagar um plano (brapi Pro ou OpLab) → dá pra trocar o fallback por uma chamada de API oficial, mais robusta que scraping.
