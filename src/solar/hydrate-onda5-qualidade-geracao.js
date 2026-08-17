@@ -293,6 +293,53 @@ async function aplicarOnda5QualidadeGeracao(){
     }
   }
 
+  // NOVO 17/08/2026 (pedido do usuário, depois de ver a nota de 1 dia só acima: "quero uma nota
+  // dessas para o consumo total do ciclo, some o ciclo todo e veja quanto já foi gerado, com
+  // porcentagem e automatizado"). Mesma comparação geração × consumo das 3 casas, mas soma o
+  // CICLO INTEIRO da GD (fecha todo dia 8, mesmo DIA_CORTE_CICLO_GD já usado em
+  // graficos-cenarios-lazy.js — duplicado aqui de propósito, módulos carregam em paralelo sem
+  // ordem garantida, mesmo padrão já usado pra SOLAR_GERADOR_LAT/LON neste arquivo) em vez de só
+  // o último dia completo. Geração = soma de VARS.SOLAR_GERACAO_DIARIA desde o início do ciclo até
+  // HOJE (inclui o dia de hoje, mesmo parcial — "quanto já foi gerado" é sempre um total em
+  // andamento, não trava no último dia fechado). Consumo = média diária das 3 casas × dias
+  // decorridos no ciclo (mesma fonte VARS.solarConsumoDiarioWallace/Irma/Mae já usada acima,
+  // nenhum número novo inventado).
+  const DIA_CORTE_CICLO_GD_ONDA5 = 8;
+  const elCoberturaCiclo = $('qgCoberturaCicloTotal');
+  if(elCoberturaCiclo){
+    const hoje = new Date(Date.now() - 3*3600*1000); // Brasília, mesmo truque de fuso já usado neste arquivo
+    const anoBase = hoje.getUTCFullYear(), mesBase = hoje.getUTCMonth();
+    const inicioCiclo = hoje.getUTCDate() >= DIA_CORTE_CICLO_GD_ONDA5
+      ? new Date(Date.UTC(anoBase, mesBase, DIA_CORTE_CICLO_GD_ONDA5))
+      : new Date(Date.UTC(anoBase, mesBase - 1, DIA_CORTE_CICLO_GD_ONDA5));
+    const inicioCicloStr = inicioCiclo.toISOString().slice(0,10);
+    const diasDecorridosCiclo = Math.max(1, Math.round((hoje - inicioCiclo) / 86400000) + 1); // +1: dia de início conta como dia 1, não dia 0
+
+    const geracaoCicloKwh = Math.round(
+      registros.filter(r => r.data >= inicioCicloStr && typeof r.kwh === 'number').reduce((s,r) => s + r.kwh, 0) * 100
+    ) / 100;
+
+    const consumoWallace2 = VARS.solarConsumoDiarioWallace;
+    const consumoIrma2 = VARS.solarConsumoDiarioIrma;
+    const consumoMae2 = VARS.solarConsumoDiarioMae;
+    if(geracaoCicloKwh > 0 && typeof consumoWallace2 === 'number' && typeof consumoIrma2 === 'number' && typeof consumoMae2 === 'number'){
+      const consumoCicloTotal3Casas = Math.round((consumoWallace2 + consumoIrma2 + consumoMae2) * diasDecorridosCiclo * 100) / 100;
+      const margemCicloPct = consumoCicloTotal3Casas > 0 ? Math.round(((geracaoCicloKwh - consumoCicloTotal3Casas) / consumoCicloTotal3Casas) * 1000) / 10 : null;
+      let statusCiclo;
+      if(margemCicloPct === null) statusCiclo = { emoji:'🟡', texto:'Sem referência de consumo suficiente pra comparar', cor:'var(--text-dim)' };
+      else if(margemCicloPct < 0) statusCiclo = { emoji:'🔴', texto:`Geração do ciclo ABAIXO do consumo total (${Math.abs(margemCicloPct).toLocaleString('pt-BR',{maximumFractionDigits:1})}% a menos)`, cor:'var(--red)' };
+      else if(margemCicloPct < 10) statusCiclo = { emoji:'🟡', texto:`Ciclo cobre as 3 casas, mas com margem apertada (${margemCicloPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% de folga)`, cor:'var(--amber)' };
+      else statusCiclo = { emoji:'🟢', texto:`Ciclo cobre as 3 casas com folga confortável (${margemCicloPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% acima do consumo total)`, cor:'var(--green)' };
+      const inicioCicloBr = inicioCicloStr.split('-').reverse().join('/');
+      elCoberturaCiclo.textContent = statusCiclo.emoji+' Ciclo ('+inicioCicloBr+' → hoje, dia '+diasDecorridosCiclo+'): '+statusCiclo.texto+` — ${fmtKwh(geracaoCicloKwh)} gerados × ${fmtKwh(consumoCicloTotal3Casas)} consumidos até agora`;
+      elCoberturaCiclo.style.color = statusCiclo.cor;
+      window.WALLACE_ONDA5_COBERTURA_CICLO_TOTAL = { geracaoCicloKwh, consumoCicloTotal3Casas, margemCicloPct, inicioCiclo: inicioCicloStr, diasDecorridosCiclo };
+    } else {
+      elCoberturaCiclo.textContent = '⚠ Ainda sem geração real suficiente no ciclo pra comparar.';
+      elCoberturaCiclo.style.color = 'var(--text-dim)';
+    }
+  }
+
   window.WALLACE_ONDA5_QUALIDADE_GERACAO_RELATORIO = {
     hoje: registroHoje ? registroHoje.kwh : null,
     diaReferencia: diaReferencia.data, kwhDiaReferencia: diaReferencia.kwh,
