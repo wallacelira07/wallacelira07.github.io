@@ -1,0 +1,30 @@
+name: Atualizar Cotações de Opções (PETR4)
+# NOVO 17/08/2026 (pedido do usuário: "procure uma fonte gratuita, tente
+# implementar" pro card ROC - até aqui o "valor de mercado" das opções vendidas
+# só era atualizado manualmente via nota de corretagem). brapi.dev só libera o
+# endpoint de opções sem token pro ativo-objeto PETR4 (sandbox) - ITUB4 exigiria
+# o plano Pro (R$139,99/mês), desproporcional pra 1 posição só, então continua
+# manual. Mesmo padrão de disparo de atualizar_cotacoes_acoes.yml (chamado pelo
+# orquestrador executar_tudo.yml via cron-job.org externo, também disparável
+# sozinho via workflow_dispatch pra teste).
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+concurrency:
+  group: atualizar-cotacoes-opcoes
+  cancel-in-progress: false
+jobs:
+  atualizar-cotacoes-opcoes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rodar script de atualização
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_cotacoes_opcoes.py

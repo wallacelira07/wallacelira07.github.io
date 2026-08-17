@@ -191,7 +191,11 @@ function hydrateROC(){
         rocLinha2 = `<span style="color:var(--text-dim);font-size:0.68rem">${o.roc.statusROC.label} · ${o.roc.diasOperacao}d · ${comparacaoCDITxt}</span>`;
       }
       const rocHtml = `<div>${rocLinha1}</div><div style="min-height:1em">${rocLinha2}</div>`;
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}</td><td class="r v">${rocHtml}</td></tr>`;
+      // NOVO 17/08/2026: marca visualmente quando o.valorMercado veio de cotação AO VIVO
+      // (aplicarCotacoesOpcoesV2(), só PETR4) em vez do literal manual de vars-roc.js — sem isso, não
+      // dava pra distinguir na tela um preço automatizado de um esperando nota de corretagem nova.
+      const marcaAoVivo = o._cotacaoAoVivo ? ` <span title="Preço ao vivo (brapi.dev) — atualizado ${o._cotacaoAoVivoEm ? new Date(o._cotacaoAoVivoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}" style="font-size:0.6rem">🔄</span>` : '';
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}${marcaAoVivo}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
     }
     // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
@@ -330,4 +334,47 @@ async function aplicarBeneficiosCreditosV2(){
   });
   window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO = { status: 'ok', creditos };
   console.log('BeneficiosCreditosV2: card Créditos e Cupons atualizado da V2 — relatório em window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO', window.WALLACE_BENEFICIOS_CREDITOS_RELATORIO);
+}
+
+// NOVO 17/08/2026 (card ROC/opções, pedido do usuário: "procure uma fonte gratuita, tente
+// implementar" — até aqui "Valor de mercado" das puts vendidas só mudava quando alguém editava
+// vars-roc.js à mão a partir de uma nota de corretagem nova). Sobrepõe o preço AO VIVO (tabela
+// `cotacoes_opcoes`, alimentada por scripts/sync/atualizar_cotacoes_opcoes.py via brapi.dev) em cima
+// do literal estático de VARS.opcoesVendidasDetalhe, quando existir — nunca reescreve vars-roc.js,
+// só o VARS em memória, mesmo padrão de aplicarBeneficiosCreditosV2() logo acima. Cobertura parcial
+// de propósito: brapi só libera opções sem token pra PETR4 (ITUB4 exigiria plano Pro pago,
+// desproporcional pra 1 posição) — ITUBT424 continua 100% manual, sem indicador de "ao vivo".
+async function aplicarCotacoesOpcoesV2(){
+  let cotacoes;
+  try {
+    cotacoes = await WallaceFinanceService.getCotacoesOpcoes();
+  } catch(err){
+    console.error('CotacoesOpcoesV2: falha ao buscar cotacoes_opcoes — mantido o literal VARS (fallback, mesmo comportamento de sempre).', err);
+    window.WALLACE_COTACOES_OPCOES_RELATORIO = { status: 'erro_v2', erro: String(err) };
+    return;
+  }
+  if(!Array.isArray(cotacoes) || !cotacoes.length){
+    window.WALLACE_COTACOES_OPCOES_RELATORIO = { status: 'sem_dado_v2' };
+    return;
+  }
+  const porSymbol = {};
+  cotacoes.forEach(c => { porSymbol[c.symbol] = c; });
+  let atualizados = 0;
+  VARS.opcoesVendidasDetalhe.forEach(o => {
+    const c = porSymbol[o.ticker];
+    if(!c) return; // sem cotação ao vivo pra esse ticker (ex: ITUB4) — mantém o literal manual
+    o.cotacaoAtual = Number(c.preco);
+    o.valorMercado = Math.round(o.quantidade * o.cotacaoAtual * 100) / 100;
+    o._cotacaoAoVivo = true;
+    o._cotacaoAoVivoEm = c.atualizado_em;
+    atualizados++;
+  });
+  if(atualizados > 0){
+    // Recalcula a soma consolidada (VARS.opcoesVendidasValorMercado) a partir dos valores já
+    // atualizados acima — mesma função que já roda no boot síncrono (opcoes-roc.js), reentrante.
+    if(typeof aplicarStatusVencidoEValorMercadoOpcoes === 'function') aplicarStatusVencidoEValorMercadoOpcoes();
+    if(typeof hydrateROC === 'function') hydrateROC();
+  }
+  window.WALLACE_COTACOES_OPCOES_RELATORIO = { status: 'ok', atualizados, cotacoes };
+  console.log('CotacoesOpcoesV2: preço ao vivo aplicado —', atualizados, 'série(s) atualizada(s). Relatório em window.WALLACE_COTACOES_OPCOES_RELATORIO', window.WALLACE_COTACOES_OPCOES_RELATORIO);
 }

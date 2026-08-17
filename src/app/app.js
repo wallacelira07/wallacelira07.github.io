@@ -977,6 +977,20 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 17/08/2026 (card ROC/opções, pedido do usuário: "procure uma fonte gratuita, tente
+  // implementar" — até aqui "valor de mercado" das puts vendidas só atualizava via nota de
+  // corretagem manual). Tabela `cotacoes_opcoes`, alimentada por scripts/sync/atualizar_cotacoes_opcoes.py
+  // (brapi.dev, só séries de PETR4 — ITUB4 exigiria plano pago, fica manual). hydrate-roc.js sobrepõe
+  // esse preço ao literal estático de vars-roc.js quando existir, sem nunca reescrever o VARS.
+  async getCotacoesOpcoes(){
+    return this._cache.obterOuBuscar('cotacoes_opcoes', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cotacoes_opcoes?select=symbol,preco,atualizado_em`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cotacoes_opcoes`);
+      return await resp.json();
+    });
+  },
   // NOVO 16/08/2026 (aba Emagrecimento, pedido do usuário: "adicione campos para receber medição de
   // pressão e leitura de glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo
   // padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert feito
@@ -2385,6 +2399,9 @@ onDomPronto(aplicarSaudeOperacional);
 // NOVO 17/08/2026: card "Créditos e Cupons" (Uber/Shell Box/KMV Ipiranga) migrado de literal VARS
 // pra tabela beneficios_creditos. Ver hydrate-roc.js.
 onDomPronto(aplicarBeneficiosCreditosV2);
+// NOVO 17/08/2026: card ROC/opções — preço ao vivo (só séries de PETR4, ver comentário na função)
+// sobreposto ao literal manual de vars-roc.js. Ver hydrate-roc.js.
+onDomPronto(aplicarCotacoesOpcoesV2);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.

@@ -13,6 +13,9 @@ const SAUDE_JOBS_LIMIARES = {
   pluggy:          { atencaoH: 36, falhaH: 72, label: 'Sincronização Pluggy (bancos)' },
   mercadopago:     { atencaoH: 36, falhaH: 72, label: 'Sincronização Mercado Pago' },
   cotacoes_acoes:  { atencaoH: 36, falhaH: 72, label: 'Cotações de ações' },
+  // ADICIONADO 17/08/2026: novo job (scripts/sync/atualizar_cotacoes_opcoes.py, card ROC/opções),
+  // mesma cadência/limiar de cotacoes_acoes (roda no mesmo orquestrador, logo depois).
+  cotacoes_opcoes: { atencaoH: 36, falhaH: 72, label: 'Cotações de opções (PETR4)' },
   geracao_solar:   { atencaoH: 24, falhaH: 48, label: 'Geração solar (SAJ)' },
   // ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas: os 2 jobs abaixo já gravam
   // heartbeat via _heartbeat.py — backup_externo_criptografado.py/wwi_gerar_relatorio_mensal.py —
@@ -49,7 +52,10 @@ function saudeOperacionalClassificar(job){
     return { nivel: 'falha', emoji: '🔴', texto: 'última execução terminou com erro' };
   }
   const h = Number(job.horas_desde_ultima_execucao);
-  const ehJobDiaUtil = job.job_nome === 'cotacoes_acoes' && job.ultima_execucao;
+  // ADICIONADO 17/08/2026: cotacoes_opcoes tem a mesma fonte/cadência de mercado que cotacoes_acoes
+  // (bolsa fechada fim de semana) — mesma exceção de "hora útil" pro mesmo motivo, senão toda
+  // segunda de manhã acusaria falso "atenção" (fim de semana inteiro sem pregão).
+  const ehJobDiaUtil = (job.job_nome === 'cotacoes_acoes' || job.job_nome === 'cotacoes_opcoes') && job.ultima_execucao;
   const hClassificar = ehJobDiaUtil ? _horasUteisDesde(job.ultima_execucao) : h;
   const sufixoLimiar = ehJobDiaUtil ? 'h úteis (fim de semana não conta)' : 'h';
   if(hClassificar > cfg.falhaH) return { nivel: 'falha', emoji: '🔴', texto: `sem sincronizar há ${Math.round(h)}h (esperado até ${cfg.falhaH}${sufixoLimiar})` };
