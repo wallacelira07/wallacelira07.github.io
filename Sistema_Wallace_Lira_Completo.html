@@ -1997,6 +1997,12 @@
       <!-- CORRIGIDO 13/08/2026 (achado de auditoria: class="v" órfã aqui - a regra CSS real é
            escopada ".row .v", e este div fica fora de qualquer .row; removida a classe sem efeito) -->
       <div id="emgAvisoCusto" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
+      <!-- NOVO 17/08/2026 (pedido do usuário: "precisa melhorar essas descrições do custo do
+           tratamento, porque eu passei tudo que foi comprado, deveria constar" — card só mostrava o
+           TOTAL comprometido, nunca as compras que compõem esse total). Lista itemizada + link pro
+           Livro Razão completo (LREM), ver hydrate-emagrecimento.js. -->
+      <div id="emgItensComprometidos" style="margin-top:0.7rem"></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">Histórico completo, lançamento a lançamento: aba Painel → seção 07 "Livros razão" → sub-aba <strong>LREM - Emagrecimento</strong>.</div>
     </div>
   </div>
 

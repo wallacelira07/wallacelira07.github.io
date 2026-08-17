@@ -422,6 +422,24 @@ const WallaceFinanceService = {
   // getComprometidoCaixaVariavelV2() acima, só parametrizada por caixaId em vez de fixa — essa
   // função nova NÃO substitui a de cima (mantida intacta, já testada, cache própria) — ver
   // hydrate-comprometido-caixas-tematicas-v2.js.
+  // NOVO 17/08/2026 (pedido do usuário: "precisa melhorar essas descrições do custo do tratamento,
+  // porque eu passei tudo que foi comprado, deveria constar" — card "Custo do Tratamento" da aba
+  // Emagrecimento só mostrava o TOTAL comprometido no cartão, nunca o que compõe esse total). Mesmo
+  // filtro exato de getComprometidoPorCaixaV2() (mesma caixa acima), só que devolve a lista em vez
+  // de já somar — pra render itemizado sem duplicar a regra de negócio.
+  async getComprometidoDetalhePorCaixaV2(caixaId){
+    return this._cache.obterOuBuscar('comprometido_detalhe_caixa_v2:' + caixaId, async () => {
+      const caixas = await this.getCaixas();
+      const caixa = caixas.find(c => c.id === caixaId);
+      const cicloInicioEm = caixa && caixa.ciclo_inicio_em;
+      const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}&order=data.asc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe do comprometido da caixa ${caixaId}`);
+      return await resp.json();
+    });
+  },
   async getComprometidoPorCaixaV2(caixaId){
     return this._cache.obterOuBuscar('comprometido_caixa_v2:' + caixaId, async () => {
       const caixas = await this.getCaixas();

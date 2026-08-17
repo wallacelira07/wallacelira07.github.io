@@ -49,6 +49,11 @@ async function aplicarEmagrecimento(){
   // Disponível Real é R$0 — mesmo dado, duas telas, uma incompleta. Mesmo ID de caixa usado lá.
   const EMAGRECIMENTO_CAIXA_ID = 'd6be6a08-9d7b-4664-9c85-1e367aa620b9';
   const promessaComprometidoCaixa = WallaceFinanceService.getComprometidoPorCaixaV2(EMAGRECIMENTO_CAIXA_ID);
+  // NOVO 17/08/2026 (pedido do usuário: "precisa melhorar essas descrições do custo do tratamento,
+  // porque eu passei tudo que foi comprado, deveria constar") — lista itemizada das compras que
+  // compõem o "Comprometido no cartão" acima, não só o total.
+  const promessaComprometidoDetalhe = WallaceFinanceService.getComprometidoDetalhePorCaixaV2(EMAGRECIMENTO_CAIXA_ID);
+  promessaComprometidoDetalhe.catch(function(){});
   promessaComprometidoCaixa.catch(function(){});
 
   let pesagens;
@@ -192,6 +197,26 @@ async function aplicarEmagrecimento(){
     } catch(err){
       console.error('Emagrecimento: falha ao buscar comprometido no cartão.', err);
       elComprometido.innerHTML = '';
+    }
+  }
+
+  // NOVO 17/08/2026 (pedido do usuário) — itemiza as compras reais que compõem o comprometido no
+  // cartão acima. `caixa_id`/`cartao_id`/`afeta_saldo_real` já filtrados na fonte
+  // (getComprometidoDetalhePorCaixaV2, mesmo filtro exato do total) — aqui só renderiza a lista.
+  const elItens = $('emgItensComprometidos');
+  if(elItens){
+    try {
+      const itens = await promessaComprometidoDetalhe;
+      if(Array.isArray(itens) && itens.length){
+        const fmtDataBRItem = iso => iso ? iso.slice(0,10).split('-').reverse().join('/') : '—';
+        elItens.innerHTML = '<div style="font-size:var(--fs-2xs);color:var(--text-mid);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.4rem">Compras que compõem o comprometido no cartão</div>'
+          + itens.map(i => '<div class="row" style="padding:0.2rem 0"><span class="k" style="color:var(--text-mid)">'+fmtDataBRItem(i.data)+' · '+(i.descricao||'—')+'</span><span class="v">'+fmt(Number(i.valor))+'</span></div>').join('');
+      } else {
+        elItens.innerHTML = '';
+      }
+    } catch(err){
+      console.error('Emagrecimento: falha ao buscar detalhe do comprometido no cartão.', err);
+      elItens.innerHTML = '';
     }
   }
 
