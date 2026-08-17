@@ -1865,10 +1865,20 @@ async function _lazyRenderSolarSecao(){
     // null onde nao tem dado daquele tipo naquela data (Chart.js pula null sem quebrar a barra do lado).
     const diariosPorData = {};
     (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r=>{ diariosPorData[r.data] = r.kwh; });
-    const todasDatas = Array.from(new Set([...Object.keys(mediasPorData), ...Object.keys(diariosPorData)])).sort();
+    // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e
+    // o consumido", depois de integrar o medidor Tuya do apartamento): consumo REAL por dia do
+    // apartamento (Wallace), calculado em hydrate-medidor-tuya.js a partir do contador do medidor —
+    // ver window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2. Diferente da linha vermelha tracejada abaixo
+    // (que é uma MÉDIA fixa somando as 3 casas), esta é medição real de UMA casa só (o apartamento) —
+    // por isso vira barra própria, nunca somada/comparada direto com a linha tracejada sem essa
+    // ressalva (ver texto explicativo em legGeracaoPorDia mais abaixo).
+    const consumoApartamentoPorData = {};
+    (window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2||[]).forEach(r=>{ consumoApartamentoPorData[r.data] = r.kwh; });
+    const todasDatas = Array.from(new Set([...Object.keys(mediasPorData), ...Object.keys(diariosPorData), ...Object.keys(consumoApartamentoPorData)])).sort();
     const labelsPorDia = todasDatas.map(d=>{ const [,mes,dia] = d.split('-'); return dia+'/'+mes; });
     const valoresPorDia = todasDatas.map(d=> mediasPorData[d] ?? null);
     const valoresDiarioReal = todasDatas.map(d=> diariosPorData[d] ?? null);
+    const valoresConsumoApartamento = todasDatas.map(d=> consumoApartamentoPorData[d] ?? null);
     // CORRIGIDO 05/08/2026 (parte 96, pedido do usuario): "essa barra de media por intervalo historico
     // nao faz sentido, remova... o que voce podia por e seria interessante seria a media de consumo das
     // 3 casas somadas, ai da pra ver se o gerado e suficiente". Barra laranja removida. Linha vermelha
@@ -1916,6 +1926,10 @@ async function _lazyRenderSolarSecao(){
       plugins:[linhaConsumoMedioPlugin],
       data:{labels:labelsPorDia, datasets:[
         {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
+        // NOVO 17/08/2026: consumo REAL do apartamento (medidor Tuya), ver comentário acima de
+        // valoresConsumoApartamento. Barra própria (não linha) pra ficar visualmente clara como
+        // medição de UMA casa, ao lado da barra de geração (que serve as 3).
+        {label:'Consumo real do apartamento (Wallace, medidor Tuya)', data:valoresConsumoApartamento, backgroundColor:'#3987e5', borderRadius:4, order:1},
         // CORRIGIDO 16/08/2026 (achado do usuário: "faltou a marcação na frente de consumo pra saber
         // quem ele é no gráfico, que é o tracejado") — a linha tracejada de verdade é desenhada por
         // cima via linhaConsumoMedioPlugin (canvas custom, ver abaixo), não pelo Chart.js — por isso
@@ -1935,9 +1949,16 @@ async function _lazyRenderSolarSecao(){
     const legGeracaoPorDiaEl = $('legGeracaoPorDia');
     if(legGeracaoPorDiaEl){
       const qtdReal = Object.keys(diariosPorData).length;
+      const qtdConsumoApto = Object.keys(consumoApartamentoPorData).length;
+      // NOVO 17/08/2026: 3ª frase explicando a barra azul (consumo real do apartamento) — deixa
+      // explícito que é UMA casa só, não confundir com a linha tracejada (soma das 3). Só aparece
+      // quando já existe pelo menos 1 dia calculado (medidor instalado 17/08/2026, cresce sozinho).
+      const textoConsumoApto = qtdConsumoApto
+        ? ' Barra azul = consumo real medido do apartamento (medidor Tuya, '+qtdConsumoApto+' dia(s) com dado) — é só a casa do Wallace, não confundir com a linha tracejada (soma das 3 casas).'
+        : ' Barra azul de consumo real do apartamento aparece a partir de amanhã (medidor instalado 17/08/2026 — precisa de pelo menos 2 dias seguidos de leitura pra calcular o 1º delta).';
       legGeracaoPorDiaEl.textContent = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'
-        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde). Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = '+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia).'+textoConsumoApto
+        : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).'+textoConsumoApto;
     }
   }
 

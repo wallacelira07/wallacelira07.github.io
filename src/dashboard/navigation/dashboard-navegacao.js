@@ -625,6 +625,34 @@ function habilitarRolagemHorizontalMasterTabsNoMouse(){
   }, {passive:false});
 }
 
+// NOVO 17/08/2026 (mesmo achado acima: roda do mouse funciona mas ninguém descobre sozinho). Setas
+// visíveis (◄ ►) grudadas nas bordas da própria barra (position:sticky dentro do scroll horizontal
+// dela, ver .master-tabs-nav em styles.css) — aparecem só quando há de fato conteúdo cortado, e cada
+// lado individualmente some quando já rolou até aquela ponta (não faz sentido "voltar" se já está no
+// início). Mesmo elemento serve em qualquer largura de tela, inclusive mobile (harmless: quem já rola
+// com o dedo só ganha um atalho extra, não muda o gesto de toque).
+function atualizarSetasMasterTabs(){
+  const tabs = document.querySelector('.master-tabs');
+  const prev = $('masterTabsPrev');
+  const next = $('masterTabsNext');
+  if(!tabs || !prev || !next) return;
+  const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
+  const temOverflow = tabs.scrollWidth > tabs.clientWidth + folga;
+  prev.style.display = (temOverflow && tabs.scrollLeft > folga) ? 'flex' : 'none';
+  next.style.display = (temOverflow && tabs.scrollLeft < (tabs.scrollWidth - tabs.clientWidth - folga)) ? 'flex' : 'none';
+}
+function habilitarSetasMasterTabs(){
+  const tabs = document.querySelector('.master-tabs');
+  const prev = $('masterTabsPrev');
+  const next = $('masterTabsNext');
+  if(!tabs || !prev || !next) return;
+  prev.addEventListener('click', () => tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'smooth'}));
+  next.addEventListener('click', () => tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'smooth'}));
+  tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
+  window.addEventListener('resize', atualizarSetasMasterTabs, {passive:true});
+  atualizarSetasMasterTabs();
+}
+
 // Wiring (movido de app.js junto com as funções, mesma ordem relativa de antes) — onDomPronto já
 // trata "DOM já pronto" chamando na hora, então o efeito prático é idêntico, só roda alguns
 // milissegundos depois (depois de energia-solar.js/promocoes-financeengine.js terminarem de
@@ -634,5 +662,6 @@ onDomPronto(renderCapaNav); // parte 41: monta os cards de navegacao da Capa/Das
 onDomPronto(toggleBtnVoltarCapa); // parte 41: estado inicial do botao flutuante (escondido no topo)
 onDomPronto(()=>renderPageStrip('painel')); // parte 42: estado inicial da faixa "onde estou" (painel e o pane ativo por padrao no HTML)
 onDomPronto(habilitarRolagemHorizontalMasterTabsNoMouse); // NOVO 17/08/2026: roda do mouse rola a barra de abas no desktop
+onDomPronto(habilitarSetasMasterTabs); // NOVO 17/08/2026: setas visíveis pra rolar a barra de abas (descobrível, sem depender da roda do mouse)
 window.addEventListener('scroll', toggleBtnVoltarCapa, {passive:true}); // parte 41: mostra/esconde ao rolar
 window.addEventListener('scroll', toggleMasterTabsAoRolar, {passive:true}); // NOVO 12/08/2026: auto-hide da barra .master-tabs dentro das abas

@@ -301,6 +301,24 @@
      duas abas (master e sub-abas) agora seguem o mesmo padrão visual de "ativo". */
   .master-tab.active{color:var(--text);background:linear-gradient(135deg, rgba(76,142,242,0.20), rgba(76,142,242,0.09));box-shadow:var(--shadow-master-tab-active)}
   .master-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent-lg)}
+  /* NOVO 17/08/2026 (achado do usuário: rolagem por roda do mouse não é descobrível sozinha no
+     desktop). position:sticky DENTRO de .master-tabs (que tem overflow-x:auto) gruda cada botão na
+     borda esquerda/direita do SCROLL horizontal da própria barra — truque padrão de "célula sticky
+     em tabela com scroll", não precisa de wrapper novo em volta de .master-tabs (que já é sticky;top:0
+     pra página inteira - dois position:sticky aninhados, cada um relativo ao seu próprio contexto de
+     scroll, funcionam juntos sem conflito). Escondidas por padrão (display:none inline no HTML);
+     habilitarSetasMasterTabs() em dashboard-navegacao.js decide quando mostrar. */
+  .master-tabs-nav{
+    position:sticky;z-index:5;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:50%;
+    background:var(--surface);border:1px solid var(--border-strong);
+    color:var(--text-mid);font-size:1rem;line-height:1;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .master-tabs-nav--prev{left:2px;margin-right:0.2rem}
+  .master-tabs-nav--next{right:2px;margin-left:0.2rem}
+  .master-tabs-nav:hover{color:var(--text);border-color:var(--accent)}
   @media (max-width:640px){
     /* CORRIGIDO 15/08/2026 (achado do usuário: "+ Lançar"/"Wealth Intelligence" tortos/cortados) —
        rolagem horizontal e flex:0 0 auto viraram regra base acima (aplicam em qualquer largura, não

@@ -31,6 +31,35 @@
 // nenhuma pra cair de volta, então "sem dado" é sempre o estado normal de quem acabou de instalar o
 // medidor, nunca um erro — por isso mostra "Sem leitura ainda" em vez de "⚠ Indisponível".
 //
+// NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
+// consumido"): calcula consumo real do apartamento POR DIA a partir do histórico completo de
+// energia_total_kwh (contador que só cresce) — pega a ÚLTIMA leitura de cada dia (horário de
+// Brasília) e subtrai a última leitura do dia ANTERIOR. Só produz um valor quando os dois dias são
+// consecutivos (diffDias===1) — um buraco no meio (ex: medidor ficou 3 dias sem reportar) não vira um
+// "consumo do dia" fabricado somando 3 dias num só; o dia problemático simplesmente fica sem barra,
+// mesmo princípio de "não fabricar dado" já usado em todo o resto deste sistema. Retorna
+// [{data:'YYYY-MM-DD', kwh}], consumido por graficos-cenarios-lazy.js (gráfico "Geração por dia",
+// seção 04) via window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2.
+function calcularConsumoDiarioApartamento(historicoAscendente){
+  if(!Array.isArray(historicoAscendente) || historicoAscendente.length < 2) return [];
+  const TRES_HORAS_MS = 3*3600*1000;
+  const diaBrasilia = iso => new Date(new Date(iso).getTime() - TRES_HORAS_MS).toISOString().slice(0,10);
+  const ultimaPorDia = {}; // 'YYYY-MM-DD' -> energia_total_kwh da última leitura daquele dia (histórico vem em ordem asc, então a última atribuição de cada chave já é a mais recente do dia)
+  historicoAscendente.forEach(r => {
+    if(r.energia_total_kwh == null || !r.capturado_em) return;
+    ultimaPorDia[diaBrasilia(r.capturado_em)] = r.energia_total_kwh;
+  });
+  const dias = Object.keys(ultimaPorDia).sort();
+  const resultado = [];
+  for(let i=1;i<dias.length;i++){
+    const diffDias = Math.round((new Date(dias[i]+'T00:00:00Z') - new Date(dias[i-1]+'T00:00:00Z')) / 86400000);
+    if(diffDias !== 1) continue; // dias não consecutivos - buraco no histórico, não estima o que aconteceu nele
+    const delta = Math.round((ultimaPorDia[dias[i]] - ultimaPorDia[dias[i-1]]) * 100) / 100;
+    if(delta >= 0) resultado.push({ data: dias[i], kwh: delta });
+  }
+  return resultado;
+}
+
 // Limiares de "leitura desatualizada" (36h/72h) — mesmos números já configurados em
 // SAUDE_JOBS_LIMIARES.medidor_tuya (src/auditoria/verificacoes/hydrate-saude-operacional.js),
 // repetidos aqui como literal só pra badge deste card específico, sem reimplementar aquela lógica.
@@ -49,6 +78,11 @@ async function aplicarMedidorTuya(){
   const elAviso = $('medTuyaAviso');
   const elCicloExplicacao = $('medTuyaCicloExplicacao');
   const leituras = window.WALLACE_MEDIDOR_TUYA_V2;
+
+  // Roda independente do restante da função (não depende de `leituras` ter dado) — o gráfico
+  // "Geração por dia" (seção 04) lê este global direto, precisa existir mesmo se o resto do card
+  // mostrar "Sem leitura ainda".
+  window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 = calcularConsumoDiarioApartamento(window.WALLACE_MEDIDOR_TUYA_HISTORICO_V2);
 
   if(!Array.isArray(leituras) || !leituras.length){
     ['medTuyaEnergiaHoje','medTuyaEnergiaTotal','medTuyaIdade','medTuyaTensao','medTuyaCorrente','medTuyaEstado','medTuyaConsumoCiclo'].forEach(id => {
