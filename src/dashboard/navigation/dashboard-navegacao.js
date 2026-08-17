@@ -604,6 +604,27 @@ function initBuscaGlobal(){
   });
 }
 
+// NOVO 17/08/2026 (achado do usuário: ".master-tabs rola liso no touch do celular, mas no PC o botão
+// '+ Lançar' fica cortado sem jeito óbvio de chegar nele" — overflow-x:auto funciona perfeitamente
+// via arrastar-dedo no touch, mas mouse/trackpad não geram gesto horizontal por padrão, e a barra de
+// rolagem está escondida de propósito (scrollbar-width:none, ver styles.css) pelo visual "pill" já
+// aprovado. Sem indicação nenhuma de COMO rolar no desktop, só a sombra/gradiente da direita (que
+// avisa "tem mais", mas não ensina como chegar lá). Fix padrão pra barra horizontal em desktop:
+// captura a rolagem VERTICAL do mouse (roda/trackpad) enquanto o cursor está sobre a barra e
+// converte em scrollLeft — não precisa de scroll horizontal nativo (shift+roda), que quase nenhum
+// usuário conhece. preventDefault só quando a barra realmente tem o que rolar (scrollWidth >
+// clientWidth) - em telas largas o bastante pra caber tudo, o scroll da página passa normal por
+// baixo do cursor, sem capturar rolagem que não faz sentido interceptar.
+function habilitarRolagemHorizontalMasterTabsNoMouse(){
+  const tabs = document.querySelector('.master-tabs');
+  if(!tabs) return;
+  tabs.addEventListener('wheel', (e) => {
+    if(tabs.scrollWidth <= tabs.clientWidth) return; // nada pra rolar - deixa o scroll da página normal
+    tabs.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }, {passive:false});
+}
+
 // Wiring (movido de app.js junto com as funções, mesma ordem relativa de antes) — onDomPronto já
 // trata "DOM já pronto" chamando na hora, então o efeito prático é idêntico, só roda alguns
 // milissegundos depois (depois de energia-solar.js/promocoes-financeengine.js terminarem de
@@ -612,5 +633,6 @@ onDomPronto(initBuscaGlobal); // V300 (Etapa 6): so liga o listener do input, na
 onDomPronto(renderCapaNav); // parte 41: monta os cards de navegacao da Capa/Dashboard
 onDomPronto(toggleBtnVoltarCapa); // parte 41: estado inicial do botao flutuante (escondido no topo)
 onDomPronto(()=>renderPageStrip('painel')); // parte 42: estado inicial da faixa "onde estou" (painel e o pane ativo por padrao no HTML)
+onDomPronto(habilitarRolagemHorizontalMasterTabsNoMouse); // NOVO 17/08/2026: roda do mouse rola a barra de abas no desktop
 window.addEventListener('scroll', toggleBtnVoltarCapa, {passive:true}); // parte 41: mostra/esconde ao rolar
 window.addEventListener('scroll', toggleMasterTabsAoRolar, {passive:true}); // NOVO 12/08/2026: auto-hide da barra .master-tabs dentro das abas
