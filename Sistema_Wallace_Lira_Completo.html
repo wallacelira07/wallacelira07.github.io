@@ -252,6 +252,27 @@
     <div class="v" id="simMensagem" style="font-size:var(--fs-sm);color:var(--text-mid);margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border)">—</div>
   </div>
 
+  <!-- NOVO 16/08/2026 (pedido do usuário: "quero cards no dashboard com as necessidades e quanto é o
+       salário esperado para dia 25, quero a subtração da necessidade líquida com o salário para eu
+       ver a sobra real") — mesmos 3 números já calculados no Estimador de Salário (aba Cenários,
+       #estLiquido/#estNecLiquida/#estExcedente), só promovidos pra um card na Home, mais visível.
+       Hidratado em hydrate-estimador-salario.js, mesma função, zero cálculo novo/duplicado. -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header-icon">
+      <div class="chi-ico">📊</div>
+      <div>
+        <div class="chi-title">Necessidade × Salário</div>
+        <div class="chi-sub">O que sobra de verdade quando o salário cair no dia 25</div>
+      </div>
+    </div>
+    <div class="kpi-strip" style="margin-bottom:0">
+      <div class="kpi"><div class="lbl">Necessidade Líquida do ciclo</div><div class="val v" id="homeNecLiquida">—</div></div>
+      <div class="kpi"><div class="lbl">Salário esperado (dia 25)</div><div class="val v" id="homeSalarioEsperado">—</div></div>
+      <div class="kpi"><div class="lbl">Sobra real</div><div class="val v" style="color:var(--accent)" id="homeSobraReal">—</div></div>
+    </div>
+    <div class="v" id="legHomeSobraReal" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">—</div>
+  </div>
+
   <!-- CORRIGIDO 11/08/2026, 2ª rodada (pedido do usuário: "coloque as abas abaixo do simulador fim
        de ciclo" — 1ª rodada tinha colocado logo abaixo dos cards de resumo, ainda acima do
        Simulador). Sticky continua valendo (ver CSS), só mudou a posição de repouso no topo da

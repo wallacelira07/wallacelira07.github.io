@@ -19,11 +19,17 @@
 // reduz exatamente à fórmula antiga (max(0, −saldo−LREI)), então nenhuma caixa sem cartão muda de
 // comportamento. Comprometido buscado via WallaceFinanceService.getComprometidoPorCaixaV2() (mesma
 // fonte/cache já usada por hydrate-comprometido-caixas-tematicas-v2.js) pras 6 caixas temáticas com
-// cartão habilitado (CAIXAS_TEMATICAS_COMPROMETIDO_V2, mesmo arquivo). A Caixa Variável foi deixada
-// DE FORA de propósito — ela já tem seu próprio mecanismo dedicado, maduro, testado há semanas
-// (orçamentoOperacional fixo R$3.200 + ECC/teto/tolerância) — misturar os dois arriscaria contar o
-// mesmo estouro 2 vezes por caminhos diferentes. Se um dia fizer sentido unificar os dois, é decisão
-// separada, não decidida aqui.
+// cartão habilitado (CAIXAS_TEMATICAS_COMPROMETIDO_V2, mesmo arquivo).
+//
+// UNIFICADO 16/08/2026 (mesmo dia, pedido explícito do usuário depois de eu propor deixar a Caixa
+// Variável de fora "por segurança" — ele corrigiu: "o teto é 2k e não 3.2k... quero que unifique com
+// as outras caixas, o ECC não deve duplicar nada... acho que isso era uma falha do sistema, porque me
+// engana"). `VARS.tetoOficial` (R$2.000, meta/teto de saldo da própria caixa, usado no ECC/"Fôlego") e
+// `VARS.orcamentoOperacional` (R$3.200, linha FIXA somada à parte em necessidadeTotalBruta) são 2
+// coisas diferentes — nenhuma das duas é "quanto está comprometido no cartão agora", que é exatamente
+// o gap que esta função fecha. Caixa Variável entra no MESMO loop abaixo, comprometido buscado via
+// `WallaceFinanceService.getComprometidoCaixaVariavelV2()` (a função original, já usada pelo ECC —
+// não duplica lógica, só reaproveita o mesmo cálculo/cache pra alimentar esta soma também).
 //
 // Por que uma função própria em vez de plugar em aplicarOnda2V2/aplicarOnda4Lrei: essas duas rodam de
 // forma independente e assíncrona (onDomPronto, sem await entre si) — depender da ordem de execução de
@@ -43,6 +49,13 @@ async function aplicarDeficitCaixasSemLrei(){
       WallaceFinanceService.getComprometidoPorCaixaV2(cfg.id)
         .then(v => ({ nome: cfg.nome, valor: Number(v) || 0 }))
         .catch(() => ({ nome: cfg.nome, valor: 0 })) // uma caixa falhando não derruba as outras
+    );
+    // Caixa Variável usa a função dedicada original (mesma que o card ECC já lê), não a genérica por
+    // id — mesmo resultado, mesma fonte, sem duplicar a query.
+    comprometidoPromises.push(
+      WallaceFinanceService.getComprometidoCaixaVariavelV2()
+        .then(v => ({ nome: 'Caixa Variável', valor: Number(v) || 0 }))
+        .catch(() => ({ nome: 'Caixa Variável', valor: 0 }))
     );
     [saldos, emprestimos, comprometidos] = await Promise.all([
       WallaceFinanceService.getSaldosPorCaixa(),
@@ -108,6 +121,12 @@ async function aplicarDeficitCaixasSemLrei(){
   if(typeof hydrateBalanco === 'function') hydrateBalanco();
   if(typeof hydrateCenarios === 'function') hydrateCenarios();
   if(typeof hydrateResumoP2P === 'function') hydrateResumoP2P();
+  // ADICIONADO 16/08/2026 (achado ao implementar os cards novos da Home "Necessidade × Salário"):
+  // hydrateEstimadorSalario() só rodava 1x no boot, nunca de novo — #estNecLiquida/#estExcedente (e
+  // os novos #homeNecLiquida/#homeSalarioEsperado/#homeSobraReal, que leem os mesmos valores) ficavam
+  // presos no número de ANTES desta função recalcular a Necessidade, mesma classe de bug já corrigida
+  // pros outros hydrates da lista acima.
+  if(typeof hydrateEstimadorSalario === 'function') hydrateEstimadorSalario();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
   // CORRIGIDO 10/08/2026: atualizarGraficosNecessidade() mora no módulo lazy (graficos-cenarios-lazy.js)
   // e some quando a aba Gráficos/Cenários nunca foi aberta - atualizarGraficosPainelPrincipal() (sempre

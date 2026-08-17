@@ -37,6 +37,15 @@ function hydrateEstimadorSalario(){
   // recalcular-necessidade.js, só nunca tinha sido ligado aqui).
   t('estExcedente', fmt(excedenteEst)+' · Modo '+R.operacional.modoOperacional);
 
+  // NOVO 16/08/2026 (pedido do usuário: cards na Home com Necessidade/Salário esperado/Sobra real) —
+  // MESMOS 3 valores já calculados acima (liquidoMes(0), R.evolucao.necessidadeLiquida[0], excedenteEst),
+  // só promovidos pra um card mais visível — nenhum cálculo novo/duplicado.
+  t('homeNecLiquida', fmt(R.evolucao.necessidadeLiquida[0]));
+  t('homeSalarioEsperado', fmt(liquidoMes(0)));
+  const homeSobraEl = $('homeSobraReal');
+  if(homeSobraEl){ homeSobraEl.textContent = fmt(excedenteEst); homeSobraEl.style.color = excedenteEst >= 0 ? 'var(--green)' : 'var(--red)'; }
+  t('legHomeSobraReal', 'Modo '+R.operacional.modoOperacional+' · Salário esperado (dia 25) − Necessidade Líquida do ciclo. Sobra negativa = precisa entrar mais dinheiro além do salário pra fechar o ciclo.');
+
   // CORRIGIDO 16/08/2026 (Grupo A da auditoria de 9 agentes, achado #3): a tabela "Fórmula exata"
   // tinha INSS/Saúde-Dental escritos crus no HTML — já dessincronizados de verdade (382,67 no HTML
   // vs 413,15 real em parametros_gerais.taxasHoraFolhaPontoWartsila.assistenciaMedicaOdontoBase,
