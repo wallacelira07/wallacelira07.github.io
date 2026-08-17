@@ -287,9 +287,12 @@
     background:var(--bg);z-index:-1;
   }
   .master-tab{
-    flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:0.6rem;
+    flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:0.7rem;
     background:none;border:none;color:var(--text-dim);font-family:inherit;
-    font-size:var(--fs-lg);font-weight:600;padding:1.15rem 1.2rem;cursor:pointer;
+    /* AUMENTADO 17/08/2026 (achado do usuário: "achando as abas meio perdidas, pequenas, sem
+       destaque") - fonte de --fs-lg (1,05rem) pra --fs-xl (1,2rem), padding mais generoso - a
+       barra fica fisicamente maior/mais presente na tela, sem mudar nenhuma cor. */
+    font-size:var(--fs-xl);font-weight:600;padding:1.35rem 1.5rem;cursor:pointer;
     border-radius:var(--radius-lg);white-space:nowrap;
     /* transition consolidada em .tab,.master-tab,.ciclo-btn,.home-nav-btn (ver mais abaixo) —
        CORRIGIDO 14/08/2026 (achado de auditoria: esta declaração nunca era aplicada, a regra
