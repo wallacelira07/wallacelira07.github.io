@@ -400,6 +400,23 @@ Preparar reposição da PIX Vanessa caso ocorra nova saída.
 
 ---
 
+## 7.1 Sincronização git nesta máquina (WLI015) — interferência do Google Drive
+
+O repositório fica dentro de uma pasta sincronizada pelo Google Drive (`G:\My Drive\Livro Razão\Site`), por design permanente (ver topo deste arquivo: "sem zip, sem cópias paralelas, alterar sempre os arquivos reais do projeto"). Isso tem 2 classes de interferência conhecidas, já resolvidas de formas diferentes:
+
+1. **`.git/` sendo indexado pelo Drive** (RESOLVIDO NA RAIZ 15/08/2026) — `.git` real vive fora da árvore sincronizada (`C:\Users\WLI015\.git-repos\Site.git`, ponteiro de 1 linha no lugar do diretório antigo). Não deveria mais acontecer nesta máquina.
+2. **Arquivos do projeto travados momentaneamente pelo Drive durante `git rebase`/`checkout`** (17/08/2026) — diferente do #1: os arquivos do projeto em si (não o `.git`) continuam dentro da pasta sincronizada, de propósito, então o Drive ainda pode travar um arquivo por uma fração de segundo bem no momento em que o Git tenta reescrevê-lo (rebase troca vários arquivos rápido). Isso é fisicamente inevitável enquanto os arquivos moram numa pasta sincronizada — não dá pra "resolver na raiz" sem tirar os arquivos do Drive, o que contraria a regra permanente acima.
+
+**Mitigação adotada**: `.claude/git-safe-sync.ps1` — wrapper de `git pull --rebase` (+ `git push` opcional) com retry automático contra esse padrão específico de erro transitório (`unable to create file`, `File exists`, `index.lock`, etc.) — aborta um rebase que tenha ficado pela metade e tenta de novo sozinho, até 5 vezes, antes de reportar como erro real. **Usar este script em vez de `git pull --rebase && git push` cru** sempre que for sincronizar com o remoto nesta máquina:
+
+```powershell
+powershell -File ".claude\git-safe-sync.ps1" -Push
+```
+
+Se o script reportar falha mesmo depois das tentativas, não é mais interferência transitória do Drive — é um problema real (conflito de merge de verdade, rede fora, etc.), resolver manualmente como qualquer outro erro de git.
+
+---
+
 ## 8. Procedimentos proibidos
 
 - Commitar ou dar `git push` sem avisar o usuário antes, mesmo com autorização permanente de commitar sozinho.
