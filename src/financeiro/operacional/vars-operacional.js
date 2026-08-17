@@ -125,7 +125,12 @@ function criarVarsOperacional(){
     // ganhou um selo próprio pra hoje (badge "Hoje: 🔴/🟡/🟢", estimativa por regra de 3 linear) —
     // texto ficava contradizendo o que a tela mostrava. Ver hydrate-onda5-qualidade-geracao.js.
     legQgHojeParcial: `"Hoje até agora" é parcial — o dado é atualizado automaticamente a cada 10 minutos (última captura: {hora}, horário de Brasília). O selo "Hoje" acima é uma ESTIMATIVA (regra de 3 sobre a janela 05:30-18:00, geração solar real não é linear) — o selo "Dia anterior" é o único baseado em dado 100% real, do último dia JÁ FECHADO. Produção por hora ainda não existe no sistema (o robô só registra o total acumulado do dia); um histórico intraday real começou a ser coletado agora, mas ainda não tem dias suficientes pra substituir a estimativa linear.`,
-    legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa (ex: comprou algo no cartão pra um bolsão temático sem saldo suficiente) e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
+    // AMPLIADO 16/08/2026 (pedido do usuário): além de saldo real negativo, agora também soma quando o
+    // comprometido no cartão de uma caixa temática (Bens Duráveis/Emagrecimento/Churrasco/Manutenção/
+    // Eventos/Saúde Família) passa do saldo que ela tem — esse excedente vai precisar vir do salário
+    // deste ciclo, mesmo a caixa ainda estando com "Tem na Caixa" positivo. Caixa Variável fica de fora
+    // desta regra (tem mecanismo próprio, orçamentoOperacional).
+    legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa, OU quando o comprometido no cartão de uma caixa temática passa do saldo que ela tem (ex: comprou algo no cartão sem saldo suficiente pra cobrir), e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
   },
   // Salario (cenarios de emergencia) - RECALCULADO 22/07/2026 (V132) com 12 contracheques reais,
   // media/mediana/min usam os 10 meses POS-PROMOCAO (ago/25-mai/26, usuario foi promovido de
@@ -138,8 +143,16 @@ function criarVarsOperacional(){
   // implementado agora (pendência que tinha ficado parada). Benefícios/cupons, não dinheiro líquido -
   // card separado, não soma no patrimônio.
   creditoUberBalance: 68.69, // ATUALIZADO 31/07/2026: print do app Uber confirmou saldo de R$86,67 ("Personal - Uber Credits") antes desta corrida - diverge levemente do valor estimado anterior (R$84,87, V220), print sempre vence. Corrida de R$17,98 (11:15) paga com este credito (nao cartao, sem impacto em nenhuma caixa/fatura) - saldo apos uso: R$86,67 - R$17,98 = R$68,69.
-  creditoShellBox: 200.00,
-  creditoKmvIpiranga: 400, // CORRIGIDO 09/08/2026: usuario usou 1 dos 3 cupons de 200 (ja reportado antes, nunca tinha sido aplicado aqui nem no Supabase - achado ao investigar card mostrando 600 na tela). Era 600 (31/07/2026, V220: 3 cupons de 200 = 600, nao 503).
+  creditoShellBox: 200.00, // CONFIRMADO 16/08/2026: print do app Shell Box bate exato com o valor já registrado (R$200,00), sem uso desde a última atualização.
+  // CORRIGIDO 16/08/2026 (2ª rodada, print novo do usuário: "Meus cupons" do app KMV mostra 1 cupom
+  // NOVO de R$200,00 "recebendo" — diferente/além dos 3 cupons antigos de R$200 já usados em 17/07,
+  // 05/08 (TX000333) e 16/08 (TX000329). Confirmado pelo usuário: "ainda tenho mais 01 crédito de 200
+  // no Ipiranga". Print/palavra do usuário sempre vence sobre dedução própria (regra "fatura sempre
+  // vence") — corrigido de 0 (minha 1ª tentativa, baseada só nos 3 cupons antigos) pra 200. Este campo
+  // é só texto informativo (card "Créditos e Cupons") — não existe tabela no Supabase pra esse saldo
+  // (achado do usuário, conferido via information_schema.tables), precisa ser atualizado aqui
+  // manualmente a cada mudança real, mesmo padrão já usado pra creditoUberBalance acima.
+  creditoKmvIpiranga: 200,
   // V140 (23/07/2026, continuacao da varredura): valores primarios operacionais que ainda viviam como
   // literal solto dentro do REG. Nenhum destes e derivavel de outro dado ja no sistema - sao fatos de
   // origem (extrato, contracheque, decisao do usuario) - mas moram aqui agora como UNICA copia editavel.

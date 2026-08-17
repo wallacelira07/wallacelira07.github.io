@@ -8,24 +8,49 @@
 // tratamento que Cobertura Garantida já recebe (ajuste em cima do total, não um 8º componente de
 // totalOperacional — os 7 componentes documentados na Política seção 13 continuam intocados).
 //
+// AMPLIADO 16/08/2026 (achado do usuário, explicado com exemplo real: "a caixa emagrecer tem 278 em
+// dinheiro... a caixa entrou em 590 negativo [de Disponível Real, comprometido no cartão − saldo] —
+// essa diferença tem que aparecer nas necessidades do ciclo, porque esse dinheiro vai vir do
+// salário"). Até aqui esta função só olhava SALDO REAL negativo (ignorava por completo o comprometido
+// no cartão, que nunca reduz saldo real por design — regra 1.3.5). Isso deixava uma classe de déficit
+// inteira invisível: uma caixa podia estar com saldo real positivo mas já "estourada" no cartão (mais
+// comprometido do que tem), e isso nunca virava Necessidade. Fórmula generalizada:
+// déficit = max(0, comprometido_no_cartão − saldo_real − LREI_de_suporte) — quando comprometido=0,
+// reduz exatamente à fórmula antiga (max(0, −saldo−LREI)), então nenhuma caixa sem cartão muda de
+// comportamento. Comprometido buscado via WallaceFinanceService.getComprometidoPorCaixaV2() (mesma
+// fonte/cache já usada por hydrate-comprometido-caixas-tematicas-v2.js) pras 6 caixas temáticas com
+// cartão habilitado (CAIXAS_TEMATICAS_COMPROMETIDO_V2, mesmo arquivo). A Caixa Variável foi deixada
+// DE FORA de propósito — ela já tem seu próprio mecanismo dedicado, maduro, testado há semanas
+// (orçamentoOperacional fixo R$3.200 + ECC/teto/tolerância) — misturar os dois arriscaria contar o
+// mesmo estouro 2 vezes por caminhos diferentes. Se um dia fizer sentido unificar os dois, é decisão
+// separada, não decidida aqui.
+//
 // Por que uma função própria em vez de plugar em aplicarOnda2V2/aplicarOnda4Lrei: essas duas rodam de
 // forma independente e assíncrona (onDomPronto, sem await entre si) — depender da ordem de execução de
 // uma delas é a mesma classe de bug já encontrada 2x nesta sessão (LEGENDAS sobrescrito por
-// wallace_dados, PGV invisível pela regra antiga da view). Esta função busca os dois dados sozinha
-// (Promise.all), sem depender de nenhuma das duas já ter rodado.
+// wallace_dados, PGV invisível pela regra antiga da view). Esta função busca os dados sozinha
+// (Promise.all), sem depender de nenhuma das outras já ter rodado.
 //
 // Rollback: comentar a chamada onDomPronto(aplicarDeficitCaixasSemLrei) em app.js — necessidadeTotalBruta
 // volta a ser só a soma dos 7 componentes de sempre.
 
 async function aplicarDeficitCaixasSemLrei(){
-  let saldos, emprestimos;
+  let saldos, emprestimos, comprometidos;
   try {
-    [saldos, emprestimos] = await Promise.all([
+    // CAIXAS_TEMATICAS_COMPROMETIDO_V2 vem de hydrate-comprometido-caixas-tematicas-v2.js (mesmo
+    // arquivo carregado antes deste no boot, ver app.js) — reaproveita a lista, não duplica os 6 ids.
+    const comprometidoPromises = CAIXAS_TEMATICAS_COMPROMETIDO_V2.map(cfg =>
+      WallaceFinanceService.getComprometidoPorCaixaV2(cfg.id)
+        .then(v => ({ nome: cfg.nome, valor: Number(v) || 0 }))
+        .catch(() => ({ nome: cfg.nome, valor: 0 })) // uma caixa falhando não derruba as outras
+    );
+    [saldos, emprestimos, comprometidos] = await Promise.all([
       WallaceFinanceService.getSaldosPorCaixa(),
       WallaceFinanceService.getEmprestimosInternosV2(),
+      Promise.all(comprometidoPromises),
     ]);
   } catch(err){
-    console.error('DeficitCaixasSemLrei: falha ao buscar saldo/LREI da V2 — ajuste NÃO aplicado nesta rodada (Necessidade Total Bruta fica sem o risco de caixas negativas).', err);
+    console.error('DeficitCaixasSemLrei: falha ao buscar saldo/LREI/comprometido da V2 — ajuste NÃO aplicado nesta rodada (Necessidade Total Bruta fica sem o risco de caixas negativas/estouradas no cartão).', err);
     window.WALLACE_DEFICIT_CAIXAS_RELATORIO = { status: 'erro_v2', erro: String(err) };
     return;
   }
@@ -44,13 +69,17 @@ async function aplicarDeficitCaixasSemLrei(){
     lreiSuportePorCaixa[l.devedora] = (lreiSuportePorCaixa[l.devedora] || 0) + Number(l.valor || 0);
   });
 
+  const comprometidoCartaoPorCaixa = {};
+  comprometidos.forEach(c => { comprometidoCartaoPorCaixa[c.nome] = c.valor; });
+
   const porCaixa = saldos
-    .filter(c => c.caixa_tipo === 'operacional' && Number(c.v2_saldo_calculado) < 0)
+    .filter(c => c.caixa_tipo === 'operacional')
     .map(c => {
       const saldo = Number(c.v2_saldo_calculado);
       const lrei = lreiSuportePorCaixa[c.caixa_nome] || 0;
-      const deficit = Math.max(0, r2(-saldo - lrei));
-      return { caixa: c.caixa_nome, saldo: r2(saldo), lreiSuporte: r2(lrei), deficit };
+      const comprometidoCartao = comprometidoCartaoPorCaixa[c.caixa_nome] || 0;
+      const deficit = Math.max(0, r2(comprometidoCartao - saldo - lrei));
+      return { caixa: c.caixa_nome, saldo: r2(saldo), lreiSuporte: r2(lrei), comprometidoCartao: r2(comprometidoCartao), deficit };
     })
     .filter(x => x.deficit > 0);
 
@@ -86,8 +115,8 @@ async function aplicarDeficitCaixasSemLrei(){
   if(typeof atualizarGraficosPainelPrincipal === 'function') atualizarGraficosPainelPrincipal();
 
   if(deficitTotal > 0){
-    console.warn(`DeficitCaixasSemLrei: +${fmt(deficitTotal)} somado à Necessidade Total Bruta (${porCaixa.length} caixa(s) negativa(s) sem LREI de suporte: ${porCaixa.map(x=>x.caixa+' '+fmt(x.deficit)).join(', ')}).`);
+    console.warn(`DeficitCaixasSemLrei: +${fmt(deficitTotal)} somado à Necessidade Total Bruta (${porCaixa.length} caixa(s) com rombo real ou comprometido no cartão maior que o saldo, sem LREI cobrindo: ${porCaixa.map(x=>x.caixa+' '+fmt(x.deficit)).join(', ')}).`);
   } else {
-    console.log('DeficitCaixasSemLrei: nenhuma caixa operacional negativa sem LREI de suporte — ajuste em 0.');
+    console.log('DeficitCaixasSemLrei: nenhuma caixa operacional com rombo real nem comprometido no cartão excedendo o saldo — ajuste em 0.');
   }
 }
