@@ -745,17 +745,17 @@ async function carregar(){
 
     <!-- CORRIGIDO 18/08/2026 (2 achados do usuário: card sempre mostrando "0,0 kWh"/"—" mesmo com o
          medidor funcionando, e o painel privado mostrando um design/fórmula diferente pra este mesmo
-         card — "no site está correto"). Causa raiz do "0,0"/"—": `ciclo.dataInicio` não existe no
-         objeto devolvido pela RPC pra `cicloAberto` — esse campo vem de `to_jsonb(vw_ciclo_solar_aberto)`
-         sem alias camelCase (diferente de `ciclosFechados`, que É mapeado explicitamente na RPC), então
-         o nome real é `ciclo.data_inicio` (snake_case). `ciclo.dataInicio` sempre voltava `undefined`,
-         o filtro de consumo (`r.data >= undefined`) nunca batia com nada (0,0 kWh), e `fmtData(undefined)`
+         card — "no site está correto"). Causa raiz do "0,0"/"—": 'ciclo.dataInicio' não existe no
+         objeto devolvido pela RPC pra 'cicloAberto' — esse campo vem de 'to_jsonb(vw_ciclo_solar_aberto)'
+         sem alias camelCase (diferente de 'ciclosFechados', que É mapeado explicitamente na RPC), então
+         o nome real é 'ciclo.data_inicio' (snake_case). 'ciclo.dataInicio' sempre voltava 'undefined',
+         o filtro de consumo ('r.data >= undefined') nunca batia com nada (0,0 kWh), e 'fmtData(undefined)'
          virava "—". Aproveitado pra também trocar a fórmula: em vez de comparar contra o ÚLTIMO CICLO
          FECHADO (referência antiga, estática), agora usa o CRÉDITO DO CICLO AINDA ABERTO, projetado ao
-         vivo — mesma fórmula do painel privado (`calcularSaldoLiquidoProjetadoHoje()`, já reimplementada
-         nesta página desde 14/08 pro Fluxo 2, ver comentário linha ~223) menos o `baseline_kwh` do ciclo
-         aberto (RPC já devolve, `vw_ciclo_solar_aberto.baseline_kwh`), vezes o rateio Wallace
-         (`ciclo.rateio_wallace_pct`, também já vem na RPC). Mesmo layout de 3 caixas do painel privado
+         vivo — mesma fórmula do painel privado ('calcularSaldoLiquidoProjetadoHoje()', já reimplementada
+         nesta página desde 14/08 pro Fluxo 2, ver comentário linha ~223) menos o 'baseline_kwh' do ciclo
+         aberto (RPC já devolve, 'vw_ciclo_solar_aberto.baseline_kwh'), vezes o rateio Wallace
+         ('ciclo.rateio_wallace_pct', também já vem na RPC). Mesmo layout de 3 caixas do painel privado
          (Ciclo da GD / Crédito que cabe a você / Saldo), reaproveitando as classes CSS já existentes
          (.progress/.progress-fill/.credito-fracao/.stat-grid, mesmas do Fluxo 1/Fluxo 2 acima). -->
     ${(medidorUltima && ciclo && ciclo.data_inicio) ? (() => {
