@@ -160,7 +160,11 @@ const SUPABASE_URL = 'https://bakdgacmwlopvrrppwdm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
 
 function fmt(v){ return (v==null || isNaN(v)) ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function fmtKwh(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' kWh'; }
+// CORRIGIDO 18/08/2026 (pedido do usuário: "Consumo hoje" com só 1 casa decimal — painel privado usa
+// 2 casas pra esse campo específico, fmtNum(ultima.energia_hoje_kwh, 2, 'kWh') em
+// src/integrations/tuya/hydrate-medidor-tuya.js). Parâmetro opcional, default 1 pra não alterar
+// nenhuma outra chamada existente desta página.
+function fmtKwh(v, casas){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:casas==null?1:casas,maximumFractionDigits:casas==null?1:casas}) + ' kWh'; }
 function fmtPct(v){ return (v==null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%'; }
 function fmtData(iso){ if(!iso) return '—'; const [a,m,d] = iso.slice(0,10).split('-'); return d+'/'+m+'/'+a; }
 // NOVO 17/08/2026 (card do medidor Tuya, pedido do usuário "quero esse também lá") — mesmo formato
@@ -736,7 +740,7 @@ async function carregar(){
       <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Apartamento Wallace</div>
       <div class="stat-grid">
         <div><div class="stat-lbl">Potência atual</div><div class="stat-val">${medidorUltima.potenciaW!=null ? Number(medidorUltima.potenciaW).toLocaleString('pt-BR',{maximumFractionDigits:0})+' W' : '—'}</div></div>
-        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorUltima.energiaHojeKwh)}</div></div>
+        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorUltima.energiaHojeKwh, 2)}</div></div>
         <div><div class="stat-lbl">Energia total acumulada</div><div class="stat-val">${fmtKwh(medidorUltima.energiaTotalKwh)}</div></div>
         <div><div class="stat-lbl">Tensão / Corrente</div><div class="stat-val" style="font-size:1.05rem">${medidorUltima.tensaoV!=null?Number(medidorUltima.tensaoV).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'} V / ${medidorUltima.correnteA!=null?Number(medidorUltima.correnteA).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'} A</div></div>
       </div>
@@ -777,7 +781,7 @@ async function carregar(){
           <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
           <div class="stat-sub" style="margin-bottom:0.6rem">Barra = quanto do crédito que cabe a você (${fmtPct(rateioWallace*100)} do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
           <div class="progress"><div class="progress-fill" style="width:${pctConsumido}%;background:${estourou?'var(--red)':'var(--blue)'}"></div></div>
-          <div class="credito-fracao"><span>${fmtKwh(consumoCicloGDKwh)} / ${fmtKwh(creditoCicloAtual)} kWh consumidos</span><span style="color:var(--blue)">${pctConsumido}%</span></div>
+          <div class="credito-fracao"><span>${fmtKwh(consumoCicloGDKwh)} / ${fmtKwh(creditoCicloAtual)} consumidos</span><span style="color:var(--blue)">${pctConsumido}%</span></div>
           <div class="stat-grid">
             <div><div class="stat-lbl">Ciclo da GD</div><div class="stat-val" style="font-size:1.05rem">${labelCiclo}</div></div>
             <div><div class="stat-lbl">Crédito que cabe a você</div><div class="stat-val" style="font-size:1.05rem">${fmtKwh(creditoCicloAtual)}</div></div>
