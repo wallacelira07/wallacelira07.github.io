@@ -239,9 +239,15 @@ def atualizar_v2_leitura_geracao_acumulada(supabase_url: str, supabase_key: str,
     if (hoje_data - data_leitura).days > LIMITE_DIAS_LEITURA_ATRASADA:
         return False  # leitura velha demais pra receber o acumulado de agora — não é a mesma janela de tempo.
 
-    # 2) Atualiza só o campo geracao_acumulada dessa linha, mesmo valor gravado em V1.
+    # 2) Atualiza geracao_acumulada + o timestamp real desta atualização (achado de auditoria
+    # 18/08/2026: geracao_acumulada_atualizado_em nunca existia, a trava de descompasso do painel
+    # nunca conseguia disparar de verdade porque não tinha data nenhuma pra comparar).
     patch_url = f"{supabase_url}/rest/v1/energia_solar_leituras?id=eq.{leitura['id']}"
-    body = json.dumps({"geracao_acumulada": round(geracao_total, 2)}).encode("utf-8")
+    agora_iso = datetime.now(timezone.utc).isoformat()
+    body = json.dumps({
+        "geracao_acumulada": round(geracao_total, 2),
+        "geracao_acumulada_atualizado_em": agora_iso,
+    }).encode("utf-8")
     req_patch = Request(patch_url, data=body, headers=headers, method="PATCH")
     with urlopen(req_patch, timeout=20) as resp_patch:
         resp_patch.read()

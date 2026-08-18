@@ -24,9 +24,18 @@ Grava 1 linha por execução em medidor_tuya_leituras via RPC atualizar_medidor_
 atualizar_beneficio_credito) — nunca overwrite, é histórico (mesmo espírito de
 energia_solar_geracao_intraday no domínio Solar).
 
+GENERALIZADO 18/08/2026 pra múltiplas casas (mesmo modelo de medidor, ver
+docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md) — script continua idêntico por casa, só muda
+QUAL conjunto de credenciais/qual valor de CASA o workflow do GitHub passa (ver
+.github/workflows/atualizar_medidor_tuya.yml pro apartamento do Wallace e
+atualizar_medidor_tuya_wellida.yml pra casa da Wellida). Sem CASA definido, assume "wallace"
+(mesmo comportamento de antes desta mudança — 100% retrocompatível).
+
 Variáveis de ambiente necessárias:
   TUYA_ACCESS_ID, TUYA_ACCESS_SECRET, TUYA_DEVICE_ID, TUYA_API_REGION (default "us-e")
   SUPABASE_URL, SUPABASE_KEY (service_role — a RPC rejeita anon/authenticated)
+  CASA (default "wallace" — identifica de qual casa é esta leitura, ver coluna `casa` em
+  medidor_tuya_leituras/medidor_tuya_consumo_diario)
 """
 import json
 import os
@@ -109,6 +118,7 @@ def main() -> int:
     api_region = os.environ.get("TUYA_API_REGION") or "us-e"
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
+    casa = os.environ.get("CASA") or "wallace"
 
     faltando = [n for n, v in [
         ("TUYA_ACCESS_ID", access_id), ("TUYA_ACCESS_SECRET", access_secret), ("TUYA_DEVICE_ID", device_id),
@@ -119,21 +129,27 @@ def main() -> int:
         return 1
 
     try:
-        print(f"Conectando na Tuya Cloud API (região {api_region})...")
+        print(f"[{casa}] Conectando na Tuya Cloud API (região {api_region})...")
         leitura = buscar_leitura(access_id, access_secret, device_id, api_region)
-        print(f"Leitura: {leitura['tensao_v']}V, {leitura['corrente_a']}A, {leitura['potencia_w']}W, "
+        leitura["casa"] = casa
+        print(f"[{casa}] Leitura: {leitura['tensao_v']}V, {leitura['corrente_a']}A, {leitura['potencia_w']}W, "
               f"hoje={leitura['energia_hoje_kwh']}kWh, total={leitura['energia_total_kwh']}kWh, estado={leitura['estado']}")
-        print("Atualizando Supabase...")
+        print(f"[{casa}] Atualizando Supabase...")
         atualizar_supabase(supabase_url, supabase_key, leitura)
-        print("Concluído com sucesso.")
+        print(f"[{casa}] Concluído com sucesso.")
         return 0
     except Exception as e:
-        print(f"ERRO: {e}", file=sys.stderr)
+        print(f"[{casa}] ERRO: {e}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
     from _heartbeat import registrar_execucao
     _codigo = main()
-    registrar_execucao("medidor_tuya", "sucesso" if _codigo == 0 else "erro")
+    # CORRIGIDO 18/08/2026 (mesmo achado do RPC atualizar_medidor_tuya): job_nome do Wallace tem que
+    # continuar 'medidor_tuya' (sem sufixo) - é a chave que SAUDE_JOBS_LIMIARES.medidor_tuya já
+    # monitora em produção. Só casas novas ganham sufixo (ex: 'medidor_tuya_wellida').
+    _casa = os.environ.get("CASA") or "wallace"
+    _job_nome = "medidor_tuya" if _casa == "wallace" else "medidor_tuya_" + _casa
+    registrar_execucao(_job_nome, "sucesso" if _codigo == 0 else "erro")
     sys.exit(_codigo)

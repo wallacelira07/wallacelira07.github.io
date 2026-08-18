@@ -2,9 +2,41 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 18/08/2026, bloco 23. Resumo: bloco 22 (aportes Saúde Família/Emagrecimento, padronização de cards, categorização de 2 transações) + **auditoria noturna autônoma** (usuário deu carta branca, foi dormir): 7 agentes vasculharam o projeto por dimensão (financeiro, V1×V2, sintaxe, solar, código morto, UI, segurança), 16 achados, todos confirmados por verificação adversarial, 0 descartados. Corrigidos os achados de baixo risco (texto/legenda dessincronizada, comentários desatualizados, cor de gráfico divergente, CLAUDE.md desatualizado, 1 grant de segurança desnecessário revogado). Achados de código morto/não-crítico **não foram tocados** (já existe decisão do usuário de adiar limpeza de lint/código morto, seção "Regras permanentes") — só reportados na seção 6 abaixo. **Ainda NÃO commitado** no momento desta reescrita (aguardando autorização do usuário) — nenhum push foi feito, nenhuma tabela financeira (transações/caixas/aportes) foi escrita pela auditoria, só a tabela `legendas` (texto de UI) e um REVOKE de segurança.
+Última reescrita: 18/08/2026, bloco 24. Resumo: bloco 22 (aportes) + bloco 23 (auditoria noturna, 16 achados) + **bloco 24**: usuário acordou os achados restantes — (a) achado #4 (trava de descompasso do card solar público) resolvido de verdade, não só reportado: coluna `geracao_acumulada_atualizado_em` criada, robô/RPC/painel privado/página compartilhada todos atualizados, trava agora funciona nos 2 lados; (b) 8 dos 9 achados de código morto eliminados (autorizado explicitamente pelo usuário), 1 mantido de propósito (dado real de fatura, não bug); (c) infraestrutura completa preparada pra replicar o medidor Tuya na casa da Wellida — banco multi-casa, robô generalizado, workflow do GitHub, card no painel, tudo pronto exceto o que só pode acontecer depois da instalação física (Device ID real). Site commitado e **publicado em produção** (push feito, ver commits no `PASSAGEM_DE_TURNO.md`).
 
-## 0. Bloco 23 (18/08/2026) — auditoria noturna autônoma (10 agentes, carta branca do usuário)
+## 0. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya da Wellida preparado
+
+### 0.1 Achado #4 (trava de descompasso do card solar público) — resolvido, não só reportado
+
+Investigação mais funda revelou que a trava de segurança do PAINEL PRIVADO também nunca disparava (o campo que ela usa, `geracaoAcumuladaData`, era sempre `null` — "nunca fabricado"). Em vez de deixar como estava, resolvido de verdade nos 2 lados:
+- Nova coluna `geracao_acumulada_atualizado_em` (timestamptz) em `energia_solar_leituras` (Supabase).
+- `scripts/sync/atualizar_geracao_saj.py` grava esse timestamp real toda vez que atualiza `geracao_acumulada`.
+- Bootstrap fetch (`Sistema_Wallace_Lira_Completo.html`) e `app.js` passam a ler o campo real em vez de `null` fixo.
+- RPC `consultar_solar_compartilhado` passou a expor `geracaoAcumuladaData` (não expunha antes — a página pública nem teria como implementar a trava sem isso).
+- `solar-compartilhado.html` ganhou a mesma trava de 10 dias de descompasso que o painel privado já tinha (código antes só existia lá) — agora os 2 lados se comportam de verdade igual, não só "por acaso os 2 nunca travam".
+- **Linhas antigas da tabela ficam com o campo `null`** (não retroagido/estimado, política "SEM ESTIMATIVAS" do projeto) — a trava passa a funcionar de verdade a partir da próxima vez que o robô rodar.
+
+### 0.2 Código morto eliminado (8 de 9 achados, autorizado explicitamente pelo usuário: "pode eliminar")
+
+- `aplicarBoletosVencidosAutomaticamente()` (`app.js`) — removida por completo (já estava desligada desde 12/08).
+- `VARS.necessidadeHeld`, `VARS.consorcioAutoQuitacaoValor`, `VARS.mastercardBlackCongelado` — literais órfãos removidos, com comentário explicando onde está o valor real hoje (quando aplicável).
+- `renderCapaNav()`/`irParaCapaDestino()`/`CAPA_DESTINOS`/`NOMES_PANE`/`renderPageStrip()` (`dashboard-navegacao.js`) — cluster inteiro removido (nunca executava, containers DOM não existiam).
+- `.chart-box.small` — em vez de remover a classe (que os 3 gráficos da aba WWI já usavam), completada a regra CSS que faltava (`height:150px`, com redução mobile igual às irmãs `.tall`/`.wide`/`.tall-lg`) — os 3 gráficos (Meta do Milhão, Casa Nova, Liquidez) agora realmente ficam menores, como o nome da classe sempre sugeriu.
+
+**Não eliminado, de propósito**: `VARS.solarConsumoMaeRecente` (dado real de 3 faturas da Casa da Mãe, comentário already dizia "só como referência/contexto" — não é bug, é dado histórico real que vale manter) e `CycleEngine.js` (~103 linhas testadas, parte de uma arquitetura Fase 5 planejada mas nunca finalizada de conectar — apagar um serviço testado por decisão unilateral de madrugada não parecia prudente; já estava documentado como não-carregado em `CONTRIBUTING.md`/`ARCHITECTURE.md`, não é achado novo).
+
+### 0.3 Medidor Tuya da casa da Wellida — infraestrutura 100% preparada, aguardando só instalação física
+
+Pedido do usuário: "quero a mesma coisa que você fez no site para receber os dados do meu medidor, fazer para minha irmã, crie os mesmos gráficos tabelas tudo igual". Generalizado o domínio inteiro do medidor Tuya (antes só o apartamento do Wallace) pra suportar múltiplas casas:
+
+- **Banco**: `medidor_tuya_leituras`/`medidor_tuya_consumo_diario` ganharam coluna `casa` (default `'wallace'`, retrocompatível 100%). Trigger `trg_medidor_tuya_consumo_diario` e RPC `atualizar_medidor_tuya` generalizados pra respeitar `casa`.
+- **Robô**: `scripts/sync/atualizar_medidor_tuya.py` generalizado (env `CASA`, default `wallace`) — mesmo script serve qualquer casa nova, só muda qual conjunto de secrets o workflow do GitHub passa.
+- **Workflow novo**: `.github/workflows/atualizar_medidor_tuya_wellida.yml`, espelho exato do do Wallace, apontando pros secrets `TUYA_ACCESS_ID_WELLIDA`/`TUYA_ACCESS_SECRET_WELLIDA`/`TUYA_DEVICE_ID_WELLIDA`/`TUYA_API_REGION_WELLIDA` — **secrets ainda não existem no GitHub**, o workflow falha graciosamente até serem criados, não quebra nada.
+- **Painel**: card "⚡ Medidor de energia da Wellida (tempo real)" já existe na aba Solar, mesmos campos/KPIs/gráficos do card do Wallace — reaproveita 100% da mesma função (`aplicarMedidorTuyaPorCasa()`, generalizada em `hydrate-medidor-tuya.js`, zero duplicação de fórmula). Mostra "Aguardando instalação" até a 1ª leitura real chegar.
+- **CUIDADO CORRIGIDO NA HORA**: a generalização inicial da RPC mudou o nome do job de heartbeat do Wallace de `medidor_tuya` pra `medidor_tuya_wallace`, o que teria quebrado o monitoramento "Saúde Operacional" já em produção (que procura a chave exata `medidor_tuya`). Corrigido antes de publicar: Wallace continua gravando como `medidor_tuya` (sem sufixo), só casas novas ganham sufixo (`medidor_tuya_wellida`).
+- **O que falta é só trabalho físico/manual, documentado em `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`**: Wellida instalar o medidor + vincular o app Smart Life dela, pegar o Device ID real no painel Tuya IoT (e mudar pra "DP Instruction" — passo crítico, sem ele a API devolve vazio), criar os 4 secrets no GitHub, disparar o workflow manualmente 1x pra confirmar, só depois criar o cron dedicado.
+
+## 1. Bloco 23 (18/08/2026) — auditoria noturna autônoma (10 agentes, carta branca do usuário)
 
 Usuário pediu "coloque 10 agente trabalhando... procurando bugs inconsistências. Não pare, eu vou dormir e você é o responsável por tudo, você tem autorização e carta branca para agir". Rodei um workflow de 7 agentes finders (1 por dimensão: financeiro, divergência V1×V2, sintaxe JS, paridade solar painel×compartilhado, código morto, UI/CSS, segurança Supabase) seguido de verificação adversarial (1 skeptic por achado, ninguém confia no relato do finder, todos re-checam código/SQL reais). **16 achados, 16 confirmados, 0 descartados.**
 
@@ -19,7 +51,7 @@ Usuário pediu "coloque 10 agente trabalhando... procurando bugs inconsistência
 
 **Não corrigidos, só reportados** (código morto / decisão que não é minha de tomar sozinho) — ver seção 6 abaixo para a lista completa.
 
-## 1. Bloco 22 (18/08/2026) — recálculo de aportes (Saúde Família + Emagrecimento) + padronização de cards
+## 2. Bloco 22 (18/08/2026) — recálculo de aportes (Saúde Família + Emagrecimento) + padronização de cards
 
 ### 0.1 Caixa Saúde Família — aporte recalculado: R$177,50 → R$210,83/mês
 
@@ -58,11 +90,11 @@ Corrigido com `min-height:168px` escopado à nova classe `.caixas-grid` (`assets
 
 Usuário perguntou se o alerta "3 empréstimo(s) interno(s) ativo(s) — mais antigo com 25 dias" batia com a realidade. Confirmado via SQL direto em `vw_emprestimos_internos_v2` (Supabase): **sim, são 3 reais** — LREI0003 (24/07, R$266,23), LREI0004 (07/08, R$103,55), LREI0005 (11/08, R$1.950,77), todos ATIVO. O mais antigo (LREI0003) tem exatamente 25 dias hoje (18/08). O mecanismo de verificação já é 100% automático (busca a lista direto do Supabase a cada carregamento, `hydrate-onda4-lrei.js`, com severidade em 3 níveis por idade em `hydrate-qualidade.js`) — nada precisou ser automatizado, já não havia número hardcoded.
 
-## 2. Bloco 21 (18/08/2026) — bug do compartilhado resolvido de verdade + projeto DDSU666/SAJ do zero
+## 3. Bloco 21 (18/08/2026) — bug do compartilhado resolvido de verdade + projeto DDSU666/SAJ do zero
 
 Resumo (detalhe completo no `PASSAGEM_DE_TURNO.md`): bug crítico do `solar-compartilhado.html` (travamento "Carregando..." eterno) resolvido de verdade — causa raiz era erro de sintaxe JS (crase de Markdown dentro de comentário HTML dentro de template literal gigante), não os problemas de execução corrigidos em tentativas anteriores. Projeto novo do zero: medidor DDSU666 ligado direto no inversor SAJ do usuário, investigação completa sobre a exigência do "Kit SEC" (não é exigível, confirmado por 4 manuais oficiais), firmware ESP32 pronto pra quando o hardware chegar (25/08/2026).
 
-## 3. Bloco 20 e anteriores
+## 4. Bloco 20 e anteriores
 
 Ver `PASSAGEM_DE_TURNO.md` para o histórico completo — nenhuma mudança nesta sessão nos itens desses blocos.
 
@@ -95,7 +127,7 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico completo — nenhuma mudança nesta
 25. **NOVO bloco 22 — tabela `caixas_aportes_mensais` (Supabase) é a fonte única de verdade dos aportes mensais de todas as caixas**, acessível por qualquer agente (Claude Chat, Claude Code, Copilot). Ver seção 5 abaixo para o snapshot completo. Manter atualizada junto com qualquer mudança de aporte no código (VARS.*).
 26. **NOVO bloco 22 — cards da seção "Todas as Caixas" usam `.caixas-grid` (CSS) pra manter altura uniforme.** Se algum card ficar visivelmente errado (muito vazio ou cortando conteúdo), ajustar `min-height` em `assets/css/styles.css` — não foi testado ao vivo (exige login).
 
-## 4. Pendências abertas
+## 5. Pendências abertas
 
 ### 3.1 Instalação física do DDSU666 (SAJ, ligação direta no inversor) — aguardando hardware chegar
 Material comprado pelo usuário (ESP32, MAX485, fonte, jumpers, caixa). Firmware pronto e testado (parte que dá pra testar sem o medidor — WiFi conecta OK). Falta: hardware chegar, reconfigurar o medidor pra protocolo Modbus (botões físicos), fazer a fiação, testar leitura real, fechar a instalação.
@@ -115,7 +147,7 @@ Cancelado pelo usuário em 17/08, revisitado e reconfirmado inviável (ESP32 nã
 ### 3.6 Necessidade Total Bruta/Líquida — recálculo pendente de próximo login (não é bug)
 Os recálculos de aporte do bloco 22 (Saúde Família R$177,50→R$210,83, Emagrecimento R$278,89→R$490,00) mudam a Necessidade do ciclo, mas o valor persistido em `indicadores` só atualiza no próximo carregamento do painel com o usuário logado — regra 16 acima.
 
-## 5. Snapshot da tabela `caixas_aportes_mensais` (Supabase) — 18/08/2026 (revisado após 2ª rodada)
+## 6. Snapshot da tabela `caixas_aportes_mensais` (Supabase) — 18/08/2026 (revisado após 2ª rodada)
 
 Fonte única de verdade dos aportes mensais, consultável por qualquer agente sem precisar ler código. **2ª rodada de correção no mesmo dia**: usuário apontou que Churrasco/Combustível/Eventos/PIX Vanessa tinham aporte real e estavam marcadas erradas como "sem aporte fixo" — a 1ª varredura só tinha procurado por `VARS.aporte*` (constantes/fórmula), não pegou transações recorrentes literais repetidas todo ciclo (`TX0001xx "Aporte mensal (salário Wärtsilä)"`). Ao reconferir, achei que Manutenção tinha o mesmo problema (não reportado pelo usuário, achado por conta própria) e corrigi junto. Caixa Variável (R$2.000, TX000137) ficou em dúvida por ter mecanismo diferente (teto oficial, não meta acumulada) — usuário confirmou que conta como aporte fixo mesmo assim.
 
@@ -137,7 +169,7 @@ Fonte única de verdade dos aportes mensais, consultável por qualquer agente se
 | Caixa Churrasco | R$100,00 | contínuo | sem data de término |
 | Caixa Lance, Mastercard_Infinite, Mercado Pago, Wartsila, Conta Suavização, PIX Geral Vanessa | — | sem aporte fixo | financiadas por outra fonte (juros repassados/reembolso, reconciliação de fatura, ou só têm teto sem aporte, caso da Suavização — R$12.000) — conferidas transação a transação, nenhuma tem linha "Aporte mensal" recorrente |
 
-## 6. Achados da auditoria noturna NÃO corrigidos (decisão do usuário antes de agir)
+## 7. Achados da auditoria noturna NÃO corrigidos (decisão do usuário antes de agir)
 
 Todos confirmados por verificação adversarial (código real lido, SQL real rodado) — não são suspeitas. Não corrigi porque ou (a) são "código morto"/lint, categoria que o usuário já decidiu adiar (seção 4.4 "Backlog técnico adiado"), ou (b) envolvem uma decisão de produto/segurança que não é minha de tomar sozinho de madrugada.
 
@@ -155,7 +187,7 @@ Todos confirmados por verificação adversarial (código real lido, SQL real rod
 - `renderCapaNav()`/`renderPageStrip()` (`dashboard-navegacao.js`) — código morto real: os elementos DOM que eles procuram (`#coverNavGrid`, `#pageStrip`) não existem no HTML, e as classes CSS que gerariam (`.cover-nav-*`, `.cnc-*`, `.page-strip-*`) não têm nenhuma regra em `styles.css`. A navegação real da Capa hoje é `.home-nav-grid` (funcional, com CSS completo).
 - `.chart-box.small` (3 gráficos da aba WWI: Meta do Milhão, Casa Nova, Liquidez) — classe sem regra CSS correspondente, renderiza na altura padrão (190px) como se não tivesse modificador nenhum. Diferente de `.tall`/`.wide`/`.tall-lg`, que existem e funcionam.
 
-## 7. Protocolo de sessão nova
+## 8. Protocolo de sessão nova
 
 1. Este arquivo primeiro, depois os blocos mais recentes de `docs/changelog/PASSAGEM_DE_TURNO.md`.
 2. `git status` — 6 arquivos modificados no momento desta reescrita (aguardando autorização do usuário pra commit), confirmar se ainda é esse o caso.

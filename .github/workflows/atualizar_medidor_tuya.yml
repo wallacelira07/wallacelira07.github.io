@@ -30,4 +30,5 @@ jobs:
           TUYA_API_REGION: ${{ secrets.TUYA_API_REGION }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CASA: wallace
         run: python3 scripts/sync/atualizar_medidor_tuya.py

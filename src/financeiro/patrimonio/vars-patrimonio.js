@@ -95,7 +95,11 @@ function criarVarsPatrimonio(){
   metaLanceProjetoCasa: 180000.00,
   consorcioAutoPagoPct: 75.22,      // extrato real app BTG/PortoBank Auto (SALDO_QUITACAO_AUTO do ERP)
   consorcioAutoCartaCredito: 76670.02,
-  consorcioAutoQuitacaoValor: 18998.83,
+  // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+  // eliminar"): consorcioAutoQuitacaoValor (18998.83) nunca era lido — par assimétrico de
+  // consorcioCasaQuitacao (Casa), que É usado em reg-patrimonio.js. Se precisar expor "valor de
+  // quitação do consórcio Auto" no patrimônio no futuro, o número real (extrato BTG/PortoBank Auto,
+  // 31/07/2026) é R$18.998,83.
   consorcioCasaParcelasPagas: 2,   // V140: 2 parcelas confirmadas (venc. 15/06 e 15/07/2026) - usado pra derivar o "valor pago" do consorcio
   // V142: faltavam estes 3 (a formula em REG.passivosPatrimoniais ja os referenciava, mas eles nunca
   // tinham sido de fato declarados aqui - erro descoberto pela propria execucao real/harness).

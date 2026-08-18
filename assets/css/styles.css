@@ -747,12 +747,18 @@
      acima que já reduzem via layout responsivo do grid). Classe dedicada substitui o inline,
      mesma altura em telas normais, reduzida em mobile pra não dominar a tela toda. */
   .chart-box.tall-lg{height:340px}
+  /* NOVO 18/08/2026 (achado de auditoria noturna: os 3 gráficos da aba WWI - Meta do Milhão, Casa
+     Nova, Liquidez - usavam class="chart-box small" desde a criação da aba, mas ".small" nunca teve
+     regra aqui - renderizavam no padrão 190px como se não tivessem modificador nenhum. Mesmo padrão
+     de altura reduzida que .tall/.wide/.tall-lg já usam, só que pra baixo em vez de pra cima). */
+  .chart-box.small{height:150px}
   @media(max-width:640px){
     .chart-box.tall-lg{height:260px}
     /* NOVO 14/08/2026 (achado de auditoria mobile: .tall/.wide nunca ganharam a mesma redução que
        .tall-lg já tinha — inconsistência entre 3 classes do mesmo grupo). */
     .chart-box.tall{height:220px}
     .chart-box.wide{height:190px}
+    .chart-box.small{height:130px}
   }
 
   footer{

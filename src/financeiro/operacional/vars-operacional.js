@@ -254,7 +254,9 @@ function criarVarsOperacional(){
   // valor conhecido, mesma logica conservadora ja documentada). Antes: mesmo numero literal 6x em cada
   // array (piso/necessidade/totalOperacional/necessidadeLiquida). Agora: 1 valor, usado via Array.fill.
   pisoHeld: 6979.37,
-  necessidadeHeld: 11581.08,
+  // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+  // eliminar"): necessidadeHeld nunca era lido em lugar nenhum (quebrava o padrão dos irmãos
+  // pisoHeld/totalOperacionalHeld, que SÃO consumidos via Array(6).fill() em reg-operacional.js).
   totalOperacionalHeld: 8381.08,
   necessidadeLiquidaHeld: 0, // PLACEHOLDER - sobrescrito por VARS.necessidadeLiquidaHeld = totalOperacionalHeld + orcamentoOperacional - 0 (V225, ATUALIZADO 12/08/2026 - Cobertura Garantida projetada sempre 0, nunca mais coberturaGarantidaConfirmada). Nunca editar aqui direto. Era R$10.626,18 fixo (editado em sessao separada de totalOperacionalHeld, 25/07 vs 19/07 - embutia Cobertura Garantida futura de ~R$954,90 que nunca existiu de fato, ver achado do usuario 31/07/2026).
   // TX000164/165 (27/07/2026): Conduta pediátrica de Júlio. PIX de R$300,00 saiu direto do

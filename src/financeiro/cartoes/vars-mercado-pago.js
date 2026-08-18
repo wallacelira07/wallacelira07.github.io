@@ -16,7 +16,11 @@ function criarVarsMercadoPago(){
   // sessao - 3 compras "lancadas" so no arquivo, sem efeito nenhum no site real, ate o usuario avisar.
   cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
   cartaoMBTotal: 6118.64,               // CORRIGIDO 08/08/2026 (+207,02): TX000222 (Dr.Pizza) tinha sido lançada por outra sessão só na Arquitetura V2, nunca chegou no V1/LRW nem debitou a Caixa Variável - portada pra cá, mbLRWConfirmado subiu junto (ver comentário abaixo). Era R$5.911,62 (07/08/2026, fix do IOF) - ver histórico completo de correções anteriores no Supabase.
-  mastercardBlackCongelado: 1937.18,    // Congelado 22/07/2026, vencimento 28/07/2026 (fatura real do app, 25 lancamentos validos).
+  // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+  // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
+  // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-
+  // snapshots.js, valor R$1.849,31, só a parte pessoal), que É o campo efetivamente lido hoje
+  // (hydrate-visa-mb.js).
   // V135 (22/07/2026, auditoria SSOT): LRP e LRCON ainda sem split fisico por cartao (Politica sec.3) -
   // 100% atribuidos ao Visa Infinite por decisao documentada. Ate aqui existiam como numero literal
   // duplicado em totalOpDetalhe E visaDetalhe (2 copias que podiam dessincronizar) - agora moram so aqui.

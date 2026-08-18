@@ -1521,6 +1521,31 @@
       <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaTravamento"></div>
     </div>
 
+    <!-- NOVO 18/08/2026 (pedido do usuário: "quero a mesma coisa que você fez no site para receber
+         os dados do meu medidor, fazer para minha irmã, crie os mesmos gráficos tabelas tudo igual")
+         — card gêmeo exato do de cima, mesmo card/campos/ids (prefixo medTuyaWellida), mesma função
+         generalizada (aplicarMedidorTuyaPorCasa em hydrate-medidor-tuya.js). Mostra "aguardando
+         instalação" até o Device ID real da Wellida existir e o robô
+         (atualizar_medidor_tuya_wellida.yml) começar a gravar - ver
+         docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md pro passo a passo físico/Tuya IoT que
+         falta (não é código, é instalação + vínculo de conta). -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">⚡ Medidor de energia da Wellida (tempo real)</div>
+      <div class="kpi-strip" style="margin-bottom:0.8rem">
+        <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaWellidaPotencia">—</div></div>
+        <div class="kpi"><div class="lbl">Consumo real neste ciclo</div><div class="val" id="medTuyaWellidaConsumoCiclo">—</div></div>
+        <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaWellidaEnergiaTotal">—</div></div>
+        <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaWellidaIdade">—</div></div>
+      </div>
+      <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaWellidaTensao">—</span></div>
+      <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaWellidaCorrente">—</span></div>
+      <div class="row"><span class="k">Energia hoje</span><span class="v" id="medTuyaWellidaEnergiaHoje">—</span></div>
+      <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaWellidaEstado">—</span></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaWellidaCicloExplicacao">—</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaWellidaAviso"></div>
+      <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaWellidaTravamento"></div>
+    </div>
+
     <!-- NOVO 17/08/2026 (pedido do usuário, refinado 4x na mesma sessão: 1º "algo só do meu
          apartamento... como o gráfico de rateio", 2º "eu não pedi pra cruzar o consumo da fatura com
          o medidor, pedi pra cruzar o medidor com os CRÉDITOS", 3º achado real: "o ciclo de agosto
@@ -2517,7 +2542,7 @@ var __promiseLegendasRemotas = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/r
 // wallace_dados (proibido fallback silencioso) — VARS.SOLAR_LEITURAS vira array vazio, os campos
 // dependentes mostram "Dados insuficientes"/"Indisponível (V2)" em vez de número desatualizado do V1.
 window.WALLACE_SOLAR_LEITURAS_V2 = null;
-var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_leituras?select=leitura_03,leitura_103,geracao_acumulada,data,eh_leitura_oficial_energisa&casa=eq.mae&order=data.asc', {
+var __promiseSolarLeiturasV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_leituras?select=leitura_03,leitura_103,geracao_acumulada,geracao_acumulada_atualizado_em,data,eh_leitura_oficial_energisa&casa=eq.mae&order=data.asc', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2558,8 +2583,13 @@ var __promiseSolarGeracaoDiariaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase
 // window.WALLACE_MEDIDOR_TUYA_V2 fica null e o card mostra "Sem leitura ainda", nunca quebra o site.
 // 50 leituras (não só 1) porque dá pra fazer um mini-histórico depois, mesmo a 1ª versão do card só
 // usando a mais recente (rows[0], já que veio ordenado por capturado_em desc).
+// CORRIGIDO 18/08/2026 (preparação do medidor da Wellida: a tabela agora tem coluna `casa`, sem
+// filtro aqui as leituras da Wellida - assim que o robô dela começar a gravar - se misturariam com
+// as do Wallace nesta mesma lista. &casa=eq.wallace adicionado nas 3 buscas deste medidor, e 3
+// buscas gêmeas criadas logo abaixo pra Wellida (WALLACE_MEDIDOR_TUYA_WELLIDA_V2 etc.) — mesmo
+// padrão, filtradas por casa=eq.wellida. Genérico o bastante pra próxima casa só copiar o padrão.
 window.WALLACE_MEDIDOR_TUYA_V2 = null;
-var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,tensao_v,corrente_a,potencia_w,energia_hoje_kwh,energia_total_kwh,estado&order=capturado_em.desc&limit=50', {
+var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,tensao_v,corrente_a,potencia_w,energia_hoje_kwh,energia_total_kwh,estado&casa=eq.wallace&order=capturado_em.desc&limit=50', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2573,6 +2603,25 @@ var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/res
   console.warn('Nao consegui buscar medidor_tuya_leituras do Supabase, card mostra "Sem leitura ainda":', e);
 });
 
+// NOVO 18/08/2026: mesmas 3 buscas acima, casa da Wellida (aguardando instalação física do medidor —
+// ver .github/workflows/atualizar_medidor_tuya_wellida.yml). Fica null até a Wellida ter leitura
+// real, o card generalizado (aplicarMedidorTuyaPorCasa, hydrate-medidor-tuya.js) mostra "aguardando
+// instalação" nesse caso, nunca erro.
+window.WALLACE_MEDIDOR_TUYA_WELLIDA_V2 = null;
+var __promiseMedidorTuyaWellidaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,tensao_v,corrente_a,potencia_w,energia_hoje_kwh,energia_total_kwh,estado&casa=eq.wellida&order=capturado_em.desc&limit=50', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_MEDIDOR_TUYA_WELLIDA_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar medidor_tuya_leituras (Wellida) do Supabase, card mostra "aguardando instalação":', e);
+});
+
 // NOVO 17/08/2026 (consumo real do apartamento por ciclo Energisa — pedido do usuário: "integrar com
 // os gráficos do meu apartamento"): busca a leitura MAIS ANTIGA do medidor a partir do início do
 // ciclo de leitura Energisa (dia 21, mesmo DIA_LEITURA_WALLACE já usado em graficos-cenarios-lazy.js)
@@ -2583,15 +2632,19 @@ var __promiseMedidorTuyaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/res
 // Horário fixo -03:00 (Brasília, sem horário de verão desde 2019 — mesmo padrão já usado em
 // scripts/sync/atualizar_geracao_saj.py) pra não depender do fuso do navegador de quem estiver vendo.
 window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2 = null;
-var __cicloInicioWallace = (function(){
+// Generalizado 18/08/2026 (pra Wellida reusar): dia de virada de ciclo Energisa como parâmetro
+// (default 21, o mesmo do Wallace) — ajustar o argumento na chamada da Wellida abaixo assim que
+// soubermos o dia real da fatura dela (não é necessariamente o mesmo, é só o melhor palpite inicial).
+function __calcularCicloInicioISO(diaVirada){
   var hoje = new Date();
   var anoBase = hoje.getFullYear(), mesBase = hoje.getMonth(); // mesBase é 0-indexado
-  if(hoje.getDate() < 21){ mesBase -= 1; } // ainda não chegou o dia 21 deste mês - ciclo atual começou no mês anterior
+  if(hoje.getDate() < diaVirada){ mesBase -= 1; } // ainda não chegou o dia da virada - ciclo atual começou no mês anterior
   var pad = n => String(n).padStart(2,'0');
-  var d = new Date(anoBase, mesBase, 21);
+  var d = new Date(anoBase, mesBase, diaVirada);
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T00:00:00-03:00';
-})();
-var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,energia_total_kwh&capturado_em=gte.'+encodeURIComponent(__cicloInicioWallace)+'&order=capturado_em.asc&limit=1', {
+}
+var __cicloInicioWallace = __calcularCicloInicioISO(21);
+var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,energia_total_kwh&casa=eq.wallace&capturado_em=gte.'+encodeURIComponent(__cicloInicioWallace)+'&order=capturado_em.asc&limit=1', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2605,6 +2658,22 @@ var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supaba
   console.warn('Nao consegui buscar a leitura-base do ciclo do medidor Tuya:', e);
 });
 
+window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_WELLIDA_V2 = null;
+var __cicloInicioWellida = __calcularCicloInicioISO(21); // TODO: ajustar quando soubermos o dia real do ciclo Energisa da Wellida
+var __promiseMedidorTuyaCicloBaseWellidaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_leituras?select=capturado_em,energia_total_kwh&casa=eq.wellida&capturado_em=gte.'+encodeURIComponent(__cicloInicioWellida)+'&order=capturado_em.asc&limit=1', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_WELLIDA_V2 = rows[0];
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar a leitura-base do ciclo do medidor Tuya (Wellida):', e);
+});
+
 // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
 // consumido", depois refinado: "por hora, algo que pegue só meu apartamento... os dados devem ser
 // calculados e salvos em algum lugar"). CORRIGIDO na mesma sessão: a 1ª versão buscava o HISTÓRICO
@@ -2614,7 +2683,7 @@ var __promiseMedidorTuyaCicloBaseV2 = fetch('https://bakdgacmwlopvrrppwdm.supaba
 // automaticamente por um TRIGGER no Postgres (trg_medidor_tuya_consumo_diario) a cada nova leitura —
 // o navegador só busca ~1 linha por dia já pronta, nunca recalcula nada. Ver hydrate-medidor-tuya.js.
 window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 = null;
-var __promiseMedidorTuyaConsumoDiarioV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_consumo_diario?select=data,kwh_consumido&order=data.asc&limit=1000', {
+var __promiseMedidorTuyaConsumoDiarioV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_consumo_diario?select=data,kwh_consumido&casa=eq.wallace&order=data.asc&limit=1000', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
@@ -2626,6 +2695,21 @@ var __promiseMedidorTuyaConsumoDiarioV2 = fetch('https://bakdgacmwlopvrrppwdm.su
   }
 }).catch(function(e){
   console.warn('Nao consegui buscar o consumo diario do medidor Tuya:', e);
+});
+
+window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 = null;
+var __promiseMedidorTuyaConsumoDiarioWellidaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/medidor_tuya_consumo_diario?select=data,kwh_consumido&casa=eq.wellida&order=data.asc&limit=1000', {
+  headers: __wallaceAuthHeader(),
+  cache: 'no-store'
+}).then(function(resp){
+  if(resp.ok) return resp.json();
+  return null;
+}).then(function(rows){
+  if(Array.isArray(rows) && rows.length){
+    window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 = rows;
+  }
+}).catch(function(e){
+  console.warn('Nao consegui buscar o consumo diario do medidor Tuya (Wellida):', e);
 });
 
 // NOVO 14/08/2026 (pedido do usuário: "quero que crie o local para receber os dados e os cálculos,

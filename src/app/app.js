@@ -1396,7 +1396,11 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_SOLAR_LEITURAS_
       data: r.data, dias,
       leitura03: Number(r.leitura_03), leitura103: Number(r.leitura_103),
       geracaoAcumulada: r.geracao_acumulada != null ? Number(r.geracao_acumulada) : null,
-      geracaoAcumuladaData: null, // não existe em energia_solar_leituras (V2) — nunca fabricado (P1)
+      // CORRIGIDO 18/08/2026 (achado de auditoria: campo sempre null, "nunca fabricado" — a trava de
+      // descompasso abaixo nunca disparava na prática). Coluna geracao_acumulada_atualizado_em criada
+      // na V2, gravada pelo robô (atualizar_geracao_saj.py) a partir de agora — linhas antigas ficam
+      // null até o robô rodar de novo sobre elas (sem retroagir/estimar, política "SEM ESTIMATIVAS").
+      geracaoAcumuladaData: r.geracao_acumulada_atualizado_em || null,
       fonte: 'real',
       // NOVO 11/08/2026 (pedido do usuário: leitura de fronteira de ciclo divide a geração do dia
       // 50/50 entre o mês que fecha e o que abre, já que não se sabe a hora exata do leiturista —
@@ -1733,47 +1737,11 @@ VARS.caixaManutencao = calcularSaldoCaixa(VARS.MANUTENCAO_SALDO_INICIAL, VARS.MA
 VARS.caixaBensDuraveis = calcularSaldoCaixa(VARS.BENS_DURAVEIS_SALDO_INICIAL, VARS.BENS_DURAVEIS_TRANSACOES);
 VARS.caixaAniversarioJulio = calcularSaldoCaixa(VARS.ANIVERSARIO_JULIO_SALDO_INICIAL, VARS.ANIVERSARIO_JULIO_TRANSACOES);
 VARS.caixaBoletos = calcularSaldoCaixa(VARS.BOLETOS_SALDO_INICIAL, VARS.BOLETOS_TRANSACOES);
-// NOVO 31/07/2026 (V214, pedido explicito do usuario: "quero que o pagamento desses boletos sejam
-// automaticos"): aplicarBoletosVencidosAutomaticamente() roda no carregamento do site, compara a
-// data de HOJE (real, do navegador) contra CRONOGRAMA_BOLETOS_FIXOS, e credita sozinho qualquer
-// boleto cujo dia de vencimento ja passou dentro da janela do ciclo atual (25/dia_abertura ate hoje) -
-// sem duplicar os que ja foram lancados manualmente (checa por TX antes de inserir). O que isso NAO
-// faz: nao paga o boleto de verdade no banco - so registra no sistema que ele ja deveria ter sido
-// pago, poupando o usuario de ter que confirmar manualmente todo ciclo (a acao real de pagar/agendar
-// continua sendo do usuario, fora do sistema).
-function aplicarBoletosVencidosAutomaticamente(){
-  const hoje = new Date();
-  const diaHoje = hoje.getDate();
-  const DIA_ABERTURA_CICLO = 25;
-  // Constrói o Set de TX ja presentes no array, pra nunca duplicar um lancamento manual ja feito
-  const txJaLancados = new Set(VARS.BOLETOS_TRANSACOES.map(t=>t.tx));
-  VARS.CRONOGRAMA_BOLETOS_FIXOS.forEach(boleto => {
-    if(txJaLancados.has(boleto.tx)) return; // ja foi lancado manualmente ou em rodada anterior - nao duplica
-    // O boleto "ja venceu dentro do ciclo atual" se o dia de hoje for >= dia de vencimento E o
-    // vencimento cair depois da abertura do ciclo (25). Ciclos que atravessam virada de mes (ex:
-    // vencimento dia 10, ciclo aberto dia 25) sao tratados como NAO vencidos ainda neste ciclo -
-    // vencem no PROXIMO ciclo (apos a proxima virada do dia 25).
-    const vencidoNesteCiclo = boleto.diaVencimento >= DIA_ABERTURA_CICLO
-      ? diaHoje >= boleto.diaVencimento
-      : false; // dia < 25 so vence no ciclo seguinte, nunca no atual (que abriu dia 25)
-    if(vencidoNesteCiclo){
-      VARS.BOLETOS_TRANSACOES.push({
-        tx: boleto.tx, data: diaHoje+'/'+String(hoje.getMonth()+1).padStart(2,'0'),
-        nome: boleto.nome + ' (auto-creditado por vencimento, dia '+boleto.diaVencimento+')',
-        tipo: 'Saída', valor: boleto.valor
-      });
-    }
-  });
-}
-// DESLIGADO 12/08/2026 (Onda 11, pedido explícito do usuário: "V1 já cobre isso sozinho, mate V1,
-// não pode haver nada lá"). Motivo real: o palpite por calendário duplicava o que o agente já lança
-// em V2 a partir de dado real confirmado (Pluggy/Mercado Pago), gerando 2 registros pro mesmo boleto
-// (um "acho que já venceu" em V1, outro "confirmei que pagou" em V2) - já causou duplicata real numa
-// sessão (ver MANUAL_OPERACIONAL_AGENTES.md seção 2 regra 6). O saldo exibido (cxBoletosSaldo etc)
-// já é 100% V2 desde a Onda 1, e o array VARS.BOLETOS_TRANSACOES agora vem só do extrato real da V2
-// (ver aplicarOnda11BoletosExtratoV2(), hydrate-onda11-boletos-extrato-v2.js) - nunca mais por palpite.
-// Rollback: descomentar a linha abaixo (volta ao comportamento antigo, mas reintroduz o risco de duplicata).
-// aplicarBoletosVencidosAutomaticamente();
+// REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+// eliminar"): aplicarBoletosVencidosAutomaticamente() — criada 31/07/2026 (V214), já tinha sua única
+// chamada desligada desde 12/08/2026 (Onda 11, "V1 já cobre isso sozinho, mate V1"): o palpite por
+// calendário duplicava o que o agente já lança em V2 a partir de dado real confirmado (Pluggy/Mercado
+// Pago). O saldo exibido é 100% V2 desde a Onda 1 (ver aplicarOnda11BoletosExtratoV2()).
 VARS.caixaPixVanessa = calcularSaldoCaixa(VARS.PV_SALDO_INICIAL, VARS.PV_TRANSACOES);
 VARS.caixaEventos = calcularSaldoCaixa(VARS.EVENTOS_SALDO_INICIAL, VARS.EVENTOS_TRANSACOES);
 VARS.caixaSeguroEmplacamento = calcularSaldoCaixa(VARS.SEGURO_EMPLACAMENTO_SALDO_INICIAL, VARS.SEGURO_EMPLACAMENTO_TRANSACOES);
@@ -2396,6 +2364,9 @@ onDomPronto(aplicarEmagrecimento);
 // medidor é o apartamento dele): card "Medidor de energia do apartamento", via Tuya Cloud API.
 // Ver hydrate-medidor-tuya.js.
 onDomPronto(aplicarMedidorTuya);
+// NOVO 18/08/2026: card gêmeo pra casa da Wellida, mesma função generalizada (ver
+// hydrate-medidor-tuya.js) — mostra "aguardando instalação" até o medidor físico dela existir.
+onDomPronto(aplicarMedidorTuyaWellida);
 onDomPronto(medirOnda('aplicarOnda9LivrosFixos', aplicarOnda9LivrosFixos));
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.

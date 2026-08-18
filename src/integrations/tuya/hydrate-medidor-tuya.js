@@ -1,11 +1,20 @@
-// MÓDULO: card "⚡ Medidor de energia do apartamento (tempo real)" — NOVO 17/08/2026 (medidor EKAZA
-// CT 80A na tomada geral do apartamento do Wallace, integrado via Tuya Cloud API). Backend já pronto
-// e testado (tabela `medidor_tuya_leituras`, robô scripts/sync/atualizar_medidor_tuya.py gravando
-// várias vezes por dia via executar_tudo.yml) — este módulo só lê e exibe, não escreve nada.
+// MÓDULO: card "⚡ Medidor de energia (tempo real)" — NOVO 17/08/2026 (medidor EKAZA CT 80A na tomada
+// geral do apartamento do Wallace, integrado via Tuya Cloud API). Backend já pronto e testado (tabela
+// `medidor_tuya_leituras`, robô scripts/sync/atualizar_medidor_tuya.py gravando várias vezes por dia
+// via executar_tudo.yml) — este módulo só lê e exibe, não escreve nada.
 //
 // MOVIDO 17/08/2026 (mesma sessão, minutos depois) de dentro da aba "Painel" pra dentro da aba
 // "Energia Solar" (seção 06, junto de "Economia antes × depois (apartamento)") — usuário confirmou
 // que este medidor É o apartamento dele, mesma unidade das demais seções dali.
+//
+// GENERALIZADO 18/08/2026 (pedido do usuário: "quero a mesma coisa que você fez no site para receber
+// os dados do meu medidor, fazer para minha irmã, crie os mesmos gráficos tabelas tudo igual"):
+// aplicarMedidorTuya() virou aplicarMedidorTuyaPorCasa(cfg) — mesma lógica exata, parametrizada por
+// prefixo de id de DOM e fontes de dado (window.WALLACE_MEDIDOR_TUYA_*_V2 do Wallace vs
+// window.WALLACE_MEDIDOR_TUYA_*_WELLIDA_V2 da Wellida). Zero duplicação de fórmula — só 1 lugar pra
+// corrigir quando a lógica mudar, os 2 cards ficam sempre em paridade por construção, nunca por
+// disciplina de manter 2 cópias sincronizadas (mesmo princípio já usado noutros pares
+// painel×compartilhado deste projeto).
 //
 // ESCOPO DELIBERADO desta versão ("integrar com os gráficos", mas sem pular fase): o "consumo real
 // neste ciclo" abaixo é um dado NOVO, adicional — não substitui nem realimenta a fórmula do gráfico
@@ -17,80 +26,78 @@
 // DDSU666 da Casa da Mãe (ver docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md, Fase 2 "captura paralela,
 // sem substituir nada"): primeiro acumula um ciclo completo de dado real e valida contra a fatura de
 // verdade quando ela chegar, só depois decide se/como usar isso pra automatizar a entrada manual de
-// VARS.ENERGISA_TARIFA_COMPOSICAO.apartamento_wallace (fatura_XXmm_consumo_kwh).
+// VARS.ENERGISA_TARIFA_COMPOSICAO.apartamento_wallace (fatura_XXmm_consumo_kwh). Vale pra qualquer
+// casa nova que entrar neste mesmo padrão, não só o Wallace.
 //
 // Fontes (bootstrap fetch em Sistema_Wallace_Lira_Completo.html, mesmo padrão de
 // WALLACE_SOLAR_LEITURAS_V2/WALLACE_SOLAR_GERACAO_DIARIA_V2 — JWT Firebase via __wallaceAuthHeader()):
-//   window.WALLACE_MEDIDOR_TUYA_V2          — últimas ~50 leituras, ordenadas capturado_em desc.
-//   window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2 — 1 leitura: a mais antiga a partir do início do ciclo
-//                                                Energisa atual (dia 21, ver __cicloInicioWallace no
-//                                                bootstrap) — linha de base pra medir o consumo do
-//                                                ciclo em andamento.
-//   window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 — já vem AGREGADO POR DIA do Supabase (tabela
-//                                                medidor_tuya_consumo_diario, mantida por um TRIGGER
-//                                                no Postgres a cada INSERT em medidor_tuya_leituras —
-//                                                ver trg_medidor_tuya_consumo_diario). CORRIGIDO
-//                                                17/08/2026 na mesma sessão: a 1ª versão buscava até
-//                                                5000 leituras brutas e recalculava isso no navegador
-//                                                a cada carga de página — trabalho jogado fora e sem
-//                                                limite de crescimento; o trigger resolve isso 1x só,
-//                                                no banco, no momento em que cada leitura chega.
+//   window.WALLACE_MEDIDOR_TUYA_V2 / _WELLIDA_V2          — últimas ~50 leituras, capturado_em desc.
+//   window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2 / _WELLIDA_V2 — 1 leitura: a mais antiga a partir do
+//                                                início do ciclo Energisa atual — linha de base pra
+//                                                medir o consumo do ciclo em andamento.
+//   window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 / _WELLIDA_V2 — já vem AGREGADO POR DIA do Supabase
+//                                                (tabela medidor_tuya_consumo_diario, mantida por um
+//                                                TRIGGER no Postgres a cada INSERT em
+//                                                medidor_tuya_leituras — ver
+//                                                trg_medidor_tuya_consumo_diario, já filtra por
+//                                                `casa` desde a generalização multi-casa 18/08/2026).
 //
 // Diferente do domínio Solar "clássico" (V2-exclusivo, sem fallback pra V1): aqui não existe V1
 // nenhuma pra cair de volta, então "sem dado" é sempre o estado normal de quem acabou de instalar o
-// medidor, nunca um erro — por isso mostra "Sem leitura ainda" em vez de "⚠ Indisponível".
+// medidor (ou, no caso da Wellida em 18/08/2026, ainda nem instalou fisicamente) — nunca um erro, por
+// isso mostra "Sem leitura ainda"/"aguardando instalação" em vez de "⚠ Indisponível".
 //
 // Limiares de "leitura desatualizada" (36h/72h) — mesmos números já configurados em
-// SAUDE_JOBS_LIMIARES.medidor_tuya (src/auditoria/verificacoes/hydrate-saude-operacional.js),
-// repetidos aqui como literal só pra badge deste card específico, sem reimplementar aquela lógica.
-async function aplicarMedidorTuya(){
+// SAUDE_JOBS_LIMIARES.medidor_tuya (src/auditoria/verificacoes/hydrate-saude-operacional.js) pro
+// medidor do Wallace, repetidos aqui como literal só pra badge deste card específico, sem
+// reimplementar aquela lógica. Aplicado também ao card da Wellida por ora (mesmo padrão de robô/
+// cron) — revisar se um dia os 2 precisarem de limiares diferentes.
+async function aplicarMedidorTuyaPorCasa(cfg){
   const MEDIDOR_TUYA_ATENCAO_H = 36;
   const MEDIDOR_TUYA_FALHA_H = 72;
-  // Mesmo valor de DIA_LEITURA_WALLACE em graficos-cenarios-lazy.js — duplicado aqui de propósito
-  // (módulos da base carregam em paralelo, sem ordem garantida, mesmo motivo já documentado em
-  // outras constantes duplicadas deste projeto, ex: SOLAR_GERADOR_LAT em hydrate-clima-solar.js).
-  const DIA_LEITURA_WALLACE = 21;
   const ESTADOS_TUYA = { working: 'Funcionando', monitor: 'Monitorando', close: 'Desligado', warning: 'Atenção' };
 
   const fmtNum = (v, casas, sufixo) => (v == null ? '—' :
     Number(v).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) + ' ' + sufixo);
 
-  const elAviso = $('medTuyaAviso');
-  const elCicloExplicacao = $('medTuyaCicloExplicacao');
-  const leituras = window.WALLACE_MEDIDOR_TUYA_V2;
+  const p = cfg.idPrefix; // ex: 'medTuya' (Wallace) ou 'medTuyaWellida'
+  const $$ = id => $(id);
+  const elAviso = $$(p+'Aviso');
+  const elCicloExplicacao = $$(p+'CicloExplicacao');
+  const leituras = window[cfg.varLeituras];
 
   if(!Array.isArray(leituras) || !leituras.length){
-    ['medTuyaEnergiaHoje','medTuyaEnergiaTotal','medTuyaIdade','medTuyaTensao','medTuyaCorrente','medTuyaEstado','medTuyaConsumoCiclo'].forEach(id => {
-      if($(id)) $(id).textContent = '—';
+    ['EnergiaHoje','EnergiaTotal','Idade','Tensao','Corrente','Estado','ConsumoCiclo'].forEach(sufixo => {
+      const el = $$(p+sufixo); if(el) el.textContent = '—';
     });
-    if($('medTuyaPotencia')) $('medTuyaPotencia').textContent = 'Sem leitura ainda';
-    if(elAviso) elAviso.textContent = 'Nenhuma leitura do medidor chegou ainda — assim que o robô sincronizar pela primeira vez, os dados aparecem aqui.';
+    if($$(p+'Potencia')) $$(p+'Potencia').textContent = cfg.mensagemSemDado || 'Sem leitura ainda';
+    if(elAviso) elAviso.textContent = cfg.avisoSemDado || 'Nenhuma leitura do medidor chegou ainda — assim que o robô sincronizar pela primeira vez, os dados aparecem aqui.';
     if(elCicloExplicacao) elCicloExplicacao.textContent = '';
-    if($('medTuyaTravamento')) $('medTuyaTravamento').textContent = '';
-    window.WALLACE_MEDIDOR_TUYA_RELATORIO = { qtdLeituras: 0 };
+    if($$(p+'Travamento')) $$(p+'Travamento').textContent = '';
+    window[cfg.varRelatorio] = { qtdLeituras: 0 };
     return;
   }
 
   const ultima = leituras[0];
 
-  if($('medTuyaPotencia')) $('medTuyaPotencia').textContent = fmtNum(ultima.potencia_w, 0, 'W');
-  if($('medTuyaTensao')) $('medTuyaTensao').textContent = fmtNum(ultima.tensao_v, 1, 'V');
-  if($('medTuyaCorrente')) $('medTuyaCorrente').textContent = fmtNum(ultima.corrente_a, 2, 'A');
-  if($('medTuyaEnergiaHoje')) $('medTuyaEnergiaHoje').textContent = fmtNum(ultima.energia_hoje_kwh, 2, 'kWh');
-  if($('medTuyaEnergiaTotal')) $('medTuyaEnergiaTotal').textContent = fmtNum(ultima.energia_total_kwh, 1, 'kWh');
-  if($('medTuyaEstado')) $('medTuyaEstado').textContent = ultima.estado ? (ESTADOS_TUYA[ultima.estado] || ultima.estado) : '—';
+  if($$(p+'Potencia')) $$(p+'Potencia').textContent = fmtNum(ultima.potencia_w, 0, 'W');
+  if($$(p+'Tensao')) $$(p+'Tensao').textContent = fmtNum(ultima.tensao_v, 1, 'V');
+  if($$(p+'Corrente')) $$(p+'Corrente').textContent = fmtNum(ultima.corrente_a, 2, 'A');
+  if($$(p+'EnergiaHoje')) $$(p+'EnergiaHoje').textContent = fmtNum(ultima.energia_hoje_kwh, 2, 'kWh');
+  if($$(p+'EnergiaTotal')) $$(p+'EnergiaTotal').textContent = fmtNum(ultima.energia_total_kwh, 1, 'kWh');
+  if($$(p+'Estado')) $$(p+'Estado').textContent = ultima.estado ? (ESTADOS_TUYA[ultima.estado] || ultima.estado) : '—';
 
-  // NOVO 17/08/2026 (achado real em produção: o medidor ficou HORAS reportando exatamente os mesmos
-  // números — energia_total_kwh, potência, tudo idêntico — mesmo com o robô rodando com sucesso a
-  // cada execução; o heartbeat de Saúde Operacional não pega esse caso, porque a chamada à API da
-  // Tuya funciona normal, só o VALOR devolvido é que está congelado do lado do aparelho/nuvem Tuya).
-  // Detecta isso aqui: anda pelas últimas leituras (já ordenadas capturado_em desc) enquanto
-  // energia_total_kwh for IDÊNTICO ao da mais recente; se esse "platô" já dura 60min+ E tem pelo
-  // menos 2 leituras nele (1 leitura só nunca conta como travamento, é só a mais recente), avisa.
-  // 60min é uma folga generosa: no consumo real observado (~350-430W), o contador (resolução de
-  // 0,001 kWh) deveria se mover várias vezes nesse intervalo — ficar bit-a-bit igual por tanto tempo
-  // não acontece por acaso com o aparelho funcionando normalmente.
-  const elTravamento = $('medTuyaTravamento');
+  // NOVO 17/08/2026 (achado real em produção no medidor do Wallace: o medidor ficou HORAS reportando
+  // exatamente os mesmos números — energia_total_kwh, potência, tudo idêntico — mesmo com o robô
+  // rodando com sucesso a cada execução; o heartbeat de Saúde Operacional não pega esse caso, porque
+  // a chamada à API da Tuya funciona normal, só o VALOR devolvido é que está congelado do lado do
+  // aparelho/nuvem Tuya). Detecta isso aqui: anda pelas últimas leituras (já ordenadas capturado_em
+  // desc) enquanto energia_total_kwh for IDÊNTICO ao da mais recente; se esse "platô" já dura 60min+
+  // E tem pelo menos 2 leituras nele (1 leitura só nunca conta como travamento, é só a mais recente),
+  // avisa. 60min é uma folga generosa: no consumo real observado (~350-430W), o contador (resolução
+  // de 0,001 kWh) deveria se mover várias vezes nesse intervalo — ficar bit-a-bit igual por tanto
+  // tempo não acontece por acaso com o aparelho funcionando normalmente.
+  const elTravamento = $$(p+'Travamento');
   if(elTravamento){
     let travado = false, minutosTravado = null;
     const totalUltima = ultima.energia_total_kwh != null ? Number(ultima.energia_total_kwh) : null;
@@ -108,27 +115,28 @@ async function aplicarMedidorTuya(){
     }
     if(travado){
       const corVermelha = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#e2554f';
-      elTravamento.textContent = `⚠️ Possível travamento: o valor não muda há ${minutosTravado>=120 ? Math.round(minutosTravado/60)+'h' : minutosTravado+'min'}, mesmo com leituras chegando normalmente — o medidor pode ter parado de reportar de verdade (já aconteceu em 17/08/2026, resolvido com reset físico do aparelho).`;
+      elTravamento.textContent = `⚠️ Possível travamento: o valor não muda há ${minutosTravado>=120 ? Math.round(minutosTravado/60)+'h' : minutosTravado+'min'}, mesmo com leituras chegando normalmente — o medidor pode ter parado de reportar de verdade (já aconteceu no medidor do Wallace em 17/08/2026, resolvido com reset físico do aparelho).`;
       elTravamento.style.color = corVermelha;
     } else {
       elTravamento.textContent = '';
     }
   }
 
-  // Consumo real do ciclo Energisa em andamento (desde o último dia 21) — energia_total_kwh é um
+  // Consumo real do ciclo Energisa em andamento (desde o dia de virada) — energia_total_kwh é um
   // contador que só cresce, então a diferença entre a leitura de agora e a leitura-base do ciclo É o
   // consumo real do período, sem precisar de nenhuma fatura em PDF pra saber isso.
-  const base = window.WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2;
+  const base = window[cfg.varCicloBase];
   const hoje = new Date();
   const diaHoje = hoje.getDate();
-  const inicioCicloMes = diaHoje >= DIA_LEITURA_WALLACE ? hoje.getMonth() : hoje.getMonth() - 1;
-  const inicioCiclo = new Date(hoje.getFullYear(), inicioCicloMes, DIA_LEITURA_WALLACE);
+  const diaVirada = cfg.diaViradaCiclo || 21;
+  const inicioCicloMes = diaHoje >= diaVirada ? hoje.getMonth() : hoje.getMonth() - 1;
+  const inicioCiclo = new Date(hoje.getFullYear(), inicioCicloMes, diaVirada);
   const diasDeCiclo = Math.max(1, Math.round((hoje - inicioCiclo) / 86400000));
   let consumoCicloKwh = null;
   if(base && base.energia_total_kwh != null && ultima.energia_total_kwh != null){
     consumoCicloKwh = Math.round((ultima.energia_total_kwh - base.energia_total_kwh) * 100) / 100;
   }
-  if($('medTuyaConsumoCiclo')) $('medTuyaConsumoCiclo').textContent = consumoCicloKwh != null ? fmtNum(consumoCicloKwh, 1, 'kWh') : '—';
+  if($$(p+'ConsumoCiclo')) $$(p+'ConsumoCiclo').textContent = consumoCicloKwh != null ? fmtNum(consumoCicloKwh, 1, 'kWh') : '—';
   if(elCicloExplicacao){
     const inicioCicloTexto = inicioCiclo.toLocaleDateString('pt-BR');
     if(consumoCicloKwh != null){
@@ -155,7 +163,7 @@ async function aplicarMedidorTuya(){
       idadeTexto = h > 0 ? `há ${h}h ${m}min` : `há ${m}min`;
     }
   }
-  if($('medTuyaIdade')) $('medTuyaIdade').textContent = idadeTexto;
+  if($$(p+'Idade')) $$(p+'Idade').textContent = idadeTexto;
 
   if(elAviso){
     const corVerde = getComputedStyle(document.documentElement).getPropertyValue('--green').trim() || '#34c98a';
@@ -175,12 +183,43 @@ async function aplicarMedidorTuya(){
     }
   }
 
-  window.WALLACE_MEDIDOR_TUYA_RELATORIO = {
+  window[cfg.varRelatorio] = {
     qtdLeituras: leituras.length,
     ultimaLeitura: ultima,
     horasDesdeUltimaLeitura: horasDesde,
     consumoCicloKwh,
     inicioCiclo: inicioCiclo.toISOString().slice(0,10),
   };
-  console.log('MedidorTuya: relatório completo em window.WALLACE_MEDIDOR_TUYA_RELATORIO', window.WALLACE_MEDIDOR_TUYA_RELATORIO);
+  console.log(cfg.logLabel+': relatório completo em window.'+cfg.varRelatorio, window[cfg.varRelatorio]);
+}
+
+// Wrapper do Wallace — 100% mesmo comportamento de antes da generalização (mesmos ids de DOM, mesmas
+// variáveis globais), só passando por cfg em vez de hardcoded dentro da função.
+async function aplicarMedidorTuya(){
+  return aplicarMedidorTuyaPorCasa({
+    idPrefix: 'medTuya',
+    varLeituras: 'WALLACE_MEDIDOR_TUYA_V2',
+    varCicloBase: 'WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2',
+    varRelatorio: 'WALLACE_MEDIDOR_TUYA_RELATORIO',
+    diaViradaCiclo: 21,
+    logLabel: 'MedidorTuya',
+  });
+}
+
+// NOVO 18/08/2026: card gêmeo da Wellida — mesmos gráficos/tabelas/campos do Wallace, preparado com
+// antecedência (ver .github/workflows/atualizar_medidor_tuya_wellida.yml e
+// docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md). Antes do medidor físico dela existir, o card
+// mostra "aguardando instalação" (mensagem própria, nunca confundida com uma falha real como a do
+// Wallace, que já teve leitura e parou).
+async function aplicarMedidorTuyaWellida(){
+  return aplicarMedidorTuyaPorCasa({
+    idPrefix: 'medTuyaWellida',
+    varLeituras: 'WALLACE_MEDIDOR_TUYA_WELLIDA_V2',
+    varCicloBase: 'WALLACE_MEDIDOR_TUYA_CICLO_BASE_WELLIDA_V2',
+    varRelatorio: 'WALLACE_MEDIDOR_TUYA_WELLIDA_RELATORIO',
+    diaViradaCiclo: 21, // TODO: ajustar quando soubermos o dia real do ciclo Energisa da Wellida
+    logLabel: 'MedidorTuyaWellida',
+    mensagemSemDado: 'Aguardando instalação',
+    avisoSemDado: 'Medidor ainda não instalado na casa da Wellida — assim que ela instalar e o robô sincronizar pela primeira vez, os dados aparecem aqui automaticamente (nenhuma ação extra no código será necessária).',
+  });
 }

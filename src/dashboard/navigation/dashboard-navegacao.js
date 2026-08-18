@@ -9,75 +9,12 @@
 // momento exato (poucos milissegundos depois, ainda antes de qualquer interação do usuário) em que
 // os `onDomPronto(...)` abaixo disparam.
 
-// 04/08/2026 (parte 41) - Capa como Dashboard: cards de navegacao no cabecalho (.cover), pedido
-// explicito do usuario ("usar o cabecalho pra montar um dashboard, do dashboard acessa as abas e
-// volta"). Reaproveita o mesmo padrao de navegacao ja usado na Busca Global (Etapa 6) - showMaster()
-// pra trocar de aba + scrollIntoView pra pousar na secao certa - so que com destinos curados em vez
-// de busca livre. tituloSecao:null = so troca de aba e fica no topo dela (usado pros paineis
-// Graficos/Cenarios/Balanco, que nao tem 1 secao-alvo obvia).
-//
-// CORRIGIDO 04/08/2026 (parte 42, pedido do usuario - "tem botoes que nao estao funcionando"):
-// a causa real era o mecanismo de navegacao inteiro depender de encontrar um <button class="master-tab">
-// cujo atributo onclick continha o paneId como substring - se esse botao nao existisse (ou nao fosse
-// encontrado por qualquer motivo), showMaster() NUNCA era chamado (o "if(btn)" engolia o clique em
-// silencio, sem erro no console). Agora showMaster(id) e chamado direto pelo id do pane, sem procurar
-// nenhum botao - elimina essa classe inteira de bug e nao depende mais da barra de abas existir no DOM
-// (removida nesta mesma parte - navegacao de paineis agora e so pelo dashboard + .page-strip).
-//
-// grupo: usado so pra organizar os cards em fileiras simetricas no dashboard (renderCapaNav) - nao
-// afeta navegacao.
-const CAPA_DESTINOS = [
-  // Visão geral
-  {grupo:'Visão geral', icone:'⭐', titulo:'Resumo Executivo', sub:'visão geral do ciclo', paneId:'painel', tituloSecao:'Resumo executivo'},
-  {grupo:'Visão geral', icone:'💰', titulo:'Caixa Variável', sub:'quanto ainda dá pra gastar', paneId:'painel', tituloSecao:'Controle caixa variável'},
-  {grupo:'Visão geral', icone:'📥', titulo:'Inbox Financeira', sub:'itens aguardando triagem', paneId:'painel', tituloSecao:'📥 Inbox Financeira'},
-  {grupo:'Visão geral', icone:'🅿️', titulo:'Mercado Pago', sub:'eventos e conciliação', paneId:'painel', tituloSecao:'Mercado Pago'},
-  // Financeiro
-  {grupo:'Financeiro', icone:'💳', titulo:'Cartões', sub:'Mastercard Black e faturas', paneId:'painel', tituloSecao:'Mastercard Black'},
-  {grupo:'Financeiro', icone:'📚', titulo:'Livros Razão', sub:'LRW · LRV · LRC · e mais', paneId:'painel', tituloSecao:'Livros razão'},
-  {grupo:'Financeiro', icone:'🏦', titulo:'Patrimônio', sub:'financeiro e físico', paneId:'painel', tituloSecao:'Patrimônio financeiro'},
-  {grupo:'Financeiro', icone:'🏛️', titulo:'Balanço', sub:'patrimonial completo', paneId:'balancov2', tituloSecao:null},
-  // Metas & análises
-  {grupo:'Metas & análises', icone:'🎯', titulo:'Meta do Milhão', sub:'progresso da meta', paneId:'painel', tituloSecao:'Meta do milhão'},
-  {grupo:'Metas & análises', icone:'☀️', titulo:'Energia Solar', sub:'geração e economia', paneId:'solar', tituloSecao:null},
-  {grupo:'Metas & análises', icone:'📈', titulo:'Gráficos', sub:'evolução e composição', paneId:'graficos', tituloSecao:null},
-  {grupo:'Metas & análises', icone:'🛡️', titulo:'Cenários', sub:'crítico · déficit zero', paneId:'cenarios', tituloSecao:null},
-  // WWI (NOVO 15/08/2026, Fase 2C — aba permanente "Wealth Intelligence", fonte primária do WWI;
-  // o Tactical Wealth Report em PDF passa a ser só a exportação do que existe aqui).
-  {grupo:'Metas & análises', icone:'🧠', titulo:'Wealth Intelligence', sub:'histórico patrimonial e Wealth Score', paneId:'wwi', tituloSecao:null},
-];
-
-// Nomes de exibicao dos paineis - usados pelo indicador de pagina atual (.page-strip, parte 42) e
-// por qualquer outro lugar que precise mostrar "onde o usuario esta" de forma consistente.
-const NOMES_PANE = {painel:'📊 Painel', graficos:'📈 Gráficos', cenarios:'🛡️ Cenários', balancov2:'🏛️ Balanço', wwi:'🧠 Wealth Intelligence'};
-
-function renderCapaNav(){
-  const wrap = $('coverNavGrid');
-  if(!wrap) return; // HTML antigo em cache, sem esse container - nao quebra nada
-  const grupos = [];
-  CAPA_DESTINOS.forEach(d=>{
-    let g = grupos.find(x=>x.nome===d.grupo);
-    if(!g){ g = {nome:d.grupo, itens:[]}; grupos.push(g); }
-    g.itens.push(d);
-  });
-  wrap.innerHTML = grupos.map(g => `
-    <div class="cover-nav-grupo">
-      <div class="cover-nav-grupo-titulo">${g.nome}</div>
-      <div class="cover-nav-linha">
-        ${g.itens.map(d=>{
-          const i = CAPA_DESTINOS.indexOf(d);
-          return `<button type="button" class="cover-nav-card" onclick="irParaCapaDestino(CAPA_DESTINOS[${i}])">
-             <div class="cnc-icone">${d.icone}</div>
-             <div class="cnc-text">
-               <div class="cnc-titulo">${d.titulo}</div>
-               <div class="cnc-sub">${d.sub}</div>
-             </div>
-           </button>`;
-        }).join('')}
-      </div>
-    </div>`
-  ).join('');
-}
+// REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+// eliminar"): CAPA_DESTINOS, NOMES_PANE, renderCapaNav() e irParaCapaDestino() nunca executavam de
+// verdade — os containers que dependiam (#coverNavGrid, #pageStrip) nunca existiram no HTML final, e
+// as classes que gerariam (.cover-nav-*, .cnc-*, .page-strip-*) nunca tiveram regra em styles.css. A
+// navegação real da Capa hoje é .home-nav-grid (HTML estático + CSS completo). Confirmado por grep
+// que nenhum outro arquivo do projeto referenciava CAPA_DESTINOS/NOMES_PANE fora deste cluster morto.
 
 // NOVO 04/08/2026 (parte 47, pedido do usuario - "a aba painel tem que vir para esse ponto" + prints
 // mostrando o titulo da secao tampado): a .master-tabs e position:sticky;top:0 - ela fica por CIMA do
@@ -99,33 +36,9 @@ function scrollParaSecaoComOffset(alvo){
   setTimeout(()=>{ alvo.classList.remove('linha-destacada-busca'); }, 1600);
 }
 
-// Mesma logica de irParaSecaoBusca (Etapa 6), generalizada pra aceitar {paneId, tituloSecao} direto
-// em vez de um item ja resolvido do indice de busca. setTimeout pequeno pra deixar o pane trocar de
-// active/display antes do scrollParaSecaoComOffset medir a posicao (senao mede com o pane escondido).
-function irParaCapaDestino(destino){
-  showMaster(destino.paneId);
-  const pane = document.getElementById(destino.paneId);
-  let alvo = null;
-  if(destino.tituloSecao && pane){
-    alvo = Array.from(pane.querySelectorAll('.section-num')).find(s=>{
-      const h2 = s.querySelector('h2');
-      return h2 && h2.textContent.trim().startsWith(destino.tituloSecao);
-    });
-  }
-  // CORRIGIDO 04/08/2026 (parte 43, pedido do usuario - "toda aba deve ir pra sua secao 01, nao pro
-  // topo da pagina"): sem tituloSecao (Graficos/Cenarios/Balanco) o codigo antigo dava window.scrollTo(0),
-  // que pousa no topo FISICO da pagina (acima do pane, na capa/page-strip) - nao na secao 01 do pane.
-  // Agora sempre resolve um alvo real: a secao pedida OU, na falta dela, a 1a .section-num do pane
-  // (a que tem <span class="n">01</span>) - nunca mais cai no scrollTo(0) generico.
-  if(!alvo && pane){
-    alvo = pane.querySelector('.section-num');
-  }
-  if(alvo){
-    setTimeout(()=>{ scrollParaSecaoComOffset(alvo); }, 30);
-    return;
-  }
-  window.scrollTo({top:0, behavior:'smooth'}); // fallback extremo: pane sem nenhuma .section-num
-}
+// REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+// eliminar"): irParaCapaDestino() era chamada só pelos onclick gerados por renderCapaNav() (removida
+// acima), que nunca rodava de verdade — código morto junto.
 
 function voltarParaCapa(){
   window.scrollTo({top:0, behavior:'smooth'});
@@ -135,15 +48,10 @@ function voltarParaCapa(){
 // substitui .master-tabs (4 botoes fixos, duplicava navegacao que os cards da Capa ja fazem) por uma
 // faixa fina e sticky que so mostra "onde o usuario esta agora" + um atalho de volta pro dashboard -
 // uma unica forma de navegar (os cards), uma unica forma de se orientar (esta faixa), sem duplicidade.
-function renderPageStrip(paneId){
-  const el = $('pageStrip');
-  if(!el) return; // HTML antigo em cache, sem esse elemento - nao quebra nada
-  const nome = NOMES_PANE[paneId] || paneId;
-  el.innerHTML = `<button type="button" class="page-strip-home" onclick="voltarParaCapa()">🏠 Dashboard</button>
-    <span class="page-strip-sep">/</span>
-    <span class="page-strip-atual">${nome}</span>`;
-}
-WallaceBus.on('abaAlterada', ({id}) => renderPageStrip(id));
+// REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
+// eliminar"): renderPageStrip()/NOMES_PANE nunca executavam de verdade — #pageStrip nunca existiu no
+// HTML final e .page-strip-* nunca teve regra em styles.css. .master-tabs continua sendo a navegação
+// real e ativa do site.
 
 // NOVO 10/08/2026 (pedido do usuário: "quando eu mudar de aba, deve atualizar os dados"), CORRIGIDO
 // 11/08/2026 (achado do usuário: "quando passo muito tempo na tela e vou pra próxima, os dados
@@ -672,9 +580,10 @@ function habilitarSetasMasterTabs(){
 // milissegundos depois (depois de energia-solar.js/promocoes-financeengine.js terminarem de
 // carregar), sem nenhuma dependência de hydrate() ou dos outros onDomPronto que continuam em app.js.
 onDomPronto(initBuscaGlobal); // V300 (Etapa 6): so liga o listener do input, nao depende de hydrate/dados
-onDomPronto(renderCapaNav); // parte 41: monta os cards de navegacao da Capa/Dashboard
 onDomPronto(toggleBtnVoltarCapa); // parte 41: estado inicial do botao flutuante (escondido no topo)
-onDomPronto(()=>renderPageStrip('painel')); // parte 42: estado inicial da faixa "onde estou" (painel e o pane ativo por padrao no HTML)
+// REMOVIDO 18/08/2026 (achado de auditoria noturna): onDomPronto(renderCapaNav) e
+// onDomPronto(()=>renderPageStrip('painel')) — as 2 funções nunca executavam de verdade (containers
+// inexistentes no HTML), ver comentários de remoção junto às definições acima.
 onDomPronto(habilitarRolagemHorizontalMasterTabsNoMouse); // NOVO 17/08/2026: roda do mouse rola a barra de abas no desktop
 onDomPronto(habilitarSetasMasterTabs); // NOVO 17/08/2026: setas visíveis pra rolar a barra de abas (descobrível, sem depender da roda do mouse)
 window.addEventListener('scroll', toggleBtnVoltarCapa, {passive:true}); // parte 41: mostra/esconde ao rolar

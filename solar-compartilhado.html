@@ -486,9 +486,20 @@ async function carregar(){
   const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
   const saldoLiquidoAcum = (importadoAcum!=null && exportadoAcum!=null) ? Math.round((exportadoAcum - importadoAcum)*100)/100 : null;
 
+  // NOVO 18/08/2026 (achado de auditoria: esta página calculava consumo direto/autoconsumo/
+  // dependência SEM a mesma trava de segurança que o painel privado já tinha — a fórmula assume que
+  // toda a geração desde a última leitura 03/103 virou consumo direto, suposição cada vez mais
+  // errada com o tempo. Mesma constante/lógica de graficos-cenarios-lazy.js, agora que a RPC expõe
+  // geracaoAcumuladaData (coluna geracao_acumulada_atualizado_em, criada nesta mesma correção).
+  const LIMITE_DIAS_DESCOMPASSO_SEGURO = 10;
+  const diasDescompassoAtual = (temGeracao && ultima && ultima.geracaoAcumuladaData)
+    ? Math.round((new Date(ultima.geracaoAcumuladaData) - new Date(ultima.data)) / 86400000)
+    : 0;
+  const consumoDiretoConfiavel = temGeracao && diasDescompassoAtual < LIMITE_DIAS_DESCOMPASSO_SEGURO;
+
   let consumoDiretoAcum=null, consumoTotalCasa=null, autoconsumoPct=null, dependenciaPct=null, exportacaoDaGeracaoPct=null;
   let economiaEstimada=null, valorKwhGerado=null, paybackAnos=null;
-  if(temGeracao && importadoAcum!=null && exportadoAcum!=null){
+  if(consumoDiretoConfiavel && importadoAcum!=null && exportadoAcum!=null){
     // MESMA fórmula de graficos-cenarios-lazy.js (painel privado) — ver seção "Fluxo de energia"/
     // "Eficiência da unidade". importado = leitura03, exportado = leitura103.
     consumoDiretoAcum = Math.round((geracaoAcum - exportadoAcum) * 100) / 100;
@@ -675,9 +686,9 @@ async function carregar(){
       <div class="grid">
         <div><div class="stat-lbl">Geração hoje</div><div class="stat-val" style="color:var(--amber)">${geracaoHojeReg ? fmtKwh(geracaoHojeReg.kwh) : '—'}</div><div class="stat-sub">${geracaoHojeReg ? fmtData(geracaoHojeReg.data) : 'aguardando leitura do robô'}</div></div>
         <div><div class="stat-lbl">Geração acumulada</div><div class="stat-val" style="color:var(--amber)">${temGeracao ? fmtKwh(geracaoAcum) : '—'}</div><div class="stat-sub">${temGeracao ? '' : 'aguardando leitura do inversor'}</div></div>
-        <div><div class="stat-lbl">Autoconsumo</div><div class="stat-val" style="color:var(--green)">${fmtPct(autoconsumoPct)}</div><div class="stat-sub">${consumoDiretoAcum!=null ? fmtKwh(consumoDiretoAcum)+' direto das placas' : 'dados insuficientes'}</div></div>
-        <div><div class="stat-lbl">Dependência da rede</div><div class="stat-val" style="color:var(--blue)">${fmtPct(dependenciaPct)}</div><div class="stat-sub">${importadoAcum!=null ? fmtKwh(importadoAcum)+' importados' : ''}</div></div>
-        <div><div class="stat-lbl">Exportação da geração</div><div class="stat-val" style="color:var(--purple)">${fmtPct(exportacaoDaGeracaoPct)}</div><div class="stat-sub">${exportadoAcum!=null ? fmtKwh(exportadoAcum)+' exportados' : ''}</div></div>
+        <div><div class="stat-lbl">Autoconsumo</div><div class="stat-val" style="color:var(--green)">${consumoDiretoConfiavel ? fmtPct(autoconsumoPct) : '—'}</div><div class="stat-sub">${consumoDiretoConfiavel ? fmtKwh(consumoDiretoAcum)+' direto das placas' : (temGeracao ? 'leitura do medidor desatualizada há '+diasDescompassoAtual+' dias' : 'dados insuficientes')}</div></div>
+        <div><div class="stat-lbl">Dependência da rede</div><div class="stat-val" style="color:var(--blue)">${consumoDiretoConfiavel ? fmtPct(dependenciaPct) : '—'}</div><div class="stat-sub">${importadoAcum!=null ? fmtKwh(importadoAcum)+' importados' : ''}</div></div>
+        <div><div class="stat-lbl">Exportação da geração</div><div class="stat-val" style="color:var(--purple)">${consumoDiretoConfiavel ? fmtPct(exportacaoDaGeracaoPct) : '—'}</div><div class="stat-sub">${exportadoAcum!=null ? fmtKwh(exportadoAcum)+' exportados' : ''}</div></div>
       </div>
       ${saldoLiquidoAcum!=null ? `<div class="stat-sub" style="margin-top:0.9rem;padding-top:0.9rem;border-top:1px solid var(--border)">Saldo líquido: <strong style="color:${saldoLiquidoAcum>=0?'var(--green)':'var(--red)'}">${saldoLiquidoAcum>=0?'+':''}${fmtKwh(saldoLiquidoAcum)}</strong> ${saldoLiquidoAcum>=0 ? '— excedente (exportando mais do que importa)' : '— dependendo mais da rede do que exportando'}</div>` : ''}
     </div>

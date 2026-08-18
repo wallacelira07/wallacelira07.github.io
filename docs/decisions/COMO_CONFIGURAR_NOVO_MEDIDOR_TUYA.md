@@ -2,6 +2,20 @@
 
 **Criado 17/08/2026**, depois de configurar o medidor do apartamento do Wallace do zero (ver `docs/decisions/INTEGRACAO_MEDIDOR_SMART_LIFE_TUYA.md` pro histórico completo/achados). **Atualizado no mesmo dia**: já são 2 casas novas confirmadas recebendo o mesmo medidor — a irmã (usuário mandou um medidor pra ela instalar) e o cunhado (usuário já pediu pra ele instalar também) — provavelmente não serão as últimas. Os passos abaixo devem se repetir quase idênticos pra qualquer casa nova.
 
+**ATUALIZADO 18/08/2026 — parte de código da seção 4 abaixo já está PRONTA pra Wellida (irmã)**, adiantada antes do Device ID existir, exatamente como a seção 0 já previa ("trabalho de código... não é replicável só copiando os passos... só desenhar isso quando o Device ID real estiver em mãos" — decidimos adiantar mesmo assim porque o schema já é 100% conhecido, mesmo modelo de aparelho, risco baixo):
+- Migração multi-casa aplicada: `medidor_tuya_leituras`/`medidor_tuya_consumo_diario` ganharam coluna `casa` (default `'wallace'`, zero impacto nas leituras existentes), trigger e RPC `atualizar_medidor_tuya` generalizados pra aceitar `casa` no payload.
+- `scripts/sync/atualizar_medidor_tuya.py` generalizado (env `CASA`, default `wallace` — mesmo script serve qualquer casa).
+- `.github/workflows/atualizar_medidor_tuya_wellida.yml` criado, espelho exato do do Wallace, apontando pros secrets `TUYA_ACCESS_ID_WELLIDA`/`TUYA_ACCESS_SECRET_WELLIDA`/`TUYA_DEVICE_ID_WELLIDA`/`TUYA_API_REGION_WELLIDA` (**ainda não criados no GitHub** — falha graciosamente até existirem, não quebra nada).
+- Card "⚡ Medidor de energia da Wellida (tempo real)" já existe no painel (aba Solar), mesmos campos/gráficos do card do Wallace (função generalizada `aplicarMedidorTuyaPorCasa()`, `hydrate-medidor-tuya.js`) — mostra "Aguardando instalação" até a 1ª leitura real chegar, nenhum código extra necessário depois disso.
+
+**O que ainda falta, exatamente o que a seção 1-2 abaixo descreve (trabalho físico + painel Tuya, não é código)**:
+1. Wellida instalar o medidor fisicamente e escanear o QR do app Smart Life dela.
+2. Alguém (usuário ou Wellida) pegar o Device ID real no painel iot.tuya.com e mudar pra "DP Instruction" (passo crítico da seção 2).
+3. Criar os 4 secrets `*_WELLIDA` no GitHub (Settings → Secrets and variables → Actions).
+4. Disparar `atualizar_medidor_tuya_wellida.yml` manualmente 1x (workflow_dispatch) pra confirmar que lê dado real.
+5. Criar a tarefa cron dedicada no cron-job.org (mesmo padrão da do Wallace) só depois do passo 4 confirmar sucesso.
+6. Adicionar `medidor_tuya_wellida` em `SAUDE_JOBS_LIMIARES` (`hydrate-saude-operacional.js`) só depois do cron existir — adicionar antes faria o painel "Saúde Operacional" mostrar "⚪ nunca registrou execução" indefinidamente, um alarme falso pra algo que ainda nem devia estar rodando.
+
 ## 0. O que muda de casa pra casa
 
 - **Instalação física** e **conta do app Smart Life**: cada casa/pessoa tem a sua (é quem mora lá quem instala e quem tem o app dela no celular).

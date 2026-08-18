@@ -1,0 +1,48 @@
+name: Atualizar Medidor de Energia (Tuya/Smart Life) — Casa da Wellida
+
+# NOVO 18/08/2026: réplica exata de atualizar_medidor_tuya.yml (Wallace), preparada com
+# antecedência pra quando o Device ID da Wellida existir (ver
+# docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md). Mesmo script Python (scripts/sync/
+# atualizar_medidor_tuya.py, já generalizado pra múltiplas casas via env CASA), mesmo padrão de
+# segurança. Os 3 secrets *_WELLIDA abaixo AINDA NÃO EXISTEM no GitHub — precisam ser criados
+# (Settings > Secrets and variables > Actions) só depois que:
+#   1. Wellida instalar o medidor fisicamente e vincular o app Smart Life dela ao projeto Cloud Tuya.
+#   2. Alguém pegar o Device ID real no painel iot.tuya.com (aba Devices) e trocar o modo de controle
+#      pra "DP Instruction" (passo crítico, sem ele a API devolve vazio — ver runbook seção 2).
+#   3. Confirmar via scripts/sync/sondar_medidor_tuya.py que o schema de DPs bate com o já mapeado
+#      (deveria bater, é o mesmo modelo de aparelho — EKAZA CT 80A).
+# Até os secrets existirem, este workflow falha com "variáveis de ambiente faltando" se disparado —
+# comportamento esperado e seguro, não quebra nada do resto do sistema (workflow isolado, próprio
+# concurrency group).
+#
+# Cron dedicado: criar tarefa própria no cron-job.org (mesmo padrão da tarefa do Wallace, ver
+# ESTADO_ATUAL.md regra 18 — executar_tudo.yml sozinho não dispara isso) só depois que os secrets
+# existirem e o primeiro workflow_dispatch manual confirmar que está lendo dado real.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+concurrency:
+  group: atualizar-medidor-tuya-wellida
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependências
+        run: pip install tinytuya
+      - name: Rodar atualização
+        env:
+          TUYA_ACCESS_ID: ${{ secrets.TUYA_ACCESS_ID_WELLIDA }}
+          TUYA_ACCESS_SECRET: ${{ secrets.TUYA_ACCESS_SECRET_WELLIDA }}
+          TUYA_DEVICE_ID: ${{ secrets.TUYA_DEVICE_ID_WELLIDA }}
+          TUYA_API_REGION: ${{ secrets.TUYA_API_REGION_WELLIDA }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CASA: wellida
+        run: python3 scripts/sync/atualizar_medidor_tuya.py
