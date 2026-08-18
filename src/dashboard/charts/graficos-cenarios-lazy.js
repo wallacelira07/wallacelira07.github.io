@@ -1993,6 +1993,12 @@ async function _lazyRenderSolarSecao(){
     }
   };
   const corBarraCredito = (corFechado) => (ctx) => ctx.dataIndex === idxCicloAbertoAlinhado ? corFechado + '66' : corFechado; // '66' = ~40% opacidade em hex, só na barra do ciclo aberto
+  // NOVO 18/08/2026 (pedido do usuário: fatura real de Ago/26 reconfirmou o consumo da Wellida em 111
+  // kWh, bem acima dos 74 kWh que a rolagem de 12 meses tinha — usuário pediu pra cor da barra
+  // distinguir "reconfirmado por fatura recente" de "ainda é só a estimativa histórica original").
+  // Barra cheia = mês em VARS.CONSUMO_IRMA_MESES_RECONFIRMADOS; opacidade reduzida = resto (mesmo
+  // truque de opacidade de corBarraCredito acima, reaproveitado aqui pro mesmo efeito visual).
+  const corBarraConsumoEsperadoIrma = (corBase) => (ctx) => (VARS.CONSUMO_IRMA_MESES_RECONFIRMADOS||{})[mesesParesSolar[ctx.dataIndex]] ? corBase : corBase + '66';
   observeAndRenderChart($('cSolarRateio'), () => { const __chartExistente = Chart.getChart($('cSolarRateio')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cSolarRateio'), {
     type:'bar',
     plugins:[solarBarLabelPlugin],
@@ -2004,7 +2010,7 @@ async function _lazyRenderSolarSecao(){
         // tá legal de ver" — era #1c7a54, verde escuro/musgo, baixo contraste contra o fundo escuro
         // do card): trocado por um teal mais saturado, bem distinto do verde do Wallace (#34c98a).
         {label:'Crédito Irmã (gerado)', data:alignSolar(creditoMensalIrma), backgroundColor:corBarraCredito('#14b8a6'), borderRadius:3},
-        {label:'Consumo esperado Irmã', data:consumoMensalIrmaAlinhado, backgroundColor:'#a9861f', borderRadius:3}
+        {label:'Consumo esperado Irmã', data:consumoMensalIrmaAlinhado, backgroundColor:corBarraConsumoEsperadoIrma('#a9861f'), borderRadius:3}
       ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
       plugins:{legend:legendStd2,tooltip:{callbacks:{

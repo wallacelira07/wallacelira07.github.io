@@ -110,7 +110,16 @@ function criarVarsEnergiaSolar(){
   // exatos com a fatura nova - o array antigo só tinha 1 valor errado (112 no lugar de Jun/26=100) e
   // a posição de Jul preenchida com um valor de Ago (bug de desalinhamento). Todos os 12 valores
   // abaixo são reais, confirmados pela fatura NF 009.005.476 - nenhuma estimativa.
-  solarConsumoIrmaAnoAnterior: [90,74,70,82,103,127,122,138,142,172,140,100], // Jul/26,Ago/25..Jun/26 (todos reais, fatura Energisa)
+  // CORRIGIDO 18/08/2026 (usuário mandou a fatura NF 009.005.476 de Ago/2026 real: 111 kWh, não os
+  // 74 kWh que estavam aqui — posição "Ago" era ainda Ago/2025, +50% mais baixa que o consumo real
+  // atual da Wellida). Trocado pelo valor novo. Ver CONSUMO_IRMA_MESES_RECONFIRMADOS logo abaixo —
+  // marca esta posição como reconfirmada por fatura recente (não mais só a rolagem de 12 meses
+  // original), usado pelos 2 gráficos (painel privado e compartilhado) pra pintar a barra "Consumo
+  // esperado Irmã" com cor sólida nesse mês, diferenciando de mês que ainda é só estimativa antiga.
+  solarConsumoIrmaAnoAnterior: [90,111,70,82,103,127,122,138,142,172,140,100], // Jul/26,Ago/26(reconfirmado 18/08),Set/25..Jun/26
+  // Meses da posição-nome (ver comentário acima) já reconfirmados por fatura real recente, além da
+  // rolagem histórica original — usado só pra colorir a barra de "Consumo esperado" nos gráficos.
+  CONSUMO_IRMA_MESES_RECONFIRMADOS: { 'Ago': '2026-08-18' },
   // NOVO 02/08/2026 (pedido do usuario, 2 faturas Energisa da Casa da Mae): consumo historico da
   // unidade geradora (Casa da Mae), mesma janela de 12 meses das outras 2 unidades. Confirmado pelo
   // usuario: Mai/25..Abr/26. Media: 195 kWh/mes.

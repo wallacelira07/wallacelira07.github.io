@@ -230,7 +230,12 @@ const INVESTIMENTO_PADRAO = 14800; // mesmo default do simulador do painel priva
 // projetado em vez do saldo cru da última leitura. Fluxo 1 (fechado) não muda — continua vindo
 // direto de ciclosFechados, congelado, sem recalcular nada.
 const KWH_ANO_ANTERIOR_WALLACE = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul/26..Jun/27
-const CONSUMO_MENSAL_IRMA = [90,74,70,82,103,127,122,138,142,172,140,100]; // Jul/26..Jun/27
+// CORRIGIDO 18/08/2026 (usuário mandou fatura real NF 009.005.476, Ago/2026 = 111 kWh, não os 74 kWh
+// que estavam aqui — cópia deliberada da mesma correção em src/solar/vars-energia-solar.js). Meses
+// reconfirmados por fatura recente pintam com cor sólida no gráfico Rateio Solar, diferenciando de
+// mês que ainda é só a estimativa histórica original (opacidade reduzida).
+const CONSUMO_MENSAL_IRMA = [90,111,70,82,103,127,122,138,142,172,140,100]; // Jul/26,Ago/26(reconfirmado 18/08)..Jun/27
+const CONSUMO_IRMA_MESES_RECONFIRMADOS = { 'Ago': '2026-08-18' };
 const ANCHOR_ENERGIA_ANO = 2026, ANCHOR_ENERGIA_MES = 7; // mesmo VARS.solarDataAtivacao (2026-07-21)
 const SOLAR_DATA_ATIVACAO = '2026-07-21'; // mesmo VARS.solarDataAtivacao (data real de ativação do sistema)
 const DIA_LEITURA_GD = 8; // dia da leitura/fechamento da GD (Casa da Mãe, onde fica a usina)
@@ -946,6 +951,10 @@ async function carregar(){
     }
   };
 
+  // NOVO 18/08/2026 (mesmo pedido do usuário replicado do painel privado — cor sólida no mês
+  // reconfirmado por fatura real, opacidade reduzida no resto, que ainda é só a estimativa histórica).
+  const corBarraConsumoEsperadoIrma = (corBase) => (ctx) => CONSUMO_IRMA_MESES_RECONFIRMADOS[MESES_ABREV_RATEIO[ctx.dataIndex]] ? corBase : corBase + '66';
+
   if(window.Chart){
     { const __chartExistente = Chart.getChart(document.getElementById('cRateioSolar')); if (__chartExistente) __chartExistente.destroy(); }
     new Chart(document.getElementById('cRateioSolar'), {
@@ -956,7 +965,7 @@ async function carregar(){
           { label:'Crédito Wallace (gerado)', data: creditoWallacePorIdx, backgroundColor:'#34c98a', borderRadius:3 },
           { label:'Consumo esperado Wallace', data: consumoEsperadoWallaceAlinhado, backgroundColor:'#e8a63a', borderRadius:3 },
           { label:'Crédito Irmã (gerado)', data: creditoIrmaPorIdx, backgroundColor:'#14b8a6', borderRadius:3 },
-          { label:'Consumo esperado Irmã', data: consumoEsperadoIrmaAlinhado, backgroundColor:'#a9861f', borderRadius:3 },
+          { label:'Consumo esperado Irmã', data: consumoEsperadoIrmaAlinhado, backgroundColor:corBarraConsumoEsperadoIrma('#a9861f'), borderRadius:3 },
         ],
       },
       options: {
