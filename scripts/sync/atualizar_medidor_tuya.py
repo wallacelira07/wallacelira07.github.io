@@ -68,19 +68,22 @@ _DP_ENERGIA_HOJE = "today_acc_energy1"
 _DP_ENERGIA_TOTAL = "total_energy1"
 _DP_ESTADO = "device_state1"
 
-# Modelo da Wellida (ver cabeçalho MULTI-MODELO acima). CORRIGIDO 18/08/2026: a 1ª sondagem via
-# painel Tuya só tinha mostrado os DPs de energia + calibração (achou que tensão/corrente não
-# existiam nesse modelo) — usuário rolou a tela pra cima no "Standard Status Set" e achou o resto da
-# lista, que tinha ficado fora do 1º print. Escala confirmada batendo exato com os valores reais
-# mostrados no app Smart Life (199,4V / 76,1W): f_ac_v scale 1 (bruto/10), total_power scale 1
-# (bruto/10), current_a scale 0 em mA (bruto/1000 pra virar A). Sem DP de "estado" explícito nesse
-# modelo — se a chamada retornou com sucesso, o aparelho respondeu, então usa 'working' fixo (mesmo
-# sentido de "Funcionando" que o modelo do Wallace usa via device_state1).
+# Modelo da Wellida (ver cabeçalho MULTI-MODELO acima). CORRIGIDO 18/08/2026 (2 rodadas):
+# 1ª: a sondagem via painel Tuya só tinha mostrado os DPs de energia + calibração (achou que tensão/
+# corrente não existiam) — usuário rolou a tela pra cima no "Standard Status Set" e achou o resto:
+# f_ac_v (tensão, scale 1, bruto/10) e total_power (potência total, scale 1, bruto/10) confirmados
+# batendo exato com o app Smart Life.
+# 2ª: log do DP bruto (achado do usuário: "em vez de deixar anotado, resolve") revelou que este
+# aparelho é BICANAL (Channel A / Channel B, visível no app) e o medidor está fisicamente ligado só
+# no Canal B — leitura real: current_a=0/power_a=0 (canal A sem uso) vs current_b=4638mA/power_b=564
+# (=56,4W, bate EXATO com total_power=564). current_a estava mapeado errado (canal desconectado).
+# Corrigido pra current_b. Se um dia o medidor for religado no Canal A (ou for outra instalação
+# bicanal desse mesmo modelo), reavaliar via `DPs brutos recebidos` no log do robô antes de assumir.
 _DP_BIDIR_ENERGIA_IMPORTADA = "forward_energy_total"
 _DP_BIDIR_ENERGIA_EXPORTADA = "reverse_energy_total"
 _DP_BIDIR_TENSAO = "f_ac_v"
 _DP_BIDIR_POTENCIA_TOTAL = "total_power"
-_DP_BIDIR_CORRENTE_A = "current_a"
+_DP_BIDIR_CORRENTE = "current_b"
 
 
 def _extrair_leitura_ekaza_ct(dps: dict) -> dict:
@@ -106,7 +109,7 @@ def _extrair_leitura_bidirecional_ab(dps: dict) -> dict:
     bruto_importado = dps.get(_DP_BIDIR_ENERGIA_IMPORTADA)
     return {
         "tensao_v": _num(_DP_BIDIR_TENSAO, 10),
-        "corrente_a": _num(_DP_BIDIR_CORRENTE_A, 1000),
+        "corrente_a": _num(_DP_BIDIR_CORRENTE, 1000),
         "potencia_w": _num(_DP_BIDIR_POTENCIA_TOTAL, 10),
         "energia_hoje_kwh": None,  # este modelo não tem contador "hoje" separado, só cumulativo
         "energia_total_kwh": round(bruto_importado / 100, 3) if bruto_importado is not None else None,
