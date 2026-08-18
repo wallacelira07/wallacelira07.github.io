@@ -467,6 +467,7 @@ async function carregar(){
   const ciclo = dados.cicloAberto || null;
   const ciclosFechados = dados.ciclosFechados || [];
   const medidorUltima = dados.medidorTuyaUltima || null;
+  const medidorWellidaUltima = dados.medidorTuyaWellidaUltima || null;
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
 
   // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
@@ -763,6 +764,26 @@ async function carregar(){
       </div>
       <div class="stat-sub" style="margin-top:0.8rem">Estado do medidor: <strong>${({working:'Funcionando',monitor:'Monitorando',close:'Desligado',warning:'Atenção'})[medidorUltima.estado] || medidorUltima.estado || '—'}</strong> · última leitura ${fmtDataHora(medidorUltima.capturadoEm)}</div>
     </div>` : ''}
+
+    <!-- NOVO 18/08/2026 (pedido do usuário: "faltou esse no compartilhamento para Wellida") — card
+         gêmeo do de cima, mesmo padrão, dado vem de dados.medidorTuyaWellidaUltima (RPC ampliada na
+         mesma sessão). Medidor dela é modelo bidirecional (forward_energy_total/reverse_energy_total,
+         ver scripts/sync/atualizar_medidor_tuya.py) — só energia total é populada de verdade, por
+         isso Potência/Tensão/Corrente/Estado sempre aparecem como "—" pra esse medidor específico
+         (não é bug, é limitação real do modelo dela, diferente do CT do Wallace). -->
+    ${medidorWellidaUltima ? `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Casa da Wellida</div>
+      <div class="stat-grid">
+        <div><div class="stat-lbl">Potência atual</div><div class="stat-val">${medidorWellidaUltima.potenciaW!=null ? Number(medidorWellidaUltima.potenciaW).toLocaleString('pt-BR',{maximumFractionDigits:0})+' W' : '—'}</div></div>
+        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorWellidaUltima.energiaHojeKwh, 2)}</div></div>
+        <div><div class="stat-lbl">Energia total acumulada</div><div class="stat-val">${fmtKwh(medidorWellidaUltima.energiaTotalKwh)}</div></div>
+        <div><div class="stat-lbl">Tensão / Corrente</div><div class="stat-val" style="font-size:1.05rem">${medidorWellidaUltima.tensaoV!=null?Number(medidorWellidaUltima.tensaoV).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'} V / ${medidorWellidaUltima.correnteA!=null?Number(medidorWellidaUltima.correnteA).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'} A</div></div>
+      </div>
+      <div class="stat-sub" style="margin-top:0.8rem">Estado do medidor: <strong>${({working:'Funcionando',monitor:'Monitorando',close:'Desligado',warning:'Atenção'})[medidorWellidaUltima.estado] || medidorWellidaUltima.estado || '—'}</strong> · última leitura ${fmtDataHora(medidorWellidaUltima.capturadoEm)}</div>
+    </div>` : `<div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Casa da Wellida</div>
+      <div class="stat-sub">Aguardando a 1ª leitura do medidor da Wellida chegar.</div>
+    </div>`}
 
     <!-- CORRIGIDO 18/08/2026 (2 achados do usuário: card sempre mostrando "0,0 kWh"/"—" mesmo com o
          medidor funcionando, e o painel privado mostrando um design/fórmula diferente pra este mesmo
