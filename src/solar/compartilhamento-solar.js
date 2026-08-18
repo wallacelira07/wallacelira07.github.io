@@ -100,6 +100,39 @@ function _copiarLinkCompartilhamentoSolar(link, btn){
   });
 }
 
+// NOVO 18/08/2026 (pedido do usuário: "quero a opção de dar mais dias para o compartilhamento") —
+// mesmo padrão de criarLinkCompartilhamentoSolar()/desativarLinkCompartilhamentoSolar() (prompt +
+// RPC autenticada), soma dias na expiração de um link JÁ existente (em vez de precisar criar um
+// novo do zero). RPC estender_compartilhamento_solar soma a partir do maior entre "agora" e a
+// expiração atual, então funciona tanto pra link ainda ativo quanto pra link que acabou de vencer.
+async function estenderLinkCompartilhamentoSolar(token){
+  const dias = Number(prompt('Quantos dias a mais pra esse link?', '30'));
+  if(!dias || dias < 1 || dias > 365){
+    if(dias !== 0) alert('Precisa ser um número entre 1 e 365 dias.');
+    return;
+  }
+  try {
+    let resp = await fetch(`${SUPABASE_URL_SOLAR_SHARE}/rest/v1/rpc/estender_compartilhamento_solar`, {
+      method: 'POST', headers: _headersCompartilhamentoSolar(),
+      body: JSON.stringify({ p_token: token, p_dias_adicionais: dias }),
+    });
+    if(!resp.ok && typeof window.renovarTokenFirebase === 'function'){
+      const renovou = await window.renovarTokenFirebase();
+      if(renovou){
+        resp = await fetch(`${SUPABASE_URL_SOLAR_SHARE}/rest/v1/rpc/estender_compartilhamento_solar`, {
+          method: 'POST', headers: _headersCompartilhamentoSolar(),
+          body: JSON.stringify({ p_token: token, p_dias_adicionais: dias }),
+        });
+      }
+    }
+    if(!resp.ok){ const corpo = await resp.json().catch(()=>({})); throw new Error(corpo.message || `erro ${resp.status}`); }
+    renderizarLinksCompartilhamentoSolar();
+  } catch(err){
+    console.error('estenderLinkCompartilhamentoSolar: falha ao estender.', err);
+    alert('Não consegui estender a validade — tenta de novo em alguns segundos.');
+  }
+}
+
 async function desativarLinkCompartilhamentoSolar(token){
   if(!confirm('Desativar esse link? Quem já tem o link deixa de conseguir acessar.')) return;
   try {
@@ -139,6 +172,7 @@ async function renderizarLinksCompartilhamentoSolar(){
       `válido até ${fmtDataHoraCompartilhamentoSolar(l.expira_em)} ` +
       `<a href="${linkAtivo}" target="_blank" rel="noopener" style="margin-left:0.3rem">abrir</a>` +
       `<a href="#" onclick="_copiarLinkCompartilhamentoSolar('${linkAtivo}', this);return false;" style="margin-left:0.3rem">copiar</a>` +
+      `<a href="#" onclick="estenderLinkCompartilhamentoSolar('${l.token}');return false;" style="margin-left:0.3rem">+dias</a>` +
       `<a href="#" onclick="desativarLinkCompartilhamentoSolar('${l.token}');return false;" class="solar-revoke-link" style="color:var(--red);margin-left:0.3rem">revogar</a></span>`;
     }).join('');
   } catch(err){

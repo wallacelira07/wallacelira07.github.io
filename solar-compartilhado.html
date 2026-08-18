@@ -813,6 +813,52 @@ async function carregar(){
       </div>`;
     })() : ''}
 
+    <!-- NOVO 18/08/2026 (pedido do usuário: "crie esse mesmo campo para Wellida no site e no
+         compartilhado") — card gêmeo exato do de cima, mesma fórmula/IIFE, só trocando o rateio
+         (rateio_irma_pct em vez de rateio_wallace_pct) e a fonte de consumo diário
+         (dados.medidorTuyaWellidaConsumoDiario, RPC atualizada 18/08/2026). Medidor da Wellida já
+         está linkado no Tuya (Device ID ebf0d04e88180e1474o2is), mas o robô ainda não está rodando
+         (aguardando secrets do GitHub) — até a 1ª leitura chegar, mostra "aguardando instalação". -->
+    ${(ciclo && ciclo.data_inicio) ? (() => {
+      const diarioWellida = dados.medidorTuyaWellidaConsumoDiario || [];
+      const inicioCicloGD = ciclo.data_inicio;
+      const rateioIrma = ciclo.rateio_irma_pct != null ? Number(ciclo.rateio_irma_pct) : 0.29;
+      const baselineKwh = ciclo.baseline_kwh != null ? Number(ciclo.baseline_kwh) : null;
+      const consumoCicloGDKwh = Math.round(diarioWellida.filter(r => r.data >= inicioCicloGD && r.kwhConsumido != null).reduce((s,r)=>s+Number(r.kwhConsumido),0)*100)/100;
+      const saldoProjetadoHoje = calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria);
+      const creditoCicloAtual = (saldoProjetadoHoje != null && baselineKwh != null)
+        ? Math.round((saldoProjetadoHoje - baselineKwh) * rateioIrma * 100) / 100
+        : null;
+      const labelCiclo = fmtData(inicioCicloGD) + ' → hoje';
+      if(!diarioWellida.length){
+        return `<div class="card">
+          <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe à Wellida</div>
+          <div class="stat-sub">Aguardando instalação do medidor da Wellida — assim que ela instalar e o robô sincronizar, este card passa a comparar automaticamente.</div>
+        </div>`;
+      }
+      if(creditoCicloAtual != null && creditoCicloAtual > 0){
+        const pctConsumido = Math.min(100, Math.max(0, Math.round((consumoCicloGDKwh / creditoCicloAtual) * 100)));
+        const saldo = Math.round((creditoCicloAtual - consumoCicloGDKwh) * 100) / 100;
+        const estourou = saldo < 0;
+        return `<div class="card">
+          <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe à Wellida</div>
+          <div class="stat-sub" style="margin-bottom:0.6rem">Barra = quanto do crédito que cabe à Wellida (${fmtPct(rateioIrma*100)} do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya dela. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
+          <div class="progress"><div class="progress-fill" style="width:${pctConsumido}%;background:${estourou?'var(--red)':'var(--blue)'}"></div></div>
+          <div class="credito-fracao"><span>${fmtKwh(consumoCicloGDKwh)} / ${fmtKwh(creditoCicloAtual)} consumidos</span><span style="color:var(--blue)">${pctConsumido}%</span></div>
+          <div class="stat-grid">
+            <div><div class="stat-lbl">Ciclo da GD</div><div class="stat-val" style="font-size:1.05rem">${labelCiclo}</div></div>
+            <div><div class="stat-lbl">Crédito que cabe a ela</div><div class="stat-val" style="font-size:1.05rem">${fmtKwh(creditoCicloAtual)}</div></div>
+            <div><div class="stat-lbl">Saldo</div><div class="stat-val" style="font-size:1.05rem;color:${estourou?'var(--red)':'var(--green)'}">${estourou ? '−'+fmtKwh(Math.abs(saldo))+' (estourou)' : '+'+fmtKwh(saldo)+' de sobra'}</div></div>
+          </div>
+          <div class="stat-sub" style="margin-top:0.6rem">${estourou ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwh(Math.abs(saldo)) : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwh(saldo)} (os dois ainda em andamento, ciclo não fechou).</div>
+        </div>`;
+      }
+      return `<div class="card">
+        <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe à Wellida</div>
+        <div class="stat-sub">Ainda sem crédito formado neste ciclo pra comparar.</div>
+      </div>`;
+    })() : ''}
+
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
 

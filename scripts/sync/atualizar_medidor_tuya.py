@@ -36,6 +36,21 @@ Variáveis de ambiente necessárias:
   SUPABASE_URL, SUPABASE_KEY (service_role — a RPC rejeita anon/authenticated)
   CASA (default "wallace" — identifica de qual casa é esta leitura, ver coluna `casa` em
   medidor_tuya_leituras/medidor_tuya_consumo_diario)
+  TUYA_MODELO (default "ekaza_ct" — o do Wallace. "bidirecional_ab" — o da Wellida, ver abaixo)
+
+MULTI-MODELO 18/08/2026: o medidor da Wellida (device linkado 18/08/2026, ver
+docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md) é um aparelho DIFERENTE do EKAZA CT do
+Wallace — schema de DPs confirmado direto no painel Tuya IoT (Standard Status Set), sem sondagem
+via script (credenciais não estavam disponíveis nesta sessão): expõe só
+forward_energy_total/reverse_energy_total (kWh, scale 2 = bruto/100) — SEM tensão/corrente/
+potência/estado (o resto da lista são parâmetros de CALIBRAÇÃO, não leitura: voltage_calibration,
+current_a/b_calibration, power_a/b_calibration, energy_a/b_calibration_fwd/rev, power_setting).
+forward_energy_total mapeado pra energia_total_kwh (mesmo papel que total_energy1 tem no modelo do
+Wallace — contador cumulativo que o trigger trg_medidor_tuya_consumo_diario usa pra derivar consumo
+por dia). reverse_energy_total ainda NÃO é gravado (não há coluna dedicada pra energia exportada em
+medidor_tuya_leituras hoje — casa sem inversor próprio, valor deve ficar em 0 na prática; revisitar
+se um dia isso importar). tensao_v/corrente_a/potencia_w/estado ficam NULL pra este modelo (colunas
+aceitam null, cards que os mostram exibem "—", sem quebrar).
 """
 import json
 import os
@@ -53,8 +68,12 @@ _DP_ENERGIA_HOJE = "today_acc_energy1"
 _DP_ENERGIA_TOTAL = "total_energy1"
 _DP_ESTADO = "device_state1"
 
+# Modelo da Wellida (ver cabeçalho MULTI-MODELO acima) — só os 2 DPs de energia existem de verdade.
+_DP_BIDIR_ENERGIA_IMPORTADA = "forward_energy_total"
+_DP_BIDIR_ENERGIA_EXPORTADA = "reverse_energy_total"
 
-def _extrair_leitura(dps: dict) -> dict:
+
+def _extrair_leitura_ekaza_ct(dps: dict) -> dict:
     def _num(codigo: str, divisor: float):
         bruto = dps.get(codigo)
         return round(bruto / divisor, 3) if bruto is not None else None
@@ -69,7 +88,26 @@ def _extrair_leitura(dps: dict) -> dict:
     }
 
 
-def buscar_leitura(access_id: str, access_secret: str, device_id: str, api_region: str) -> dict:
+def _extrair_leitura_bidirecional_ab(dps: dict) -> dict:
+    bruto_importado = dps.get(_DP_BIDIR_ENERGIA_IMPORTADA)
+    bruto_exportado = dps.get(_DP_BIDIR_ENERGIA_EXPORTADA)
+    return {
+        "tensao_v": None,
+        "corrente_a": None,
+        "potencia_w": None,
+        "energia_hoje_kwh": None,  # este modelo não tem contador "hoje" separado, só cumulativo
+        "energia_total_kwh": round(bruto_importado / 100, 3) if bruto_importado is not None else None,
+        "estado": None,
+    }
+
+
+_MODELOS = {
+    "ekaza_ct": {"extrair": _extrair_leitura_ekaza_ct, "campo_obrigatorio": "potencia_w"},
+    "bidirecional_ab": {"extrair": _extrair_leitura_bidirecional_ab, "campo_obrigatorio": "energia_total_kwh"},
+}
+
+
+def buscar_leitura(access_id: str, access_secret: str, device_id: str, api_region: str, modelo: str) -> dict:
     import tinytuya
 
     cloud = tinytuya.Cloud(
@@ -85,9 +123,13 @@ def buscar_leitura(access_id: str, access_secret: str, device_id: str, api_regio
         raise RuntimeError(f"Erro da Tuya Cloud: {status.get('Payload') or status}")
 
     dps = {item["code"]: item["value"] for item in status["result"] if "code" in item}
-    leitura = _extrair_leitura(dps)
-    if leitura["potencia_w"] is None:
-        raise RuntimeError(f"DP '{_DP_POTENCIA}' ausente na resposta — schema mudou? DPs recebidos: {sorted(dps.keys())}")
+    cfg_modelo = _MODELOS.get(modelo)
+    if cfg_modelo is None:
+        raise RuntimeError(f"TUYA_MODELO '{modelo}' desconhecido — valores aceitos: {sorted(_MODELOS.keys())}")
+    leitura = cfg_modelo["extrair"](dps)
+    campo_obrigatorio = cfg_modelo["campo_obrigatorio"]
+    if leitura[campo_obrigatorio] is None:
+        raise RuntimeError(f"Campo obrigatório '{campo_obrigatorio}' (modelo {modelo}) ausente na resposta — schema mudou? DPs recebidos: {sorted(dps.keys())}")
     return leitura
 
 
@@ -119,6 +161,7 @@ def main() -> int:
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
     casa = os.environ.get("CASA") or "wallace"
+    modelo = os.environ.get("TUYA_MODELO") or "ekaza_ct"
 
     faltando = [n for n, v in [
         ("TUYA_ACCESS_ID", access_id), ("TUYA_ACCESS_SECRET", access_secret), ("TUYA_DEVICE_ID", device_id),
@@ -129,8 +172,8 @@ def main() -> int:
         return 1
 
     try:
-        print(f"[{casa}] Conectando na Tuya Cloud API (região {api_region})...")
-        leitura = buscar_leitura(access_id, access_secret, device_id, api_region)
+        print(f"[{casa}] Conectando na Tuya Cloud API (região {api_region}, modelo {modelo})...")
+        leitura = buscar_leitura(access_id, access_secret, device_id, api_region, modelo)
         leitura["casa"] = casa
         print(f"[{casa}] Leitura: {leitura['tensao_v']}V, {leitura['corrente_a']}A, {leitura['potencia_w']}W, "
               f"hoje={leitura['energia_hoje_kwh']}kWh, total={leitura['energia_total_kwh']}kWh, estado={leitura['estado']}")

@@ -2060,47 +2060,66 @@ async function _lazyRenderSolarSecao(){
   // window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 desde cicloSolarAberto.data_inicio (mesma janela
   // real do Fluxo 2/seção 12 abaixo, não mês calendário) — os dois lados da comparação cobrem
   // EXATAMENTE a mesma janela de tempo.
-  const diarioApto = window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 || [];
-  const elConsumoAptoBar = $('consumoApartamentoBar');
-  if(elConsumoAptoBar && cicloSolarAberto && idxCicloAberto != null && diarioApto.length){
-    const inicioCicloStr = cicloSolarAberto.data_inicio; // 'YYYY-MM-DD'
-    const diasDoCicloComDado = diarioApto.filter(r => r.data >= inicioCicloStr && r.kwh_consumido != null);
-    const consumoCicloAtualKwh = Math.round(diasDoCicloComDado.reduce((s,r)=>s+Number(r.kwh_consumido),0)*100)/100;
-    const creditoCicloAtual = creditoMensalWallace[idxCicloAberto];
-    const fmtDataBrCiclo = iso => iso ? iso.split('-').reverse().join('/') : '—';
-    const labelCiclo = fmtDataBrCiclo(inicioCicloStr)+' → hoje';
-    const set = (id,v) => { const el = $(id); if(el) el.textContent = v; };
+  // GENERALIZADO 18/08/2026 (pedido do usuário: "crie esse mesmo campo para Wellida no site e no
+  // compartilhado") — mesma lógica exata, parametrizada por prefixo de id/array de crédito/fonte de
+  // consumo diário, pra nunca duplicar a fórmula (mesmo princípio já usado em
+  // aplicarMedidorTuyaPorCasa, hydrate-medidor-tuya.js).
+  function aplicarConsumoRealVsCreditoPorCasa(cfg){
+    const diario = window[cfg.varConsumoDiario] || [];
+    const elBar = $(cfg.idPrefix+'Bar');
+    const set = (sufixo,v) => { const el = $(cfg.idPrefix+sufixo); if(el) el.textContent = v; };
+    const elLeg = $(cfg.idLegenda);
+    if(elBar && cicloSolarAberto && idxCicloAberto != null && diario.length){
+      const inicioCicloStr = cicloSolarAberto.data_inicio; // 'YYYY-MM-DD'
+      const diasDoCicloComDado = diario.filter(r => r.data >= inicioCicloStr && r.kwh_consumido != null);
+      const consumoCicloAtualKwh = Math.round(diasDoCicloComDado.reduce((s,r)=>s+Number(r.kwh_consumido),0)*100)/100;
+      const creditoCicloAtual = cfg.creditoMensal[idxCicloAberto];
+      const fmtDataBrCiclo = iso => iso ? iso.split('-').reverse().join('/') : '—';
+      const labelCiclo = fmtDataBrCiclo(inicioCicloStr)+' → hoje';
 
-    if(creditoCicloAtual != null && creditoCicloAtual > 0){
-      const pctConsumido = Math.round((consumoCicloAtualKwh / creditoCicloAtual) * 100);
-      const saldo = Math.round((creditoCicloAtual - consumoCicloAtualKwh) * 100) / 100;
-      const estourou = saldo < 0;
-      elConsumoAptoBar.style.width = Math.min(100, Math.max(0, pctConsumido)) + '%';
-      elConsumoAptoBar.style.background = estourou ? 'var(--red)' : 'var(--accent)';
-      set('consumoApartamentoFracao', fmtKwhPtBr(consumoCicloAtualKwh)+' / '+fmtKwhPtBr(creditoCicloAtual)+' kWh consumidos');
-      set('consumoApartamentoPct', pctConsumido+'%');
-      set('consumoApartamentoPeriodo', labelCiclo);
-      set('consumoApartamentoCredito', fmtKwhPtBr(creditoCicloAtual)+' kWh');
-      const elSaldo = $('consumoApartamentoSaldo');
-      if(elSaldo){
-        elSaldo.textContent = estourou ? '−'+fmtKwhPtBr(Math.abs(saldo))+' kWh (estourou)' : '+'+fmtKwhPtBr(saldo)+' kWh de sobra';
-        elSaldo.style.color = estourou ? 'var(--red)' : 'var(--green)';
-      }
-      const legConsumoApartamentoEl = $('legConsumoApartamento');
-      if(legConsumoApartamentoEl){
-        legConsumoApartamentoEl.textContent = estourou
-          ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwhPtBr(Math.abs(saldo))+' kWh (os dois ainda em andamento, ciclo não fechou).'
-          : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwhPtBr(saldo)+' kWh (os dois ainda em andamento, ciclo não fechou).';
+      if(creditoCicloAtual != null && creditoCicloAtual > 0){
+        const pctConsumido = Math.round((consumoCicloAtualKwh / creditoCicloAtual) * 100);
+        const saldo = Math.round((creditoCicloAtual - consumoCicloAtualKwh) * 100) / 100;
+        const estourou = saldo < 0;
+        elBar.style.width = Math.min(100, Math.max(0, pctConsumido)) + '%';
+        elBar.style.background = estourou ? 'var(--red)' : 'var(--accent)';
+        set('Fracao', fmtKwhPtBr(consumoCicloAtualKwh)+' / '+fmtKwhPtBr(creditoCicloAtual)+' kWh consumidos');
+        set('Pct', pctConsumido+'%');
+        set('Periodo', labelCiclo);
+        set('Credito', fmtKwhPtBr(creditoCicloAtual)+' kWh');
+        const elSaldo = $(cfg.idPrefix+'Saldo');
+        if(elSaldo){
+          elSaldo.textContent = estourou ? '−'+fmtKwhPtBr(Math.abs(saldo))+' kWh (estourou)' : '+'+fmtKwhPtBr(saldo)+' kWh de sobra';
+          elSaldo.style.color = estourou ? 'var(--red)' : 'var(--green)';
+        }
+        if(elLeg){
+          elLeg.textContent = estourou
+            ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwhPtBr(Math.abs(saldo))+' kWh (os dois ainda em andamento, ciclo não fechou).'
+            : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwhPtBr(saldo)+' kWh (os dois ainda em andamento, ciclo não fechou).';
+        }
+      } else {
+        set('Periodo', labelCiclo);
+        if(elLeg) elLeg.textContent = 'Ainda sem crédito formado neste ciclo pra comparar.';
       }
     } else {
-      set('consumoApartamentoPeriodo', labelCiclo);
-      const legConsumoApartamentoEl = $('legConsumoApartamento');
-      if(legConsumoApartamentoEl) legConsumoApartamentoEl.textContent = 'Ainda sem crédito formado neste ciclo pra comparar.';
+      if(elLeg) elLeg.textContent = cfg.mensagemSemDado || 'Ainda sem dado suficiente pra comparar — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 dia de leitura dentro do ciclo aberto da GD.';
     }
-  } else {
-    const legConsumoApartamentoEl = $('legConsumoApartamento');
-    if(legConsumoApartamentoEl) legConsumoApartamentoEl.textContent = 'Ainda sem dado suficiente pra comparar — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 dia de leitura dentro do ciclo aberto da GD.';
   }
+
+  aplicarConsumoRealVsCreditoPorCasa({
+    idPrefix: 'consumoApartamento',
+    idLegenda: 'legConsumoApartamento',
+    varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2',
+    creditoMensal: creditoMensalWallace,
+  });
+  // NOVO 18/08/2026: card gêmeo da Wellida — "aguardando instalação" até o medidor dela existir.
+  aplicarConsumoRealVsCreditoPorCasa({
+    idPrefix: 'consumoWellida',
+    idLegenda: 'legConsumoWellida',
+    varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2',
+    creditoMensal: creditoMensalIrma,
+    mensagemSemDado: 'Aguardando instalação do medidor da Wellida — assim que ela instalar e o robô sincronizar, este card passa a comparar automaticamente, sem precisar de nenhuma mudança de código.',
+  });
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
   // Especificação fornecida pelo usuário (documento anexado, 01/08/2026). Reaproveita 100% os dados já

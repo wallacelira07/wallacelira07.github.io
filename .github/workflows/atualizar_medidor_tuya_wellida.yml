@@ -1,16 +1,23 @@
 name: Atualizar Medidor de Energia (Tuya/Smart Life) — Casa da Wellida
 
-# NOVO 18/08/2026: réplica exata de atualizar_medidor_tuya.yml (Wallace), preparada com
-# antecedência pra quando o Device ID da Wellida existir (ver
-# docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md). Mesmo script Python (scripts/sync/
-# atualizar_medidor_tuya.py, já generalizado pra múltiplas casas via env CASA), mesmo padrão de
-# segurança. Os 3 secrets *_WELLIDA abaixo AINDA NÃO EXISTEM no GitHub — precisam ser criados
-# (Settings > Secrets and variables > Actions) só depois que:
-#   1. Wellida instalar o medidor fisicamente e vincular o app Smart Life dela ao projeto Cloud Tuya.
-#   2. Alguém pegar o Device ID real no painel iot.tuya.com (aba Devices) e trocar o modo de controle
-#      pra "DP Instruction" (passo crítico, sem ele a API devolve vazio — ver runbook seção 2).
-#   3. Confirmar via scripts/sync/sondar_medidor_tuya.py que o schema de DPs bate com o já mapeado
-#      (deveria bater, é o mesmo modelo de aparelho — EKAZA CT 80A).
+# NOVO 18/08/2026, ATUALIZADO no mesmo dia com o Device ID real: o medidor da Wellida já foi
+# instalado e vinculado ao app Smart Life dela (mesmo projeto Cloud Tuya do Wallace, conta
+# wallace.termica@gmail.com, Western America Data Center) — Device ID `ebf0d04e88180e1474o2is`,
+# Product Category "zndb" (智能电表 = "smart meter"), Status Online desde 18/08/2026 12:33.
+#
+# Schema de DPs CONFIRMADO diferente do medidor do Wallace (ver
+# docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md) — esse aparelho só expõe
+# forward_energy_total/reverse_energy_total (energia importada/exportada, kWh), sem tensão/
+# corrente/potência/estado. Por isso TUYA_MODELO=bidirecional_ab abaixo (scripts/sync/
+# atualizar_medidor_tuya.py já sabe extrair esse formato — ver função
+# _extrair_leitura_bidirecional_ab).
+#
+# Os 4 secrets *_WELLIDA abaixo AINDA NÃO EXISTEM no GitHub — precisam ser criados (Settings >
+# Secrets and variables > Actions) com os valores reais:
+#   TUYA_ACCESS_ID_WELLIDA / TUYA_ACCESS_SECRET_WELLIDA — mesmas credenciais Cloud Project já
+#     usadas no medidor do Wallace (é o mesmo projeto Tuya IoT, só o Device ID muda).
+#   TUYA_DEVICE_ID_WELLIDA — ebf0d04e88180e1474o2is (confirmado no painel Tuya 18/08/2026).
+#   TUYA_API_REGION_WELLIDA — us-e (Western America, mesma região do Wallace).
 # Até os secrets existirem, este workflow falha com "variáveis de ambiente faltando" se disparado —
 # comportamento esperado e seguro, não quebra nada do resto do sistema (workflow isolado, próprio
 # concurrency group).
@@ -45,4 +52,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CASA: wellida
+          TUYA_MODELO: bidirecional_ab
         run: python3 scripts/sync/atualizar_medidor_tuya.py

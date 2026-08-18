@@ -1578,6 +1578,25 @@
       <div class="legend-note v" id="legConsumoApartamento" style="margin-top:0.5rem">—</div>
     </div>
 
+    <!-- NOVO 18/08/2026 (pedido do usuário: "crie esse mesmo campo para Wellida no site e no
+         compartilhado") — card gêmeo exato do de cima, mesmos ids com sufixo "Wellida", mesma
+         função generalizada (aplicarConsumoRealVsCreditoPorCasa em graficos-cenarios-lazy.js).
+         creditoMensalIrma (29%) em vez de creditoMensalWallace (71%); consumo real vem de
+         window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 (medidor da Wellida, ver
+         hydrate-medidor-tuya.js) — mostra "aguardando instalação" até ela ter o medidor. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Consumo real × crédito que cabe à Wellida</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem" id="legConsumoWellidaIntro">Barra = quanto do crédito que cabe à Wellida (29% do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya dela. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
+      <div class="progress" style="height:14px"><div class="fill" id="consumoWellidaBar" style="width:0%;min-width:6px;background:var(--accent)"></div></div>
+      <div class="progress-lbl" style="margin-top:0.5rem"><span class="v" id="consumoWellidaFracao" style="font-size:var(--fs-base);font-weight:600;color:var(--text)">—</span><span class="v" id="consumoWellidaPct" style="font-size:var(--fs-lg);font-weight:700;color:var(--accent)">—</span></div>
+      <div class="grid-3" style="margin-top:0.5rem">
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Ciclo da GD</div><div class="v" style="font-weight:600" id="consumoWellidaPeriodo">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Crédito que cabe a ela</div><div class="v" style="font-weight:600" id="consumoWellidaCredito">—</div></div>
+        <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo</div><div class="v" style="font-weight:600" id="consumoWellidaSaldo">—</div></div>
+      </div>
+      <div class="legend-note v" id="legConsumoWellida" style="margin-top:0.5rem">—</div>
+    </div>
+
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra
     real (Lei 14.300/2022): Iluminacao Publica e Encargos NUNCA sao compensados pelos creditos
     solares, independente de quanto voce gerar - sempre sobra uma fatura minima. -->
