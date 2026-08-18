@@ -24,6 +24,20 @@
      vars-energia-solar.js — ver comentário no bloco de cálculo). -->
 <!-- ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas): SRI (hash sha512 real, via
      api.cdnjs.com) - mesma proteção aplicada em Sistema_Wallace_Lira_Completo.html. -->
+<!-- 🔴 BUG ABERTO 17/08/2026 (não resolvido — não remover este comentário até confirmar corrigido
+     em produção com o usuário): depois do commit 5739631 (trouxe medidor Tuya + Rateio Solar
+     completo pra esta página), ela passou a ficar travada em "Carregando..." pra sempre em
+     produção. Backend confirmado OK (curl direto na RPC consultar_solar_compartilhado, 200 com
+     dado real). Causa raiz ainda não confirmada. Foi adicionado um try/catch de diagnóstico em
+     volta de TODO o corpo de renderização de carregar() (ver comentário "NOVO 17/08/2026" logo
+     antes de `dados = await resp.json();`) que deveria mostrar o erro real na tela em vez de
+     travar silencioso — mas o usuário reportou que o problema PERSISTE mesmo depois desse fix.
+     Não descartar cache de CDN/navegador (testar com hard refresh + `?_cb=` novo na URL) nem a
+     hipótese do próprio `fetch()` ficando pendurado sem nunca resolver/rejeitar (não seria pego
+     por nenhum dos 2 try/catch existentes). Detalhe completo, hipóteses e histórico de tentativas
+     em docs/changelog/ESTADO_ATUAL.md seção 4.0 e docs/changelog/PASSAGEM_DE_TURNO.md (bloco
+     17/08 "2ª metade da noite"). Próximo passo obrigatório antes de tentar mais correções às
+     cegas: ver o que a tela mostra agora (print do usuário, idealmente depois de hard refresh). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root{
