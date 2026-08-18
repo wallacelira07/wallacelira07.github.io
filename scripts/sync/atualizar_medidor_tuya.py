@@ -136,6 +136,13 @@ def buscar_leitura(access_id: str, access_secret: str, device_id: str, api_regio
         raise RuntimeError(f"Erro da Tuya Cloud: {status.get('Payload') or status}")
 
     dps = {item["code"]: item["value"] for item in status["result"] if "code" in item}
+    # NOVO 18/08/2026 (achado do usuário: current_a=0,00A com total_power=56W ao mesmo tempo no
+    # medidor da Wellida, inconsistente pra 208V — "em vez de deixar anotado, resolve"): sem log do
+    # DP bruto não dá pra saber se é DP assíncrono (current_a atualiza em outro ritmo que total_power,
+    # ver report_rate_control) ou canal errado (current_a é só do Channel A, total_power pode somar A+B,
+    # e o app mostrava Channel B com ícone de erro/desconectado). Log do bruto habilita diagnóstico real
+    # na próxima execução, em vez de continuar chutando sem ver o valor de verdade.
+    print(f"DPs brutos recebidos: {dps}")
     cfg_modelo = _MODELOS.get(modelo)
     if cfg_modelo is None:
         raise RuntimeError(f"TUYA_MODELO '{modelo}' desconhecido — valores aceitos: {sorted(_MODELOS.keys())}")
