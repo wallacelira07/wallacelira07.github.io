@@ -1,0 +1,12 @@
+// Copie este arquivo pra "segredos.h" (mesma pasta) e preencha com os valores reais.
+// "segredos.h" está no .gitignore — nunca commitar credenciais reais.
+
+#define WIFI_SSID "nome-da-rede-wifi-de-casa"
+#define WIFI_SENHA "senha-da-rede-wifi"
+
+#define SUPABASE_URL "https://bakdgacmwlopvrrppwdm.supabase.co"
+#define SUPABASE_SERVICE_KEY "colar-aqui-a-service-role-key-do-Supabase"
+// A service_role key fica em Project Settings > API no painel do Supabase.
+// NUNCA usar a chave "anon"/publishable aqui — ela não tem permissão de
+// escrita na RPC atualizar_medidor_ddsu666_saj (a função bloqueia
+// explicitamente os papéis anon/authenticated, só service_role passa).
