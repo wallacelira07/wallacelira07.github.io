@@ -701,6 +701,7 @@ async function carregar(){
 
     ${mesesHistorico.length ? `<div class="card">
       <div class="stat-lbl" style="margin-bottom:0.8rem">Histórico mês a mês (kWh)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Importado/exportado no medidor bidirecional da Casa da Mãe (unidade geradora) — não confundir com o consumo do apartamento do Wallace, mostrado à parte no card do medidor Tuya mais abaixo.</div>
       <div class="chart-wrap"><canvas id="cHistoricoMensal"></canvas></div>
     </div>` : ''}
 
