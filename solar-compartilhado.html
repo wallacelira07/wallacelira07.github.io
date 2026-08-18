@@ -147,8 +147,13 @@ function renderErro(mensagem){
     'link desativado': ['Link desativado', 'Esse link foi revogado por quem compartilhou.'],
     'link expirado': ['Link expirado', 'A validade desse link já passou — peça um novo link pra quem compartilhou.'],
   };
-  const [titulo, texto] = msgs[mensagem] || ['Não foi possível carregar', 'Tente novamente em alguns minutos, ou peça um link novo.'];
-  document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} ${titulo}</h2><p>${texto}</p></div>`;
+  // NOVO 17/08/2026 (achado do usuário: "ainda não abre" — página travava em "Carregando..." pra
+  // sempre e sem pista nenhuma do motivo): quando quem chama passa uma mensagem que não é uma das 3
+  // chaves conhecidas acima, ela é tratada como o texto real do erro (não descartada pelo fallback
+  // genérico de antes) — assim um erro de renderização (ver catch no fim de carregar()) aparece
+  // legível na própria tela, em vez de só no console do DevTools que o usuário não costuma abrir.
+  const [titulo, texto] = msgs[mensagem] || (mensagem ? ['Não foi possível carregar', mensagem] : ['Não foi possível carregar', 'Tente novamente em alguns minutos, ou peça um link novo.']);
+  document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} ${titulo}</h2><p style="white-space:pre-wrap;text-align:left;max-width:600px;margin:0 auto;font-family:monospace;font-size:0.8rem">${texto}</p></div>`;
 }
 
 // CORRIGIDO 11/08/2026 (achado do usuário: "de onde você tirou que o kwh vale 18 centavos? o valor
@@ -380,6 +385,14 @@ async function carregar(){
     return;
   }
   dados = await resp.json();
+
+  // NOVO 17/08/2026 (achado do usuário: "ainda não abre" — página ficava travada em "Carregando..."
+  // pra sempre, sem nenhum erro visível, quando algo na renderização (código adicionado nesta sessão:
+  // medidor Tuya, Rateio Solar completo) lançava exceção. Todo o corpo de renderização daqui pra
+  // baixo (que antes não tinha proteção nenhuma, só o fetch em si tinha try/catch) agora está dentro
+  // de um try/catch que MOSTRA o erro real na tela em vez de deixar travado silenciosamente — falha
+  // visível é sempre melhor que "Carregando..." eterno sem pista nenhuma do que aconteceu.
+  try {
 
   // NOVO 12/08/2026 (URL amigável) — se chegamos aqui via redirect de /solar/<token> (feito pelo
   // 404.html, truque padrão do GitHub Pages pra caminhos "bonitos" numa hospedagem sem rewrite de
@@ -842,6 +855,11 @@ async function carregar(){
     legRateioEl.textContent = mesesComLeitura
       ? mesesComLeitura+' de 12 meses já têm leitura de crédito confirmada; os demais ficam sem barra verde até a leitura chegar. Consumo esperado vem do histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida).'
       : 'Ainda sem nenhum ciclo fechado com crédito confirmado — as barras de crédito aparecem aqui assim que o primeiro ciclo fechar.';
+  }
+
+  } catch(errRender){
+    console.error('solar-compartilhado: erro ao renderizar', errRender);
+    renderErro('Erro ao montar a página: ' + (errRender && errRender.message ? errRender.message : String(errRender)) + (errRender && errRender.stack ? ('\n\n' + errRender.stack.split('\n').slice(0,5).join('\n')) : ''));
   }
 }
 
