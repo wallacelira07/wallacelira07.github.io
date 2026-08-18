@@ -83,7 +83,23 @@ async function aplicarMedidorTuyaPorCasa(cfg){
   if($$(p+'Potencia')) $$(p+'Potencia').textContent = fmtNum(ultima.potencia_w, 0, 'W');
   if($$(p+'Tensao')) $$(p+'Tensao').textContent = fmtNum(ultima.tensao_v, 1, 'V');
   if($$(p+'Corrente')) $$(p+'Corrente').textContent = fmtNum(ultima.corrente_a, 2, 'A');
-  if($$(p+'EnergiaHoje')) $$(p+'EnergiaHoje').textContent = fmtNum(ultima.energia_hoje_kwh, 2, 'kWh');
+  // CORRIGIDO 18/08/2026 (achado do usuário: medidor da Wellida não tem contador "hoje" próprio na
+  // Tuya, energia_hoje_kwh sempre null pro modelo bidirecional_ab — "como resolver esses dados
+  // faltantes?"): em vez de deixar "—", reaproveita medidor_tuya_consumo_diario (mesma tabela/trigger
+  // que já alimenta "Consumo real neste ciclo" logo abaixo) — pega a linha de HOJE (fuso local, mesmo
+  // padrão de new Date() puro já usado no resto do projeto) e usa como fallback só quando a leitura
+  // bruta não tem o campo (nunca sobrescreve um valor real vindo direto do medidor, como no caso do
+  // Wallace, que tem today_acc_energy1 de verdade).
+  let energiaHojeExibida = ultima.energia_hoje_kwh;
+  if(energiaHojeExibida == null && cfg.varConsumoDiario){
+    const diario = window[cfg.varConsumoDiario];
+    if(Array.isArray(diario)){
+      const hojeIso = new Date().toISOString().slice(0,10);
+      const linhaHoje = diario.find(r => r.data === hojeIso);
+      if(linhaHoje && linhaHoje.kwh_consumido != null) energiaHojeExibida = Number(linhaHoje.kwh_consumido);
+    }
+  }
+  if($$(p+'EnergiaHoje')) $$(p+'EnergiaHoje').textContent = fmtNum(energiaHojeExibida, 2, 'kWh');
   if($$(p+'EnergiaTotal')) $$(p+'EnergiaTotal').textContent = fmtNum(ultima.energia_total_kwh, 1, 'kWh');
   if($$(p+'Estado')) $$(p+'Estado').textContent = ultima.estado ? (ESTADOS_TUYA[ultima.estado] || ultima.estado) : '—';
 
@@ -200,6 +216,7 @@ async function aplicarMedidorTuya(){
     idPrefix: 'medTuya',
     varLeituras: 'WALLACE_MEDIDOR_TUYA_V2',
     varCicloBase: 'WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2',
+    varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2',
     varRelatorio: 'WALLACE_MEDIDOR_TUYA_RELATORIO',
     diaViradaCiclo: 21,
     logLabel: 'MedidorTuya',
@@ -216,6 +233,7 @@ async function aplicarMedidorTuyaWellida(){
     idPrefix: 'medTuyaWellida',
     varLeituras: 'WALLACE_MEDIDOR_TUYA_WELLIDA_V2',
     varCicloBase: 'WALLACE_MEDIDOR_TUYA_CICLO_BASE_WELLIDA_V2',
+    varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2',
     varRelatorio: 'WALLACE_MEDIDOR_TUYA_WELLIDA_RELATORIO',
     diaViradaCiclo: 21, // TODO: ajustar quando soubermos o dia real do ciclo Energisa da Wellida
     logLabel: 'MedidorTuyaWellida',

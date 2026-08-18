@@ -470,6 +470,22 @@ async function carregar(){
   const medidorWellidaUltima = dados.medidorTuyaWellidaUltima || null;
   const ultima = leituras.length ? leituras[leituras.length - 1] : null;
 
+  // CORRIGIDO 18/08/2026 (achado do usuário: "Consumo hoje" da Wellida sempre "—", modelo dela não
+  // tem contador "hoje" na Tuya — "como resolver esses dados faltantes?") — mesmo fallback aplicado
+  // no painel privado: reaproveita medidorTuyaConsumoDiario/medidorTuyaWellidaConsumoDiario (mesma
+  // fonte que já alimenta o card "Consumo real × crédito" logo abaixo) pra achar a linha de HOJE,
+  // só quando o campo bruto vier null (nunca sobrescreve dado real do Wallace, que tem contador próprio).
+  function energiaHojeComFallback(medidorObj, diario){
+    if(!medidorObj) return null;
+    if(medidorObj.energiaHojeKwh != null) return medidorObj.energiaHojeKwh;
+    if(!Array.isArray(diario)) return null;
+    const hojeIso = new Date().toISOString().slice(0,10);
+    const linhaHoje = diario.find(r => r.data === hojeIso);
+    return (linhaHoje && linhaHoje.kwhConsumido != null) ? Number(linhaHoje.kwhConsumido) : null;
+  }
+  const energiaHojeWallace = energiaHojeComFallback(medidorUltima, dados.medidorTuyaConsumoDiario);
+  const energiaHojeWellida = energiaHojeComFallback(medidorWellidaUltima, dados.medidorTuyaWellidaConsumoDiario);
+
   // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
   // CORRIGIDO 14/08/2026 (achado do usuário: "após 00hs deveria mostrar outra coisa até o primeiro
   // dado do SAJ do dia" — o card mostrava o último registro do array como se fosse "hoje", mesmo
@@ -758,7 +774,7 @@ async function carregar(){
       <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Apartamento Wallace</div>
       <div class="stat-grid">
         <div><div class="stat-lbl">Potência atual</div><div class="stat-val">${medidorUltima.potenciaW!=null ? Number(medidorUltima.potenciaW).toLocaleString('pt-BR',{maximumFractionDigits:0})+' W' : '—'}</div></div>
-        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorUltima.energiaHojeKwh, 2)}</div></div>
+        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(energiaHojeWallace, 2)}</div></div>
         <div><div class="stat-lbl">Energia total acumulada</div><div class="stat-val">${fmtKwh(medidorUltima.energiaTotalKwh)}</div></div>
         <div><div class="stat-lbl">Tensão / Corrente</div><div class="stat-val" style="font-size:1.05rem">${medidorUltima.tensaoV!=null?Number(medidorUltima.tensaoV).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'} V / ${medidorUltima.correnteA!=null?Number(medidorUltima.correnteA).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'} A</div></div>
       </div>
@@ -825,7 +841,7 @@ async function carregar(){
       <div class="stat-lbl" style="margin-bottom:0.8rem">⚡ Consumo em tempo real Casa da Wellida</div>
       <div class="stat-grid">
         <div><div class="stat-lbl">Potência atual</div><div class="stat-val">${medidorWellidaUltima.potenciaW!=null ? Number(medidorWellidaUltima.potenciaW).toLocaleString('pt-BR',{maximumFractionDigits:0})+' W' : '—'}</div></div>
-        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(medidorWellidaUltima.energiaHojeKwh, 2)}</div></div>
+        <div><div class="stat-lbl">Consumo hoje</div><div class="stat-val">${fmtKwh(energiaHojeWellida, 2)}</div></div>
         <div><div class="stat-lbl">Energia total acumulada</div><div class="stat-val">${fmtKwh(medidorWellidaUltima.energiaTotalKwh)}</div></div>
         <div><div class="stat-lbl">Tensão / Corrente</div><div class="stat-val" style="font-size:1.05rem">${medidorWellidaUltima.tensaoV!=null?Number(medidorWellidaUltima.tensaoV).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'} V / ${medidorWellidaUltima.correnteA!=null?Number(medidorWellidaUltima.correnteA).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'} A</div></div>
       </div>
