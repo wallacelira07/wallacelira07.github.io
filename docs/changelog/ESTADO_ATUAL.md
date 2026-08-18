@@ -109,8 +109,8 @@ Aguardando Caixa Manutenção acumular saldo suficiente.
 ### 4.4 Backlog técnico adiado (decisão consciente do usuário)
 Lint dos ~91 módulos `hydrate-*`.
 
-### 4.5 Pressão/glicose (aba Emagrecimento) — ainda não verificado em navegador real
-Herdado do bloco 19, sem atualização nesta sessão.
+### 4.5 ENCERRADO — Pressão/glicose (aba Emagrecimento) já testado em navegador real, com valores atualizados
+Usuário confirmou em 17/08/2026 que já testou ao vivo e os valores aparecem corretos. Não reabrir como pendência.
 
 ### 4.6 Consumo real do medidor Tuya × gráfico "Geração por dia" — deliberadamente adiado
 Quando o medidor da irmã e o DDSU666 (Casa da Mãe) existirem, revisitar o gráfico "Geração por dia" (seção 04, Solar) pra somar os 3 consumos reais contra a geração real da usina. Não fazer com só 1 dos 3 medidores online (ver `INTEGRACAO_MEDIDOR_SMART_LIFE_TUYA.md` seção 8).

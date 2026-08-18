@@ -24,20 +24,37 @@
      vars-energia-solar.js — ver comentário no bloco de cálculo). -->
 <!-- ADICIONADO 15/08/2026 (achado da auditoria de 43 especialistas): SRI (hash sha512 real, via
      api.cdnjs.com) - mesma proteção aplicada em Sistema_Wallace_Lira_Completo.html. -->
-<!-- 🔴 BUG ABERTO 17/08/2026 (não resolvido — não remover este comentário até confirmar corrigido
-     em produção com o usuário): depois do commit 5739631 (trouxe medidor Tuya + Rateio Solar
-     completo pra esta página), ela passou a ficar travada em "Carregando..." pra sempre em
-     produção. Backend confirmado OK (curl direto na RPC consultar_solar_compartilhado, 200 com
-     dado real). Causa raiz ainda não confirmada. Foi adicionado um try/catch de diagnóstico em
-     volta de TODO o corpo de renderização de carregar() (ver comentário "NOVO 17/08/2026" logo
-     antes de `dados = await resp.json();`) que deveria mostrar o erro real na tela em vez de
-     travar silencioso — mas o usuário reportou que o problema PERSISTE mesmo depois desse fix.
-     Não descartar cache de CDN/navegador (testar com hard refresh + `?_cb=` novo na URL) nem a
-     hipótese do próprio `fetch()` ficando pendurado sem nunca resolver/rejeitar (não seria pego
-     por nenhum dos 2 try/catch existentes). Detalhe completo, hipóteses e histórico de tentativas
-     em docs/changelog/ESTADO_ATUAL.md seção 4.0 e docs/changelog/PASSAGEM_DE_TURNO.md (bloco
-     17/08 "2ª metade da noite"). Próximo passo obrigatório antes de tentar mais correções às
-     cegas: ver o que a tela mostra agora (print do usuário, idealmente depois de hard refresh). -->
+<!-- 🔴 BUG ABERTO 17/08/2026 (3ª tentativa de correção aplicada — AINDA NÃO confirmado resolvido em
+     produção com o usuário, não remover este comentário até confirmar): depois do commit 5739631
+     (trouxe medidor Tuya + Rateio Solar completo pra esta página), ela passou a ficar travada em
+     "Carregando..." pra sempre em produção. Backend confirmado OK (curl direto na RPC
+     consultar_solar_compartilhado, 200 com dado real).
+     Tentativa 1: `dados = await resp.json()` estava fora dos 2 try/catch — corrigido, movido pra
+     dentro do try/catch de diagnóstico da renderização.
+     Tentativa 2: AbortController com timeout de 15s no `fetch()` — usuário reportou que o problema
+     PERSISTIU mesmo depois desse fix.
+     Tentativa 3 (auditoria estática de código, 17/08 madrugada): achado real, não hipótese — o
+     `clearTimeout(abortTimer)` da tentativa 2 rodava num `finally` logo depois do `await fetch(...)`
+     resolver, ou seja, assim que os HEADERS chegam (fetch() resolve nesse ponto, não quando o corpo
+     inteiro termina de baixar). Os dois `resp.json()` (branch de erro e de sucesso) rodavam DEPOIS,
+     já sem proteção nenhuma de timeout — se o STREAM do corpo travasse no meio (CDN/proxy engasgando
+     a entrega, headers rápidos mas corpo nunca completa), `resp.json()` podia ficar pendurado pra
+     sempre sem timeout nenhum pra salvar. Isso explica por que a tentativa 2 não resolveu: protegia
+     só a metade errada da operação (headers, não corpo). Corrigido: o AbortController/timeout agora
+     cobre fetch() E os dois `resp.json()`, só desarma no `finally` externo no fim de tudo (ver
+     `carregar()` por volta da linha 380).
+     Verificado nesta auditoria e descartado como causa: sintaxe (balanceamento de chaves/parênteses/
+     colchetes checado programaticamente, incluindo dentro de template literals aninhados — OK, sem
+     erro), `</script` escondido em texto (checado — não há), todos os `getElementById` usados batem
+     com IDs existentes no HTML (checado — todos existem, ou são criados no innerHTML antes de serem
+     lidos). Achado cosmético não relacionado ao travamento: `var(--surface-2)` na linha ~748 não
+     está definida em `:root` (cai pra transparente, não quebra JS) — não corrigido de propósito,
+     fora do escopo deste bug.
+     Não descartar cache de CDN/navegador (testar com hard refresh + `?_cb=` novo na URL). Detalhe
+     completo, hipóteses e histórico de tentativas em docs/changelog/ESTADO_ATUAL.md seção 4.0 e
+     docs/changelog/PASSAGEM_DE_TURNO.md (bloco 17/08 "2ª metade da noite"). Próximo passo: pedir
+     print do usuário depois de hard refresh pra confirmar se o travamento sumiu ou se agora aparece
+     alguma mensagem de erro na tela (o que já seria progresso — indicaria outra causa raiz). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root{
@@ -382,31 +399,50 @@ async function carregar(){
   if(!token){ renderErro('link invalido'); return; }
 
   let resp, dados;
+  // CORRIGIDO 17/08/2026 (3ª tentativa — achado real de auditoria estática do código, não hipótese:
+  // a versão anterior dava `clearTimeout(abortTimer)` no `finally` logo depois do `await fetch(...)`
+  // resolver — ou seja, assim que os HEADERS chegam. `fetch()` resolve quando os headers chegam, não
+  // quando o corpo inteiro terminou de baixar; o corpo só é lido de verdade em `resp.json()`, que
+  // rodava DEPOIS, já sem nenhuma proteção de timeout (o `AbortController` já tinha sido desarmado).
+  // Ou seja: se os headers chegassem rápido (RPC responde rápido) mas o STREAM do corpo travasse no
+  // meio (CDN/proxy engasgando a entrega, exatamente a hipótese já registrada no comentário do bug em
+  // aberto no topo do arquivo), `resp.json()` podia ficar pendurado pra sempre, sem nunca resolver nem
+  // rejeitar — e sem timeout nenhum pra salvar. Isso explica por que o travamento persistiu mesmo
+  // depois do fix de 15s: o timeout protegia só a metade errada da operação. Corrigido: o
+  // `AbortController`/timeout agora cobre fetch() E os dois `resp.json()` (branch de erro e de
+  // sucesso) — só desarma no fim de tudo (`finally` externo).
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 15000);
   try {
-    resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consultar_solar_compartilhado`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-      body: JSON.stringify({ p_token: token }),
-    });
-  } catch(e){
-    document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} Sem conexão</h2><p>Não consegui buscar os dados agora. Confira sua internet e recarregue a página.</p></div>`;
-    return;
-  }
-  if(!resp.ok){
-    let corpo = null;
-    try { corpo = await resp.json(); } catch(e){}
-    renderErro((corpo && (corpo.message || corpo.hint)) || '');
-    return;
-  }
-  dados = await resp.json();
-
+    try {
+      resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consultar_solar_compartilhado`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ p_token: token }),
+        signal: controller.signal,
+      });
+    } catch(e){
+      document.getElementById('app').innerHTML = `<div class="msg"><h2>${ICONE_MARCA_INLINE} Sem conexão</h2><p>Não consegui buscar os dados agora. Confira sua internet e recarregue a página.</p></div>`;
+      return;
+    }
+    if(!resp.ok){
+      let corpo = null;
+      try { corpo = await resp.json(); } catch(e){}
+      renderErro((corpo && (corpo.message || corpo.hint)) || '');
+      return;
+    }
   // NOVO 17/08/2026 (achado do usuário: "ainda não abre" — página ficava travada em "Carregando..."
   // pra sempre, sem nenhum erro visível, quando algo na renderização (código adicionado nesta sessão:
   // medidor Tuya, Rateio Solar completo) lançava exceção. Todo o corpo de renderização daqui pra
   // baixo (que antes não tinha proteção nenhuma, só o fetch em si tinha try/catch) agora está dentro
   // de um try/catch que MOSTRA o erro real na tela em vez de deixar travado silenciosamente — falha
   // visível é sempre melhor que "Carregando..." eterno sem pista nenhuma do que aconteceu.
+  // CORRIGIDO 17/08/2026 (2ª tentativa): `dados = await resp.json()` estava FORA deste try/catch
+  // (era a última linha antes dele começar) — se o parse do JSON lançasse exceção por qualquer
+  // motivo em produção, ninguém capturava, e a página travava exatamente como neste bug. Movido
+  // pra dentro.
   try {
+    dados = await resp.json();
 
   // NOVO 12/08/2026 (URL amigável) — se chegamos aqui via redirect de /solar/<token> (feito pelo
   // 404.html, truque padrão do GitHub Pages pra caminhos "bonitos" numa hospedagem sem rewrite de
@@ -874,6 +910,9 @@ async function carregar(){
   } catch(errRender){
     console.error('solar-compartilhado: erro ao renderizar', errRender);
     renderErro('Erro ao montar a página: ' + (errRender && errRender.message ? errRender.message : String(errRender)) + (errRender && errRender.stack ? ('\n\n' + errRender.stack.split('\n').slice(0,5).join('\n')) : ''));
+  }
+  } finally {
+    clearTimeout(abortTimer);
   }
 }
 
