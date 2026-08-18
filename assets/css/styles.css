@@ -458,6 +458,15 @@
   }
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+  /* NOVO 18/08/2026 (pedido repetido do usuário: "sempre o mesmo tamanho" pros cards da seção 05
+     "Todas as Caixas") — o grid já estica as alturas DENTRO de uma mesma fileira (ver comentário em
+     Sistema_Wallace_Lira_Completo.html perto de cxSeguroSaldo), mas fileiras diferentes ficavam com
+     alturas diferentes: só 6 das ~14 caixas (Bens Duráveis, Manutenção, Eventos, Saúde Família,
+     Churrasco, Emagrecimento) podem ganhar o bloco extra "Comprometido no cartão/Disponível real"
+     (ver hydrate-comprometido-caixas-tematicas-v2.js), e ele só aparece quando há valor comprometido
+     no ciclo — a fileira que calhar de ter uma dessas caixas com o bloco fica mais alta que as
+     outras. min-height reserva espaço pro bloco extra em TODAS as fileiras, não só na que precisa. */
+  .caixas-grid .card{min-height:168px}
   .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
   /* CORRIGIDO 13/08/2026 (achado de auditoria: div.cv-legend-row, seção 06 do Painel, não tinha
      NENHUMA regra CSS neste arquivo — os 3 blocos empilhavam verticalmente em vez de ficar lado a

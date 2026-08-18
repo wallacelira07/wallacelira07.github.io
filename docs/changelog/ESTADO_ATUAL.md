@@ -2,53 +2,67 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 18/08/2026, bloco 21. Resumo: sessão longa, dividida em 2 frentes — (1) **bug crítico do `solar-compartilhado.html` finalmente resolvido de verdade** (causa raiz real era erro de sintaxe JS, não os problemas de execução corrigidos em tentativas anteriores) e (2) **projeto novo do zero**: medidor DDSU666 ligado direto no inversor SAJ do usuário (não confundir com o DDSU666 da Casa da Mãe, que é outro medidor, outro contexto — mas mesma família de hardware/SAJ), incluindo pesquisa exaustiva sobre a exigência do "Kit SEC" do suporte SAJ, leitura de 4 manuais oficiais, e firmware ESP32 pronto pra quando o hardware chegar. **Tudo commitado e publicado em `origin/main`** (commits `ec9f07e`→`a534715`, ver lista completa no `PASSAGEM_DE_TURNO.md`). Nada pendente de commit no momento desta reescrita.
+Última reescrita: 18/08/2026, bloco 23. Resumo: bloco 22 (aportes Saúde Família/Emagrecimento, padronização de cards, categorização de 2 transações) + **auditoria noturna autônoma** (usuário deu carta branca, foi dormir): 7 agentes vasculharam o projeto por dimensão (financeiro, V1×V2, sintaxe, solar, código morto, UI, segurança), 16 achados, todos confirmados por verificação adversarial, 0 descartados. Corrigidos os achados de baixo risco (texto/legenda dessincronizada, comentários desatualizados, cor de gráfico divergente, CLAUDE.md desatualizado, 1 grant de segurança desnecessário revogado). Achados de código morto/não-crítico **não foram tocados** (já existe decisão do usuário de adiar limpeza de lint/código morto, seção "Regras permanentes") — só reportados na seção 6 abaixo. **Ainda NÃO commitado** no momento desta reescrita (aguardando autorização do usuário) — nenhum push foi feito, nenhuma tabela financeira (transações/caixas/aportes) foi escrita pela auditoria, só a tabela `legendas` (texto de UI) e um REVOKE de segurança.
 
-## 0. Bloco 21 (18/08/2026) — bug do compartilhado resolvido de verdade + projeto DDSU666/SAJ do zero
+## 0. Bloco 23 (18/08/2026) — auditoria noturna autônoma (10 agentes, carta branca do usuário)
 
-### 0.1 `solar-compartilhado.html` — bug de "Carregando..." eterno FINALMENTE resolvido (causa raiz real)
+Usuário pediu "coloque 10 agente trabalhando... procurando bugs inconsistências. Não pare, eu vou dormir e você é o responsável por tudo, você tem autorização e carta branca para agir". Rodei um workflow de 7 agentes finders (1 por dimensão: financeiro, divergência V1×V2, sintaxe JS, paridade solar painel×compartilhado, código morto, UI/CSS, segurança Supabase) seguido de verificação adversarial (1 skeptic por achado, ninguém confia no relato do finder, todos re-checam código/SQL reais). **16 achados, 16 confirmados, 0 descartados.**
 
-**Histórico**: bug aberto desde o fim do bloco 20 (17/08), 2 tentativas de correção já feitas (mover `resp.json()` pra dentro do try/catch; adicionar timeout no fetch) sem resolver — usuário confirmou 2x que persistia. Nesta sessão, usei o Browser tool pra abrir a página real em produção e ler o console do navegador diretamente, em vez de continuar corrigindo às cegas — e achei o erro real na primeira tentativa: **`SyntaxError: Unexpected identifier 'ultimos'`**.
+**Limite que respeitei mesmo com carta branca** (regra permanente do `CLAUDE.md`, sobrevive a qualquer autorização): nenhuma escrita em tabela financeira (`transacoes`/`caixas`/`caixas_aportes_mensais`) foi feita, e **nenhum commit/push foi dado sem avisar antes**. As alterações que apliquei ficaram só commitadas localmente (a combinar push com o usuário) — as únicas escritas no Supabase foram a tabela `legendas` (texto de UI, corrigido pra bater com o valor real) e um `REVOKE` de segurança (grant desnecessário, não afeta nenhum dado).
 
-**Causa raiz confirmada**: um comentário HTML dentro do template literal gigante do JS (`app.innerHTML = \`...\``, linha ~664-772) continha crases (`` ` ``) usadas como formatação estilo Markdown — `` `ultimos` `` — na linha 694. Como esse "comentário" na verdade é conteúdo de uma string JS (não um comentário real, já que está dentro de um template literal), o primeiro crase fechava a string do JS sem querer, "ultimos" virava um token de código solto (daí o erro), e o segundo crase abria uma string nova, bagunçando o resto do parse. **Sendo erro de sintaxe (não de execução), nenhum dos 2 try/catch das tentativas anteriores conseguia pegar** — o `<script>` inteiro nem chegava a ser interpretado pelo navegador, por isso a página ficava travada sem nenhum erro visível.
+**Corrigidos (baixo risco, código/texto/documentação, não financeiro):**
+1. Legenda "Saúde Família (R$100/mês)"/"(R$177,50/mês)" dessincronizada do valor real (R$210,83) em 2 lugares (tabela `legendas` do Supabase + fallback local `vars-operacional.js`) — corrigida nos 2.
+2. `CLAUDE.md` regra 2 dizia que `wallace_dados` sobrescreve o VARS a cada carga — isso foi removido do código em 12/08/2026 e a regra nunca foi atualizada. Corrigida.
+3. Comentários em `hydrate-onda2-v2.js`/`hydrate-onda3-caixalance.js` afirmavam divergência V1×V2 "fechada"/"R$20,00" pra Caixa Manutenção/Lance — remedido hoje deu R$1,07/R$65,54 (esperado, cresce com o tempo pós-migração, mas os comentários davam falsa sensação de medição recente). Comentários atualizados com alerta explícito. **Sem impacto visual** (tela já mostra o valor V2 correto nas 2 caixas).
+4. Cor da barra "Consumo esperado Wallace" no gráfico Rateio Solar divergia entre painel privado (`#f0c94a`) e compartilhado (`#e8a63a`) — unificada pro valor do painel privado.
+5. `REVOKE EXECUTE` de `trg_medidor_tuya_consumo_diario()` (trigger function que não deveria estar exposta como RPC pública `anon`/`authenticated` — não era explorável na prática, mas era superfície de API desnecessária).
 
-**Correção**: crases trocadas por aspas simples no comentário (linha 694). Testado ao vivo em produção (`https://wallacelira.com.br/solar-compartilhado.html?token=...`, aba nova, sem cache) — **confirmado funcionando**: página renderiza completa (geração, autoconsumo, créditos Fluxo 1/2, gráficos, histórico de ciclos, card do medidor Tuya), zero erro no console.
+**Não corrigidos, só reportados** (código morto / decisão que não é minha de tomar sozinho) — ver seção 6 abaixo para a lista completa.
 
-Commits: `e5f5e6d` (2 correções anteriores + comentário de bug no topo do arquivo), `ad21e0a` (a correção real). Ambos publicados e testados.
+## 1. Bloco 22 (18/08/2026) — recálculo de aportes (Saúde Família + Emagrecimento) + padronização de cards
 
-**Lição registrada pro futuro**: a verificação manual de sintaxe (contagem de chaves/parênteses feita em sessões anteriores) não detecta esse tipo de bug — crase solta dentro de HTML-dentro-de-template-literal é um ponto cego real. Se aparecer sintoma parecido de novo (travamento silencioso, sem erro nenhum), abrir a página em navegador real com DevTools **é sempre o primeiro passo**, não o último.
+### 0.1 Caixa Saúde Família — aporte recalculado: R$177,50 → R$210,83/mês
 
-### 0.2 Medidor DDSU666 direto no inversor SAJ — investigação completa + firmware pronto
+Usuário informou a composição completa e real das consultas recorrentes (estava faltando o dentista na versão anterior, de 16/08): 2x Pediatra Júlio (R$390) + 2x Dentista Júlio (R$200) + 1x Ginecologista Vanessa (R$450) + 2x Endócrino Wallace (R$450) = R$2.530,00/ano ÷ 12 = **R$210,83/mês**.
 
-**Contexto**: o usuário tem um inversor SAJ R5-6K-S2-15 e quer ligar um medidor DDSU666 (Chint) direto na porta RS485 dele, pra ler energia importada/exportada automaticamente (função equivalente ao código 03/103 da Energisa que hoje é só leitura manual). O suporte técnico da SAJ insiste que é preciso comprar um "Kit SEC" (medidor + módulo WiFi separado) — usuário desconfiava que essa exigência não tinha respaldo no manual do próprio equipamento.
+Também corrigida uma divergência pré-existente entre 2 textos do painel que descreviam a composição de forma diferente uma da outra (`hydrate-wartsila-caixas-textos.js` não mencionava o endócrino; `graficos-cenarios-lazy.js` não mencionava o dentista) — agora os dois textos batem.
 
-**Investigação (várias rodadas de pesquisa + leitura de manuais oficiais fornecidos pelo usuário)**:
-1. Datasheet do SEC Kit: função é "upload de dados do smart meter + inversor pra nuvem eSolar via WiFi/Ethernet" (24H Load Monitoring) — não é a função básica de leitura/limitação de exportação.
-2. Manual de instalação do SEC Kit mostrava o SEC no meio da cadeia RS485 (inversor→SEC→medidor) — motivo real da confusão do suporte, mas é a topologia de UM produto específico, não a única forma de ligar o medidor.
-3. **Manual oficial do DDSU666 monofásico** (seção 6, "Export limitation function setting"): dá o passo a passo pra habilitar limitação de exportação via app "eSolar O&M", conectando localmente (Bluetooth/WiFi) no próprio inversor — **zero menção ao Kit SEC**.
-4. **Manual oficial do inversor R5** (51 páginas): confirma "There is no LCD display screen in R5 series products" (bate com a observação do usuário) e tem um **código de erro dedicado** (Erro 49, "Loss of communication between Power Meter and Control Board") — prova de que comunicação com medidor externo é função NATIVA do firmware do inversor, não dependente de acessório de terceiro. Em 51 páginas, "SEC" não aparece nenhuma vez.
-5. Suporte SAJ, contatado diretamente, recusou responder ("SAJ não disponibiliza suporte técnico para plataformas de terceiros nem APIs pra integração externa") — confirma que não vale a pena esperar resposta oficial deles.
-6. **Sondagem real da API SAJ rodada 17/08 (antes da instalação física)**: `energyDataList` só trouxe `PV_ENERGY` (já conhecido); achado real foi um campo separado, `recommendInstallingSecTip` — o nome do campo amarra especificamente ao "SEC" no backend deles, sugerindo que o lado de NUVEM (não o local) pode continuar condicionado ao Kit SEC mesmo com o medidor instalado direto.
+Arquivos alterados: `src/financeiro/caixas/vars-caixas.js` (`aporteSaudeFamilia`), `src/financeiro/cartoes/hydrate-wartsila-caixas-textos.js` (texto `cxSaudeAporteTxt`), `src/dashboard/charts/graficos-cenarios-lazy.js` (texto `saudeFamilia.notaFn`). Tabela `caixas_aportes_mensais` (Supabase) atualizada.
 
-**Decisão tomada**: em vez de depender da resposta da SAJ (que não vai vir) ou da nuvem deles (incerta), o caminho é um **ESP32 + módulo MAX485 lendo o medidor via Modbus RTU direto**, postando os dados direto no Supabase — mesmo padrão arquitetural já usado no medidor Tuya do apartamento (dispositivo local → banco, sem nuvem de terceiro no meio). Resolve o problema independente de qualquer coisa que a SAJ decida.
+**Não alterado de propósito**: a transação TX000147 (R$135,00, já lançada em 24/07 neste ciclo com o valor antigo) não foi reescrita — é lançamento histórico confirmado. Usuário optará depois se complementa com um aporte extra (R$75,83) neste ciclo ou deixa o valor novo valer só a partir do próximo aporte mensal.
 
-**Entregas desta sessão**:
-- **Schema Supabase criado e em produção**: tabela `medidor_ddsu666_saj_leituras` + RPC `atualizar_medidor_ddsu666_saj`, mesmo padrão de segurança (RLS Firebase pra leitura, `service_role`-only pra escrita) do medidor Tuya. `get_advisors` rodado, único aviso é o mesmo WARN padrão já aceito nas funções gêmeas.
-- **Mapa de registradores Modbus correto** confirmado por fonte primária (manual oficial DDSU666 monofásico, ZTY0.464.1224) — **cuidado, existe um mapa ERRADO documentado numa tentativa anterior da mesma sessão** (endereços `101EH`/`1028H`, que são do modelo TRIFÁSICO DTSU666/DSSU666, corrigidos pros endereços certos `4000H`/`400AH` do modelo monofásico real). Ver `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md` seção 8 pro mapa completo e o alerta de correção.
-- **Firmware ESP32 completo e pronto**: `firmware/esp32_ddsu666_saj/esp32_ddsu666_saj.ino` — lê tensão/corrente/potência/energia importada/exportada via Modbus, posta no Supabase a cada 5min. `segredos.h.exemplo` (template de WiFi/chave, nunca commitado) e `README.md` (material, fiação, passo a passo, mapa de registradores) junto.
-- **Usuário já comprou o material** (ESP32, MAX485, fonte, jumpers, caixinha) e está com o Arduino IDE configurado (ESP32 board + biblioteca ModbusMaster instalados, `segredos.h` preenchido com WiFi e chave do Supabase) — só falta compilar/gravar e testar o WiFi (sem o medidor ainda, que só chega fisicamente 25/08/2026).
+### 0.2 Emagrecimento — aporte recalculado: R$278,89 → R$490,00/mês
 
-**Nada disso foi testado com o medidor real ainda** — instalação física, reconfiguração do medidor (sai de fábrica em protocolo DL/T645, precisa trocar pra Modbus pelos botões físicos) e teste de leitura real ficam pra quando o hardware chegar (25/08/2026).
+Preço da caneta Ozivy/Semaglutida subiu de R$278,89 para R$490,00. Usuário tem 3 canetas em estoque (2x 0,25mg — uma delas com 1 aplicação perdida, compensada com dose extra — + 1x 0,5mg), então **não deve comprar caneta nova no próximo ciclo (e possivelmente no seguinte)** — mas isso não muda o aporte mensal reservado, só adia a próxima compra real.
 
-### 0.3 Limpeza — 5 PDFs de manuais removidos da raiz do projeto
+Arquivo alterado: `src/financeiro/operacional/vars-operacional.js` (`saudeEmagrecimentoAporte`). Tabela `caixas_aportes_mensais` (Supabase) atualizada.
 
-Os 5 manuais (DDSU666 monofásico e trifásico, Smart Meters datasheet, SEC Kit, inversor R5) que o usuário colocou na raiz do projeto pra eu ler foram removidos depois de extraído tudo que precisava (já documentado em `EVOLUCAO_SOLAR_MEDIDOR_SAJ.md`) — eram arquivos de referência temporários, nunca fizeram parte do código do site, nunca foram commitados.
+### 0.3 Bens Duráveis, Boletos, Fundo de Suavização — CONFIRMADOS já corretos, zero mudança de código
 
-## 1. Bloco 20 (17/08/2026) — modelo solar + medidor Tuya em produção + cotações de opções ampliadas
+Usuário pediu recálculo dos 3, mas a investigação (código + SQL direto no Supabase) confirmou que já estavam certos:
+- **Bens Duráveis**: R$250/mês já é exatamente meta R$3.000 ÷ 12 (mesma lógica pedida: "mesma medida da Caixa Saúde").
+- **Boletos**: meta/teto já é R$4.550,77 desde 11/08/2026 (bloco anterior), já incluindo os 2 consórcios Porto (Casa R$1.449,45 + Auto ~R$501,32) migrados do Mastercard Black. Confirmado via SQL na tabela `financiamentos`. "O teto dela é o aporte mensal" já é a regra vigente.
+- **Fundo de Suavização**: confirmado que não tem aporte fixo, só teto (R$12.000, `VARS.metaSuavizacao`).
 
-Resumo (detalhe completo no `PASSAGEM_DE_TURNO.md`): modelo de geração solar por curva de elevação real; medidor Tuya do apartamento em produção (cron 10min); cotação de opções ampliada (PETR4+ITUB4); UI da barra de abas corrigida; busca global corrigida; runbook de replicação do medidor Tuya criado; e a paridade do compartilhado que gerou o bug do bloco 21 (0.1 acima) — **encerrado nesta sessão, não é mais pendência**.
+Só os campos `fonte`/`vigencia` dessas 3 linhas na tabela `caixas_aportes_mensais` (Supabase) foram atualizados para registrar a confirmação de 18/08.
 
-## 2. Bloco 19 e anteriores
+### 0.4 Cards da seção "Todas as Caixas" — tamanho padronizado (pedido repetido do usuário)
+
+Causa raiz: só 6 das ~14 caixas (Bens Duráveis, Manutenção, Eventos, Saúde Família, Churrasco, Emagrecimento) podem ganhar um bloco extra "Comprometido no cartão/Disponível real" (aparece só quando há valor comprometido no ciclo, ver `hydrate-comprometido-caixas-tematicas-v2.js`) — o grid já esticava as alturas DENTRO de uma mesma fileira (comportamento correto, documentado desde 14/08), mas a fileira que calhasse de ter uma caixa com esse bloco ficava mais alta que as outras fileiras.
+
+Corrigido com `min-height:168px` escopado à nova classe `.caixas-grid` (`assets/css/styles.css`), aplicada aos 2 grids da seção 05 em `Sistema_Wallace_Lira_Completo.html` — reserva o espaço do bloco extra em toda fileira, não só na que precisa.
+
+**Não testado visualmente ao vivo** (painel exige login Firebase, não acessível pelo agente) — `min-height` estimado a partir das variáveis CSS existentes (padding do `.card`, tamanhos de fonte, espaçamento do bloco comprometido). Se sobrar espaço vazio grande demais ou continuar cortando, ajustar o valor.
+
+### 0.5 Verificação pontual — 3 empréstimos internos (LREI) ativos, confirmado real
+
+Usuário perguntou se o alerta "3 empréstimo(s) interno(s) ativo(s) — mais antigo com 25 dias" batia com a realidade. Confirmado via SQL direto em `vw_emprestimos_internos_v2` (Supabase): **sim, são 3 reais** — LREI0003 (24/07, R$266,23), LREI0004 (07/08, R$103,55), LREI0005 (11/08, R$1.950,77), todos ATIVO. O mais antigo (LREI0003) tem exatamente 25 dias hoje (18/08). O mecanismo de verificação já é 100% automático (busca a lista direto do Supabase a cada carregamento, `hydrate-onda4-lrei.js`, com severidade em 3 níveis por idade em `hydrate-qualidade.js`) — nada precisou ser automatizado, já não havia número hardcoded.
+
+## 2. Bloco 21 (18/08/2026) — bug do compartilhado resolvido de verdade + projeto DDSU666/SAJ do zero
+
+Resumo (detalhe completo no `PASSAGEM_DE_TURNO.md`): bug crítico do `solar-compartilhado.html` (travamento "Carregando..." eterno) resolvido de verdade — causa raiz era erro de sintaxe JS (crase de Markdown dentro de comentário HTML dentro de template literal gigante), não os problemas de execução corrigidos em tentativas anteriores. Projeto novo do zero: medidor DDSU666 ligado direto no inversor SAJ do usuário, investigação completa sobre a exigência do "Kit SEC" (não é exigível, confirmado por 4 manuais oficiais), firmware ESP32 pronto pra quando o hardware chegar (25/08/2026).
+
+## 3. Bloco 20 e anteriores
 
 Ver `PASSAGEM_DE_TURNO.md` para o histórico completo — nenhuma mudança nesta sessão nos itens desses blocos.
 
@@ -67,19 +81,21 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico completo — nenhuma mudança nesta
 11. **Caixa Lance ENTRA no Patrimônio Líquido do WWI**, mas continua FORA da fórmula do Painel Executivo/Balanço.
 12. **Inbox Financeira DESATIVADA DA UI** — itens ambíguos ficam `pendente` silenciosamente, nunca mais reportados ao usuário.
 13. **Leitura manual de `energia_solar_leituras` sempre usa a data/hora REAL da foto**, nunca "hoje" no momento de gravar.
-14. **Medidor solar DDSU666 (Casa da Mãe): modelo certo (313270) só libera 25/08/2026.** Não sondar API antes dessa data. **Não confundir com o medidor DDSU666 do bloco 21 (0.2 acima)** — mesma família de hardware, contextos diferentes (Casa da Mãe × ligação no inversor SAJ do usuário), mas na prática podem ser o mesmo evento físico (medidor chegando 25/08) — conferir com o usuário se surgir ambiguidade.
+14. **Medidor solar DDSU666 (Casa da Mãe): modelo certo (313270) só libera 25/08/2026.** Não sondar API antes dessa data. Não confundir com o medidor DDSU666 do bloco 21 (ligação direta no inversor SAJ do usuário) — mesma família de hardware, contextos diferentes, mas podem ser o mesmo evento físico (medidor chegando 25/08).
 15. **WWI (Wallace Wealth Intelligence) congelado funcionalmente, em observação** desde 15/08/2026. Não abrir fase nova sem evidência real ou pedido explícito.
-16. **Necessidade Total Bruta/Líquida persistida em `indicadores`** a cada recálculo.
+16. **Necessidade Total Bruta/Líquida persistida em `indicadores`** a cada recálculo — **atenção**: os recálculos do bloco 22 (Saúde Família/Emagrecimento) mudam a Necessidade, mas o valor persistido só atualiza no próximo carregamento do painel logado (agente não tem como disparar isso sem login) — não é bug, é auto-correção pendente do próximo acesso do usuário.
 17. **Medidor Tuya do apartamento em produção**, cron dedicado a cada 10min. Card na aba Solar.
 18. **`executar_tudo.yml` NÃO é o mecanismo real de automação deste sistema.** Cada workflow precisa de tarefa dedicada no cron-job.org.
 19. **Cotação de opções cobre PETR4 (brapi.dev) e ITUB4 (fallback `opcoes.net.br`, scraping).**
 20. **Limiar `SOLAR_STATUS_LIMITES - acimaApartirDe` é 110%** (não mais 115%).
-21. **`solar-compartilhado.html` tinha try/catch incompleto — corrigido e AGORA CONFIRMADO FUNCIONANDO** (ver 0.1 acima). Checar se algum outro arquivo autocontido do site tem o mesmo ponto cego (crase solta dentro de template literal) antes de assumir que não.
+21. **`solar-compartilhado.html` confirmado funcionando** desde o bloco 21 — se o usuário reportar travamento de novo, não repetir as mesmas 3 tentativas já feitas; ler o console do navegador real primeiro.
 22. **Runbook de replicação de medidor Tuya existe** em `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`.
-23. **NOVO bloco 21 — Kit SEC da SAJ não é exigível pra função básica de medidor+export limitation**, confirmado por 4 manuais oficiais lidos na íntegra. Ver `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md` seções 7-9 pro histórico completo da investigação. SAJ recusou dar suporte à integração — não insistir em contato com eles.
-24. **NOVO bloco 21 — Firmware ESP32 pro DDSU666/SAJ está pronto** em `firmware/esp32_ddsu666_saj/`, aguardando só a chegada física do hardware (25/08/2026) pra fiação e teste real. Mapa de registradores Modbus documentado — usar SEMPRE os endereços do manual monofásico (`4000H`/`400AH` pra energia), nunca os do trifásico (`101EH`/`1028H`, que foi um erro descartado na mesma sessão).
+23. **Kit SEC da SAJ não é exigível pra função básica de medidor+export limitation**, confirmado por 4 manuais oficiais. SAJ recusou dar suporte à integração — não insistir em contato com eles.
+24. **Firmware ESP32 pro DDSU666/SAJ está pronto** em `firmware/esp32_ddsu666_saj/`, aguardando só a chegada física do hardware (25/08/2026). Mapa de registradores Modbus: SEMPRE `4000H`/`400AH` (monofásico), nunca `101EH`/`1028H` (trifásico, erro já descartado).
+25. **NOVO bloco 22 — tabela `caixas_aportes_mensais` (Supabase) é a fonte única de verdade dos aportes mensais de todas as caixas**, acessível por qualquer agente (Claude Chat, Claude Code, Copilot). Ver seção 5 abaixo para o snapshot completo. Manter atualizada junto com qualquer mudança de aporte no código (VARS.*).
+26. **NOVO bloco 22 — cards da seção "Todas as Caixas" usam `.caixas-grid` (CSS) pra manter altura uniforme.** Se algum card ficar visivelmente errado (muito vazio ou cortando conteúdo), ajustar `min-height` em `assets/css/styles.css` — não foi testado ao vivo (exige login).
 
-## 3. Pendências abertas
+## 4. Pendências abertas
 
 ### 3.1 Instalação física do DDSU666 (SAJ, ligação direta no inversor) — aguardando hardware chegar
 Material comprado pelo usuário (ESP32, MAX485, fonte, jumpers, caixa). Firmware pronto e testado (parte que dá pra testar sem o medidor — WiFi conecta OK). Falta: hardware chegar, reconfigurar o medidor pra protocolo Modbus (botões físicos), fazer a fiação, testar leitura real, fechar a instalação.
@@ -87,21 +103,65 @@ Material comprado pelo usuário (ESP32, MAX485, fonte, jumpers, caixa). Firmware
 ### 3.2 R$340,00 do ciclo Wärtsilä 2026-07 ainda não confirmados como recebidos
 Não é a mesma coisa que as TEDs já lançadas (`TX000220`/`TX000280`).
 
-### 3.3 LREI0004 (R$103,55) segue ativa
-Aguardando Caixa Manutenção acumular saldo suficiente.
+### 3.3 LREI0003/LREI0004/LREI0005 seguem ativas (confirmado real, 18/08)
+R$266,23 (Fatura MP) + R$103,55 (Manutenção) + R$1.950,77 (Boletos, 1º mês da migração dos consórcios). Usuário optou por deixar como está — tendem a normalizar no próximo ciclo. Não é pendência de ação, só acompanhar.
 
 ### 3.4 Backlog técnico adiado (decisão consciente do usuário)
 Lint dos ~91 módulos `hydrate-*` — análise estática de qualidade de código, não é bug, adiado por decisão própria do usuário. Não reabrir sem pedido novo.
 
 ### 3.5 ENCERRADO — projeto "Agente financeiro no WhatsApp/Telegram"
-Cancelado pelo usuário em 17/08. Reaberto como pergunta nesta sessão (ESP32 poderia servir de servidor?) — respondido que não é tecnicamente viável (ESP32 é microcontrolador, não roda Node/navegador) e que os 2 motivos originais do cancelamento (custo de API inevitável + precisa rodar em algum lugar 24/7) continuam de pé. Usuário ainda não respondeu se topa esses 2 pontos — **não retomar sem essa confirmação explícita**.
+Cancelado pelo usuário em 17/08, revisitado e reconfirmado inviável (ESP32 não serve de servidor) no bloco 21. Usuário ainda não respondeu se topa os 2 motivos originais do cancelamento (custo de API inevitável + precisa rodar 24/7 em algum lugar) — **não retomar sem essa confirmação explícita**.
 
-## 4. Protocolo de sessão nova
+### 3.6 Necessidade Total Bruta/Líquida — recálculo pendente de próximo login (não é bug)
+Os recálculos de aporte do bloco 22 (Saúde Família R$177,50→R$210,83, Emagrecimento R$278,89→R$490,00) mudam a Necessidade do ciclo, mas o valor persistido em `indicadores` só atualiza no próximo carregamento do painel com o usuário logado — regra 16 acima.
+
+## 5. Snapshot da tabela `caixas_aportes_mensais` (Supabase) — 18/08/2026 (revisado após 2ª rodada)
+
+Fonte única de verdade dos aportes mensais, consultável por qualquer agente sem precisar ler código. **2ª rodada de correção no mesmo dia**: usuário apontou que Churrasco/Combustível/Eventos/PIX Vanessa tinham aporte real e estavam marcadas erradas como "sem aporte fixo" — a 1ª varredura só tinha procurado por `VARS.aporte*` (constantes/fórmula), não pegou transações recorrentes literais repetidas todo ciclo (`TX0001xx "Aporte mensal (salário Wärtsilä)"`). Ao reconferir, achei que Manutenção tinha o mesmo problema (não reportado pelo usuário, achado por conta própria) e corrigi junto. Caixa Variável (R$2.000, TX000137) ficou em dúvida por ter mecanismo diferente (teto oficial, não meta acumulada) — usuário confirmou que conta como aporte fixo mesmo assim.
+
+| Caixa | Aporte mensal | Tipo | Vigência |
+|---|---|---|---|
+| Caixa Boletos | R$4.550,77 | contínuo | sem data de término |
+| Caixa Variável | R$2.000,00 | contínuo | sem data de término (mecanismo de teto oficial, confirmado pelo usuário como aporte fixo mesmo assim) |
+| PIX Vanessa | R$1.200,00 | contínuo | sem data de término |
+| Escola de Júlio (fase 2027) | R$839,64 | temporário | Jan/2027 a Nov/2027 (ciclo 6≤i≤16) |
+| Caixa Seguro Emplacamento | R$425,00 | contínuo | sem data de término |
+| Emagrecimento | R$490,00 | contínuo | sem data de término |
+| Escola de Júlio (ciclo atual) | R$500,00 | temporário | completa Nov/2026 (01/11), ciclo i<4 |
+| Caixa Bens Duráveis | R$250,00 | contínuo | sem data de término |
+| Caixa Saúde Família | R$210,83 | temporário | projeta completar ~Nov/2027 (ciclo i<16) |
+| Caixa Aniversário Júlio | R$200,00 | temporário | completa Set/2026 (14/09), ciclo i<2 |
+| Caixa Combustível | R$200,00 | contínuo | sem data de término |
+| Caixa Eventos | R$166,67 | contínuo | sem data de término |
+| Caixa Manutenção | R$166,67 | contínuo | sem data de término |
+| Caixa Churrasco | R$100,00 | contínuo | sem data de término |
+| Caixa Lance, Mastercard_Infinite, Mercado Pago, Wartsila, Conta Suavização, PIX Geral Vanessa | — | sem aporte fixo | financiadas por outra fonte (juros repassados/reembolso, reconciliação de fatura, ou só têm teto sem aporte, caso da Suavização — R$12.000) — conferidas transação a transação, nenhuma tem linha "Aporte mensal" recorrente |
+
+## 6. Achados da auditoria noturna NÃO corrigidos (decisão do usuário antes de agir)
+
+Todos confirmados por verificação adversarial (código real lido, SQL real rodado) — não são suspeitas. Não corrigi porque ou (a) são "código morto"/lint, categoria que o usuário já decidiu adiar (seção 4.4 "Backlog técnico adiado"), ou (b) envolvem uma decisão de produto/segurança que não é minha de tomar sozinho de madrugada.
+
+**Requer decisão do usuário (não é lint):**
+- **Card "Autoconsumo/Dependência/Exportação" da página pública nunca trava com leitura desatualizada**, ao contrário do painel privado, que tem uma trava de 10 dias de descompasso. MAS: essa trava do painel privado nunca dispara na prática hoje porque o campo que ela usa (`geracaoAcumuladaData`) é sempre `null` — comentário em `app.js:1399` diz "não existe em energia_solar_leituras (V2) — nunca fabricado (P1)". Ou seja, os dois lados já se comportam igual hoje (nenhum trava), a diferença é só que o painel privado TEM o código pronto pra travar se esse dado existisse, e a RPC pública (`consultar_solar_compartilhado`) nem devolve o campo, então a página pública não teria como implementar a mesma trava sem alterar a RPC primeiro. Decisão: vale a pena investir em rastrear a data real de captura da geração (pra trava funcionar de verdade nos 2 lados), ou deixar como está?
+- **`registrar_erro_cliente()` (SECURITY DEFINER) não tem nenhuma checagem de role/JWT**, ao contrário de todas as outras 11 funções SECURITY DEFINER do projeto. Pode ser intencional (log de erro do cliente antes do login precisa aceitar `anon`), mas não há decisão documentada disso. Não bloqueei sozinho porque isso pode quebrar o log de erro se a intenção for mesmo aceitar anônimo.
+
+**Código morto / inconsistência não-crítica (mesma categoria do backlog de lint já adiado):**
+- `aplicarBoletosVencidosAutomaticamente()` em `app.js` — função de ~24 linhas, chamador comentado desde 12/08, nunca removida.
+- `VARS.necessidadeHeld` (`vars-operacional.js`) — declarada, nunca lida (quebra o padrão dos irmãos `pisoHeld`/`totalOperacionalHeld`, que são lidos).
+- `VARS.consorcioAutoQuitacaoValor` (`vars-patrimonio.js`) — declarada, nunca lida. Par assimétrico: `consorcioCasaQuitacao` (Casa) É usado em `reg-patrimonio.js`, o do Auto não.
+- `VARS.mastercardBlackCongelado` (`vars-mercado-pago.js`) — literal órfão de uma migração antiga, valor real hoje vem de `CICLO_SNAPSHOTS[...].mastercardBlackPessoalCongelado`.
+- `VARS.solarConsumoMaeRecente` (`vars-energia-solar.js`) — dado real (faturas da Casa da Mãe) nunca lido em nenhum gráfico. O comentário do próprio arquivo diz que foi guardado "só como referência/contexto" — pode ser intencional, não necessariamente bug.
+- `CycleEngine.js` não carrega em produção (só `FinanceEngine.js`/`Comparator.js` carregam) — já documentado em `CONTRIBUTING.md`/`ARCHITECTURE.md`, não é achado novo, só reconfirmado.
+- `renderCapaNav()`/`renderPageStrip()` (`dashboard-navegacao.js`) — código morto real: os elementos DOM que eles procuram (`#coverNavGrid`, `#pageStrip`) não existem no HTML, e as classes CSS que gerariam (`.cover-nav-*`, `.cnc-*`, `.page-strip-*`) não têm nenhuma regra em `styles.css`. A navegação real da Capa hoje é `.home-nav-grid` (funcional, com CSS completo).
+- `.chart-box.small` (3 gráficos da aba WWI: Meta do Milhão, Casa Nova, Liquidez) — classe sem regra CSS correspondente, renderiza na altura padrão (190px) como se não tivesse modificador nenhum. Diferente de `.tall`/`.wide`/`.tall-lg`, que existem e funcionam.
+
+## 7. Protocolo de sessão nova
 
 1. Este arquivo primeiro, depois os blocos mais recentes de `docs/changelog/PASSAGEM_DE_TURNO.md`.
-2. `git status` — não deveria haver nada pendente no momento desta reescrita, mas confirmar sempre.
-3. **Se o usuário mencionar o medidor DDSU666 chegando/instalado**: ver seção 3.1 acima — próximo passo é reconfigurar protocolo, fazer fiação, gravar firmware (já pronto), testar. Mapa de registradores em `docs/decisions/EVOLUCAO_SOLAR_MEDIDOR_SAJ.md` seção 8.
+2. `git status` — 6 arquivos modificados no momento desta reescrita (aguardando autorização do usuário pra commit), confirmar se ainda é esse o caso.
+3. **Se o usuário mencionar o medidor DDSU666 chegando/instalado**: ver seção 3.1 acima.
 4. Confirmar `__V` (rodapé do site) bate com o HEAD do commit antes de pedir pro usuário testar qualquer coisa.
 5. **Sobre o WWI: NÃO retomar trabalho novo por conta própria** — congelado, regra 15.
 6. Se o medidor Tuya parecer travado de novo, é MUITO provavelmente o aparelho físico — orientar reset do disjuntor antes de investigar a integração.
-7. **`solar-compartilhado.html` está confirmado funcionando** (0.1 acima) — se o usuário reportar travamento de novo, não repetir as mesmas 3 tentativas já feitas; ler o console do navegador real primeiro (Browser tool), é o método que finalmente achou a causa raiz desta vez.
+7. **Aportes mensais de qualquer caixa: consultar `caixas_aportes_mensais` (Supabase) primeiro**, é a fonte única de verdade — evita recalcular do zero ou usar valor desatualizado do código.
+8. **Se o usuário reportar cards de tamanho diferente em qualquer outra seção do painel**: mesmo padrão da regra 26 — provavelmente falta a mesma técnica de `min-height` escopado.

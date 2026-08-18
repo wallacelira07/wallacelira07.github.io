@@ -4,9 +4,13 @@
 // diretamente (não o arquivo JS estático, que estava desatualizado — só 8 dos 10 itens reais)
 // achei os 2 itens que faltavam: `RENDIMENTO-31-07` (+R$9,42, já existia certo na V2) e
 // `AJUSTE-06-08` (-R$65,76, correção manual do usuário contra print real do Mercado Pago,
-// nunca migrada pra V2 — corrigido via UPDATE). Resíduo caiu pra R$20,00 (0,44%), alta
-// confiança: é uma venda de P2P real que já existe na V2 mas nunca foi copiada de volta pro V1
-// — mesmo padrão já aceito nas outras caixas (V2 recebe lançamento novo, V1 não acompanha).
+// nunca migrada pra V2 — corrigido via UPDATE). Resíduo caiu pra R$20,00 (0,44%) NAQUELE momento
+// (09/08/2026), alta confiança: é uma venda de P2P real que já existe na V2 mas nunca foi copiada
+// de volta pro V1 — mesmo padrão já aceito nas outras caixas (V2 recebe lançamento novo, V1 não
+// acompanha). ATENÇÃO (achado de auditoria 18/08/2026): esse resíduo cresce a cada novo
+// lançamento feito só na V2, é esperado pós-encerramento da migração — não tratar este número
+// (R$20,00/0,44%) como medição atual sem reconferir vw_reconciliacao_v1_v2. Não afeta o que o
+// usuário vê (aceitarDivergenciaConhecida:true já exibe o saldo V2 correto na tela).
 //
 // Rollback: comentar a chamada aplicarOnda3CaixaLance() em app.js.
 

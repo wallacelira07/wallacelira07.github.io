@@ -12,7 +12,7 @@ Este arquivo é carregado automaticamente em toda sessão do Claude Code neste r
 ## As 3 regras que mais já causaram retrabalho quando ignoradas
 
 - **"V2" tem dois significados diferentes neste projeto** — arquitetural (VARS/REG modularizado, alimenta o painel) e relacional (tabelas Supabase, ainda não alimenta o painel). Confirmar qual antes de agir. Detalhe completo na seção 1 do manual.
-- **Nunca editar só o arquivo local.** `wallace_dados` no Supabase sobrescreve o `VARS` a cada carga — editar só `src/financeiro/**/vars-*.js` não muda o que o usuário vê no site.
+- **Nunca editar só o arquivo local.** As tabelas V2 relacionais do Supabase (`transacoes`, `caixas`, `legendas`, `indicadores`, `parametros_gerais`, etc.) são a fonte real do que o painel exibe hoje para os domínios já migrados — editar só `src/financeiro/**/vars-*.js` pode não mudar o que o usuário vê, dependendo do domínio. **Atenção**: até 12/08/2026 esta regra falava do merge `wallace_dados` sobrescrevendo o `VARS` a cada carga — esse merge foi **removido do código nessa data** (ver comentário "REMOVIDO 12/08/2026" em `src/app/app.js`); a tabela `wallace_dados` não é mais lida em lugar nenhum do boot. Confirmar sempre qual mecanismo real está em vigor pro domínio específico antes de editar (ver `docs/changelog/ESTADO_ATUAL.md`).
 - **Nunca commitar/dar push sem avisar antes**, mesmo com autorização permanente de commitar sozinho.
 
 Todo o resto — checklists de início/fim de sessão, gatilhos automáticos, procedimentos de correção — está no manual. Não repita aqui.

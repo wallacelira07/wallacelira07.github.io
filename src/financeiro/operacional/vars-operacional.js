@@ -69,9 +69,12 @@ function criarVarsOperacional(){
     legMBVisaLiquidoCV: `Mastercard Black + Visa Infinite líquidos de Caixa Variável. A Caixa Variável já cobre 100% de LRW+LRV — aqui só entra o que ela NÃO cobre (parcelas, assinaturas, recorrências, consórcios, corporativo), comparado com o Disponível real em caixa.`,
     // CORRIGIDO 13/08/2026 (achado de auditoria: mesma legenda, frase única longa demais) —
     // quebrada em tópicos curtos, mesmos fatos e datas.
-    // ATUALIZADO 16/08/2026 (pedido do usuário: consulta de endócrino nova no aporte Saúde Família,
-    // ver vars-caixas.js aporteSaudeFamilia — era R$100/mês, agora R$177,50/mês).
-    legLegendaCaixasIncrementais: `Prazos das caixas incrementais: Aniversário Júlio (R$200/mês) para em Set/26. Escola Júlio ciclo atual (R$500/mês) para em Nov/26. Seguro/Emplacamento (R$425/mês) é contínuo, não gera alívio. Escola Júlio 2027 reinicia em Jan/27 (R$839,64/mês até Nov/27). Saúde Família (R$177,50/mês) projeta completar perto de Nov/27.`,
+    // ATUALIZADO 18/08/2026 (achado de auditoria noturna: esta string ficava desatualizada toda vez
+    // que VARS.aporteSaudeFamilia mudava, porque tem o valor cravado no texto em vez de ler a
+    // constante — já bateu R$100 -> R$177,50 -> R$210,83 sem essa legenda acompanhar nenhuma das 2
+    // trocas anteriores. Não convertida pra template dinâmico porque também alimenta a linha
+    // homônima na tabela `legendas` do Supabase, que também precisou ser corrigida junto).
+    legLegendaCaixasIncrementais: `Prazos das caixas incrementais: Aniversário Júlio (R$200/mês) para em Set/26. Escola Júlio ciclo atual (R$500/mês) para em Nov/26. Seguro/Emplacamento (R$425/mês) é contínuo, não gera alívio. Escola Júlio 2027 reinicia em Jan/27 (R$839,64/mês até Nov/27). Saúde Família (R$210,83/mês) projeta completar perto de Nov/27.`,
     // CORRIGIDO 14/08/2026 (achado do usuário: R$9.223,66 embutido no texto era o mesmo literal
     // congelado de VARS.reservaPiso, dessincronizado do valor real R$7.831,17 desde 11/08 — ver
     // recalcular-necessidade.js). Esta chave PAROU de ser usada como texto fixo — hydrateResumoExecutivo()
@@ -231,7 +234,11 @@ function criarVarsOperacional(){
   // esse valor, depois nos adequamos à realidade") - ajustar aqui quando o preço real da farmácia
   // divergir (reajuste de fabricante, troca de dosagem, etc), mesma prática já usada pra outros
   // aportes fixos deste arquivo.
-  saudeEmagrecimentoAporte: 278.89,
+  // ATUALIZADO 18/08/2026 (pedido do usuário): caneta subiu de R$278,89 para R$490,00. Usuário tem
+  // 3 canetas em estoque (2x 0,25mg + 1x 0,5mg), então não deve comprar caneta nova no próximo ciclo
+  // (e talvez no seguinte) — mas o aporte mensal continua sendo reservado normalmente, só não vira
+  // compra de imediato (mesmo padrão de qualquer aporte contínuo que acumula saldo sem gasto no ciclo).
+  saudeEmagrecimentoAporte: 490.00,
   // NOVO 13/08/2026 (pedido do usuário: meta de peso pra aba Emagrecimento, antes deliberadamente
   // sem meta - "só peso pra começar"). Usada em hydrate-emagrecimento.js pra calcular quanto falta.
   emagrecimentoMetaKg: 110,

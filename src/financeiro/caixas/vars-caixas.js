@@ -221,14 +221,12 @@ function criarVarsCaixas(){
   ],
   contaSuavizacao: 0, // PLACEHOLDER - sobrescrito por calcularSaldoCaixa(). Nunca editar direto - editar SUAVIZACAO_TRANSACOES.
   // V144: aportes mensais das caixas incrementais que ainda eram texto fixo no card (secao 05)
-  // RECALCULADO 16/08/2026 (pedido do usuário: "acrescentando 1 consulta minha a cada 3 meses no
-  // endócrino" — depois de esclarecido que na verdade é 2x/ano, não 4x/ano): composição anual real,
-  // confirmada pelo usuário — Ginecologista Vanessa 1x R$450,00 + Pediatra Júlio 2x R$390,00 +
-  // Endocrinologista Wallace 2x R$450,00 = R$450+780+900 = R$2.130,00/ano ÷ 12 = R$177,50/mês. Era
-  // R$135,00 (composição antiga não documentada — achado de auditoria 16/08/2026 encontrou esse valor
-  // desalinhado de 3 outras fontes que usavam R$100,00; esta correção resolve as 2 hipóteses de uma vez,
-  // com o valor real informado pelo usuário, não escolhendo nenhuma das 2 antigas).
-  aporteSaudeFamilia: 177.50,
+  // RECALCULADO 18/08/2026 (pedido do usuário: "passei essa semana" — composição completa com
+  // dentista de Júlio, que faltava): composição anual real, confirmada pelo usuário — Pediatra
+  // Júlio 2x R$390,00 + Dentista Júlio 2x R$200,00 + Ginecologista Vanessa 1x R$450,00 +
+  // Endocrinologista Wallace 2x R$450,00 = R$780+400+450+900 = R$2.530,00/ano ÷ 12 = R$210,83/mês.
+  // Era R$177,50 (composição de 16/08/2026, sem o dentista).
+  aporteSaudeFamilia: 210.83,
   aporteAniversarioJulio: 200,
   // seguroEmplacamentoAporte (425) ja existia acima
   // V144: footer da tabela "PIX diversos" (LRCV) - era texto fixo "Saidas R$527,61 Entradas R$64,00 Liquido -R$463,61"

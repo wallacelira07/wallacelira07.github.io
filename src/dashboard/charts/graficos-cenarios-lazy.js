@@ -452,10 +452,10 @@ const CAIXAS_OPERACIONAIS_INFO = {
   pixVanessa:         { label:'PIX Vanessa',          notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta'+(s===0?' (zerada)':'') },
   manutencao:         { label:'Manutenção',           nota:'LREI0001 quitado (21/07) — depósito direto do reembolso Wärtsilä' },
   eventos:            { label:'Eventos e Viagens',    nota:'Suporte à Variável (R$167,40) para o mesmo custo: visita família Vanessa/Natal-RN — não é empréstimo' },
-  // ATUALIZADO 16/08/2026 (pedido do usuário: nova consulta de endócrino, ver vars-caixas.js
-  // aporteSaudeFamilia) — composição real: 1x Ginecologista Vanessa + 2x Pediatra Júlio + 2x
-  // Endocrinologista Wallace, R$2.130,00/ano ÷ 12 = R$177,50/mês (era R$100/mês, sem endócrino).
-  saudeFamilia:       { label:'Saúde Família',        notaFn:()=> '2x Júlio + 1x Vanessa + 2x Endócrino Wallace/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês' },
+  // ATUALIZADO 18/08/2026 (pedido do usuário, ver vars-caixas.js aporteSaudeFamilia) — composição
+  // real: 2x Pediatra Júlio + 2x Dentista Júlio + 1x Ginecologista Vanessa + 2x Endócrino Wallace,
+  // R$2.530,00/ano ÷ 12 = R$210,83/mês (era R$177,50/mês, sem o dentista).
+  saudeFamilia:       { label:'Saúde Família',        notaFn:()=> '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa + 2x endócrino Wallace/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês' },
   aniversarioJulio:   { label:'Aniversário Júlio',    notaFn:(s,m)=> fmtPctCaixaInfo(m>0?s/m*100:0)+'% da meta · aporte R$200/mês até 14/09' },
   seguroEmplacamento: { label:'Seguro/Emplacamento',  nota:'Aporte R$425/mês (permanente)' },
   bensDuraveis:       { label:'Bens Duráveis',        nota:'Nasceu em -R$355,00 (fone + cortador de pelo, comprados antes da caixa existir) · aporte R$250/mês' },

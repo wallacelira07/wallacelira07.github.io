@@ -45,7 +45,7 @@ function hydrateWartsilaCaixasTextos(){
     if(barWartsila){ barWartsila.style.width = pctWartsila+'%'; barWartsila.style.background = 'var(--amber)'; }
   }
   t('cxWartsilaProvisionado', 'Fatura '+fmt(R.faturaWartsila));
-  t('cxSaudeAporteTxt', '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês');
+  t('cxSaudeAporteTxt', '2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa + 2x endócrino Wallace/ano · aporte '+fmt(VARS.aporteSaudeFamilia)+'/mês');
   { const el=$('cxSaudeSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.saudeFamilia.saldo, C.saudeFamilia.meta)+'%'; } // V177 CORRIGIDO: barra estava fixa em 0%
   t('cxAnivAporteTxt', 'Nova · aporte '+fmt(VARS.aporteAniversarioJulio)+'/mês até 14/09');
   { const el=$('cxAnivSaldo'); const bar = el ? el.closest('.card').querySelector('.fill') : null; if(bar) bar.style.width = pctOf(C.aniversarioJulio.saldo, C.aniversarioJulio.meta)+'%'; } // V176 CORRIGIDO: barra estava fixa em 0%, nunca era preenchida pelo JS
