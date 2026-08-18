@@ -743,28 +743,52 @@ async function carregar(){
       <div class="stat-sub" style="margin-top:0.8rem">Estado do medidor: <strong>${({working:'Funcionando',monitor:'Monitorando',close:'Desligado',warning:'Atenção'})[medidorUltima.estado] || medidorUltima.estado || '—'}</strong> · última leitura ${fmtDataHora(medidorUltima.capturadoEm)}</div>
     </div>` : ''}
 
-    <!-- NOVO 17/08/2026 (pedido do usuário: "quero esse também lá" — mesmo card "Consumo real ×
-         crédito que cabe a você" do painel privado, barra de progresso em vez de gráfico de barras
-         Chart.js — mesmo motivo já documentado no painel privado: "1 valor contra o outro" fica
-         feio como série. Consumo = soma de medidorTuyaConsumoDiario desde cicloAberto.dataInicio
-         (mesma janela do gráfico Rateio Solar/Fluxo 2 do painel privado, dia 8 da GD). Crédito =
-         soma real dos ciclos FECHADOS + nenhuma projeção do ciclo aberto (mesmo motivo de "não
-         fabricar dado" do gráfico Rateio acima) - por isso este card só aparece com pelo menos 1
-         ciclo já fechado, pra ter um crédito real (não zero/null) pra comparar. -->
-    ${(medidorUltima && ciclo && ciclosFechados.length) ? (() => {
+    <!-- CORRIGIDO 18/08/2026 (2 achados do usuário: card sempre mostrando "0,0 kWh"/"—" mesmo com o
+         medidor funcionando, e o painel privado mostrando um design/fórmula diferente pra este mesmo
+         card — "no site está correto"). Causa raiz do "0,0"/"—": `ciclo.dataInicio` não existe no
+         objeto devolvido pela RPC pra `cicloAberto` — esse campo vem de `to_jsonb(vw_ciclo_solar_aberto)`
+         sem alias camelCase (diferente de `ciclosFechados`, que É mapeado explicitamente na RPC), então
+         o nome real é `ciclo.data_inicio` (snake_case). `ciclo.dataInicio` sempre voltava `undefined`,
+         o filtro de consumo (`r.data >= undefined`) nunca batia com nada (0,0 kWh), e `fmtData(undefined)`
+         virava "—". Aproveitado pra também trocar a fórmula: em vez de comparar contra o ÚLTIMO CICLO
+         FECHADO (referência antiga, estática), agora usa o CRÉDITO DO CICLO AINDA ABERTO, projetado ao
+         vivo — mesma fórmula do painel privado (`calcularSaldoLiquidoProjetadoHoje()`, já reimplementada
+         nesta página desde 14/08 pro Fluxo 2, ver comentário linha ~223) menos o `baseline_kwh` do ciclo
+         aberto (RPC já devolve, `vw_ciclo_solar_aberto.baseline_kwh`), vezes o rateio Wallace
+         (`ciclo.rateio_wallace_pct`, também já vem na RPC). Mesmo layout de 3 caixas do painel privado
+         (Ciclo da GD / Crédito que cabe a você / Saldo), reaproveitando as classes CSS já existentes
+         (.progress/.progress-fill/.credito-fracao/.stat-grid, mesmas do Fluxo 1/Fluxo 2 acima). -->
+    ${(medidorUltima && ciclo && ciclo.data_inicio) ? (() => {
       const diarioApto = dados.medidorTuyaConsumoDiario || [];
-      const inicioCicloGD = ciclo.dataInicio;
+      const inicioCicloGD = ciclo.data_inicio;
+      const rateioWallace = ciclo.rateio_wallace_pct != null ? Number(ciclo.rateio_wallace_pct) : 0.71;
+      const baselineKwh = ciclo.baseline_kwh != null ? Number(ciclo.baseline_kwh) : null;
       const consumoCicloGDKwh = Math.round(diarioApto.filter(r => r.data >= inicioCicloGD && r.kwhConsumido != null).reduce((s,r)=>s+Number(r.kwhConsumido),0)*100)/100;
-      const ultimoFechado = ciclosFechados[ciclosFechados.length-1];
-      const creditoRef = ultimoFechado ? Number(ultimoFechado.creditoWallaceKwh) : null;
-      const pctConsumido = creditoRef>0 ? Math.min(100, Math.max(0, Math.round((consumoCicloGDKwh/creditoRef)*100))) : 0;
-      const saldoRef = creditoRef!=null ? Math.round((creditoRef - consumoCicloGDKwh)*100)/100 : null;
+      const saldoProjetadoHoje = calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria);
+      const creditoCicloAtual = (saldoProjetadoHoje != null && baselineKwh != null)
+        ? Math.round((saldoProjetadoHoje - baselineKwh) * rateioWallace * 100) / 100
+        : null;
+      const labelCiclo = fmtData(inicioCicloGD) + ' → hoje';
+      if(creditoCicloAtual != null && creditoCicloAtual > 0){
+        const pctConsumido = Math.min(100, Math.max(0, Math.round((consumoCicloGDKwh / creditoCicloAtual) * 100)));
+        const saldo = Math.round((creditoCicloAtual - consumoCicloGDKwh) * 100) / 100;
+        const estourou = saldo < 0;
+        return `<div class="card">
+          <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
+          <div class="stat-sub" style="margin-bottom:0.6rem">Barra = quanto do crédito que cabe a você (${fmtPct(rateioWallace*100)} do que a usina gerou) já foi consumido de verdade, medido pelo medidor Tuya. Ciclo é o da GD (fecha todo dia 8, não o mês calendário) — os dois lados sempre cobrem a mesma janela de tempo.</div>
+          <div class="progress"><div class="progress-fill" style="width:${pctConsumido}%;background:${estourou?'var(--red)':'var(--blue)'}"></div></div>
+          <div class="credito-fracao"><span>${fmtKwh(consumoCicloGDKwh)} / ${fmtKwh(creditoCicloAtual)} kWh consumidos</span><span style="color:var(--blue)">${pctConsumido}%</span></div>
+          <div class="stat-grid">
+            <div><div class="stat-lbl">Ciclo da GD</div><div class="stat-val" style="font-size:1.05rem">${labelCiclo}</div></div>
+            <div><div class="stat-lbl">Crédito que cabe a você</div><div class="stat-val" style="font-size:1.05rem">${fmtKwh(creditoCicloAtual)}</div></div>
+            <div><div class="stat-lbl">Saldo</div><div class="stat-val" style="font-size:1.05rem;color:${estourou?'var(--red)':'var(--green)'}">${estourou ? '−'+fmtKwh(Math.abs(saldo))+' (estourou)' : '+'+fmtKwh(saldo)+' de sobra'}</div></div>
+          </div>
+          <div class="stat-sub" style="margin-top:0.6rem">${estourou ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwh(Math.abs(saldo)) : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwh(saldo)} (os dois ainda em andamento, ciclo não fechou).</div>
+        </div>`;
+      }
       return `<div class="card">
         <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
-        <div class="stat-sub" style="margin-bottom:0.6rem">Barra = quanto do último crédito fechado (referência) já foi consumido de verdade, medido pelo medidor Tuya, desde o início do ciclo atual da GD (${fmtData(inicioCicloGD)}).</div>
-        <div style="height:14px;background:var(--surface-2);border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.3)"><div style="height:100%;border-radius:6px;width:${pctConsumido}%;min-width:6px;background:${creditoRef!=null && saldoRef<0 ? 'var(--red)' : 'var(--blue)'}"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.95rem"><strong>${fmtKwh(consumoCicloGDKwh)} consumidos</strong><strong style="color:var(--blue)">${pctConsumido}%</strong></div>
-        <div class="stat-sub" style="margin-top:0.6rem">${creditoRef!=null ? (saldoRef>=0 ? 'Crédito de referência ('+fmtKwh(creditoRef)+') cobre com sobra de '+fmtKwh(saldoRef) : 'Consumo já passou o crédito de referência em '+fmtKwh(Math.abs(saldoRef))) : 'Sem crédito de referência ainda.'}</div>
+        <div class="stat-sub">Ainda sem crédito formado neste ciclo pra comparar.</div>
       </div>`;
     })() : ''}
 
@@ -850,26 +874,72 @@ async function carregar(){
     });
   }
 
-  // AMPLIADO 17/08/2026 (pedido do usuário: "quero esse gráfico no compartilhado", igual ao gráfico
-  // do painel privado, seção 05/cSolarRateio em graficos-cenarios-lazy.js). Cópia deliberada dos
-  // arrays de referência (mesmo padrão já usado nesta página pra CONSUMO_DIARIO_WALLACE_KWH etc) —
-  // 12 meses fixos Jul-Jun, índice 0=Jul (mesmo esquema kwhAnoAnterior/solarConsumoIrmaAnoAnterior
-  // do painel privado). Mês do ciclo ABERTO fica sem barra verde de propósito — sem a projeção ao
-  // vivo do painel privado (fórmula complexa não replicada aqui), mostrar "0" ou um valor estimado
-  // seria fabricar dado; melhor deixar em branco até o ciclo fechar de verdade.
-  const KWH_WALLACE_ANO_ANTERIOR = [321,262,279,297,405,265,211,273,330,343,323,304]; // Jul,Ago,Set,Out,Nov,Dez,Jan,Fev,Mar,Abr,Mai,Jun
-  const KWH_IRMA_ANO_ANTERIOR = [90,74,70,82,103,127,122,138,142,172,140,100]; // mesmo esquema
-  const MESES_ABREV_RATEIO = ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'];
-  const idxMesRateio = mesNum1a12 => (mesNum1a12 - 7 + 12) % 12; // 'YYYY-MM-DD' mês -> índice 0=Jul
+  // CORRIGIDO 18/08/2026 (achado do usuário: coluna "Jul" aparecia com barras laranjas de "esperado"
+  // sem nenhum crédito, quando o painel privado nem mostra "Jul" — começa direto em "Ago"). Causa
+  // raiz: esta página usava um esquema Jul-primeiro fixo (12 meses fixos, índice 0=Jul), diferente da
+  // âncora real do painel privado (graficos-cenarios-lazy.js, ANCHOR_SOLAR_MES_CICLO) — o mês em que
+  // o 1º ciclo de leitura FECHA (Ago/2026, já que ativação foi 21/07 e o corte de ciclo é dia 8: dia
+  // 21 > 8, então cai no ciclo que fecha em Ago). Nada pertence ao ciclo de julho (pago antes da
+  // usina existir) — corrigido pra usar a MESMA âncora, reaproveitando DIA_LEITURA_GD/
+  // SOLAR_DATA_ATIVACAO já definidos nesta página (linhas ~230-232), nunca mais duas lógicas
+  // divergentes pra "qual mês esse ciclo pertence".
+  function mesFechamentoCicloRateio(dataStr){
+    const [, mes, dia] = dataStr.split('-').map(Number);
+    let m = dia <= DIA_LEITURA_GD ? mes : mes + 1;
+    if(m > 12) m = 1;
+    return m;
+  }
+  const ANCHOR_SOLAR_MES_CICLO_RATEIO = mesFechamentoCicloRateio(SOLAR_DATA_ATIVACAO); // 8 = Ago/2026
+  const MESES_ABREV_RATEIO_CALENDARIO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const MESES_ABREV_RATEIO = Array.from({length:12}, (_,i) => MESES_ABREV_RATEIO_CALENDARIO[((ANCHOR_SOLAR_MES_CICLO_RATEIO - 1 + i) % 12 + 12) % 12]); // Ago,Set,...,Jun,Jul
+  const idxMesRateio = dataFimISO => (mesFechamentoCicloRateio(dataFimISO) - ANCHOR_SOLAR_MES_CICLO_RATEIO + 12) % 12;
+
+  // Arrays de referência (consumo histórico real, Jul-primeiro na fonte) realinhados pro mesmo
+  // esquema Ago-primeiro dos rótulos acima — mesmo truque de lookup por nome de mês já usado no
+  // painel privado (kwhWallacePorMes/kwhIrmaPorMes), imune a qual mês vira a 1ª coluna.
+  const KWH_WALLACE_POR_NOME_MES = {}, KWH_IRMA_POR_NOME_MES = {};
+  ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'].forEach((nome,i) => {
+    KWH_WALLACE_POR_NOME_MES[nome] = KWH_ANO_ANTERIOR_WALLACE[i];
+    KWH_IRMA_POR_NOME_MES[nome] = CONSUMO_MENSAL_IRMA[i];
+  });
+  const consumoEsperadoWallaceAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_WALLACE_POR_NOME_MES[nome]);
+  const consumoEsperadoIrmaAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_IRMA_POR_NOME_MES[nome]);
 
   const creditoWallacePorIdx = new Array(12).fill(null);
   const creditoIrmaPorIdx = new Array(12).fill(null);
   ciclosFechados.forEach(c => {
     if(!c.dataFim) return;
-    const idx = idxMesRateio(Number(c.dataFim.slice(5,7)));
+    const idx = idxMesRateio(c.dataFim);
     creditoWallacePorIdx[idx] = Number(c.creditoWallaceKwh);
     creditoIrmaPorIdx[idx] = Number(c.creditoIrmaKwh);
   });
+
+  // CORRIGIDO 18/08/2026 (achado do usuário: números sobre as barras com 1 casa decimal — "321,0" —
+  // fora do padrão do resto do site, que sempre mostra kWh inteiro nesse gráfico específico —
+  // solarBarLabelPlugin em graficos-cenarios-lazy.js usa minimumFractionDigits:0). Plugin dedicado só
+  // pra este gráfico (o barValuePlugin genérico da página, usado nos outros 2 gráficos, continua com
+  // 1 casa decimal — não mudar sem confirmar que os outros também deveriam mudar).
+  const barValuePluginInteiro = {
+    id: 'barValuePluginInteiro',
+    afterDatasetsDraw(chart){
+      const { ctx } = chart;
+      ctx.save();
+      ctx.fillStyle = '#e8e6df';
+      ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        if(meta.hidden) return;
+        meta.data.forEach((bar, i) => {
+          const v = ds.data[i];
+          if(v==null) return;
+          ctx.fillText(Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    }
+  };
 
   if(window.Chart){
     { const __chartExistente = Chart.getChart(document.getElementById('cRateioSolar')); if (__chartExistente) __chartExistente.destroy(); }
@@ -879,9 +949,9 @@ async function carregar(){
         labels: MESES_ABREV_RATEIO,
         datasets: [
           { label:'Crédito Wallace (gerado)', data: creditoWallacePorIdx, backgroundColor:'#34c98a', borderRadius:3 },
-          { label:'Consumo esperado Wallace', data: KWH_WALLACE_ANO_ANTERIOR, backgroundColor:'#e8a63a', borderRadius:3 },
+          { label:'Consumo esperado Wallace', data: consumoEsperadoWallaceAlinhado, backgroundColor:'#e8a63a', borderRadius:3 },
           { label:'Crédito Irmã (gerado)', data: creditoIrmaPorIdx, backgroundColor:'#14b8a6', borderRadius:3 },
-          { label:'Consumo esperado Irmã', data: KWH_IRMA_ANO_ANTERIOR, backgroundColor:'#a9861f', borderRadius:3 },
+          { label:'Consumo esperado Irmã', data: consumoEsperadoIrmaAlinhado, backgroundColor:'#a9861f', borderRadius:3 },
         ],
       },
       options: {
@@ -896,7 +966,7 @@ async function carregar(){
           y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
         },
       },
-      plugins: [barValuePlugin],
+      plugins: [barValuePluginInteiro],
     });
   }
   const legRateioEl = document.getElementById('legRateioSolarCompartilhado');
