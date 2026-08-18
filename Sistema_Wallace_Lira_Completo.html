@@ -1521,31 +1521,6 @@
       <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaTravamento"></div>
     </div>
 
-    <!-- NOVO 18/08/2026 (pedido do usuário: "quero a mesma coisa que você fez no site para receber
-         os dados do meu medidor, fazer para minha irmã, crie os mesmos gráficos tabelas tudo igual")
-         — card gêmeo exato do de cima, mesmo card/campos/ids (prefixo medTuyaWellida), mesma função
-         generalizada (aplicarMedidorTuyaPorCasa em hydrate-medidor-tuya.js). Mostra "aguardando
-         instalação" até o Device ID real da Wellida existir e o robô
-         (atualizar_medidor_tuya_wellida.yml) começar a gravar - ver
-         docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md pro passo a passo físico/Tuya IoT que
-         falta (não é código, é instalação + vínculo de conta). -->
-    <div class="card" style="margin-top:1rem">
-      <div style="font-weight:600;margin-bottom:0.4rem">⚡ Medidor de energia da Wellida (tempo real)</div>
-      <div class="kpi-strip" style="margin-bottom:0.8rem">
-        <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaWellidaPotencia">—</div></div>
-        <div class="kpi"><div class="lbl">Consumo real neste ciclo</div><div class="val" id="medTuyaWellidaConsumoCiclo">—</div></div>
-        <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaWellidaEnergiaTotal">—</div></div>
-        <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaWellidaIdade">—</div></div>
-      </div>
-      <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaWellidaTensao">—</span></div>
-      <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaWellidaCorrente">—</span></div>
-      <div class="row"><span class="k">Energia hoje</span><span class="v" id="medTuyaWellidaEnergiaHoje">—</span></div>
-      <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaWellidaEstado">—</span></div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaWellidaCicloExplicacao">—</div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaWellidaAviso"></div>
-      <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaWellidaTravamento"></div>
-    </div>
-
     <!-- NOVO 17/08/2026 (pedido do usuário, refinado 4x na mesma sessão: 1º "algo só do meu
          apartamento... como o gráfico de rateio", 2º "eu não pedi pra cruzar o consumo da fatura com
          o medidor, pedi pra cruzar o medidor com os CRÉDITOS", 3º achado real: "o ciclo de agosto
@@ -1576,6 +1551,27 @@
         <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo</div><div class="v" style="font-weight:600" id="consumoApartamentoSaldo">—</div></div>
       </div>
       <div class="legend-note v" id="legConsumoApartamento" style="margin-top:0.5rem">—</div>
+    </div>
+
+    <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa juntas,
+         não as 2 telemetrias primeiro depois as 2 comparações) — mesmo card de sempre, só a posição
+         mudou. Mesmo card/campos/ids (prefixo medTuyaWellida), mesma função generalizada
+         (aplicarMedidorTuyaPorCasa em hydrate-medidor-tuya.js). -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">⚡ Medidor de energia da Wellida (tempo real)</div>
+      <div class="kpi-strip" style="margin-bottom:0.8rem">
+        <div class="kpi"><div class="lbl">Potência atual</div><div class="val" id="medTuyaWellidaPotencia">—</div></div>
+        <div class="kpi"><div class="lbl">Consumo real neste ciclo</div><div class="val" id="medTuyaWellidaConsumoCiclo">—</div></div>
+        <div class="kpi"><div class="lbl">Energia total acumulada</div><div class="val" id="medTuyaWellidaEnergiaTotal">—</div></div>
+        <div class="kpi"><div class="lbl">Última leitura</div><div class="val" id="medTuyaWellidaIdade">—</div></div>
+      </div>
+      <div class="row"><span class="k">Tensão</span><span class="v" id="medTuyaWellidaTensao">—</span></div>
+      <div class="row"><span class="k">Corrente</span><span class="v" id="medTuyaWellidaCorrente">—</span></div>
+      <div class="row"><span class="k">Energia hoje</span><span class="v" id="medTuyaWellidaEnergiaHoje">—</span></div>
+      <div class="row"><span class="k">Estado do medidor</span><span class="v" id="medTuyaWellidaEstado">—</span></div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="medTuyaWellidaCicloExplicacao">—</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.3rem" id="medTuyaWellidaAviso"></div>
+      <div style="font-size:var(--fs-2xs);margin-top:0.3rem" id="medTuyaWellidaTravamento"></div>
     </div>
 
     <!-- NOVO 18/08/2026 (pedido do usuário: "crie esse mesmo campo para Wellida no site e no
