@@ -231,6 +231,24 @@ Exemplo de referência (feito certo): caixa Emagrecimento, 12/08/2026 — commit
 
 ---
 
+## 1.6 Compra reembolsável de terceiro — quando VOCÊ compra em nome de outra pessoa (NOVO 18/08/2026)
+
+**Caso real que originou a regra**: a mãe do usuário pediu duas compras parceladas (Freezer + Sound Bar, Churrasqueira elétrica) no Mercado Livre; o usuário comprou no **próprio** cartão (Visa Mercado Pago, final 8739, até então não cadastrado) esperando o reembolso dela depois. Não é a mesma coisa que a seção 1.5 (caixa nova pra rastrear dinheiro de terceiro) nem a cascata Wärtsilä completa (seção 2, regra 5a) — é um padrão mais leve, próprio pra um adiantamento pontual sem caixa dedicada.
+
+**Diferença do modelo corporativo (Wärtsilä)**: a Wärtsilä tem caixa própria (`Caixa Wartsila`/"Provisionado Wärtsilä") porque é recorrente e tem cascata de 5 pernas. Uma compra avulsa pra terceiro **não justifica caixa nova** — usa a caixa que **já** paga a fatura daquele cartão (ex.: `Caixa Mercado Pago`), a mesma lógica de "a caixa é o pulmão que autoriza, não a origem literal do dinheiro" da regra 1.3.5, só que aqui quem devolve o dinheiro não é uma fatura futura, é a pessoa pra quem a compra foi feita.
+
+**Mecanismo, replicável pra qualquer terceiro (mãe, amigo, etc.) — nenhuma tabela nova, nenhuma caixa nova:**
+
+1. **Cartão**: se o cartão usado ainda não está em `cartoes`, cadastrar com `usuario_id` = **você** (quem comprou de fato, não o terceiro) — o terceiro não precisa de linha em `usuarios` a menos que ele tenha cartão próprio cadastrado no sistema.
+2. **Categoria**: `Reembolsável - Terceiros` (já existe, criada 18/08/2026) — irmã de `Reembolsável Corporativo`, mas **nunca a mesma categoria**, pra não misturar terceiro com Wärtsilä nos relatórios. O que separa as duas no LRC/relatórios corporativos é o filtro por `caixa_id` (`Provisionado Wärtsilä`), não a categoria — então usar a categoria errada não quebra o LRC, mas confunde auditoria futura.
+3. **Transação**: `caixa_id` = a caixa que já paga a fatura desse cartão (não criar uma nova só pra isso); `cartao_id` preenchido → `afeta_saldo_real = false` **sempre** (regra 1.3.5, já generalizada, vale igual aqui); `usuario_id` = você; descrição inclui pra quem é a compra e a palavra "reembolsável", pra ficar óbvio no Livro Razão sem precisar abrir a transação.
+4. **Parcelamento**: se for parcelado, `parcelas` recebe 1 linha por transação (não 1 linha por parcela — é uma tabela de status atual, `numero_parcela`/`total_parcelas`/`valor_parcela`, ver exemplos existentes com `origem_array='PARCELAMENTOS_VISA'`; usar `'PARCELAMENTOS_TERCEIROS'` pra esse caso).
+5. **Reembolso**: **não lançar nada até o dinheiro voltar de verdade.** Quando a pessoa pagar (PIX, dinheiro, etc.), registrar uma `entrada` correspondente — decidir na hora se é 1 lançamento pelo total ou 1 por parcela, conforme como ela efetivamente pagar. Nunca estimar/antecipar o reembolso como se já tivesse acontecido.
+
+**Exemplo de referência (feito certo, 18/08/2026)**: `TX000343`/`TX000344` (Churrasqueira+Sound Bar R$120,75/mês e Freezer R$235,07/mês, 12x cada), cartão Visa MP final 8739, `caixa_id = Caixa Mercado Pago` (existente), `afeta_saldo_real=false` nas duas — confirmado por consulta a `vw_saldo_v2_por_caixa` que o saldo calculado da caixa não mudou com o lançamento.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.

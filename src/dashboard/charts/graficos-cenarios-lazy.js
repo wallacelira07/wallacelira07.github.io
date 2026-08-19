@@ -877,6 +877,79 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
     }
   }
 
+  // NOVO 18/08/2026 (pedido do usuário): mesmo gráfico de cima (psLiquido, o mínimo garantido MESMO
+  // SEM TRABALHAR, constante), mas comparado contra a série de 12 meses da Necessidade Líquida
+  // (REG.evolucao.necessidadeLiquida — mesma fonte viva já usada no gráfico "Necessidade líquida do
+  // salário — próximos ciclos"), não contra o piso absoluto constante ("O que NUNCA é cortado"). Por
+  // isso pnlNec varia mês a mês (ao contrário de psPiso acima, que repete o mesmo valor 12x).
+  const legPnlEl = $('legPisoSemTrabalharNecLiquida');
+  if(legPnlEl){
+    legPnlEl.innerHTML = `Compara o mínimo garantido MESMO SEM TRABALHAR NENHUM DIA no ciclo (fórmula "Não trabalha" validada, base+5%+creche−descontos, sem periculosidade — <strong>${fmt(psLiquido)}/mês</strong>) contra a Necessidade Líquida de cada um dos 12 meses (Boletos+Parcelas+Assinaturas+Recorrências+Consórcios+Aportes Patrimoniais+Orçamento Operacional). Diferente do gráfico acima, aqui o eixo de comparação varia mês a mês — não é constante.`;
+  }
+  const pnlNec = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
+  const pnlDeficit = pnlNec.map(p => Math.round((psLiquido-p)*100)/100);
+
+  const pnlDataLabelPlugin = {
+    id:'pnlDataLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      const meta = chart.getDatasetMeta(0);
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = "700 11px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      meta.data.forEach((bar,i)=>{
+        const d = pnlDeficit[i];
+        ctx.fillStyle = d<0 ? '#e2554f' : '#34c98a';
+        const label = (d<0?'−':'+')+fmt0(Math.abs(d));
+        ctx.fillText(label, bar.x, d>=0 ? bar.y - 8 : bar.y + 16);
+      });
+      ctx.restore();
+    }
+  };
+
+  { const __chartExistente = Chart.getChart($('cPisoSemTrabalharNecLiquida')); if (__chartExistente) __chartExistente.destroy(); }
+  new Chart($('cPisoSemTrabalharNecLiquida'), {
+    type:'bar',
+    plugins:[pnlDataLabelPlugin],
+    data:{labels:psLabels,
+      datasets:[{data:pnlDeficit,
+        backgroundColor: pnlDeficit.map(v=>v<0?'#e2554f':'#34c98a'),
+        borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:c=>{const i=c.dataIndex; return ['Não trabalha: '+fmt(psLiquido),'Necessidade líquida: '+fmt(pnlNec[i]),(pnlDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(pnlDeficit[i]))];}
+      }}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+        y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
+  });
+
+  const pnlTbody = $('pnlTableBody');
+  if(pnlTbody){
+    pnlTbody.innerHTML = psLabels.map((m,i)=>{
+      const d = pnlDeficit[i];
+      const cor = d<0 ? 'var(--red)' : 'var(--green)';
+      const sinal = d<0 ? '−' : '+';
+      return '<tr style="border-bottom:1px solid var(--border)">'+
+        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psLiquido)+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(pnlNec[i])+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  const pnlViraEl = $('pnlViraSuperavit');
+  if(pnlViraEl){
+    const idxViraPnl = pnlDeficit.findIndex(d=>d>=0);
+    if(idxViraPnl === 0){
+      pnlViraEl.textContent = 'Já cobre';
+    } else if(idxViraPnl > 0){
+      pnlViraEl.textContent = psLabels[idxViraPnl]+' ('+(idxViraPnl+1)+'º mês)';
+    } else {
+      pnlViraEl.textContent = 'Não cobre em nenhum dos 12 meses';
+    }
+  }
+
   { const __chartExistente = Chart.getChart($('cDeficitZero')); if (__chartExistente) __chartExistente.destroy(); }
   new Chart($('cDeficitZero'), {
     type:'bar',
