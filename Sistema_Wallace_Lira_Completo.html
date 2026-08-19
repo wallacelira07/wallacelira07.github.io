@@ -1560,6 +1560,16 @@
       </div>
     </div>
 
+    <!-- NOVO 19/08/2026 (pedido do usuário, 3ª rodada de refinamento: "quero comparar o crédito com a
+         leitura dos medidores" — gráfico novo, mesmo estilo do 05, comparando Crédito gerado × Consumo
+         real medido pelo medidor Tuya, mês a mês. Fica logo abaixo do card de cima (mesma pessoa). Ver
+         montarGraficoCreditoVsMedidor() em graficos-cenarios-lazy.js. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Crédito × medidor Tuya — apartamento (mês a mês)</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya do apartamento — não a fatura Energisa (essa já está no gráfico acima e no card de cima). Meses sem leitura do medidor ainda (instalado recentemente) ficam sem barra vermelha.</div>
+      <div class="chart-box tall"><canvas id="cCreditoVsMedidorWallace"></canvas></div>
+    </div>
+
     <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa juntas,
          não as 2 telemetrias primeiro depois as 2 comparações) — mesmo card de sempre, só a posição
          mudou. Mesmo card/campos/ids (prefixo medTuyaWellida), mesma função generalizada
@@ -1603,6 +1613,13 @@
         <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.2rem">📄 Consumo real (fatura Energisa)</div>
         <div class="v" style="font-weight:600" id="consumoWellidaEnergisaValor">—</div>
       </div>
+    </div>
+
+    <!-- NOVO 19/08/2026 (pedido do usuário) — card gêmeo do gráfico do Wallace acima, ver comentário lá. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Crédito × medidor Tuya — Wellida (mês a mês)</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya da Wellida — não a fatura Energisa. Meses sem leitura do medidor ainda ficam sem barra vermelha.</div>
+      <div class="chart-box tall"><canvas id="cCreditoVsMedidorWellida"></canvas></div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra

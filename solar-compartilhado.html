@@ -847,6 +847,16 @@ async function carregar(){
       </div>`;
     })() : ''}
 
+    <!-- NOVO 19/08/2026 (pedido do usuário, replicado do painel privado): gráfico novo, mesmo estilo
+         do "Rateio Solar" acima, comparando Crédito gerado × Consumo real medido pelo medidor Tuya
+         (não a fatura Energisa) — mês a mês. Ver JS de montagem logo abaixo (mesma lógica de
+         MESES_ABREV_RATEIO/creditoWallacePorIdx já usada no gráfico Rateio Solar). -->
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Crédito × medidor Tuya — apartamento (mês a mês)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya do apartamento. Meses sem leitura do medidor ainda ficam sem barra vermelha.</div>
+      <div class="chart-wrap"><canvas id="cCreditoVsMedidorWallace"></canvas></div>
+    </div>
+
     <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa
          juntas) — mesmo card de sempre, só a posição mudou. Dado vem de
          dados.medidorTuyaWellidaUltima (RPC). Medidor dela é modelo bidirecional
@@ -916,6 +926,13 @@ async function carregar(){
         ${blocoConsumoReferencia('irma')}
       </div>`;
     })() : ''}
+
+    <!-- NOVO 19/08/2026 (pedido do usuário) — card gêmeo do gráfico do Wallace acima, ver comentário lá. -->
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Crédito × medidor Tuya — Wellida (mês a mês)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya da Wellida. Meses sem leitura do medidor ainda ficam sem barra vermelha.</div>
+      <div class="chart-wrap"><canvas id="cCreditoVsMedidorWellida"></canvas></div>
+    </div>
 
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
@@ -1097,6 +1114,54 @@ async function carregar(){
       },
       plugins: [barValuePluginInteiro],
     });
+
+    // NOVO 19/08/2026 (pedido do usuário, replicado do painel privado): Crédito × medidor Tuya, mês a
+    // mês, 1 gráfico por pessoa — reaproveita MESES_ABREV_RATEIO/creditoWallacePorIdx/creditoIrmaPorIdx
+    // já calculados acima pro gráfico Rateio Solar (mesma fonte, mesmo alinhamento de mês).
+    function agregarConsumoTuyaPorMesRateio(diario){
+      const porMes = {};
+      (diario||[]).forEach(r => {
+        if(r.kwhConsumido == null) return;
+        // CORRIGIDO 19/08/2026 (mesmo achado do painel privado): usa mesFechamentoCicloRateio (corte
+        // dia 8), não o mês calendário puro — senão o consumo de agora ficaria numa barra diferente
+        // da barra de crédito do mesmo ciclo. "Todo consumo de agora vai pro próximo ciclo".
+        const nome = MESES_ABREV_RATEIO_CALENDARIO[mesFechamentoCicloRateio(r.data)-1];
+        porMes[nome] = (porMes[nome]||0) + Number(r.kwhConsumido);
+      });
+      Object.keys(porMes).forEach(k => { porMes[k] = Math.round(porMes[k]*100)/100; });
+      return porMes;
+    }
+    const consumoTuyaWallacePorMes = agregarConsumoTuyaPorMesRateio(dados.medidorTuyaConsumoDiario);
+    const consumoTuyaWellidaPorMes = agregarConsumoTuyaPorMesRateio(dados.medidorTuyaWellidaConsumoDiario);
+    const consumoTuyaWallaceAlinhado = MESES_ABREV_RATEIO.map(nome => consumoTuyaWallacePorMes[nome] != null ? consumoTuyaWallacePorMes[nome] : null);
+    const consumoTuyaWellidaAlinhado = MESES_ABREV_RATEIO.map(nome => consumoTuyaWellidaPorMes[nome] != null ? consumoTuyaWellidaPorMes[nome] : null);
+    function montarGraficoCreditoVsMedidorCompartilhado(canvasId, creditoPorIdx, consumoTuyaAlinhado, corCredito){
+      const el = document.getElementById(canvasId);
+      if(!el) return;
+      const __chartExistente = Chart.getChart(el); if (__chartExistente) __chartExistente.destroy();
+      new Chart(el, {
+        type: 'bar',
+        data: { labels: MESES_ABREV_RATEIO, datasets: [
+          { label:'Crédito gerado', data: creditoPorIdx, backgroundColor: corCredito, borderRadius:3 },
+          { label:'Consumo real (medidor Tuya)', data: consumoTuyaAlinhado, backgroundColor:'#e2554f', borderRadius:3 },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 18 } },
+          plugins: {
+            legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} },
+            tooltip: { callbacks: { label: c => c.raw==null ? c.dataset.label+': sem leitura ainda' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.9, barPercentage:0.35 },
+            y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
+          },
+        },
+        plugins: [barValuePluginInteiro],
+      });
+    }
+    montarGraficoCreditoVsMedidorCompartilhado('cCreditoVsMedidorWallace', creditoWallacePorIdx, consumoTuyaWallaceAlinhado, '#34c98a');
+    montarGraficoCreditoVsMedidorCompartilhado('cCreditoVsMedidorWellida', creditoIrmaPorIdx, consumoTuyaWellidaAlinhado, '#14b8a6');
   }
   const legRateioEl = document.getElementById('legRateioSolarCompartilhado');
   if(legRateioEl){

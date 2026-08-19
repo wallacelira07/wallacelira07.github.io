@@ -2126,6 +2126,61 @@ async function _lazyRenderSolarSecao(){
     legSolarEl.innerHTML = 'Última leitura ('+ultimaSolar.data.split('-').reverse().join('/')+', '+(ultimaSolar.fonte==='real'?'real':'estimado')+', '+ultimaSolar.dias+' dias desde 21/07): crédito líquido acumulado até agora <strong>'+fmtKwhPtBr(ultimaSolar.creditoLiquido)+' kWh</strong> (Wallace '+fmtKwhPtBr(ultimaSolar.creditoWallace)+' kWh · Irmã '+fmtKwhPtBr(ultimaSolar.creditoIrma)+' kWh). Isso ainda não é a meta do mês fechada — pra saber se está no ritmo certo pra bater a meta mensal, veja a seção 04 (Previsão) logo abaixo. Consumo mostrado nas barras é o histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida). '+mesesComLeitura+' de 12 meses já têm leitura de crédito; os demais ficam sem barra verde até a leitura chegar.'+avisoEstimativa+avisoCicloAberto;
   }
 
+  // NOVO 19/08/2026 (pedido do usuário, 3ª rodada de refinamento na mesma sessão: 1º pediu pra trocar
+  // as barras "Consumo esperado" do gráfico 05 — errado, aquilo é a fatura Energisa; 2º corrigiu "quero
+  // um gráfico novo... crédito gerado pelo consumo dos medidores", "são dois gráficos novos, um pra
+  // mim e um pra minha irmã"; 3º confirmou "comparar o crédito com a leitura dos medidores"). 2 gráficos
+  // NOVOS, mesmo estilo visual do 05 (barras por mês), 1 por pessoa — Crédito gerado (mesma série do
+  // gráfico 05) × Consumo real medido pelo medidor Tuya (não a fatura Energisa, que já é o gráfico 05
+  // e os cards "Consumo real × crédito" acima). Meses sem leitura Tuya ainda (medidor é recente,
+  // instalado 17-18/08/2026) ficam sem barra, mesmo padrão de "sem dado ainda" já usado no gráfico 05.
+  function agregarConsumoTuyaPorMesCalendario(diario){
+    const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const porMes = {};
+    (diario||[]).forEach(r => {
+      if(r.kwh_consumido == null) return;
+      // CORRIGIDO 19/08/2026 (achado do usuário, print real: consumo de 17-19/08 aparecia na barra
+      // "Ago", mas o crédito daquele mesmo período está na barra "Set" — porque o crédito é indexado
+      // pelo mês em que o CICLO FECHA (corte dia 8, mesFechamentoCiclo já definida acima), não pelo
+      // mês calendário da leitura. Consumo tinha ficado com lógica diferente (calendário puro),
+      // dessincronizado do eixo do crédito. "Todo consumo de agora vai pro próximo ciclo" — mesma
+      // regra, mesma função, agora os 2 eixos batem sempre.
+      const nome = nomesMes[mesFechamentoCiclo(r.data)-1];
+      porMes[nome] = (porMes[nome]||0) + Number(r.kwh_consumido);
+    });
+    Object.keys(porMes).forEach(k => { porMes[k] = Math.round(porMes[k]*100)/100; });
+    return porMes;
+  }
+  const consumoTuyaWallacePorMes = agregarConsumoTuyaPorMesCalendario(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2);
+  const consumoTuyaWellidaPorMes = agregarConsumoTuyaPorMesCalendario(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2);
+  const consumoTuyaWallaceAlinhado = mesesParesSolar.map(label => consumoTuyaWallacePorMes[label] != null ? consumoTuyaWallacePorMes[label] : null);
+  const consumoTuyaWellidaAlinhado = mesesParesSolar.map(label => consumoTuyaWellidaPorMes[label] != null ? consumoTuyaWellidaPorMes[label] : null);
+
+  function montarGraficoCreditoVsMedidor(canvasId, credito, consumoTuyaAlinhado, corCredito, nomePessoa){
+    const el = $(canvasId);
+    if(!el) return;
+    observeAndRenderChart(el, () => { const __chartExistente = Chart.getChart(el); if (__chartExistente) __chartExistente.destroy(); return new Chart(el, {
+      type:'bar',
+      plugins:[solarBarLabelPlugin],
+      data:{labels:mesesParesSolar,
+        datasets:[
+          {label:'Crédito gerado', data:alignSolar(credito), backgroundColor:corBarraCredito(corCredito), borderRadius:3},
+          {label:'Consumo real (medidor Tuya)', data:consumoTuyaAlinhado, backgroundColor:'#e2554f', borderRadius:3}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
+        plugins:{legend:legendStd2,tooltip:{callbacks:{
+          label:c=>{
+            if(c.raw===null) return c.dataset.label+': sem leitura ainda';
+            return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
+          }
+        }}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
+          y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+    }); });
+  }
+  montarGraficoCreditoVsMedidor('cCreditoVsMedidorWallace', creditoMensalWallace, consumoTuyaWallaceAlinhado, '#34c98a');
+  montarGraficoCreditoVsMedidor('cCreditoVsMedidorWellida', creditoMensalIrma, consumoTuyaWellidaAlinhado, '#14b8a6');
+
   // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
   // consumido", refinado 4x na mesma sessão: 1º "só meu apartamento... algo como o gráfico de
   // rateio", 2º "eu não pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor
