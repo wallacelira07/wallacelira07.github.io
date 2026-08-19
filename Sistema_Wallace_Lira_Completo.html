@@ -1551,6 +1551,13 @@
         <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo</div><div class="v" style="font-weight:600" id="consumoApartamentoSaldo">—</div></div>
       </div>
       <div class="legend-note v" id="legConsumoApartamento" style="margin-top:0.5rem">—</div>
+      <!-- NOVO 19/08/2026 (pedido do usuário): consumo real da FATURA Energisa (energia_solar_consumo_referencia,
+           automatizado via scripts/sync/atualizar_boletos_medintech.py), diferente do consumo acima (medidor
+           Tuya, tempo real) — fica abaixo do card, como uma 2ª fonte de referência, não substitui a de cima. -->
+      <div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--border)">
+        <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.2rem">📄 Consumo real (fatura Energisa)</div>
+        <div class="v" style="font-weight:600" id="consumoApartamentoEnergisaValor">—</div>
+      </div>
     </div>
 
     <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa juntas,
@@ -1591,6 +1598,11 @@
         <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo</div><div class="v" style="font-weight:600" id="consumoWellidaSaldo">—</div></div>
       </div>
       <div class="legend-note v" id="legConsumoWellida" style="margin-top:0.5rem">—</div>
+      <!-- NOVO 19/08/2026 (pedido do usuário) — card gêmeo do de cima, ver comentário lá. -->
+      <div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--border)">
+        <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.2rem">📄 Consumo real (fatura Energisa)</div>
+        <div class="v" style="font-weight:600" id="consumoWellidaEnergisaValor">—</div>
+      </div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra

@@ -486,6 +486,21 @@ async function carregar(){
   const energiaHojeWallace = energiaHojeComFallback(medidorUltima, dados.medidorTuyaConsumoDiario);
   const energiaHojeWellida = energiaHojeComFallback(medidorWellidaUltima, dados.medidorTuyaWellidaConsumoDiario);
 
+  // NOVO 19/08/2026 (pedido do usuário): consumo real da fatura Energisa (energia_solar_consumo_referencia,
+  // automatizado via scripts/sync/atualizar_boletos_medintech.py), abaixo do card "Consumo real × crédito"
+  // de cada casa — 2ª fonte de referência, não substitui o consumo medido pelo Tuya acima dela.
+  const consumoReferencia = dados.consumoReferencia || [];
+  function blocoConsumoReferencia(casa){
+    const r = consumoReferencia.find(x => x.casa === casa);
+    if(!r || r.consumoMensalKwh == null) return '';
+    const mensal = fmtKwh(Number(r.consumoMensalKwh));
+    const diario = r.consumoDiarioKwh != null ? Number(r.consumoDiarioKwh).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+    return `<div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--border)">
+      <div class="stat-lbl" style="margin-bottom:0.2rem">📄 Consumo real (fatura Energisa)</div>
+      <div class="stat-val" style="font-size:1.05rem">${mensal} / mês (${diario} kWh/dia)</div>
+    </div>`;
+  }
+
   // NOVO 12/08/2026 (pedido do usuário: "precisa aparecer o card de geração do dia no compartilhado")
   // CORRIGIDO 14/08/2026 (achado do usuário: "após 00hs deveria mostrar outra coisa até o primeiro
   // dado do SAJ do dia" — o card mostrava o último registro do array como se fosse "hoje", mesmo
@@ -822,11 +837,13 @@ async function carregar(){
             <div><div class="stat-lbl">Saldo</div><div class="stat-val" style="font-size:1.05rem;color:${estourou?'var(--red)':'var(--green)'}">${estourou ? '−'+fmtKwh(Math.abs(saldo))+' (estourou)' : '+'+fmtKwh(saldo)+' de sobra'}</div></div>
           </div>
           <div class="stat-sub" style="margin-top:0.6rem">${estourou ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwh(Math.abs(saldo)) : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwh(saldo)} (os dois ainda em andamento, ciclo não fechou).</div>
+          ${blocoConsumoReferencia('wallace')}
         </div>`;
       }
       return `<div class="card">
         <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe a você (apartamento)</div>
         <div class="stat-sub">Ainda sem crédito formado neste ciclo pra comparar.</div>
+        ${blocoConsumoReferencia('wallace')}
       </div>`;
     })() : ''}
 
@@ -872,6 +889,7 @@ async function carregar(){
         return `<div class="card">
           <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe à Wellida</div>
           <div class="stat-sub">Aguardando instalação do medidor da Wellida — assim que ela instalar e o robô sincronizar, este card passa a comparar automaticamente.</div>
+          ${blocoConsumoReferencia('irma')}
         </div>`;
       }
       if(creditoCicloAtual != null && creditoCicloAtual > 0){
@@ -889,11 +907,13 @@ async function carregar(){
             <div><div class="stat-lbl">Saldo</div><div class="stat-val" style="font-size:1.05rem;color:${estourou?'var(--red)':'var(--green)'}">${estourou ? '−'+fmtKwh(Math.abs(saldo))+' (estourou)' : '+'+fmtKwh(saldo)+' de sobra'}</div></div>
           </div>
           <div class="stat-sub" style="margin-top:0.6rem">${estourou ? 'Consumo real já passou o crédito formado neste ciclo em '+fmtKwh(Math.abs(saldo)) : 'Crédito cobre o consumo real medido até agora, com sobra de '+fmtKwh(saldo)} (os dois ainda em andamento, ciclo não fechou).</div>
+          ${blocoConsumoReferencia('irma')}
         </div>`;
       }
       return `<div class="card">
         <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Consumo real × crédito que cabe à Wellida</div>
         <div class="stat-sub">Ainda sem crédito formado neste ciclo pra comparar.</div>
+        ${blocoConsumoReferencia('irma')}
       </div>`;
     })() : ''}
 

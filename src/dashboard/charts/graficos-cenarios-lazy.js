@@ -2148,6 +2148,23 @@ async function _lazyRenderSolarSecao(){
     const elBar = $(cfg.idPrefix+'Bar');
     const set = (sufixo,v) => { const el = $(cfg.idPrefix+sufixo); if(el) el.textContent = v; };
     const elLeg = $(cfg.idLegenda);
+
+    // NOVO 19/08/2026 (pedido do usuário): consumo real da fatura Energisa
+    // (energia_solar_consumo_referencia, automatizado via scripts/sync/atualizar_boletos_medintech.py),
+    // exibido abaixo do card — 2ª fonte de referência, independente do bloco Tuya acima (por isso fica
+    // fora do if/else de cicloSolarAberto/diario.length: mostra sempre que tiver dado, mesmo sem
+    // medidor Tuya instalado ainda). Mesma fonte que já alimenta VARS.solarConsumoDiarioWallace/Irma
+    // (app.js) — aqui lê o array bruto pra ter também o valor mensal, não só o diário.
+    if(cfg.casaEnergisa){
+      const elEnergisa = $(cfg.idPrefix+'EnergisaValor');
+      if(elEnergisa){
+        const refs = window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2 || [];
+        const ref = refs.find(r => r.casa === cfg.casaEnergisa);
+        elEnergisa.textContent = (ref && ref.consumo_mensal_kwh != null)
+          ? fmtKwhPtBr(Number(ref.consumo_mensal_kwh))+' kWh/mês ('+Number(ref.consumo_diario_kwh).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia)'
+          : 'Ainda sem fatura Energisa registrada.';
+      }
+    }
     if(elBar && cicloSolarAberto && idxCicloAberto != null && diario.length){
       const inicioCicloStr = cicloSolarAberto.data_inicio; // 'YYYY-MM-DD'
       const diasDoCicloComDado = diario.filter(r => r.data >= inicioCicloStr && r.kwh_consumido != null);
@@ -2190,6 +2207,7 @@ async function _lazyRenderSolarSecao(){
     idLegenda: 'legConsumoApartamento',
     varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2',
     creditoMensal: creditoMensalWallace,
+    casaEnergisa: 'wallace',
   });
   // NOVO 18/08/2026: card gêmeo da Wellida — "aguardando instalação" até o medidor dela existir.
   aplicarConsumoRealVsCreditoPorCasa({
@@ -2198,6 +2216,7 @@ async function _lazyRenderSolarSecao(){
     varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2',
     creditoMensal: creditoMensalIrma,
     mensagemSemDado: 'Aguardando instalação do medidor da Wellida — assim que ela instalar e o robô sincronizar, este card passa a comparar automaticamente, sem precisar de nenhuma mudança de código.',
+    casaEnergisa: 'irma',
   });
 
   // ===== NOVO 01/08/2026: Previsão de Compensação de Créditos de Energia =====
