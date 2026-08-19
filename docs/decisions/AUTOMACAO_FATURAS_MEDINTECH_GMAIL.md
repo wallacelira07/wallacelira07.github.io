@@ -1,4 +1,4 @@
-# Automação das faturas Água/Gás Medintech via Gmail (19/08/2026)
+# Automação das faturas de consumo via Gmail — Água/Gás Medintech + Energia Energisa (19/08/2026)
 
 ## Origem
 
@@ -29,6 +29,24 @@ O valor é decodificado do 5º campo da linha digitável do boleto (14 dígitos:
 4. Criar tarefa dedicada no cron-job.org (mesmo padrão dos outros robôs — URL da API do GitHub `workflow_dispatch` pro workflow `atualizar_boletos_medintech.yml`), rodando a cada poucos dias (o robô é idempotente, sem risco de rodar demais).
 5. Depois de confirmar rodando sozinho por um tempo: adicionar `boletos_medintech` em `SAUDE_JOBS_LIMIARES` (`hydrate-saude-operacional.js`) — mesmo cuidado já documentado pro medidor Tuya da Wellida, evita alarme falso "nunca rodou" antes do 1º sucesso real.
 
-## Escopo — só resolve 2 dos 11 boletos fixos
+## Escopo — só resolve 3 dos 11 boletos fixos
 
-Água e Gás (Medintech) são os únicos 2 dos 11 boletos que são contas de consumo variável — os outros 9 (financiamento, condomínio, curso, seguro, etc.) são valores fixos que mudam raramente e continuam cadastrados manualmente. Isso não é uma limitação a resolver — é o escopo certo: automatizar só o que realmente varia todo mês.
+Água, Gás (Medintech) e Energia (Energisa) são os únicos 3 dos 11 boletos que são contas de consumo variável — os outros 8 (financiamento, condomínio, curso, seguro, consórcios) são valores fixos que mudam raramente e continuam cadastrados manualmente. Isso não é uma limitação a resolver — é o escopo certo: automatizar só o que realmente varia todo mês.
+
+## Extensão 19/08/2026 — Energia (Energisa Paraíba, TXB000009) — INCOMPLETA, com 1 erro real corrigido a tempo
+
+Mesmo dia, mesmo padrão. Usuário ativou o envio de fatura por e-mail da Energisa nesta sessão e mandou exemplos de PDF pra validar antes de codar (mesma disciplina da Medintech — nunca construir parser às cegas). Esta extensão teve 2 rodadas de correção real — registradas as duas, sem esconder a que deu errado.
+
+**1ª rodada (errada, revertida na mesma sessão)**: o 2º PDF de exemplo (agosto/2026, pedido como 2ª via manual via `sistemas_siatt@energisa.com.br`) tinha "WALLACE PATRICK GALDINO LIRA" e o CPF dele (096.396.684-78) no campo **PAGADOR** — pareceu, na hora, ser a fatura dele. Escrevi `TXB000009 = R$56,11` no Supabase com base nisso e no método de extração (linha digitável Febraban) validado corretamente (`...15520000005611` → R$56,11, bate com "VALOR DO DOCUMENTO"). **O usuário corrigiu logo em seguida: essa fatura é da CASA DA MÃE — o Wallace aparece como PAGADOR/titular dela também (arranjo familiar), então CPF do PAGADOR não prova "é a conta dele", só prova "ele paga essa conta"**. Revertido no Supabase pro valor anterior (R$367,36) na mesma sessão, antes de qualquer commit.
+
+**2ª rodada (correção real)**: o identificador correto é o **Número da UC** (unidade consumidora) — campo sempre presente e claramente rotulado em toda fatura Energisa (confirmado pelo usuário com print real, card próprio "Número da UC"), e cada UC corresponde a exatamente 1 imóvel/ligação física, nunca compartilhado entre pessoas (diferente do CPF do PAGADOR). `_texto_confirma_wallace()` reescrita pra checar a UC do Wallace, não mais o CPF ancorado em "PAGADOR". Testado contra o mesmo PDF (fatura da mãe): agora retorna `False` corretamente (antes, com o método antigo, retornava `True` — o próprio bug confirmado e corrigido).
+
+**Estado real ao fim desta sessão — automação de Energia AINDA NÃO validada de ponta a ponta**:
+- UC da mãe: `573.702.053-77` (confirmada, já vista em PDF real — usada só pra provar que a validação rejeita corretamente).
+- UC da irmã: `2.064.202.053-60` (informada pelo usuário, nunca vista em PDF).
+- UC do Wallace: `1.994.775.053-05` (informada pelo usuário — **Nível C, ainda não confirmada contra um PDF real**, porque a fatura dele deste ciclo ainda não foi emitida). O script já está configurado pra validar por essa UC, mas **nunca foi testado contra uma fatura real do próprio Wallace** — só contra a da mãe (validando corretamente que ela é rejeitada).
+- `cronograma_boletos_fixos.TXB000009` continua em R$367,36 (valor antigo, não confirmado — só não foi substituído por um valor errado).
+
+**Pendência real que falta pra fechar isso**: quando a fatura do próprio Wallace for emitida (ele ainda não sabe quando — "minha conta não foi emitida ainda"), mandar o PDF real pra confirmar que a UC `1.994.775.053-05` aparece exatamente como esperado no texto extraído, e só então considerar essa parte da automação validada.
+
+**Diferença de robustez em relação à Medintech**: como o remetente exato do envio automático mensal da Energisa ainda não foi confirmado (o serviço foi ativado nesta mesma sessão, "a partir da próxima fatura" — os PDFs vistos até agora vieram de 2ª via manual), a busca é por **domínio inteiro** (`from:@energisa.com.br has:attachment`) em vez de um remetente único — mais frouxa na busca, compensada pela validação por UC antes de aceitar qualquer valor. Revisitar o remetente exato quando a 1ª fatura automática (não 2ª via) do Wallace chegar de verdade.

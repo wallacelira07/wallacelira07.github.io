@@ -1,6 +1,8 @@
-name: Atualizar Faturas Água/Gás (Medintech/BZS via Gmail)
+name: Atualizar Faturas de Consumo (Água/Gás/Energia via Gmail)
 
-# NOVO 19/08/2026 (ver scripts/sync/atualizar_boletos_medintech.py). Mesmo padrão dos outros robôs
+# NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa) — ver scripts/sync/atualizar_boletos_medintech.py.
+# Nome de exibição atualizado (arquivo/nome interno continuam iguais, cron-job.org não precisa
+# mudar nada). Mesmo padrão dos outros robôs
 # deste sistema: workflow reutilizável (workflow_call) chamado pelo orquestrador executar_tudo.yml,
 # com workflow_dispatch também disponível pra rodar manualmente pela aba Actions. SEM "on: schedule"
 # de propósito — confirmado (achado de 03/08/2026, ver atualizar_geracao_saj.yml) que o schedule do
