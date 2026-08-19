@@ -65,3 +65,23 @@ Usuário pediu pra também alimentar o "controle solar" automaticamente. Investi
 - `casa='wallace'`: não tocado (nenhum PDF real dele ainda)
 
 **Achado real de bug, corrigido antes do commit**: `consumo_diario_kwh` é coluna **GERADA** no Postgres (`consumo_mensal_kwh / dias_base`, automático) — a 1ª versão do `atualizar_consumo_solar()` tentava escrever nela direto, e o Supabase rejeitou (`column consumo_diario_kwh can only be updated to DEFAULT`). Corrigido: o `PATCH` agora só manda `consumo_mensal_kwh`/`dias_base`/`fonte`, nunca `consumo_diario_kwh`.
+
+## Extensão 19/08/2026 (mesmo dia, mais tarde) — pedido do usuário: "06 Economia antes × depois (apartamento) e Quanto você ainda vai pagar mesmo com 100% dos créditos deve ser atualizado pelo robo"
+
+Até aqui o robô só alimentava `cronograma_boletos_fixos` (TXB000009) e `energia_solar_consumo_referencia`. Duas seções do painel privado (gráfico "06 Economia antes × depois" e o card "💡 Quanto você ainda vai pagar mesmo com 100% dos créditos") continuavam lendo `parametros_gerais.ENERGISA_TARIFA_COMPOSICAO`/`ENERGIA_FATURAS_REAIS`, mas ninguém automatizava a escrita nesses 2 parâmetros — alguém tinha que copiar o valor da fatura à mão pro Supabase todo mês.
+
+**Mudança no robô** (`_buscar_energisa`, `buscar_faturas_do_mes`, `main()` em `atualizar_boletos_medintech.py`): agora, pra QUALQUER das 3 casas identificadas por UC (não só Wallace), reaproveita o mesmo valor+consumo já extraído do PDF (sem chamada nova) e:
+- faz merge (nunca sobrescreve o JSON inteiro) em `ENERGISA_TARIFA_COMPOSICAO[casa]`, gravando `fatura_<mês><ano>_valor`/`_consumo_kwh`/`_periodo_dias` com uma chave de mês CALCULADA (`_chave_mes_atual()`, ex. `set26`), não mais uma constante fixa;
+- quando a casa é `wallace`, também grava `ENERGIA_FATURAS_REAIS[<Mês capitalizado>]` (ex. `Set`), que é o campo que o gráfico 06 lê como "fatura real" pra parar de usar a projeção calculada.
+- Idempotente, mesmo padrão dos outros 2: só escreve se o valor mudou.
+
+**Mudança no JS** (`graficos-cenarios-lazy.js`, bloco do card residual): a leitura de `d.fatura_ago26_valor`/`d.fatura_ago26_consumo_kwh` era uma chave **FIXA escrita à mão** — nunca ia acompanhar setembro/outubro sozinha. Trocada por `faturaEnergisaMaisRecente(d)`, que varre as chaves `fatura_<mês><ano>_valor` presentes no JSON e pega a mais recente por data, com fallback pro histórico antigo (`d.historico.jul26`) se nenhuma existir ainda. Nenhuma edição de código será necessária nos próximos meses.
+
+**Parâmetro novo criado no Supabase**: `parametros_gerais.ENERGIA_FATURAS_REAIS` não existia como linha (só como default `{}` hardcoded em `vars-energia-solar.js`) — criado com `valor={}` pra existir um alvo pro `PATCH` do robô.
+
+**Estado ao fim desta extensão**: só wiring/infraestrutura — nenhuma fatura nova do Wallace foi processada ainda (a dele deste ciclo continua não emitida, mesma pendência já registrada acima), então `ENERGIA_FATURAS_REAIS` continua `{}` e o gráfico 06 continua mostrando "baseado na geração real do medidor" (fonte='calculado'), não "fatura real" — vai passar a mostrar sozinho assim que o robô achar a 1ª fatura Energisa real do Wallace.
+
+## Extensão 19/08/2026 (mesmo dia) — 2 achados de usuário corrigidos nos gráficos "Crédito × medidor Tuya"
+
+1. **"coloque os valores sobre as barras"** (gráfico 04 "Geração por dia vs. consumo médio das casas", painel privado — o gráfico irmão no compartilhado já tinha os valores, só o privado não): adicionado `valorSobreBarraGeracaoPlugin`, mesmo padrão do `solarBarLabelPlugin` já usado no gráfico 05.
+2. **"tá faltando o credito gerado em setembro no compartilhado"**: os gráficos novos "Crédito × medidor Tuya" (Wallace/Wellida) no `solar-compartilhado.html` só liam `ciclosFechados` (ciclo já ENCERRADO) pra montar a barra verde de crédito — o mês do ciclo ainda ABERTO nunca tinha crédito, só a barra vermelha de consumo (que já vinha de dado ao vivo). O painel privado já resolvia isso (usa leituras cruas, não só ciclos fechados); o compartilhado, não. Corrigido: preenche o índice do ciclo aberto com `fluxo2.wallace/wellida.creditoAtual` (crédito projetado ao vivo, mesma fórmula já usada no card "Consumo real × crédito" da mesma página) — verificado ao vivo, bate exatamente com o valor do painel privado (Wallace 151 kWh, Wellida 62 kWh em Set/26).

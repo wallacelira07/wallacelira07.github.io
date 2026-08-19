@@ -1055,6 +1055,17 @@ async function carregar(){
     creditoWallacePorIdx[idx] = Number(c.creditoWallaceKwh);
     creditoIrmaPorIdx[idx] = Number(c.creditoIrmaKwh);
   });
+  // CORRIGIDO 19/08/2026 (achado do usuário: "tá faltando o credito gerado em setembro no
+  // compartilhado") — o loop acima só lê ciclosFechados (ciclo já encerrado), então o mês do ciclo
+  // ABERTO nunca tinha barra verde de crédito aqui, só a barra vermelha de consumo Tuya (que já
+  // usava dado ao vivo). Preenche o índice do ciclo aberto com o crédito PROJETADO até hoje
+  // (fluxo2.wallace/wellida.creditoAtual, mesma fórmula já usada no card "Consumo real × crédito"
+  // acima e no painel privado) — mesmo padrão que o painel privado já fazia via idxCicloAbertoAlinhado.
+  if(ciclo && ciclo.data_inicio && fluxo2){
+    const idxAberto = idxMesRateio(new Date().toISOString().slice(0,10));
+    if(fluxo2.wallace) creditoWallacePorIdx[idxAberto] = fluxo2.wallace.creditoAtual;
+    if(fluxo2.wellida) creditoIrmaPorIdx[idxAberto] = fluxo2.wellida.creditoAtual;
+  }
 
   // CORRIGIDO 18/08/2026 (achado do usuário: números sobre as barras com 1 casa decimal — "321,0" —
   // fora do padrão do resto do site, que sempre mostra kWh inteiro nesse gráfico específico —

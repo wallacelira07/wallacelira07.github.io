@@ -63,6 +63,7 @@ mudando à toa). Nunca inventa valor — se não achar e-mail do mês corrente p
 loga e segue sem tocar naquele registro (P1: nunca aplicar dado sem evidência).
 """
 import base64
+import datetime
 import json
 import os
 import re
@@ -82,6 +83,29 @@ _UC_PARA_CASA = {
     "573.702.053-77": "mae",
     "2.064.202.053-60": "irma",
 }
+# casa -> chave usada dentro do JSON parametros_gerais.ENERGISA_TARIFA_COMPOSICAO (nomes históricos,
+# digitados à mão nas primeiras cargas manuais — mantidos pra não quebrar o que o painel já lê).
+_CASA_PARA_CHAVE_COMPOSICAO = {
+    "wallace": "apartamento_wallace",
+    "mae": "casa_mae",
+    "irma": "casa_wellida",
+}
+_MESES_ABREV_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def _chave_mes_atual() -> str:
+    """Chave tipo 'set26' pra parametros_gerais.ENERGISA_TARIFA_COMPOSICAO[casa].fatura_<chave>_valor —
+    mesmo critério das chaves digitadas à mão até aqui (mês/ano em que a fatura foi lida por e-mail,
+    não o mês de referência do consumo dentro da fatura)."""
+    agora = datetime.datetime.utcnow()
+    return f"{_MESES_ABREV_PT[agora.month - 1]}{agora.year % 100:02d}"
+
+
+def _mes_abrev_capitalizado_atual() -> str:
+    """'Set' — mesmo formato de rótulo usado em VARS.ENERGIA_FATURAS_REAIS (graficos-cenarios-lazy.js,
+    gráfico 06), pra alimentar a barra 'este ano' com a fatura REAL do Wallace assim que o robô achar."""
+    agora = datetime.datetime.utcnow()
+    return _MESES_ABREV_PT[agora.month - 1].capitalize()
 
 _GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -208,14 +232,20 @@ def _buscar_medintech(access_token: str, resultado: dict) -> None:
             print(f"Conta {conta} ({tx}): R$ {valor:.2f} — extraído de '{assunto}'")
 
 
-def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consumo: dict) -> None:
+def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consumo: dict, resultado_composicao: dict) -> None:
     """Energisa — remetente exato do envio automático ainda não confirmado (ver cabeçalho do
     módulo), então busca por DOMÍNIO inteiro + exige anexo. Cada e-mail encontrado é identificado
-    por UC (_identificar_casa_energisa) e usado pra 2 coisas independentes:
+    por UC (_identificar_casa_energisa) e usado pra 3 coisas independentes, todas do MESMO PDF (1
+    leitura de valor+consumo por casa, reaproveitada nas 3):
       - resultado_boletos[TXB000009] SÓ se a casa for 'wallace' (é o único que conta como despesa
         pessoal dele no cronograma_boletos_fixos).
       - resultado_consumo[casa] pra QUALQUER uma das 3 casas (mãe/irmã/Wallace todas alimentam a
-        referência de consumo solar, ver cabeçalho do módulo)."""
+        referência de consumo solar, ver cabeçalho do módulo).
+      - resultado_composicao[casa] pra QUALQUER uma das 3 casas (alimenta
+        parametros_gerais.ENERGISA_TARIFA_COMPOSICAO[casa], usada nos gráficos "06 Economia antes ×
+        depois" e "Quanto você ainda vai pagar mesmo com 100% dos créditos" — NOVO 19/08/2026, pedido
+        do usuário: "deve ser atualizado pelo robô", esses 2 pontos eram os únicos dessa família que
+        ainda dependiam de alguém copiar valor da fatura à mão pro Supabase)."""
     busca = _gmail_get("/messages?q=" + "from:@energisa.com.br has:attachment newer_than:10d".replace(" ", "%20"), access_token)
     for item in busca.get("messages", []):
         msg = _gmail_get(f"/messages/{item['id']}?format=full", access_token)
@@ -230,32 +260,35 @@ def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consu
         if casa is None:
             print(f"AVISO: PDF de '{assunto}' (Energisa) não confirma UC de nenhuma casa conhecida — pulando.", file=sys.stderr)
             continue
+        if casa in resultado_composicao:  # Gmail retorna mais recente primeiro — mantém o mais recente por casa
+            continue
 
-        if casa == "wallace" and _TX_ENERGIA not in resultado_boletos:
-            valor = _extrair_valor_energisa(texto)
-            if valor is None:
-                print(f"AVISO: não consegui extrair valor do PDF de '{assunto}' (Energisa, Wallace) — pulando, nada é inventado.", file=sys.stderr)
-            else:
-                resultado_boletos[_TX_ENERGIA] = valor
-                print(f"Energia ({_TX_ENERGIA}): R$ {valor:.2f} — extraído de '{assunto}'")
+        valor = _extrair_valor_energisa(texto)
+        consumo = _extrair_consumo_energisa(texto)
+        if valor is None and consumo is None:
+            print(f"AVISO: não consegui extrair valor nem consumo do PDF de '{assunto}' (Energisa, {casa}) — pulando, nada é inventado.", file=sys.stderr)
+            continue
 
-        if casa not in resultado_consumo:  # Gmail retorna mais recente primeiro — mantém o mais recente por casa
-            consumo = _extrair_consumo_energisa(texto)
-            if consumo is None:
-                print(f"AVISO: não consegui extrair consumo do PDF de '{assunto}' (Energisa, {casa}) — pulando, nada é inventado.", file=sys.stderr)
-            else:
-                resultado_consumo[casa] = consumo
-                print(f"Consumo solar ({casa}): {consumo[0]:.2f} kWh / {consumo[1]} dias — extraído de '{assunto}'")
+        if casa == "wallace" and valor is not None:
+            resultado_boletos[_TX_ENERGIA] = valor
+            print(f"Energia ({_TX_ENERGIA}): R$ {valor:.2f} — extraído de '{assunto}'")
+        if consumo is not None:
+            resultado_consumo[casa] = consumo
+            print(f"Consumo solar ({casa}): {consumo[0]:.2f} kWh / {consumo[1]} dias — extraído de '{assunto}'")
+        if valor is not None and consumo is not None:
+            resultado_composicao[casa] = {"valor": valor, "consumo_kwh": consumo[0], "dias": consumo[1]}
 
 
-def buscar_faturas_do_mes(access_token: str) -> tuple[dict, dict]:
+def buscar_faturas_do_mes(access_token: str) -> tuple[dict, dict, dict]:
     """Retorna ({tx: valor} pro cronograma_boletos_fixos, {casa: (consumo_kwh, dias)} pra
-    energia_solar_consumo_referencia), ambos das faturas encontradas nos últimos 10 dias."""
+    energia_solar_consumo_referencia, {casa: {valor, consumo_kwh, dias}} pra
+    parametros_gerais.ENERGISA_TARIFA_COMPOSICAO), todos das faturas encontradas nos últimos 10 dias."""
     resultado_boletos: dict = {}
     resultado_consumo: dict = {}
+    resultado_composicao: dict = {}
     _buscar_medintech(access_token, resultado_boletos)
-    _buscar_energisa(access_token, resultado_boletos, resultado_consumo)
-    return resultado_boletos, resultado_consumo
+    _buscar_energisa(access_token, resultado_boletos, resultado_consumo, resultado_composicao)
+    return resultado_boletos, resultado_consumo, resultado_composicao
 
 
 def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, valor: float) -> None:
@@ -325,6 +358,35 @@ def obter_consumo_solar_atual(supabase_url: str, supabase_key: str) -> dict:
     return {l["casa"]: float(l["consumo_mensal_kwh"]) for l in linhas}
 
 
+def obter_parametro_json(supabase_url: str, supabase_key: str, nome: str) -> dict:
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    url = f"{supabase_url}/rest/v1/parametros_gerais?nome=eq.{nome}&select=valor"
+    req = Request(url, headers=headers)
+    with urlopen(req, timeout=20) as resp:
+        linhas = json.loads(resp.read().decode("utf-8"))
+    return linhas[0]["valor"] if linhas else {}
+
+
+def atualizar_parametro_json(supabase_url: str, supabase_key: str, nome: str, valor: dict) -> None:
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    url = f"{supabase_url}/rest/v1/parametros_gerais?nome=eq.{nome}"
+    req = Request(url, data=json.dumps({"valor": valor}).encode("utf-8"), headers=headers, method="PATCH")
+    try:
+        with urlopen(req, timeout=20) as resp:
+            resultado = resp.read().decode("utf-8")
+    except HTTPError as e:
+        corpo_erro = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {e.code} ao atualizar parâmetro {nome}: {corpo_erro}") from e
+    except URLError as e:
+        raise RuntimeError(f"Falha de rede ao atualizar parâmetro {nome}: {e}") from e
+    print(f"Supabase atualizado (parametros_gerais.{nome}): {resultado}")
+
+
 def main() -> int:
     client_id = os.environ.get("GMAIL_CLIENT_ID")
     client_secret = os.environ.get("GMAIL_CLIENT_SECRET")
@@ -345,7 +407,7 @@ def main() -> int:
         print("Autenticando na Gmail API...")
         access_token = _obter_access_token(client_id, client_secret, refresh_token)
         print("Buscando faturas de consumo (Água/Gás Medintech + Energia Energisa) dos últimos 10 dias...")
-        boletos_encontrados, consumo_encontrado = buscar_faturas_do_mes(access_token)
+        boletos_encontrados, consumo_encontrado, composicao_encontrada = buscar_faturas_do_mes(access_token)
 
         if boletos_encontrados:
             atuais = obter_valores_atuais(supabase_url, supabase_key)
@@ -367,7 +429,53 @@ def main() -> int:
                 print(f"Consumo solar ({casa}): {atual if atual is not None else '—'} kWh -> {consumo_kwh:.2f} kWh ({dias} dias)")
                 atualizar_consumo_solar(supabase_url, supabase_key, casa, consumo_kwh, dias)
 
-        if not boletos_encontrados and not consumo_encontrado:
+        if composicao_encontrada:
+            # NOVO 19/08/2026 (pedido do usuário: "06 Economia antes × depois (apartamento) e Quanto
+            # você ainda vai pagar mesmo com 100% dos créditos deve ser atualizado pelo robo") —
+            # até aqui essas 2 seções liam parametros_gerais.ENERGISA_TARIFA_COMPOSICAO/
+            # ENERGIA_FATURAS_REAIS, mas as 2 só eram atualizadas por alguém digitando o valor da
+            # fatura à mão no Supabase. Mescla (nunca sobrescreve o JSON inteiro — cada casa mantém
+            # composicao_pct/cosip/uc/histórico já cadastrados, só ganha o par fatura_<mês>_valor/
+            # _consumo_kwh do mês novo) e, quando for a fatura do Wallace, também alimenta
+            # ENERGIA_FATURAS_REAIS (gráfico 06 "este ano com solar").
+            composicao_atual = obter_parametro_json(supabase_url, supabase_key, "ENERGISA_TARIFA_COMPOSICAO")
+            faturas_reais_atual = obter_parametro_json(supabase_url, supabase_key, "ENERGIA_FATURAS_REAIS")
+            chave_mes = _chave_mes_atual()
+            mudou_composicao = False
+            mudou_faturas_reais = False
+            for casa, dados in composicao_encontrada.items():
+                chave_json = _CASA_PARA_CHAVE_COMPOSICAO.get(casa)
+                if chave_json is None:
+                    continue
+                bloco = composicao_atual.setdefault(chave_json, {})
+                campo_valor = f"fatura_{chave_mes}_valor"
+                campo_consumo = f"fatura_{chave_mes}_consumo_kwh"
+                campo_dias = f"fatura_{chave_mes}_periodo_dias"
+                if bloco.get(campo_valor) == dados["valor"] and bloco.get(campo_consumo) == dados["consumo_kwh"]:
+                    print(f"ENERGISA_TARIFA_COMPOSICAO ({casa}, {chave_mes}): já está atualizado — nada a fazer.")
+                else:
+                    bloco[campo_valor] = dados["valor"]
+                    bloco[campo_consumo] = dados["consumo_kwh"]
+                    bloco[campo_dias] = dados["dias"]
+                    bloco["fonte"] = f"Fatura Energisa real (automático via robô, atualizar_boletos_medintech.py) — {chave_mes}"
+                    mudou_composicao = True
+                    print(f"ENERGISA_TARIFA_COMPOSICAO ({casa}): {campo_valor} = R$ {dados['valor']:.2f}, {campo_consumo} = {dados['consumo_kwh']:.2f} kWh")
+
+                if casa == "wallace":
+                    mes_label = _mes_abrev_capitalizado_atual()
+                    if faturas_reais_atual.get(mes_label) == dados["valor"]:
+                        print(f"ENERGIA_FATURAS_REAIS ({mes_label}): já está atualizado — nada a fazer.")
+                    else:
+                        faturas_reais_atual[mes_label] = dados["valor"]
+                        mudou_faturas_reais = True
+                        print(f"ENERGIA_FATURAS_REAIS ({mes_label}): R$ {dados['valor']:.2f}")
+
+            if mudou_composicao:
+                atualizar_parametro_json(supabase_url, supabase_key, "ENERGISA_TARIFA_COMPOSICAO", composicao_atual)
+            if mudou_faturas_reais:
+                atualizar_parametro_json(supabase_url, supabase_key, "ENERGIA_FATURAS_REAIS", faturas_reais_atual)
+
+        if not boletos_encontrados and not consumo_encontrado and not composicao_encontrada:
             print("Nenhuma fatura nova encontrada neste período — nada a atualizar.")
 
         print("Concluído com sucesso.")

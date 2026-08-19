@@ -1232,14 +1232,34 @@ async function _lazyRenderSolarSecao(){
       { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
       { chave:'casa_mae', nome:'Casa da Mãe (geradora)', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
     ];
+    // CORRIGIDO 19/08/2026 (pedido do usuário: "deve ser atualizado pelo robô") — antes lia direto
+    // 'fatura_ago26_valor'/'fatura_ago26_consumo_kwh', chave FIXA escrita à mão. O robô
+    // (scripts/sync/atualizar_boletos_medintech.py) agora grava um novo par 'fatura_<mês><ano>_valor'/
+    // '_consumo_kwh' toda vez que acha uma fatura Energisa nova, para qualquer mês — uma chave fixa
+    // nunca mais acompanharia (setembro, outubro... ficariam presos em "ago26" pra sempre). Acha
+    // sozinho a chave 'fatura_XXXYY_valor' mais recente presente no JSON, sem editar código de novo
+    // todo mês.
+    const MESES_ABREV_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    function faturaEnergisaMaisRecente(d){
+      let melhorPrefixo = null, melhorScore = -1;
+      Object.keys(d).forEach(k => {
+        const m = k.match(/^fatura_([a-z]{3})(\d{2})_valor$/);
+        if(!m) return;
+        const idxMes = MESES_ABREV_PT.indexOf(m[1]);
+        if(idxMes === -1) return;
+        const score = Number(m[2])*12 + idxMes;
+        if(score > melhorScore){ melhorScore = score; melhorPrefixo = 'fatura_'+m[1]+m[2]; }
+      });
+      if(melhorPrefixo === null) return null;
+      return { valor: d[melhorPrefixo+'_valor'], consumoKwh: d[melhorPrefixo+'_consumo_kwh'] };
+    }
     const linhas = unidades.map(u => {
       const d = comp[u.chave];
       if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
-      // CORRIGIDO 13/08/2026 (achado de auditoria + conferido à mão pelo usuário: a base seguia presa
-      // em Jul/26 mesmo com a fatura real de Ago/26 já carregada há 1 dia — violava a regra "valor
-      // final substitui estimativa". Prioriza sempre o mês mais recente disponível: Ago/26 real > d.consumo_kwh solto > histórico Jul/26.
-      const faturaBase = d.fatura_ago26_valor ?? (d.historico ? d.historico.jul26 : d.fatura_jul26_valor);
-      const consumoKwh = d.fatura_ago26_consumo_kwh || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
+      // Prioriza sempre a fatura mais recente automatizada pelo robô > histórico digitado à mão.
+      const faturaRecente = faturaEnergisaMaisRecente(d);
+      const faturaBase = faturaRecente ? faturaRecente.valor : (d.historico ? d.historico.jul26 : d.fatura_jul26_valor);
+      const consumoKwh = (faturaRecente && faturaRecente.consumoKwh) || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
       const pct = d.composicao_pct || {};
       if(faturaBase === undefined || !consumoKwh) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
       const tarifaReal = faturaBase / consumoKwh;
@@ -1990,9 +2010,32 @@ async function _lazyRenderSolarSecao(){
         ctx.restore();
       }
     };
+    // NOVO 19/08/2026 (pedido do usuário: "coloque os valores sobre as barras") — label numérico em
+    // cima de cada barra verde (geração real do dia), mesmo padrão do solarBarLabelPlugin (chart 05).
+    // Só rotula dataset tipo 'bar' (pula a linha tracejada de consumo médio, que não tem barra).
+    const valorSobreBarraGeracaoPlugin = {
+      id:'valorSobreBarraGeracaoPlugin',
+      afterDatasetsDraw(chart){
+        const {ctx} = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = "600 9px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = '#34c98a';
+        chart.data.datasets.forEach((ds,di)=>{
+          if(ds.type==='line') return;
+          const meta = chart.getDatasetMeta(di);
+          meta.data.forEach((bar,i)=>{
+            const v = ds.data[i];
+            if(v===null || v===undefined) return;
+            ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 5);
+          });
+        });
+        ctx.restore();
+      }
+    };
     observeAndRenderChart($('cGeracaoPorDia'), () => { const __chartExistente = Chart.getChart($('cGeracaoPorDia')); if (__chartExistente) __chartExistente.destroy(); return new Chart($('cGeracaoPorDia'), {
       type:'bar',
-      plugins:[linhaConsumoMedioPlugin],
+      plugins:[linhaConsumoMedioPlugin, valorSobreBarraGeracaoPlugin],
       data:{labels:labelsPorDia, datasets:[
         {label:'Geração real do dia (robô SAJ)', data:valoresDiarioReal, backgroundColor:'#34c98a', borderRadius:4, order:1},
         // CORRIGIDO 16/08/2026 (achado do usuário: "faltou a marcação na frente de consumo pra saber
@@ -2004,7 +2047,7 @@ async function _lazyRenderSolarSecao(){
         // desenho do gráfico em si continua 100% a cargo do plugin, sem mudança de comportamento.
         {label:'Consumo médio diário (3 casas: Wallace + irmã + mãe/geradora)', data:linhaConsumoMedio, type:'line', __linhaConsumoMedio:true, borderColor:'#ff6b6b', backgroundColor:'rgba(255,107,107,0.8)', borderWidth:0, pointRadius:0, fill:false, order:0}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},
         plugins:{legend:legendStd2,tooltip:{callbacks:{
           label:c=>c.raw==null ? c.dataset.label+': sem dado' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh'
         }}},
