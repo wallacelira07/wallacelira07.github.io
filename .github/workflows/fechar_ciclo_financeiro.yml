@@ -1,0 +1,46 @@
+name: Fechar Ciclo Financeiro (virada dia 25)
+# NOVO 19/08/2026 (pedido do usuário: automatizar a virada de ciclo financeiro, que até aqui era
+# 100% manual — ver docs/decisions/AUTOMACAO_VIRADA_CICLO_FINANCEIRO.md). Mesmo padrão de todos os
+# outros robôs deste repositório: SEM "schedule" nativo (nunca disparou sozinho neste repo, mesmo
+# configurado certo — ver comentário em atualizar_geracao_saj.yml/wwi_regenerar_relatorio_mensal.yml).
+# Disparo real é externo: cron-job.org agendado pra ~00:01 (horário de Brasília) do dia 25 de cada
+# mês -> API do GitHub -> este workflow.
+#
+# fechar_ciclo_financeiro.mjs é IDEMPOTENTE de propósito (a RPC recusa rodar 2x pro mesmo ciclo) —
+# seguro disparar manualmente pra testar, inclusive com DRY_RUN=true (não grava nada, só mostra o
+# que seria gravado).
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = só simula (login + calcula + imprime), não grava nada no Supabase"
+        required: false
+        default: "false"
+  workflow_call: {}
+concurrency:
+  group: fechar-ciclo-financeiro
+  cancel-in-progress: false
+jobs:
+  fechar-ciclo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar dependências (Playwright)
+        working-directory: scripts/sync
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Fechar ciclo financeiro
+        working-directory: scripts/sync
+        env:
+          WALLACE_LOGIN_EMAIL: ${{ secrets.WALLACE_LOGIN_EMAIL }}
+          WALLACE_LOGIN_PASSWORD: ${{ secrets.WALLACE_LOGIN_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: node fechar_ciclo_financeiro.mjs

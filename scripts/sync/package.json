@@ -1,0 +1,9 @@
+{
+  "name": "wallace-lira-robos-node",
+  "private": true,
+  "type": "module",
+  "description": "Robôs Node deste projeto que precisam de navegador real (ex.: fechar_ciclo_financeiro.mjs, que precisa do JS real do site calculando os números — nunca duplica fórmula financeira em outra linguagem). Os robôs Python (maioria) não usam este package.json.",
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}

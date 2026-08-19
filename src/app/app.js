@@ -1310,12 +1310,22 @@ tem valores hardcoded nesses pontos, herdados da versao anterior do HTML.
 // (se algum dia for preenchido) > media ponderada (fallback).
 function liquidoMes(i){
   const fallback = REG.cenarioHistorico.mediaPonderada12M;
-  const real = (REG.superavitNormal.liquidoReal || {})[i];
+  const realMap = REG.superavitNormal.liquidoReal || {};
+  const real = realMap[i];
   if(real !== undefined && real !== null) return real;
-  if(i === 0){
+  // CORRIGIDO 19/08/2026 (erro real meu, achado pelo usuário: "eu já mandei a folha de ponto pro
+  // mês seguinte... eu estava gastando como se fosse receber 16.8k"): este bloco era `if(i===0)`
+  // fixo — fazia sentido quando escrito (25/07/2026, índice 0 ainda sem real[0] preenchido), mas
+  // desde que real[0] virou permanente (16819.56, TX000136), essa condição nunca mais disparava pra
+  // ninguém, e a projeção real confirmada pela folha de ponto (REG.estimador.liquidoProjetadoProximoCiclo,
+  // que É sobre o PRÓXIMO pagamento ainda sem valor real — hoje o de 25/08/2026) ficava presa, sem
+  // nenhum índice pedindo ela. A projeção sempre pertence ao PRIMEIRO índice sem real ainda — índice
+  // 0 enquanto ele não chegou, índice 1 assim que 0 já estiver confirmado mas 1 ainda não (e assim
+  // por diante depois de cada virada de ciclo).
+  const indiceDoProximoPagamentoSemReal = (realMap[0] !== undefined && realMap[0] !== null) ? 1 : 0;
+  if(i === indiceDoProximoPagamentoSemReal){
     const dia = new Date().getDate();
-    if(dia >= 12 && dia <= 24) return REG.estimador.liquidoProjetadoProximoCiclo;
-    if(dia >= 25) return REG.estimador.liquidoProjetadoProximoCiclo; // real ainda nao confirmado - mantem melhor estimativa
+    if(dia >= 12) return REG.estimador.liquidoProjetadoProximoCiclo; // antes do dia 12 nao ha folha de ponto ainda - mantem media ponderada
   }
   return fallback;
 }

@@ -214,7 +214,11 @@ function criarVarsOperacional(){
   // hora pós-reajuste + fórmulas de Periculosidade/Supervisão/PGBL/IRRF marginal) em
   // `parametros_gerais` (nome='taxasHoraFolhaPontoWartsila'). Este literal é só fallback — a V2
   // (mesma tabela) já sobrescreve no boot. Era R$16.048,51, depois R$16.396,32 (errado).
-  liquidoProjetadoProximoCiclo: 16819.56,  // Estimador de Salario - ciclo Ago/26 (dado real, TX000136)
+  // CORRIGIDO 19/08/2026: R$16.819,56 usava horas que não batiam com a folha de ponto real de
+  // julho/2026 (Sobreaviso 28h vs real 0h, Banco de Horas 36:30 vs real 17:30 descontado — ver
+  // parametros_gerais.liquidoProjetadoProximoCiclo_memoria_calculo pro detalhamento completo).
+  // Recalculado com a folha de ponto oficial (PDF real, CC 41149), confirmado pelo usuário.
+  liquidoProjetadoProximoCiclo: 14519.30,  // Estimador de Salario - pagamento 25/08/2026 (folha de ponto Jul/2026 real)
   // RECALCULADO 12/08/2026 (pedido do usuário: simular "salário seco sem hora extra" — Base +
   // Supervisão(5%) + Creche, sem Periculosidade, com todos os descontos por cima, mesma
   // metodologia usada em liquidoProjetadoProximoCiclo). Fórmula: 10913,66 (base) + 545,68

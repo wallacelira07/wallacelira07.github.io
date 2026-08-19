@@ -1375,7 +1375,11 @@
           <div class="fluxo-energia-detalhe" id="feImportacaoDetalhe"></div>
         </div>
 
-        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês</div>
+        <!-- RENOMEADO 19/08/2026 (pedido do usuário: "não tem 'casa de mainha', acrescente isso pra
+             saber que é de lá" — sistema precisa ser de fácil interpretação por leigos, título antigo
+             não deixava claro que este gráfico é só o medidor bidirecional da usina, não consumo por
+             pessoa). -->
+        <div style="font-weight:600;margin-top:1.2rem;margin-bottom:0.5rem">Histórico mês a mês (kWh) — Casa da Mãe (medidor da usina)</div>
         <div class="chart-box tall"><canvas id="cUnidadeGeradora"></canvas></div>
         <div class="legend-note" style="font-size:var(--fs-2xs);margin-top:0.4rem">Consumo direto = geração real do inversor SAJ − exportado real (código 103) — nunca estimado. Sem a leitura real de geração do inversor, os campos dependentes mostram "Dados insuficientes para cálculo" em vez de estimar. Uma barra nova só aparece quando o ciclo daquele mês realmente fecha — o ciclo em andamento fica de fora do histórico até fechar (o progresso ao vivo está no card verde do topo).</div>
         <div class="legend-note v" id="legConsumoDiretoCongelado" style="font-size:var(--fs-2xs);margin-top:0.3rem;color:var(--amber)"></div>

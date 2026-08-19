@@ -93,18 +93,25 @@ _CASA_PARA_CHAVE_COMPOSICAO = {
 _MESES_ABREV_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
 
+_FUSO_BRASILIA = datetime.timezone(datetime.timedelta(hours=-3))
+
+
 def _chave_mes_atual() -> str:
     """Chave tipo 'set26' pra parametros_gerais.ENERGISA_TARIFA_COMPOSICAO[casa].fatura_<chave>_valor —
     mesmo critério das chaves digitadas à mão até aqui (mês/ano em que a fatura foi lida por e-mail,
-    não o mês de referência do consumo dentro da fatura)."""
-    agora = datetime.datetime.utcnow()
+    não o mês de referência do consumo dentro da fatura). CORRIGIDO 19/08/2026 (auditoria de fuso
+    horário): usava utcnow() — robô roda em GitHub Actions (UTC), então perto da virada de mês em
+    horário de Brasília (ex. 31/ago 22h BRT = 01/set 01h UTC) gravava sob a chave do mês seguinte
+    por engano. Usar sempre o relógio de Brasília aqui."""
+    agora = datetime.datetime.now(_FUSO_BRASILIA)
     return f"{_MESES_ABREV_PT[agora.month - 1]}{agora.year % 100:02d}"
 
 
 def _mes_abrev_capitalizado_atual() -> str:
     """'Set' — mesmo formato de rótulo usado em VARS.ENERGIA_FATURAS_REAIS (graficos-cenarios-lazy.js,
-    gráfico 06), pra alimentar a barra 'este ano' com a fatura REAL do Wallace assim que o robô achar."""
-    agora = datetime.datetime.utcnow()
+    gráfico 06), pra alimentar a barra 'este ano' com a fatura REAL do Wallace assim que o robô achar.
+    Mesma correção de fuso horário de _chave_mes_atual() acima."""
+    agora = datetime.datetime.now(_FUSO_BRASILIA)
     return _MESES_ABREV_PT[agora.month - 1].capitalize()
 
 _GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token"

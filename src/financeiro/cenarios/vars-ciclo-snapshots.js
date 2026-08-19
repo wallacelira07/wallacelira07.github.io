@@ -55,11 +55,18 @@ function criarVarsCicloSnapshots(){
   if(Array.isArray(window.WALLACE_CICLO_SNAPSHOTS_V2) && window.WALLACE_CICLO_SNAPSHOTS_V2.length){
     try {
       const cicloSnapshotsV2 = transformarLinhasCicloSnapshotsV2(window.WALLACE_CICLO_SNAPSHOTS_V2);
-      if(cicloSnapshotsV2['2026-07']){ // ciclo aberto precisa existir pro resto do boot funcionar
-        console.log('criarVarsCicloSnapshots: CICLO_SNAPSHOTS vindo da V2 (ciclos_financeiros_snapshots), '+Object.keys(cicloSnapshotsV2).length+' ciclo(s).');
-        return { cicloAtual: '2026-07', CICLO_SNAPSHOTS: cicloSnapshotsV2 };
+      // CORRIGIDO 19/08/2026 (achado da investigação de automação de virada de ciclo): cicloAtual
+      // era um literal FIXO ('2026-07') mesmo aqui na V2 — nunca acompanhava sozinho quando um ciclo
+      // novo fosse aberto (fechar_ciclo_financeiro RPC), o site continuaria mostrando julho pra
+      // sempre até alguém editar este arquivo à mão. Agora deriva do próprio dado: a chave com
+      // fechado=false é sempre o ciclo atual (invariante de 1 único ciclo aberto por vez, mesma regra
+      // que fechar_ciclo_financeiro/fechar_ciclo_solar já impõem no banco).
+      const chaveAberta = Object.keys(cicloSnapshotsV2).find(k => cicloSnapshotsV2[k].fechado === false);
+      if(chaveAberta){
+        console.log('criarVarsCicloSnapshots: CICLO_SNAPSHOTS vindo da V2 (ciclos_financeiros_snapshots), '+Object.keys(cicloSnapshotsV2).length+' ciclo(s), atual='+chaveAberta+'.');
+        return { cicloAtual: chaveAberta, CICLO_SNAPSHOTS: cicloSnapshotsV2 };
       }
-      console.warn('criarVarsCicloSnapshots: V2 respondeu mas sem o ciclo atual (2026-07) — usando literal V1.');
+      console.warn('criarVarsCicloSnapshots: V2 respondeu mas nenhuma linha com fechado=false (nenhum ciclo aberto) — usando literal V1.');
     } catch(err){
       console.warn('criarVarsCicloSnapshots: falha ao transformar CICLO_SNAPSHOTS da V2 — usando literal V1.', err);
     }

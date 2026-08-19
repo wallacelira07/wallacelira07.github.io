@@ -748,7 +748,9 @@ async function carregar(){
     </div>
 
     ${mesesHistorico.length ? `<div class="card">
-      <div class="stat-lbl" style="margin-bottom:0.8rem">Histórico mês a mês (kWh)</div>
+      <!-- RENOMEADO 19/08/2026 (pedido do usuário: "não tem 'casa de mainha', acrescente isso pra
+           saber que é de lá" — fácil interpretação por leigos). -->
+      <div class="stat-lbl" style="margin-bottom:0.8rem">Histórico mês a mês (kWh) — Casa da Mãe (medidor da usina)</div>
       <div class="stat-sub" style="margin-bottom:0.6rem">Importado/exportado no medidor bidirecional da Casa da Mãe (unidade geradora) — não confundir com o consumo do apartamento do Wallace, mostrado à parte no card do medidor Tuya mais abaixo.</div>
       <div class="chart-wrap"><canvas id="cHistoricoMensal"></canvas></div>
     </div>` : ''}
@@ -1062,7 +1064,12 @@ async function carregar(){
   // (fluxo2.wallace/wellida.creditoAtual, mesma fórmula já usada no card "Consumo real × crédito"
   // acima e no painel privado) — mesmo padrão que o painel privado já fazia via idxCicloAbertoAlinhado.
   if(ciclo && ciclo.data_inicio && fluxo2){
-    const idxAberto = idxMesRateio(new Date().toISOString().slice(0,10));
+    // CORRIGIDO 19/08/2026 (auditoria de fuso horário, achado real): toISOString() é sempre UTC —
+    // entre ~21h e 23h59 de Brasília isso já devolve o dia (e por vezes o mês) seguinte, jogando o
+    // crédito do ciclo aberto na barra errada perto da virada. Ajuste -3h força o cálculo pra
+    // Brasília independente do fuso do navegador (mesmo padrão já usado em outros pontos desta
+    // página, ex. hojeStrBrasilia acima).
+    const idxAberto = idxMesRateio(new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10));
     if(fluxo2.wallace) creditoWallacePorIdx[idxAberto] = fluxo2.wallace.creditoAtual;
     if(fluxo2.wellida) creditoIrmaPorIdx[idxAberto] = fluxo2.wellida.creditoAtual;
   }

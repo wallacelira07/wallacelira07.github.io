@@ -1232,34 +1232,27 @@ async function _lazyRenderSolarSecao(){
       { chave:'casa_wellida', nome:'Casa da Wellida', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
       { chave:'casa_mae', nome:'Casa da Mãe (geradora)', kwhMinimo: 30 }, // CONFIRMADO 01/08/2026 pelo usuario: ligacao monofasica
     ];
-    // CORRIGIDO 19/08/2026 (pedido do usuário: "deve ser atualizado pelo robô") — antes lia direto
-    // 'fatura_ago26_valor'/'fatura_ago26_consumo_kwh', chave FIXA escrita à mão. O robô
-    // (scripts/sync/atualizar_boletos_medintech.py) agora grava um novo par 'fatura_<mês><ano>_valor'/
-    // '_consumo_kwh' toda vez que acha uma fatura Energisa nova, para qualquer mês — uma chave fixa
-    // nunca mais acompanharia (setembro, outubro... ficariam presos em "ago26" pra sempre). Acha
-    // sozinho a chave 'fatura_XXXYY_valor' mais recente presente no JSON, sem editar código de novo
-    // todo mês.
-    const MESES_ABREV_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    function faturaEnergisaMaisRecente(d){
-      let melhorPrefixo = null, melhorScore = -1;
-      Object.keys(d).forEach(k => {
-        const m = k.match(/^fatura_([a-z]{3})(\d{2})_valor$/);
-        if(!m) return;
-        const idxMes = MESES_ABREV_PT.indexOf(m[1]);
-        if(idxMes === -1) return;
-        const score = Number(m[2])*12 + idxMes;
-        if(score > melhorScore){ melhorScore = score; melhorPrefixo = 'fatura_'+m[1]+m[2]; }
-      });
-      if(melhorPrefixo === null) return null;
-      return { valor: d[melhorPrefixo+'_valor'], consumoKwh: d[melhorPrefixo+'_consumo_kwh'] };
-    }
+    // CORRIGIDO 19/08/2026 (2ª rodada, achado do usuário): a versão anterior deste bloco tinha
+    // faturaEnergisaMaisRecente(d), que buscava a fatura 'fatura_<mês><ano>_valor' mais NOVA pra usar
+    // como "fatura base pré-solar" — pra casa_mae/casa_wellida isso pegava sempre a fatura MAIS
+    // contaminada por crédito solar (o oposto do que a coluna deveria mostrar). Removida — ver
+    // fatura_pre_solar_valor/_consumo_kwh abaixo, referência fixa em vez de "sempre a mais nova".
     const linhas = unidades.map(u => {
       const d = comp[u.chave];
       if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
-      // Prioriza sempre a fatura mais recente automatizada pelo robô > histórico digitado à mão.
-      const faturaRecente = faturaEnergisaMaisRecente(d);
-      const faturaBase = faturaRecente ? faturaRecente.valor : (d.historico ? d.historico.jul26 : d.fatura_jul26_valor);
-      const consumoKwh = (faturaRecente && faturaRecente.consumoKwh) || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
+      // CORRIGIDO 19/08/2026 (achado do usuário: "esses valores da minha mãe e minha irmã são já do
+      // valor solar"): esta coluna é "fatura BASE, pré-solar" — mas faturaEnergisaMaisRecente(d)
+      // pega sempre a fatura mais NOVA, e pra casa_mae/casa_wellida o crédito solar já está entrando
+      // em toda fatura registrada desde mai/26 (valor caindo mês a mês: Wellida 141,82→106,23→94,45→
+      // 70,12; Mãe 301,54→203,61→56,11) — a fatura "mais recente" é sempre a MAIS contaminada por
+      // crédito, o oposto do que esta coluna deveria mostrar. Confirmado com o usuário: só a fatura
+      // de ago/26 já tem solar; jul/26 pra trás é limpa. Referência agora é FIXA em
+      // fatura_pre_solar_valor/_consumo_kwh (congelada em jul/26, a última sem solar) em vez de
+      // seguir a fatura mais nova do robô — nunca mais avança sozinha. Fallback pro comportamento
+      // antigo só se essa chave nova ainda não existir pra alguma casa.
+      const faturaBase = d.fatura_pre_solar_valor !== undefined ? d.fatura_pre_solar_valor
+        : (d.historico ? d.historico.jul26 : d.fatura_jul26_valor);
+      const consumoKwh = d.fatura_pre_solar_consumo_kwh || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
       const pct = d.composicao_pct || {};
       if(faturaBase === undefined || !consumoKwh) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
       const tarifaReal = faturaBase / consumoKwh;
@@ -2424,7 +2417,12 @@ async function _lazyRenderSolarSecao(){
     set(prefixo+'Dias', diasRestantes+' dias');
     set(prefixo+'Necessario', fmtKwhPtBr(mediaNecessaria)+' kWh/dia');
     set(prefixo+'Media', fmtKwhPtBr(mediaRealizada)+' kWh/dia');
-    set(prefixo+'Previsao', fmtKwhPtBr(previsao)+' kWh');
+    // NOVO 19/08/2026 (pedido do usuário: "faça o esquema de cor que fiz no site também aqui, verde
+    // amarelo e vermelho"): mesmo critério já usado pra colorir a barra/status acima (calcularStatus,
+    // compara ritmo realizado vs. necessário pra bater a meta) — reaproveitado aqui em vez de duplicar
+    // lógica, já que "previsão cobre a meta" e "ritmo está no necessário" são o mesmo limiar.
+    const previsaoEl = $(prefixo+'Previsao');
+    if(previsaoEl){ previsaoEl.textContent = fmtKwhPtBr(previsao)+' kWh'; previsaoEl.style.color = status.cor; }
     const statusEl = $(prefixo+'Status');
     if(statusEl){ statusEl.textContent = status.emoji+' '+status.texto+' (ritmo de geração desta GD)'; statusEl.style.color = status.cor; }
   }

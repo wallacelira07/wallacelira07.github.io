@@ -43,7 +43,7 @@ Variáveis de ambiente necessárias:
 import json
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -82,8 +82,11 @@ def _competencia_atual(hoje: date | None = None) -> str:
     """Ciclo financeiro do sistema (25->24), mesma chave de VARS.cicloAtual/ciclo_key. Decisão
     confirmada com o usuário (AskUserQuestion): competência = ciclo financeiro, não mês calendário.
     Ex.: 14/08/2026 (antes do dia 25) -> '2026-07' (ciclo 25/07->24/08). 26/08/2026 (depois do dia
-    25) -> '2026-08' (ciclo 25/08->24/09)."""
-    hoje = hoje or date.today()
+    25) -> '2026-08' (ciclo 25/08->24/09). CORRIGIDO 19/08/2026 (auditoria de fuso horário): usava
+    date.today() — robô roda em GitHub Actions (UTC), então perto da virada do dia 24->25 em
+    horário de Brasília (21h-23h59 do dia 24 BRT = já dia 25 em UTC) calculava a competência um
+    ciclo adiantada. Usar sempre a data civil de Brasília aqui."""
+    hoje = hoje or datetime.now(timezone(timedelta(hours=-3))).date()
     if hoje.day >= 25:
         return f"{hoje.year:04d}-{hoje.month:02d}"
     primeiro_dia_mes_atual = hoje.replace(day=1)

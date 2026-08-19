@@ -9,39 +9,48 @@ function hydrateEstimadorSalario(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   const R = REG;
 
-  // Fase 3 - Estimador de Salario (ciclo que comeca 25/07 = Ago/26)
-  t('estLiquido', fmt(liquidoMes(0)));
-  { // Rótulo dinâmico: mostra qual fonte da regra de 3 níveis está ativa agora (real/projetado/média).
-    const diaHoje = new Date().getDate();
-    const temReal = (REG.superavitNormal.liquidoReal||{})[0] != null;
-    const fonteLabel = temReal ? 'Real recebido'
-      : (diaHoje>=12 ? 'Projetado (Estimador de Salário)' : 'Média ponderada 12M (sem estimativa ainda)');
-    // CORRIGIDO 01/08/2026 (V244): "Ciclo 25/07 (Ago/26)" era texto fixo, formato estranho apontado pelo
-    // usuario - agora deriva do periodo real do ciclo atual (snap.periodo), formato "25/07 a Ago/26".
-    const snapCicloTxt = VARS.CICLO_SNAPSHOTS[VARS.cicloAtual];
+  // Fase 3 - Estimador de Salario (ciclo SEGUINTE, ainda não começou/fechou - por isso "Estimador",
+  // não "Modo Operacional" (seção 02), que mostra o ciclo ATUAL já com salário real recebido).
+  // CORRIGIDO 19/08/2026, 2ª rodada (achado do usuário: os 2 cards estavam mostrando o mesmo valor,
+  // R$16.819,56 — não deveriam, "o primeiro print tem que ser o ciclo atual e o segundo é sempre o
+  // próximo ciclo"). Causa raiz: a correção de 13/08 (comentário que estava aqui) resolveu um
+  // descompasso de período entre estLiquido/estNecLiquida colapsando os DOIS pro índice 0 (ciclo
+  // atual) — errado na outra direção, isso faz este card duplicar o de cima em vez de projetar o
+  // ciclo seguinte. Fix certo: os dois campos usam índice 1 (ciclo seguinte) de forma consistente.
+  t('estLiquido', fmt(liquidoMes(1)));
+  { // Rótulo dinâmico: mostra qual fonte está ativa (real, se algum dia liquidoReal[1] for preenchido
+    // adiantado; senão média ponderada 12M — não existe "Projetado (Estimador de Salário)" pro índice
+    // 1, essa fonte é a prévia de folha de ponto do PAGAMENTO IMINENTE do ciclo atual, só faz sentido
+    // pro índice 0, ver liquidoMes() em app.js).
+    const temRealProximo = (REG.superavitNormal.liquidoReal||{})[1] != null;
+    const fonteLabel = temRealProximo ? 'Real recebido' : 'Média ponderada 12M (projeção, ciclo ainda não começou)';
+    // Período do ciclo SEGUINTE calculado a partir do ciclo atual — VARS.CICLO_SNAPSHOTS não tem uma
+    // linha pro ciclo seguinte até ele realmente abrir (fechar_ciclo_financeiro cria essa linha só na
+    // virada), não dá pra ler snap.periodo de um ciclo que ainda não existe no banco.
     const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const [iniTxt, fimTxt] = snapCicloTxt.periodo.split(' a ');
-    const [diaIni, mesIni] = iniTxt.split('/');
-    const [, mesFim, anoFim] = fimTxt.split('/');
-    const cicloTxt = diaIni+'/'+mesIni+' a '+MESES_ABREV[Number(mesFim)-1]+'/'+anoFim.slice(-2);
-    t('estStatusFonte', 'Ciclo '+cicloTxt+' · '+fonteLabel);
+    const [anoAtual, mesAtual] = VARS.cicloAtual.split('-').map(Number);
+    const mesSeguinte = mesAtual === 12 ? 1 : mesAtual + 1;
+    const anoSeguinte = mesAtual === 12 ? anoAtual + 1 : anoAtual;
+    const mesFechamento = mesSeguinte === 12 ? 1 : mesSeguinte + 1;
+    const anoFechamento = mesSeguinte === 12 ? anoSeguinte + 1 : anoSeguinte;
+    const cicloTxt = '25/'+String(mesSeguinte).padStart(2,'0')+' a '+MESES_ABREV[mesFechamento-1]+'/'+String(anoFechamento).slice(-2);
+    t('estStatusFonte', 'Ciclo '+cicloTxt+' (seguinte) · '+fonteLabel);
   }
-  // CORRIGIDO 13/08/2026 (achado de auditoria: comparava periodos diferentes) - estLiquido usa
-  // liquidoMes(0) = ciclo ATUAL (ja real), mas necessidadeLiquidaProximoCiclo = evolucao.necessidadeLiquida[1]
-  // = ciclo SEGUINTE. Excedente estimado tem que comparar o mesmo periodo: troca pra
-  // evolucao.necessidadeLiquida[0], que e o mesmo ciclo atual usado em liquidoMes(0).
-  t('estNecLiquida', fmt(R.evolucao.necessidadeLiquida[0]));
-  const excedenteEst = liquidoMes(0) - R.evolucao.necessidadeLiquida[0];
+  t('estNecLiquida', fmt(R.evolucao.necessidadeLiquida[1]));
+  const excedenteEst = liquidoMes(1) - R.evolucao.necessidadeLiquida[1];
   // CORRIGIDO 15/08/2026 (achado de auditoria: "· Modo Normal" era texto fixo, nunca refletia
   // Crítico/Baixo/Alto de verdade — R.operacional.modoOperacional já existe, calculado em
   // recalcular-necessidade.js, só nunca tinha sido ligado aqui).
   t('estExcedente', fmt(excedenteEst)+' · Modo '+R.operacional.modoOperacional);
 
   // NOVO 16/08/2026 (pedido do usuário: cards na Home com Necessidade/Salário esperado/Sobra real) —
-  // MESMOS 3 valores já calculados acima (liquidoMes(0), R.evolucao.necessidadeLiquida[0], excedenteEst),
-  // só promovidos pra um card mais visível — nenhum cálculo novo/duplicado.
-  t('homeNecLiquida', fmt(R.evolucao.necessidadeLiquida[0]));
-  t('homeSalarioEsperado', fmt(liquidoMes(0)));
+  // MESMOS 3 valores já calculados acima (liquidoMes(1), R.evolucao.necessidadeLiquida[1], excedenteEst),
+  // só promovidos pra um card mais visível — nenhum cálculo novo/duplicado. CORRIGIDO 19/08/2026 (2ª
+  // rodada, junto com a correção acima): índice ajustado de 0 pra 1 pra continuar batendo com o
+  // "acima" — "Salário ESPERADO" é sobre o que ainda não chegou (ciclo seguinte), não o que já foi
+  // recebido (ciclo atual, índice 0).
+  t('homeNecLiquida', fmt(R.evolucao.necessidadeLiquida[1]));
+  t('homeSalarioEsperado', fmt(liquidoMes(1)));
   const homeSobraEl = $('homeSobraReal');
   if(homeSobraEl){ homeSobraEl.textContent = fmt(excedenteEst); homeSobraEl.style.color = excedenteEst >= 0 ? 'var(--green)' : 'var(--red)'; }
   t('legHomeSobraReal', 'Modo '+R.operacional.modoOperacional+' · Salário esperado (dia 25) − Necessidade Líquida do ciclo. Sobra negativa = precisa entrar mais dinheiro além do salário pra fechar o ciclo.');
