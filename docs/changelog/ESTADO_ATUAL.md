@@ -2,9 +2,39 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 19/08/2026, bloco 27. Resumo: sessão longa focada em automação de faturas de consumo variável via Gmail — Água/Gás Medintech (robô completo, ponta a ponta) e Energia Energisa (robô estendido, mas identificação/valor do Wallace ainda não validados contra PDF real dele, só mãe/irmã). De quebra: referência de consumo solar das 3 casas passou a ser alimentada automaticamente pelo mesmo robô, card novo "Consumo real (fatura Energisa)" no painel privado/compartilhado, 2 gráficos novos "Crédito × medidor Tuya" (mês a mês, por pessoa), e o robô passou a atualizar `ENERGISA_TARIFA_COMPOSICAO`/`ENERGIA_FATURAS_REAIS` (fechando o último trecho manual do gráfico 06). Vários bugs reais encontrados e corrigidos na mesma sessão (registrados abaixo, nenhum escondido). **Tudo commitado e publicado** (push feito, `main` atualizado).
+Última reescrita: 19/08/2026, bloco 28. Resumo: usuário trouxe um relatório (gerado por outro agente, Claude Chat) alertando P0 — "48 transações lançadas só na V2 nunca aparecem no painel". Investigação com 10 agentes (SQL direto + leitura de código) **contrariou parte da premissa do relatório**: as 10 caixas afetadas já leem de V2, não de V1. Causa real, mais específica: (a) a view V2 exclui `afeta_saldo_real=false`, e a Caixa Combustível tem 2 lançamentos (R$400,00, "Crédito KMV" — pendência aberta, aguardando o usuário explicar o que é) com `cartao_id` nulo, invisíveis em qualquer bloco; (b) ao trocar de ciclo pelo seletor (sem F5), a Caixa Variável revertia silenciosamente pro valor V1 congelado. Corrigido o (b) e implementado aviso de mitigação pro problema geral. Bloco 27 (automação de faturas via Gmail) seguem válidos, sem mudança. **Tudo commitado e publicado** (push feito, `main` atualizado).
 
-## 0. Bloco 27 (19/08/2026) — automação de faturas via Gmail (Água/Gás/Energia) + consumo solar automático + gráficos novos
+## 0. Bloco 28 (19/08/2026) — investigação P0 "transações V2 invisíveis": achado diferente do relatado, 1 bug real corrigido, 1 aviso de mitigação, 1 pendência aberta (KMV)
+
+Usuário trouxe um relatório de outro agente (Claude Chat, arquivo `.md` avulso) alertando prioridade máxima: "48 transações lançadas só na V2 desde 13/07, R$7.091,00, nunca aparecem no painel real porque `app.js` ainda lê 100% de V1". Antes de agir, rodei 10 agentes (SQL direto no Supabase + leitura do código real, nunca supondo o relatório certo) pra confirmar ou refutar.
+
+### 0.1 A premissa do relatório estava parcialmente errada
+
+As 10 caixas afetadas (Caixa Variável, Bens Duráveis, PIX Geral Vanessa, Lance, Churrasco, Mercado Pago, Combustível, Emagrecimento, PIX Vanessa, Mastercard_Infinite) **já leem o saldo de V2**, não de V1/`wallace_dados` — confirmado arquivo:linha para cada uma. A causa raiz real é mais específica que "painel lê V1":
+
+1. **A view `vw_saldo_v2_por_caixa` exclui `afeta_saldo_real=false`** (por design — esse valor deveria contar em "Comprometido no cartão", não no saldo). **Caixa Combustível tem 2 lançamentos reais** (R$200,00 cada, "Abastecimento Posto Ipiranga — Crédito KMV", 05/08 e 16/08) com `afeta_saldo_real=false` **E `cartao_id` nulo** — não batem em nenhum dos dois filtros, ficam literalmente invisíveis em qualquer bloco (nem saldo, nem comprometido). **Pendência aberta**: o que é "Crédito KMV"? Não mexi em `afeta_saldo_real`/`cartao_id` dessas 2 transações sem entender isso primeiro (regra permanente: nunca escrever em tabela financeira sem revisão humana).
+2. **Bug real, corrigido**: `trocarCiclo()` (seletor de ciclo da UI, sem F5) chama `recalcularAgregadosDerivados()`, que reescreve `REG.caixaVariavel.saldoReal/comprometido` a partir de V1 incondicionalmente — e nunca re-chama `aplicarOnda1V2()`/`aplicarComprometidoCaixaVariavelV2()` (que só rodam 1x no boot via `onDomPronto`). Resultado: no carregamento inicial o usuário vê o valor V2 correto; ao trocar de ciclo pelo seletor, a Caixa Variável **revertia silenciosamente pro V1 congelado** até a próxima recarga de página inteira.
+
+### 0.2 Achados colaterais da investigação (não corrigidos, registrados)
+
+- `FinanceService.js`/`PatrimonioService.js`/etc. (a "camada de Services" que o relatório original citava como "já pronta, só falta conectar") **foi deletada em 14/08/2026** (commit `2b20137`, "código morto, zero consumidor") — só sobrevive num worktree órfão nunca mergeado. O mecanismo real e ativo hoje é outro: `WallaceFinanceService` inline em `app.js` + os blocos `promocoes-financeengine.js` (FASE 2D/2F).
+- `MATRIZ_MIGRACAO_FASE2.md` (citado no relatório original) **não existe em lugar nenhum do repositório** (nem histórico de git) — tratar como não-fonte se aparecer citado de novo.
+- FASE 2F (`promocoes-financeengine.js`) promove em lote **outras** 10 caixas (Manutenção, Aniversário Júlio, Eventos, Saúde Família, Seguro Emplacamento, Combustível, Churrasco, Escola de Júlio, Bens Duráveis, Lance) via gate de "divergência V1×V2 zero" — mas como V1 está congelado (decisão de 12/08) e V2 recebe lançamentos novos, esse gate está **estruturalmente fadado a reprovar** caixas com lançamento manual recente. Não é bloqueio de infra, é um critério de design que passou a trabalhar contra a decisão já tomada. Fica pra decisão futura, não mexido agora.
+- Não há `node`/`npm`/`package.json` neste ambiente — nenhum teste automatizado pode ser rodado antes de mudar código de cálculo financeiro; o único "teste" real hoje é o Comparator rodando ao vivo em produção.
+
+### 0.3 O que foi corrigido/implementado nesta sessão
+
+1. **Correção real** (`src/financeiro/cenarios/ciclo-selecao.js`, dentro de `trocarCiclo()`): 2 linhas adicionadas, re-chamando `aplicarOnda1V2()`/`aplicarComprometidoCaixaVariavelV2()` a cada troca de ciclo (aditivo, reaproveita cache em memória, fallback de falha já embutido nas próprias funções — `marcarIndisponivelV2`). Também atualiza os gráficos Chart.js da Caixa Variável depois que a V2 resolve.
+2. **Aviso de mitigação** (novo `src/auditoria/verificacoes/hydrate-aviso-lancamentos-manuais-v2.js` + card em `Sistema_Wallace_Lira_Completo.html` + CSS em `assets/css/styles.css`): banner vermelho na Home, só leitura (1 `SELECT` em `transacoes` via `WallaceFinanceService.getTransacoesManualPendentesV2()`, mesmo padrão de `getSaudeJobs()`), mostra contagem/soma de lançamentos `origem='manual'` — avisa sem prometer qual caixa específica está errada, já que a causa varia por caixa. Escondido se zero lançamentos ou se a busca falhar.
+3. **3 rodadas de verificação adversarial** (workflow, 10 agentes no total): confirmado que nenhum cálculo de saldo/comprometido existente foi tocado, que os números do aviso batem exato com SQL direto, e que RLS do Supabase já impede vazamento sem login. Zero achado bloqueante.
+
+### 0.4 Pendências reais abertas desta investigação
+
+- **"Crédito KMV" (Caixa Combustível, R$400,00 em 2 lançamentos)**: perguntar ao usuário o que é esse mecanismo de pagamento antes de decidir se `afeta_saldo_real` deveria ser `true`, ou se `cartao_id` deveria estar preenchido, ou se é um 3º tipo de comprometimento que a view ainda não modela.
+- **As outras 9 caixas do achado original** (mesmo padrão `afeta_saldo_real=false` + `cartao_id` nulo pode existir em outras, só Combustível foi confirmado por SQL) — não auditado linha a linha ainda, escopo desta sessão foi só confirmar o padrão e corrigir o achado concreto.
+- **Gate de divergência V1×V2 zero da FASE 2F** — decisão de produto pendente (ver 0.2), não uma correção de código óbvia.
+
+## 1. Bloco 27 (19/08/2026) — automação de faturas via Gmail (Água/Gás/Energia) + consumo solar automático + gráficos novos
 
 ### 0.1 Água/Gás Medintech — automação completa, ponta a ponta
 
@@ -42,7 +72,7 @@ Pedido do usuário, 3 rodadas de refinamento (1ª tentativa errada foi mexer nos
 
 `ENERGIA_FATURAS_REAIS` continua `{}` — nenhuma fatura Energisa do próprio Wallace foi processada ainda (a dele deste ciclo não foi emitida). Quando chegar, mandar o PDF real pra confirmar UC + valor, e só então essa parte fica 100% validada (ver seção Pendências).
 
-## 1. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
+## 2. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
 
 ### 1.1 Saga do erro Tuya `913` — 2 causas reais, ambas resolvidas
 
@@ -64,11 +94,11 @@ Ordem antiga: telemetria Wallace → telemetria Wellida → comparação Wallace
 - **Medidor da Wellida ficou fisicamente offline** (app Smart Life mostrou "Device Connection Failure") logo depois do 1º sucesso — orientado troubleshooting padrão (WiFi/roteador/disjuntor, mesmo problema já visto no medidor do Wallace). O contador de energia é gravado no hardware do próprio medidor (não se perde offline) — só a granularidade por-leitura fica comprometida no período sem conexão, o total nunca é perdido.
 - **Modelo do medidor da Wellida é bidirecional** (`forward_energy_total`/`reverse_energy_total`, DP diferente do CT simples do Wallace) — só energia total é gravada de verdade; potência/tensão/corrente/estado sempre ficam `—` pra ela, não é falha, é limitação real do aparelho (documentado em `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`).
 
-## 2. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
+## 3. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
 
 Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e88180e1474o2is`) — schema de DPs confirmado DIFERENTE do EKAZA CT do Wallace (só `forward_energy_total`/`reverse_energy_total`, sem tensão/corrente/potência/estado). `scripts/sync/atualizar_medidor_tuya.py` ganhou suporte a múltiplos modelos via `TUYA_MODELO` (`ekaza_ct` default Wallace, `bidirecional_ab` novo pra Wellida). Card "Consumo real × crédito" replicado pro painel privado e compartilhado (função `aplicarConsumoRealVsCreditoPorCasa()` generalizada, RPC ganhou `medidorTuyaWellidaConsumoDiario`/`medidorTuyaWellidaUltima`). Nova opção de estender validade de link de compartilhamento já existente (RPC `estender_compartilhamento_solar`, botão "+dias").
 
-## 3. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
+## 4. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
 
 **Achado #4** (trava de descompasso do card solar público): coluna `geracao_acumulada_atualizado_em` criada em `energia_solar_leituras`, robô `atualizar_geracao_saj.py` grava o timestamp real, RPC/painel privado/compartilhado atualizados — a trava (10 dias de descompasso) agora funciona de verdade nos 2 lados (antes nenhum dos 2 disparava, o campo era sempre `null`).
 
@@ -76,13 +106,13 @@ Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e8818
 
 **Infra multi-casa do medidor Tuya** criada (banco, robô, workflow, card) — nessa época ainda hipotética ("quando o Device ID existir"), depois confirmada real no mesmo dia (bloco 25).
 
-## 4. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
+## 5. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
 
 Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta branca para agir". Workflow de 7 agentes finders (financeiro, V1×V2, sintaxe JS, paridade solar, código morto, UI/CSS, segurança) + verificação adversarial (1 skeptic por achado). **16 achados, 16 confirmados, 0 descartados.**
 
 **Limite respeitado mesmo com carta branca**: nenhuma escrita em tabela financeira, nenhum push sem avisar antes (regra permanente do `CLAUDE.md`). Corrigidos na hora: legenda Saúde Família dessincronizada, `CLAUDE.md` desatualizado (regra do `wallace_dados` obsoleta desde 12/08), comentários V1×V2 obsoletos, cor de gráfico divergente, 1 grant de segurança desnecessário revogado. O resto ficou reportado pro usuário decidir (resolvido nos blocos 24-26 acima).
 
-## 5. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
+## 6. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
 
 - **Caixa Saúde Família**: R$177,50 → **R$210,83/mês** (composição completa: 2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa + 2x endócrino Wallace).
 - **Emagrecimento**: R$278,89 → **R$490,00/mês** (caneta subiu de preço; usuário tem 3 canetas em estoque, não compra nova nos próximos 1-2 ciclos, mas aporte continua).
@@ -90,7 +120,7 @@ Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta br
 - **Cards "Todas as Caixas"**: altura padronizada via `.caixas-grid`/`min-height:168px` (não testado ao vivo, exige login).
 - **3 LREI ativos** (R$266,23+R$103,55+R$1.950,77): confirmado real via SQL, não é bug.
 
-## 6. Bloco 21 e anteriores
+## 7. Bloco 21 e anteriores
 
 Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug crítico do `solar-compartilhado.html` (travamento "Carregando...") resolvido de verdade (erro de sintaxe JS); projeto DDSU666/SAJ do zero (Kit SEC não é exigível, firmware pronto, aguardando hardware físico 25/08/2026).
 
@@ -129,6 +159,10 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug cr�
 31. **NOVO bloco 27 — nem toda fatura Energisa tem linha digitável Febraban** (só quando ainda tem ficha de compensação; fatura já paga/2ª via simplificada não tem). Ordem de fallback pro valor: `vencimento+R$` → `TOTAL:` → linha digitável. Medintech (Água/Gás) continua só com linha digitável, que é 100% confiável pra ela.
 32. **NOVO bloco 27 — `consumo_diario_kwh` em `energia_solar_consumo_referencia` é coluna GERADA no Postgres**, nunca escrever nela direto (só `consumo_mensal_kwh`/`dias_base`/`fonte`).
 33. **NOVO bloco 27 — crédito solar é indexado pelo mês em que o CICLO FECHA (corte dia 8), consumo por mês calendário são coisas diferentes.** Qualquer gráfico/comparação novo que cruze os dois precisa usar a mesma função de fechamento de ciclo (`mesFechamentoCiclo`/`mesFechamentoCicloRateio`) dos dois lados, senão os eixos não batem.
+34. **NOVO bloco 28 — "as 10 caixas do achado P0 leem V1, não V2" é FALSO.** Antes de assumir que um card lê V1/`wallace_dados`, ler o código real — quase todas as caixas relevantes já foram promovidas pra V2 (ver mapa de fontes por caixa no bloco 28). O gap real é mais sutil: `afeta_saldo_real=false` + `cartao_id` nulo cai fora de qualquer filtro (view de saldo E cálculo de comprometido), e o seletor de ciclo não re-buscava V2 (corrigido).
+35. **NOVO bloco 28 — `FinanceService.js`/`PatrimonioService.js`/etc. NÃO EXISTEM em `main`** (deletados 14/08/2026, commit `2b20137`, código morto sem consumidor). Não citar/planejar em cima deles como "já prontos, só falta conectar" — só sobrevivem num worktree órfão nunca mergeado. O mecanismo real é `WallaceFinanceService` inline em `app.js` + `promocoes-financeengine.js`.
+36. **NOVO bloco 28 — `MATRIZ_MIGRACAO_FASE2.md` NÃO EXISTE** no repositório (nem no histórico do git). Se aparecer citado em algum relatório/prompt, tratar como referência não confiável.
+37. **NOVO bloco 28 — FASE 2F (`promocoes-financeengine.js`) usa gate de "divergência V1×V2 zero"**, que hoje reprova estruturalmente qualquer caixa com lançamento manual recente (porque V1 está congelado desde 12/08 e V2 recebe lançamento novo) — não é bug de infraestrutura, é decisão de design que ficou desatualizada. Decisão de produto pendente, não mexer sem pedido explícito.
 
 ## Pendências abertas
 
@@ -144,6 +178,8 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug cr�
 10. **NOVO bloco 27 — `ENERGIA_FATURAS_REAIS` continua `{}`** (nenhuma fatura Energisa do Wallace processada ainda) — gráfico 06 continua mostrando fonte='calculado' até a 1ª fatura real dele ser processada pelo robô; deve virar 'fatura real' sozinho, sem código novo.
 11. **NOVO bloco 27 — remetente exato do envio automático mensal da Energisa ainda não confirmado** (serviço ativado nesta sessão, ainda não chegou nenhuma fatura automática, só 2ª via manual). Busca hoje é por domínio inteiro (`from:@energisa.com.br has:attachment`), compensada pela validação por UC. Revisitar quando a 1ª fatura automática real chegar.
 12. **NOVO bloco 27 — pendências de setup do robô Gmail** (ação do usuário, fora do alcance do agente): criar tarefa dedicada no cron-job.org pro workflow `atualizar_boletos_medintech.yml`; depois de confirmar rodando sozinho, adicionar `boletos_medintech` em `SAUDE_JOBS_LIMIARES`.
+13. **NOVO bloco 28 — "Crédito KMV" (Caixa Combustível, 2 lançamentos, R$400,00, 05/08 e 16/08/2026)**: `afeta_saldo_real=false` + `cartao_id` nulo, invisível em qualquer bloco do painel. Perguntado ao usuário o que é esse mecanismo de pagamento — aguardando resposta antes de decidir se `afeta_saldo_real`/`cartao_id` devem mudar, ou se é um 3º tipo de comprometimento que a view precisa passar a modelar.
+14. **NOVO bloco 28 — auditar as outras 9 caixas do achado P0** pelo mesmo padrão confirmado em Combustível (`afeta_saldo_real=false` + `cartao_id` nulo) — só Combustível foi confirmado por SQL nesta sessão, as demais (Bens Duráveis, Lance, Churrasco, Mercado Pago, PIX Geral Vanessa, PIX Vanessa, Emagrecimento, Mastercard_Infinite) podem ter o mesmo problema, não verificado ainda.
 
 ## Snapshot da tabela `caixas_aportes_mensais` (Supabase) — 18/08/2026
 

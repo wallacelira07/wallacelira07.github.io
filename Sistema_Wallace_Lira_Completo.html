@@ -301,6 +301,17 @@
     <span>Você está vendo um ciclo <strong>fechado</strong> — estes dados não mudam mais, são o retrato exato de quando o ciclo virou.</span>
   </div>
 
+  <!-- NOVO 19/08/2026 (mitigação rápida da auditoria SQL: 48 transações origem='manual' na V2 sem
+       garantia de estarem somadas em todo cálculo de saldo/comprometido do painel — causa raiz varia
+       por caixa (ex.: Caixa Combustível tem lançamentos afeta_saldo_real=false sem cartao_id,
+       invisíveis em qualquer bloco; outras caixas dependem de gate de divergência V1×V2 que passou a
+       reprovar desde que V1 virou somente-leitura em 12/08/2026) — corrigir cada caminho é trabalho de
+       fundo, ver docs/changelog/ESTADO_ATUAL.md bloco 28. SÓ LEITURA: um SELECT em `transacoes`,
+       nenhum cálculo existente foi alterado. Ver hydrate-aviso-lancamentos-manuais-v2.js. Escondido
+       por padrão, JS mostra só se houver lançamento pendente; layout de #cicloBannerFechado acima,
+       mas em vermelho (--red), assets/css/styles.css. -->
+  <div id="avisoLancamentosManuaisV2" class="aviso-lancamentos-manuais-v2" style="display:none"></div>
+
   <!-- CORRIGIDO 10/08/2026, 4ª rodada (mesmo esclarecimento acima) - de volta pra dentro de #home,
        definitivo desta vez. -->
   <div class="card verif-card" style="margin-top:1rem;margin-bottom:1.5rem">
@@ -2526,6 +2537,9 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/saude/hydrate-emagrecimento.js',
   'src/financeiro/livros-razao/hydrate-onda9-livros-fixos.js',
   'src/auditoria/verificacoes/hydrate-saude-operacional.js',
+  // NOVO 19/08/2026: aviso (só leitura) de lançamentos origem='manual' na V2 ainda não refletidos
+  // nos saldos exibidos — ver hydrate-aviso-lancamentos-manuais-v2.js.
+  'src/auditoria/verificacoes/hydrate-aviso-lancamentos-manuais-v2.js',
   'src/auditoria/classificacao/classificacao-inbox.js',
   'src/auditoria/classificacao/hydrate-onda6-mercadopago.js',
   'src/financeiro/caixas/recalcular-caixas.js',

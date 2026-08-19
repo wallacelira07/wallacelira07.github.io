@@ -17,6 +17,16 @@ function trocarCiclo(cicloKey){
   atualizarBotoesSeletorCiclo();
   atualizarGraficosPorCiclo();
   atualizarContadoresAbasLR();
+  // NOVO 19/08/2026 (achado da investigacao P0 V1xV2: trocar de ciclo pelo seletor, sem F5, fazia a
+  // Caixa Variavel reverter silenciosamente pro valor V1 congelado ate a proxima recarga de pagina,
+  // porque aplicarOnda1V2/aplicarComprometidoCaixaVariavelV2 so rodavam 1x no boot via onDomPronto).
+  // Aditivo, fire-and-forget (mesmo padrao do boot): reaproveita o cache em memoria do
+  // WallaceFinanceService (sem fetch novo na pratica comum), nao altera nenhuma formula V1 existente
+  // acima, e ja tem fallback de falha proprio (marcarIndisponivelV2) se o fetch V2 nao responder.
+  // Rollback: remover este bloco - recalcularAgregadosDerivados() volta a ser a unica fonte pos-troca.
+  if(typeof aplicarOnda1V2 === 'function' && typeof aplicarComprometidoCaixaVariavelV2 === 'function'){
+    Promise.all([aplicarOnda1V2(), aplicarComprometidoCaixaVariavelV2()]).then(atualizarGraficosPorCiclo);
+  }
 }
 
 // V145: graficos Chart.js nao se atualizam sozinhos quando REG muda - precisam de update() explicito.

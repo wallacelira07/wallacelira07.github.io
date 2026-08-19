@@ -232,7 +232,10 @@ const WallaceFinanceService = {
     'transacoes_corporativo_cartao_detalhe', 'caixas', 'composicao_saldo:',
     'composicao_saldo_batch:', // NOVO 14/08/2026 (getComposicaoCaixasBatch, mesma família de cache que 'composicao_saldo:')
     'vw_patrimonio_v2', 'vw_emprestimos_internos_v2', 'reembolso_wartsila_ciclo',
-    'vw_parcelamentos_v2', 'vw_p2p_v2'
+    'vw_parcelamentos_v2', 'vw_p2p_v2',
+    // NOVO 19/08/2026: aviso de transações origem='manual' pendentes de refletir nos saldos —
+    // muda a cada lançamento novo, então precisa invalidar junto com o resto.
+    'transacoes_manual_pendentes_v2'
   ],
   invalidarCache(){ this._cache.deletarPorPrefixo(this._CHAVES_CACHE_AFETADAS_POR_LANCAMENTO); },
   // NOVO 09/08/2026 (preparação pra fechar a leitura pública do banco - achado da auditoria de
@@ -875,6 +878,20 @@ const WallaceFinanceService = {
     return this._cache.obterOuBuscar('vw_saude_jobs', async () => {
       const resp = await fetch(`${this._url}/rest/v1/vw_saude_jobs?select=job_nome,ultima_execucao,ultimo_status,ultimo_detalhe,horas_desde_ultima_execucao`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_saude_jobs`);
+      return await resp.json();
+    });
+  },
+  // NOVO 19/08/2026 (achado da auditoria SQL: "48 transações origem='manual' nunca refletidas nos
+  // saldos exibidos" — ver docs/changelog, investigação do dia). SELECT puro, read-only, mesmo padrão
+  // de getSaudeJobs() acima: busca id/valor/tipo/data/caixa_id de toda transação lançada direto na
+  // V2 (tabela `transacoes`, origem='manual') pra alimentar um aviso informativo no dashboard. NÃO
+  // participa de nenhum cálculo de saldo/comprometido existente — é só contagem/soma pra exibição.
+  async getTransacoesManualPendentesV2(){
+    return this._cache.obterOuBuscar('transacoes_manual_pendentes_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=id,valor,tipo,data,caixa_id&origem=eq.manual&order=data.desc`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar transacoes origem=manual`);
       return await resp.json();
     });
   },
@@ -2375,6 +2392,10 @@ onDomPronto(medirOnda('aplicarOnda9LivrosFixos', aplicarOnda9LivrosFixos));
 // NOVO 11/08/2026 (hardening de produção): painel de saúde das automações agendadas.
 // Ver hydrate-saude-operacional.js.
 onDomPronto(aplicarSaudeOperacional);
+// NOVO 19/08/2026 (mitigação da auditoria SQL: "48 transações origem='manual' nunca refletidas nos
+// saldos do painel"). SÓ LEITURA, aditivo — não altera nenhum cálculo de saldo/comprometido
+// existente, apenas soma/conta e avisa. Ver hydrate-aviso-lancamentos-manuais-v2.js.
+onDomPronto(aplicarAvisoLancamentosManuaisV2);
 // NOVO 17/08/2026: card "Créditos e Cupons" (Uber/Shell Box/KMV Ipiranga) migrado de literal VARS
 // pra tabela beneficios_creditos. Ver hydrate-roc.js.
 onDomPronto(aplicarBeneficiosCreditosV2);
