@@ -2772,7 +2772,11 @@ var __promiseMedidorTuyaConsumoDiarioWellidaV2 = fetch('https://bakdgacmwlopvrrp
 // continuam com o valor local já existente (ver app.js) — nunca quebra, só deixa de refletir a
 // fatura mais recente até o fetch funcionar de novo.
 window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2 = null;
-var __promiseSolarConsumoReferenciaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_consumo_referencia?select=casa,consumo_diario_kwh,fonte', {
+// AMPLIADO 19/08/2026 (achado ao vivo: card "Consumo real (fatura Energisa)" mostrava "Ainda sem
+// fatura registrada" mesmo com dado real no banco — esta query só buscava consumo_diario_kwh/fonte,
+// nunca consumo_mensal_kwh, que o card novo também precisa) — select ampliado, nenhum consumidor
+// existente é afetado (só ganha campos a mais no mesmo objeto).
+var __promiseSolarConsumoReferenciaV2 = fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/energia_solar_consumo_referencia?select=casa,consumo_diario_kwh,consumo_mensal_kwh,fonte', {
   headers: __wallaceAuthHeader(),
   cache: 'no-store'
 }).then(function(resp){
