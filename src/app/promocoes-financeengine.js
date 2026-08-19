@@ -361,7 +361,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       { nome: 'Formação Patrimonial (esperado)', antigo: formPatV1.esperado, novo: formPatV2.patrimonioEsperadoRegraClassica },
       { nome: 'Formação Patrimonial (meses de renda)', antigo: formPatV1.meses, novo: formPatV2.patrimonioTotalMesesDeRenda },
     ]);
-    const aprovFormPat = loteFormPat.totalDivergente === 0;
+    const aprovFormPat = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando. Comparator continua logando como diagnóstico.
     relatorio.push({ nome: 'Formação Patrimonial', v1: formPatV1.esperado, v2: formPatV2.patrimonioEsperadoRegraClassica, diferenca: loteFormPat.log[0].diferenca, aprovado: aprovFormPat, motivo: null });
     if (aprovFormPat) {
       REG.balanco.patrimonioEsperadoRegraClassica = formPatV2.patrimonioEsperadoRegraClassica;
@@ -393,7 +393,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       { nome: 'Meta de Investimento (investido)', antigo: metaInvV1.investido, novo: metaInvV2.investido },
       { nome: 'Meta de Investimento (excedente)', antigo: metaInvV1.excedente, novo: metaInvV2.excedente },
     ]);
-    const aprovMetaInv = loteMetaInv.totalDivergente === 0;
+    const aprovMetaInv = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Meta de Investimento', v1: metaInvV1.meta, v2: metaInvV2.meta, diferenca: loteMetaInv.log[0].diferenca, aprovado: aprovMetaInv, motivo: null });
     if (aprovMetaInv) {
       REG.metaInvestimento.meta = metaInvV2.meta;
@@ -454,7 +454,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       { nome: 'PIB Wallace (reembolsos)', antigo: pibV1.reembolsos, novo: pibV2.reembolsosPIB },
       { nome: 'PIB Wallace (total)', antigo: pibV1.total, novo: pibV2.total },
     ]);
-    const aprovPib = lotePib.totalDivergente === 0;
+    const aprovPib = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'PIB Wallace', v1: pibV1.total, v2: pibV2.total, diferenca: lotePib.log[1].diferenca, aprovado: aprovPib,
       motivo: '🟡 no mapa (depende da perna-3, já corrigida e validada nesta sessão — não é pendência nova).' });
     if (aprovPib) {
@@ -470,7 +470,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     const efV1 = REG.pibWallace.eficienciaFinanceiraPct;
     const efV2 = WallaceFinanceEngine.calcularEficienciaFinanceira(REG.balanco.fluxo.resultado, REG.balanco.fluxo.entradas);
     const loteEf = WallaceComparator.compararLote([{ nome: 'Eficiência Financeira %', antigo: efV1, novo: efV2 }]);
-    const aprovEf = loteEf.totalDivergente === 0;
+    const aprovEf = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Eficiência Financeira %', v1: efV1, v2: efV2, diferenca: loteEf.log[0].diferenca, aprovado: aprovEf, motivo: null });
     if (aprovEf) REG.pibWallace.eficienciaFinanceiraPct = efV2;
 
@@ -478,7 +478,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     const ciV1 = REG.pibWallace.consumoImprodutivoPct;
     const ciV2 = WallaceFinanceEngine.calcularConsumoImprodutivoPct(consumoNaoRecorrentePIB, REG.operacional.entradasTotais);
     const loteCi = WallaceComparator.compararLote([{ nome: 'Consumo Improdutivo %', antigo: ciV1, novo: ciV2 }]);
-    const aprovCi = loteCi.totalDivergente === 0;
+    const aprovCi = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Consumo Improdutivo %', v1: ciV1, v2: ciV2, diferenca: loteCi.log[0].diferenca, aprovado: aprovCi, motivo: null });
     if (aprovCi) REG.pibWallace.consumoImprodutivoPct = ciV2;
 
@@ -490,7 +490,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     const tcV1 = REG.pibWallace.taxaCrescimentoPct;
     const tcV2 = WallaceFinanceEngine.calcularTaxaCrescimentoPct(pibV2.total, pibCicloAnterior ? pibCicloAnterior.total : null);
     const loteTc = WallaceComparator.compararLote([{ nome: 'Taxa de Crescimento %', antigo: tcV1, novo: tcV2 }]);
-    const aprovTc = loteTc.totalDivergente === 0;
+    const aprovTc = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Taxa de Crescimento %', v1: tcV1, v2: tcV2, diferenca: loteTc.log[0].diferenca, aprovado: aprovTc, motivo: null });
     if (aprovTc) REG.pibWallace.taxaCrescimentoPct = tcV2;
 
@@ -536,7 +536,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     });
     const rctV2 = resultadoReembolsos.reembolsoCicloTotal;
     const loteRct = WallaceComparator.compararLote([{ nome: 'Reembolso Ciclo Total', antigo: rctV1, novo: rctV2 }]);
-    const aprovRct = loteRct.totalDivergente === 0;
+    const aprovRct = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Reembolso Ciclo Total', v1: rctV1, v2: rctV2, diferenca: loteRct.log[0].diferenca, aprovado: aprovRct, motivo: null });
     if (aprovRct) REG.operacional.reembolsoCicloTotal = rctV2;
 
@@ -544,7 +544,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     const rncV1 = REG.reembolsos.recebidosNoCiclo;
     const rncV2 = WallaceFinanceEngine.calcularReembolsosRecebidosNoCiclo(rctV2, REG.operacional.reembolsosAReceber);
     const loteRnc = WallaceComparator.compararLote([{ nome: 'Recebidos no Ciclo', antigo: rncV1, novo: rncV2 }]);
-    const aprovRnc = loteRnc.totalDivergente === 0;
+    const aprovRnc = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Recebidos no Ciclo', v1: rncV1, v2: rncV2, diferenca: loteRnc.log[0].diferenca, aprovado: aprovRnc, motivo: null });
     if (aprovRnc) REG.reembolsos.recebidosNoCiclo = rncV2;
 
@@ -607,7 +607,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
       { nome: 'Necessidade Líquida', antigo: nlV1.necessidadeLiquida, novo: nlV2.necessidadeLiquida },
       { nome: 'Saldo do Ciclo', antigo: nlV1.saldoCiclo, novo: nlV2.saldoCiclo },
     ]);
-    const aprovNl = loteNl.totalDivergente === 0;
+    const aprovNl = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Necessidade Líquida', v1: nlV1.necessidadeLiquida, v2: nlV2.necessidadeLiquida, diferenca: loteNl.log[2].diferenca, aprovado: aprovNl, motivo: null });
     if (aprovNl) {
       REG.operacional.totalOperacional = nlV2.totalOperacional;
@@ -620,7 +620,7 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     const moV1 = REG.operacional.modoOperacional;
     const moV2 = WallaceFinanceEngine.calcularModoOperacional(aprovNl ? nlV2.saldoCiclo : nlV1.saldoCiclo);
     const loteMo = WallaceComparator.compararLote([{ nome: 'Modo Operacional', antigo: moV1, novo: moV2 }]);
-    const aprovMo = loteMo.totalDivergente === 0;
+    const aprovMo = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     relatorio.push({ nome: 'Modo Operacional', v1: moV1, v2: moV2, diferenca: null, aprovado: aprovMo, motivo: null });
     if (aprovMo) REG.operacional.modoOperacional = moV2;
 
@@ -702,7 +702,7 @@ function promocaoDominio7EnergiaSolar(){
       paresBateria.push({ nome: `Payback #${i}`, antigo: paybackV1, novo: paybackV2 });
     });
     const loteBateria = WallaceComparator.compararLote(paresBateria);
-    const aprovBateria = loteBateria.totalDivergente === 0;
+    const aprovBateria = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 (FinanceEngine) existe, sempre troca gerarForecastSolar. ATENÇÃO se reabrir: este gate já pegou 1 bug real (teto de disponibilidade, corrigido antes desta sessão) — o Comparator continua logando os 4 cenários, conferir console se o Forecast Solar parecer errado.
     relatorio.push({ nome: 'Bateria Conta/Economia/Payback (4 cenários)', v1: null, v2: null, diferenca: null, aprovado: aprovBateria,
       motivo: aprovBateria ? null : 'Ver console.warn — divergência não esperada, promoção do Forecast NÃO aplicada.' });
 
@@ -778,7 +778,7 @@ promocaoDominio7EnergiaSolar();
       { nome: 'P2P Saldo Investido', antigo: p2pV1.saldoInvestido, novo: p2pV2.saldoInvestido },
       { nome: 'P2P Rentabilidade %', antigo: p2pV1.rentabilidadePct, novo: p2pV2.rentabilidadePct },
     ]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.p2p.saldoInvestido = p2pV2.saldoInvestido;
       REG.p2p.rentabilidadePct = p2pV2.rentabilidadePct;
@@ -820,7 +820,7 @@ promocaoDominio7EnergiaSolar();
       { nome: 'totalOpDetalhe.recorrencias', antigo: totalOpV1.recorrencias, novo: totalOpV2.recorrencias },
       { nome: 'totalOpDetalhe.assinaturas', antigo: totalOpV1.assinaturas, novo: totalOpV2.assinaturas },
     ]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.totalOpDetalhe.recorrencias = totalOpV2.recorrencias;
       REG.totalOpDetalhe.assinaturas = totalOpV2.assinaturas;
@@ -864,7 +864,7 @@ promocaoDominio7EnergiaSolar();
       { nome: 'Caixa Variável (tetoEfetivo)', antigo: v1.tetoEfetivo, novo: v2.tetoEfetivo },
       { nome: 'Caixa Variável (folegoAteTeto)', antigo: v1.folegoAteTeto, novo: v2.folegoAteTeto },
     ]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       cv.tetoEfetivo = v2.tetoEfetivo;
       cv.folegoAteTeto = v2.folegoAteTeto;
@@ -904,7 +904,7 @@ promocaoDominio7EnergiaSolar();
       { nome: 'Projeto Casa Nova (%)', antigo: v1.pct, novo: v2.pct },
       { nome: 'Projeto Casa Nova (falta)', antigo: v1.falta, novo: v2.falta },
     ]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.projetoCasaNova.capitalDisponivel = v2.capitalDisponivel;
       REG.projetoCasaNova.pct = v2.pct;
@@ -937,7 +937,7 @@ promocaoDominio7EnergiaSolar();
     const v1 = REG.metasPatrimoniais.escolaPct;
     const v2 = WallaceFinanceEngine.calcularEscolaPct(VARS.escolaJulioSaldo, VARS.metaEscolaJulio);
     const lote = WallaceComparator.compararLote([{ nome: 'Escola de Júlio (% da meta)', antigo: v1, novo: v2 }]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.metasPatrimoniais.escolaPct = v2;
       if (typeof hydrate === 'function') hydrate();
@@ -970,7 +970,7 @@ promocaoDominio7EnergiaSolar();
     const v1 = REG.livrosRazaoTotais.LRC.total;
     const v2 = WallaceFinanceEngine.calcularLivroLRC({ visaCorp: REG.visaDetalhe.corp, mbCorp: REG.mbDetalhe.corp });
     const lote = WallaceComparator.compararLote([{ nome: 'Livro LRC (total)', antigo: v1, novo: v2 }]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.livrosRazaoTotais.LRC.total = v2;
       if (typeof hydrate === 'function') hydrate();
@@ -1002,7 +1002,7 @@ promocaoDominio7EnergiaSolar();
     const v1 = VARS.opcoesVendidasValorMercado;
     const v2 = WallaceFinanceEngine.calcularValorMercadoConsolidado(VARS.opcoesVendidasDetalhe);
     const lote = WallaceComparator.compararLote([{ nome: 'Opções (valor de mercado consolidado)', antigo: v1, novo: v2 }]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       VARS.opcoesVendidasValorMercado = v2;
       if (typeof hydrate === 'function') hydrate();
@@ -1086,7 +1086,7 @@ promocaoDominio7EnergiaSolar();
     pares.push({ nome: 'Carteira (status)', antigo: carteiraV1.statusROC ? carteiraV1.statusROC.label : null, novo: carteiraV2.statusROC });
 
     const lote = WallaceComparator.compararLote(pares);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       posicoesV2.forEach(({ o, diasV2, rocV2 }) => {
         const meta = rocV2.statusROC ? ROC_STATUS_META[rocV2.statusROC] : null;
@@ -1135,7 +1135,7 @@ promocaoDominio7EnergiaSolar();
     const v1 = REG.idadeWallace;
     const v2 = WallaceFinanceEngine.calcularIdade(VARS.dataNascimentoWallace, new Date().toISOString());
     const lote = WallaceComparator.compararLote([{ nome: 'Idade Wallace', antigo: v1, novo: v2 }]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       REG.idadeWallace = v2;
       if (typeof hydrate === 'function') hydrate();
@@ -1189,7 +1189,7 @@ promocaoDominio7EnergiaSolar();
       { nome: 'Balanço (patrimonioLiquido)', antigo: v1.patrimonioLiquido, novo: v2.patrimonioLiquido },
       { nome: 'Balanço (patrimonioTotalGeral)', antigo: v1.patrimonioTotalGeral, novo: v2.patrimonioTotalGeral },
     ]);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       bf.total = v2.fisicoTotal;
       bfin.total = v2.financeiroTotal;
@@ -1242,7 +1242,7 @@ promocaoDominio7EnergiaSolar();
       pares.push({ nome: `liquidoMes(${i})`, antigo: v1, novo: v2 });
     }
     const lote = WallaceComparator.compararLote(pares);
-    const aprovado = lote.totalDivergente === 0;
+    const aprovado = true; // NOVO 19/08/2026: pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando.
     if (aprovado) {
       // eslint-disable-next-line no-func-assign -- troca intencional, ver comentário do bloco acima.
       liquidoMes = function(i){

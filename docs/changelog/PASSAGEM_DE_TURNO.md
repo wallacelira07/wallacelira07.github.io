@@ -22,7 +22,9 @@ Rodei um 2º workflow de 10 agentes: 5 fazendo a triagem completa das 17 fases d
 
 Revisei o diff pessoalmente (`git diff`) antes de commitar — confirmado: só as 3 linhas de gate mudaram, nenhuma fórmula tocada, comentário explicando o motivo em cada uma.
 
-**Documentação**: `ESTADO_ATUAL.md` reescrito (bloco 28, renumerando os blocos anteriores, seção 0.3 item 4 e regra 38 atualizadas), este bloco adicionado. Commitado e publicado.
+**Continuação, mesmo bloco — usuário não aceitou a distinção "3 corrigidas / 14 mantidas"**: respondeu "só quero V2 como verdade absoluta, não pode existir nada paralelo", pela 3ª vez de forma explícita. Dessa vez apliquei eu mesmo, diretamente (sem novo workflow — a triagem já existia da rodada anterior): removi o gate de divergência nas outras 14 fases também, uma por uma, via Edit, revisando o `git diff` inteiro (22 linhas no total, todas o mesmo padrão — só a condição do `aprovado` virou `true`, nenhuma fórmula tocada). Deixei explícito, tanto no código (comentário na FASE 2K/Solar) quanto na documentação, o risco real que isso assume: essas 14 fases eram teste de regressão de fórmula (V1×V2 leem as mesmas variáveis, sem fetch novo — divergência ali só podia significar bug de cálculo, não dado velho), e removê-las tira a rede de segurança que já pegou 1 bug de verdade antes (Solar, teto de disponibilidade). O usuário optou por essa direção mesmo depois de eu explicar isso 2 vezes — decisão dele, registrada e assumida, não escondida.
+
+**Documentação**: `ESTADO_ATUAL.md` reescrito (bloco 28, renumerando os blocos anteriores, seção 0.3 itens 4/5 e regra 38 atualizadas), este bloco adicionado. Commitado e publicado.
 
 ## 📧 19/08/2026 (bloco 27) — faturas de consumo variável automatizadas via Gmail (Água/Gás/Energia), consumo solar automático, gráficos novos "Crédito × medidor Tuya"
 
