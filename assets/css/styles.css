@@ -942,17 +942,6 @@
     background:rgba(234,168,63,0.08); border:1px solid rgba(234,168,63,0.25);
     border-radius:var(--radius-lg); padding:0.45rem 0.7rem; margin-bottom:1rem;
   }
-  /* NOVO 19/08/2026: aviso de lançamentos origem='manual' na V2 pendentes de refletir nos saldos —
-     mesmo padrão visual/dimensão de #cicloBannerFechado acima, mas em vermelho (--red) por ser um
-     alerta de dado financeiro potencialmente desatualizado, não um estado neutro de navegação. */
-  .aviso-lancamentos-manuais-v2 {
-    display:flex; align-items:flex-start; gap:0.5rem;
-    font-size:var(--fs-2xs); color:var(--red);
-    background:rgba(226,85,79,0.08); border:1px solid rgba(226,85,79,0.28);
-    border-radius:var(--radius-lg); padding:0.5rem 0.75rem; margin-bottom:1rem; line-height:1.45;
-  }
-  .aviso-lancamentos-manuais-v2 strong { color:var(--red); }
-
   /* V300 Etapa 6 (Busca Global). Redesenhada (parte 46, pedido do usuario: "centralize a barra de
      pesquisa") - vira uma pill compacta e centralizada (max-width, nao mais a largura toda), com icone
      de lupa embutido, em vez de um input generico esticado a largura inteira do card. */

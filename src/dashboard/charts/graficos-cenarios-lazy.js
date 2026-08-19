@@ -2063,8 +2063,18 @@ async function _lazyRenderSolarSecao(){
       // hoje se ainda não fechou - diariosPorData vem de VARS.SOLAR_GERACAO_DIARIA). Usa innerHTML só
       // pra colorir esse número (antes era texto puro via textContent) - resto da frase idêntico.
       const mediaGeracaoReal = qtdReal ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/qtdReal)*100)/100 : null;
+      // NOVO 19/08/2026 (pedido do usuário: cor da média de geração real deixa de ser sempre vermelha
+      // e passa a comparar contra o consumo médio das 3 casas — mesmo padrão de "margem de 2kWh" já
+      // usado noutros indicadores solares do painel): geração > consumo+2kWh = verde (gera com folga);
+      // geração entre consumo e consumo+2kWh = âmbar (cobre, mas margem apertada); geração <= consumo
+      // = vermelho (não cobre o consumo médio das 3 casas). O número do consumo (2ª referência da
+      // frase) continua vermelho, é só a referência, não muda.
+      const corMediaGeracao = (mediaGeracaoReal == null) ? 'var(--red)'
+        : mediaGeracaoReal > consumoMedioDiarioCasas + 2 ? 'var(--green)'
+        : mediaGeracaoReal > consumoMedioDiarioCasas ? 'var(--amber)'
+        : 'var(--red)';
       legGeracaoPorDiaEl.innerHTML = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:var(--red)">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = <strong style="color:var(--red)">'+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>).'
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = <strong style="color:var(--red)">'+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>).'
         : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
