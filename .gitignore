@@ -1,3 +1,5 @@
 desktop.ini
 __pycache__/
 firmware/**/segredos.h
+scripts/setup/credenciais_gmail_oauth.json
+.env
