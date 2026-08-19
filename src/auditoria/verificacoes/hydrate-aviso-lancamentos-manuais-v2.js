@@ -61,7 +61,7 @@ async function aplicarAvisoLancamentosManuaisV2(){
   el.innerHTML = `
     <span>⚠️</span>
     <span>
-      <strong>${qtd} lançamento${qtd === 1 ? '' : 's'} manual${qtd === 1 ? '' : 'is'}</strong>
+      <strong>${qtd} lançamento${qtd === 1 ? '' : 's'} ${qtd === 1 ? 'manual' : 'manuais'}</strong>
       (${_avisoLancamentosManuaisV2FormatarMoeda(totalBruto)}${dataMaisAntiga ? `, desde ${new Date(dataMaisAntiga+'T12:00:00').toLocaleDateString('pt-BR')}` : ''})
       lançado${qtd === 1 ? '' : 's'} direto no banco (V2) pode${qtd === 1 ? '' : 'm'} ainda não estar
       refletido${qtd === 1 ? '' : 's'} nos saldos/comprometido exibidos abaixo em algumas caixas —
