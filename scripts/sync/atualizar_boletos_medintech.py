@@ -2,14 +2,20 @@
 """
 Automação de faturas de consumo (Água/Gás Medintech + Energia Energisa) -> Supabase
 =======================================================================================
-NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa). Resolve o achado da varredura anti-hardcode: 3
-componentes de consumo do "piso absoluto" (TXB000004 Água, TXB000005 Gás, TXB000009 Energia,
-cronograma_boletos_fixos) eram valores fixos digitados à mão, mas são contas de CONSUMO que mudam
-todo mês de verdade — confirmado com PDF real (Água R$133,41->R$152,16, Gás R$30,28->R$36,70). O
-valor de Energia (R$367,36) NÃO foi confirmado/corrigido ainda — o único PDF Energisa visto até
-agora era da fatura da CASA DA MÃE (erro real cometido nesta sessão: quase gravado como se fosse do
-Wallace, revertido a tempo — ver docs/decisions/). A fatura do próprio Wallace deste ciclo ainda não
-foi emitida.
+NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa + referência de consumo solar). Resolve o achado da
+varredura anti-hardcode: 3 componentes de consumo do "piso absoluto" (TXB000004 Água, TXB000005
+Gás, TXB000009 Energia, cronograma_boletos_fixos) eram valores fixos digitados à mão, mas são
+contas de CONSUMO que mudam todo mês de verdade — confirmado com PDF real (Água R$133,41->R$152,16,
+Gás R$30,28->R$36,70). O valor de Energia (TXB000009, R$367,36) continua NÃO confirmado — a fatura
+do próprio Wallace deste ciclo ainda não foi emitida (só as da mãe e da irmã foram vistas até agora,
+usadas só pra validar o parser, nunca gravadas como se fossem dele — ver docs/decisions/ pro erro
+real cometido e corrigido na 1ª tentativa).
+
+AMPLIAÇÃO (mesmo dia): a Energisa também alimenta `energia_solar_consumo_referencia` (consumo médio
+diário por casa, usado no cálculo de crédito solar GD_II) — hoje mantida 100% manual (usuário lê a
+fatura e informa o valor). O robô agora atualiza essa tabela sozinho pras 3 casas (wallace/mae/irma)
+sempre que achar a fatura de qualquer uma delas no e-mail — diferente do valor do boleto TXB000009
+(que só conta pro Wallace), aqui as 3 contam, cada uma na sua própria linha da tabela.
 
 NÃO EXISTE API PÚBLICA de nenhuma das 2 concessionárias (confirmado por pesquisa). A fonte real é
 sempre e-mail com PDF anexado:
@@ -17,31 +23,35 @@ sempre e-mail com PDF anexado:
     Conta: [753/1024]", 1 e-mail por conta por mês, ~dia 19-22.
   - Energisa: domínio @energisa.com.br (remetente exato do envio AUTOMÁTICO mensal ainda não
     confirmado 19/08/2026 — o serviço foi ativado nesta mesma sessão, "a partir da próxima fatura";
-    o único PDF real visto até agora veio de uma 2ª via manual, sistemas_siatt@energisa.com.br, e
-    era da conta da mãe). Por isso a busca de Energisa é por DOMÍNIO inteiro + exige anexo, não um
-    remetente único — mais frouxa na busca, compensada pela validação por UC (ver
-    _texto_confirma_wallace abaixo) antes de aceitar qualquer valor.
+    os PDFs reais vistos até agora vieram de 2ª via manual). Por isso a busca de Energisa é por
+    DOMÍNIO inteiro + exige anexo, não um remetente único — mais frouxa na busca, compensada pela
+    identificação por UC (ver _identificar_casa_energisa abaixo) antes de aceitar qualquer dado.
 
-MÉTODO DE EXTRAÇÃO — linha digitável do boleto, não o layout visual do PDF: o campo de valor NÃO é
-lido por regex solto em cima do texto extraído (frágil a mudança de layout) — é decodificado da
-LINHA DIGITÁVEL do boleto, formato padrão Febraban (47 dígitos, 5º campo = 14 dígitos = 4 dígitos de
-fator de vencimento + 10 dígitos de valor em centavos). Esse formato é regulado, estável, e
-independente de qualquer mudança visual que o emissor faça na fatura. Confirmado contra 3 PDFs reais
-distintos (Água/Gás Medintech, julho/2026; e a fatura Energisa da mãe, agosto/2026, que provou o
-método de extração de VALOR funciona pra Energisa também — mesmo PDF que revelou o problema de
-IDENTIFICAÇÃO de conta, ver abaixo).
+MÉTODO DE EXTRAÇÃO DE VALOR — 2 métodos diferentes, um por fonte (achado real 19/08/2026: o método
+da Medintech NÃO generaliza pra Energisa):
+  - Medintech: decodificado da LINHA DIGITÁVEL do boleto, formato padrão Febraban (47 dígitos, 5º
+    campo = 14 dígitos = 4 de fator de vencimento + 10 de valor em centavos) — regulado, estável,
+    imune a mudança visual. Confirmado nos 2 PDFs reais de julho/2026.
+  - Energisa: a linha digitável NÃO aparece sempre — comparando 2 PDFs reais (fatura da mãe e da
+    irmã, agosto/2026), a da irmã (já paga) não tinha a ficha de compensação/linha digitável
+    impressa, só a da mãe tinha. O campo confiável nos 2 casos foi outro: a data de vencimento
+    seguida de "R$ valor" (padrão: data DD/MM/AAAA + "R$" + valor), com a linha "TOTAL: valor" como
+    2º método de validação cruzada — os 2 bateram exato nos 2 PDFs reais (mãe R$56,11, irmã
+    R$70,12). Linha digitável mantida como 3º fallback (funciona quando presente).
 
 IDENTIFICAÇÃO DE QUAL CONTA É QUAL — 2 métodos, um por fonte:
   - Medintech: conta (753/1024) vem do ASSUNTO do e-mail, nunca do PDF — mais confiável e não exige
     abrir o PDF pra saber qual é qual.
-  - Energisa: como o remetente é buscado por domínio inteiro, e várias contas da família (mãe,
-    irmã, Wallace) chegam no mesmo e-mail, a identificação exige achar o **Número da UC** do Wallace
-    (1.994.775.053-05, informado por ele — ainda não confirmado contra PDF real, sua fatura deste
-    ciclo não foi emitida) DENTRO do texto do PDF antes de aceitar qualquer valor. NÃO usa CPF/nome
-    do campo PAGADOR (tentativa anterior, revertida na mesma sessão): confirmado que o Wallace
-    aparece como PAGADOR/titular também na conta da própria mãe — CPF do PAGADOR não distingue "é a
-    conta dele" de "é uma conta que ele paga". UC é o identificador certo (1 UC = 1 imóvel/ligação
-    físico, nunca compartilhado entre pessoas).
+  - Energisa: como o remetente é buscado por domínio inteiro, e as contas da mãe/irmã/Wallace
+    chegam no mesmo e-mail, a identificação é pelo **Número da UC** (unidade consumidora) — campo
+    sempre presente e claramente rotulado em toda fatura Energisa (confirmado pelo usuário com
+    print real), e cada UC corresponde a exatamente 1 imóvel/ligação físico, nunca compartilhado
+    entre pessoas. NÃO usa CPF/nome do campo PAGADOR (tentativa inicial, revertida na mesma sessão
+    depois de um erro real): confirmado que o Wallace aparece como PAGADOR/titular também na conta
+    da própria mãe — CPF do PAGADOR não distingue "é a conta dele" de "é uma conta que ele paga".
+  - UCs confirmadas: mãe = 573.702.053-77 (vista em PDF real), irmã = 2.064.202.053-60 (vista em PDF
+    real), Wallace = 1.994.775.053-05 (informada por ele, ainda não vista em PDF real — sua fatura
+    deste ciclo não foi emitida).
 
 Autenticação: OAuth 2.0 com refresh_token de longa duração (obtido 1x, manualmente, fora deste
 script — ver docs/decisions/ da integração). Variáveis de ambiente necessárias:
@@ -65,24 +75,13 @@ _CONTA_PARA_TX = {
     "753": "TXB000004",   # Água (Medintech)
     "1024": "TXB000005",  # Gás (Medintech)
 }
-_TX_ENERGIA = "TXB000009"  # Energia (Energisa)
-# CORRIGIDO 19/08/2026 (2ª rodada — erro real cometido e revertido na mesma sessão): a 1ª versão
-# deste script validava pelo CPF do Wallace ancorado no rótulo "PAGADOR". Isso pareceu certo na
-# hora (testado contra um PDF real, deu match), mas o PDF usado no teste era a fatura da CASA DA
-# MÃE — o Wallace aparece como PAGADOR/titular dela também (arranjo familiar), então validar por
-# CPF/nome do PAGADOR NÃO distingue "é a conta do Wallace" de "é uma conta que o Wallace paga".
-# Isso causou uma escrita real errada no Supabase (TXB000009 = R$56,11, valor da fatura da mãe,
-# quando o valor de referência antigo — R$367,36 — nem era o valor real do Wallace, só não tinha
-# sido substituído por outro errado ainda) — revertido na mesma sessão assim que percebido.
-# A identificação correta é pelo **Número da UC** (unidade consumidora) — campo sempre presente e
-# claramente rotulado em toda fatura Energisa (confirmado pelo usuário com print real: "Número da
-# UC" aparece como card próprio, não precisa ancorar em nenhum outro rótulo). Cada UC é 1 imóvel/
-# ligação físico — não pode ser compartilhado entre Wallace/mãe/irmã como o CPF pode.
-# UC do Wallace, informada por ele diretamente 19/08/2026 ("essa vai ser usada no nosso sistema") —
-# Nível C (usuário forneceu), AINDA NÃO confirmada Nível A contra um PDF real (a fatura dele deste
-# ciclo ainda não foi emitida). Não confundir com 573.702.053-77 (UC da casa da mãe, essa sim já
-# vista e confirmada errada num PDF real) nem com 2.064.202.053-60 (UC da irmã, nunca vista).
-_UC_WALLACE = "1.994.775.053-05"
+_TX_ENERGIA = "TXB000009"  # Energia (Energisa) — só conta pro Wallace, nunca pra mãe/irmã
+# UCs por casa (ver cabeçalho do módulo pra proveniência/nível de confiança de cada uma).
+_UC_PARA_CASA = {
+    "1.994.775.053-05": "wallace",
+    "573.702.053-77": "mae",
+    "2.064.202.053-60": "irma",
+}
 
 _GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -129,17 +128,51 @@ def _baixar_texto_pdf(dados_pdf_base64: bytes) -> str:
         return "\n".join(p.extract_text() or "" for p in pdf.pages)
 
 
-def _texto_confirma_wallace(texto_pdf: str) -> bool:
-    """Confirma que o PDF é da conta do próprio Wallace, não da mãe ou da irmã (ambas também têm
-    fatura Energisa chegando no mesmo e-mail, confirmado pelo usuário 19/08/2026) — busca o
-    **Número da UC** do Wallace no texto do PDF.
-    NÃO usa CPF/nome do PAGADOR (tentativa anterior, revertida na mesma sessão): confirmado por
-    print real do usuário que o Wallace aparece como PAGADOR/titular também na conta da casa da
-    mãe — CPF do PAGADOR não distingue "é a conta dele" de "é uma conta que ele paga". UC é o
-    identificador certo: 1 UC = 1 imóvel/ligação físico, nunca compartilhado entre pessoas."""
+def _identificar_casa_energisa(texto_pdf: str) -> str | None:
+    """Identifica de qual casa (wallace/mae/irma) é a fatura Energisa, pelo Número da UC — ver
+    cabeçalho do módulo pro motivo de não usar CPF/PAGADOR."""
     def _so_digitos(s: str) -> str:
         return re.sub(r"\D", "", s)
-    return _UC_WALLACE in texto_pdf or _so_digitos(_UC_WALLACE) in _so_digitos(texto_pdf)
+    texto_digitos = _so_digitos(texto_pdf)
+    for uc, casa in _UC_PARA_CASA.items():
+        if uc in texto_pdf or _so_digitos(uc) in texto_digitos:
+            return casa
+    return None
+
+
+def _extrair_valor_energisa(texto_pdf: str) -> float | None:
+    """3 métodos em cascata (ver cabeçalho do módulo — a linha digitável nem sempre está presente
+    nas faturas Energisa, ao contrário da Medintech). Os 2 primeiros já bateram exato nos 2 PDFs
+    reais testados (mãe R$56,11, irmã R$70,12)."""
+    m = re.search(r"\d{2}/\d{2}/\d{4}\s+R\$\s*([\d.,]+)", texto_pdf)
+    if m:
+        return _texto_para_valor(m.group(1))
+    m = re.search(r"TOTAL:\s*([\d.,]+)", texto_pdf)
+    if m:
+        return _texto_para_valor(m.group(1))
+    return _extrair_valor_da_linha_digitavel(texto_pdf)
+
+
+def _texto_para_valor(texto: str) -> float | None:
+    """'70,12' -> 70.12; '1.234,56' -> 1234.56."""
+    try:
+        return round(float(texto.replace(".", "").replace(",", ".")), 2)
+    except ValueError:
+        return None
+
+
+def _extrair_consumo_energisa(texto_pdf: str) -> tuple[float, int] | None:
+    """(consumo_kwh_do_mes, dias) a partir dos campos "Consumo em kWh" e "Dias:" — sempre presentes
+    (testado nos 2 PDFs reais). Usa o consumo REAL do mês atual, não uma média histórica (decisão do
+    usuário 19/08/2026: mais preciso e mais confiável de achar em qualquer formato de fatura)."""
+    m_consumo = re.search(r"Consumo em kWh\s+(?:KWH\s+)?([\d.,]+)", texto_pdf)
+    m_dias = re.search(r"Dias:\s*(\d+)", texto_pdf)
+    if not m_consumo or not m_dias:
+        return None
+    consumo = _texto_para_valor(m_consumo.group(1))
+    if consumo is None:
+        return None
+    return consumo, int(m_dias.group(1))
 
 
 def _anexo_pdf_do_email(msg: dict) -> str | None:
@@ -175,12 +208,14 @@ def _buscar_medintech(access_token: str, resultado: dict) -> None:
             print(f"Conta {conta} ({tx}): R$ {valor:.2f} — extraído de '{assunto}'")
 
 
-def _buscar_energisa(access_token: str, resultado: dict) -> None:
-    """Energia (TXB000009) — remetente exato do envio automático ainda não confirmado (ver
-    cabeçalho do módulo), então busca por DOMÍNIO inteiro + exige anexo; a identidade é validada
-    DENTRO do PDF pela UC do Wallace (_texto_confirma_wallace), nunca pelo remetente sozinho."""
-    if _TX_ENERGIA in resultado:
-        return
+def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consumo: dict) -> None:
+    """Energisa — remetente exato do envio automático ainda não confirmado (ver cabeçalho do
+    módulo), então busca por DOMÍNIO inteiro + exige anexo. Cada e-mail encontrado é identificado
+    por UC (_identificar_casa_energisa) e usado pra 2 coisas independentes:
+      - resultado_boletos[TXB000009] SÓ se a casa for 'wallace' (é o único que conta como despesa
+        pessoal dele no cronograma_boletos_fixos).
+      - resultado_consumo[casa] pra QUALQUER uma das 3 casas (mãe/irmã/Wallace todas alimentam a
+        referência de consumo solar, ver cabeçalho do módulo)."""
     busca = _gmail_get("/messages?q=" + "from:@energisa.com.br has:attachment newer_than:10d".replace(" ", "%20"), access_token)
     for item in busca.get("messages", []):
         msg = _gmail_get(f"/messages/{item['id']}?format=full", access_token)
@@ -191,24 +226,36 @@ def _buscar_energisa(access_token: str, resultado: dict) -> None:
             continue
         anexo = _gmail_get(f"/messages/{item['id']}/attachments/{anexo_id}", access_token)
         texto = _baixar_texto_pdf(base64.urlsafe_b64decode(anexo["data"]))
-        if not _texto_confirma_wallace(texto):
-            print(f"AVISO: PDF de '{assunto}' (Energisa) não confirma a UC do Wallace — pulando (provável fatura de outro familiar).", file=sys.stderr)
+        casa = _identificar_casa_energisa(texto)
+        if casa is None:
+            print(f"AVISO: PDF de '{assunto}' (Energisa) não confirma UC de nenhuma casa conhecida — pulando.", file=sys.stderr)
             continue
-        valor = _extrair_valor_da_linha_digitavel(texto)
-        if valor is None:
-            print(f"AVISO: não consegui extrair valor do PDF de '{assunto}' (Energisa) — pulando, nada é inventado.", file=sys.stderr)
-            continue
-        resultado[_TX_ENERGIA] = valor
-        print(f"Energia ({_TX_ENERGIA}): R$ {valor:.2f} — extraído de '{assunto}'")
-        return  # 1 fatura por mês só — para no primeiro achado válido
+
+        if casa == "wallace" and _TX_ENERGIA not in resultado_boletos:
+            valor = _extrair_valor_energisa(texto)
+            if valor is None:
+                print(f"AVISO: não consegui extrair valor do PDF de '{assunto}' (Energisa, Wallace) — pulando, nada é inventado.", file=sys.stderr)
+            else:
+                resultado_boletos[_TX_ENERGIA] = valor
+                print(f"Energia ({_TX_ENERGIA}): R$ {valor:.2f} — extraído de '{assunto}'")
+
+        if casa not in resultado_consumo:  # Gmail retorna mais recente primeiro — mantém o mais recente por casa
+            consumo = _extrair_consumo_energisa(texto)
+            if consumo is None:
+                print(f"AVISO: não consegui extrair consumo do PDF de '{assunto}' (Energisa, {casa}) — pulando, nada é inventado.", file=sys.stderr)
+            else:
+                resultado_consumo[casa] = consumo
+                print(f"Consumo solar ({casa}): {consumo[0]:.2f} kWh / {consumo[1]} dias — extraído de '{assunto}'")
 
 
-def buscar_faturas_do_mes(access_token: str) -> dict:
-    """Retorna {tx: valor} pras faturas (Medintech + Energisa) encontradas nos últimos 10 dias."""
-    resultado: dict = {}
-    _buscar_medintech(access_token, resultado)
-    _buscar_energisa(access_token, resultado)
-    return resultado
+def buscar_faturas_do_mes(access_token: str) -> tuple[dict, dict]:
+    """Retorna ({tx: valor} pro cronograma_boletos_fixos, {casa: (consumo_kwh, dias)} pra
+    energia_solar_consumo_referencia), ambos das faturas encontradas nos últimos 10 dias."""
+    resultado_boletos: dict = {}
+    resultado_consumo: dict = {}
+    _buscar_medintech(access_token, resultado_boletos)
+    _buscar_energisa(access_token, resultado_boletos, resultado_consumo)
+    return resultado_boletos, resultado_consumo
 
 
 def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, valor: float) -> None:
@@ -241,6 +288,43 @@ def obter_valores_atuais(supabase_url: str, supabase_key: str) -> dict:
     return {l["tx"]: float(l["valor"]) for l in linhas}
 
 
+def atualizar_consumo_solar(supabase_url: str, supabase_key: str, casa: str, consumo_kwh: float, dias: int) -> None:
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    # consumo_diario_kwh é coluna GERADA no Supabase (achado real 19/08/2026, testado contra o
+    # banco: "column consumo_diario_kwh can only be updated to DEFAULT") — nunca escrever nela,
+    # o Postgres calcula sozinho a partir de consumo_mensal_kwh/dias_base.
+    corpo = {
+        "consumo_mensal_kwh": consumo_kwh,
+        "dias_base": dias,
+        "fonte": "Fatura Energisa real, consumo do mês (automático via robô, atualizar_boletos_medintech.py)",
+    }
+    url = f"{supabase_url}/rest/v1/energia_solar_consumo_referencia?casa=eq.{casa}"
+    req = Request(url, data=json.dumps(corpo).encode("utf-8"), headers=headers, method="PATCH")
+    try:
+        with urlopen(req, timeout=20) as resp:
+            resultado = resp.read().decode("utf-8")
+    except HTTPError as e:
+        corpo_erro = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {e.code} ao atualizar consumo solar ({casa}): {corpo_erro}") from e
+    except URLError as e:
+        raise RuntimeError(f"Falha de rede ao atualizar consumo solar ({casa}): {e}") from e
+    print(f"Supabase atualizado (consumo solar, {casa}): {resultado}")
+
+
+def obter_consumo_solar_atual(supabase_url: str, supabase_key: str) -> dict:
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    url = f"{supabase_url}/rest/v1/energia_solar_consumo_referencia?select=casa,consumo_mensal_kwh"
+    req = Request(url, headers=headers)
+    with urlopen(req, timeout=20) as resp:
+        linhas = json.loads(resp.read().decode("utf-8"))
+    return {l["casa"]: float(l["consumo_mensal_kwh"]) for l in linhas}
+
+
 def main() -> int:
     client_id = os.environ.get("GMAIL_CLIENT_ID")
     client_secret = os.environ.get("GMAIL_CLIENT_SECRET")
@@ -261,18 +345,31 @@ def main() -> int:
         print("Autenticando na Gmail API...")
         access_token = _obter_access_token(client_id, client_secret, refresh_token)
         print("Buscando faturas de consumo (Água/Gás Medintech + Energia Energisa) dos últimos 10 dias...")
-        encontradas = buscar_faturas_do_mes(access_token)
-        if not encontradas:
+        boletos_encontrados, consumo_encontrado = buscar_faturas_do_mes(access_token)
+
+        if boletos_encontrados:
+            atuais = obter_valores_atuais(supabase_url, supabase_key)
+            for tx, valor_novo in boletos_encontrados.items():
+                valor_atual = atuais.get(tx)
+                if valor_atual is not None and abs(valor_atual - valor_novo) < 0.005:
+                    print(f"{tx}: valor já está atualizado (R$ {valor_atual:.2f}) — nada a fazer.")
+                    continue
+                print(f"{tx}: R$ {valor_atual if valor_atual is not None else '—'} -> R$ {valor_novo:.2f}")
+                atualizar_supabase(supabase_url, supabase_key, tx, valor_novo)
+
+        if consumo_encontrado:
+            consumo_atual = obter_consumo_solar_atual(supabase_url, supabase_key)
+            for casa, (consumo_kwh, dias) in consumo_encontrado.items():
+                atual = consumo_atual.get(casa)
+                if atual is not None and abs(atual - consumo_kwh) < 0.005:
+                    print(f"Consumo solar ({casa}): já está atualizado ({atual:.2f} kWh) — nada a fazer.")
+                    continue
+                print(f"Consumo solar ({casa}): {atual if atual is not None else '—'} kWh -> {consumo_kwh:.2f} kWh ({dias} dias)")
+                atualizar_consumo_solar(supabase_url, supabase_key, casa, consumo_kwh, dias)
+
+        if not boletos_encontrados and not consumo_encontrado:
             print("Nenhuma fatura nova encontrada neste período — nada a atualizar.")
-            return 0
-        atuais = obter_valores_atuais(supabase_url, supabase_key)
-        for tx, valor_novo in encontradas.items():
-            valor_atual = atuais.get(tx)
-            if valor_atual is not None and abs(valor_atual - valor_novo) < 0.005:
-                print(f"{tx}: valor já está atualizado (R$ {valor_atual:.2f}) — nada a fazer.")
-                continue
-            print(f"{tx}: R$ {valor_atual if valor_atual is not None else '—'} -> R$ {valor_novo:.2f}")
-            atualizar_supabase(supabase_url, supabase_key, tx, valor_novo)
+
         print("Concluído com sucesso.")
         return 0
     except Exception as e:

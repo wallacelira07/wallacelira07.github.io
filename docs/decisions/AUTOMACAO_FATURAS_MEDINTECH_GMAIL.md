@@ -41,12 +41,27 @@ Mesmo dia, mesmo padrão. Usuário ativou o envio de fatura por e-mail da Energi
 
 **2ª rodada (correção real)**: o identificador correto é o **Número da UC** (unidade consumidora) — campo sempre presente e claramente rotulado em toda fatura Energisa (confirmado pelo usuário com print real, card próprio "Número da UC"), e cada UC corresponde a exatamente 1 imóvel/ligação física, nunca compartilhado entre pessoas (diferente do CPF do PAGADOR). `_texto_confirma_wallace()` reescrita pra checar a UC do Wallace, não mais o CPF ancorado em "PAGADOR". Testado contra o mesmo PDF (fatura da mãe): agora retorna `False` corretamente (antes, com o método antigo, retornava `True` — o próprio bug confirmado e corrigido).
 
-**Estado real ao fim desta sessão — automação de Energia AINDA NÃO validada de ponta a ponta**:
-- UC da mãe: `573.702.053-77` (confirmada, já vista em PDF real — usada só pra provar que a validação rejeita corretamente).
-- UC da irmã: `2.064.202.053-60` (informada pelo usuário, nunca vista em PDF).
-- UC do Wallace: `1.994.775.053-05` (informada pelo usuário — **Nível C, ainda não confirmada contra um PDF real**, porque a fatura dele deste ciclo ainda não foi emitida). O script já está configurado pra validar por essa UC, mas **nunca foi testado contra uma fatura real do próprio Wallace** — só contra a da mãe (validando corretamente que ela é rejeitada).
+**3ª rodada (achado real, mesmo dia)**: comparando o PDF da mãe com um 2º PDF real (fatura da irmã, também mandada pelo usuário) descobri que **a linha digitável NÃO aparece sempre** nas faturas Energisa — a da irmã (já paga) não tinha a ficha de compensação impressa, só a da mãe tinha. Método de valor trocado pra Energisa (Medintech continua com linha digitável, que é 100% confiável pra ela): 1º tenta "data de vencimento + R$valor", 2º tenta a linha "TOTAL: valor", 3º cai pra linha digitável se presente. Os 2 primeiros bateram exato nos 2 PDFs reais (mãe R$56,11, irmã R$70,12).
+
+**Estado real ao fim desta sessão — automação de Energia (boleto TXB000009) validada só pra identificação, não pro valor do Wallace**:
+- UC da mãe: `573.702.053-77` — confirmada, testada em PDF real, `_identificar_casa_energisa()` retorna `'mae'` corretamente.
+- UC da irmã: `2.064.202.053-60` — confirmada, testada em PDF real, retorna `'irma'` corretamente.
+- UC do Wallace: `1.994.775.053-05` — informada pelo usuário, **Nível C, ainda não confirmada contra um PDF real** (a fatura dele deste ciclo não foi emitida). Extração de valor/consumo testada com sucesso nos 2 PDFs que existem (mãe/irmã), mas nunca contra um PDF real do próprio Wallace.
 - `cronograma_boletos_fixos.TXB000009` continua em R$367,36 (valor antigo, não confirmado — só não foi substituído por um valor errado).
 
-**Pendência real que falta pra fechar isso**: quando a fatura do próprio Wallace for emitida (ele ainda não sabe quando — "minha conta não foi emitida ainda"), mandar o PDF real pra confirmar que a UC `1.994.775.053-05` aparece exatamente como esperado no texto extraído, e só então considerar essa parte da automação validada.
+**Pendência real que falta pra fechar isso**: quando a fatura do próprio Wallace for emitida, mandar o PDF real pra confirmar que a UC `1.994.775.053-05` aparece e que o valor bate, e só então considerar essa parte 100% validada.
 
 **Diferença de robustez em relação à Medintech**: como o remetente exato do envio automático mensal da Energisa ainda não foi confirmado (o serviço foi ativado nesta mesma sessão, "a partir da próxima fatura" — os PDFs vistos até agora vieram de 2ª via manual), a busca é por **domínio inteiro** (`from:@energisa.com.br has:attachment`) em vez de um remetente único — mais frouxa na busca, compensada pela validação por UC antes de aceitar qualquer valor. Revisitar o remetente exato quando a 1ª fatura automática (não 2ª via) do Wallace chegar de verdade.
+
+## Extensão 19/08/2026 (mesmo dia) — referência de consumo solar (`energia_solar_consumo_referencia`)
+
+Usuário pediu pra também alimentar o "controle solar" automaticamente. Investigação (agente `Explore`) confirmou: **não existia nenhuma ponte entre fatura Energisa e o domínio solar** — o robô SAJ só lê geração do inversor (fonte tecnicamente incapaz de ler consumo/Energisa), e `energia_solar_consumo_referencia` era 100% manual (usuário lia a fatura e um agente digitava — a própria migration que criou a tabela cita a fala do usuário: *"quando chegar as faturas eu envio e você joga no supabase e a mágica acontece"*).
+
+**Decisão de escopo, confirmada com o usuário antes de codar**: usar só o **consumo real do mês atual** ("Consumo em kWh", sempre presente e bem rotulado — testado nos 2 PDFs reais), não a linha "Média dos últimos meses" (que só existe em 1 dos 2 formatos de fatura vistos, formato "2ª via simplificada" — não confiável pra generalizar).
+
+**Diferente do boleto TXB000009 (só conta pro Wallace), aqui as 3 casas contam** — cada fatura encontrada (mãe/irmã/Wallace) atualiza a linha correspondente da tabela. Testado e **já atualizado com evidência real** nesta sessão:
+- `casa='mae'`: 300→**145 kWh**/30 dias (4,83 kWh/dia)
+- `casa='irma'`: 112→**111 kWh**/30 dias (3,70 kWh/dia)
+- `casa='wallace'`: não tocado (nenhum PDF real dele ainda)
+
+**Achado real de bug, corrigido antes do commit**: `consumo_diario_kwh` é coluna **GERADA** no Postgres (`consumo_mensal_kwh / dias_base`, automático) — a 1ª versão do `atualizar_consumo_solar()` tentava escrever nela direto, e o Supabase rejeitou (`column consumo_diario_kwh can only be updated to DEFAULT`). Corrigido: o `PATCH` agora só manda `consumo_mensal_kwh`/`dias_base`/`fonte`, nunca `consumo_diario_kwh`.
