@@ -28,6 +28,14 @@ O agente não escaneou com a mesma profundidade `dashboard/`, `relatorio/`, `aud
 
 Itens de confiança mais baixa (`orcamentoOperacional`, `suporteCoIrmaEventos`, as 4 estatísticas de salário) foram migrados mesmo assim — mudar de "fonte" é sempre seguro (mesmo mecanismo já provado), a confiança baixa era só sobre a urgência de migrar, não sobre o risco de migrar.
 
+## Parte 4 — 19/08/2026: os 2 achados pendentes, resolvidos com autorização explícita
+
+Usuário autorizou separadamente editar `FinanceEngine.js` (protegido) e `gerar-analise-financeira.js` (WWI, congelado).
+
+- **`FinanceEngine.js`**: achado importante na investigação — essa função (`calcularAporteIncrementalPorCiclo`) é a cópia "pura" da Fase 1, **ainda não consumida pela produção** (ver cabeçalho do arquivo). A função que roda de verdade é `app.js:calcularAporteIncrementalPorCiclo()` (V1, assinatura `(i)` só), que já tinha dessincronizado da cópia — o item Saúde Família foi corrigido lá em 16/08/2026 e nunca replicado na cópia. **O fix real foi em `app.js`**: os 2 literais restantes (200 = Aniversário Júlio, 500 = Escola Júlio ciclo atual) agora leem `VARS.aporteAniversarioJulio` (já migrado) e `VARS.escolaJulioCicloAtualAporte` (novo campo, migrado agora). A cópia em `FinanceEngine.js` também foi parametrizada (defaults idênticos aos valores antigos — mudança mecânica, comportamento preservado por construção), só pra não ficar pra trás de novo se/quando a Fase 2/3 (consumo real) acontecer.
+  - **Não foi possível rodar as 18 fases de validação** nesta sessão (sem Node.js neste ambiente de execução). Recomendado rodar `node tests/unit/FinanceEngine.test.js` e conferir `WALLACE_VALIDACAO_RUNTIME` (18/18) no navegador antes de considerar 100% validado — a mudança em `app.js` é a que efetivamente importa pra produção, e é comportamentalmente equivalente (mesmos valores, só nomeados agora).
+- **`gerar-analise-financeira.js` (WWI)**: não migrado pra Supabase de propósito — `REG.patrimonio.metaMilhao` já documenta "constante, não é dado a migrar" (é o nome do próprio objetivo "Meta do Milhão", não uma meta configurável). Corrigido por **deduplicação**: os 2 literais soltos (`1000000` na regra `meta_milhao_inicial` e dentro do array `WWI_MARCOS_PATRIMONIO`) agora referenciam um único `const WWI_META_MILHAO = 1000000` local ao arquivo.
+
 ## Como editar esses valores daqui pra frente
 
 `UPDATE parametros_gerais SET valor = to_jsonb(<novo>::numeric) WHERE nome = '<nome>';` — nunca mais editar o `.js`. Efeito no próximo carregamento do painel, sem deploy.

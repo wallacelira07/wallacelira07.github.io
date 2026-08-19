@@ -531,11 +531,23 @@ function calcularLiquidoMes({ indice, liquidoReal = {}, mediaPonderada12M, liqui
  * aqui são parâmetros). ATUALIZADO 12/08/2026: saudeEmagrecimentoAporte (caneta
  * Ozivy Semaglutida) somado aos contínuos, mesmo tratamento do Seguro Emplacamento.
  */
-function calcularAporteIncrementalPorCiclo(i, { seguroEmplacamentoAporte, bensDuraveisAporteMensalAlvo, escolaJulio2027Aporte, saudeEmagrecimentoAporte }) {
+// MIGRADO 19/08/2026 (varredura anti-hardcode, autorização explícita do usuário pra editar este
+// arquivo protegido): os 3 literais de projeção (200/500/100) viraram parâmetros com default
+// IDÊNTICO ao valor anterior — mudança puramente mecânica (parametrizar, não reformular a fórmula).
+// ACHADO na mesma investigação: esta função é a cópia "pura" da Fase 1 (ver cabeçalho do arquivo,
+// "não é chamado por nenhum Service nem pelo app.js") — a que RODA DE VERDADE em produção é
+// app.js:calcularAporteIncrementalPorCiclo() (V1, assinatura diferente, só `(i)`), e ela já tinha
+// dessincronizado desta cópia (o item Saúde Família foi corrigido lá em 16/08/2026 e nunca replicado
+// aqui). O fix real dos 2 hardcodes (200/500) foi aplicado em app.js, não aqui — esta mudança serve
+// só pra esta cópia não ficar pra trás de novo se/quando a Fase 2/3 (consumo real desta camada)
+// acontecer. NÃO foi possível rodar as 18 fases de validação nesta sessão (sem Node.js neste
+// ambiente) — recomendado rodar `node tests/unit/FinanceEngine.test.js` e conferir
+// `WALLACE_VALIDACAO_RUNTIME` (18/18) no navegador antes de considerar validado.
+function calcularAporteIncrementalPorCiclo(i, { seguroEmplacamentoAporte, bensDuraveisAporteMensalAlvo, escolaJulio2027Aporte, saudeEmagrecimentoAporte, projecaoCiclo1_2 = 200, projecaoCiclo1_4 = 500, projecaoCiclo1_16 = 100 }) {
   let v = seguroEmplacamentoAporte + bensDuraveisAporteMensalAlvo + saudeEmagrecimentoAporte;
-  if (i < 2) v += 200;
-  if (i < 4) v += 500;
-  if (i < 16) v += 100;
+  if (i < 2) v += projecaoCiclo1_2;
+  if (i < 4) v += projecaoCiclo1_4;
+  if (i < 16) v += projecaoCiclo1_16;
   if (i >= 6 && i <= 16) v += escolaJulio2027Aporte;
   return r2(v);
 }

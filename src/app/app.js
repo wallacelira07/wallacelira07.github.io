@@ -1969,10 +1969,14 @@ Object.assign(REG, criarRegBalanco());
 // Indice 0 = ciclo atual (Jul/26), cada indice seguinte = 1 ciclo financeiro a frente.
 function calcularAporteIncrementalPorCiclo(i){
   // ATUALIZADO 12/08/2026: saudeEmagrecimentoAporte (caneta Ozivy Semaglutida) somado aos
-  // contínuos - mesmo tratamento de seguroEmplacamentoAporte, sem data de término conhecida.
+  // contínuos - mesmo tratamento de seguroEmplacamentoAporte, sem data de termino conhecida.
+  // CORRIGIDO 19/08/2026 (varredura anti-hardcode, mesma classe do achado 16/08 que ja corrigiu
+  // o item Saude Familia abaixo): os 2 literais soltos (200/500) agora leem VARS.aporteAniversarioJulio
+  // (ja migrado pra parametros_gerais na 1a varredura) e VARS.escolaJulioCicloAtualAporte (novo campo,
+  // migrado agora). Nenhum valor mudou - so parou de ser numero solto sem fonte.
   let v = VARS.seguroEmplacamentoAporte + VARS.BENS_DURAVEIS_APORTE_MENSAL_ALVO + VARS.saudeEmagrecimentoAporte; // continuos, sem data de termino conhecida
-  if(i < 2) v += 200;                              // Aniversario Julio - completa Set/26 (14/09)
-  if(i < 4) v += 500;                               // Escola Julio ciclo atual - completa Nov/26 (01/11)
+  if(i < 2) v += VARS.aporteAniversarioJulio;        // Aniversario Julio - completa Set/26 (14/09)
+  if(i < 4) v += VARS.escolaJulioCicloAtualAporte;   // Escola Julio ciclo atual - completa Nov/26 (01/11)
   if(i < 16) v += VARS.aporteSaudeFamilia;           // Saude Familia - projeta completar ~Nov/27. CORRIGIDO 16/08/2026: era literal 100 solto (4a copia divergente do mesmo dado, achado de auditoria) - agora le a mesma fonte usada em todo o resto do sistema (vars-caixas.js).
   if(i >= 6 && i <= 16) v += VARS.escolaJulio2027Aporte; // Escola Julio 2027 - Jan/27 a Nov/27 (11 meses)
   return Math.round(v*100)/100;

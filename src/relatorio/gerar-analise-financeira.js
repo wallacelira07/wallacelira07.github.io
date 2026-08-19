@@ -496,8 +496,17 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   });
 
   // ===== Meta do Milhão =====
+  // DEDUPLICADO 19/08/2026 (achado de auditoria: R$1.000.000 aparecia hardcoded aqui E dentro de
+  // WWI_MARCOS_PATRIMONIO mais abaixo, 2 literais soltos representando o MESMO alvo). Não migrado
+  // pra parametros_gerais de propósito — REG.patrimonio.metaMilhao (reg-patrimonio.js) já documenta
+  // "constante, mesmo valor do V1, não é dado a migrar" (é o nome do próprio objetivo, "Meta do
+  // Milhão", não uma meta configurável tipo tetoOficial). Este arquivo processa snapshots de texto já
+  // extraídos (`dados`), sem acesso a REG ao vivo, então a correção possível aqui é deduplicar o
+  // literal num único const nomeado, não eliminá-lo — ver WWI_META_MILHAO, reaproveitado abaixo em
+  // WWI_MARCOS_PATRIMONIO.
+  const WWI_META_MILHAO = 1000000;
   regra('meta_milhao_inicial', b.metaMilhaoPct !== null && b.metaMilhaoPct < 25, () => {
-    const faltaMilhao = b.patrimonioLiquido !== null ? Math.max(0, 1000000 - b.patrimonioLiquido) : null;
+    const faltaMilhao = b.patrimonioLiquido !== null ? Math.max(0, WWI_META_MILHAO - b.patrimonioLiquido) : null;
     pontosFracosTexto.push(`Meta do Milhão ainda em fase inicial: ${_wwiFmtNum(b.metaMilhaoPct, 1)}% do caminho percorrido${faltaMilhao !== null ? ` (faltam R$ ${_wwiFmtMoeda(faltaMilhao)})` : ''}. É esperado nesta fase — o que importa mais que o percentual isolado é o ritmo de aporte se manter constante ciclo a ciclo.`);
   });
   regra('meta_milhao_avancada', b.metaMilhaoPct !== null && b.metaMilhaoPct >= 25 && b.metaMilhaoPct < 50, () => {
@@ -614,7 +623,7 @@ function gerarAnaliseFinanceira(dados, caixaLanceSaldo){
   // Milhão, que é o próprio R$ 1.000.000 hardcoded em WWI_OBJETIVO_PROJETO/regra
   // 'meta_milhao_inicial' acima), generalizada pra além de R$1M pro caso do patrimônio já ter
   // passado dessa marca. "Falta R$X" é só `próximo marco - patrimônio líquido`, nunca uma opinião.
-  const WWI_MARCOS_PATRIMONIO = [100000, 250000, 500000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000, 50000000];
+  const WWI_MARCOS_PATRIMONIO = [100000, 250000, 500000, WWI_META_MILHAO, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000, 50000000];
   let proximoSaltoTexto = null;
   if(b.patrimonioLiquido !== null){
     const proximoMarco = WWI_MARCOS_PATRIMONIO.find(m => m > b.patrimonioLiquido);

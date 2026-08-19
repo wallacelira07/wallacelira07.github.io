@@ -3,9 +3,10 @@
 // no boot (mesmo mecanismo generico ja usado por taxasHoraFolhaPontoWartsila - bloco
 // WALLACE_PARAMETROS_GERAIS_V2 em app.js, faz VARS[nome]=valor pra cada linha da tabela) - os
 // literais aqui viram FALLBACK, so valem se a V2 falhar ao carregar: aporteSaudeFamilia,
-// aporteAniversarioJulio, BENS_DURAVEIS_APORTE_MENSAL_ALVO, metaSuavizacao,
-// escolaJulio2027Aporte (este fica em vars-operacional.js). Editar valor novo sempre no Supabase
-// (parametros_gerais), nunca aqui.
+// aporteAniversarioJulio, escolaJulioCicloAtualAporte (adicionado 19/08/2026, achado numa 2a
+// varredura dentro de calcularAporteIncrementalPorCiclo em app.js), BENS_DURAVEIS_APORTE_MENSAL_ALVO,
+// metaSuavizacao, escolaJulio2027Aporte (este fica em vars-operacional.js). Editar valor novo sempre
+// no Supabase (parametros_gerais), nunca aqui.
 // MODULO: criarVarsCaixas() - fragmento do VARS (estado inicial), extraido do literal const VARS = {...}
 // de app.js na modularizacao Fase 4 (07/08/2026) - MESMOS valores, MESMA estrutura, copia verbatim
 // por intervalo de linha (nao retypado a mao). Vira uma FUNCAO porque alguns campos usam expressoes
@@ -236,6 +237,9 @@ function criarVarsCaixas(){
   // Era R$177,50 (composição de 16/08/2026, sem o dentista).
   aporteSaudeFamilia: 210.83,
   aporteAniversarioJulio: 200,
+  // NOVO 19/08/2026 (varredura anti-hardcode): antes vivia só como literal solto (500) dentro de
+  // calcularAporteIncrementalPorCiclo() em app.js - nunca tinha nome nem fonte própria.
+  escolaJulioCicloAtualAporte: 500,
   // seguroEmplacamentoAporte (425) ja existia acima
   // V144: footer da tabela "PIX diversos" (LRCV) - era texto fixo "Saidas R$527,61 Entradas R$64,00 Liquido -R$463,61"
   pixDiversosSaidas: 0, // ZERADO 25/07/2026 (V152): filtro por ciclo - eram R$527,61 do ciclo FECHADO (26/06-24/07). Nenhuma movimentacao de PIX diversos na Caixa Variavel ainda neste ciclo (25/07-24/08).
