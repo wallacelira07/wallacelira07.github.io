@@ -888,6 +888,9 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   }
   const pnlNec = alignSeriesCiclo(REG.evolucao.necessidadeLiquida);
   const pnlDeficit = pnlNec.map(p => Math.round((psLiquido-p)*100)/100);
+  // % que psLiquido (Não trabalha) precisaria aumentar pra igualar pnlNec[i] (Necessidade Líquida do
+  // mês) — só faz sentido quando não cobre (pnlDeficit[i]<0); quando já cobre, 0% (não precisa aumentar).
+  const pnlPctAumento = pnlNec.map((nec,i) => pnlDeficit[i] < 0 ? Math.round(((nec/psLiquido)-1)*10000)/100 : 0);
 
   const pnlDataLabelPlugin = {
     id:'pnlDataLabelPlugin',
@@ -917,7 +920,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
-        label:c=>{const i=c.dataIndex; return ['Não trabalha: '+fmt(psLiquido),'Necessidade líquida: '+fmt(pnlNec[i]),(pnlDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(pnlDeficit[i]))];}
+        label:c=>{const i=c.dataIndex; const linhas=['Não trabalha: '+fmt(psLiquido),'Necessidade líquida: '+fmt(pnlNec[i]),(pnlDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(pnlDeficit[i]))]; if(pnlPctAumento[i]>0) linhas.push('Precisaria aumentar +'+pnlPctAumento[i].toFixed(2).replace('.',',')+'% para cobrir'); return linhas;}
       }}},
       scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
@@ -929,11 +932,14 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       const d = pnlDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
       const sinal = d<0 ? '−' : '+';
+      const pct = pnlPctAumento[i];
+      const pctTxt = pct>0 ? '+'+pct.toFixed(2).replace('.',',')+'%' : '—';
       return '<tr style="border-bottom:1px solid var(--border)">'+
         '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psLiquido)+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(pnlNec[i])+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
+        '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+(pct>0?'var(--red)':'var(--text-dim)')+'">'+pctTxt+'</td>'+
         '</tr>';
     }).join('');
   }
@@ -2198,8 +2204,11 @@ async function _lazyRenderSolarSecao(){
   // Especificação fornecida pelo usuário (documento anexado, 01/08/2026). Reaproveita 100% os dados já
   // existentes (VARS.SOLAR_LEITURAS_CALC) - nao duplica nenhuma variavel, so consome e apresenta previsao.
   // Constantes faceis de ajustar se a janela/dia de leitura mudar (pedido explicito do usuario).
-  const DIA_LEITURA_WALLACE = 21; // CORRIGIDO 03/08/2026 (confirmado pelo usuário): era 20. Leitura Energisa do apartamento, janela 19-21
-  const DIA_LEITURA_WELLIDA = 8;  // CONFIRMADO 03/08/2026: mesmo ciclo da Casa da Mãe (onde fica a usina) - dia 8
+  // MIGRADO 18/08/2026 (varredura anti-hardcode): já tinha corrigido 1x (era 20, virou 21) — sinal de
+  // que muda com o tempo. Agora lido de parametros_gerais (mesmo mecanismo genérico de
+  // taxasHoraFolhaPontoWartsila), literal aqui é só fallback se a V2 falhar.
+  const DIA_LEITURA_WALLACE = VARS.diaLeituraWallace ?? 21; // Leitura Energisa do apartamento, janela 19-21
+  const DIA_LEITURA_WELLIDA = VARS.diaLeituraWellida ?? 8;  // mesmo ciclo da Casa da Mãe (onde fica a usina)
   // CORRIGIDO 01/08/2026 (V241, pedido do usuario - "use a meta do mes especifico igual e feito pra
   // mim"): meta deixa de ser numero fixo solto (321/119) e passa a derivar do mesmo indice (mes atual,
   // posicao 0) do historico real de 12 meses de cada casa - mesmo criterio ja usado pro Wallace desde o

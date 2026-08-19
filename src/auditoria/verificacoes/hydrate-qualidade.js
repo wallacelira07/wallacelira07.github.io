@@ -89,8 +89,11 @@ function montarAlertasNegocio(){
   const saldoPGV = (pgvV2 && typeof pgvV2.v2 === 'number') ? pgvV2.v2 : VARS.pixGeralVanessaSaldo;
   const pvV2 = window.WALLACE_ONDA1_V2_RELATORIO?.find(r => r.caixa === 'PIX Vanessa');
   const saldoPV = (pvV2 && typeof pvV2.v2 === 'number') ? pvV2.v2 : VARS.caixaPixVanessa;
-  const GATILHO_APORTE_PGV = 50.00;
-  const VALOR_APORTE_PGV = 300.00;
+  // MIGRADO 18/08/2026 (varredura anti-hardcode): regra de negócio (Política seção 7) que já estava
+  // hardcoded sem sobrescrita nenhuma. Lido de parametros_gerais (mesmo mecanismo genérico), literais
+  // aqui viram só fallback.
+  const GATILHO_APORTE_PGV = VARS.gatilhoAportePGV ?? 50.00;
+  const VALOR_APORTE_PGV = VARS.valorAportePGV ?? 300.00;
   if(saldoPGV < GATILHO_APORTE_PGV){
     const temNaPV = saldoPV >= VALOR_APORTE_PGV;
     alertas.push({icone:'🔴', cor:'#e2554f',

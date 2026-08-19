@@ -80,7 +80,32 @@ async function aplicarOnda8CronogramaBoletos(){
   if(diverge) console.warn(`Onda8CronogramaBoletos: schedule V1 (${v1Qtd} itens, ${fmt(v1Total)}) × V2 (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} itens, ${fmt(v2Total)}) — DIVERGE. Se for uma edição intencional feita direto no Supabase, é esperado; se não, investigar.`);
   else console.log(`Onda8CronogramaBoletos: V1×V2 batem (${VARS.CRONOGRAMA_BOLETOS_FIXOS.length} boletos, ${fmt(v2Total)}). V2 é a fonte do schedule a partir de agora.`);
 
+  // NOVO 18/08/2026 (pedido do usuário: "Caixa Boletos não pode mais ser hardcode" — achado de que
+  // VARS.totalOpBoletos, o aporte usado no piso absoluto/Total Operacional, era um número digitado à
+  // parte em vez de derivar dos boletos reais cadastrados aqui). VARS.totalOpBoletos agora É a soma
+  // ao vivo dos boletos ativos deste cronograma (v2Total, já calculado acima) — não um número
+  // paralelo que alguém precisa lembrar de manter sincronizado. Isso explica variações mês a mês:
+  // contas de consumo (água/gás/energia) mudam de valor, então o piso absoluto agora acompanha isso
+  // automaticamente em vez de ficar preso no valor do dia em que alguém digitou por último.
+  const totalOpBoletosAnterior = VARS.totalOpBoletos;
+  VARS.totalOpBoletos = v2Total;
+  if(REG && REG.totalOpDetalhe) REG.totalOpDetalhe.boletos = v2Total;
+  if(Math.abs(totalOpBoletosAnterior - v2Total) > 0.01){
+    console.log(`Onda8CronogramaBoletos: totalOpBoletos (piso absoluto) atualizado de ${fmt(totalOpBoletosAnterior)} para ${fmt(v2Total)} — derivado ao vivo da soma dos boletos ativos.`);
+  }
+  // Religa o mesmo conjunto de recálculos/hydrates já usado por Onda5Parcelamentos (mesmo padrão:
+  // um componente de totalOpDetalhe mudou depois do boot síncrono, precisa recalcular tudo que
+  // depende do piso absoluto/Total Operacional/Necessidade).
+  if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
+  if(typeof hydrateResumoCartoes === 'function') hydrateResumoCartoes();
+  if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
+  if(typeof hydrateBalanco === 'function') hydrateBalanco();
+  if(typeof hydrateCenarios === 'function') hydrateCenarios();
+  if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
+  if(typeof atualizarGraficosPainelPrincipal === 'function') atualizarGraficosPainelPrincipal();
+  if(typeof atualizarGraficoTotalOpDetalhe === 'function') atualizarGraficoTotalOpDetalhe();
+
   onda8LrbRenderTabela();
 
-  window.WALLACE_ONDA8_CRONOGRAMA_RELATORIO = { qtdV1: v1Qtd, totalV1: v1Total, qtdV2: VARS.CRONOGRAMA_BOLETOS_FIXOS.length, totalV2: v2Total, diverge, exibindo: 'V2' };
+  window.WALLACE_ONDA8_CRONOGRAMA_RELATORIO = { qtdV1: v1Qtd, totalV1: v1Total, qtdV2: VARS.CRONOGRAMA_BOLETOS_FIXOS.length, totalV2: v2Total, diverge, exibindo: 'V2', totalOpBoletosDerivado: v2Total };
 }

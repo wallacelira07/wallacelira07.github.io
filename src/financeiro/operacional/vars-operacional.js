@@ -1,3 +1,12 @@
+// MIGRACAO 18/08/2026 (varredura anti-hardcode, pedido do usuario: "todo dado no site e obrigado a
+// ler do Supabase, hardcode sao proibidos"): os literais abaixo SOBRESCRITOS por parametros_gerais
+// no boot (mesmo mecanismo generico ja usado por taxasHoraFolhaPontoWartsila - bloco
+// WALLACE_PARAMETROS_GERAIS_V2 em app.js, faz VARS[nome]=valor pra cada linha da tabela) - os
+// literais aqui viram FALLBACK, so valem se a V2 falhar ao carregar: totalOpAportesPat,
+// mbLRRConfirmado, mbLRSConfirmado (este 2 ficam em vars-mercado-pago.js), aporteSaudeFamilia (fica
+// em vars-caixas.js), orcamentoOperacional, seguroEmplacamentoAporte, saudeEmagrecimentoAporte,
+// suporteCoIrmaEventos, tetoOficial, salario, salarioMedia12M, salarioMediana12M, salarioMin12M,
+// salarioMediaPonderada12M. Editar valor novo sempre no Supabase (parametros_gerais), nunca aqui.
 // MODULO: criarVarsOperacional() - fragmento do VARS (estado inicial), extraido do literal const VARS = {...}
 // de app.js na modularizacao Fase 4 (07/08/2026) - MESMOS valores, MESMA estrutura, copia verbatim
 // por intervalo de linha (nao retypado a mao). Vira uma FUNCAO porque alguns campos usam expressoes
@@ -188,7 +197,7 @@ function criarVarsOperacional(){
   tolerenciaTemp: 1500.00,                 // tolerancia temporaria ate fim do ciclo (viagem familia Vanessa)
   caixaVariavelPendenteProximoCiclo: 0,     // NOVO 23/07/2026 (REGRA_LIMBO_FATURA_MB_CICLO, pedido do usuario): compras no Mastercard Black feitas DEPOIS do fechamento da fatura MB (dia 22) mas AINDA dentro do ciclo financeiro atual (ate dia 25) - a fatura so cobra no mes seguinte, entao nao contam no CAIXA_VARIAVEL_COMPROMETIDO deste ciclo (evita inflar indevidamente um ciclo que ja esta fechando). Ficam represadas aqui e sao pre-debitadas do orcamento da Caixa Variavel do PROXIMO ciclo na virada do dia 25 (ver recalcularAgregadosDerivados() e o card "Pendente para o próximo ciclo" no Simulador). Zerado ate agora - nenhuma compra nessa janela neste ciclo (23/07/2026).
   suporteCoIrmaEventos: 167.40,            // Eventos->Variavel, mesmo proposito (visita familia Vanessa), nao e LREI
-  totalOpBoletos: 4550.77,        // APORTE_BOLETOS (nao o total bruto do livro LRB). AUMENTADO 11/08/2026 (era 2600): os 2 consorcios Porto (R$1.950,77) migraram do Mastercard Black para boleto/dinheiro nesta caixa (ver livroLRCON, zerado no mesmo commit, e LREI0005 cobrindo o 1o mes) - sem essa correcao o total operacional cairia R$1.950,77 por engano (dupla-remocao: some do cartao E nao aparece aqui).
+  totalOpBoletos: 4550.77,        // APORTE_BOLETOS (nao o total bruto do livro LRB). AUMENTADO 11/08/2026 (era 2600): os 2 consorcios Porto (R$1.950,77) migraram do Mastercard Black para boleto/dinheiro nesta caixa (ver livroLRCON, zerado no mesmo commit, e LREI0005 cobrindo o 1o mes) - sem essa correcao o total operacional cairia R$1.950,77 por engano (dupla-remocao: some do cartao E nao aparece aqui). CADEIA DE FALLBACK (18/08/2026): este literal so vale se TUDO abaixo falhar. 1) parametros_gerais.totalOpBoletos (mesmo mecanismo generico de taxasHoraFolhaPontoWartsila) sobrescreve no boot sincrono. 2) aplicarOnda8CronogramaBoletos() (hydrate-onda8-cronograma-boletos.js) sobrescreve de novo, assincrono, com a SOMA REAL dos boletos ativos em cronograma_boletos_fixos - esta e a fonte que de fato conta hoje, pois contas de consumo (agua/gas/energia) mudam de valor todo mes e o aporte fixo nao acompanhava sozinho.
   totalOpAportesPat: 1893.34,     // Aportes Patrimoniais do ciclo
   totalOpProvMP: 0,          // PLACEHOLDER - SOBRESCRITO logo apos o VARS fechar, derivado de VARS.PARCELAMENTOS_MP (soma dos ATIVO). Nunca editar diretamente.
   // V140: demais primarios soltos no REG (cenarios/estimador)

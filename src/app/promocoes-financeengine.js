@@ -367,10 +367,16 @@ function registrarValidacaoFase(fase, aprovado, motivo){
 
     // ---- 4) Meta de Investimento (REG.metaInvestimento) ----
     const metaInvV1 = { meta: REG.metaInvestimento.meta, investido: REG.metaInvestimento.investido, excedente: REG.metaInvestimento.excedente };
+    // percentualMeta passado explícito (MIGRADO 18/08/2026, varredura anti-hardcode): antes o call
+    // site não passava esse campo, então o default hardcoded de FinanceEngine.js (0.20) era usado em
+    // produção sem nenhuma sobrescrita possível. Não editamos FinanceEngine.js (procedimento proibido
+    // sem autorização explícita, exige revalidar as 18 fases) — resolvido aqui, no call site, com o
+    // valor vindo de parametros_gerais (mesmo mecanismo genérico já usado por outras dezenas de campos).
     const metaInvV2 = WallaceFinanceEngine.calcularMetaInvestimento({
       salario: VARS.salario,
       aporteBTGPactual: VARS.aporteBTGPactual,
       depositoAtivacaoNecton: VARS.depositoAtivacaoNecton,
+      percentualMeta: VARS.percentualMetaInvestimento ?? 0.20,
     });
     const loteMetaInv = WallaceComparator.compararLote([
       { nome: 'Meta de Investimento (meta)', antigo: metaInvV1.meta, novo: metaInvV2.meta },

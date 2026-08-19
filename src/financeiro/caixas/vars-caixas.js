@@ -1,3 +1,11 @@
+// MIGRACAO 18/08/2026 (varredura anti-hardcode, pedido do usuario: "todo dado no site e obrigado a
+// ler do Supabase, hardcode sao proibidos"): os literais abaixo SOBRESCRITOS por parametros_gerais
+// no boot (mesmo mecanismo generico ja usado por taxasHoraFolhaPontoWartsila - bloco
+// WALLACE_PARAMETROS_GERAIS_V2 em app.js, faz VARS[nome]=valor pra cada linha da tabela) - os
+// literais aqui viram FALLBACK, so valem se a V2 falhar ao carregar: aporteSaudeFamilia,
+// aporteAniversarioJulio, BENS_DURAVEIS_APORTE_MENSAL_ALVO, metaSuavizacao,
+// escolaJulio2027Aporte (este fica em vars-operacional.js). Editar valor novo sempre no Supabase
+// (parametros_gerais), nunca aqui.
 // MODULO: criarVarsCaixas() - fragmento do VARS (estado inicial), extraido do literal const VARS = {...}
 // de app.js na modularizacao Fase 4 (07/08/2026) - MESMOS valores, MESMA estrutura, copia verbatim
 // por intervalo de linha (nao retypado a mao). Vira uma FUNCAO porque alguns campos usam expressoes
