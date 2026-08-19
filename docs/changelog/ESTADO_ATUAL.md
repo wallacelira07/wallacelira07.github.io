@@ -2,11 +2,49 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 18/08/2026, bloco 26. Resumo: sessão longa com vários blocos — aportes recalculados (bloco 22), auditoria noturna autônoma de 16 achados (bloco 23), correção real dos achados prioritários + código morto eliminado + infra do medidor Tuya da Wellida preparada (bloco 24), medidor da Wellida detectado como modelo diferente e adaptado + extensão de validade de link + robô adaptado (bloco 25), e **bloco 26**: medidor da Wellida foi ao ar de verdade — 2 bugs reais descobertos e corrigidos em produção (região da API errada, chave primária bloqueando 2ª casa), card reordenado a pedido do usuário. **Tudo commitado e publicado** (push feito, `main` atualizado).
+Última reescrita: 19/08/2026, bloco 27. Resumo: sessão longa focada em automação de faturas de consumo variável via Gmail — Água/Gás Medintech (robô completo, ponta a ponta) e Energia Energisa (robô estendido, mas identificação/valor do Wallace ainda não validados contra PDF real dele, só mãe/irmã). De quebra: referência de consumo solar das 3 casas passou a ser alimentada automaticamente pelo mesmo robô, card novo "Consumo real (fatura Energisa)" no painel privado/compartilhado, 2 gráficos novos "Crédito × medidor Tuya" (mês a mês, por pessoa), e o robô passou a atualizar `ENERGISA_TARIFA_COMPOSICAO`/`ENERGIA_FATURAS_REAIS` (fechando o último trecho manual do gráfico 06). Vários bugs reais encontrados e corrigidos na mesma sessão (registrados abaixo, nenhum escondido). **Tudo commitado e publicado** (push feito, `main` atualizado).
 
-## 0. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
+## 0. Bloco 27 (19/08/2026) — automação de faturas via Gmail (Água/Gás/Energia) + consumo solar automático + gráficos novos
 
-### 0.1 Saga do erro Tuya `913` — 2 causas reais, ambas resolvidas
+### 0.1 Água/Gás Medintech — automação completa, ponta a ponta
+
+Usuário conectou o Gmail via MCP nesta sessão. `scripts/sync/atualizar_boletos_medintech.py` busca e-mail de `sistemas@bzs.com.br` (contas 753=Água, 1024=Gás), baixa o PDF anexado, extrai o valor pela **linha digitável Febraban** (formato regulado, imune a mudança de layout do PDF) e faz `PATCH` idempotente em `cronograma_boletos_fixos`. Workflow `atualizar_boletos_medintech.yml` no mesmo padrão dos outros robôs (`workflow_dispatch`+`workflow_call`, sem `schedule`). **Achado de drift real**: fatura de julho/2026 mostrou Água R$133,41→R$152,16 e Gás R$30,28→R$36,70 — corrigido no Supabase com o PDF como evidência.
+
+### 0.2 Energia Energisa (TXB000009) — estendido, mas AINDA INCOMPLETO pro Wallace
+
+3 rodadas de correção real na mesma sessão, documentadas em detalhe em `docs/decisions/AUTOMACAO_FATURAS_MEDINTECH_GMAIL.md`:
+
+1. **Erro cometido e revertido**: 1ª tentativa validava a fatura por CPF do campo PAGADOR — descobriu-se que o Wallace é pagador também na conta da própria mãe (arranjo familiar), então CPF do pagador não prova "é a conta dele". Chegou a escrever `TXB000009=R$56,11` (valor da fatura da mãe) no Supabase, revertido pro valor anterior (R$367,36) antes de qualquer commit.
+2. **Corrigido de verdade**: identificação agora usa o **Número da UC** (unidade consumidora — sempre presente, exclusiva de 1 imóvel, nunca compartilhada). Testado contra o PDF da mãe: rejeita corretamente.
+3. **3º achado real**: a linha digitável Febraban não aparece em toda fatura Energisa (a da irmã, já paga, não tem ficha de compensação). Método de valor trocado pra Energisa: `vencimento+R$` → `TOTAL:` → linha digitável (fallback). Testado contra 2 PDFs reais (mãe R$56,11/145kWh, irmã R$70,12/111kWh) — bateram exato.
+
+**Estado real**: UC da mãe (`573.702.053-77`) e da irmã (`2.064.202.053-60`) confirmadas contra PDF real. UC do Wallace (`1.994.775.053-05`) é **Nível C** — informada pelo usuário, nunca testada contra PDF real dele (fatura do ciclo atual ainda não emitida). `cronograma_boletos_fixos.TXB000009` continua em R$367,36 (valor antigo, não substituído por engano).
+
+### 0.3 Consumo solar de referência (3 casas) automatizado
+
+`energia_solar_consumo_referencia` era 100% manual (usuário lia a fatura, agente digitava). Mesmo robô passou a atualizar automaticamente, usando o "Consumo em kWh" do mês atual (não a média histórica, que só existe em 1 dos 2 formatos de fatura vistos). Atualizado com evidência real: mãe 300→145 kWh, irmã 112→111 kWh (Wallace não tocado). **Bug real corrigido antes do commit**: `consumo_diario_kwh` é coluna GERADA no Postgres — script tentava escrever nela direto, Supabase rejeitava; corrigido pra só mandar `consumo_mensal_kwh`/`dias_base`/`fonte`.
+
+### 0.4 Card "Consumo real (fatura Energisa)" — painel privado + compartilhado
+
+Novo card abaixo dos cards de crédito solar (Wallace/Wellida), alimentado por `window.WALLACE_SOLAR_CONSUMO_REFERENCIA_V2` (sem fetch novo). RPC `consultar_solar_compartilhado` ampliada com `consumoReferencia`. **Bug real achado pelo usuário ao vivo** ("cadê? não apareceu"): a query só selecionava `casa/consumo_diario_kwh/fonte`, nunca `consumo_mensal_kwh` — o card checava esse campo pra decidir se tinha dado, sempre `null`, sempre caía no fallback "sem fatura". Corrigido (select ampliado), confirmado ao vivo depois.
+
+### 0.5 Gráficos novos "Crédito × medidor Tuya" (mês a mês, 1 por pessoa)
+
+Pedido do usuário, 3 rodadas de refinamento (1ª tentativa errada foi mexer nos cards existentes; o pedido real era gráficos NOVOS comparando crédito gerado × leitura do medidor Tuya, não a fatura Energisa). 2 gráficos por painel (Wallace/Wellida), mesmo estilo do gráfico 05, 12 meses. **Bug real achado pelo usuário com print**: consumo agregado por mês CALENDÁRIO, crédito indexado por mês em que o CICLO FECHA (corte dia 8) — os 2 eixos não batiam. Corrigido pra usar a mesma função de fechamento de ciclo já usada pelo crédito.
+
+### 0.6 Ajustes finais da sessão
+
+- Gráfico 04 (Geração por dia, painel privado) ganhou valores sobre as barras, igualando o compartilhado.
+- **Bug real no compartilhado**: os gráficos "Crédito × medidor Tuya" só liam `ciclosFechados` — o mês do ciclo ainda aberto (Set/26) nunca tinha barra de crédito. Corrigido pra usar `fluxo2.wallace/wellida.creditoAtual` (mesma fórmula do card "Consumo real × crédito"), verificado batendo com o painel privado (151/62 kWh).
+- Robô passou a também alimentar `parametros_gerais.ENERGISA_TARIFA_COMPOSICAO` (3 casas) e `ENERGIA_FATURAS_REAIS` (Wallace) a cada fatura Energisa nova — fecha o último trecho manual do gráfico 06 "Economia antes × depois" e do card "Quanto você ainda vai pagar". JS trocado de chave fixa (`fatura_ago26_valor`) pra busca automática da fatura mais recente disponível — nenhuma edição de código necessária nos próximos meses.
+
+### 0.7 O que ainda falta pra fechar de vez
+
+`ENERGIA_FATURAS_REAIS` continua `{}` — nenhuma fatura Energisa do próprio Wallace foi processada ainda (a dele deste ciclo não foi emitida). Quando chegar, mandar o PDF real pra confirmar UC + valor, e só então essa parte fica 100% validada (ver seção Pendências).
+
+## 1. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
+
+### 1.1 Saga do erro Tuya `913` — 2 causas reais, ambas resolvidas
 
 Usuário disparou o workflow `atualizar_medidor_tuya_wellida.yml` pela primeira vez e caiu num erro genérico da Tuya Cloud: `913 - No permission. The data center is suspended`. Investigação em 2 etapas, ambas confirmadas por evidência real antes de declarar resolvido:
 
@@ -15,22 +53,22 @@ Usuário disparou o workflow `atualizar_medidor_tuya_wellida.yml` pela primeira 
 
 **Resultado confirmado em produção**: `medidor_tuya_leituras` e `medidor_tuya_consumo_diario` já têm linha real com `casa='wellida'`, gravada com sucesso, heartbeat registrado como `medidor_tuya_wellida = sucesso`.
 
-### 0.2 Reordenação dos cards do medidor (pedido do usuário)
+### 1.2 Reordenação dos cards do medidor (pedido do usuário)
 
 Ordem antiga: telemetria Wallace → telemetria Wellida → comparação Wallace → comparação Wellida (agrupado por TIPO de card). Ordem nova, pedida explicitamente: telemetria Wallace → comparação Wallace → telemetria Wellida → comparação Wellida (agrupado por PESSOA). Aplicado nos 2 lugares (`Sistema_Wallace_Lira_Completo.html` e `solar-compartilhado.html`) — só reordenação de HTML, nenhuma lógica mudou.
 
-### 0.3 Pendências reais restantes pro medidor da Wellida
+### 1.3 Pendências reais restantes pro medidor da Wellida
 
 - **Cron dedicado no cron-job.org**: ainda não criado — passei a URL/method/headers/body pro usuário (mesma API do GitHub `workflow_dispatch`, reaproveitando o token já configurado nas outras tarefas). `.github/workflows/atualizar_medidor_tuya_wellida.yml`.
 - **`medidor_tuya_wellida` ainda não está em `SAUDE_JOBS_LIMIARES`** (`hydrate-saude-operacional.js`) — de propósito, só adicionar depois do cron confirmado rodando sozinho por um tempo (evita alarme falso "nunca rodou").
 - **Medidor da Wellida ficou fisicamente offline** (app Smart Life mostrou "Device Connection Failure") logo depois do 1º sucesso — orientado troubleshooting padrão (WiFi/roteador/disjuntor, mesmo problema já visto no medidor do Wallace). O contador de energia é gravado no hardware do próprio medidor (não se perde offline) — só a granularidade por-leitura fica comprometida no período sem conexão, o total nunca é perdido.
 - **Modelo do medidor da Wellida é bidirecional** (`forward_energy_total`/`reverse_energy_total`, DP diferente do CT simples do Wallace) — só energia total é gravada de verdade; potência/tensão/corrente/estado sempre ficam `—` pra ela, não é falha, é limitação real do aparelho (documentado em `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`).
 
-## 1. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
+## 2. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
 
 Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e88180e1474o2is`) — schema de DPs confirmado DIFERENTE do EKAZA CT do Wallace (só `forward_energy_total`/`reverse_energy_total`, sem tensão/corrente/potência/estado). `scripts/sync/atualizar_medidor_tuya.py` ganhou suporte a múltiplos modelos via `TUYA_MODELO` (`ekaza_ct` default Wallace, `bidirecional_ab` novo pra Wellida). Card "Consumo real × crédito" replicado pro painel privado e compartilhado (função `aplicarConsumoRealVsCreditoPorCasa()` generalizada, RPC ganhou `medidorTuyaWellidaConsumoDiario`/`medidorTuyaWellidaUltima`). Nova opção de estender validade de link de compartilhamento já existente (RPC `estender_compartilhamento_solar`, botão "+dias").
 
-## 2. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
+## 3. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
 
 **Achado #4** (trava de descompasso do card solar público): coluna `geracao_acumulada_atualizado_em` criada em `energia_solar_leituras`, robô `atualizar_geracao_saj.py` grava o timestamp real, RPC/painel privado/compartilhado atualizados — a trava (10 dias de descompasso) agora funciona de verdade nos 2 lados (antes nenhum dos 2 disparava, o campo era sempre `null`).
 
@@ -38,13 +76,13 @@ Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e8818
 
 **Infra multi-casa do medidor Tuya** criada (banco, robô, workflow, card) — nessa época ainda hipotética ("quando o Device ID existir"), depois confirmada real no mesmo dia (bloco 25).
 
-## 3. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
+## 4. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
 
 Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta branca para agir". Workflow de 7 agentes finders (financeiro, V1×V2, sintaxe JS, paridade solar, código morto, UI/CSS, segurança) + verificação adversarial (1 skeptic por achado). **16 achados, 16 confirmados, 0 descartados.**
 
 **Limite respeitado mesmo com carta branca**: nenhuma escrita em tabela financeira, nenhum push sem avisar antes (regra permanente do `CLAUDE.md`). Corrigidos na hora: legenda Saúde Família dessincronizada, `CLAUDE.md` desatualizado (regra do `wallace_dados` obsoleta desde 12/08), comentários V1×V2 obsoletos, cor de gráfico divergente, 1 grant de segurança desnecessário revogado. O resto ficou reportado pro usuário decidir (resolvido nos blocos 24-26 acima).
 
-## 4. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
+## 5. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
 
 - **Caixa Saúde Família**: R$177,50 → **R$210,83/mês** (composição completa: 2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa + 2x endócrino Wallace).
 - **Emagrecimento**: R$278,89 → **R$490,00/mês** (caneta subiu de preço; usuário tem 3 canetas em estoque, não compra nova nos próximos 1-2 ciclos, mas aporte continua).
@@ -52,7 +90,7 @@ Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta br
 - **Cards "Todas as Caixas"**: altura padronizada via `.caixas-grid`/`min-height:168px` (não testado ao vivo, exige login).
 - **3 LREI ativos** (R$266,23+R$103,55+R$1.950,77): confirmado real via SQL, não é bug.
 
-## 5. Bloco 21 e anteriores
+## 6. Bloco 21 e anteriores
 
 Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug crítico do `solar-compartilhado.html` (travamento "Carregando...") resolvido de verdade (erro de sintaxe JS); projeto DDSU666/SAJ do zero (Kit SEC não é exigível, firmware pronto, aguardando hardware físico 25/08/2026).
 
@@ -84,8 +122,13 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug cr�
 24. **Firmware ESP32 pro DDSU666/SAJ pronto** em `firmware/esp32_ddsu666_saj/`, aguardando hardware físico (25/08/2026). Mapa Modbus: `4000H`/`400AH` (monofásico), nunca `101EH`/`1028H` (trifásico).
 25. **Tabela `caixas_aportes_mensais` (Supabase) é a fonte única de verdade dos aportes mensais** de todas as caixas — ver seção 6 abaixo pro snapshot completo.
 26. **Cards da seção "Todas as Caixas" usam `.caixas-grid` (CSS)** pra altura uniforme — se algum outro lugar do painel tiver cards de tamanho desigual, mesma técnica provavelmente resolve.
-27. **NOVO bloco 26 — medidor Tuya multi-casa: a PRIMARY KEY de `medidor_tuya_consumo_diario` é `(data, casa)`** (não mais só `data`, corrigido bloco 26). Se criar uma 3ª casa nova, não precisa mexer nisso de novo — já está certo.
-28. **NOVO bloco 26 — região da API Tuya não é igual ao rótulo do painel.** "Western America Data Center" no painel = código `us` na API (não `us-e`). Confirmar sempre com um teste real antes de assumir, o rótulo visual da Tuya é impreciso.
+27. **Medidor Tuya multi-casa: a PRIMARY KEY de `medidor_tuya_consumo_diario` é `(data, casa)`** (não mais só `data`, corrigido bloco 26). Se criar uma 3ª casa nova, não precisa mexer nisso de novo — já está certo.
+28. **Região da API Tuya não é igual ao rótulo do painel.** "Western America Data Center" no painel = código `us` na API (não `us-e`). Confirmar sempre com um teste real antes de assumir, o rótulo visual da Tuya é impreciso.
+29. **NOVO bloco 27 — não existe API de DDA acessível a pessoa física** (confirmado: Pluggy, Open Finance oficial, CIP, Celcoin, BTG Empresas, TecnoSpeed, QI Tech, Kobana — todos exigem CNPJ/credenciamento institucional). Alternativa real e já implementada: parsing de e-mail via Gmail API (ver `docs/decisions/AUTOMACAO_FATURAS_MEDINTECH_GMAIL.md`).
+30. **NOVO bloco 27 — identificar de quem é uma fatura Energisa usa o Número da UC, nunca o CPF do campo PAGADOR.** O Wallace é pagador/titular também da conta da própria mãe (arranjo familiar) — CPF do pagador só prova "ele paga essa conta", não "é a conta dele". Cada UC corresponde a exatamente 1 imóvel, nunca compartilhada.
+31. **NOVO bloco 27 — nem toda fatura Energisa tem linha digitável Febraban** (só quando ainda tem ficha de compensação; fatura já paga/2ª via simplificada não tem). Ordem de fallback pro valor: `vencimento+R$` → `TOTAL:` → linha digitável. Medintech (Água/Gás) continua só com linha digitável, que é 100% confiável pra ela.
+32. **NOVO bloco 27 — `consumo_diario_kwh` em `energia_solar_consumo_referencia` é coluna GERADA no Postgres**, nunca escrever nela direto (só `consumo_mensal_kwh`/`dias_base`/`fonte`).
+33. **NOVO bloco 27 — crédito solar é indexado pelo mês em que o CICLO FECHA (corte dia 8), consumo por mês calendário são coisas diferentes.** Qualquer gráfico/comparação novo que cruze os dois precisa usar a mesma função de fechamento de ciclo (`mesFechamentoCiclo`/`mesFechamentoCicloRateio`) dos dois lados, senão os eixos não batem.
 
 ## Pendências abertas
 
@@ -95,8 +138,12 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug cr�
 4. **Lint dos ~91 módulos `hydrate-*`** — adiado por decisão consciente do usuário, não reabrir sem pedido novo.
 5. **Projeto WhatsApp/Telegram** — cancelado 17/08, não retomar sem confirmação explícita dos 2 motivos originais (custo API + hospedagem 24/7).
 6. **Necessidade Total Bruta/Líquida** — recálculo automático pendente do próximo login (regra 16).
-7. **Medidor da Wellida**: cron dedicado no cron-job.org ainda não criado (usuário tem a URL/config); `medidor_tuya_wellida` ainda não monitorado em Saúde Operacional (esperar cron rodar sozinho primeiro). Robô lê corretamente Canal B (`current_b`/`power_b` — corrigido 18/08, o medidor está fisicamente ligado nesse canal, não no A) e usa fallback de `medidor_tuya_consumo_diario` pro campo "Consumo hoje" (esse modelo não tem contador "hoje" próprio). `energia_total_kwh` ainda em 0,00 kWh mesmo com potência ativa (~56W) — acompanhar; se continuar travado por várias horas, mesmo padrão de travamento já visto no medidor do Wallace (resolve com reset físico). **Usuário já comprou um medidor substituto IDÊNTICO ao do apartamento (mesmo modelo EKAZA CT), chega domingo (23/08/2026)** — quando trocar, o workflow dela deve voltar pro `TUYA_MODELO=ekaza_ct` (padrão, igual ao Wallace) em vez do `bidirecional_ab` atual, e o `TUYA_DEVICE_ID_WELLIDA`/região precisam ser atualizados pro novo aparelho. Até lá, seguir usando os dados do medidor bidirecional atual.
+7. **Medidor da Wellida**: cron dedicado no cron-job.org ainda não criado (usuário tem a URL/config); `medidor_tuya_wellida` ainda não monitorado em Saúde Operacional (esperar cron rodar sozinho primeiro). **Usuário já comprou um medidor substituto IDÊNTICO ao do apartamento (mesmo modelo EKAZA CT), chega domingo (23/08/2026)** — quando trocar, o workflow dela deve voltar pro `TUYA_MODELO=ekaza_ct` (padrão, igual ao Wallace) em vez do `bidirecional_ab` atual, e o `TUYA_DEVICE_ID_WELLIDA`/região precisam ser atualizados pro novo aparelho. Até lá, seguir usando os dados do medidor bidirecional atual.
 8. **2 achados da auditoria noturna sem decisão tomada** (não são bugs, são escolhas de produto/segurança): (a) vale a pena implementar rastreamento real de `geracaoAcumuladaData` retroativo, ou deixar só daqui pra frente (já resolvido pra frente, bloco 24)? (b) `registrar_erro_cliente()` sem checagem de role — intencional (log pré-login) ou deveria restringir?
+9. **NOVO bloco 27 — automação de Energia (TXB000009) ainda não validada de ponta a ponta pro Wallace**: UC dele (`1.994.775.053-05`) é Nível C (informada, nunca testada contra PDF real — a fatura do ciclo atual dele não foi emitida). `cronograma_boletos_fixos.TXB000009` continua no valor antigo (R$367,36). Quando a fatura dele chegar, mandar o PDF real pra confirmar UC+valor antes de considerar fechado.
+10. **NOVO bloco 27 — `ENERGIA_FATURAS_REAIS` continua `{}`** (nenhuma fatura Energisa do Wallace processada ainda) — gráfico 06 continua mostrando fonte='calculado' até a 1ª fatura real dele ser processada pelo robô; deve virar 'fatura real' sozinho, sem código novo.
+11. **NOVO bloco 27 — remetente exato do envio automático mensal da Energisa ainda não confirmado** (serviço ativado nesta sessão, ainda não chegou nenhuma fatura automática, só 2ª via manual). Busca hoje é por domínio inteiro (`from:@energisa.com.br has:attachment`), compensada pela validação por UC. Revisitar quando a 1ª fatura automática real chegar.
+12. **NOVO bloco 27 — pendências de setup do robô Gmail** (ação do usuário, fora do alcance do agente): criar tarefa dedicada no cron-job.org pro workflow `atualizar_boletos_medintech.yml`; depois de confirmar rodando sozinho, adicionar `boletos_medintech` em `SAUDE_JOBS_LIMIARES`.
 
 ## Snapshot da tabela `caixas_aportes_mensais` (Supabase) — 18/08/2026
 
@@ -131,3 +178,5 @@ Fonte única de verdade dos aportes mensais, consultável por qualquer agente se
 7. **Aportes mensais de qualquer caixa**: consultar `caixas_aportes_mensais` (Supabase) primeiro, é a fonte única de verdade.
 8. **Cron externo (cron-job.org)**: qualquer automação nova precisa de tarefa dedicada lá — a URL é a API do GitHub `workflow_dispatch` (não um endpoint simples), reaproveitar token já configurado.
 9. **Se replicar mais um medidor Tuya (3ª casa)**: seguir `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`, já atualizado com as 2 lições reais do bloco 26 (região `us`, PK multi-casa).
+10. **Se mexer em fatura Energisa/UC/robô de faturas**: ler `docs/decisions/AUTOMACAO_FATURAS_MEDINTECH_GMAIL.md` primeiro — tem as 3 lições reais do bloco 27 (UC não CPF pagador, fallback de linha digitável, coluna gerada no Postgres).
+11. **Fatura do Wallace (Energisa) ainda não emitida** — quando chegar, é a peça que falta pra fechar as pendências 9/10 acima.
