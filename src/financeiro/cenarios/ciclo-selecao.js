@@ -27,6 +27,20 @@ function trocarCiclo(cicloKey){
   if(typeof aplicarOnda1V2 === 'function' && typeof aplicarComprometidoCaixaVariavelV2 === 'function'){
     Promise.all([aplicarOnda1V2(), aplicarComprometidoCaixaVariavelV2()]).then(atualizarGraficosPorCiclo);
   }
+  // NOVO 19/08/2026 (achado do usuário: "as compras do limbo devem ter Origem preenchida, cartão, e a
+  // data falta o ano" — mesmo padrão do bloco acima pra Caixa Variável, nunca replicado aqui):
+  // aplicarCicloAoVARS() acima restaura LRW_TRANSACOES_CICLO_ATUAL/LRV_.../LRC_LIMBO_..._CICLO_ATUAL
+  // quando o ciclo selecionado é o atual (não fechado) — essas 3 constantes (app.js, topo de
+  // aplicarCicloAoVARS) são capturadas UMA VEZ na carga do script, antes de qualquer fetch V2 (onda3
+  // LrwLrv/onda10 LrcLimbo) terminar, e nunca mais atualizadas. Resultado: toda troca de ciclo de
+  // volta pro atual reverte essas 3 tabelas pro literal V1 antigo (sem cartaoId → Origem some, data
+  // "DD/MM" sem ano). Só re-busca quando o ciclo é o ATUAL — pra ciclo fechado, a fotografia congelada
+  // do snapshot (V174) é o comportamento CORRETO, não deve ser sobrescrita por dado ao vivo.
+  const _snapCicloSelecionado = VARS.CICLO_SNAPSHOTS[cicloKey];
+  if(_snapCicloSelecionado && !_snapCicloSelecionado.fechado){
+    if(typeof aplicarOnda3LrwLrv === 'function') aplicarOnda3LrwLrv();
+    if(typeof aplicarOnda10LrcLimbo === 'function') aplicarOnda10LrcLimbo();
+  }
 }
 
 // V145: graficos Chart.js nao se atualizam sozinhos quando REG muda - precisam de update() explicito.
