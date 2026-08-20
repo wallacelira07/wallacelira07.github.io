@@ -13,6 +13,7 @@
 5. **LREI (empréstimos internos)**: LREI0003 (R$266,23) quitado — dinheiro já estava disponível desde 13/08, só faltava fechar o ciclo. LREI0004/0005 com plano de quitação definido, ainda não executado (aguardando entrada de R$340 e sobras de salário, respectivamente).
 6. **Necessidade Bruta/Líquida — fórmula completa entendida e um bug de documentação corrigido** (seção 5): déficit de caixas sem LREI já incluía a Caixa Variável desde 16/08 (código certo), mas a legenda continuava dizendo o contrário há 4 dias — corrigida. Valores finais recalculados: **Necessidade Bruta R$15.345,06, Necessidade Líquida R$14.005,90**.
 7. **Lições da investigação** documentadas permanentemente em `docs/MANUAL_OPERACIONAL_AGENTES.md` seções 1.3.6/1.3.7 e em memória do agente — evitar repetir o mesmo tempo perdido numa reconciliação futura.
+8. **Bug real achado depois do falso alarme (seção 5.5)**: "Estimador de Salário do Mês" mostrava R$17.843,58 (fallback) em vez de R$14.519,30 (projeção real) — causa era `FinanceEngine.calcularLiquidoMes()` hardcodeando `indice === 0` em vez de calcular dinamicamente o índice do próximo pagamento sem salário real. Corrigido + testes novos adicionados.
 
 Tudo publicado (`main`, GitHub Pages) — nenhuma pendência de push no fim da sessão.
 
@@ -117,6 +118,18 @@ O usuário perguntou se o estouro da própria Caixa Variável entrava no cálcul
 **Efeito real**: o déficit total sobe de R$1.842,60 (só as 6 caixas temáticas) pra **R$3.087,94** (+ R$1.245,34 da própria Caixa Variável — comprometido R$3.104,72 vs saldo R$1.859,38, sem nenhum LREI cobrindo). A Necessidade Bruta corrigida sobe de R$14.099,72 pra R$15.345,06.
 
 **Lição**: mesma classe de erro do dia inteiro — documentação/legenda que promete uma coisa e o código faz outra, silenciosamente, até alguém perguntar a coisa certa. Ver `docs/MANUAL_OPERACIONAL_AGENTES.md` 1.3.6/1.3.7.
+
+### 5.5 Bug REAL (não falso alarme): "Estimador de Salário do Mês" mostrando fallback errado — `FinanceEngine.calcularLiquidoMes` hardcodeava `indice === 0`
+
+Depois do falso alarme da seção 5.3, o usuário apontou de novo, com print, que o card "Estimador de Salário do Mês" (ciclo 25/08→24/09, próximo pagamento) mostrava **R$17.843,58** (a média ponderada de fallback) em vez de **R$14.519,30** (`REG.estimador.liquidoProjetadoProximoCiclo`, calculado a partir da folha de ponto de julho/2026). Revisão estática de `app.js:liquidoMes(i)` não achou nada errado — a função lida no código-fonte estava correta.
+
+**Causa real**: `src/app/promocoes-financeengine.js` (Fase 2V, 06/08/2026) **sobrescreve `liquidoMes` em tempo de execução** com uma chamada pra `WallaceFinanceEngine.calcularLiquidoMes()` (`src/services/FinanceEngine.js`). Essa cópia "pura" da função tinha um bug: hardcodeava `indice === 0` pra decidir quando usar a projeção, enquanto a original em `app.js` calcula esse índice **dinamicamente** (`indiceDoProximoPagamentoSemReal = liquidoReal[0] existe ? 1 : 0`). Como o ciclo atual (índice 0) já tem salário real confirmado (`liquidoReal: {0: 16819.56}`), o índice do "próximo pagamento sem real" é **1** — mas a cópia só testava `indice === 0`, então `liquidoMes(1)` nunca caía no ramo da projeção e sempre retornava o fallback.
+
+**Por que a rede de segurança não pegou**: a validação que compara os 12 índices contra a função original (`WallaceComparator.compararLote`) foi **desativada** em 19/08/2026 (`const aprovado = true;` fixo, comentário "pedido explícito do usuário — só V2 existe, sem cálculo paralelo bloqueando") — então o `console.table` do "FASE 2V" reportava "12/12 promovidos" mesmo com a lógica divergente.
+
+**Diagnóstico ao vivo**: como o código lido batia com o esperado, a única forma de confirmar foi `console.log()` direto no DevTools, dentro do iframe certo (não "top"), com filtro de texto do console limpo — 2 rodadas de troubleshooting só de ferramenta (contexto errado, depois filtro escondendo o output) antes de conseguir o valor real: `liquidoMes(1) = 17843.58` com `liquidoReal={0:16819.56}` e `estimador=14519.3` — confirmando o bug.
+
+**Correção**: `FinanceEngine.js:calcularLiquidoMes()` agora replica exatamente a lógica de `app.js` (índice dinâmico, não hardcode). Testes novos adicionados em `tests/unit/FinanceEngine.test.js` cobrindo esse cenário específico (índice 1 com real confirmado no índice 0) — os testes antigos não cobriam esse caso, por isso o bug passou.
 
 ## 6. Empréstimos internos (LREI) — estado individual
 

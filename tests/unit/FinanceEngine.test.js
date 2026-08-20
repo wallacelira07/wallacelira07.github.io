@@ -307,6 +307,14 @@ console.log('\n--- Fase 1C: liquidoMes e calcularAporteIncrementalPorCiclo (fech
   assertEqual('liquidoMes(0), dia 5 (1-11), sem real — cai na média ponderada', calcularLiquidoMes({ ...semReal, indice: 0, diaDoMes: 5 }), 17843.58);
   assertEqual('liquidoMes(3), ciclo futuro sem real — sempre média ponderada', calcularLiquidoMes({ ...semReal, indice: 3, diaDoMes: 15 }), 17843.58);
 
+  \ BUG REAL achado em produção 20/08/2026: com liquidoReal[0] confirmado, o índice do
+  // "próximo pagamento sem real" é 1, não 0 — liquidoMes(1) tem que cair na projeção
+  // a partir do dia 12, e NÃO ficar preso na média ponderada (era o que a cópia hardcodeada
+  // `indice === 0` fazia).
+  assertEqual('liquidoMes(1), real já confirmado no índice 0, dia 15 — usa projetado do próximo ciclo', calcularLiquidoMes({ ...base, indice: 1, diaDoMes: 15 }), 16048.51);
+  assertEqual('liquidoMes(1), real já confirmado no índice 0, dia 5 (1-11) — cai na média ponderada', calcularLiquidoMes({ ...base, indice: 1, diaDoMes: 5 }), 17843.58);
+  assertEqual('liquidoMes(2), real já confirmado no índice 0, ciclo além do próximo — sempre média ponderada', calcularLiquidoMes({ ...base, indice: 2, diaDoMes: 15 }), 17843.58);
+
   // calcularAporteIncrementalPorCiclo — valores reais: seguroEmplacamentoAporte=425,
   // BENS_DURAVEIS_APORTE_MENSAL_ALVO=250, escolaJulio2027Aporte=839,64,
   // saudeEmagrecimentoAporte=278,89 (NOVO 12/08/2026, caneta Ozivy Semaglutida).

@@ -512,13 +512,20 @@ function calcularReembolsosRecebidosNoCiclo(reembolsoCicloTotal, reembolsosARece
  * Extraído como função PURA: a original lia `REG` e `new Date()` direto — aqui
  * cada dependência é parâmetro explícito (`diaDoMes` no lugar de `new Date().getDate()`),
  * mesma técnica já usada em `calcularDiasOperacao`. Mesma semântica exata: valor real
- * confirmado > (só pro ciclo atual, a partir do dia 12) líquido projetado > fallback
- * (média ponderada 12 meses).
+ * confirmado > (só pro índice do PRÓXIMO pagamento ainda sem real, a partir do dia 12)
+ * líquido projetado > fallback (média ponderada 12 meses).
+ * CORRIGIDO 20/08/2026: esta cópia hardcodeava `indice === 0`, mas o índice do "próximo
+ * pagamento sem real" é DINÂMICO — vira 1 quando o índice 0 já tem `liquidoReal[0]`
+ * confirmado (ciclo atual já recebeu salário real). Com o hardcode, liquidoMes(1) nunca
+ * caía no ramo da projeção e retornava sempre o fallback (média ponderada). Bug real,
+ * achado via console.log em produção (Estimador de Salário mostrando R$17.843,58 em vez
+ * de R$14.519,30). Lógica agora espelha exatamente app.js:liquidoMes(i).
  */
 function calcularLiquidoMes({ indice, liquidoReal = {}, mediaPonderada12M, liquidoProjetadoProximoCiclo, diaDoMes }) {
   const real = liquidoReal[indice];
   if (real !== undefined && real !== null) return real;
-  if (indice === 0 && diaDoMes >= 12) return liquidoProjetadoProximoCiclo;
+  const indiceDoProximoPagamentoSemReal = (liquidoReal[0] !== undefined && liquidoReal[0] !== null) ? 1 : 0;
+  if (indice === indiceDoProximoPagamentoSemReal && diaDoMes >= 12) return liquidoProjetadoProximoCiclo;
   return mediaPonderada12M;
 }
 
