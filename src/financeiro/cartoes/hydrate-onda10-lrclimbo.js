@@ -26,6 +26,7 @@ async function aplicarOnda10LrcLimbo(){
       data: l.data ? l.data.slice(0,10).split('-').reverse().join('/') : '—',
       nome: l.descricao || '',
       valor: Math.round(Number(l.valor)*100)/100,
+      cartaoId: l.cartao_id || null, // NOVO 19/08/2026: coluna Origem (ver render-livros-variaveis.js)
     }));
     if(typeof renderLivrosVariaveis === 'function') renderLivrosVariaveis();
     // CORRIGIDO 12/08/2026 (achado do usuário: rodapé "tfLRC" ficava com o valor antigo mesmo com a

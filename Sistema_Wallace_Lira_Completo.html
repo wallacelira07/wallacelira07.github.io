@@ -536,7 +536,6 @@
       <button class="tab" id="lrTabBtn_lrp" onclick="showLR('lrp',this)">LRP - Parcelas</button>
       <button class="tab" id="lrTabBtn_lrs" onclick="showLR('lrs',this)">LRS - Assinaturas</button>
       <button class="tab" id="lrTabBtn_lrr" onclick="showLR('lrr',this)">LRR - Recorrências</button>
-      <button class="tab" id="lrTabBtn_lrcon" onclick="showLR('lrcon',this)">LRCON - Consórcios</button>
       <button class="tab" id="lrTabBtn_lrc" onclick="showLR('lrc',this)">LRC - Corporativo</button>
       <button class="tab" id="lrTabBtn_lrmp" onclick="showLR('lrmp',this)">LRMP - Mercado Pago</button>
       <button class="tab" id="lrTabBtn_lrcv" onclick="showLR('lrcv',this)">LRCV - Caixa Variável</button>
@@ -561,7 +560,7 @@
     </div>
 
     <div id="lrw" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrwTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrwTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRW_TRANSACOES -->
       </tbody></table>
       <!-- 12/08/2026 (auditoria: fallback V2→V1 era silencioso, só log no console) — aviso visível
@@ -572,7 +571,7 @@
     </div>
 
     <div id="lrv" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrvTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRV_TRANSACOES -->
       </tbody></table>
       <!-- mesmo padrão do aviso em #lrw acima (mesma busca V2, mesmo fallback) -->
@@ -626,16 +625,17 @@
       <div style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black. Migração de cartão (V63) segue GRADUAL (V87) — só migra quando a fatura MB confirma de verdade. <strong class="v" style="color:var(--amber)">CORRIGIDO pelo usuário (11/08/2026): a Faculdade Engenharia é 1 mensalidade fixa de R$441,33 — a 2ª linha (MB, transitória da migração de cartão) foi paga em 17/07 e removida daqui; próxima cobrança normal só em 11/09.</strong> Vivo confirmada pelo usuário (print oficial "Plano Vivo — Configuração Final"): a partir do PRÓXIMO ciclo passa a R$435,00/mês — Plano Família 120GB R$260,00 (Wallace+Vanessa) + 5x Linha Controle 8GB R$35,00 (Carro/Wellida/Mainha/Gabriela/Fred)=R$175,00. Ainda não aplicado (R$523,00 é o confirmado pela fatura DESTE ciclo).</div>
     </div>
 
-    <div id="lrcon" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrconTbody">
-      <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
-      </tbody></table>
-      <div class="tfoot"><span id="qtdLRCON">—</span><span class="total v" id="tfLRCON">—</span></div>
-      <div style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.4rem">📌 <strong class="v" style="color:var(--amber)">ADEQUAÇÃO 11/08/2026:</strong> os 2 consórcios Porto (Carro + Casa Nova) deixaram de ser cobrados no Mastercard Black e passaram a boleto pago em dinheiro pela Caixa Boletos (vencimento dia 15) — por isso esta tabela mostra 0 lançamento(s) ativo(s) de propósito. Ver aba LRB (Boletos) para o valor atual.</div>
+    <!-- REMOVIDO 19/08/2026 (pedido do usuário: "exclua a LRCON, não faz sentido manter se não usa
+         mais") — os 2 consórcios Porto migraram do Mastercard Black pra Caixa Boletos em 11/08/2026,
+         cronograma_consorcios está com as 2 linhas ativo=false desde então (confirmado por SQL), esta
+         aba sempre mostrava "0 lançamento(s)". Ver aba LRB (Boletos). O campo interno .consorcios
+         (mbDetalhe/visaDetalhe/totalOpDetalhe) continua existindo no motor de cálculo — sempre 0,
+         inofensivo — remover das fórmulas é refactor maior, fora do escopo deste pedido pontual. -->
+    <div id="lrcon" class="pane" style="display:none"></div>
     </div>
 
     <div id="lrc" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcLimboTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Estabelecimento</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcLimboTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRC_LIMBO_TRANSACOES -->
       </tbody></table>
       <!-- 12/08/2026 (auditoria: fallback V2→V1 era silencioso, só log no console) — aviso visível
@@ -828,7 +828,6 @@
       <div class="row"><span class="k">Parcelas (LRP-MB)</span><span class="v" id="mbLRP">R$ 0,00</span></div>
       <div class="row"><span class="k">Assinaturas (LRS-MB)</span><span class="v" id="mbLRS">R$ 0,00</span></div>
       <div class="row"><span class="k">Recorrências (LRR-MB)</span><span class="v" id="mbLRR">R$ 0,00</span></div>
-      <div class="row"><span class="k">Consórcios (LRCON-MB)</span><span class="v" id="mbLRCON">R$ 0,00</span></div>
       <div class="row"><span class="k">Corporativo (LRC-MB)</span><span class="v" id="mbLRC">R$ 0,00</span></div>
       <!-- NOVO 19/08/2026 (pedido do usuário), REVERTIDO da soma no mesmo dia (piorou o Não
            Reconciliado ao vivo, causa raiz ainda não confirmada — ver comentário em

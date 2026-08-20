@@ -487,7 +487,9 @@ const WallaceFinanceService = {
       // CORRIGIDO 15/08/2026 (achado do usuário: itens do "limbo" apareciam na posição/data errada
       // na lista) — faltava order explícito aqui (mesmo padrão que getTransacoesCorporativoCartaoDetalhe/
       // LRC_LIMBO já usa, order=data.asc); sem isso a ordem vinha do Postgres sem garantia nenhuma.
-      const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor&order=data.asc`, {
+      // cartao_id adicionado 19/08/2026 (pedido do usuário: coluna Origem/final do cartão em todos
+      // os LRs) — view alterada via migration pra expor a coluna, sem mudar nenhum filtro.
+      const resp = await fetch(`${this._url}/rest/v1/vw_transacoes_cartao_variavel_por_pessoa?select=usuario_nome,tx_legado,data,descricao,valor,cartao_id&order=data.asc`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_transacoes_cartao_variavel_por_pessoa`);
@@ -549,7 +551,7 @@ const WallaceFinanceService = {
       const caixaWartsila = caixas.find(c => c.id === caixaId);
       const cicloInicioEm = caixaWartsila && caixaWartsila.ciclo_inicio_em;
       const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=tx_legado,data,descricao,valor,cartao_id&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&order=data.asc${filtroData}`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe LRC_LIMBO (cartão corporativo)`);

@@ -35,6 +35,10 @@ async function aplicarOnda3LrwLrv(){
   // catch de verdade continua isolado dentro de aplicarOnda3LrwLrvListaDetalhada, mais abaixo).
   const promessaDetalhe = WallaceFinanceService.getTransacoesCartaoVariavelDetalhe();
   promessaDetalhe.catch(function(){});
+  // NOVO 19/08/2026: mapa cartao_id->final, usado por renderLivrosVariaveis() (coluna Origem em
+  // TODOS os LRs). Dispara em paralelo, mesmo padrão acima — .catch vazio, cai no fallback
+  // genérico "💳 cartão" se falhar, nunca quebra a renderização por causa disso.
+  WallaceFinanceService.getCartoesMapa().then(m => { window.__wallaceCartoesMapa = m; }).catch(function(){});
   let compromissos;
   try {
     compromissos = await WallaceFinanceService.getCompromissoCartaoPorPessoa();
@@ -97,6 +101,7 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
           data: l.data ? l.data.slice(0,10).split('-').reverse().join('/') : '—',
           nome: l.descricao || '',
           valor: Math.round(Number(l.valor)*100)/100,
+          cartaoId: l.cartao_id || null, // NOVO 19/08/2026: coluna Origem (ver render-livros-variaveis.js)
         }));
       VARS.LRW_TRANSACOES = mapear('Wallace');
       VARS.LRV_TRANSACOES = mapear('Vanessa');

@@ -18,23 +18,35 @@ function _lrvEscapeHtml(s){
     .replace(/'/g, '&#39;');
 }
 function renderLivrosVariaveis(){
+  // NOVO 19/08/2026 (pedido repetido do usuário: coluna Origem/final do cartão em TODOS os Livros
+  // Razão, mesmo padrão já aplicado nas 13 caixas temáticas — ver hydrate-onda3-livro-razao.js).
+  // Mapa fica num global preenchido de propósito por quem chama render (aplicarOnda3LrwLrv/
+  // aplicarOnda10LrcLimbo, ver app.js) ANTES de invocar renderLivrosVariaveis() — undefined aqui só
+  // significa "ainda não carregou nesta sessão", cai no fallback "💳 cartão" sem quebrar nada.
+  const cartoesMapa = window.__wallaceCartoesMapa;
+  function origemHtml(cartaoId){
+    if(!cartaoId) return '';
+    const final = cartoesMapa && cartoesMapa[cartaoId];
+    return `<td style="color:var(--text-dim);font-size:var(--fs-2xs)">${final ? `💳 ••••${final}` : '💳 cartão'}</td>`;
+  }
   function linha(t, temTipo){
     const obsHtml = t.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_lrvEscapeHtml(t.obs)}</span>` : '';
-    if(temTipo) return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.tipo||'PIX'}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-    return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}${obsHtml}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+    const origemTd = t.cartaoId !== undefined ? origemHtml(t.cartaoId) : '';
+    if(temTipo) return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${t.tipo||'PIX'}${obsHtml}</td>${origemTd}<td class="r">${fmt(t.valor)}</td></tr>`;
+    return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}${obsHtml}</td>${origemTd}<td class="r">${fmt(t.valor)}</td></tr>`;
   }
-  function preencher(id, arr, temTipo){
+  function preencher(id, arr, temTipo, colspan){
     const tbody = $(id);
     if(!tbody) return;
     if(!arr.length){
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação neste ciclo ainda.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="${colspan||4}" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação neste ciclo ainda.</td></tr>`;
       return;
     }
     tbody.innerHTML = arr.map(t=>linha(t, temTipo)).join('');
   }
-  preencher('lrwTbody', VARS.LRW_TRANSACOES, false);
-  preencher('lrvTbody', VARS.LRV_TRANSACOES, false);
-  preencher('lrcLimboTbody', VARS.LRC_LIMBO_TRANSACOES, false);
+  preencher('lrwTbody', VARS.LRW_TRANSACOES, false, 5);
+  preencher('lrvTbody', VARS.LRV_TRANSACOES, false, 5);
+  preencher('lrcLimboTbody', VARS.LRC_LIMBO_TRANSACOES, false, 5);
   preencher('lrcvTbody', VARS.LRCV_TRANSACOES, true);
 
   // LRPV tem formato proprio (Entrada/Saida colorida) - renderizacao especifica, nao usa preencher() generico
