@@ -557,6 +557,12 @@
            é lá que haverá auditoria" — mesmo padrão das outras caixas simples, ver ONDA3_LR_MAPA em
            hydrate-onda3-livro-razao.js). Caixa Emagrecimento, V2-exclusiva desde a criação. -->
       <button class="tab" id="lrTabBtn_lremag" onclick="showLR('lremag',this)">LREM - Emagrecimento</button>
+      <!-- NOVA 19/08/2026 (pedido do usuário: as saídas "Crédito KMV" dentro da Caixa Combustível
+           "atrapalhavam" a leitura do gasto real de combustível — não é caixa de verdade, mesmo
+           espírito do card "Créditos e Cupons" (Benefícios, não patrimônio); só reúne consumo de
+           crédito pré-pago de qualquer caixa, ver onda3EhCreditoPrePago() em
+           hydrate-onda3-livro-razao.js). -->
+      <button class="tab" id="lrTabBtn_lrcc" onclick="showLR('lrcc',this)">LRCC - Créditos e Cupons</button>
     </div>
 
     <div id="lrw" class="pane">
@@ -777,6 +783,14 @@
       <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtd_lremag">—</span><span class="total v" id="tf_lremag">—</span></div>
+    </div>
+
+    <div id="lrcc" class="pane">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrccTbody">
+      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
+      </tbody></table>
+      <div class="v" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">Consumo de crédito pré-pago (Uber/Shell Box/KMV etc) — não tira dinheiro real de nenhuma caixa, não entra em Balanço/Patrimônio. Saldo desses créditos: card "Créditos e Cupons".</div>
+      <div class="tfoot"><span id="qtd_lrcc">—</span><span class="total v" id="tf_lrcc">—</span></div>
     </div>
   </div>
 

@@ -18,7 +18,7 @@ function atualizarContadoresAbasLR(){
   // desta lista): 'lremag' (Emagrecimento, criada 12/08/2026) nunca tinha sido adicionada aqui,
   // por isso o botao "LREM - Emagrecimento" nunca ganhava o sufixo "(N)" que os outros ganham.
   const paineis = ['lrw','lrv','lrb','lrp','lrs','lrr','lrcon','lrc','lrmp','lrcv','lrei','lrdoacao','lrpv','lrpvsaldo','lrbd',
-    'lrlance','lrmanut','lraniv','lreventos','lrsaude','lrseguro','lrcomb','lrchurrasco','lrmci','lremag'];
+    'lrlance','lrmanut','lraniv','lreventos','lrsaude','lrseguro','lrcomb','lrchurrasco','lrmci','lremag','lrcc'];
   const labels = {
     lrw:'LRW - Wallace', lrv:'LRV - Vanessa', lrb:'LRB - Boletos', lrp:'LRP - Parcelas', lrs:'LRS - Assinaturas',
     lrr:'LRR - Recorrências', lrcon:'LRCON - Consórcios', lrc:'LRC - Corporativo', lrmp:'LRMP - Mercado Pago',
@@ -27,7 +27,7 @@ function atualizarContadoresAbasLR(){
     lrlance:'LRCL - Caixa Lance', lrmanut:'LRMN - Manutenção', lraniv:'LRAJ - Aniversário Júlio',
     lreventos:'LREV - Eventos e Viagens', lrsaude:'LRSF - Saúde Família', lrseguro:'LRSE - Seguro/Emplacamento',
     lrcomb:'LRCB - Combustível', lrchurrasco:'LRCH - Churrasco', lrmci:'LRMI - Mastercard_Infinite',
-    lremag:'LREM - Emagrecimento'
+    lremag:'LREM - Emagrecimento', lrcc:'LRCC - Créditos e Cupons'
   };
   // NOVO 01/08/2026 (V243, pedido do usuario - "torne isso automatico em todas"): rodapes de tabela
   // (ex: "9 lançamentos", "13 assinaturas ativas") eram texto FIXO no HTML, nunca contado de verdade -

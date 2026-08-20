@@ -2,6 +2,22 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏷️ 19/08/2026 (bloco 30) — confirmação ao vivo do fix "Combustível não muda" + LRCC (Créditos e Cupons) criado
+
+Continuação direta do bloco 29 abaixo, mesmo dia. Usuário testou em produção com login real e mandou print confirmando que o fix da race condition funcionou: Caixa Combustível com Origem preenchida e rodapé certo. **Pendência 0b do bloco 29, resolvida.**
+
+No mesmo print apareceram misturadas dentro da Caixa Combustível 2 saídas "Abastecimento Posto Ipiranga - Crédito KMV" (R$200,00 cada) — consumo de crédito pré-pago, não gasto real de combustível, "atrapalhando a leitura do gasto real" (palavras do usuário). Perguntei antes de codar: LRCC devia virar caixa de verdade (entra em Balanço/Patrimônio) ou só aba de exibição (filtro visual, sem mudar `caixa_id`)? Usuário escolheu **"Só aba de exibição"**, mesmo espírito do card "Créditos e Cupons" já existente ("Benefícios, não patrimônio").
+
+Implementado: `onda3EhCreditoPrePago()` (novo, em `hydrate-onda3-livro-razao.js`) detecta pelo padrão de descrição `- Crédito <nome>` (não por `afeta_saldo_real`/`cartao_id` sozinhos — esse par aparece em ~70 transações históricas não relacionadas, confirmado por SQL antes de escrever o filtro). As 13 caixas de `ONDA3_LR_MAPA` passam a excluir essas linhas da própria tabela; um bloco novo no fim de `aplicarOnda3LivroRazao()` varre TODAS as transações e alimenta a aba nova `lrcc`/`LRCC - Créditos e Cupons` (HTML + JS). Se aparecer um crédito pré-pago de tipo novo (ex: Shell Box), o padrão de descrição já cobre sem precisar editar código.
+
+**Achado preventivo, corrigido antes de qualquer teste do usuário**: `atualizarContadoresAbasLR()` (`src/dashboard/widgets/atualizar-contadores-abas-lr.js`) exige registro manual de cada aba nova nos arrays `paineis`/`labels` — o próprio arquivo já documenta esse bug se repetindo (LRBD, depois LREM, "caixa nova esquecida desta lista"). Adicionei `lrcc` nos dois arrays antes de qualquer coisa, pra não ser a 4ª ocorrência do mesmo padrão.
+
+Antes de commitar: `git status` mostrou 2 arquivos com trabalho não commitado de uma sessão anterior que tinha ficado pela metade (o próprio LRCC, já em andamento) — local também estava 1 commit atrás de `origin/main` (só o bump automático de `__V`). Resolvido com `git stash` → `git merge origin/main` (fast-forward limpo, sem conflito) → `git stash pop`, preservando o trabalho local antes de continuar.
+
+**Não validado em navegador real com login nesta sessão** (mesma limitação de sempre) — próxima sessão deve conferir: aba "LRCC - Créditos e Cupons (N)" com as 2 linhas de KMV, Caixa Combustível sem mais essas 2 linhas nem no rodapé.
+
+**Documentação**: `ESTADO_ATUAL.md` reescrito (bloco 30 no topo, pendência 0b marcada RESOLVIDA, pendência 0c nova, regras 43/44 novas), este bloco adicionado.
+
 ## 🏷️ 19/08/2026 (bloco 29) — coluna Origem em todos os Livros Razão + bug real de race condition corrigido ("Combustível não muda") + LRCON removido + Não Reconciliado do MB CONTINUA aberto (handoff pra outro agente)
 
 Sessão começou com o pedido permanente do usuário, repetido em várias frases ao longo de dias: "toda compra que entra no livro deve ter um campo pra discriminar de onde saiu, cartão aí usa o final do cartão ou PIX". A motivação de fundo, explicada por ele mais de uma vez, era maior que cosmética: **"você precisa usar os LRs, das caixas para formar o cartão, toda compra que é feita no cartão é presa em um LR e uma caixa"** — ele queria que a soma dos Livros Razão, filtrada por Origem = um cartão específico, batesse exatamente com a fatura real daquele cartão. Implementei a coluna Origem (pré-requisito de dado) em praticamente todos os ~25 Livros Razão do site — dinâmica (lê `cartao_id` real) onde a fonte é `transacoes` linha a linha, fixa onde a fonte é agregado/schedule sem esse campo (LRS/LRR/LRP/LRMP/LRB/LRDOA). Também aproveitei pra tirar do ar a aba LRCON (Consórcios), estruturalmente obsoleta desde a migração pra Boletos.

@@ -120,6 +120,22 @@ function onda3LivroRazaoMarcarIndisponivel(motivo){
     const tbody = $(tbodyId);
     if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-danger)" title="'+(motivo||'').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</td></tr>';
   });
+  const lrccTbody = $('lrccTbody');
+  if(lrccTbody) lrccTbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-danger)" title="'+(motivo||'').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</td></tr>';
+}
+
+// NOVO 19/08/2026 (achado do usuário, Caixa Combustível: as 2 saídas "Crédito KMV" R$200,00 não são
+// gasto real da caixa — são consumo de um crédito pré-pago (mesmo saldo já mostrado no card "Créditos
+// e Cupons", tabela `beneficios_creditos`). Ficavam misturadas nas linhas da Caixa Combustível
+// "atrapalhando" a leitura do gasto real de combustível — pedido do usuário: tirar daqui, mostrar num
+// Livro Razão próprio (LRCC). Marcador é o texto da descrição ("... - Crédito <nome>"), mesmo padrão
+// já usado pelas 2 linhas reais existentes ("- Crédito KMV") — não é `afeta_saldo_real=false` +
+// `cartao_id null` sozinho, esse par sozinho aparece em ~70 transações históricas não relacionadas
+// (parcelamentos antigos, P2P, estornos) que não são consumo de crédito pré-pago nenhum, confirmado
+// por SQL antes de escrever este filtro. Se um novo tipo de crédito pré-pago aparecer (ex: "- Crédito
+// Shell Box"), esse padrão de descrição já cobre automaticamente, sem precisar editar código de novo.
+function onda3EhCreditoPrePago(t){
+  return typeof t.descricao === 'string' && /-\s*Cr[ée]dito\s+\S/i.test(t.descricao);
 }
 
 async function aplicarOnda3LivroRazao(){
@@ -146,24 +162,18 @@ async function aplicarOnda3LivroRazao(){
   ONDA3_LR_MAPA.forEach(({tbodyId, tfId, qtdId, caixaId, caixaNome, varsArray}) => {
     const tbody = $(tbodyId);
     if(!tbody){ console.warn(`Onda3LivroRazao: tbody "${tbodyId}" não encontrado, ignorado.`); return; }
-    const linhas = transacoes.filter(t => t.caixa_id === caixaId);
+    // CORRIGIDO 19/08/2026 (pedido do usuário: as saídas "Crédito KMV" da Caixa Combustível
+    // "atrapalham" a leitura do gasto real de combustível — tiradas daqui de vez, exibidas no LRCC
+    // próprio logo abaixo, ver onda3EhCreditoPrePago()). Antes ficavam na tabela só excluídas da soma;
+    // agora nem aparecem aqui, o LRCC é a única fonte pra elas.
+    const linhas = transacoes.filter(t => t.caixa_id === caixaId && !onda3EhCreditoPrePago(t));
     if(!linhas.length){
       console.warn(`Onda3LivroRazao: "${caixaNome}" sem transações na V2 — mantendo V1 na tabela e na busca.`);
       relatorio.push({ caixa: caixaNome, status: 'sem_dado_v2', fonte: 'V1 (fallback)' });
       return;
     }
     tbody.innerHTML = linhas.map(t => onda3LinhaTransacao(t, cartoesMapa)).join('');
-    // CORRIGIDO 19/08/2026 (achado do usuário, Caixa Combustível: "só tenho saldo positivo, nunca
-    // tirei dinheiro dela" — rodapé mostrava -R$198,50): a soma somava TODA transação como
-    // entrada/saída de caixa, inclusive as 2 saídas "Crédito KMV" (afeta_saldo_real=false,
-    // cartao_id=null — consumo de crédito pré-pago do posto, controlado à parte em
-    // beneficios_creditos, nunca tira dinheiro real desta caixa nem vira dívida de cartão). Igual à
-    // fórmula de saldo real (vw_saldo_v2_por_caixa, "só afeta_saldo_real=false EXCLUI"), essas linhas
-    // não entram na soma — continuam aparecendo na tabela pra auditoria, só não pesam no total. Compra
-    // de CARTÃO com afeta_saldo_real=false continua entrando (é o "Disponível Real" já documentado
-    // abaixo, comportamento intencional, não mudou).
-    const linhasParaSoma = linhas.filter(t => !(t.afeta_saldo_real === false && !t.cartao_id));
-    const soma = Math.round(linhasParaSoma.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
+    const soma = Math.round(linhas.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
     const tfEl = $(tfId);
     if(tfEl) tfEl.textContent = fmt(soma);
     // NOVO 14/08/2026 (auditoria de rótulo, ver onda3AtualizarNotaDisponivelReal acima): soma acima
@@ -193,6 +203,24 @@ async function aplicarOnda3LivroRazao(){
   });
   window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO = relatorio;
   console.log('Onda3LivroRazao: relatório completo em window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO', relatorio);
+  // NOVO 19/08/2026 (LRCC — Créditos e Cupons, ver onda3EhCreditoPrépago() acima): reúne, de TODAS as
+  // caixas buscadas nesta onda, as linhas de consumo de crédito pré-pago que foram tiradas de dentro
+  // de cada caixa individual — não é uma caixa de verdade (mesmo espírito do card "Créditos e Cupons",
+  // "Benefícios, não patrimônio": não participa de Balanço/Patrimônio), só uma aba de auditoria/leitura
+  // que junta esse tipo de lançamento onde quer que ele exista, sem precisar mudar `caixa_id` nenhum.
+  const lrccLinhas = transacoes.filter(t => onda3EhCreditoPrePago(t));
+  const lrccTbody = $('lrccTbody');
+  if(lrccTbody){
+    if(!lrccLinhas.length){
+      lrccTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhum consumo de crédito pré-pago neste ciclo.</td></tr>';
+    } else {
+      lrccTbody.innerHTML = lrccLinhas.map(t => onda3LinhaTransacao(t, cartoesMapa)).join('');
+    }
+    const lrccSoma = Math.round(lrccLinhas.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
+    const tfLrcc = $('tf_lrcc'); if(tfLrcc) tfLrcc.textContent = fmt(lrccSoma);
+    const qtdLrcc = $('qtd_lrcc'); if(qtdLrcc) qtdLrcc.textContent = lrccLinhas.length + ' lançamento(s)';
+    console.log(`Onda3LivroRazao [LRCC]: ${lrccLinhas.length} lançamento(s) de crédito pré-pago, soma ${fmt(lrccSoma)}.`);
+  }
   // NOVO 19/08/2026 (achado do usuário: Combustível "não muda", sempre volta pro -R$198,50 e some a
   // coluna Origem, mesmo com o fetch V2 confirmado correto): as 9 caixas acima (mesmos tbodyId do
   // bloco CAIXAS_LR_SIMPLES em render-livros-variaveis.js) são redesenhadas de novo, com o shape V1
