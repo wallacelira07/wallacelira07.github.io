@@ -61,21 +61,26 @@ function gerarMeses(n){
 // mes ou de um jeito de nao causar essas mudancas" - referindo-se ao grafico Necessidade Liquida caindo
 // de valor quando o mes calendario virava mas o ciclo financeiro (25→24) nao tinha virado ainda, ou
 // vice-versa - descompasso causava valores "pulando" sem sentido). gerarMesesCiclo(n) gera rotulos com
-// base no CICLO financeiro atual (dia 25 vira o mes), nao no mes calendario (dia 1). Rotulo do ciclo
-// que comeca dia 25/07 e fecha 24/08 e "Ago/26" (mes que a fatura/pagamento realmente vence), consistente
-// com o resto do sistema (Politicas secao 9: "ciclo mensal, dia 25 a 24 do mes seguinte").
+// base no CICLO financeiro atual (dia 25 vira o mes), nao no mes calendario (dia 1).
+// INVERTIDO 20/08/2026 (pedido explícito do usuário, risco assumido conscientemente — ver memória do
+// agente): ANTES o rótulo era o mês em que o ciclo FECHA/a fatura vence (ciclo 25/07→24/08 = "Ago/26").
+// Confundiu o usuário 2x na mesma sessão: "Ago/26" com R$16.819,56 parecia dizer "seu salário de agosto
+// é 16k", mas esse valor é o salário de JULHO (recebido 24/07) — o salário real de agosto só cai em
+// 25/08. Rótulo agora é o mês em que o SALÁRIO QUE FINANCIA aquele ciclo foi/será pago (ciclo 25/07→24/08
+// = "Jul/26", ciclo 25/08→24/09 = "Ago/26") — alinhado com o que qualquer pessoa entende por "salário de
+// agosto". Politicas seção 9 (ciclo mensal 25→24) não muda, só o texto do rótulo mostrado na tela.
 function ciclosDesdeAncoraCiclo(){
   const hoje = new Date();
   const diaCicloAtual = hoje.getDate() >= 25
-    ? new Date(hoje.getFullYear(), hoje.getMonth()+1, 1) // dia 25+ ja esta no ciclo do mes seguinte
-    : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    ? new Date(hoje.getFullYear(), hoje.getMonth(), 1)   // dia 25+: ciclo novo, rotulado pelo mes ATUAL (salario acabou de cair)
+    : new Date(hoje.getFullYear(), hoje.getMonth()-1, 1); // antes do dia 25: ciclo em curso, rotulado pelo mes ANTERIOR (mes do salario que ja caiu)
   const [ay, am] = ANCHOR_MONTH_CICLO.split('-').map(Number);
   return (diaCicloAtual.getFullYear()-ay)*12 + (diaCicloAtual.getMonth()+1-am);
 }
 function gerarMesesCiclo(n){
   const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const hoje = new Date();
-  const baseMonth = hoje.getDate() >= 25 ? hoje.getMonth()+1 : hoje.getMonth();
+  const baseMonth = hoje.getDate() >= 25 ? hoje.getMonth() : hoje.getMonth()-1;
   const labels = [];
   for (let i = 0; i < n; i++) {
     const d = new Date(hoje.getFullYear(), baseMonth + i, 1);
@@ -132,7 +137,10 @@ const ANCHOR_MONTH = '2026-07'; // atualizar para o mes corrente sempre que os a
 // dia em que o anchor foi definido, e alignSeriesCiclo() descartava o indice 0 (valor real de
 // hoje) do grafico, comecando a linha ja no 1o ponto projetado. Anchor agora gravado no mesmo
 // formato que ciclosDesdeAncoraCiclo() compara (mes do ciclo, nao mes calendario).
-const ANCHOR_MONTH_CICLO = '2026-08'; // mes do CICLO (nao calendario): ciclo 25/07-24/08 rotula "Ago/26"
+// ATUALIZADO 20/08/2026 (junto com a inversão do rótulo em gerarMesesCiclo()/ciclosDesdeAncoraCiclo()
+// acima — mesmo motivo, ver comentário lá): era '2026-08' (ciclo 25/07-24/08 rotulava "Ago/26", mês de
+// fechamento). Agora '2026-07' (mesmo ciclo rotula "Jul/26", mês do salário que financia o ciclo).
+const ANCHOR_MONTH_CICLO = '2026-07'; // mes do CICLO (rotulo = mes do SALARIO, nao calendario/fechamento): ciclo 25/07-24/08 rotula "Jul/26"
 function mesesDesdeAncora(){
   const [ay, am] = ANCHOR_MONTH.split('-').map(Number);
   const agora = new Date();
