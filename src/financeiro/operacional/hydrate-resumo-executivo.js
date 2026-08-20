@@ -13,9 +13,15 @@ function hydrateResumoExecutivo(){
 
   t('kpiPatrimonio', 'R$ '+Math.round(R.patrimonio.total).toLocaleString('pt-BR'));
   t('kpiPatrimonioPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
-  t('kpiTotalOp', 'R$ '+Math.round(R.operacional.totalOperacional).toLocaleString('pt-BR'));
-  t('kpiNecBruta', Math.round(R.operacional.necessidadeTotalBruta).toLocaleString('pt-BR'));
-  t('kpiNecLiquida', Math.round(R.operacional.necessidadeLiquida).toLocaleString('pt-BR'));
+  // CORRIGIDO 20/08/2026 (pedido explícito do usuário: "o ciclo atual não tem como mudar, depois que
+  // o salário cai e o dinheiro é dividido, já era — o que importa é o próximo ciclo, todo esforço é
+  // pra saber quanto vou ganhar e gastar no próximo ciclo"). Os KPIs de destaque do topo trocam do
+  // ciclo ATUAL (índice 0, já em andamento/decidido) pro ciclo SEGUINTE (índice 1, via
+  // REG.evolucao.*), mesma fonte que os cards "Necessidade × Salário"/"Estimador" já usavam — nunca
+  // mais 2 números de ciclos diferentes competindo pela mesma pergunta na tela.
+  t('kpiTotalOp', 'R$ '+Math.round(R.evolucao.totalOperacional[1]).toLocaleString('pt-BR'));
+  t('kpiNecBruta', Math.round(R.evolucao.necessidadeBruta[1]).toLocaleString('pt-BR'));
+  t('kpiNecLiquida', Math.round(R.evolucao.necessidadeLiquida[1]).toLocaleString('pt-BR'));
   t('kpiCaixaVarDisp', fmt(R.caixaVariavel.disponivel));
   // CORRIGIDO 12/08/2026 (achado do usuário, print real: card sempre verde mesmo negativo) — classe
   // "val g" fixa no HTML nunca trocava pra vermelho quando negativo, mesmo bug já corrigido em
@@ -59,11 +65,16 @@ function hydrateResumoExecutivo(){
     if(badgeEl) badgeEl.className = 'badge ' + cfg.badgeClasse;
   })();
 
-  t('s20TotalOp', fmt(R.operacional.totalOperacional));
+  // CORRIGIDO 20/08/2026 (mesmo pedido do bloco de KPIs acima): seção 19 também passa a mostrar o
+  // ciclo SEGUINTE. Orçamento Operacional (R$3.200, teto Caixa Variável + meta PIX Vanessa) não muda
+  // por ciclo, fica igual. Cobertura Garantida NUNCA é projetada pra frente (só existe confirmada pro
+  // ciclo atual, ver recalcular-necessidade.js) — pro ciclo seguinte ela é sempre R$0,00 por definição,
+  // então aqui Bruta e Líquida do próximo ciclo saem iguais (nada "garantido" ainda, é só projeção).
+  t('s20TotalOp', fmt(R.evolucao.totalOperacional[1]));
   t('s20Orcamento', fmt(R.operacional.orcamentoOperacional));
-  t('s20NecBruta', fmt(R.operacional.necessidadeTotalBruta));
-  t('s20Garantido', R.operacional.coberturaGarantida.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
-  t('s20NecLiquida', fmt(R.operacional.necessidadeLiquida));
+  t('s20NecBruta', fmt(R.evolucao.necessidadeBruta[1]));
+  t('s20Garantido', (0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  t('s20NecLiquida', fmt(R.evolucao.necessidadeLiquida[1]));
 
   t('r21Patrimonio', fmt(R.patrimonio.total));
   t('r21MetaMilhaoPct', R.patrimonio.metaMilhaoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
@@ -95,10 +106,7 @@ function hydrateResumoExecutivo(){
   // resultado, não inventa mais a explicação "manual/nunca automática".
   const legNecBrutaLiquidaEl = $('legNecessidadeBrutaLiquida');
   if(legNecBrutaLiquidaEl){
-    const cg = R.operacional.coberturaGarantida;
-    legNecBrutaLiquidaEl.innerHTML = cg > 0
-      ? `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Sobra Disponível da cascata de reembolso Wärtsilä (seção 19, linha 7): <span class="v">${fmt(cg)}</span>.`
-      : `Bruta assume nenhuma fatura provisionada (pior cenário). Líquida desconta a Sobra Disponível da cascata de reembolso Wärtsilä (seção 19, linha 7) — hoje <span class="v">R$0,00</span>, então Bruta e Líquida são o mesmo valor. Sobe automaticamente quando a cascata do ciclo tiver sobra real.`;
+    legNecBrutaLiquidaEl.innerHTML = `Valores do ciclo SEGUINTE (o que ainda não começou). Bruta assume nenhuma fatura provisionada (pior cenário). Cobertura Garantida (Sobra Disponível da cascata de reembolso Wärtsilä) nunca é projetada pra um ciclo futuro — só existe confirmada quando o ciclo atual já rodou e a cascata fechou — por isso Bruta e Líquida do próximo ciclo saem sempre iguais aqui. Some sobra real do ciclo atual assim que ele fechar, no próximo recálculo.`;
   }
 
   // CORRIGIDO 12/08/2026 (achado de auditoria: legenda tinha "Custos Variáveis R$2.000,00 + PIX
