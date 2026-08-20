@@ -12,6 +12,22 @@ Ordem de carga de scripts conferida em `Sistema_Wallace_Lira_Completo.html`: `hy
 
 Não validado em navegador real com login (mesma limitação de sempre) — próxima sessão deve conferir: trocar de ciclo e checar que a tabela LRPGV continua com Origem preenchida e data com ano depois da troca.
 
+## 🐛 20/08/2026 — JPEG da seção "Livros Razão" quebrado: causa real achada e corrigida (bug do html2canvas), confirmado em produção
+
+Continuação da mesma sessão longa. Usuário reportou: baixar o JPEG (botão ⬇) de abas como LRC/LRMI/LRCC saía só com a grade de abas, sem a tabela — LRW até LRR normais. Investigação passou por 3 hipóteses erradas antes de achar a causa real, todas documentadas em `ESTADO_ATUAL.md` (seções -5 a -9) pra próxima vez que algo parecido aparecer:
+
+1. **1ª hipótese, errada**: mover o botão de posição (pedido original do usuário, pra ficar mais alcançável) tinha quebrado o download. Revertido — usuário corrigiu: "já estava assim antes de mudar de posição".
+2. **2ª causa, real mas não era esta**: uma `</div>` sobrando desde a remoção da aba LRCON (bloco 29) fechava o `.card` da seção cedo demais. Corrigida (bug real, ficou corrigido), mas não resolveu o sintoma.
+3. **Causa raiz REAL**: montei um servidor HTTP local (PowerShell, sem node/python neste ambiente) e reproduzi o bug isolado — `html2canvas` 1.4.1 falha em renderizar o conteúdo de um elemento com muitos irmãos `display:none` no mesmo container (a seção tem até 24 `.pane` escondidos ao lado do único ativo). 1ª tentativa de fix (`onclone`, mexendo só numa cópia do DOM) passou no teste isolado mas **piorou em produção** — revertida na hora que o usuário reportou. 2ª tentativa: remover/restaurar os panes escondidos na PRÓPRIA página real (não numa cópia) — desta vez testado numa réplica de 25 abas/tabelas de 8 linhas (escala real) ANTES de publicar, o que expôs um 2º bug (restaurar na mesma ordem de remoção lança erro, corrigido restaurando em ordem inversa) que teria travado permanentemente as outras abas se tivesse ido pro ar sem ser pego.
+
+**Confirmado funcionando em produção pelo próprio usuário**: download do LRC saiu completo (5 lançamentos, Origem, rodapé certo), e as outras abas (LRW/LRV) continuam funcionando normalmente depois do download — a restauração dos panes escondidos funciona de ponta a ponta. Botão de print também foi reaplicado dentro do `.card` (ancorado abaixo da grade de abas), pedido original do usuário, agora seguro porque a causa real do bug foi corrigida.
+
+**Lição principal**: quando um sintoma sobrevive a uma correção plausível, vale isolar a variável de verdade (reprodução mínima fora do sistema real) em vez de só teorizar em cima do código — e testar na ESCALA REAL antes de publicar, não numa versão simplificada (o bug de ordem de restauração só apareceu com 25 panes, nunca com 8).
+
+**Nota lateral**: durante a investigação, o usuário chegou a testar sem querer a própria página de teste isolada do agente (visível no Browser pane compartilhado) achando que era o site real — esclarecido, servidor de teste encerrado.
+
+**Documentação**: `ESTADO_ATUAL.md` reescrito (seções -5 a -9, investigação completa), este bloco adicionado.
+
 ## 🏷️ 19/08/2026 (bloco 30) — confirmação ao vivo do fix "Combustível não muda" + LRCC (Créditos e Cupons) criado
 
 Continuação direta do bloco 29 abaixo, mesmo dia. Usuário testou em produção com login real e mandou print confirmando que o fix da race condition funcionou: Caixa Combustível com Origem preenchida e rodapé certo. **Pendência 0b do bloco 29, resolvida.**

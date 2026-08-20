@@ -10,7 +10,7 @@ Usuário testou em produção (login real) o download da aba LRC - Corporativo e
 
 Nota à parte: durante a investigação, o usuário chegou a testar sem querer a PRÓPRIA página de teste isolada do agente (`localhost:8934`, mockup sem lógica de troca de aba) achando que era o site real — pareceu "travado" porque os botões "Aba N" daquele mockup nunca tiveryam handler de clique (só o botão "Capturar" funcionava). Servidor de teste local encerrado (`TaskStop`) depois de esclarecido. Não é um bug do site — lição registrada só pra não confundir de novo se aparecer um `localhost:XXXX` estranho num relato futuro.
 
-**Pendência residual, não crítica**: o usuário ainda precisa confirmar que as OUTRAS abas (ex. LRW, LRV) continuam funcionando normalmente depois de um download — a restauração dos panes escondidos foi validada sem erro na réplica isolada, mas não houve confirmação explícita disso no site real ainda (só que o LRC baixou certo).
+**Pendência residual RESOLVIDA**: usuário confirmou que as outras abas (testado LRW/LRV) continuam funcionando normalmente depois do download — a restauração dos panes escondidos funciona de ponta a ponta em produção, não só na réplica isolada. **Investigação do JPEG quebrado da seção Livros Razão encerrada, não reabrir sem sintoma novo.**
 
 ## -8. Continuação do bloco 30 — corrigido DE VERDADE, com validação em escala real ANTES de publicar
 
