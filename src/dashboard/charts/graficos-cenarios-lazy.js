@@ -390,6 +390,10 @@ function atualizarGraficoPatrimonio(){
     chart.update();
   });
 }
+// CORRIGIDO 20/08/2026 (mesmo achado do usuário/mesma causa de atualizarGraficosNecessidade acima:
+// declarada dentro de _lazyRenderGraficosSecao(), nunca exposta em window — o guard em
+// hydrate-onda4-patrimonio.js sempre falhava silenciosamente).
+window.atualizarGraficoPatrimonio = atualizarGraficoPatrimonio;
 
 // NOVO 10/08/2026: re-renderiza os 2 gráficos de composição do Total Operacional (aba Gráficos:
 // g_cTotalOp doughnut + g_cTotalOpBar) — os 7 componentes vêm de REG.totalOpDetalhe. Sem par no
@@ -410,6 +414,8 @@ function atualizarGraficoTotalOpDetalhe(){
     chart.update();
   });
 }
+// CORRIGIDO 20/08/2026 (mesma causa/achado de atualizarGraficosNecessidade acima).
+window.atualizarGraficoTotalOpDetalhe = atualizarGraficoTotalOpDetalhe;
 
 // NOVO 10/08/2026 (mesmo achado do usuário, domínio Caixa Variável): re-renderiza os 2 gráficos de
 // barra "Saldo real/Comprometido/Disponível" (Painel: cVariavel; aba Gráficos: g_cVariavel) —
@@ -435,6 +441,8 @@ function atualizarGraficoCaixaVariavel(){
     cLiquidoCV.update();
   }
 }
+// CORRIGIDO 20/08/2026 (mesma causa/achado de atualizarGraficosNecessidade acima).
+window.atualizarGraficoCaixaVariavel = atualizarGraficoCaixaVariavel;
 
 // NOVO 10/08/2026 (achado do usuário, varredura completa de gráficos): re-renderiza g_cCaixas
 // ("Caixas operacionais vs metas") — chamada por hydrate-onda1-v2.js (Boletos/PIX Vanessa) e
@@ -449,6 +457,8 @@ function atualizarGraficoCaixas(){
   chart.data.datasets[1].data = chaves.map(k => REG.caixasOperacionais[k].saldo);
   chart.update();
 }
+// CORRIGIDO 20/08/2026 (mesma causa/achado de atualizarGraficosNecessidade acima).
+window.atualizarGraficoCaixas = atualizarGraficoCaixas;
 
 // 07 — Caixas operacionais vs metas (lista confirmada pelo Wallace em 15/07/2026 — sem PIX Wallace,
 // extinta em 13/07/2026, e sem Fatura Wärtsilä: não é uma caixa operacional com meta própria, é um
