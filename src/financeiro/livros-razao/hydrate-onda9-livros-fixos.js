@@ -31,8 +31,8 @@ function _onda9EscapeHtml(s){
 
 function onda9MarcarIndisponivel(motivo){
   const msg = (cols) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2) — ${(motivo||'').replace(/"/g,'&quot;')}</td></tr>`;
-  const lrsEl = $('lrsTbody'); if(lrsEl) lrsEl.innerHTML = msg(4);
-  const lrrEl = $('lrrTbody'); if(lrrEl) lrrEl.innerHTML = msg(3);
+  const lrsEl = $('lrsTbody'); if(lrsEl) lrsEl.innerHTML = msg(5);
+  const lrrEl = $('lrrTbody'); if(lrrEl) lrrEl.innerHTML = msg(4);
   const lrconEl = $('lrconTbody'); if(lrconEl) lrconEl.innerHTML = msg(3);
   const lrdoaEl = $('lrdoaTbody'); if(lrdoaEl) lrdoaEl.innerHTML = msg(4);
 }
@@ -60,10 +60,15 @@ async function aplicarOnda9LivrosFixos(){
   }
 
   // Assinaturas (LRS)
+  // NOVO 19/08/2026 (pedido do usuário: "assinatura e recorrência pode por, aí coloca o cartão
+  // 4628, porque não pagos por ele, só para registro") — cronograma_assinaturas não tem cartao_id
+  // por linha (não vem de `transacoes`), então a Origem aqui é fixa/informativa, não consultada por
+  // transação — todas as assinaturas ativas são cobradas no Mastercard Black virtual 4628.
+  const ORIGEM_LRS_FIXA = '<td style="color:var(--text-dim);font-size:var(--fs-2xs)">💳 ••••4628</td>';
   const lrsTbody = $('lrsTbody');
   if(lrsTbody && Array.isArray(assinaturas)){
     lrsTbody.innerHTML = assinaturas.map(a =>
-      `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${_onda9EscapeHtml(a.nome)}</td><td class="r">${fmt(Number(a.valor))}</td></tr>`
+      `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${_onda9EscapeHtml(a.nome)}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(a.valor))}</td></tr>`
     ).join('');
     const somaLRS = Math.round(assinaturas.reduce((s,a)=>s+Number(a.valor),0)*100)/100;
     const tfEl = $('tfLRS'); if(tfEl) tfEl.textContent = fmt(somaLRS);
@@ -71,12 +76,14 @@ async function aplicarOnda9LivrosFixos(){
   }
 
   // Recorrências (LRR) — mantém o destaque visual amarelo pras já confirmadas no Mastercard Black
+  // NOVO 19/08/2026 (mesmo pedido acima): Origem fixa "4628", mesmo motivo (cronograma_recorrencias
+  // não vem de `transacoes`, sem cartao_id por linha).
   const lrrTbody = $('lrrTbody');
   if(lrrTbody && Array.isArray(recorrencias)){
     lrrTbody.innerHTML = recorrencias.map(r => {
       const estilo = r.cartao === 'Mastercard Black' ? ' style="background:rgba(233,196,106,0.08)"' : '';
       const obs = r.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_onda9EscapeHtml(r.obs)}</span>` : '';
-      return `<tr${estilo}><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td><td class="r">${fmt(Number(r.valor))}</td></tr>`;
+      return `<tr${estilo}><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(r.valor))}</td></tr>`;
     }).join('');
     const somaLRR = Math.round(recorrencias.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     const tfEl = $('tfLRR'); if(tfEl) tfEl.textContent = fmt(somaLRR);
