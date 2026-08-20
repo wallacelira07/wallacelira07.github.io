@@ -138,11 +138,16 @@ function criarVarsOperacional(){
     // texto ficava contradizendo o que a tela mostrava. Ver hydrate-onda5-qualidade-geracao.js.
     legQgHojeParcial: `"Hoje até agora" é parcial — o dado é atualizado automaticamente a cada 10 minutos (última captura: {hora}, horário de Brasília). O selo "Hoje" acima é uma ESTIMATIVA (regra de 3 sobre a janela 05:30-18:00, geração solar real não é linear) — o selo "Dia anterior" é o único baseado em dado 100% real, do último dia JÁ FECHADO. Produção por hora ainda não existe no sistema (o robô só registra o total acumulado do dia); um histórico intraday real começou a ser coletado agora, mas ainda não tem dias suficientes pra substituir a estimativa linear.`,
     // AMPLIADO 16/08/2026 (pedido do usuário): além de saldo real negativo, agora também soma quando o
-    // comprometido no cartão de uma caixa temática (Bens Duráveis/Emagrecimento/Churrasco/Manutenção/
-    // Eventos/Saúde Família) passa do saldo que ela tem — esse excedente vai precisar vir do salário
-    // deste ciclo, mesmo a caixa ainda estando com "Tem na Caixa" positivo. Caixa Variável fica de fora
-    // desta regra (tem mecanismo próprio, orçamentoOperacional).
-    legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa, OU quando o comprometido no cartão de uma caixa temática passa do saldo que ela tem (ex: comprou algo no cartão sem saldo suficiente pra cobrir), e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
+    // comprometido no cartão de uma caixa operacional passa do saldo que ela tem — esse excedente vai
+    // precisar vir do salário deste ciclo, mesmo a caixa ainda estando com "Tem na Caixa" positivo.
+    // CORRIGIDO 20/08/2026 (achado do usuário, texto desatualizado — a exclusão da Caixa Variável foi
+    // removida no CÓDIGO em 16/08 (mesma sessão, "quero que unifique com as outras caixas"), mas este
+    // texto continuava dizendo o contrário há 4 dias. `hydrate-deficit-caixas-sem-lrei.js` já busca o
+    // comprometido da Caixa Variável via getComprometidoCaixaVariavelV2() e ela entra no MESMO loop das
+    // demais — teto de R$2.000 (VARS.tetoOficial) funciona como referência de orçamento normal, mas
+    // quem trava de verdade o excesso comprometido sem cobertura é esta regra, igual a qualquer outra
+    // caixa operacional.
+    legDeficitCaixasSemLrei: `Quando uma caixa operacional fica negativa, OU quando o comprometido no cartão de uma caixa passa do saldo que ela tem (ex: comprou algo no cartão sem saldo suficiente pra cobrir) — incluindo a Caixa Variável, teto R$2.000 — e não existe um LREI (empréstimo interno) ATIVO cobrindo esse rombo, a diferença é somada na Necessidade Total Bruta — dinheiro que precisa entrar este ciclo, além dos 7 componentes de sempre (boletos+parcelas+consórcios+recorrências+aportes+MP corporativo+assinaturas). Conferir window.WALLACE_DEFICIT_CAIXAS_RELATORIO no console pra ver quais caixas estão gerando esse ajuste.`,
   },
   // Salario (cenarios de emergencia) - RECALCULADO 22/07/2026 (V132) com 12 contracheques reais,
   // media/mediana/min usam os 10 meses POS-PROMOCAO (ago/25-mai/26, usuario foi promovido de
