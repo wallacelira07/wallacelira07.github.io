@@ -249,7 +249,7 @@ console.log('\n--- Fase 1B.7: Energia Solar (tarifas reais, Resolução ANEEL 3.
 
   // Conta COM solar: mesmo consumo, geração instantânea de 150 kWh, injeção de 100 kWh,
   // sem créditos anteriores, ano 2026 (60% de Fio B sobre a energia compensada, Lei 14.300).
-  const contaComSolar = calcularContaComSolar(400, 150, 100, [], 2026);
+  const contaComSolar = calcularContaComSolar(400, 150, 100, [], 'MONO', 2026);
   assertEqual('Conta COM solar — energia instantânea', contaComSolar.energiaInstantanea, 150.00);
   assertEqual('Conta COM solar — energia compensada (sem créditos prévios)', contaComSolar.energiaCompensada, 0.00);
   assertEqual('Conta COM solar — crédito novo gerado', contaComSolar.creditoNovo, 100.00);
@@ -257,7 +257,7 @@ console.log('\n--- Fase 1B.7: Energia Solar (tarifas reais, Resolução ANEEL 3.
 
   // Mesmo cenário, mas agora com 1 crédito anterior de 80 kWh já disponível (mês 1/2025,
   // dentro da validade de 60 meses) — prova o FIFO consumindo o crédito antigo primeiro.
-  const contaComCredito = calcularContaComSolar(400, 150, 100, [{ mes: 1, ano: 2025, energia: 80 }], 2026);
+  const contaComCredito = calcularContaComSolar(400, 150, 100, [{ mes: 1, ano: 2025, energia: 80 }], 'MONO', 2026);
   assertEqual('Conta COM solar + crédito prévio — energia compensada', contaComCredito.energiaCompensada, 80.00);
   assertEqual('Conta COM solar + crédito prévio — crédito remanescente do lote antigo', contaComCredito.creditosAtualizados[0].energia, 0.00);
 
