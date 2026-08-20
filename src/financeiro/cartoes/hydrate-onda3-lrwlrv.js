@@ -122,8 +122,17 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
         const idx = lista.findIndex(t => chaveData(t.data) > chaveItem);
         if(idx === -1) lista.push(item); else lista.splice(idx, 0, item);
       };
-      onda3InserirNaPosicaoCronologica(VARS.LRW_TRANSACOES, { tx:'TX000132', data:'22/07', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99 });
-      onda3InserirNaPosicaoCronologica(VARS.LRV_TRANSACOES, { tx:'TX000154', data:'24/07', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97 });
+      // CORRIGIDO 20/08/2026 (achado do usuário, print real: coluna Origem vazia + data sem ano +
+      // linha "torta" nessas 2 exceções do limbo): faltava `cartaoId` nesses 2 objetos hand-coded —
+      // todo outro item da lista vem de `mapear()` acima e sempre tem `cartaoId` (linha 104), então
+      // `linha()` (render-livros-variaveis.js) sempre desenha a célula de Origem pra eles. Sem
+      // `cartaoId`, a linha vinha com 1 <td> a menos que o cabeçalho (5 colunas), empurrando Valor
+      // pra esquerda — não era só cosmético, a tabela ficava com número de células errado. Cartões
+      // reais confirmados pela fatura real (bloco 31, ESTADO_ATUAL.md): TX000132 = cartão 2244
+      // (Google SunSurveyorApp), TX000154 = cartão 6351 (H57Store, Vanessa). Data também ganhou o
+      // ano, mesmo formato DD/MM/YYYY que `mapear()` usa pros outros itens.
+      onda3InserirNaPosicaoCronologica(VARS.LRW_TRANSACOES, { tx:'TX000132', data:'22/07/2026', nome:'App de alinhamento solar (Google SunSurveyor) — limbo (pós-fechamento fatura)', valor:56.99, cartaoId:'7b0adfe8-182f-455a-a633-30995fba7e67' });
+      onda3InserirNaPosicaoCronologica(VARS.LRV_TRANSACOES, { tx:'TX000154', data:'24/07/2026', nome:'H57Store (cartão 6351) — limbo (pós-fechamento fatura)', valor:30.97, cartaoId:'2bd91561-e1dc-4073-8e8a-b0037b5bb4bf' });
       // NOVO 15/08/2026 (card 100% automático, ver comentário no topo do arquivo): mbLRWConfirmado/
       // mbLRVConfirmado deixam de ser número digitado à mão — recalculados aqui, toda carga, a partir
       // da MESMA lista que acabou de ser montada acima (nunca 2 fontes independentes pra mesma coisa,
