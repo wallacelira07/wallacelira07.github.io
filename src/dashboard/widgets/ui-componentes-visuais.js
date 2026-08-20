@@ -131,21 +131,19 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   }
   if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
   var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1115';
-  // CORRIGIDO 19/08/2026 (achado do usuário, reproduzido isolado numa página de teste antes de mexer
-  // aqui: baixar o JPEG da seção "07 Livros Razão" com uma aba tipo LRC/LRMI/LRCC ativa saía só com a
-  // grade de abas, sem a tabela — mesmo a tabela aparecendo normal na TELA). Causa raiz real: html2canvas
-  // 1.4.1 falha em renderizar o conteúdo de um elemento quando ele tem MUITOS irmãos `display:none` no
-  // mesmo container (aqui, até 24 `.pane` escondidos ao lado do único ativo) — testado e confirmado:
-  // removendo os panes escondidos, a captura funciona certo. `onclone` do html2canvas roda numa CÓPIA
-  // isolada do DOM (usada só pra desenhar o canvas), nunca a página real — seguro remover os panes
-  // inativos dessa cópia sem afetar o que o usuário está vendo/usando ao mesmo tempo. `.pane:not(.active)`
-  // não existe fora da seção de Livros Razão, então isso não muda nada nas outras ~47 seções do site.
-  html2canvas(card, {
-    backgroundColor: corFundo, scale: 2, useCORS: true,
-    onclone: function(_clonedDoc, clonedEl){
-      clonedEl.querySelectorAll('.pane:not(.active)').forEach(function(p){ p.remove(); });
-    }
-  }).then(function(canvas){
+  // REVERTIDO 20/08/2026 (achado do usuário ao vivo: a tentativa de `onclone` removendo
+  // `.pane:not(.active)` da cópia PIOROU o resultado em produção — passou a capturar só a grade de
+  // abas, ainda menor que antes, nem a tabela nem o espaço em branco esperado apareciam mais. Testado
+  // e confirmado funcionando numa página de teste isolada (8 panes sintéticos) antes de publicar, mas
+  // não se comportou igual com a estrutura real (~25 panes, tabelas grandes) — não investigado até o
+  // fim o motivo exato da diferença (suspeita: interação entre `onclone` e o jeito que o html2canvas
+  // 1.4.1 mede a altura total via iframe interno, quando muitos nós são removidos no meio do processo).
+  // Revertido pra chamada simples (comportamento de antes de toda esta investigação) até haver acesso
+  // real a login/dispositivo pra iterar com segurança — ver ESTADO_ATUAL.md pra o histórico completo
+  // das tentativas (posição do botão, `</div>` sobrando, `onclone`) e o que cada uma resolveu/não
+  // resolveu. Download da seção "Livros Razão" com abas tipo LRC continua com limitação conhecida,
+  // não resolvida.
+  html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
     var slug = titulo.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');

@@ -4,6 +4,19 @@
 
 Última reescrita: 19/08/2026, bloco 30. Resumo do bloco 30: usuário confirmou por print que o fix do bloco 29 (Combustível "não muda") funcionou ao vivo — Origem aparecendo, 6 lançamentos certos. No mesmo print apareceram misturadas na Caixa Combustível 2 saídas "Crédito KMV" (consumo de crédito pré-pago, não gasto real) — usuário pediu pra tirar essas linhas de dentro das caixas e criar um Livro Razão próprio, **LRCC — Créditos e Cupons**. Decisão explícita do usuário: LRCC é só aba de EXIBIÇÃO (filtra por padrão de descrição, `caixa_id` das transações não muda) — NÃO é caixa de verdade, não entra em Balanço/Patrimônio, mesmo espírito do card "Créditos e Cupons" já existente ("Benefícios, não patrimônio"). Implementado em `hydrate-onda3-livro-razao.js` (função `onda3EhCreditoPrePago()`, detecta pelo padrão de descrição `- Crédito <nome>`, não por `afeta_saldo_real`/`cartao_id` sozinhos — esse par aparece em ~70 transações históricas não relacionadas) + aba nova no HTML. **Achado preventivo nesta sessão**: `atualizarContadoresAbasLR()` exige registro manual de toda aba nova (bug já documentado 3x antes, "caixa nova esquecida desta lista") — LRCC seria a 4ª vítima do mesmo padrão; adicionado antes de commitar, sem esperar o usuário reportar. Resumo do bloco 29 abaixo. **O problema maior — Não Reconciliado do Mastercard Black não fechar com a fatura real — continua ABERTO**, não mexido nesta sessão, ver seção "Pendência prioritária" abaixo.
 
+## -7. Continuação do bloco 30 — tentativa `onclone` PIOROU em produção, revertida; download da seção Livros Razão fica com limitação conhecida, não resolvida
+
+A correção com `onclone` (seção -6 abaixo) foi testada e validada numa página de teste isolada antes de publicar — mas o usuário testou em produção e reportou que **piorou**: a captura passou a mostrar só a grade de abas, ainda menor que antes (nem o espaço em branco onde a tabela deveria estar aparecia mais). Revertido imediatamente pra chamada simples do `html2canvas` (sem `onclone`), mesmo comportamento de antes de toda essa investigação.
+
+**Causa exata da diferença entre o teste isolado (funcionou) e produção (piorou) NÃO foi investigada até o fim** — a hipótese mais provável é alguma interação entre `onclone` e o jeito que o html2canvas 1.4.1 mede a altura total via iframe interno quando muitos nós (~24 panes reais, com tabelas grandes) são removidos no meio do processo, diferente da estrutura sintética de 8 panes pequenos do teste. Não teorizar mais sobre isso sem acesso real a login/dispositivo pra iterar com segurança — qualquer tentativa nova de mexer em `baixarSecaoComoJPEG()` pra este caso específico precisa ser testada pelo próprio usuário antes/durante, não só numa reprodução isolada.
+
+**Resumo de tudo que foi tentado nesta sessão pro download da seção Livros Razão, do que funcionou e do que não**:
+1. Mover o botão de posição → não era a causa, revertido.
+2. `</div>` sobrando (bloco 29, remoção do LRCON) → bug real, ficou corrigido (não reverter).
+3. `onclone` removendo panes inativos da cópia → piorou em produção apesar de validado isolado, revertido.
+
+**Estado final**: baixar o JPEG da seção "07 Livros Razão" com uma aba tipo LRC/LRMI/LRCC ativa continua sem mostrar a tabela corretamente — limitação conhecida do html2canvas com essa estrutura (muitos `.pane` escondidos), sem solução aplicada. Não tentar de novo sem validação ao vivo passo a passo com o usuário.
+
 ## -6. Continuação do bloco 30 — causa raiz REAL e DEFINITIVA achada e corrigida: bug do html2canvas com muitos irmãos `display:none`
 
 Depois da correção da `</div>` sobrando (seção -5 abaixo), usuário testou de novo (confirmado: recarregou a página, testou depois do aviso de publicação) e reportou que continuava igual — **corretamente**, a `</div>` era um bug real (bom ter corrigido), mas não era a causa deste sintoma específico.
