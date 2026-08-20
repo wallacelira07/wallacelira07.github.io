@@ -100,7 +100,14 @@ function onda3LinhaTransacao(t, cartoesMapa){
   const cor = tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
   const tx = t.tx_legado || '—';
   let origemTxt, origemCor;
-  if(t.cartao_id){
+  // CORRIGIDO 19/08/2026 (achado do usuário, LRCC: "a origem deve ser Cupom ou Gift, algo assim" —
+  // consumo de crédito pré-pago (KMV/Shell Box/Uber) não saiu nem de cartão nem de PIX/dinheiro de
+  // verdade, mostrar "🔑 PIX/dinheiro" nessas linhas era enganoso). Checado ANTES do cartao_id/PIX
+  // genérico — essas linhas sempre têm cartao_id nulo, mas o motivo de não ter cartão é outro.
+  if(onda3EhCreditoPrePago(t)){
+    origemTxt = '🎟️ Cupom/Crédito';
+    origemCor = 'var(--amber)';
+  } else if(t.cartao_id){
     const final = cartoesMapa && cartoesMapa[t.cartao_id];
     origemTxt = final ? `💳 ••••${final}` : '💳 cartão';
     origemCor = 'var(--text-dim)';
