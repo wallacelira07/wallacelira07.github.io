@@ -127,6 +127,19 @@ Se o Claude Chat perguntar se deve "criar" uma caixa que parece não existir (ex
 
 **Registrado depois de uma madrugada de reconciliação onde Claude Chat e Claude Code editaram os mesmos campos agregados (`indicadores.mbLRWConfirmado`/`cartaoMBTotal`) de formas incompatíveis, sem se coordenar — um sobrescreveu o outro sem aviso, e o usuário não conseguiu confiar no painel por horas. Isso não pode se repetir.**
 
+### 1.3.0 ANTES de qualquer coisa: checar se já é assinatura, recorrência ou parcelamento (NOVO 20/08/2026)
+
+**Regra permanente, prioridade máxima — 2 incidentes reais no mesmo dia (20/08/2026) mostraram que esse passo estava sendo pulado.** Antes de tratar QUALQUER item de fatura/extrato bancário como uma compra pontual nova — seja pra criar uma linha em `transacoes`, seja pra somar/ajustar um valor manual (âncora, indicador, conferência de reconciliação, o que for) — checar primeiro se aquele gasto **já é rastreado** em um dos 3 mecanismos fixos do sistema:
+
+```sql
+select * from cronograma_assinaturas where nome ilike '%<termo>%';
+select * from cronograma_recorrencias where nome ilike '%<termo>%';
+-- parcelas não tem descrição própria — liga em transacoes pela compra original:
+select p.* from parcelas p join transacoes t on t.id = p.transacao_origem_id where t.descricao ilike '%<termo>%';
+```
+
+Se encontrar (mesmo que a linha específica deste ciclo ainda não exista, ou que o valor pareça desatualizado) — **não criar `transacoes` nova, não somar o valor em nenhuma conta manual, não ajustar nada por conta própria.** O nome do estabelecimento sozinho não é confiável (Amazon Prime, Netflix, ChatGPT, Claude, Uber One, YouTube, Spotify, Fábio Sabino/iFood, Mega, Meli+, Intelbras Cloud, Vivo, Brisanet, Faculdade, rastreador de carro, hospedagem de site — todos já viraram incidente real pelo menos uma vez). Essas 3 tabelas usam campos fixos (`cartao` como TEXTO, não `cartao_id`) — por isso não aparecem em nenhuma busca feita só por `cartao_id`/`caixa_id` em `transacoes`, o que engana facilmente qualquer reconciliação de fatura que não pense nelas explicitamente. Se sobrar dúvida sobre se algo já está coberto, perguntar ao usuário antes de agir — nunca assumir e corrigir depois.
+
 ### 1.3.1 A transação individual é a fonte — o agregado é derivado, nunca editado à mão como atalho
 
 Toda compra de cartão **sempre** vira uma linha nova em `transacoes`, com estes campos preenchidos sempre que a evidência existir (comprovante/print/fatura):
