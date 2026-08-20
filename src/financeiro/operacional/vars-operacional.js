@@ -256,7 +256,12 @@ function criarVarsOperacional(){
   // 3 canetas em estoque (2x 0,25mg + 1x 0,5mg), então não deve comprar caneta nova no próximo ciclo
   // (e talvez no seguinte) — mas o aporte mensal continua sendo reservado normalmente, só não vira
   // compra de imediato (mesmo padrão de qualquer aporte contínuo que acumula saldo sem gasto no ciclo).
-  saudeEmagrecimentoAporte: 490.00,
+  // PAUSADO 20/08/2026 (pedido explícito do usuário, a serviço da meta máxima "zerar o déficit" — ver
+  // memória do agente): saldo atual (R$563,60) + estoque de 3 canetas já cobre o ciclo seguinte
+  // (25/08→24/09) sem risco real. Aporte pausado por EXATAMENTE 1 ciclo — REVERTER pra 490.00 (aqui E
+  // em `parametros_gerais.saudeEmagrecimentoAporte`, fonte real que sobrescreve este literal no boot)
+  // quando o ciclo 25/09→24/10 abrir, salvo o usuário confirmar necessidade de pausar mais um ciclo.
+  saudeEmagrecimentoAporte: 0.00,
   // NOVO 13/08/2026 (pedido do usuário: meta de peso pra aba Emagrecimento, antes deliberadamente
   // sem meta - "só peso pra começar"). Usada em hydrate-emagrecimento.js pra calcular quanto falta.
   emagrecimentoMetaKg: 110,
