@@ -79,6 +79,8 @@
 -- WHERE table_schema = 'public' AND table_name = 'wallace_dados'
 -- ORDER BY grantee, privilege_type;
 
+-- APLICADA 20/08/2026 (autorizado pelo usuário) — confirmada via pg_constraint,
+-- medidor_tuya_consumo_diario_pkey existe. Bloco abaixo mantido como histórico.
 -- =====================================================================
 -- Achado: domínio Segurança/Supabase — medidor_tuya_consumo_diario sem PK
 -- (regenerado 20/08/2026 — perdido por race condition entre 3 agentes
@@ -97,6 +99,8 @@
 --   DROP CONSTRAINT medidor_tuya_consumo_diario_data_casa_key,
 --   ADD PRIMARY KEY (data, casa);
 
+-- APLICADA 20/08/2026 (autorizado pelo usuário) — origem_ip existe, função
+-- reescrita e confirmada. Bloco abaixo mantido como histórico.
 -- =====================================================================
 -- Achado: domínio Segurança — registrar_erro_cliente sem rate limit
 -- (regenerado 20/08/2026, mesmo motivo do bloco acima)
