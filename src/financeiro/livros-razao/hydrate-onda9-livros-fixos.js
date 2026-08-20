@@ -95,15 +95,18 @@ async function aplicarOnda9LivrosFixos(){
     const qtdEl = $('qtdLRS'); if(qtdEl) qtdEl.textContent = assinaturas.length + ' assinatura(s) ativa(s)';
   }
 
-  // Recorrências (LRR) — mantém o destaque visual amarelo pras já confirmadas no Mastercard Black
+  // Recorrências (LRR)
   // NOVO 19/08/2026 (mesmo pedido acima): Origem fixa "4628", mesmo motivo (cronograma_recorrencias
   // não vem de `transacoes`, sem cartao_id por linha).
+  // REMOVIDO 20/08/2026 (pedido do usuário): destaque visual amarelo por linha + legenda explicativa
+  // abaixo da tabela (texto desatualizado sobre migração de cartão V63/V87, Faculdade Engenharia e
+  // Vivo). O campo `r.cartao` continua existindo e sendo usado no cálculo (mbLRRConfirmado/
+  // visaLRRConfirmado abaixo) — só a apresentação visual da linha foi removida.
   const lrrTbody = $('lrrTbody');
   if(lrrTbody && Array.isArray(recorrencias)){
     lrrTbody.innerHTML = recorrencias.map(r => {
-      const estilo = r.cartao === 'Mastercard Black' ? ' style="background:rgba(233,196,106,0.08)"' : '';
       const obs = r.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_onda9EscapeHtml(r.obs)}</span>` : '';
-      return `<tr${estilo}><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(r.valor))}</td></tr>`;
+      return `<tr><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(r.valor))}</td></tr>`;
     }).join('');
     const somaLRR = Math.round(recorrencias.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     const tfEl = $('tfLRR'); if(tfEl) tfEl.textContent = fmt(somaLRR);
@@ -144,8 +147,19 @@ async function aplicarOnda9LivrosFixos(){
   // Black" divergentes — visaDetalhe tinha embutido recorrências que são do MB e vice-versa). A
   // suposição de V159 ("todas as recorrências migraram pro MB") não é mais real: dados atuais têm
   // 4 recorrências no Visa Infinite (Vivo/Digna/Campo Santo/Faculdade) e 2 no MB (Brisanet/New Car).
+  // NOVO 20/08/2026 (achado da reconciliação item a item contra a fatura real do MB, 22/07-19/08):
+  // igual à recorrências, calculado uma vez só e reaproveitado pelos 2 blocos abaixo.
+  const cicloInicioAssinaturasRecorrencias = mbCicloAtualInicio();
+  const jaCobrouNesteCicloGenerico = x => x.ultima_cobranca_em && x.ultima_cobranca_em >= cicloInicioAssinaturasRecorrencias;
   if(Array.isArray(assinaturas)){
-    VARS.mbLRSConfirmado = Math.round(assinaturas.reduce((s,a)=>s+Number(a.valor),0)*100)/100;
+    // CORRIGIDO 20/08/2026 (achado real: mbLRSConfirmado somava 100% das 13 assinaturas ativas
+    // incondicionalmente, mesmo padrão de bug já corrigido pra recorrências hoje mais cedo — 3 delas
+    // (MEGA, Meli+, Amazon Prime base, R$70,79) não aparecem na fatura real de 22/07-19/08, ou seja
+    // não cobraram de novo dentro deste ciclo, mas entravam mesmo assim no Não Reconciliado). Mesmo
+    // filtro `ultima_cobranca_em` já usado pra recorrências — `ativo=true` continua controlando a
+    // TABELA (LRS mostra todas as assinaturas ativas, é a lista de obrigações), só a soma usada no
+    // Não Reconciliado ficou consciente de ciclo.
+    VARS.mbLRSConfirmado = Math.round(assinaturas.filter(jaCobrouNesteCicloGenerico).reduce((s,a)=>s+Number(a.valor),0)*100)/100;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.assinaturas = VARS.mbLRSConfirmado;
   }
   if(Array.isArray(recorrencias)){
@@ -155,8 +169,8 @@ async function aplicarOnda9LivrosFixos(){
     // de assumir que já cobrou. `ativo=true` continua controlando o que aparece na TABELA do LRR (uma
     // recorrência pausada/cobrança futura ainda é uma obrigação real, só não entra nesta soma
     // específica se ainda não recorreu neste ciclo).
-    const cicloInicio = mbCicloAtualInicio();
-    const jaCobrouNesteCiclo = r => r.ultima_cobranca_em && r.ultima_cobranca_em >= cicloInicio;
+    const cicloInicio = cicloInicioAssinaturasRecorrencias;
+    const jaCobrouNesteCiclo = jaCobrouNesteCicloGenerico;
     VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.recorrencias = VARS.visaLRRConfirmado;

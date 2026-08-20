@@ -337,8 +337,23 @@ function irParaTransacaoNoLivro(t, livro){
     if(!t.tx) return;
     // procura a linha (<tr>) que contem o codigo TX, dentro da tabela ja visivel apos o showLR acima
     setTimeout(() => {
-      const linhas = document.querySelectorAll('.pane.active tbody tr');
-      const alvo = Array.from(linhas).find(tr => tr.textContent.includes(t.tx));
+      let alvo = Array.from(document.querySelectorAll('.pane.active tbody tr')).find(tr => tr.textContent.includes(t.tx));
+      // NOVO 20/08/2026 (achado do usuario: clicar num resultado de busca cujo livro nao tem entrada
+      // em LIVRO_PARA_TAB_LR - ex. "Histórico"/HISTORICO_ERP_TODOS_CICLOS, TRANSACOES_CORPORATIVAS_MP -
+      // so rolava ate o topo da secao "Livros razao", sem trocar de aba nem destacar a linha, porque a
+      // busca de <tr> olhava so a aba ja ativa (que podia nao ser a certa). Em vez de tentar completar
+      // o mapa manualmente pra cada livro (mesmo problema, so adiado), fallback generico: se nao achou
+      // na aba atual, varre TODOS os panes da secao 07 procurando qual realmente contem a linha, troca
+      // pra ele via showLR() e so entao destaca - funciona pra qualquer livro, mapeado ou nao.
+      if(!alvo && secaoAlvo){
+        const cardLR = secaoAlvo.nextElementSibling;
+        const paneComLinha = cardLR ? Array.from(cardLR.querySelectorAll('.pane')).find(p => p.id && Array.from(p.querySelectorAll('tbody tr')).some(tr => tr.textContent.includes(t.tx))) : null;
+        if(paneComLinha){
+          const btnAlvo = document.getElementById('lrTabBtn_' + paneComLinha.id);
+          if(btnAlvo) showLR(paneComLinha.id, btnAlvo);
+          alvo = Array.from(paneComLinha.querySelectorAll('tbody tr')).find(tr => tr.textContent.includes(t.tx));
+        }
+      }
       if(alvo){
         alvo.scrollIntoView({behavior:'smooth', block:'center'});
         alvo.classList.add('linha-destacada-busca');

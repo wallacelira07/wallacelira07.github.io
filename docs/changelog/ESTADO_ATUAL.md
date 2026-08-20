@@ -2,6 +2,29 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
+## ✅ RESOLVIDO 20/08/2026 — pendência prioritária do Mastercard Black ("Não Reconciliado") fechada em R$0,00 literal
+
+A seção "1. Pendência PRIORITÁRIA" abaixo (do bloco 29/30) está **ENCERRADA**. Não reabrir sem sintoma novo/fatura nova. Resumo:
+
+Reconciliação item a item contra a fatura real (xlsx Itaú, cartão 1371, 22/07-17/08) + prints do app do banco (17-19/08) achou e corrigiu 4 causas reais, nesta ordem:
+1. **`TXRR000007` "Tokio Marine (Seguro Auto)"** — criada por engano mais cedo na mesma sessão como recorrência nova no MB; na verdade já era uma parcela ATIVA do Visa Infinite (`TXP000008`, 7/10, R$200,99). Excluída (`DELETE`, a pedido explícito do usuário — não é histórico real, é erro do mesmo dia).
+2. **`TX000240` H57Store (R$1,49, 22/07)** — estava sem `usuario_id` (não aparecia em LRW/LRV). Atribuída a Wallace.
+3. **`cronograma_assinaturas` sem consciência de ciclo** (achado real, mesma classe de bug já corrigida em `cronograma_recorrencias` no mesmo dia, nunca replicada na tabela irmã): `mbLRSConfirmado` somava 100% das 13 assinaturas ativas incondicionalmente, mesmo as que não cobraram de novo neste ciclo. Migração `add_ultima_cobranca_em_assinaturas` + campo populado com datas reais confirmadas pela fatura (10 das 13). MEGA/Meli+ ficam sem data (nenhuma evidência na fatura ainda) — Amazon Prime confirmada cobrando de novo em 19/08 (print do usuário). `hydrate-onda9-livros-fixos.js` agora filtra por `ultima_cobranca_em` igual às recorrências.
+4. **IOF de compra internacional (R$18,21) nunca tinha linha própria** — é categoria separada ("Outros custos") na fatura real, nunca vira `transacoes`. Virou componente explícito rastreado: `VARS.mbIOFConfirmado` (`vars-mercado-pago.js`) + linha nova na tela (`mbLRIOF`) + somado na fórmula (`hydrate-visa-mb.js`).
+
+Âncora `cartaoMBTotal` atualizada pra **R$7.042,33** (era R$7.024,31 — valor real, direto da soma da fatura + compras de 18-19/08 confirmadas, não estimativa).
+
+**Resíduo final confirmado por recálculo direto no Supabase: R$0,00 exato.**
+
+**Lições registradas** pra não repetir o mesmo tempo perdido numa reconciliação futura: `docs/MANUAL_OPERACIONAL_AGENTES.md` seção 1.3.6 (7 regras práticas — resíduo pequeno não prova nada, checar tabelas irmãs, abrir todas as colunas do arquivo, usar o resumo nativo da fonte como cross-check cedo, IOF é componente real não ruído, recalcular tudo do zero antes de anunciar "fechado", zerar é meta legítima quando o usuário pede).
+
+**Bugs cosméticos corrigidos na mesma sessão** (não relacionados à reconciliação, achados no meio):
+- Cache do CSS travado desde 11/08 (`?v=277` nunca bumpado apesar de 15+ commits de CSS depois) — Action de deploy agora bumpa isso junto com `__V`.
+- LRMP corporativo com célula de Origem faltando (coluna desalinhada).
+- Busca global: clique num resultado sem aba mapeada em `LIVRO_PARA_TAB_LR` não navegava até a linha — agora varre todos os panes até achar.
+
+**Não commitado/publicado ainda no momento desta escrita** — avisar antes de dar push, como sempre.
+
 Última reescrita: 19/08/2026, bloco 30. Resumo do bloco 30: usuário confirmou por print que o fix do bloco 29 (Combustível "não muda") funcionou ao vivo — Origem aparecendo, 6 lançamentos certos. No mesmo print apareceram misturadas na Caixa Combustível 2 saídas "Crédito KMV" (consumo de crédito pré-pago, não gasto real) — usuário pediu pra tirar essas linhas de dentro das caixas e criar um Livro Razão próprio, **LRCC — Créditos e Cupons**. Decisão explícita do usuário: LRCC é só aba de EXIBIÇÃO (filtra por padrão de descrição, `caixa_id` das transações não muda) — NÃO é caixa de verdade, não entra em Balanço/Patrimônio, mesmo espírito do card "Créditos e Cupons" já existente ("Benefícios, não patrimônio"). Implementado em `hydrate-onda3-livro-razao.js` (função `onda3EhCreditoPrePago()`, detecta pelo padrão de descrição `- Crédito <nome>`, não por `afeta_saldo_real`/`cartao_id` sozinhos — esse par aparece em ~70 transações históricas não relacionadas) + aba nova no HTML. **Achado preventivo nesta sessão**: `atualizarContadoresAbasLR()` exige registro manual de toda aba nova (bug já documentado 3x antes, "caixa nova esquecida desta lista") — LRCC seria a 4ª vítima do mesmo padrão; adicionado antes de commitar, sem esperar o usuário reportar. Resumo do bloco 29 abaixo. **O problema maior — Não Reconciliado do Mastercard Black não fechar com a fatura real — continua ABERTO**, não mexido nesta sessão, ver seção "Pendência prioritária" abaixo.
 
 ## -17. Continuação do bloco 31 — usuário fez auditoria manual linha a linha do LRW e achou 1 item que não pertence lá

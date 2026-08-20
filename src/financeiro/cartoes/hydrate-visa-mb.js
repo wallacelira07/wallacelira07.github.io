@@ -75,11 +75,18 @@ function recalcularEHidratarMbPessoal(){
   // batem com a fatura (nenhuma dupla-contagem nova encontrada). `|| 0` porque essa busca é async e
   // separada — se ainda não chegou quando esta função roda, soma 0 em vez de `undefined`, mesmo
   // padrão já usado na exibição da linha "Caixas temáticas" logo abaixo.
-  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios + (D.caixasTematicas || 0)) * 100) / 100;
+  // NOVO 20/08/2026 (achado da reconciliação item a item, ver comentário de VARS.mbIOFConfirmado em
+  // vars-mercado-pago.js): último componente real do "Não Reconciliado", as taxas de IOF de compra
+  // internacional que nunca viram linha em `transacoes` — sem isso, o resíduo ficava preso em ~R$18-38
+  // dependendo de quais outros bugs (assinaturas sem ciclo, Tokio Marine duplicado) já tinham sido
+  // corrigidos, sem nunca fechar em zero de verdade.
+  D.iof = VARS.mbIOFConfirmado || 0;
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios + (D.caixasTematicas || 0) + D.iof) * 100) / 100;
   D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   t('mbLRC', fmt(D.corp));
   t('mbLRCaixasTematicas', fmt(D.caixasTematicas || 0));
+  t('mbLRIOF', fmt(D.iof));
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - D.corp)));
   t('mbLRNaoReconciliado', fmt(D.naoReconciliado));
   // Donut "Composição" (seção 10) foi desenhado no boot com o mbDetalhe de então — atualiza junto,
@@ -108,7 +115,12 @@ const MB_CAIXAS_TEMATICAS_IDS = {
   'Caixa Saúde Família': 'd15e8cbe-4443-4ee4-9631-06d8d49058fe',
   'Emagrecimento': 'd6be6a08-9d7b-4664-9c85-1e367aa620b9',
 };
-const MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47af-affc-761d6b880a88','00098251-b7d1-475c-9ec3-ee5462202082','2bd91561-e1dc-4073-8e8a-b0037b5bb4bf','6cec9fa0-ad3c-4fd1-87e0-52d3e0325b09','7c53205f-d2f1-450b-aea3-10d25b0b9b45','242e0499-a6ff-45b4-a4aa-4579e9b151ec','7b0adfe8-182f-455a-a633-30995fba7e67'];
+// ATUALIZADO 20/08/2026 (achado da investigação "Não Reconciliado" definitiva): faltavam 3 cartões MB
+// cadastrados em 10/08 (0317, 2135, 8530) — cadastro em `cartoes` foi feito naquela sessão, mas essa
+// lista literal, usada em TODO cálculo de "quem é MB" (aqui e em hydrate-onda3-lrwlrv.js), nunca foi
+// atualizada. TX000274 (Anthropic real, cartão 8530) ficava invisível pra qualquer filtro por família
+// de cartão até este fix — não é só cosmético, causava R$116,52 de subcontagem real no Não Reconciliado.
+const MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47af-affc-761d6b880a88','00098251-b7d1-475c-9ec3-ee5462202082','2bd91561-e1dc-4073-8e8a-b0037b5bb4bf','6cec9fa0-ad3c-4fd1-87e0-52d3e0325b09','7c53205f-d2f1-450b-aea3-10d25b0b9b45','242e0499-a6ff-45b4-a4aa-4579e9b151ec','7b0adfe8-182f-455a-a633-30995fba7e67','02803dbe-0dd1-4720-a6a0-56e1037fe854','cdb6c357-6630-46f6-984f-608973d521f8','1d6d3284-95d5-44f0-bff5-5684f9068e76'];
 async function atualizarCaixasTematicasComprometidoMB(){
   if(typeof REG === 'undefined' || !REG.mbDetalhe) return;
   try {

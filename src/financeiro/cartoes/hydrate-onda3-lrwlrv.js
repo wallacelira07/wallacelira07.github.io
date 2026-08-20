@@ -19,6 +19,17 @@
 // confiável que o número digitado à mão.
 //
 // Rollback: comentar a chamada aplicarOnda3LrwLrv() em app.js.
+//
+// CORRIGIDO 20/08/2026 (achado da investigação definitiva do "Não Reconciliado" MB): mbLRWConfirmado/
+// mbLRVConfirmado eram literalmente a soma de TODA a Caixa Variável (vw_transacoes_cartao_variavel_
+// por_pessoa não filtra por bandeira de cartão, mistura Visa+MB de propósito — comentário original da
+// view). Isso inflava o "Não Reconciliado" do Mastercard Black em R$317,47 (3 compras reais do Wallace
+// no Visa Infinite — TOKIO MARINE seguro auto, IOF rotativo, Anthropic mistaggeada — confirmadas contra
+// a fatura real do MB, que não contém nenhuma delas). Cópia local da lista de cartões MB (não importa
+// MB_CARTOES_IDS de hydrate-visa-mb.js de propósito — os 2 arquivos carregam em paralelo via
+// __carregarScriptsParalelo, sem ordem garantida entre si; manter uma cópia aqui evita depender de qual
+// terminou primeiro). Se um cartão MB novo for cadastrado, atualizar as DUAS listas juntas.
+const ONDA3_MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47af-affc-761d6b880a88','00098251-b7d1-475c-9ec3-ee5462202082','2bd91561-e1dc-4073-8e8a-b0037b5bb4bf','6cec9fa0-ad3c-4fd1-87e0-52d3e0325b09','7c53205f-d2f1-450b-aea3-10d25b0b9b45','242e0499-a6ff-45b4-a4aa-4579e9b151ec','7b0adfe8-182f-455a-a633-30995fba7e67','02803dbe-0dd1-4720-a6a0-56e1037fe854','cdb6c357-6630-46f6-984f-608973d521f8','1d6d3284-95d5-44f0-bff5-5684f9068e76'];
 
 const ONDA3_LRWLRV_MAPA = [
   { usuarioNome: 'Wallace', getValorV1: () => VARS.mbLRWConfirmado },
@@ -95,7 +106,7 @@ async function aplicarOnda3LrwLrvListaDetalhada(promessaDetalhe){
     const detalhe = await promessaDetalhe;
     if(Array.isArray(detalhe)){
       const mapear = nome => detalhe
-        .filter(l => l.usuario_nome === nome)
+        .filter(l => l.usuario_nome === nome && ONDA3_MB_CARTOES_IDS.includes(l.cartao_id))
         .map(l => ({
           tx: l.tx_legado || '—',
           data: l.data ? l.data.slice(0,10).split('-').reverse().join('/') : '—',

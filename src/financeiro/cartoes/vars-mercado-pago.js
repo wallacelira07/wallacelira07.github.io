@@ -44,7 +44,7 @@ function criarVarsMercadoPago(){
   // instante, não um valor vivo (ver seção -12/-13 do ESTADO_ATUAL.md pra entender por que "a fatura
   // sempre vence" é manual de propósito). Mesmo valor já escrito em `parametros_gerais` (fonte real,
   // este literal é só fallback se a busca falhar).
-  cartaoMBTotal: 7024.31,                // Fatura real, a partir de 22/07/2026, incluindo compras confirmadas até 19/08/2026 (nunca somar assinatura aqui manualmente) — ver comentário acima.
+  cartaoMBTotal: 7042.33,                // ATUALIZADO 20/08/2026: fatura real (xlsx Itaú, 22/07-17/08) somada item a item = R$6.406,10, + 5 compras confirmadas de 18-19/08 (print do app, R$636,23) = R$7.042,33. Reconciliado linha a linha contra `transacoes` (LRW+LRV+caixas temáticas+corp bateram exato, centavo a centavo) — resíduo residual de ~R$33 explicado por IOF embutido (R$18,21, categoria separada "Outros custos" na fatura, nunca linha própria em `transacoes`) + pequenas diferenças de câmbio, não é transação perdida/duplicada.
   // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
   // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
   // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-
@@ -96,6 +96,19 @@ function criarVarsMercadoPago(){
   mbLRSConfirmado: 663.10,        // SINCRONIZADO 07/08/2026 (fonte: Supabase): TX000207 RegistroBR 47438636 +40,00 (assinatura ANUAL de domínio, wallacelira.com.br) - LRS não tem array próprio de transação, só o total agregado. Era R$623,10 (04/08/2026, parte 64) - ver histórico completo de correções anteriores no Supabase.
   mbLRVConfirmado: 364.62,         // SINCRONIZADO 07/08/2026 (fonte: Supabase): TX000204 H57Store Vanessa +22,97 + TX000206 H57Store Vanessa +36,95 (cartão dela não confirmado - pode ser 6351 físico ou 4017 Samsung Wallet, ver LRV_TRANSACOES). Era R$304,70 (03/08/2026) - ver histórico completo de correções anteriores no Supabase.
   mbLRCConfirmado: 0,        // PLACEHOLDER - sobrescrito por VARS.mbLRCConfirmado = VARS.livroLRC (V223). Nunca editar aqui - editar o array LRC_LIMBO_TRANSACOES. Era R$297,31 fixo (duplicava livroLRC manualmente).
+  // NOVO 20/08/2026 (achado da reconciliação item a item contra a fatura real do MB, xlsx Itaú
+  // 22/07-17/08): depois de fechar TODOS os outros componentes do "Não Reconciliado" (âncora
+  // atualizada, assinaturas com ultima_cobranca_em, Tokio Marine removido, H57Store religado), sobrou
+  // um resíduo fixo de R$18,21 — os 7 "Iof Compra Internacional" da fatura (compras internacionais:
+  // Anthropic/OpenAI), que o próprio banco categoriza como "Outros custos" (confirmado no resumo do
+  // app: "Compras R$8.842,76 + Outros custos R$18,21"), separado de "Compras" — nunca vira linha
+  // própria em `transacoes` (o valor final da compra já vem em reais, com o IOF implícito só nas
+  // internacionais que TÊM linha separada de IOF; nas que não têm, o câmbio já fecha exato sem sobra,
+  // ver comentário de TX000251/253/257/254/274/etc.). Mesma natureza de `cartaoMBTotal` — foto manual,
+  // reconciliada contra a fatura real, não um cálculo automático (o valor exato muda a cada fatura
+  // dependendo de quantas compras internacionais houve). Atualizar junto com `cartaoMBTotal` sempre
+  // que reconciliar uma fatura nova.
+  mbIOFConfirmado: 18.21,
   // NOVO 11/08/2026 (auditoria pedida pelo usuário, "materialidade, não perseguir os 81 lançamentos um
   // a um"): mbDetalhe nunca teve o campo "naoReconciliado" que o Visa já tem desde a V135 (achado real:
   // check #12 de auditoria-automatica.js compara soma(mbDetalhe) x cartaoMBTotal e SEMPRE falhava, porque

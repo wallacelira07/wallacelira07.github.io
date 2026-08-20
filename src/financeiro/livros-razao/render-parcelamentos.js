@@ -59,8 +59,8 @@ function renderParcelamentos(){
     });
     lrmpCorpTbody.innerHTML = itensDoCiclo.map(t=>{
       const tipoLabel = t.tipo === 'corp' ? 'corp.' : 'único';
-      return `<tr><td class="mono">${t.tx}</td><td>${_lrpEscapeHtml(t.nome)}</td><td class="mono">${tipoLabel}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1rem 0">Nenhum item corporativo/avulso neste ciclo.</td></tr>';
+      return `<tr><td class="mono">${t.tx}</td><td>${_lrpEscapeHtml(t.nome)}</td><td class="mono">${tipoLabel}</td><td style="color:var(--text-dim);font-size:var(--fs-2xs)">—</td><td class="r">${fmt(t.valor)}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1rem 0">Nenhum item corporativo/avulso neste ciclo.</td></tr>';
   }
 
   const qtdVisaAtivo = VARS.PARCELAMENTOS_VISA.filter(p=>p.status==='ATIVO').length;

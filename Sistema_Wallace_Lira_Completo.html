@@ -24,7 +24,16 @@
      usuário - carregada ali sob demanda agora (ver carregarHtml2CanvasSobDemanda()), nunca mais aqui
      no <head>. Nenhum botão/comportamento visual mudou, só o instante em que a lib é baixada. -->
 
-<link rel="stylesheet" href="assets/css/styles.css?v=277">
+<!-- CORRIGIDO 20/08/2026 (achado real do usuário: abas do Livro Razão com "tamanho desigual" — o CSS
+     já estava corrigido desde 13-14/08 (c859732), mas o cache-buster deste link (`?v=277`) era um
+     número estático nunca mais bumpado desde 11/08, enquanto >15 commits de CSS foram publicados
+     depois — qualquer navegador que já tivesse visitado o site antes disso ficava preso servindo o
+     CSS velho pra sempre, porque a URL do arquivo nunca mudava. `__V` (a variável JS logo abaixo)
+     já resolve esse mesmo problema pra todo script carregado dinamicamente (ver `__carregarScriptsParalelo`)
+     — só este link estático, carregado antes de qualquer JS rodar (pra evitar FOUC), tinha ficado de
+     fora do mecanismo. Corrigido na raiz: a Action `atualizar_versao_deploy.yml` agora bumpa este
+     `?v=` junto com `__V` a cada deploy, nunca mais manual. -->
+<link rel="stylesheet" href="assets/css/styles.css?v=20260820-0516-17f0066">
 </head>
 <body>
 <!-- NOVO 12/08/2026 (pedido do usuário: painel travou "carregando" sem nenhum aviso, causa exata
@@ -628,7 +637,6 @@
       <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtdLRR">—</span><span class="total v" id="tfLRR">—</span></div>
-      <div style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.4rem">🟡 fundo amarelo = confirmadas no Mastercard Black. Migração de cartão (V63) segue GRADUAL (V87) — só migra quando a fatura MB confirma de verdade. <strong class="v" style="color:var(--amber)">CORRIGIDO pelo usuário (11/08/2026): a Faculdade Engenharia é 1 mensalidade fixa de R$441,33 — a 2ª linha (MB, transitória da migração de cartão) foi paga em 17/07 e removida daqui; próxima cobrança normal só em 11/09.</strong> Vivo confirmada pelo usuário (print oficial "Plano Vivo — Configuração Final"): a partir do PRÓXIMO ciclo passa a R$435,00/mês — Plano Família 120GB R$260,00 (Wallace+Vanessa) + 5x Linha Controle 8GB R$35,00 (Carro/Wellida/Mainha/Gabriela/Fred)=R$175,00. Ainda não aplicado (R$523,00 é o confirmado pela fatura DESTE ciclo).</div>
     </div>
 
     <!-- REMOVIDO 19/08/2026 (pedido do usuário: "exclua a LRCON, não faz sentido manter se não usa
@@ -846,7 +854,12 @@
            Reconciliado ao vivo, causa raiz ainda não confirmada — ver comentário em
            recalcularEHidratarMbPessoal(), hydrate-visa-mb.js). Fica só como dado informativo por
            enquanto, estilo idêntico às linhas acima (era maior/desalinhado antes). -->
-      <div class="row"><span class="k">Caixas temáticas (9 caixas)</span><span class="v" id="mbLRCaixasTematicas" title="Combustível+Churrasco+Mastercard_Infinite+Emagrecimento+Bens Duráveis+Manutenção+Eventos+Saúde Família+Seguro Emplacamento — informativo, ainda não somado no Não Reconciliado abaixo">R$ 0,00</span></div>
+      <div class="row"><span class="k">Caixas temáticas (9 caixas)</span><span class="v" id="mbLRCaixasTematicas" title="Combustível+Churrasco+Mastercard_Infinite+Emagrecimento+Bens Duráveis+Manutenção+Eventos+Saúde Família+Seguro Emplacamento — já somado no Não Reconciliado abaixo desde 20/08/2026.">R$ 0,00</span></div>
+      <!-- NOVO 20/08/2026 (achado da reconciliação item a item contra a fatura real do MB): IOF de
+           compra internacional nunca vira linha em `transacoes`, mas é gasto real cobrado no cartão
+           (a fatura categoriza como "Outros custos", separado de "Compras") — sem essa linha o Não
+           Reconciliado nunca fechava em zero de verdade. Ver VARS.mbIOFConfirmado (vars-mercado-pago.js). -->
+      <div class="row"><span class="k">IOF (compra internacional)</span><span class="v" id="mbLRIOF" title="Taxas de IOF de compras internacionais (Anthropic/OpenAI) — categoria separada de 'Compras' na própria fatura do banco, nunca vira linha em transacoes. Já somado no Não Reconciliado abaixo.">R$ 0,00</span></div>
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="mbLRNaoReconciliado">R$ 0,00</span></div>
     </div>
     <div class="card card-composicao-centrada">

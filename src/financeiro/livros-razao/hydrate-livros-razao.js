@@ -19,10 +19,15 @@ function hydrateLivrosRazao(){
   // total de semanas atrás (ex: R$35,95) junto de uma contagem atual (16 lançamentos), inconsistente
   // entre si. renderLivrosVariaveis() (render-livros-variaveis.js) já escreve tfLRW/tfLRV
   // corretamente a partir do array real — nunca duplicar a mesma soma em 2 lugares.
+  // CORRIGIDO 20/08/2026 (mesmo bug do tfLRW/tfLRV acima — achado do usuário: "a quantidade de
+  // recorrências está correta (7), mas o total do rodapé está errado", somando os 7 valores exibidos
+  // dava R$1.584,72 mas o rodapé mostrava R$1.279,65): tfLRR também competia por aqui com
+  // aplicarOnda9LivrosFixos() (hydrate-onda9-livros-fixos.js), que soma o array real da V2 sempre em
+  // dia. L.LRR.total (reg-balanco.js) é hardcoded e nunca acompanhou o array crescer — mesma causa
+  // raiz do bug já documentado acima pro LRW/LRV, só que ninguém tinha notado ainda pro LRR.
   t('tfLRB', fmt(L.LRB.total));
   t('tfLRP', fmt(L.LRP.total));
   t('tfLRS', fmt(L.LRS.total));
-  t('tfLRR', fmt(L.LRR.total));
   t('tfLRCON', fmt(L.LRCON.total));
   t('tfLRC', fmt(L.LRC.total));
   t('tfLRMP', fmt(L.LRMP.total));
