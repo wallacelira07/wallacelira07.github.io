@@ -367,6 +367,16 @@ function atualizarGraficosNecessidade(){
   // a lógica de cálculo aqui.
   if(typeof _lazyRenderCenariosDeficitEGraficosSolar === 'function') _lazyRenderCenariosDeficitEGraficosSolar();
 }
+// CORRIGIDO 20/08/2026 (achado real, confirmado via console pelo usuário: `typeof
+// atualizarGraficosNecessidade` retornava 'undefined' mesmo com o arquivo carregado e outras funções
+// do MESMO arquivo — _lazyRenderCenariosDeficitEGraficosSolar, _calcularSuperavitNormal — existindo
+// normalmente). Causa: esta função é declarada dentro do escopo de outra função deste arquivo, nunca
+// exposta em `window` — o guard `typeof atualizarGraficosNecessidade === 'function'` em
+// hydrate-deficit-caixas-sem-lrei.js (linha que dispara os 5 gráficos depois do déficit recalcular)
+// sempre falhava silenciosamente, então essa reconciliação NUNCA rodava de verdade, desde 10/08/2026
+// quando foi criada — bug estrutural antigo, só ficou visível hoje com o guard novo de "Carregando…".
+// Exposição explícita corrige pros 2 casos (aninhada ou não).
+window.atualizarGraficosNecessidade = atualizarGraficosNecessidade;
 
 // NOVO 10/08/2026 (mesmo achado do usuário, domínio Patrimônio): re-renderiza os 2 gráficos de rosca
 // "Reserva/BTG/Caixa Lance/Necton" (Painel: cPatrim; aba Gráficos: g_cPatrim) — chamada por
