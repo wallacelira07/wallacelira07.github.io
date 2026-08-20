@@ -34,12 +34,17 @@ function criarVarsMercadoPago(){
   // ATUALIZADO no mesmo dia (achado do usuário: "você já acrescentou as compras de 17 até hoje?" —
   // não tinha, o xlsx só cobria até 17/08): somadas 4 compras reais confirmadas de 18-19/08
   // (Medidor Wellida R$93,51 + Churrasqueira R$349,99 + Nobre Carnes R$82,83 + MP*Brothersclub
-  // R$90,00 = R$616,33) + Amazon Prime R$19,90 (assinatura, já contabilizada via LRS mas não estava
-  // na âncora) = R$7.044,21. Esta âncora vai ficar defasada de novo à medida que dias passam sem
-  // atualização — é uma foto de um instante, não um valor vivo (ver seção -12/-13 do ESTADO_ATUAL.md
-  // pra entender por que "a fatura sempre vence" é manual de propósito). Mesmo valor já escrito em
-  // `parametros_gerais` (fonte real, este literal é só fallback se a busca falhar).
-  cartaoMBTotal: 7044.21,                // Fatura real, a partir de 22/07/2026, incluindo compras confirmadas até 19/08/2026 — ver comentário acima.
+  // R$90,00 = R$616,33) = R$7.024,31. REVERTIDO no mesmo dia (achado do usuário, com razão: "Amazon
+  // Prime, eu já falei que não deve somar isso, isso é uma maldita assinatura") — cheguei a somar
+  // +R$19,90 de Amazon Prime aqui também, mesmo ela já sendo assinatura fixa via `cronograma_assinaturas`
+  // (LRS). REGRA PERMANENTE: nunca somar/mexer manualmente em nada que seja assinatura/recorrência
+  // reconhecida em nenhum cálculo — o mecanismo de `cronograma_assinaturas`/`cronograma_recorrencias`
+  // é a ÚNICA fonte pra isso, sempre, sem exceção (ver [[feedback_assinaturas_nunca_transacao_avulsa]]).
+  // Esta âncora vai ficar defasada de novo à medida que dias passam sem atualização — é uma foto de um
+  // instante, não um valor vivo (ver seção -12/-13 do ESTADO_ATUAL.md pra entender por que "a fatura
+  // sempre vence" é manual de propósito). Mesmo valor já escrito em `parametros_gerais` (fonte real,
+  // este literal é só fallback se a busca falhar).
+  cartaoMBTotal: 7024.31,                // Fatura real, a partir de 22/07/2026, incluindo compras confirmadas até 19/08/2026 (nunca somar assinatura aqui manualmente) — ver comentário acima.
   // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
   // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
   // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-
