@@ -704,7 +704,12 @@ function _lazyRenderCenariosSuperavit(){
         // mesmo motivo do datalabel acima.
         label:c=>{const i=c.dataIndex; const liq=c.chart._snLiquido; const nec=c.chart._snNecessidade; return ['Líquido: '+fmt(liq[i]),'Necessidade Líquida: '+fmt(nec[i]),'Superávit: '+fmt(c.chart.data.datasets[0].data[i])];}
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+      scales:{x:{grid:{display:false},ticks:{
+        // NOVO 20/08/2026 (pedido do usuário: destacar o ciclo atual em todos os gráficos, mesmo
+        // tratamento do destaque nas tabelas — índice 0 é sempre o ciclo atual, janela rolante).
+        color:(c)=>c.index===0?'#e2554f':'#a9a79f',
+        font:(c)=>c.index===0?{size:9,weight:'700'}:{size:9}
+      }},
         y:{grid:{color:grid2b},ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:9.5}}}}}
   });
   chartSuperavit._snLiquido = snLiquido;
@@ -859,18 +864,25 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       plugins:{legend:{display:false},tooltip:{callbacks:{
         label:c=>{const i=c.dataIndex; return ['Não trabalha: '+fmt(psLiquido),'O que NUNCA é cortado: '+fmt(psPiso[i]),(psDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(psDeficit[i]))];}
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+      scales:{x:{grid:{display:false},ticks:{
+        color:(c)=>c.index===0?'#e2554f':'#a9a79f',
+        font:(c)=>c.index===0?{size:9,weight:'700'}:{size:9}
+      }},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
 
   const psTbody = $('psTableBody');
   if(psTbody){
+    // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
     psTbody.innerHTML = psLabels.map((m,i)=>{
       const d = psDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
       const sinal = d<0 ? '−' : '+';
+      const atual = i===0;
+      const mesEstilo = atual ? 'color:var(--red);font-weight:700' : 'color:var(--text-mid)';
+      const mesTexto = m + (atual ? ' (atual)' : '');
       return '<tr style="border-bottom:1px solid var(--border)">'+
-        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+        '<td style="padding:0.3rem 0.5rem;'+mesEstilo+'">'+mesTexto+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psLiquido)+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psPiso[i])+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
@@ -935,20 +947,27 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       plugins:{legend:{display:false},tooltip:{callbacks:{
         label:c=>{const i=c.dataIndex; const linhas=['Não trabalha: '+fmt(psLiquido),'Necessidade líquida: '+fmt(pnlNec[i]),(pnlDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(pnlDeficit[i]))]; if(pnlPctAumento[i]>0) linhas.push('Precisaria aumentar +'+pnlPctAumento[i].toFixed(2).replace('.',',')+'% para cobrir'); return linhas;}
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+      scales:{x:{grid:{display:false},ticks:{
+        color:(c)=>c.index===0?'#e2554f':'#a9a79f',
+        font:(c)=>c.index===0?{size:9,weight:'700'}:{size:9}
+      }},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
 
   const pnlTbody = $('pnlTableBody');
   if(pnlTbody){
+    // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
     pnlTbody.innerHTML = psLabels.map((m,i)=>{
       const d = pnlDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
       const sinal = d<0 ? '−' : '+';
       const pct = pnlPctAumento[i];
       const pctTxt = pct>0 ? '+'+pct.toFixed(2).replace('.',',')+'%' : '—';
+      const atual = i===0;
+      const mesEstilo = atual ? 'color:var(--red);font-weight:700' : 'color:var(--text-mid)';
+      const mesTexto = m + (atual ? ' (atual)' : '');
       return '<tr style="border-bottom:1px solid var(--border)">'+
-        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+        '<td style="padding:0.3rem 0.5rem;'+mesEstilo+'">'+mesTexto+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(psLiquido)+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(pnlNec[i])+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+
@@ -981,7 +1000,10 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       plugins:{legend:{display:false},tooltip:{callbacks:{
         label:c=>{const i=c.dataIndex; return ['Piso mínimo líquido garantido (base+30%+5%+creche−descontos): '+fmt(dzLiquido),'Total Operacional: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(dzDeficit[i]))];}
       }}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+      scales:{x:{grid:{display:false},ticks:{
+        color:(c)=>c.index===0?'#e2554f':'#a9a79f',
+        font:(c)=>c.index===0?{size:9,weight:'700'}:{size:9}
+      }},
         y:{grid:{color:grid2},ticks:{callback:v=>'R$'+v,font:{size:9.5}}}}}
   });
 
@@ -989,12 +1011,16 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   // (nao desenhado em canvas), garante legibilidade sem risco de sobreposicao.
   const dzTbody = $('dzTableBody');
   if(dzTbody){
+    // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
     dzTbody.innerHTML = dzLabels.map((m,i)=>{
       const d = dzDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
       const sinal = d<0 ? '−' : '+';
+      const atual = i===0;
+      const mesEstilo = atual ? 'color:var(--red);font-weight:700' : 'color:var(--text-mid)';
+      const mesTexto = m + (atual ? ' (atual)' : '');
       return '<tr style="border-bottom:1px solid var(--border)">'+
-        '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+        '<td style="padding:0.3rem 0.5rem;'+mesEstilo+'">'+mesTexto+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzLiquido)+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(dzPiso[i])+'</td>'+
         '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0(Math.abs(d))+'</td>'+

@@ -127,7 +127,11 @@ function renderGraficosPainelPrincipal(){
     // pro rótulo de valor (valueLeaderPlugin, desenhado do lado de fora do ponto) não ser cortado.
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40,right:32}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      scales:{x:{grid:{display:false},ticks:{
+        // NOVO 20/08/2026 (pedido do usuário: destacar o ciclo atual em todos os gráficos).
+        color:(c)=>c.index===0?'#e2554f':muted,
+        font:(c)=>c.index===0?{size:10,weight:'700'}:{size:10}
+      }},
         y:{grid:{color:grid},min:totalOpRange.min,max:totalOpRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
   });
 
@@ -144,7 +148,10 @@ function renderGraficosPainelPrincipal(){
       pointBorderWidth:2,pointRadius:4,fill:true,tension:0.35}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:40,right:32}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      scales:{x:{grid:{display:false},ticks:{
+        color:(c)=>c.index===0?'#e2554f':muted,
+        font:(c)=>c.index===0?{size:10,weight:'700'}:{size:10}
+      }},
         y:{grid:{color:grid},min:necLiqRange.min,max:necLiqRange.max,ticks:{callback:v=>Math.round(v/1000)+'k',font:{size:10}}}}}
   });
 }
