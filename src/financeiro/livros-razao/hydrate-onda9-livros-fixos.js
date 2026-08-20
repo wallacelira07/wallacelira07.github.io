@@ -42,6 +42,27 @@ function onda9FormatarData(iso){
   return `${dia}/${mes}`;
 }
 
+// NOVO 20/08/2026 (achado do usuário: "não tem algo errado, as transações dos LRs são as compras que
+// fiz no cartão, como não tá batendo?" — investigação a fundo da pendência Não Reconciliado do MB):
+// o cartão Mastercard Black fecha sempre dia 22 (confirmado pelo usuário) — este é o ciclo REAL do
+// cartão, um conceito DIFERENTE do "ciclo" interno do site (Caixa Variável, `ciclo_inicio_em`, não
+// alinhado com nenhum cartão específico). Retorna a data (YYYY-MM-DD) de início do ciclo atual do
+// cartão: se hoje já passou do dia 22 deste mês, o ciclo começou dia 22 deste mês; senão, começou dia
+// 22 do mês anterior. Usado só pra filtrar `cronograma_recorrencias` por `ultima_cobranca_em` (uma
+// recorrência só conta no Não Reconciliado se já cobrou de verdade dentro deste ciclo — achado real:
+// Faculdade Engenharia cobrada 17/07, próxima só 11/09, mas contava em TODO ciclo entre essas datas
+// porque a soma antiga não sabia diferenciar "ativa" de "já cobrou este ciclo").
+function mbCicloAtualInicio(){
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth(); // 0-indexed
+  const dia = hoje.getDate();
+  const anoRef = dia >= 22 ? ano : (mes === 0 ? ano - 1 : ano);
+  const mesRef = dia >= 22 ? mes : (mes === 0 ? 11 : mes - 1);
+  const mesStr = String(mesRef + 1).padStart(2, '0');
+  return `${anoRef}-${mesStr}-22`;
+}
+
 async function aplicarOnda9LivrosFixos(){
   let assinaturas, recorrencias, consorcios, doacoes;
   try {
@@ -128,8 +149,16 @@ async function aplicarOnda9LivrosFixos(){
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.assinaturas = VARS.mbLRSConfirmado;
   }
   if(Array.isArray(recorrencias)){
-    VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black').reduce((s,r)=>s+Number(r.valor),0)*100)/100;
-    VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black').reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    // NOVO 20/08/2026 (mesmo achado do comentário de mbCicloAtualInicio() acima): só entra no
+    // Não Reconciliado quem já cobrou de verdade DENTRO do ciclo atual do cartão — `ultima_cobranca_em`
+    // ausente (NULL, nunca confirmada) é tratado como "não cobrou ainda", exclui por segurança em vez
+    // de assumir que já cobrou. `ativo=true` continua controlando o que aparece na TABELA do LRR (uma
+    // recorrência pausada/cobrança futura ainda é uma obrigação real, só não entra nesta soma
+    // específica se ainda não recorreu neste ciclo).
+    const cicloInicio = mbCicloAtualInicio();
+    const jaCobrouNesteCiclo = r => r.ultima_cobranca_em && r.ultima_cobranca_em >= cicloInicio;
+    VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.recorrencias = VARS.visaLRRConfirmado;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.recorrencias = VARS.mbLRRConfirmado;
   }

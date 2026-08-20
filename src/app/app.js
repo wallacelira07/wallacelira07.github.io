@@ -932,7 +932,14 @@ const WallaceFinanceService = {
   },
   async getCronogramaRecorrenciasV2(){
     return this._cache.obterOuBuscarPersistente('cronograma_recorrencias', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+      // NOVO 20/08/2026 (achado do usuário: "não tem algo errado, as transações dos LRs são as compras
+      // que fiz no cartão, como não tá batendo?" — investigação da pendência Não Reconciliado do MB):
+      // `ultima_cobranca_em` adicionado ao select — data real da última cobrança confirmada (fatura),
+      // usada por aplicarOnda9LivrosFixos() pra só contar uma recorrência no Não Reconciliado se ela já
+      // cobrou de verdade DENTRO do ciclo atual do cartão (fecha dia 22) — antes, uma recorrência com
+      // `ativo=true` contava todo ciclo mesmo sem ter cobrado de novo (achado real: Faculdade Engenharia
+      // cobrada em 17/07, próxima só 11/09, mas contava em todo ciclo entre essas datas).
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs,ultima_cobranca_em&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
       return await resp.json();
     }, 120000);
