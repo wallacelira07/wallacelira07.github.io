@@ -22,12 +22,18 @@ function criarVarsMercadoPago(){
   // jsonb_build_object(...) WHERE id=1), nunca so aqui. Erro cometido nas partes 64/67/68 desta mesma
   // sessao - 3 compras "lancadas" so no arquivo, sem efeito nenhum no site real, ate o usuario avisar.
   cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
-  // CORRIGIDO 19/08/2026 (achado do usuário, print real do banco): este literal ficou congelado em
-  // R$4.239,32 (indicadores.cartaoMBTotal) desde 12/08/2026 — nunca reatualizado, chegou a divergir
-  // R$2.240,97 do banco real. Achado colateral: TX28004 (Nobre Carnes, 19/08) estava com
-  // afeta_saldo_real=null em vez de false (corrigido) e TX28005/MP*BROTHERSCLUB R$90,00 (19/08) nem
-  // existia (lançada agora) — 2 causas reais confirmadas, não fecham os R$2.240,97 inteiros sozinhas.
-  cartaoMBTotal: 6480.29,                // Fatura aberta real (app do banco, 19/08/2026, vencimento 28/08).
+  // CORRIGIDO 20/08/2026 (usuário mandou a fatura real completa, xlsx do Itaú, 114 lançamentos —
+  // reconciliação item a item, ver ESTADO_ATUAL.md bloco 31): o valor anterior (R$6.480,29) era a
+  // fatura ABERTA INTEIRA (16/07-17/08) menos o pagamento — mas isso mistura o resíduo do ciclo do
+  // CARTÃO anterior (fecha dia 22, já pago em 27/07) com o ciclo NOVO. Usuário confirmou: ciclo do
+  // cartão (fecha 22, com "limbo" de 22-24 empurrando compras de fronteira pro ciclo seguinte) e o
+  // "ciclo" interno do site (Caixa Variável, `ciclo_inicio_em`=25/07) são conceitos DIFERENTES, não
+  // precisam bater — MAS o limbo (22-24) precisa ficar incluído na âncora, senão a falta de sincronismo
+  // entre fatura e ciclo do site atrapalha de novo (pedido explícito do usuário). Recalculado: soma
+  // real da fatura a partir de 22/07/2026 (com o limbo 22-24 incluso) = 87 lançamentos, R$6.407,98.
+  // Mesmo valor já escrito em `parametros_gerais` (fonte real, este literal é só fallback se a busca
+  // falhar).
+  cartaoMBTotal: 6407.98,                // Fatura real, a partir de 22/07/2026 (com o limbo 22-24 incluso) — ver comentário acima.
   // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
   // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
   // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-
