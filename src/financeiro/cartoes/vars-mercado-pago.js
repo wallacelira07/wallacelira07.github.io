@@ -52,7 +52,7 @@ function criarVarsMercadoPago(){
   // instante, não um valor vivo (ver seção -12/-13 do ESTADO_ATUAL.md pra entender por que "a fatura
   // sempre vence" é manual de propósito). Mesmo valor já escrito em `parametros_gerais` (fonte real,
   // este literal é só fallback se a busca falhar).
-  cartaoMBTotal: 7042.33,                // ATUALIZADO 20/08/2026: fatura real (xlsx Itaú, 22/07-17/08) somada item a item = R$6.406,10, + 5 compras confirmadas de 18-19/08 (print do app, R$636,23) = R$7.042,33. Reconciliado linha a linha contra `transacoes` (LRW+LRV+caixas temáticas+corp bateram exato, centavo a centavo) — resíduo residual de ~R$33 explicado por IOF embutido (R$18,21, categoria separada "Outros custos" na fatura, nunca linha própria em `transacoes`) + pequenas diferenças de câmbio, não é transação perdida/duplicada.
+  cartaoMBTotal: 7135.88,                // ATUALIZADO 20/08/2026 (2ª vez, mesmo dia): era R$7.042,33 desde a reconciliação de manhã, mas 3 correções reais fizeram os livros ultrapassarem a âncora antiga — Netflix (cobrança de 29/07 no preço cheio R$72,80, não no preço já renegociado R$44,90) + Vivo (cobrança de 27/07 no preço antigo R$539,08, não no renegociado R$435,00) + H57Store R$27,57 de hoje (compra nova, não lançada ainda). R$7.042,33 + R$27,90 + R$104,08 + R$27,57 = R$7.135,88. Fatura ainda ABERTA (fecha dia 22/08) — esta âncora volta a ficar defasada a cada compra nova até lá, é foto de instante, não valor vivo.
   // NOVO 20/08/2026 (mesmo achado de auditoria acima, ver cartaoInfiniteTotalData): fallback só, mesma
   // data do comentário "ATUALIZADO 20/08/2026" acima. Fonte real é `indicadores.data_calculo`.
   cartaoMBTotalData: '2026-08-20',

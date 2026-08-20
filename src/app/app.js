@@ -929,7 +929,21 @@ const WallaceFinanceService = {
       // ultima_cobranca_em na lista explícita de colunas — a coluna existe na tabela (migração de
       // hoje), mas esta query nunca pedia ela, então o filtro de ciclo (jaCobrouNesteCicloGenerico,
       // hydrate-onda9-livros-fixos.js) recebia `undefined` pra toda linha e derrubava a soma pra R$0.
-      const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor,ultima_cobranca_em&ativo=eq.true&order=data.asc`, { headers: this._headers() });
+      // CORRIGIDO 20/08/2026 (mesmo dia, achado real do usuário: "Não Reconciliado" da fatura MB subiu
+      // R$90,83 no mesmo momento em que 4 assinaturas foram canceladas — MEGA/Fábio Sabino/Intelbras
+      // Cloud/iFood, todas já cobradas de verdade DENTRO deste ciclo antes do cancelamento). Causa:
+      // `&ativo=eq.true` tirava a linha da resposta assim que `ativo` virava false, mesmo a cobrança já
+      // tendo acontecido — cancelar uma assinatura pro FUTURO apagava retroativamente uma cobrança do
+      // PASSADO já reconciliada contra a fatura real. Removido o filtro daqui — `ativo` agora vem no
+      // select e quem precisa mostrar só as ativas (a tabela de "obrigações atuais") filtra no cliente
+      // (hydrate-onda9-livros-fixos.js); o cálculo "já cobrou neste ciclo" (jaCobrouNesteCicloGenerico)
+      // nunca dependeu de `ativo`, só de `ultima_cobranca_em`, e não deveria mesmo.
+      // CORRIGIDO 20/08/2026 (mesmo dia, achado real via fatura_bradesco.pdf/xlsx: Netflix renegociado
+      // hoje pra R$44,90, mas a cobrança de 29/07 já tinha acontecido no preço cheio R$72,80 — `valor`
+      // reflete o preço NOVO, correto pra orçamento futuro, mas errado pra reconciliar uma cobrança já
+      // feita no preço antigo). `valor_cobrado_ultima_vez` (nullable) guarda o valor real da cobrança em
+      // `ultima_cobranca_em` só quando diverge de `valor` — usado só na soma do Não Reconciliado.
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor,valor_cobrado_ultima_vez,ativo,ultima_cobranca_em&order=data.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
       return await resp.json();
     }, 120000);
@@ -943,7 +957,16 @@ const WallaceFinanceService = {
       // cobrou de verdade DENTRO do ciclo atual do cartão (fecha dia 22) — antes, uma recorrência com
       // `ativo=true` contava todo ciclo mesmo sem ter cobrado de novo (achado real: Faculdade Engenharia
       // cobrada em 17/07, próxima só 11/09, mas contava em todo ciclo entre essas datas).
-      const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,cartao,obs,ultima_cobranca_em&ativo=eq.true&order=criado_em.asc`, { headers: this._headers() });
+      // CORRIGIDO 20/08/2026 (mesmo achado/mesma causa do bug corrigido em getCronogramaAssinaturasV2
+      // logo acima): removido `&ativo=eq.true` daqui também — cancelar uma recorrência hoje não pode
+      // apagar do Não Reconciliado uma cobrança que já aconteceu de verdade dentro do ciclo fechado da
+      // fatura. `ativo` agora vem no select; quem precisa mostrar só as ativas (tabela LRR) filtra no
+      // cliente (hydrate-onda9-livros-fixos.js).
+      // CORRIGIDO 20/08/2026 (mesmo achado do bloco de assinaturas acima, agora pra Vivo: renegociada
+      // hoje pra R$435,00/mês, mas a cobrança de 27/07 já tinha acontecido no preço antigo, R$539,08 —
+      // confirmado na fatura real em 2 linhas, R$55,08+R$484,00). `valor_cobrado_ultima_vez` guarda o
+      // valor real da cobrança quando diverge de `valor`.
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_recorrencias?select=tx,nome,valor,valor_cobrado_ultima_vez,cartao,obs,ativo,ultima_cobranca_em&order=criado_em.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_recorrencias`);
       return await resp.json();
     }, 120000);

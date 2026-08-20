@@ -2146,6 +2146,9 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('dashboardScreen').style.display = 'flex';
             document.body.classList.add('dashboard-active');
+            // NOVO 20/08/2026 (pedido do usuário: tirar "- Login" da aba depois de logado): título fixo
+            // no <title> (linha ~12) é só pra tela de login; depois de autenticar, não faz mais sentido.
+            document.title = 'Sistema Wallace Lira';
             // CORRIGIDO 10/08/2026 (pedido do usuário: avatar só com a inicial, email completo só no
             // hover/long-press via title) - inicial vem do e-mail (nunca há nome cadastrado à parte).
             const inicial = (email || '?').trim().charAt(0).toUpperCase();
@@ -2210,6 +2213,7 @@
             document.getElementById('loginScreen').style.display = 'block';
             document.getElementById('dashboardScreen').style.display = 'none';
             document.body.classList.remove('dashboard-active');
+            document.title = 'Sistema Wallace Lira - Login';
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
             // CORREÇÃO: reseta o botão de login, que ficava travado em "Entrando..." / disabled

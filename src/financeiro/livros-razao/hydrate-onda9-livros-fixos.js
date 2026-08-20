@@ -87,7 +87,15 @@ async function aplicarOnda9LivrosFixos(){
   const ORIGEM_LRS_FIXA = '<td style="color:var(--text-dim);font-size:var(--fs-2xs)">💳 ••••4628</td>';
   const lrsTbody = $('lrsTbody');
   if(lrsTbody && Array.isArray(assinaturas)){
-    lrsTbody.innerHTML = assinaturas.map(a =>
+    // CORRIGIDO 20/08/2026 (achado real: cancelar MEGA/Fábio Sabino/Intelbras Cloud/iFood Vanessa
+    // hoje via ativo=false apagou retroativamente R$90,83 já cobrados dentro do ciclo fechado da
+    // fatura do MB — a query em app.js (getCronogramaAssinaturasV2) parou de filtrar ativo=eq.true no
+    // banco pra não perder cobranças reais já feitas por assinaturas canceladas depois. A TABELA (lista
+    // de obrigações atuais) continua mostrando só as ativas — filtro agora é aqui, no cliente — e é
+    // esse subconjunto ativas que usa a fórmula abaixo (soma/rodapé/contador). `assinaturas` (array
+    // completo, incluindo canceladas) só é usado mais abaixo pro Não Reconciliado (mbLRSConfirmado).
+    const assinaturasAtivas = assinaturas.filter(a => a.ativo !== false);
+    lrsTbody.innerHTML = assinaturasAtivas.map(a =>
       `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${_onda9EscapeHtml(a.nome)}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(a.valor))}</td></tr>`
     ).join('');
     // CORRIGIDO 20/08/2026 (achado do usuário: Google One é assinatura ANUAL — o total desta lista
@@ -96,7 +104,7 @@ async function aplicarOnda9LivrosFixos(){
     // cobrança (`a.data`) realmente cai — nos outros 11 meses ela some do total, mas continua listada
     // na tabela acima (é uma obrigação real, só não deste mês).
     const hojeMes = new Date().getMonth();
-    const somaLRS = Math.round(assinaturas.reduce((s,a)=>{
+    const somaLRS = Math.round(assinaturasAtivas.reduce((s,a)=>{
       const anual = /anual/i.test(a.nome || '');
       if(anual){
         const mesCobranca = a.data ? new Date(a.data + 'T00:00:00').getMonth() : null;
@@ -105,7 +113,7 @@ async function aplicarOnda9LivrosFixos(){
       return s + Number(a.valor);
     },0)*100)/100;
     const tfEl = $('tfLRS'); if(tfEl) tfEl.textContent = fmt(somaLRS);
-    const qtdEl = $('qtdLRS'); if(qtdEl) qtdEl.textContent = assinaturas.length + ' assinatura(s) ativa(s)';
+    const qtdEl = $('qtdLRS'); if(qtdEl) qtdEl.textContent = assinaturasAtivas.length + ' assinatura(s) ativa(s)';
   }
 
   // Recorrências (LRR)
@@ -117,13 +125,18 @@ async function aplicarOnda9LivrosFixos(){
   // visaLRRConfirmado abaixo) — só a apresentação visual da linha foi removida.
   const lrrTbody = $('lrrTbody');
   if(lrrTbody && Array.isArray(recorrencias)){
-    lrrTbody.innerHTML = recorrencias.map(r => {
+    // CORRIGIDO 20/08/2026 (mesmo motivo do bloco de assinaturas acima): getCronogramaRecorrenciasV2
+    // parou de filtrar ativo=eq.true no banco pra não apagar cobranças já feitas por recorrências
+    // canceladas depois. Tabela continua só com as ativas — filtro agora é aqui; `recorrencias`
+    // (array completo) só é usado mais abaixo pro Não Reconciliado (mbLRRConfirmado/visaLRRConfirmado).
+    const recorrenciasAtivas = recorrencias.filter(r => r.ativo !== false);
+    lrrTbody.innerHTML = recorrenciasAtivas.map(r => {
       const obs = r.obs ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_onda9EscapeHtml(r.obs)}</span>` : '';
       return `<tr><td class="mono">${r.tx}</td><td>${_onda9EscapeHtml(r.nome)}${obs}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(r.valor))}</td></tr>`;
     }).join('');
-    const somaLRR = Math.round(recorrencias.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    const somaLRR = Math.round(recorrenciasAtivas.reduce((s,r)=>s+Number(r.valor),0)*100)/100;
     const tfEl = $('tfLRR'); if(tfEl) tfEl.textContent = fmt(somaLRR);
-    const qtdEl = $('qtdLRR'); if(qtdEl) qtdEl.textContent = recorrencias.length + ' recorrência(s)';
+    const qtdEl = $('qtdLRR'); if(qtdEl) qtdEl.textContent = recorrenciasAtivas.length + ' recorrência(s)';
   }
 
   // Consórcios (LRCON)
@@ -172,7 +185,10 @@ async function aplicarOnda9LivrosFixos(){
     // filtro `ultima_cobranca_em` já usado pra recorrências — `ativo=true` continua controlando a
     // TABELA (LRS mostra todas as assinaturas ativas, é a lista de obrigações), só a soma usada no
     // Não Reconciliado ficou consciente de ciclo.
-    VARS.mbLRSConfirmado = Math.round(assinaturas.filter(jaCobrouNesteCicloGenerico).reduce((s,a)=>s+Number(a.valor),0)*100)/100;
+    // CORRIGIDO 20/08/2026 (mesmo dia, achado real via fatura: Netflix renegociado hoje, mas a cobrança
+    // de 29/07 já tinha acontecido no preço cheio) — usa `valor_cobrado_ultima_vez` quando presente
+    // (valor real cobrado nesta última cobrança), senão cai pra `valor` normal.
+    VARS.mbLRSConfirmado = Math.round(assinaturas.filter(jaCobrouNesteCicloGenerico).reduce((s,a)=>s+Number(a.valor_cobrado_ultima_vez ?? a.valor),0)*100)/100;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.assinaturas = VARS.mbLRSConfirmado;
   }
   if(Array.isArray(recorrencias)){
@@ -184,8 +200,10 @@ async function aplicarOnda9LivrosFixos(){
     // específica se ainda não recorreu neste ciclo).
     const cicloInicio = cicloInicioAssinaturasRecorrencias;
     const jaCobrouNesteCiclo = jaCobrouNesteCicloGenerico;
-    VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
-    VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor),0)*100)/100;
+    // CORRIGIDO 20/08/2026 (mesmo achado acima, agora pra Vivo — renegociada hoje, mas a cobrança de
+    // 27/07 já tinha acontecido no preço antigo): mesmo padrão `valor_cobrado_ultima_vez ?? valor`.
+    VARS.mbLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao === 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor_cobrado_ultima_vez ?? r.valor),0)*100)/100;
+    VARS.visaLRRConfirmado = Math.round(recorrencias.filter(r => r.cartao !== 'Mastercard Black' && jaCobrouNesteCiclo(r)).reduce((s,r)=>s+Number(r.valor_cobrado_ultima_vez ?? r.valor),0)*100)/100;
     if(typeof REG !== 'undefined' && REG.visaDetalhe) REG.visaDetalhe.recorrencias = VARS.visaLRRConfirmado;
     if(typeof REG !== 'undefined' && REG.mbDetalhe) REG.mbDetalhe.recorrencias = VARS.mbLRRConfirmado;
   }
