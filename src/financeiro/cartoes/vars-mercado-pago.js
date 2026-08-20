@@ -31,9 +31,15 @@ function criarVarsMercadoPago(){
   // precisam bater — MAS o limbo (22-24) precisa ficar incluído na âncora, senão a falta de sincronismo
   // entre fatura e ciclo do site atrapalha de novo (pedido explícito do usuário). Recalculado: soma
   // real da fatura a partir de 22/07/2026 (com o limbo 22-24 incluso) = 87 lançamentos, R$6.407,98.
-  // Mesmo valor já escrito em `parametros_gerais` (fonte real, este literal é só fallback se a busca
-  // falhar).
-  cartaoMBTotal: 6407.98,                // Fatura real, a partir de 22/07/2026 (com o limbo 22-24 incluso) — ver comentário acima.
+  // ATUALIZADO no mesmo dia (achado do usuário: "você já acrescentou as compras de 17 até hoje?" —
+  // não tinha, o xlsx só cobria até 17/08): somadas 4 compras reais confirmadas de 18-19/08
+  // (Medidor Wellida R$93,51 + Churrasqueira R$349,99 + Nobre Carnes R$82,83 + MP*Brothersclub
+  // R$90,00 = R$616,33) + Amazon Prime R$19,90 (assinatura, já contabilizada via LRS mas não estava
+  // na âncora) = R$7.044,21. Esta âncora vai ficar defasada de novo à medida que dias passam sem
+  // atualização — é uma foto de um instante, não um valor vivo (ver seção -12/-13 do ESTADO_ATUAL.md
+  // pra entender por que "a fatura sempre vence" é manual de propósito). Mesmo valor já escrito em
+  // `parametros_gerais` (fonte real, este literal é só fallback se a busca falhar).
+  cartaoMBTotal: 7044.21,                // Fatura real, a partir de 22/07/2026, incluindo compras confirmadas até 19/08/2026 — ver comentário acima.
   // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
   // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
   // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-
