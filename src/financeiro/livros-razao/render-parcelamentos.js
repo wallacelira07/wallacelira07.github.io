@@ -14,6 +14,11 @@ function _lrpEscapeHtml(s){
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+// NOVO 19/08/2026 (pedido do usuário: "Parcelas é o 4844, essas são as parcelas que tenho, todas
+// no Infinite" — coluna Origem fixa, mesmo motivo dos LRS/LRR: parcelamentos não vêm de
+// `transacoes` linha a linha, então não há cartao_id por item, mas o cartão é sempre o mesmo).
+const ORIGEM_LRP_FIXA = '<td style="color:var(--text-dim);font-size:var(--fs-2xs)">💳 ••••4844</td>';
+const ORIGEM_LRMP_FIXA = '<td style="color:var(--text-dim);font-size:var(--fs-2xs)">💳 ••••7642</td>';
 function renderParcelamentos(){
   const lrpTbody = $('lrpTbody');
   if(lrpTbody){
@@ -23,7 +28,7 @@ function renderParcelamentos(){
         const ultima = p.parcelaAtual === p.totalParcelas;
         const emoji = ultima ? ' 🔚' : '';
         const classe = ultima ? ' class="last-parcel"' : '';
-        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td>${ORIGEM_LRP_FIXA}<td class="r">${fmt(p.valor)}</td></tr>`;
       }).join('');
   }
 
@@ -35,7 +40,7 @@ function renderParcelamentos(){
         const ultima = p.parcelaAtual === p.totalParcelas;
         const emoji = ultima ? ' 🔚' : '';
         const classe = ultima ? ' class="last-parcel"' : '';
-        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td><td class="r">${fmt(p.valor)}</td></tr>`;
+        return `<tr${classe}><td class="mono">${p.tx}</td><td>${_lrpEscapeHtml(p.nome)}${emoji}</td><td class="mono">${p.parcelaAtual}/${p.totalParcelas}</td>${ORIGEM_LRMP_FIXA}<td class="r">${fmt(p.valor)}</td></tr>`;
       }).join('');
   }
 
