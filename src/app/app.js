@@ -925,7 +925,11 @@ const WallaceFinanceService = {
   // por serem config fixa/pouco volátil): sessionStorage via obterOuBuscarPersistente, TTL 120s.
   async getCronogramaAssinaturasV2(){
     return this._cache.obterOuBuscarPersistente('cronograma_assinaturas', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor&ativo=eq.true&order=data.asc`, { headers: this._headers() });
+      // CORRIGIDO 20/08/2026 (achado real do usuário, print ao vivo: mbLRSConfirmado zerado): faltava
+      // ultima_cobranca_em na lista explícita de colunas — a coluna existe na tabela (migração de
+      // hoje), mas esta query nunca pedia ela, então o filtro de ciclo (jaCobrouNesteCicloGenerico,
+      // hydrate-onda9-livros-fixos.js) recebia `undefined` pra toda linha e derrubava a soma pra R$0.
+      const resp = await fetch(`${this._url}/rest/v1/cronograma_assinaturas?select=tx,data,nome,valor,ultima_cobranca_em&ativo=eq.true&order=data.asc`, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cronograma_assinaturas`);
       return await resp.json();
     }, 120000);
