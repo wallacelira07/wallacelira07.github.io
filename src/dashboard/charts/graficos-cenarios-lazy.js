@@ -634,6 +634,10 @@ function _calcularSuperavitNormal(){
 // CORRIGIDO 13/08/2026 (achado de auditoria: diferença negativa aparecia como "+-1.234" em verde —
 // esta tabela era a única das 3 irmãs (ps/dz/sn) que não tratava o sinal condicionalmente, mesmo
 // padrão já usado em _renderTabelaSuperavitNormal's vizinhas psTableBody/dzTableBody).
+// NOVO 20/08/2026 (pedido do usuário, depois da inversão do rótulo pro mês do salário: "Jul/26" sendo
+// o ciclo atual parece "passado" à primeira vista, mesmo ainda rodando — destacar qual linha é o ciclo
+// atual ajuda a não confundir de novo). Índice 0 é SEMPRE o ciclo atual (janela rolante, calculada a
+// partir de `hoje` em gerarMesesCiclo() — muda sozinha quando o ciclo virar, sem precisar mexer aqui).
 function _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca){
   function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const snTbody = $('snTableBody');
@@ -642,8 +646,11 @@ function _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDife
     const d = snDiferenca[i];
     const cor = d<0 ? 'var(--red)' : 'var(--green)';
     const sinal = d<0 ? '−' : '+';
+    const atual = i===0;
+    const mesEstilo = atual ? 'color:var(--red);font-weight:700' : 'color:var(--text-mid)';
+    const mesTexto = m + (atual ? ' (atual)' : '');
     return '<tr style="border-bottom:1px solid var(--border)">'+
-      '<td style="padding:0.3rem 0.5rem;color:var(--text-mid)">'+m+'</td>'+
+      '<td style="padding:0.3rem 0.5rem;'+mesEstilo+'">'+mesTexto+'</td>'+
       '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snLiquido[i])+'</td>'+
       '<td class="r" style="padding:0.3rem 0.5rem;text-align:right">'+fmt(snNecessidade[i])+'</td>'+
       '<td class="r" style="padding:0.3rem 0.5rem;text-align:right;font-weight:700;color:'+cor+'">'+sinal+fmt0b(Math.abs(d))+'</td>'+
