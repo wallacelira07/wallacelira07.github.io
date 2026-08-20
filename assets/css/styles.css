@@ -433,12 +433,6 @@
   .btn-print-secao:focus-visible{outline:none;box-shadow:var(--shadow-focus-accent)}
   .btn-print-secao:disabled{opacity:0.5;cursor:default}
   @media print{ .btn-print-secao{display:none} }
-  /* NOVO 19/08/2026 (pedido do usuário, print com seta apontando o lugar exato — ver
-     inicializarBotoesPrintSecao() em ui-componentes-visuais.js): variante só da seção "07 Livros
-     Razão", ancorada logo abaixo da grade de abas em vez de no cabeçalho lá em cima. display:block +
-     margin-left:auto (em vez do flex-row do cabeçalho) empurra o botão pra direita dentro do fluxo
-     normal do .card, sem position:absolute (evita sobrepor a tabela/abas em qualquer largura de tela). */
-  .btn-print-secao--ancorado-abas{ display:block; margin:0.6rem 0 0 auto; }
   /* NOVO 14/08/2026 (achado de auditoria mobile: 1.7rem = 27.2px, bem abaixo do alvo de toque
      minimo de 44x44px recomendado - este botao aparece no topo de TODA secao numerada do painel,
      entao e um dos elementos mais tocados no celular). Area de toque real ampliada via ::before

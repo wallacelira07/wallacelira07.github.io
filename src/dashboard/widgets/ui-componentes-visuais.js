@@ -40,8 +40,8 @@ onDomPronto(() => {
 // carregado uma vez ao abrir a pagina).
 function inicializarBotoesPrintSecao(){
   document.querySelectorAll('.section-num').forEach(function(header){
+    if (header.querySelector('.btn-print-secao')) return; // evita duplicar se rodar 2x
     var card = header.nextElementSibling;
-    if (header.querySelector('.btn-print-secao') || (card && card.querySelector('.btn-print-secao'))) return; // evita duplicar se rodar 2x (busca nos 2 lugares possíveis — ver bloco #lrTabs abaixo, que move o botão pra dentro do card)
     // no HTML do painel o conteudo real e sempre o IRMAO seguinte do
     // .section-num (nunca um ancestral) - mesma estrutura ja documentada
     // na passagem de turno pra ferramenta de print via Claude. Pode ser um
@@ -72,19 +72,14 @@ function inicializarBotoesPrintSecao(){
       ev.preventDefault();
       baixarSecaoComoJPEG(card, num, titulo, btn);
     });
-    // NOVO 19/08/2026 (pedido do usuário, print com seta indicando o lugar): "07 Livros Razão" é a
-    // seção mais alta do painel (25 abas + tabela) — o botão fixo no topo do cabeçalho fica longe do
-    // alcance depois que a pessoa já rolou a tela até a tabela. Só pra esse card (identificado pela
-    // grade de abas #lrTabs, id único no site), o botão é ancorado dentro do próprio .card, logo
-    // abaixo da grade de abas — perto de onde o conteúdo real começa. Demais seções continuam com o
-    // botão no cabeçalho, sem mudança nenhuma.
-    var lrTabsEl = card.querySelector('#lrTabs');
-    if (lrTabsEl) {
-      btn.classList.add('btn-print-secao--ancorado-abas');
-      lrTabsEl.insertAdjacentElement('afterend', btn);
-    } else {
-      header.appendChild(btn);
-    }
+    // REVERTIDO 19/08/2026 (achado do usuário: mover este botão pra DENTRO do .card — logo abaixo de
+    // #lrTabs — quebrou o download JPEG das abas carregadas via V2/async (LRC em diante): o botão
+    // virava filho do próprio elemento que baixarSecaoComoJPEG()/html2canvas captura, então a captura
+    // de algumas abas saía só com a grade de abas, sem a tabela. Botão de volta ao cabeçalho (fora do
+    // .card, nunca faz parte da captura) pra TODAS as seções, sem exceção — a reposicionamento pedido
+    // (botão mais perto do conteúdo em seções longas) fica pendente de uma solução que não insira
+    // nada dentro do próprio alvo de captura.
+    header.appendChild(btn);
   });
 }
 
