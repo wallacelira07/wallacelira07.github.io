@@ -2,9 +2,42 @@
 
 **Reescrito do zero a cada sessão**. Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo.
 
-Última reescrita: 19/08/2026, bloco 28. Resumo: usuário trouxe um relatório (gerado por outro agente, Claude Chat) alertando P0 — "48 transações lançadas só na V2 nunca aparecem no painel". Investigação com 10 agentes (SQL direto + leitura de código) **contrariou parte da premissa do relatório**: as 10 caixas afetadas já leem de V2, não de V1. Causa real, mais específica: (a) a view V2 exclui `afeta_saldo_real=false`, e a Caixa Combustível tem 2 lançamentos (R$400,00, "Crédito KMV" — pendência aberta, aguardando o usuário explicar o que é) com `cartao_id` nulo, invisíveis em qualquer bloco; (b) ao trocar de ciclo pelo seletor (sem F5), a Caixa Variável revertia silenciosamente pro valor V1 congelado. Corrigido o (b) e implementado aviso de mitigação pro problema geral. Bloco 27 (automação de faturas via Gmail) seguem válidos, sem mudança. **Tudo commitado e publicado** (push feito, `main` atualizado).
+Última reescrita: 19/08/2026, bloco 29. Resumo: sessão inteira girou em torno do pedido permanente "toda compra do Livro Razão precisa dizer de onde saiu (cartão final ou PIX)" — coluna **Origem** implantada em praticamente todos os ~25 Livros Razão do site (LRW/LRV/LRC-limbo/LRCV/LRB/LRDOA/LRS/LRR/LRP/LRMP + as 13 caixas temáticas), LRCON removido de vez (consórcios já migraram pra Boletos). No meio do trabalho, achado e corrigido um **bug real de race condition**: `renderLivrosVariaveis()` (V1) era rechamada por 4 módulos irmãos assíncronos só pra redesenhar UMA tabela (LREI, LRW/LRV, LRC-limbo) — mas ela também redesenhava por cima, sem querer, as 9+2 caixas que `aplicarOnda3LivroRazao()` (V2) já tinha corrigido com Origem + rodapé certo. Isso explicava o sintoma "Combustível não muda, mesmo com o código certo confirmado no servidor" que o usuário via em produção mesmo numa aba anônima genuína — não era cache, era um redraw duplicado ganhando a corrida às vezes. Corrigido com uma flag de handoff (`window.__wallaceOnda3LivroRazaoAplicado`). **O problema maior da sessão — Não Reconciliado do Mastercard Black não fechar com a fatura real — continua ABERTO**, ver seção "Pendência prioritária" abaixo; usuário vai continuar essa parte com outro agente. **Tudo commitado e publicado** (push feito, `main` em `4e0b327`).
 
-## 0. Bloco 28 (19/08/2026) — investigação P0 "transações V2 invisíveis": achado diferente do relatado, 1 bug real corrigido, 1 aviso de mitigação, 1 falso-alarme (KMV) descartado
+## 0. Bloco 29 (19/08/2026) — coluna Origem em todos os Livros Razão + bug de race condition corrigido (Combustível "não muda") + LRCON removido
+
+### 0.1 Coluna Origem — rollout completo
+
+Pedido permanente do usuário, repetido várias vezes na sessão: toda linha de todo Livro Razão precisa dizer se saiu de cartão (final do cartão) ou PIX/dinheiro — motivo prático dele: "se tivesse isso, seria mais simples saber o que são compras do cartão". Implementado em 2 estilos, dependendo se a linha tem `cartao_id` real por transação ou não:
+
+- **Origem dinâmica** (lê `cartao_id` real da transação, mostra `💳 ••••NNNN` via `getCartoesMapa()`, ou `🔑 PIX/dinheiro` se nulo): LRW, LRV, LRC-limbo, LRCV (sempre PIX por definição, sem coluna — já era o conceito), e as 13 caixas temáticas via `onda3LinhaTransacao()` (`hydrate-onda3-livro-razao.js`).
+- **Origem fixa** (a fonte não tem `cartao_id` por linha — é agregado/schedule, não `transacoes`; cartão é sempre o mesmo por definição do livro): LRS/LRR (assinaturas/recorrências) = `💳 ••••4628`; LRP (parcelas Visa) = `💳 ••••4844`; LRMP (parcelas Mercado Pago) = `💳 ••••7642`; LRB (boletos) = `🧾 Boleto`; LRDOA (doações) = `🔑 PIX`.
+
+### 0.2 Bug real corrigido — "Combustível não muda" era race condition, não cache
+
+**Sintoma relatado pelo usuário**: mesmo com o servidor confirmado servindo o JS/HTML corrigidos (fetch direto com `cache:'no-store'` batendo), e testado em aba anônima genuína com navegador fechado entre tentativas, a Caixa Combustível continuava sem a coluna Origem e com o rodapé antigo (`-R$198,50`, a soma ERRADA que conta os 2 "Crédito KMV" de R$200 como saída de caixa).
+
+**Causa raiz real** (achada lendo o código, não suposta): `render-livros-variaveis.js` tem um bloco `CAIXAS_LR_SIMPLES` (+ 2 blocos irmãos pra PIX Vanessa e Bens Duráveis) que desenha as MESMAS 9+2 tabelas que `hydrate-onda3-livro-razao.js`/`aplicarOnda3LivroRazao()` (V2, correto) já desenha — só que com o shape antigo (sem Origem) e o rodapé de `VARS.caixaCombustivel` (nunca recalculado, sempre com a soma errada). 4 módulos assíncronos diferentes (`aplicarOnda4Lrei`, `aplicarOnda3LrwLrv`, `aplicarOnda10LrcLimbo`, `aplicarOnda12CaixasPequenasV2`) rechamam `renderLivrosVariaveis()` inteira só pra atualizar UMA tabela sua — e como todos são fetches paralelos sem ordem garantida, sempre que um deles resolvia DEPOIS de `aplicarOnda3LivroRazao()`, o redraw errado vencia a corrida e apagava o certo. Não era cache nenhum — cada F5/aba anônima literalmente refazia a corrida do zero, às vezes ganhando às vezes perdendo.
+
+**Fix**: `aplicarOnda3LivroRazao()` seta `window.__wallaceOnda3LivroRazaoAplicado = true` no fim (`hydrate-onda3-livro-razao.js`). `render-livros-variaveis.js` agora pula os 3 blocos (`CAIXAS_LR_SIMPLES` + PV + BD) quando essa flag já está `true` — a V2 correta nunca mais é sobrescrita depois de assumir. Commit `4e0b327`.
+
+**Efeito colateral aceito, documentado**: com a flag ativa, trocar de ciclo pelo seletor (`trocarCiclo()`) não redesenha mais essas 11 tabelas com dado filtrado por ciclo — mas `aplicarOnda3LivroRazao()` já não filtrava por ciclo mesmo antes desta correção (só por `caixa_id`), então não é uma regressão nova, é uma característica pré-existente da Onda 3 que ficou mais visível.
+
+### 0.3 LRCON (Consórcios) removido
+
+Aba/botão/pane HTML removidos (`Sistema_Wallace_Lira_Completo.html`), referência em `onda9MarcarIndisponivel` (`hydrate-onda9-livros-fixos.js`) limpa. Motivo: consórcios migraram pra Boletos há tempo, `cronograma_consorcios` permanentemente `ativo=false` — aba não tinha mais dado real pra mostrar.
+
+## 1. Pendência PRIORITÁRIA — "Não Reconciliado" do Mastercard Black ainda não fecha com a fatura real (usuário vai continuar isso com outro agente)
+
+**Estado real, Nível A/B (código lido + SQL rodado nesta sessão)**: `hydrate-visa-mb.js`, função que popula `mbLRNaoReconciliado` (linha ~75): `D.naoReconciliado = R.cartaoMB.total - D.corp - somaPartes`, onde `somaPartes` é a soma de LRW+LRV+LRS+LRR (as 4 categorias que compõem o pessoal, sem corporativo). `cartaoMBTotal` está fixado em R$6.480,29 (valor real do banco, âncora — ver `docs/decisions/EXCECAO_ARQUITETURAL_HEADLINE_TOTALS_CARTOES.md`, "a fatura sempre vence", nunca derivada só da V2). O resíduo (`naoReconciliado`) não fecha em zero.
+
+**A ideia do usuário pra resolver isso, nas palavras dele (repetida várias vezes nesta sessão)**: *"você precisa usar os LRs, das caixas para formar o cartão, toda compra que é feita no cartão é presa em um LR e uma caixa... você tem que sempre contar no total comprometido tudo que é registrado nesses livros LRW, LRV, LRS, LRR, LRC, LRCV, LRBD, LRMN, LREV, LRSF, LRSE, LRCB, LRCH, LREM como no Mastercard Black e para o Pessoal (s/ corporativo) tem que descontar o LRC."* — ou seja: a soma de TODOS os Livros Razão cuja Origem aponta pro cartão Mastercard Black (agora que a coluna Origem existe em todos eles, ver seção 0.1 acima) deveria, por construção, bater exatamente com a fatura real — porque toda compra no cartão nasce como uma linha de `transacoes` com aquele `cartao_id`, presa a uma caixa/LR específico (regra 1.3 do manual operacional).
+
+**O que já foi feito nesta sessão a caminho disso**: a coluna Origem (seção 0.1) é o pré-requisito de dado que faltava — antes dela não dava pra somar "tudo que aponta pro Mastercard Black" de forma confiável, porque as 13 caixas temáticas não guardavam `cartao_id` visível por linha nas tabelas. `atualizarCaixasTematicasComprometidoMB()` (`hydrate-visa-mb.js`) já busca o comprometido MB-only das 9 caixas temáticas via `getComprometidoPorCaixaECartoesV2` — mas **a tentativa de somar esse valor no `naoReconciliado` piorou o resultado ao vivo** (foi de +R$1.248,23 pra −R$1.617,62, testado com login real) e foi revertida — o valor continua calculado/exibido (`mbLRCaixasTematicas`) mas fora da fórmula. Não investigado a fundo o motivo de piorar (hipótese não confirmada: dupla contagem entre `somaPartes` — que já inclui LRW/LRV — e o comprometido das temáticas, que pode se sobrepor parcialmente com compras que também aparecem em LRW/LRV se a caixa "paga" via Caixa Variável em vez de saldo próprio).
+
+**Próximo passo sugerido pro agente que continuar**: antes de mexer na fórmula de novo, reconstruir a soma TOTAL de "tudo com Origem = Mastercard Black" **direto pela coluna Origem já implementada** (uma query em `transacoes` filtrando `cartao_id = <uuid do MB>` no ciclo relevante, comparada linha a linha contra o que cada LR já soma) em vez de tentar somar por-caixa-agregada de novo — a fonte de verdade pra "quem é MB" agora é o `cartao_id`, não mais uma lista de caixas presumidas. Se a soma direta por `cartao_id` também não bater com a fatura, o gap é uma transação real faltando ou mal-taggeada (`cartao_id` errado/nulo numa compra que deveria ser MB) — mesma classe dos 2 achados reais já feitos antes nesta investigação (TX28004 com `afeta_saldo_real` errado, MP*BROTHERSCLUB faltando lançar) — não um problema de fórmula.
+
+## 2. Bloco 28 (19/08/2026) — investigação P0 "transações V2 invisíveis": achado diferente do relatado, 1 bug real corrigido, 1 aviso de mitigação, 1 falso-alarme (KMV) descartado
 
 Usuário trouxe um relatório de outro agente (Claude Chat, arquivo `.md` avulso) alertando prioridade máxima: "48 transações lançadas só na V2 desde 13/07, R$7.091,00, nunca aparecem no painel real porque `app.js` ainda lê 100% de V1". Antes de agir, rodei 10 agentes (SQL direto no Supabase + leitura do código real, nunca supondo o relatório certo) pra confirmar ou refutar.
 
@@ -34,7 +67,7 @@ As 10 caixas afetadas (Caixa Variável, Bens Duráveis, PIX Geral Vanessa, Lance
 
 - **As outras 9 caixas do achado original** (mesmo padrão `afeta_saldo_real=false` + `cartao_id` nulo pode existir em outras, só Combustível foi confirmado por SQL) — não auditado linha a linha ainda, escopo desta sessão foi só confirmar o padrão e corrigir o achado concreto.
 
-## 1. Bloco 27 (19/08/2026) — automação de faturas via Gmail (Água/Gás/Energia) + consumo solar automático + gráficos novos
+## 3. Bloco 27 (19/08/2026) — automação de faturas via Gmail (Água/Gás/Energia) + consumo solar automático + gráficos novos
 
 ### 0.1 Água/Gás Medintech — automação completa, ponta a ponta
 
@@ -72,7 +105,7 @@ Pedido do usuário, 3 rodadas de refinamento (1ª tentativa errada foi mexer nos
 
 `ENERGIA_FATURAS_REAIS` continua `{}` — nenhuma fatura Energisa do próprio Wallace foi processada ainda (a dele deste ciclo não foi emitida). Quando chegar, mandar o PDF real pra confirmar UC + valor, e só então essa parte fica 100% validada (ver seção Pendências).
 
-## 2. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
+## 4. Bloco 26 (18/08/2026) — medidor da Wellida em produção de verdade (2 bugs reais corrigidos ao vivo) + reordenação de cards
 
 ### 1.1 Saga do erro Tuya `913` — 2 causas reais, ambas resolvidas
 
@@ -94,11 +127,11 @@ Ordem antiga: telemetria Wallace → telemetria Wellida → comparação Wallace
 - **Medidor da Wellida ficou fisicamente offline** (app Smart Life mostrou "Device Connection Failure") logo depois do 1º sucesso — orientado troubleshooting padrão (WiFi/roteador/disjuntor, mesmo problema já visto no medidor do Wallace). O contador de energia é gravado no hardware do próprio medidor (não se perde offline) — só a granularidade por-leitura fica comprometida no período sem conexão, o total nunca é perdido.
 - **Modelo do medidor da Wellida é bidirecional** (`forward_energy_total`/`reverse_energy_total`, DP diferente do CT simples do Wallace) — só energia total é gravada de verdade; potência/tensão/corrente/estado sempre ficam `—` pra ela, não é falha, é limitação real do aparelho (documentado em `docs/decisions/COMO_CONFIGURAR_NOVO_MEDIDOR_TUYA.md`).
 
-## 3. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
+## 5. Bloco 25 (18/08/2026) — medidor da Wellida: modelo identificado, robô adaptado, card replicado, extensão de link
 
 Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e88180e1474o2is`) — schema de DPs confirmado DIFERENTE do EKAZA CT do Wallace (só `forward_energy_total`/`reverse_energy_total`, sem tensão/corrente/potência/estado). `scripts/sync/atualizar_medidor_tuya.py` ganhou suporte a múltiplos modelos via `TUYA_MODELO` (`ekaza_ct` default Wallace, `bidirecional_ab` novo pra Wellida). Card "Consumo real × crédito" replicado pro painel privado e compartilhado (função `aplicarConsumoRealVsCreditoPorCasa()` generalizada, RPC ganhou `medidorTuyaWellidaConsumoDiario`/`medidorTuyaWellidaUltima`). Nova opção de estender validade de link de compartilhamento já existente (RPC `estender_compartilhamento_solar`, botão "+dias").
 
-## 4. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
+## 6. Bloco 24 (18/08/2026) — achado #4 resolvido de verdade + código morto eliminado + medidor Tuya preparado (infra inicial)
 
 **Achado #4** (trava de descompasso do card solar público): coluna `geracao_acumulada_atualizado_em` criada em `energia_solar_leituras`, robô `atualizar_geracao_saj.py` grava o timestamp real, RPC/painel privado/compartilhado atualizados — a trava (10 dias de descompasso) agora funciona de verdade nos 2 lados (antes nenhum dos 2 disparava, o campo era sempre `null`).
 
@@ -106,13 +139,13 @@ Usuário mandou prints ao vivo do painel Tuya (device já linkado, `ebf0d04e8818
 
 **Infra multi-casa do medidor Tuya** criada (banco, robô, workflow, card) — nessa época ainda hipotética ("quando o Device ID existir"), depois confirmada real no mesmo dia (bloco 25).
 
-## 5. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
+## 7. Bloco 23 (18/08/2026) — auditoria noturna autônoma (7 agentes + verificação adversarial, carta branca do usuário)
 
 Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta branca para agir". Workflow de 7 agentes finders (financeiro, V1×V2, sintaxe JS, paridade solar, código morto, UI/CSS, segurança) + verificação adversarial (1 skeptic por achado). **16 achados, 16 confirmados, 0 descartados.**
 
 **Limite respeitado mesmo com carta branca**: nenhuma escrita em tabela financeira, nenhum push sem avisar antes (regra permanente do `CLAUDE.md`). Corrigidos na hora: legenda Saúde Família dessincronizada, `CLAUDE.md` desatualizado (regra do `wallace_dados` obsoleta desde 12/08), comentários V1×V2 obsoletos, cor de gráfico divergente, 1 grant de segurança desnecessário revogado. O resto ficou reportado pro usuário decidir (resolvido nos blocos 24-26 acima).
 
-## 6. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
+## 8. Bloco 22 (18/08/2026) — recálculo de aportes + padronização de cards
 
 - **Caixa Saúde Família**: R$177,50 → **R$210,83/mês** (composição completa: 2x pediatra + 2x dentista Júlio + 1x ginecologista Vanessa + 2x endócrino Wallace).
 - **Emagrecimento**: R$278,89 → **R$490,00/mês** (caneta subiu de preço; usuário tem 3 canetas em estoque, não compra nova nos próximos 1-2 ciclos, mas aporte continua).
@@ -120,7 +153,7 @@ Usuário: "coloque 10 agente trabalhando... não pare, eu vou dormir... carta br
 - **Cards "Todas as Caixas"**: altura padronizada via `.caixas-grid`/`min-height:168px` (não testado ao vivo, exige login).
 - **3 LREI ativos** (R$266,23+R$103,55+R$1.950,77): confirmado real via SQL, não é bug.
 
-## 7. Bloco 21 e anteriores
+## 9. Bloco 21 e anteriores
 
 Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug crítico do `solar-compartilhado.html` (travamento "Carregando...") resolvido de verdade (erro de sintaxe JS); projeto DDSU666/SAJ do zero (Kit SEC não é exigível, firmware pronto, aguardando hardware físico 25/08/2026).
 
@@ -163,10 +196,16 @@ Ver `PASSAGEM_DE_TURNO.md` para o histórico narrativo completo. Resumo: bug cr�
 35. **NOVO bloco 28 — `FinanceService.js`/`PatrimonioService.js`/etc. NÃO EXISTEM em `main`** (deletados 14/08/2026, commit `2b20137`, código morto sem consumidor). Não citar/planejar em cima deles como "já prontos, só falta conectar" — só sobrevivem num worktree órfão nunca mergeado. O mecanismo real é `WallaceFinanceService` inline em `app.js` + `promocoes-financeengine.js`.
 36. **NOVO bloco 28 — `MATRIZ_MIGRACAO_FASE2.md` NÃO EXISTE** no repositório (nem no histórico do git). Se aparecer citado em algum relatório/prompt, tratar como referência não confiável.
 37. **NOVO bloco 28 — transação com `afeta_saldo_real=false` E `cartao_id=null` não é necessariamente bug.** Confirmado com o usuário: "Crédito KMV" (Posto Ipiranga) é um crédito pré-pago com controle próprio na tabela `beneficios_creditos`/card "Créditos e Cupons" — pago com crédito, não gera dívida, corretamente fora do saldo real e do comprometido no cartão. Antes de tratar esse padrão como bug em outra caixa, checar primeiro se existe um crédito pré-pago próprio (`beneficios_creditos`) cobrindo aquele gasto.
-38. **RESOLVIDO bloco 28 — TODAS as 17 fases de `promocoes-financeengine.js` (FASE 2F até FASE 2V) têm `aprovado = true` fixo agora**, por decisão explícita e repetida do usuário ("só V2 existe, nada paralelo") — não bloqueiam mais por divergência V1×V2, nunca. `WallaceComparator.compararLote()` continua rodando em todas, só que 100% como diagnóstico (`console.table`/`console.warn`), nunca mais decide o que é exibido. **Trade-off assumido conscientemente**: 3 dessas fases (2F, 2G item1/2) tinham staleness real (V1 congelado vs V2 vivo) — correção genuína. As outras 14 eram gate de REGRESSÃO DE FÓRMULA (V1×V2 usam as mesmas variáveis, sem fetch novo) — removê-las também significa que um bug de cálculo futuro no FinanceEngine não seria mais barrado automaticamente, só apareceria direto na tela (já aconteceu 1 vez, Solar/teto de disponibilidade, antes desta sessão). Se reabrir esse arquivo e desconfiar de algum número, `console.table` de cada fase ainda mostra a comparação V1×V2 — checar ali antes de mexer em código.
+38. **NOVO bloco 29 — coluna Origem (final do cartão ou PIX) existe em praticamente todos os Livros Razão agora.** Se algum LR novo for criado, seguir o mesmo padrão: dinâmica via `cartao_id` real quando a fonte é `transacoes` linha a linha (ver `onda3LinhaTransacao()`), fixa quando a fonte é agregado/schedule sem `cartao_id` por linha (LRS/LRR/LRP/LRMP/LRB/LRDOA).
+39. **NOVO bloco 29 — `renderLivrosVariaveis()` NUNCA deve ser rechamada inteira só pra redesenhar 1 tabela específica.** Ela redesenha por padrão as 9 caixas de `CAIXAS_LR_SIMPLES` + PV + BD, que hoje são donas de `hydrate-onda3-livro-razao.js`/`aplicarOnda3LivroRazao()` (V2) — rechamar a função inteira depois que a V2 já rodou (`window.__wallaceOnda3LivroRazaoAplicado === true`) é bloqueado por guarda, mas se criar um módulo novo que precisa redesenhar só LREI/LRW/LRV/LRC-limbo, escrever uma função dedicada pra essa tabela específica (mesmo padrão de `onda8LrbRenderTabela()`), nunca chamar `renderLivrosVariaveis()` de novo pra isso.
+40. **NOVO bloco 29 — LRCON removido de vez** (consórcios migraram pra Boletos, `cronograma_consorcios` permanentemente `ativo=false`). Não recriar sem pedido explícito novo.
+41. **NOVO bloco 29 — Não Reconciliado do Mastercard Black CONTINUA sem fechar com a fatura real.** Não é mais tratado como resolvido nem descartado — é a pendência prioritária pro próximo agente, ver seção 1 (Pendência PRIORITÁRIA) no topo deste arquivo. A ideia do usuário pra resolver é somar por `cartao_id` real (Origem, já implementada) em vez de por caixa-agregada.
+42. **RESOLVIDO bloco 28 — TODAS as 17 fases de `promocoes-financeengine.js` (FASE 2F até FASE 2V) têm `aprovado = true` fixo agora**, por decisão explícita e repetida do usuário ("só V2 existe, nada paralelo") — não bloqueiam mais por divergência V1×V2, nunca. `WallaceComparator.compararLote()` continua rodando em todas, só que 100% como diagnóstico (`console.table`/`console.warn`), nunca mais decide o que é exibido. **Trade-off assumido conscientemente**: 3 dessas fases (2F, 2G item1/2) tinham staleness real (V1 congelado vs V2 vivo) — correção genuína. As outras 14 eram gate de REGRESSÃO DE FÓRMULA (V1×V2 usam as mesmas variáveis, sem fetch novo) — removê-las também significa que um bug de cálculo futuro no FinanceEngine não seria mais barrado automaticamente, só apareceria direto na tela (já aconteceu 1 vez, Solar/teto de disponibilidade, antes desta sessão). Se reabrir esse arquivo e desconfiar de algum número, `console.table` de cada fase ainda mostra a comparação V1×V2 — checar ali antes de mexer em código.
 
 ## Pendências abertas
 
+0. **PRIORITÁRIA — Não Reconciliado do Mastercard Black ainda não fecha com a fatura real.** Ver seção 1 (Pendência PRIORITÁRIA) no topo deste arquivo pro detalhe completo e a ideia do usuário de como resolver (somar por `cartao_id`/Origem real, não por caixa-agregada). Usuário vai continuar isso com outro agente.
+0b. **NOVO bloco 29 — correção da race condition (Combustível "não muda") foi commitada/publicada mas NÃO validada em navegador real com login** nesta sessão (sem acesso a login). Confirmar visualmente na próxima sessão: Caixa Combustível deve mostrar 6 lançamentos com coluna Origem preenchida (🔑 PIX/dinheiro em todas, já que nenhuma tem `cartao_id`) e rodapé **+R$201,50** (não mais −R$198,50). Se ainda aparecer errado depois de F5 real, o bug NÃO é o mesmo já corrigido — investigar de novo do zero, não assumir que é a mesma causa.
 1. **DDSU666 (SAJ)**: aguardando hardware chegar (~25/08/2026) pra fiação/reconfiguração/teste real.
 2. **R$340,00 do ciclo Wärtsilä 2026-07** ainda não confirmados como recebidos (não confundir com TEDs já lançadas).
 3. **LREI0003/0004/0005 ativas** (R$266,23+R$103,55+R$1.950,77) — usuário optou por deixar como está, tendem a normalizar.
