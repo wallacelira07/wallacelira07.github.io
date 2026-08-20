@@ -3,8 +3,31 @@
 // modularização (07/08/2026). Script clássico (não ES module), carrega ANTES do app.js — hydrate() é
 // síncrona (onDomPronto(hydrate), dentro do próprio app.js) e chama hydrateVisaMB() no meio da
 // própria execução. Nenhum id de DOM, fórmula ou comportamento mudou.
+// NOVO 20/08/2026 (achado real do usuário: reconciliou o Visa Infinite item a item, R$0,00 exato,
+// mas a TELA continuava mostrando os valores antigos — R.visaDetalhe era um snapshot ESTÁTICO,
+// montado 1x em criarRegMercadoPago() lendo VARS naquele instante, nunca recalculado de novo
+// (diferente de mbDetalhe, que já tinha recalcularEHidratarMbPessoal()). Além disso, sem card em
+// hydrateVisaMB() abaixo já mantinha esse mesmo padrão pro lado MB — agora o Visa ganha o espelho
+// exato, chamado no início de hydrateVisaMB() pra qualquer um dos 3 pontos que já chamam essa função
+// (boot, promoverFaturaPluggyComoFonte(), aplicarOnda9LivrosFixos()) ganhar o recálculo de graça.
+function recalcularEHidratarVisaPessoal(){
+  if(typeof REG === 'undefined' || !REG.visaDetalhe) return;
+  const R = REG;
+  const D = R.visaDetalhe;
+  D.wallace = VARS.visaLRWHistorico;
+  D.vanessa = VARS.visaLRVHistorico;
+  D.parcelas = VARS.livroLRP;
+  D.assinaturas = VARS.visaLRSConfirmado;
+  D.recorrencias = VARS.visaLRRConfirmado;
+  D.consorcios = VARS.livroLRCONVisaOnly;
+  D.corp = VARS.livroLRCVisaOnly;
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios) * 100) / 100;
+  D.naoReconciliado = Math.round((R.cartaoInfinite.total - D.corp - somaPartes) * 100) / 100;
+}
+
 function hydrateVisaMB(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  recalcularEHidratarVisaPessoal();
   const R = REG;
 
   // NOVO 11/08/2026 (pedido do usuário: promover a fatura real da Pluggy como fonte do headline total,

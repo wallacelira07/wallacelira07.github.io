@@ -823,8 +823,18 @@
         <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Total comprometido</div><div class="v" style="font-size:1.4rem;font-weight:700" id="visaTotal">—</div></div>
         <div><div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.2rem">Pessoal (s/ corporativo)</div><div class="v" style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="visaPessoal">—</div></div>
       </div>
+      <!-- CORRIGIDO 20/08/2026 (achado real do usuário: reconciliação item a item do Visa achou
+           compras avulsas reais do Wallace/Vanessa neste cartão — Anthropic/MEGA/Uber/IOF cobrados
+           por engano no Visa, H57Store da Vanessa — mas o card nunca teve linha pra mostrar isso,
+           só "Parcelas" + um "migrado pro MB" lumped. Duas linhas novas, mesmo padrão do card MB
+           logo abaixo (mbLRW/mbLRV). legVisaAposentado/legVisaCorrecaoV207 não reescritas aqui —
+           os textos ainda descrevem a regra geral (cartão aposentado, sem compra variável NOVA
+           recorrente), essas 2 linhas cobrem as exceções pontuais já documentadas nos comentários
+           do próprio texto da legenda. -->
       <div class="v" id="legVisaAposentado" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">—</div>
       <div class="v" id="legVisaCorrecaoV207" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem;font-style:italic">—</div>
+      <div class="row"><span class="k">Compras Wallace (LRW-Visa)</span><span class="v" id="visaLRW">—</span></div>
+      <div class="row"><span class="k">Compras Vanessa (LRV-Visa)</span><span class="v" id="visaLRV">—</span></div>
       <div class="row"><span class="k">Parcelas (LRP) <span style="color:var(--text-dim);font-weight:400">— único componente ativo</span></span><span class="v" id="visaLRP">—</span></div>
       <div class="row"><span class="k" style="color:var(--text-dim)">Assinaturas/Recorrências/Consórcios/Corporativo <span style="color:var(--text-dim);font-weight:400">(migrados 100% para o Mastercard Black)</span></span><span class="v" style="color:var(--text-dim)" id="visaMigradoTotal">—</span></div>
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="visaLRNaoReconciliado">—</span></div>
