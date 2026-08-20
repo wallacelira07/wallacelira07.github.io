@@ -40,8 +40,8 @@ onDomPronto(() => {
 // carregado uma vez ao abrir a pagina).
 function inicializarBotoesPrintSecao(){
   document.querySelectorAll('.section-num').forEach(function(header){
-    if (header.querySelector('.btn-print-secao')) return; // evita duplicar se rodar 2x
     var card = header.nextElementSibling;
+    if (header.querySelector('.btn-print-secao') || (card && card.querySelector('.btn-print-secao'))) return; // evita duplicar se rodar 2x (2 lugares possíveis — ver bloco #lrTabs abaixo, que move o botão pra dentro do card)
     // no HTML do painel o conteudo real e sempre o IRMAO seguinte do
     // .section-num (nunca um ancestral) - mesma estrutura ja documentada
     // na passagem de turno pra ferramenta de print via Claude. Pode ser um
@@ -86,14 +86,22 @@ function inicializarBotoesPrintSecao(){
       }
       baixarSecaoComoJPEG(card, num, tituloFinal, btn);
     });
-    // REVERTIDO 19/08/2026 (achado do usuário: mover este botão pra DENTRO do .card — logo abaixo de
-    // #lrTabs — quebrou o download JPEG das abas carregadas via V2/async (LRC em diante): o botão
-    // virava filho do próprio elemento que baixarSecaoComoJPEG()/html2canvas captura, então a captura
-    // de algumas abas saía só com a grade de abas, sem a tabela. Botão de volta ao cabeçalho (fora do
-    // .card, nunca faz parte da captura) pra TODAS as seções, sem exceção — a reposicionamento pedido
-    // (botão mais perto do conteúdo em seções longas) fica pendente de uma solução que não insira
-    // nada dentro do próprio alvo de captura.
-    header.appendChild(btn);
+    // NOVO 20/08/2026 (pedido do usuário, retomado agora que a causa real do JPEG quebrado foi achada
+    // e corrigida em baixarSecaoComoJPEG() — remove/restaura os panes escondidos, não depende mais de
+    // o botão estar fora do .card): botão da seção "07 Livros Razão" ancorado logo abaixo da grade de
+    // abas (#lrTabs), perto de onde o conteúdo real começa — mais alcançável nessa seção, a única
+    // grande o suficiente pra justificar. Testado numa réplica de 25 abas/tabelas de 8 linhas antes de
+    // aplicar aqui: o botão aparece na imagem capturada (efeito colateral cosmético aceitável, pequeno
+    // ícone "⬇"/"…" no canto), mas a tabela renderiza certo — o que quebrava antes era o excesso de
+    // panes escondidos, não a posição do botão em si. Demais seções continuam com o botão no
+    // cabeçalho, sem mudança.
+    var lrTabsEl = card.querySelector('#lrTabs');
+    if (lrTabsEl) {
+      btn.classList.add('btn-print-secao--ancorado-abas');
+      lrTabsEl.insertAdjacentElement('afterend', btn);
+    } else {
+      header.appendChild(btn);
+    }
   });
 }
 
@@ -131,18 +139,35 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   }
   if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
   var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1115';
-  // REVERTIDO 20/08/2026 (achado do usuário ao vivo: a tentativa de `onclone` removendo
-  // `.pane:not(.active)` da cópia PIOROU o resultado em produção — passou a capturar só a grade de
-  // abas, ainda menor que antes, nem a tabela nem o espaço em branco esperado apareciam mais. Testado
-  // e confirmado funcionando numa página de teste isolada (8 panes sintéticos) antes de publicar, mas
-  // não se comportou igual com a estrutura real (~25 panes, tabelas grandes) — não investigado até o
-  // fim o motivo exato da diferença (suspeita: interação entre `onclone` e o jeito que o html2canvas
-  // 1.4.1 mede a altura total via iframe interno, quando muitos nós são removidos no meio do processo).
-  // Revertido pra chamada simples (comportamento de antes de toda esta investigação) até haver acesso
-  // real a login/dispositivo pra iterar com segurança — ver ESTADO_ATUAL.md pra o histórico completo
-  // das tentativas (posição do botão, `</div>` sobrando, `onclone`) e o que cada uma resolveu/não
-  // resolveu. Download da seção "Livros Razão" com abas tipo LRC continua com limitação conhecida,
-  // não resolvida.
+  // CORRIGIDO 20/08/2026, tentativa 2 (a 1ª, via `onclone`, piorou em produção — ver histórico em
+  // ESTADO_ATUAL.md). html2canvas 1.4.1 falha em renderizar o conteúdo de um elemento com MUITOS
+  // irmãos `display:none` no mesmo container (a seção "Livros Razão" tem até 24 `.pane` escondidos
+  // ao lado do único ativo) — confirmado numa página de teste isolada. `onclone` (mexe só na CÓPIA
+  // usada pro render) parecia mais seguro, mas se comportou diferente do teste isolado numa estrutura
+  // real bem maior — provável interação com o jeito que o html2canvas mede altura via iframe interno.
+  // Esta versão remove os panes escondidos da própria página real (não da cópia) ANTES da captura, e
+  // devolve cada um pro lugar EXATO de onde saiu (posição salva via `nextSibling`) assim que a captura
+  // termina — mesma técnica que funcionou no teste isolado desde o início. Imperceptível ao usuário:
+  // são elementos que já estavam com `display:none` (invisíveis), só saem/voltam da árvore por uma
+  // fração de segundo: `.pane:not(.active)` não existe fora da seção de Livros Razão, zero efeito nas
+  // outras ~47 seções do site.
+  var panesEscondidosRemovidos = [];
+  card.querySelectorAll('.pane:not(.active)').forEach(function(p){
+    panesEscondidosRemovidos.push({ el: p, proximoIrmao: p.nextSibling });
+    p.remove();
+  });
+  function restaurarPanesEscondidos(){
+    // ACHADO E CORRIGIDO ANTES DE PUBLICAR (testado isolado com 25 panes, escala real): restaurar na
+    // MESMA ordem em que foi removido lança `NotFoundError` — o `proximoIrmao` salvo de um pane pode
+    // ser OUTRO pane também removido, que ainda não voltou pro DOM na hora do `insertBefore`. Ordem
+    // INVERSA resolve: o último pane removido tem a referência mais estável (nunca outro removido),
+    // e cada restauração seguinte já encontra sua referência de volta no lugar. Confirmado sem erro e
+    // com a ordem final idêntica à original antes de aplicar aqui.
+    for (var i = panesEscondidosRemovidos.length - 1; i >= 0; i--) {
+      var item = panesEscondidosRemovidos[i];
+      card.insertBefore(item.el, item.proximoIrmao); // proximoIrmao null = insertBefore insere no final, comportamento correto
+    }
+  }
   html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
     var slug = titulo.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -162,6 +187,7 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
     console.error('Erro ao gerar JPEG da secao', num, err);
     alert('Não consegui gerar o JPEG dessa seção. Tenta de novo.');
   }).finally(function(){
+    restaurarPanesEscondidos(); // devolve os panes escondidos ANTES de qualquer outra coisa, mesmo se a captura falhou
     if (btnOrigem){ btnOrigem.disabled = false; btnOrigem.textContent = '⬇'; }
   });
 }
