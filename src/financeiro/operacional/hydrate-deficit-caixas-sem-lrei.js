@@ -40,6 +40,16 @@
 // Rollback: comentar a chamada onDomPronto(aplicarDeficitCaixasSemLrei) em app.js — necessidadeTotalBruta
 // volta a ser só a soma dos 7 componentes de sempre.
 
+// NOVO 20/08/2026 (pedido do usuário: "quero que resolva sem me dar mais dor de cabeça, o site já é
+// lento, não quero que fique mais lento" — achado real: a 1ª renderização (síncrona, boot) das tabelas
+// Superávit Normal/Déficit Zero/Piso×Necessidade Líquida mostra a Necessidade SEM o ajuste do déficit
+// de caixas, porque esse ajuste só chega depois desta função async terminar — usuário via o número
+// "errado" por 1-2s a cada refresh, 3 valores diferentes em 3 prints seguidos, achou o site bagunçado.
+// Fix NÃO adiciona nenhuma busca nova nem atraso real (os dados já iam levar esse tempo pra chegar) —
+// só esconde a pintura incompleta: as 3 tabelas afetadas checam esta flag antes de desenhar números,
+// mostram "Carregando..." em vez do valor incompleto até ela virar true (sempre vira, sucesso ou erro,
+// nunca trava esperando pra sempre).
+window.WALLACE_DEFICIT_CAIXAS_PRONTO = false;
 async function aplicarDeficitCaixasSemLrei(){
   let saldos, emprestimos, comprometidos;
   try {
@@ -75,11 +85,15 @@ async function aplicarDeficitCaixasSemLrei(){
   } catch(err){
     console.error('DeficitCaixasSemLrei: falha ao buscar saldo/LREI/comprometido da V2 — ajuste NÃO aplicado nesta rodada (Necessidade Total Bruta fica sem o risco de caixas negativas/estouradas no cartão).', err);
     window.WALLACE_DEFICIT_CAIXAS_RELATORIO = { status: 'erro_v2', erro: String(err) };
+    window.WALLACE_DEFICIT_CAIXAS_PRONTO = true; // nunca trava a tela esperando pra sempre, mesmo em erro
+    if(typeof hydrateCenarios === 'function') hydrateCenarios(); // libera as 3 tabelas do "Carregando..." mesmo sem ajuste
     return;
   }
   if(!Array.isArray(saldos) || !Array.isArray(emprestimos)){
     console.warn('DeficitCaixasSemLrei: resposta inesperada da V2 — ajuste não aplicado.');
     window.WALLACE_DEFICIT_CAIXAS_RELATORIO = { status: 'sem_dado_v2' };
+    window.WALLACE_DEFICIT_CAIXAS_PRONTO = true;
+    if(typeof hydrateCenarios === 'function') hydrateCenarios();
     return;
   }
 
@@ -123,6 +137,7 @@ async function aplicarDeficitCaixasSemLrei(){
   // ajuste lá dentro), que já recalcula REG.evolucao[0] junto. Único passo extra aqui é reconciliar
   // os gráficos já desenhados (ver atualizarGraficosNecessidade(), graficos-cenarios-lazy.js).
   REG.operacional.deficitCaixasSemLrei = deficitTotal;
+  window.WALLACE_DEFICIT_CAIXAS_PRONTO = true; // a partir daqui, as 3 tabelas (sn/dz/pnl) já podem pintar números reais
   // recalcularNecessidade() já cuida de necessidadeLiquida/saldoCiclo/fluxo.saidas/fluxo.resultado/
   // modoOperacional/REG.evolucao[0] — nenhuma dessas linhas precisa ser replicada aqui.
   if(typeof recalcularNecessidade === 'function') recalcularNecessidade();

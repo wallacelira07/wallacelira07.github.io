@@ -642,6 +642,13 @@ function _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDife
   function fmt0b(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
   const snTbody = $('snTableBody');
   if(!snTbody) return;
+  // NOVO 20/08/2026 (pedido do usuário: "cada hora é um valor" — snNecessidade depende do déficit de
+  // caixas sem LREI, ajustado async depois do boot. Sem isto, a 1ª pintura mostra número incompleto por
+  // 1-2s a cada refresh). Não adiciona busca nem atraso novo — só espera o dado que já ia chegar mesmo.
+  if(window.WALLACE_DEFICIT_CAIXAS_PRONTO === false){
+    snTbody.innerHTML = '<tr><td colspan="4" style="padding:0.6rem 0.5rem;color:var(--text-dim);text-align:center">Carregando dados reais…</td></tr>';
+    return;
+  }
   snTbody.innerHTML = snLabels.map((m,i)=>{
     const d = snDiferenca[i];
     const cor = d<0 ? 'var(--red)' : 'var(--green)';
@@ -955,8 +962,14 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   });
 
   const pnlTbody = $('pnlTableBody');
-  if(pnlTbody){
-    // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
+  // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
+  // NOVO 20/08/2026 (mesmo motivo do guard em snTableBody: pnlNec depende do déficit de caixas,
+  // ajustado async depois do boot — sem isto, a 1ª pintura mostra número incompleto). Usa if/else
+  // (não `return`) porque este bloco vive dentro de _lazyRenderCenariosDeficitEGraficosSolar(), que
+  // também renderiza os gráficos de energia solar mais abaixo — um return aqui cortaria tudo isso.
+  if(pnlTbody && window.WALLACE_DEFICIT_CAIXAS_PRONTO === false){
+    pnlTbody.innerHTML = '<tr><td colspan="5" style="padding:0.6rem 0.5rem;color:var(--text-dim);text-align:center">Carregando dados reais…</td></tr>';
+  } else if(pnlTbody){
     pnlTbody.innerHTML = psLabels.map((m,i)=>{
       const d = pnlDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
@@ -1010,8 +1023,12 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
   // Tabela HTML organizada abaixo do grafico - liquido, piso e diferenca por mes, texto real
   // (nao desenhado em canvas), garante legibilidade sem risco de sobreposicao.
   const dzTbody = $('dzTableBody');
-  if(dzTbody){
-    // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
+  // NOVO 20/08/2026 (mesmo pedido do destaque em snTableBody): índice 0 é sempre o ciclo atual.
+  // NOVO 20/08/2026 (mesmo motivo do guard em pnlTbody acima: dzPiso depende do déficit de caixas,
+  // ajustado async depois do boot — if/else em vez de return, mesmo motivo).
+  if(dzTbody && window.WALLACE_DEFICIT_CAIXAS_PRONTO === false){
+    dzTbody.innerHTML = '<tr><td colspan="4" style="padding:0.6rem 0.5rem;color:var(--text-dim);text-align:center">Carregando dados reais…</td></tr>';
+  } else if(dzTbody){
     dzTbody.innerHTML = dzLabels.map((m,i)=>{
       const d = dzDeficit[i];
       const cor = d<0 ? 'var(--red)' : 'var(--green)';
