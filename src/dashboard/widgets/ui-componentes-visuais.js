@@ -70,7 +70,21 @@ function inicializarBotoesPrintSecao(){
     btn.textContent = '⬇';
     btn.addEventListener('click', function(ev){
       ev.preventDefault();
-      baixarSecaoComoJPEG(card, num, titulo, btn);
+      // NOVO 19/08/2026 (pedido do usuário: "quero que identifique a caixa" — hoje todo download da
+      // seção 07 "Livros Razão" saía com o MESMO nome de arquivo pra qualquer aba selecionada,
+      // "secao-07-livros-razao-<data>", porque `titulo` acima vem só do <h2> da seção, calculado 1x
+      // na inicialização — nunca sabia qual das 25 abas estava ativa no momento do clique. Lido aqui
+      // dentro do handler (não lá em cima) porque a aba ativa muda a cada clique do usuário nos tabs,
+      // então precisa ser recalculado a cada download, não fixado na criação do botão. Funciona pra
+      // qualquer seção com abas (`.tab.active` dentro do card) — seções sem abas (a maioria) não têm
+      // esse elemento, cai no `titulo` original sem mudança nenhuma.
+      var tituloFinal = titulo;
+      var abaAtivaEl = card.querySelector('.tab.active');
+      if (abaAtivaEl) {
+        var nomeAba = abaAtivaEl.textContent.trim().replace(/\s*\(\d+\)\s*$/, ''); // tira o "(N)" de contagem, não faz parte do nome
+        tituloFinal = titulo + ' - ' + nomeAba;
+      }
+      baixarSecaoComoJPEG(card, num, tituloFinal, btn);
     });
     // REVERTIDO 19/08/2026 (achado do usuário: mover este botão pra DENTRO do .card — logo abaixo de
     // #lrTabs — quebrou o download JPEG das abas carregadas via V2/async (LRC em diante): o botão
