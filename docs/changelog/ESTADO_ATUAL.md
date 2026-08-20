@@ -142,7 +142,7 @@ Depois do fix da seção 5.5, o usuário apontou 2 problemas reais nos cards de 
 ## 6. Empréstimos internos (LREI) — estado individual
 
 - **LREI0003 (R$266,23, Fatura Cartão Mercado Pago)**: **QUITADO** hoje. O dinheiro (perna MP corporativo do reembolso Wärtsilä) já tinha chegado na Caixa Mercado Pago em 13/08 (`TX000292`) — só faltava o repasse formal de volta pra Caixa Lance, feito agora (`TX000357`/`TX000358`).
-- **LREI0004 (R$103,55, Caixa Manutenção)**: plano definido — vai sair dos R$340,00 que ainda faltam receber do reembolso Wärtsilä (chegam em breve). Ainda não executado — nenhuma transação lançada, só o plano registrado.
+- **LREI0004 (R$103,55, Caixa Manutenção)**: plano ORIGINAL (usar os R$340,00 do reembolso Wärtsilä) **mudou de destino em 20/08/2026** — os R$340 chegaram (Itaú→Mercado Pago→Caixa Lance, `TX000359-361`) e o usuário redirecionou 100% pra 2 urgências reais: R$55,29 pra Caixa Boletos (completar Van do Júlio, vencimento 22/08, `TX000362`/`TX000363`) + R$284,71 pra Emagrecimento (`TX000364`/`TX000365`). `reembolso_wartsila_ciclo.valor_a_receber` zerado (perna final recebida). **LREI0004 fica sem fonte de quitação definida — pendência real, precisa de novo plano.**
 - **LREI0005 (R$1.950,77, Caixa Boletos)**: plano definido — quitação gradual via sobras de salário, sem valor único definido. Ainda não executado.
 
 ## 7. Rastreamento da Cobertura Garantida (R$1.339,16) até os saldos das caixas
