@@ -239,6 +239,13 @@ function reconciliarPluggy(){
 // vez de depender sempre de digitação manual. Roda depois de reconciliarPluggy() (que continua
 // intacta, só detecta divergência pro log/Inbox) — leitura separada do mesmo dado, nenhuma duplicação
 // de lógica de mapeamento de cartão.
+// NOVO 20/08/2026 (pedido explícito do usuário: "não deixe, a fatura em pdf vale mais" — depois de
+// reconciliar o Visa Infinite item a item contra o PDF real do Bradesco e bater R$0,00 exato, decidiu
+// que esse valor manual deve travar como prioritário até ele mesmo confirmar a próxima fatura da
+// Pluggy). Lista explícita de `totalVar` que NUNCA são promovidos automaticamente — separado do flag
+// `bloqueado` (que já existe pra "cartão bloqueado no banco", semântica diferente, não reaproveitar).
+// Remover desta lista quando o usuário confirmar que a Pluggy pode voltar a mandar no Visa.
+const PLUGGY_PROMOCAO_TRAVADA = ['cartaoInfiniteTotal'];
 function promoverFaturaPluggyComoFonte(){
   const pc = VARS.PLUGGY_CONTAS;
   const promovidos = [];
@@ -248,7 +255,7 @@ function promoverFaturaPluggyComoFonte(){
     (conexao.contas||[]).forEach(conta => {
       if(conta.tipo !== 'CREDIT') return;
       const mapa = /mercado\s*pago/i.test(conta.nome) ? {totalVar:'mercadoPagoFatura'} : CARTAO_PLUGGY_MAPA[conta.numero];
-      if(!mapa || !mapa.totalVar || mapa.bloqueado) return;
+      if(!mapa || !mapa.totalVar || mapa.bloqueado || PLUGGY_PROMOCAO_TRAVADA.includes(mapa.totalVar)) return;
       const faturaPluggy = conta.fatura_mes_atual ? conta.fatura_mes_atual.valor_total : null;
       // Pluggy pode devolver 0 mesmo com fatura real em aberto (achado documentado 05/08/2026, caso
       // Mercado Pago) — 0/null tratados igual: sem dado confiável, mantém o valor atual.
