@@ -239,13 +239,15 @@ function reconciliarPluggy(){
 // vez de depender sempre de digitação manual. Roda depois de reconciliarPluggy() (que continua
 // intacta, só detecta divergência pro log/Inbox) — leitura separada do mesmo dado, nenhuma duplicação
 // de lógica de mapeamento de cartão.
-// NOVO 20/08/2026 (pedido explícito do usuário: "não deixe, a fatura em pdf vale mais" — depois de
-// reconciliar o Visa Infinite item a item contra o PDF real do Bradesco e bater R$0,00 exato, decidiu
-// que esse valor manual deve travar como prioritário até ele mesmo confirmar a próxima fatura da
-// Pluggy). Lista explícita de `totalVar` que NUNCA são promovidos automaticamente — separado do flag
-// `bloqueado` (que já existe pra "cartão bloqueado no banco", semântica diferente, não reaproveitar).
-// Remover desta lista quando o usuário confirmar que a Pluggy pode voltar a mandar no Visa.
-const PLUGGY_PROMOCAO_TRAVADA = ['cartaoInfiniteTotal'];
+// NOVO 20/08/2026 (pedido explícito do usuário, ampliado depois pra TODAS as faturas: "faça isso para
+// as demais fatura, a fatura em pdf ou prints sempre vencem" — regra geral agora, não só o Visa que
+// motivou a 1ª versão desta lista). Lista explícita de `totalVar` que NUNCA são promovidos
+// automaticamente pela Pluggy — só os 3 que existem em CARTAO_PLUGGY_TOTALVAR_POR_NUMERO/o
+// caso especial do Mercado Pago (ver mapa abaixo). Separado do flag `bloqueado` (que já existe pra
+// "cartão bloqueado no banco", semântica diferente, não reaproveitar). Remover um item específico
+// desta lista quando o usuário confirmar que a Pluggy pode voltar a mandar naquele cartão de novo —
+// não é uma decisão "pra sempre", é "até a próxima reconciliação manual confirmada".
+const PLUGGY_PROMOCAO_TRAVADA = ['cartaoInfiniteTotal', 'cartaoMBTotal', 'mercadoPagoFatura'];
 function promoverFaturaPluggyComoFonte(){
   const pc = VARS.PLUGGY_CONTAS;
   const promovidos = [];
