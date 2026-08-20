@@ -131,7 +131,21 @@ function baixarSecaoComoJPEG(card, num, titulo, btnOrigem){
   }
   if (btnOrigem){ btnOrigem.disabled = true; btnOrigem.textContent = '…'; }
   var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1115';
-  html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
+  // CORRIGIDO 19/08/2026 (achado do usuário, reproduzido isolado numa página de teste antes de mexer
+  // aqui: baixar o JPEG da seção "07 Livros Razão" com uma aba tipo LRC/LRMI/LRCC ativa saía só com a
+  // grade de abas, sem a tabela — mesmo a tabela aparecendo normal na TELA). Causa raiz real: html2canvas
+  // 1.4.1 falha em renderizar o conteúdo de um elemento quando ele tem MUITOS irmãos `display:none` no
+  // mesmo container (aqui, até 24 `.pane` escondidos ao lado do único ativo) — testado e confirmado:
+  // removendo os panes escondidos, a captura funciona certo. `onclone` do html2canvas roda numa CÓPIA
+  // isolada do DOM (usada só pra desenhar o canvas), nunca a página real — seguro remover os panes
+  // inativos dessa cópia sem afetar o que o usuário está vendo/usando ao mesmo tempo. `.pane:not(.active)`
+  // não existe fora da seção de Livros Razão, então isso não muda nada nas outras ~47 seções do site.
+  html2canvas(card, {
+    backgroundColor: corFundo, scale: 2, useCORS: true,
+    onclone: function(_clonedDoc, clonedEl){
+      clonedEl.querySelectorAll('.pane:not(.active)').forEach(function(p){ p.remove(); });
+    }
+  }).then(function(canvas){
     var slug = titulo.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
