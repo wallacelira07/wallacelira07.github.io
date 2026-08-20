@@ -116,20 +116,18 @@ function recalcularNecessidade(){
   // um array vivo aqui, e REG.superavitNormal.necessidade abaixo passa a ser a MESMA referência (não
   // uma cópia) — impossível dessincronizar de novo, os dois nomes sempre apontam pro mesmo array.
   REG.evolucao.necessidadeBruta = [];
-  // CORRIGIDO 20/08/2026 (pedido explícito do usuário: "se eu vou cobrir as caixas negativas com o
-  // salário de 25/08, é lógico que esses custos têm que ser somados à necessidade do próximo ciclo" —
-  // antes o déficit de caixas sem LREI (aplicarDeficitCaixasSemLrei()) só entrava na Necessidade Bruta
-  // do índice 0 (ciclo atual), nunca nos índices projetados 1-11, mesmo esses sendo exatamente os
-  // valores comparados contra o salário esperado nos cards "Necessidade × Salário"/"Estimador".
-  // Mesmo tratamento das outras 4 linhas "fixas" (Boletos/Consórcios/Recorrências/Assinaturas, ver
-  // baseFixaOperacional acima): sem dado real de como cada caixa vai evoluir mês a mês, assume-se o
-  // valor de HOJE constante pra frente — quando a caixa for de fato corrigida, o próximo recálculo
-  // (ao vivo) já reflete o déficit menor/zerado automaticamente, nenhum valor fica "travado".
+  // REVERTIDO 20/08/2026 (mesmo dia — usuário pediu pra tentar somar o déficit direto na projeção,
+  // gostou da ideia mas preferiu não embutir a suposição no número principal: "vamos manter como era
+  // antes, e o que você deve criar é algo tipo 'se não for quitado até o dia 25 sua necessidade sobe
+  // pra xxxxx'"). Índices projetados (1-11) voltam a NÃO incluir deficitCaixasSemLrei — ele é um
+  // retrato ao vivo de HOJE, não um custo com cronograma conhecido. O aviso condicional agora vive
+  // em hydrate-estimador-salario.js (REG.operacional.deficitCaixasSemLrei somado só na exibição do
+  // texto de alerta, nunca no valor base).
   for(let i=0;i<12;i++){
     const parcelasProj = somaParcelasProjetadas(i);
     const aportesPatProj = r2(D.aportesPat + (calcularAporteIncrementalPorCiclo(i) - aporteIncrementalHoje));
     const totalOpProj = r2(baseFixaOperacional + aportesPatProj + parcelasProj);
-    const necBrutaProj = r2(totalOpProj + REG.operacional.orcamentoOperacional + REG.operacional.deficitCaixasSemLrei);
+    const necBrutaProj = r2(totalOpProj + REG.operacional.orcamentoOperacional);
     const coberturaProj = i===0 ? REG.operacional.coberturaGarantida : 0; // cobertura garantida so existe confirmada pro ciclo atual, nunca projetada pra frente (regra 04 - nao chutar confirmacao futura)
     REG.evolucao.totalOperacional.push(totalOpProj);
     REG.evolucao.necessidadeBruta.push(necBrutaProj);

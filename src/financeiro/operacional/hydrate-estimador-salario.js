@@ -43,6 +43,25 @@ function hydrateEstimadorSalario(){
   // recalcular-necessidade.js, só nunca tinha sido ligado aqui).
   t('estExcedente', fmt(excedenteEst)+' · Modo '+R.operacional.modoOperacional);
 
+  // NOVO 20/08/2026 (pedido explícito do usuário, depois de decidir NÃO embutir o déficit de caixas
+  // sem LREI direto no número principal: "vamos manter como era antes, e o que você deve criar é algo
+  // tipo 'se não for quitado até o dia 25 sua necessidade sobe pra xxxxx'"). Aviso condicional, só
+  // aparece se existe déficit real hoje (REG.operacional.deficitCaixasSemLrei, ao vivo via
+  // aplicarDeficitCaixasSemLrei()) — mostra quanto a Necessidade Líquida do próximo ciclo ficaria SE
+  // esse déficit não for resolvido até o fechamento (24/08). Não muda estNecLiquida/homeNecLiquida,
+  // só informa o cenário condicional.
+  const deficitCaixasHoje = R.operacional.deficitCaixasSemLrei || 0;
+  const necLiquidaSeDeficitPersistir = Math.round((R.evolucao.necessidadeLiquida[1] + deficitCaixasHoje)*100)/100;
+  const textoAvisoDeficit = deficitCaixasHoje > 0
+    ? `⚠️ Hoje há ${fmt(deficitCaixasHoje)} em caixas negativas sem LREI cobrindo. Se não for quitado até o fechamento do ciclo (24/08), a Necessidade Líquida do próximo ciclo sobe para ${fmt(necLiquidaSeDeficitPersistir)}.`
+    : null;
+  ['homeAvisoDeficit','estAvisoDeficit'].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    if(textoAvisoDeficit){ el.textContent = textoAvisoDeficit; el.style.display = ''; }
+    else { el.style.display = 'none'; }
+  });
+
   // NOVO 16/08/2026 (pedido do usuário: cards na Home com Necessidade/Salário esperado/Sobra real) —
   // MESMOS 3 valores já calculados acima (liquidoMes(1), R.evolucao.necessidadeLiquida[1], excedenteEst),
   // só promovidos pra um card mais visível — nenhum cálculo novo/duplicado. CORRIGIDO 19/08/2026 (2ª
