@@ -89,11 +89,26 @@ function onda3AtualizarNotaDisponivelReal(tfEl, temComprometidoNoCartao){
   nota.textContent = '(=) Este total é o Disponível real: já desconta o comprometido no cartão (compra ainda não paga) deste ciclo.';
 }
 
-function onda3LinhaTransacao(t){
+// AMPLIADO 19/08/2026 (pedido repetido do usuário: "toda compra que entra no livro deve ter um
+// campo para descriminar de onde saiu, cartão aí usa o final do cartão ou PIX" — as caixas são
+// "pulmão" pra cobrir custo tanto no cartão quanto no PIX, e sem essa tag fica difícil auditar/achar
+// duplicidade). cartoesMapa é opcional (id→numero_final) — sem ele, cai pra "PIX/dinheiro" genérico
+// se cartao_id vazio, ou mostra só "cartão" sem o final se o mapa não carregou (nunca quebra a linha
+// por falta desse dado auxiliar).
+function onda3LinhaTransacao(t, cartoesMapa){
   const tipo = t.tipo === 'entrada' ? 'Entrada' : 'Saída';
   const cor = tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
   const tx = t.tx_legado || '—';
-  return `<tr><td class="mono">${tx}</td><td class="mono">${onda3FormatarDataV2(t.data)}</td><td>${t.descricao||''}</td><td style="color:${cor}">${tipo}</td><td class="r">${fmt(Number(t.valor))}</td></tr>`;
+  let origemTxt, origemCor;
+  if(t.cartao_id){
+    const final = cartoesMapa && cartoesMapa[t.cartao_id];
+    origemTxt = final ? `💳 ••••${final}` : '💳 cartão';
+    origemCor = 'var(--text-dim)';
+  } else {
+    origemTxt = '🔑 PIX/dinheiro';
+    origemCor = 'var(--text-dim)';
+  }
+  return `<tr><td class="mono">${tx}</td><td class="mono">${onda3FormatarDataV2(t.data)}</td><td>${t.descricao||''}</td><td style="color:${cor}">${tipo}</td><td style="color:${origemCor};font-size:var(--fs-2xs)">${origemTxt}</td><td class="r">${fmt(Number(t.valor))}</td></tr>`;
 }
 
 // ENDURECIDO (08/08/2026, Wave A): alvo é tbody (não id simples), então usa wrapper local
@@ -103,15 +118,18 @@ function onda3LinhaTransacao(t){
 function onda3LivroRazaoMarcarIndisponivel(motivo){
   ONDA3_LR_MAPA.forEach(({tbodyId}) => {
     const tbody = $(tbodyId);
-    if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-danger)" title="'+(motivo||'').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</td></tr>';
+    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-danger)" title="'+(motivo||'').replace(/"/g,'&quot;')+'">⚠ Indisponível (V2)</td></tr>';
   });
 }
 
 async function aplicarOnda3LivroRazao(){
   const caixaIds = ONDA3_LR_MAPA.map(m => m.caixaId);
-  let transacoes;
+  let transacoes, cartoesMapa;
   try {
-    transacoes = await WallaceFinanceService.getTransacoesPorCaixaIds(caixaIds);
+    [transacoes, cartoesMapa] = await Promise.all([
+      WallaceFinanceService.getTransacoesPorCaixaIds(caixaIds),
+      WallaceFinanceService.getCartoesMapa().catch(() => ({})), // origem cai pra "💳 cartão" genérico se isso falhar, nunca quebra a tabela
+    ]);
   } catch(err){
     console.error('Onda3LivroRazao: falha ao buscar transacoes — domínio V2-exclusivo, sem fallback silencioso pro V1.', err);
     onda3LivroRazaoMarcarIndisponivel('Falha ao buscar transacoes (Onda 3 Livro Razão): ' + String(err));
@@ -134,7 +152,7 @@ async function aplicarOnda3LivroRazao(){
       relatorio.push({ caixa: caixaNome, status: 'sem_dado_v2', fonte: 'V1 (fallback)' });
       return;
     }
-    tbody.innerHTML = linhas.map(onda3LinhaTransacao).join('');
+    tbody.innerHTML = linhas.map(t => onda3LinhaTransacao(t, cartoesMapa)).join('');
     // CORRIGIDO 19/08/2026 (achado do usuário, Caixa Combustível: "só tenho saldo positivo, nunca
     // tirei dinheiro dela" — rodapé mostrava -R$198,50): a soma somava TODA transação como
     // entrada/saída de caixa, inclusive as 2 saídas "Crédito KMV" (afeta_saldo_real=false,

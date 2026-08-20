@@ -681,7 +681,7 @@
     </div>
 
     <div id="lrpvsaldo" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvsaldoTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvsaldoTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.PV_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Reserva do Wallace para apoiar a Vanessa — aportes mensais + reforços diretos à PGV quando o saldo dela fica baixo (regra: repor quando PGV cai abaixo de R$50,00, seção 7 Políticas).</div>
@@ -689,7 +689,7 @@
     </div>
 
     <div id="lrbd" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrbdTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrbdTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.BENS_DURAVEIS_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Compras de bem durável (eletrônico, roupa, calçado, panela) — centro de custo separado da Caixa Variável (mesma lógica do custo corporativo), mesmo sendo cobrado na mesma fatura Mastercard Black. Desde 05/08/2026 esse custo NÃO entra mais no comprometido/disponível da Caixa Variável (fica só aqui e no total da fatura do cartão) — isso libera saldo na Caixa Variável. Aporte alvo <span id="lrbdAporteAlvo">R$250,00</span>/mês. Saldo pode ficar negativo quando a compra acontece antes da reserva cobrir — isso é normal, não indica erro.</div>
@@ -701,63 +701,63 @@
          Mesma estrutura exata do LRBD acima, renderizadas pelo bloco generico CAIXAS_LR_SIMPLES em
          renderLivrosVariaveis() (app.js). -->
     <div id="lrlance" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrlanceTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrlanceTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CAIXA_LANCE_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrlance">—</span><span class="total v" id="tf_lrlance">—</span></div>
     </div>
 
     <div id="lrmanut" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmanutTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmanutTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MANUTENCAO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrmanut">—</span><span class="total v" id="tf_lrmanut">—</span></div>
     </div>
 
     <div id="lraniv" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lranivTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lranivTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.ANIVERSARIO_JULIO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lraniv">—</span><span class="total v" id="tf_lraniv">—</span></div>
     </div>
 
     <div id="lreventos" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lreventosTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lreventosTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.EVENTOS_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lreventos">—</span><span class="total v" id="tf_lreventos">—</span></div>
     </div>
 
     <div id="lrsaude" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrsaudeTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrsaudeTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SAUDE_FAMILIA_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrsaude">—</span><span class="total v" id="tf_lrsaude">—</span></div>
     </div>
 
     <div id="lrseguro" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrseguroTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrseguroTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.SEGURO_EMPLACAMENTO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrseguro">—</span><span class="total v" id="tf_lrseguro">—</span></div>
     </div>
 
     <div id="lrcomb" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcombTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrcombTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.COMBUSTIVEL_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrcomb">—</span><span class="total v" id="tf_lrcomb">—</span></div>
     </div>
 
     <div id="lrchurrasco" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrchurrascoTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrchurrascoTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.CHURRASCO_TRANSACOES -->
       </tbody></table>
       <div class="tfoot"><span id="qtd_lrchurrasco">—</span><span class="total v" id="tf_lrchurrasco">—</span></div>
     </div>
 
     <div id="lrmci" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmciTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrmciTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.MASTERCARD_INFINITE_TRANSACOES -->
       </tbody></table>
       <div class="callout ok">Guarda o valor pra pagar as faturas Visa Infinite + Mastercard Black. Aportes reais avisados pelo usuário (não são pagamentos que saíram desta caixa).</div>
@@ -765,7 +765,7 @@
     </div>
 
     <div id="lrpv" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvTbody">
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lrpvTbody">
       <!-- Gerado dinamicamente por renderLivrosVariaveis() a partir de VARS.LRPGV_TRANSACOES -->
       </tbody></table>
       <div class="v callout ok" id="legPGVSaldoResidual">—</div>
@@ -773,8 +773,8 @@
     </div>
 
     <div id="lremag" class="pane">
-      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lremagTbody">
-      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
+      <table><thead><tr><th scope="col">TX</th><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Origem</th><th scope="col" class="r">Valor</th></tr></thead><tbody id="lremagTbody">
+      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Carregando…</td></tr>
       </tbody></table>
       <div class="tfoot"><span id="qtd_lremag">—</span><span class="total v" id="tf_lremag">—</span></div>
     </div>

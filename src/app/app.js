@@ -565,6 +565,22 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 19/08/2026 (pedido repetido do usuário: "toda compra que entra no livro deve ter um campo
+  // para descriminar de onde saiu, cartão aí usa o final do cartão ou PIX" — facilita auditoria e
+  // achar duplicidade/erro de reconciliação). Mapa id→numero_final, cache de sessão inteira (cartões
+  // não mudam em tempo real).
+  async getCartoesMapa(){
+    return this._cache.obterOuBuscar('cartoes_mapa', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/cartoes?select=id,numero_final`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cartoes`);
+      const lista = await resp.json();
+      const mapa = {};
+      lista.forEach(c => { mapa[c.id] = c.numero_final; });
+      return mapa;
+    });
+  },
   // NOVO 12/08/2026 (tooltip de composição — pedido do usuário: "quando eu passar o mouse ou o dedo,
   // mostrar o que se soma pra gerar" o saldo de cada card da seção 05/Caixas Operacionais). Replica
   // EXATAMENTE o filtro de vw_saldo_v2_por_caixa (ver pg_get_viewdef consultado antes de escrever isto):
