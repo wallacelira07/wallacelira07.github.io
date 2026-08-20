@@ -205,3 +205,42 @@ async function aplicarOnda3LivroRazao(){
   // nos módulos irmãos, replicado aqui.
   if(typeof atualizarContadoresAbasLR === 'function') atualizarContadoresAbasLR();
 }
+
+// NOVO 19/08/2026 (achado do usuário: "porque a saída de 33 de hoje não consta no LR? Isso não pode
+// acontecer nunca" — LRCV/tfPixDiversos vinham 100% de VARS.LRCV_TRANSACOES/pixDiversosSaidas/
+// pixDiversosEntradas, literais V1 hardcoded com só 2 lançamentos antigos (26/07 e 01/08),
+// congelados desde então — a TX000345 de hoje, e qualquer PIX novo da Caixa Variável, nunca
+// apareceriam aqui até alguém editar o array no código à mão. Agora V2-live: busca as movimentações
+// PIX/dinheiro reais (cartao_id IS NULL — LRW/LRV já cobrem o lado cartão da mesma caixa,
+// separadamente) da própria Caixa Variável, mesmo padrão da Onda 3 acima.
+const LRCV_CAIXA_ID = '8522e256-2039-4c11-bd28-69738bfcf5b8'; // Caixa Variável
+async function aplicarOnda3Lrcv(){
+  const tbody = $('lrcvTbody');
+  if(!tbody) return;
+  let transacoes;
+  try {
+    transacoes = await WallaceFinanceService.getTransacoesPorCaixaIds([LRCV_CAIXA_ID]);
+  } catch(err){
+    console.error('Onda3Lrcv: falha ao buscar transações da Caixa Variável — mantendo o literal V1 antigo.', err);
+    return;
+  }
+  if(!Array.isArray(transacoes)) return;
+  // Só PIX/dinheiro (cartao_id null) — compra de cartão da Caixa Variável já é LRW/LRV, não duplica aqui.
+  const linhas = transacoes.filter(t => !t.cartao_id).sort((a,b) => (a.data < b.data ? 1 : -1));
+  if(!linhas.length){
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação PIX/dinheiro neste ciclo ainda.</td></tr>';
+  } else {
+    tbody.innerHTML = linhas.map(t => {
+      const tipoTxt = t.tipo === 'entrada' ? 'PIX Entrada' : 'PIX Saída';
+      const obsHtml = t.descricao ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${_lrvEscapeHtml(t.descricao)}</span>` : '';
+      return `<tr><td class="mono">${t.tx_legado||'—'}</td><td class="mono">${onda3FormatarDataV2(t.data)}</td><td>${tipoTxt}${obsHtml}</td><td class="r">${fmt(Number(t.valor))}</td></tr>`;
+    }).join('');
+  }
+  const saidas = Math.round(linhas.filter(t=>t.tipo==='saida').reduce((s,t)=>s+Number(t.valor),0)*100)/100;
+  const entradas = Math.round(linhas.filter(t=>t.tipo==='entrada').reduce((s,t)=>s+Number(t.valor),0)*100)/100;
+  const liquido = Math.round((entradas - saidas)*100)/100;
+  const t2 = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  t2('tfPixDiversosDetalhe', 'Saídas '+fmt(saidas)+' · Entradas '+fmt(entradas));
+  t2('tfPixDiversosLiquido', 'Líquido '+(liquido<0?'− ':'+ ')+fmt(Math.abs(liquido)));
+  console.log(`Onda3Lrcv: LRCV atualizado V2 — ${linhas.length} lançamento(s) PIX, líquido ${fmt(liquido)}.`);
+}

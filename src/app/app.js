@@ -2374,6 +2374,9 @@ onDomPronto(renderLivrosVariaveis); // V168/V170: gera as tabelas LRW/LRV/LRC-li
 // inverteria e V1 apagaria o V2 escrito antes). Fallback automático: só sobrescreve em caso de
 // sucesso do fetch. Rollback: comentar esta linha.
 onDomPronto(medirOnda('aplicarOnda3LivroRazao', aplicarOnda3LivroRazao));
+// NOVO 19/08/2026 (achado do usuário: LRCV preso em VARS.LRCV_TRANSACOES, literal V1 com só 2
+// lançamentos hardcoded — "a saída de 33 de hoje não consta no LR, isso não pode acontecer nunca").
+onDomPronto(aplicarOnda3Lrcv);
 // ONDA 4, domínio 3 — LREI (08/08/2026): mesmo motivo de ordem do comentário acima — precisa que
 // renderLivrosVariaveis() (V1) já tenha rodado. Reaproveita a própria função pra redesenhar, agora
 // com VARS.LREI_ATIVAS vindo da V2. Ver hydrate-onda4-lrei.js.
