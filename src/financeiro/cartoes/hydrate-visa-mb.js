@@ -62,17 +62,20 @@ function recalcularEHidratarMbPessoal(){
   D.corp = VARS.mbLRCConfirmado;
   D.wallace = VARS.mbLRWConfirmado;
   D.vanessa = VARS.mbLRVConfirmado;
-  // NOVO 19/08/2026 (achado do usuário, print real do site: "Não reconciliado R$1.248,23" — mas
-  // ele deveria ter caído quase a zero, porque esse residuo é exatamente o comprometido das 9
-  // caixas temáticas ligadas ao Mastercard Black — LRCB/LRCH/LRMI/LREM/LRBD/LRMN/LREV/LRSF/LRSE —
-  // que nunca entravam nesta soma. D.caixasTematicas é preenchido por
-  // atualizarCaixasTematicasComprometidoMB() (abaixo), fica 0 até o primeiro fetch terminar.
-  const caixasTematicas = D.caixasTematicas || 0;
-  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios + caixasTematicas) * 100) / 100;
+  // REVERTIDO 19/08/2026 (mesma sessão, poucos minutos depois): a tentativa de somar as 9 caixas
+  // temáticas no Não Reconciliado (comentário original abaixo) PIOROU o resultado ao vivo — o
+  // usuário testou no painel real e "Não Reconciliado" foi de +R$1.248,23 pra -R$1.617,62 (achado
+  // com evidência real, não suposição). Confirmei que vw_transacoes_cartao_variavel_por_pessoa (LRW/
+  // LRV) é escopada só pra Caixa Variável, então não é dupla-contagem óbvia ali — a causa raiz real
+  // ainda não foi encontrada (pode ser fatura R$6.480,29 sendo só do cartão 1371 sozinho, não a
+  // família 1371+4628 consolidada; pode ser outra coisa). D.caixasTematicas continua calculado e
+  // exibido (linha "Caixas temáticas" na tela) só como DADO INFORMATIVO — não entra mais na soma que
+  // decide Não Reconciliado, até a causa raiz ser confirmada de verdade (não adivinhada de novo).
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios) * 100) / 100;
   D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   t('mbLRC', fmt(D.corp));
-  t('mbLRCaixasTematicas', fmt(caixasTematicas));
+  t('mbLRCaixasTematicas', fmt(D.caixasTematicas || 0));
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - D.corp)));
   t('mbLRNaoReconciliado', fmt(D.naoReconciliado));
   // Donut "Composição" (seção 10) foi desenhado no boot com o mbDetalhe de então — atualiza junto,

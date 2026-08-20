@@ -830,11 +830,11 @@
       <div class="row"><span class="k">Recorrências (LRR-MB)</span><span class="v" id="mbLRR">R$ 0,00</span></div>
       <div class="row"><span class="k">Consórcios (LRCON-MB)</span><span class="v" id="mbLRCON">R$ 0,00</span></div>
       <div class="row"><span class="k">Corporativo (LRC-MB)</span><span class="v" id="mbLRC">R$ 0,00</span></div>
-      <!-- NOVO 19/08/2026 (pedido do usuário: "tem que sempre contar no total comprometido tudo que é
-           registrado nesses livros... LRBD, LRMN, LREV, LRSF, LRSE, LRCB, LRCH, LREM, LRMI" — esses 9
-           livros de caixa temática nunca entravam na conta de Não Reconciliado, mesmo tendo compra
-           real no Mastercard Black. Ver recalcularEHidratarMbPessoal() em hydrate-visa-mb.js. -->
-      <div class="row"><span class="k">Caixas temáticas <span style="color:var(--text-dim);font-weight:400">(LRCB+LRCH+LRMI+LREM+LRBD+LRMN+LREV+LRSF+LRSE-MB)</span></span><span class="v" id="mbLRCaixasTematicas">R$ 0,00</span></div>
+      <!-- NOVO 19/08/2026 (pedido do usuário), REVERTIDO da soma no mesmo dia (piorou o Não
+           Reconciliado ao vivo, causa raiz ainda não confirmada — ver comentário em
+           recalcularEHidratarMbPessoal(), hydrate-visa-mb.js). Fica só como dado informativo por
+           enquanto, estilo idêntico às linhas acima (era maior/desalinhado antes). -->
+      <div class="row"><span class="k">Caixas temáticas (9 caixas)</span><span class="v" id="mbLRCaixasTematicas" title="Combustível+Churrasco+Mastercard_Infinite+Emagrecimento+Bens Duráveis+Manutenção+Eventos+Saúde Família+Seguro Emplacamento — informativo, ainda não somado no Não Reconciliado abaixo">R$ 0,00</span></div>
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="mbLRNaoReconciliado">R$ 0,00</span></div>
     </div>
     <div class="card card-composicao-centrada">
@@ -2399,7 +2399,7 @@
 // era usado. Agora usa uma string fixa (__V) — o navegador pode servir do cache em recargas dentro
 // da mesma versão publicada. Pra forçar re-download depois de editar os arquivos (deploy novo),
 // troque o valor de __V abaixo (ex: '20260808-1').
-var __V = '20260819-2306-221a406';
+var __V = '20260820-0030-a478d63';
 // NOVO 09/08/2026 (pedido do usuario: "tente deixar o site mais rapido pra carregar os dados") -
 // instrumentacao pura (performance.mark/measure), ZERO mudanca de comportamento - so mede onde o
 // tempo de boot esta indo, pra decidir com dado real o que otimizar de fato, em vez de chutar.
