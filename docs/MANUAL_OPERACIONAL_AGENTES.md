@@ -225,6 +225,14 @@ Qualquer caixa pode ter gasto no cartão, não só a Caixa Variável — o que m
 
 **7. "Zerar" um resíduo financeiro é uma meta legítima e alcançável — não parar em "está na faixa aceitável" sem o usuário concordar explicitamente.** Depois de o usuário insistir 2 vezes ("não há motivo pra não zerar"), a causa real (Amazon Prime cobrando de novo em 19/08, fora da janela de dados que o agente já tinha) foi achada em poucos minutos. A resistência a continuar vinha de cansaço do processo, não de uma limitação real de dado.
 
+### 1.3.7 `REG.superavitNormal.liquidoReal` precisa ser limpo manualmente a cada virada de ciclo (achado real 20/08/2026)
+
+`liquidoReal` (`reg-operacional.js`) guarda o salário REAL já confirmado, indexado por posição no array de 12 meses (`{0: valor}` = ciclo atual). O índice 0 é sempre recalculado como "ciclo atual agora" a cada render (`gerarMesesCiclo(12)`), mas o valor em si é um literal estático — **se ninguém limpar manualmente depois que o ciclo vira, o salário do ciclo ANTERIOR continua sendo tratado como "real" do ciclo atual**, mesmo com o próximo salário ainda não recebido.
+
+**Já causou incidente real 2x**: 19/08/2026 ("eu estava gastando como se fosse receber 16.8k" — folha de ponto do mês seguinte já enviada, mas o sistema achava que já tinha o real) e de novo em 20/08/2026 (mesma causa raiz, print real do usuário mostrando R$16.819,56 — salário de 24/07 — aplicado ao ciclo Ago/26, cujo salário só cai 25/08). A correção de 19/08 mexeu na LÓGICA (`liquidoMes()`, `app.js`) mas não limpou o DADO — o literal `{0: 16819.56}` continuou lá, escrito em 25/07, nunca resetado.
+
+**Procedimento correto, até existir rollover automático**: sempre que o salário de um novo ciclo for confirmado (chegou de verdade, tem TX), atualizar `liquidoReal` pra `{0: <valor novo>}` — e, no dia seguinte à virada do ciclo (~dia 25), se o próximo salário ainda não tiver sido confirmado, **resetar pra `{}`**, nunca deixar o valor do ciclo anterior "vazar" pro índice do ciclo novo. Checar isso é candidato a checklist de início/fim de sessão (seção 9/10 deste manual) enquanto não for automatizado.
+
 ## 1.4 Estimador de Salário — calcular `liquidoProjetadoProximoCiclo` a partir da folha de ponto (NOVO 12/08/2026)
 
 Todo mês chega uma folha de ponto (PDF da Wärtsilä) com as horas do período e a data de pagamento dos adicionais (~25 do mês seguinte). O usuário pediu esse cálculo antes (via Claude Chat) sem deixar a metodologia documentada — registrado aqui pra nenhum agente precisar reconstruir do zero nem reabrir as mesmas perguntas.

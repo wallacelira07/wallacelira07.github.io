@@ -21,7 +21,7 @@ function criarVarsMercadoPago(){
   // lancamento de compra tem que ir direto no Supabase (UPDATE wallace_dados SET dados = dados ||
   // jsonb_build_object(...) WHERE id=1), nunca so aqui. Erro cometido nas partes 64/67/68 desta mesma
   // sessao - 3 compras "lancadas" so no arquivo, sem efeito nenhum no site real, ate o usuario avisar.
-  cartaoInfiniteTotal: 1017.89,          // CORRIGIDO 30/07/2026 (V207): revertido - TX000176 (Drogasil, cartão 6351) nunca foi do Visa Infinite. A tabela oficial de cartões (PROMPT_META_AI_EXTRACAO.md) confirma: 6351 = Vanessa, MASTERCARD BLACK, não Visa. Erro cometido em V201 (29/07) ao lançar a compra - corrigido agora, movida para o Mastercard Black (ver cartaoMBTotal). Era R$1.150,15 (errado).
+  cartaoInfiniteTotal: 1216.55,          // ATUALIZADO 20/08/2026: valor real da fatura fechada Bradesco (todos os 3 cartões Visa — 4844 Wallace R$1.004,75 + 2773 Wallace R$183,47 + 4845 Vanessa R$24,48 = R$1.216,55 exato). Era R$1.017,89 (só parcelas, incompleto — não incluía Wallace/Vanessa avulsos). Componentes ainda incompletos (ver visaLRWHistorico) — resíduo do Não Reconciliado do Visa reflete isso honestamente em vez de mostrar R$0,00 falso.
   // CORRIGIDO 20/08/2026 (usuário mandou a fatura real completa, xlsx do Itaú, 114 lançamentos —
   // reconciliação item a item, ver ESTADO_ATUAL.md bloco 31): o valor anterior (R$6.480,29) era a
   // fatura ABERTA INTEIRA (16/07-17/08) menos o pagamento — mas isso mistura o resíduo do ciclo do
@@ -75,7 +75,15 @@ function criarVarsMercadoPago(){
   // parcela tem data_prevista preenchida). Mantido zerado — resíduo pequeno (R$9,96) e já explicado
   // como "não auditável" é preferível a um alarme de divergência real falso. Não mexer sem resolver
   // primeiro a falta de data_prevista nas parcelas.
-  visaLRWHistorico: 0,
+  // ATUALIZADO 20/08/2026 (achado real, fatura Bradesco 4844 confirmada pelo usuário): a premissa de
+  // 12/08 ("Visa não tem cobertura de cartao_id nenhuma") não é mais verdade — a investigação de hoje
+  // achou várias transações reais com cartao_id do Visa Infinite (Tokio Marine, IOF diário, Uber,
+  // agora também Anthropic/Claude de agosto — TX000348, cobrado por engano no Visa este ciclo,
+  // confirmado pela fatura real, volta pro Mastercard Black mês que vem). Não é uma reconstrução
+  // completa por query ainda (isso exigiria decidir a mesma arquitetura ONDA3_MB_CARTOES_IDS pro
+  // lado Visa, fora do escopo deste ajuste pontual) — só o valor confirmado manualmente contra a
+  // fatura, mesmo padrão de "a fatura sempre vence" já usado no resto deste arquivo.
+  visaLRWHistorico: 174.18, // Anthropic/Claude (TX000348, R$110,00) + MEGA Pro Lite (TXS000010, R$30,99, cobrada por engano no Visa este ciclo — próximo ciclo volta pro Mastercard, usuário já trocou) + Uber (TX000271, R$26,58) + IOF diário (TX000273, R$2,76) + IOF s/ trans inter reais (TX000351, R$3,85, achado por agente de reconciliação item a item — linha solta da fatura fora dos 3 subtotais por cartão, nunca lançada antes). Resíduo do Não Reconciliado fecha em R$0,00 exato com este ajuste.
   // NOVO 12/08/2026 (PRIORIDADE 0, pedido do usuario): investigacao confirmou por SQL direto que
   // TODA transacao da Caixa Variavel com cartao_id preenchido pertence ao Mastercard Black - o Visa
   // Infinite nao tem cobertura de cartao_id nenhuma (item 5, PLANO_UNIFICACAO_V1_V2.md). Isso NAO e
@@ -89,7 +97,7 @@ function criarVarsMercadoPago(){
   cartaoIdCoberturaInsuficienteVisa: true,
   visaLRRConfirmado: 0,     // ZERADO 25/07/2026 (V159): usuario confirmou migracao final e completa de TODAS as recorrencias para o Mastercard Black. Nenhuma recorrencia resta no Visa Infinite. Era R$1.106,53.
   visaLRSConfirmado: 0,      // REVERTIDO 12/08/2026 (ver comentário em visaLRWHistorico acima).
-  visaLRVHistorico: 0,       // REVERTIDO 12/08/2026 (ver comentário em visaLRWHistorico acima).
+  visaLRVHistorico: 24.48,   // ATUALIZADO 20/08/2026: 2 compras da Vanessa (H57Store, TX000349/350, cartão Visa 4845) confirmadas pela fatura real Bradesco, não estavam lançadas em lugar nenhum — checado que não duplicam nada no Mastercard antes de lançar.
   visaNaoReconciliado: 0,     // RESOLVIDO 23/07/2026: o residuo de R$49,81 foi auditado linha-a-linha contra a fatura Bradesco real (Visa Infinite, fecha 16/07/2026, todos os 4 cartoes - 4844/2773/0026/4845). Causa raiz identificada: VIVO estava R$88,00 abaixo do real (V111 usou config teorica em vez da fatura - revertido) + 2 compras nunca lancadas (Amazon Prime Canais R$19,99 e Amazon Prime Aluguel R$9,99). Substituido o metodo de reconciliacao: antes ancorado no "Total da fatura" (saldo corrente, contamina com pagamentos/saldo anterior de ciclos passados) - agora e a SOMA AUDITADA das 7 partes (parcelas+consorcios+wallace+recorrencias+corp+assinaturas+vanessa), cada uma conferida contra a fatura linha a linha. CARTAO_INFINITE_TOTAL_COMPROMETIDO recalculado: R$9.160,07 exato (soma das 7 partes corrigidas, vanessa ja inclui TX131).
   mbLRWConfirmado: 1563.19,       // CORRIGIDO 08/08/2026 (+207,02, TX000222 Dr.Pizza): usuário fez a compra e mandou lançar numa outra sessão/chat - ela gravou só na Arquitetura V2 (tabela transacoes), nunca chegou aqui nem debitou a Caixa Variável (comprometido ficou desatualizado até agora). Era R$1.356,17 (07/08/2026, fix do IOF do TX000200/TX000205) - ver histórico completo de correções anteriores no Supabase.
   mbLRRConfirmado: 1279.65,        // RECONSTRUIDO 25/07/2026 (V159): TODAS as recorrencias migradas para o MB. = LIVRO_LRR_TOTAL (Vivo 435+Brisanet 113,13+Digna 152,41+CampoSanto 77,79+NewCar 59,99+Faculdade 441,33). Era R$614,45 (parcial, so as que ja tinham "cartao virtual" explicito).
@@ -145,7 +153,7 @@ function criarVarsMercadoPago(){
   PARCELAMENTOS_VISA: [
     { tx:'TXP000001', data:'23/03', nome:'Teacher Matias', valor:134.14, parcelaAtual:5, totalParcelas:12, status:'ATIVO' },
     { tx:'TXP000002', data:'21/03', nome:'DeckFriend', valor:13.03, parcelaAtual:5, totalParcelas:12, status:'ATIVO' },
-    { tx:'TXP000003', data:'05/12/25', nome:'Korpos Estética', valor:189.99, parcelaAtual:8, totalParcelas:12, status:'ATIVO' },
+    { tx:'TXP000003', data:'05/12/25', nome:'Korpos Estética', valor:189.99, parcelaAtual:9, totalParcelas:12, status:'ATIVO' }, // CORRIGIDO 20/08/2026 (achado real da fatura Bradesco confirmada: "KORPOS ESTETICA LTDA (09/12)" — site estava em 8/12, defasado 1 parcela, achado pelo agente de reconciliação do resíduo R$3,85. Progresso não vem de nenhum trigger/automação (ver 1.3.6/1.3.7 do manual) — precisa ser conferido manualmente a cada fatura nova.
     { tx:'TXP000004', data:'23/05', nome:'RL Artesão', valor:66.83, parcelaAtual:3, totalParcelas:5, status:'ATIVO' },
     { tx:'TXP000005', data:'28/05', nome:'Mercado Livre', valor:38.25, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },
     { tx:'TXP000006', data:'20/05', nome:'Mercado Livre', valor:68.01, parcelaAtual:3, totalParcelas:4, status:'ATIVO' },

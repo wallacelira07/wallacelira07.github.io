@@ -114,7 +114,22 @@ function criarRegOperacional(){
       // R$16.048,51). Antes do dia 12 (sem estimativa concreta ainda), cai na media ponderada de 12 meses
       // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
       // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
-      liquidoReal: {0: 16819.56}, // ATUALIZADO 25/07/2026 (V150): salario real do ciclo atual ja recebido (24/07/2026, TX000136) - preenchido conforme a propria regra manda ("preencher quando um ciclo fechar e o valor real chegar"). Era {} (vazio).
+      // CORRIGIDO 20/08/2026 (achado real do usuário, mesma classe de bug já corrigida hoje em
+      // cronograma_recorrencias/cronograma_assinaturas — "ultima_cobranca_em" — só que aqui ninguém
+      // tinha achado ainda): {0: 16819.56} foi escrito em 25/07/2026, quando o salário recebido em
+      // 24/07 era de fato o "ciclo atual" (índice 0) daquela época. `gerarMesesCiclo(12)`/liquidoMes(i)
+      // SEMPRE tratam índice 0 como "ciclo atual agora", recalculado a cada render — mas este literal
+      // nunca foi limpo depois que o ciclo virou. Resultado (confirmado pelo usuário, print real): em
+      // 20/08/2026, com o ciclo já em Ago/26 (salário só cai 25/08, ainda não recebido), a tabela
+      // "Necessidade × Salário" mostrava R$16.819,56 como líquido "real" deste ciclo — na verdade é o
+      // salário do ciclo ANTERIOR, TX000136, sendo aplicado no ciclo errado. Vazio ({}) é o estado
+      // correto sempre que o salário do ciclo atual ainda não foi confirmado — liquidoMes(0) cai
+      // corretamente no Estimador de Salário (REG.estimador.liquidoProjetadoProximoCiclo) até alguém
+      // preencher aqui de novo no dia em que o próximo salário real (25/08) for confirmado.
+      // ⚠️ RISCO ESTRUTURAL NÃO RESOLVIDO: este objeto ainda precisa ser limpo manualmente a cada
+      // virada de ciclo — não existe rollover automático. Mesma classe de risco que motivou dar
+      // `ultima_cobranca_em` pras recorrências/assinaturas hoje; aqui ainda não tem solução estrutural.
+      liquidoReal: {},
       // CORRIGIDO 10/08/2026 (achado do usuário: tabela "NECESSIDADE (PAGA TUDO)" da aba Cenários
       // não batia com o gráfico "Necessidade líquida" da aba Gráficos): este array era um literal
       // congelado desde V150 (25/07/2026), só o índice 0 era resincronizado — a partir do índice 1

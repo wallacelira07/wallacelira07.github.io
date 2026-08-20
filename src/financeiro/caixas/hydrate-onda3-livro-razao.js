@@ -183,6 +183,16 @@ async function aplicarOnda3LivroRazao(){
     const soma = Math.round(linhas.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
     const tfEl = $(tfId);
     if(tfEl) tfEl.textContent = fmt(soma);
+    // CORRIGIDO 20/08/2026 (achado de auditoria: VARS.livroLRPV prometia em vars-mercado-pago.js ser
+    // "sobrescrito logo após o VARS fechar", mas só era escrito 1x no boot com dado V1 — esta função
+    // já atualiza o <tbody>/VARS[varsArray] com V2 desde 09/08, mas nunca tocava em VARS.livroLRPV
+    // nem REG.livrosRazaoTotais.LRPV.total, deixando as duas referências presas no valor de boot. O
+    // número na tela sempre esteve certo só porque escreve direto no DOM (linha acima) — mas qualquer
+    // código futuro que lesse VARS.livroLRPV/REG.livrosRazaoTotais.LRPV.total pegaria dado velho.
+    if(varsArray === 'LRPGV_TRANSACOES'){
+      VARS.livroLRPV = soma;
+      if(typeof REG !== 'undefined' && REG.livrosRazaoTotais && REG.livrosRazaoTotais.LRPV) REG.livrosRazaoTotais.LRPV.total = soma;
+    }
     // NOVO 14/08/2026 (auditoria de rótulo, ver onda3AtualizarNotaDisponivelReal acima): soma acima
     // já não conta mais crédito pré-pago (correção de 19/08/2026 logo acima) — só rotula quando pelo
     // menos uma linha é compra de cartão ainda não paga (cartao_id preenchido + afeta_saldo_real=false).

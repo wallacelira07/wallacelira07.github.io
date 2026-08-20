@@ -224,7 +224,13 @@ function irParaSecaoBusca(item){
   showMaster(item.paneId);
   // NOVO 09/08/2026: resultado de aba do Livro Razao (tabChave presente) troca pra aba certa antes de
   // rolar/piscar - sem isso, o botao poderia estar la mas a TABELA visivel seria de outra aba.
-  if(item.tabChave) showLR(item.tabChave, item.alvo);
+  // CORRIGIDO 20/08/2026 (achado real do usuário: "continua com o problema de clicar na transação e
+  // não ir em cima dela"): showLR() é um TOGGLE — clicar numa aba já ativa FECHA ela (remove .active
+  // de tudo e nunca readiciona, ver ui-navegacao-basica.js). Chamar showLR() incondicionalmente aqui
+  // significa que buscar um item que já está na aba visível FECHA a tabela inteira em vez de só rolar
+  // até a linha. Navegação por busca precisa sempre abrir/manter aberto, nunca fechar — só chama
+  // showLR() se a aba alvo ainda não estiver ativa.
+  if(item.tabChave && item.alvo && !item.alvo.classList.contains('active')) showLR(item.tabChave, item.alvo);
   setTimeout(()=>{ scrollParaSecaoComOffset(item.alvo); }, 30);
 }
 
