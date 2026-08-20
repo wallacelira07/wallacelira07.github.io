@@ -353,6 +353,10 @@ function atualizarGraficosNecessidade(){
     cSuperavit._snNecessidade = snNecessidade;
     cSuperavit.update();
     if(typeof _renderTabelaSuperavitNormal === 'function') _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
+    // NOVO 20/08/2026: legenda (incluindo o aviso condicional do déficit de caixas) também precisa
+    // ser recalculada aqui — mesmo motivo do gráfico/tabela acima, senão fica presa no estado do 1º
+    // render (déficit ainda em 0) mesmo depois do valor real chegar.
+    if(typeof _atualizarLegendaSuperavitNormal === 'function') _atualizarLegendaSuperavitNormal(snLabels, snLiquido);
   }
 
   // CORRIGIDO 20/08/2026 (achado do usuário, print real: tabela/gráfico de Déficit Zero e Piso×Necessidade
@@ -783,6 +787,25 @@ function _atualizarLegendaSuperavitNormal(snLabels, snLiquido){
     + '(boletos + parcelas + assinaturas + recorrências + consórcios + aportes patrimoniais + orçamento operacional, menos a Cobertura Garantida real do ciclo atual — sobra da cascata de reembolso Wärtsilä) — não o piso essencial. '
     + `${cicloAtual} ${fonteCicloAtual}. Os meses seguintes usam a média ponderada dos últimos 12 meses (${fmt(CH.mediaPonderada12M)}) como valor conservador — não a média simples (${fmt(CH.media)}), que é puxada para cima por meses excepcionais. `
     + 'Conforme cada mês real chegar, o valor conservador é substituído pelo real (atualizar REG.superavitNormal.liquidoReal[i]).';
+
+  // NOVO 20/08/2026 (pedido do usuário: "tenho 4 dias pra acabar o ciclo e não vem dinheiro de outro
+  // lugar, vai ter que passar esse déficit pro próximo ciclo, mas isso não é visual nesses gráficos").
+  // Mesmo cálculo condicional já usado nos cards "Necessidade × Salário"/"Estimador"
+  // (hydrate-estimador-salario.js) — se o déficit de caixas de HOJE (índice 0, "foto ao vivo") não for
+  // resolvido até o fechamento do ciclo, ele persiste como déficit real no próximo ciclo (índice 1) —
+  // a Necessidade Líquida do próximo ciclo (Ago/26 aqui) sobe por esse valor. Não altera nenhum número
+  // já desenhado, só avisa aqui também, não só na Home.
+  const snAvisoEl = $('snAvisoDeficit');
+  if(snAvisoEl){
+    const deficitCaixasHoje = REG.operacional.deficitCaixasSemLrei || 0;
+    if(deficitCaixasHoje > 0 && REG.evolucao && REG.evolucao.necessidadeLiquida){
+      const necSeDeficitPersistir = Math.round((REG.evolucao.necessidadeLiquida[1] + deficitCaixasHoje)*100)/100;
+      snAvisoEl.textContent = `⚠️ Hoje há ${fmt(deficitCaixasHoje)} em caixas negativas sem LREI cobrindo. Se não for quitado até o fechamento do ciclo atual (${cicloAtual}), esse valor persiste e a Necessidade Líquida de ${snLabels[1]} sobe para ${fmt(necSeDeficitPersistir)}.`;
+      snAvisoEl.style.display = '';
+    } else {
+      snAvisoEl.style.display = 'none';
+    }
+  }
 }
 
 // ===== Operação Déficit Zero e Energia Solar (Cenarios, secoes 06/07) =====
