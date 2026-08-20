@@ -618,7 +618,12 @@
     }
   }
   .pane{display:none}
-  .pane.active{display:block; animation:v300FadeInPane 0.25s ease}
+  /* CORRIGIDO 19/08/2026 (achado do usuário via print: chip da última linha de .tabs — que vira 2
+     linhas de texto quando o rótulo é longo, ex. "LRCC - Créditos e Cupons" — ficava visualmente
+     colado no cabeçalho da tabela logo abaixo, "cartão em cima da descrição". .tabs já tinha
+     margin-bottom, mas nada empurrava o .pane pra longe por cima; margin-top aqui dá o respiro que
+     faltava sem mexer no tamanho/quebra de texto dos botões). */
+  .pane.active{display:block; margin-top:0.6rem; animation:v300FadeInPane 0.25s ease}
 
   table{width:100%;border-collapse:collapse;font-size:var(--fs-sm);table-layout:fixed}
   /* CORRIGIDO 10/08/2026 (pedido do usuário: "muitos campos com muito texto ficam trepados um sobre
