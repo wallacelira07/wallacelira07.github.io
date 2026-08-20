@@ -1,0 +1,39 @@
+name: Verificar onclick= vs funções globais
+
+# NOVO 20/08/2026 - achado de auditoria (domínio Arquitetura/Frontend, classificado como seguro pra
+# corrigir sozinho): os handlers inline (onclick=, onchange=, oninput=, onsubmit=) no HTML chamam
+# funções que precisam existir no escopo global - nada detectava hoje um typo, uma função removida/
+# renomeada, ou um módulo migrado pra ES module (que deixaria de expor a função em `window`) até
+# alguém clicar no botão errado em produção. Script autocontido (sem framework, sem npm install -
+# só require() puro de fs/path do Node), mesmo padrão de testes_unitarios.yml. Roda em qualquer
+# push/PR que toque os HTML da raiz ou qualquer .js de src/**.
+on:
+  push:
+    paths:
+      - 'Sistema_Wallace_Lira_Completo.html'
+      - 'index.html'
+      - 'solar-compartilhado.html'
+      - '404.html'
+      - 'src/**/*.js'
+      - 'scripts/ci/verificar-onclick-globals.js'
+  pull_request:
+    paths:
+      - 'Sistema_Wallace_Lira_Completo.html'
+      - 'index.html'
+      - 'solar-compartilhado.html'
+      - '404.html'
+      - 'src/**/*.js'
+      - 'scripts/ci/verificar-onclick-globals.js'
+  workflow_dispatch: {}
+jobs:
+  verificar-onclick-globals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Rodar verificação
+        run: node scripts/ci/verificar-onclick-globals.js

@@ -36,3 +36,5 @@ jobs:
         run: node tests/unit/Comparator.test.js
       - name: CycleEngine.test.js
         run: node tests/unit/CycleEngine.test.js
+      - name: RehidratacaoPaineisWindowScope.test.js
+        run: node tests/unit/RehidratacaoPaineisWindowScope.test.js

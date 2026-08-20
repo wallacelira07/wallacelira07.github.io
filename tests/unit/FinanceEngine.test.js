@@ -307,7 +307,7 @@ console.log('\n--- Fase 1C: liquidoMes e calcularAporteIncrementalPorCiclo (fech
   assertEqual('liquidoMes(0), dia 5 (1-11), sem real — cai na média ponderada', calcularLiquidoMes({ ...semReal, indice: 0, diaDoMes: 5 }), 17843.58);
   assertEqual('liquidoMes(3), ciclo futuro sem real — sempre média ponderada', calcularLiquidoMes({ ...semReal, indice: 3, diaDoMes: 15 }), 17843.58);
 
-  \ BUG REAL achado em produção 20/08/2026: com liquidoReal[0] confirmado, o índice do
+  // BUG REAL achado em produção 20/08/2026: com liquidoReal[0] confirmado, o índice do
   // "próximo pagamento sem real" é 1, não 0 — liquidoMes(1) tem que cair na projeção
   // a partir do dia 12, e NÃO ficar preso na média ponderada (era o que a cópia hardcodeada
   // `indice === 0` fazia).

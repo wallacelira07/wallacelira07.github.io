@@ -34,13 +34,32 @@ function hydrateVisaMB(){
   // ver promoverFaturaPluggyComoFonte() em pluggy-reconciliacao.js — mesmo padrão de selo já usado em
   // "Fatura atual (aberta)" do Mercado Pago): mostra a origem do número, nunca finge que é sempre a
   // fatura real quando na verdade é o fallback reconciliado manualmente.
-  const badgeOrigem = (origemVar) => VARS[origemVar] === 'pluggy'
-    ? ' <span style="font-size:0.62rem;color:var(--green)" title="Valor vindo direto da fatura real da Pluggy, atualizado automaticamente">🔄 Pluggy</span>'
-    : ' <span style="font-size:0.62rem;color:var(--text-dim)" title="Pluggy sem fatura em aberto confiável nesta carga — valor reconciliado manualmente">📝 manual</span>';
+  // AMPLIADO 20/08/2026 (achado de auditoria: o selo "📝 manual" nunca dizia HÁ QUANTO TEMPO aquela
+  // reconciliação foi feita — cartaoInfiniteTotal/cartaoMBTotal são âncoras congeladas de propósito
+  // (PLUGGY_PROMOCAO_TRAVADA em pluggy-reconciliacao.js), então sem esse indicador uma foto de 60 dias
+  // atrás parecia tão "fresca" quanto uma de ontem. `dataVar` é opcional (VARS.cartaoInfiniteTotalData/
+  // cartaoMBTotalData, capturado de `indicadores.data_calculo` em app.js) — se ausente, mostra só o
+  // selo de sempre, sem quebrar nada pros outros chamadores de badgeOrigem que não passarem dataVar.
+  const badgeOrigem = (origemVar, dataVar) => {
+    if(VARS[origemVar] === 'pluggy'){
+      return ' <span style="font-size:0.62rem;color:var(--green)" title="Valor vindo direto da fatura real da Pluggy, atualizado automaticamente">🔄 Pluggy</span>';
+    }
+    let idadeTxt = '';
+    let idadeTitle = 'Pluggy sem fatura em aberto confiável nesta carga — valor reconciliado manualmente';
+    const dataStr = dataVar && VARS[dataVar];
+    if(dataStr){
+      const dias = Math.floor((Date.now() - new Date(dataStr + 'T00:00:00').getTime()) / 86400000);
+      if(Number.isFinite(dias) && dias >= 0){
+        idadeTxt = dias === 0 ? ' · hoje' : dias === 1 ? ' · há 1 dia' : ` · há ${dias} dias`;
+        idadeTitle += ` — última reconciliação manual: ${dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`} (${dataStr})`;
+      }
+    }
+    return ` <span style="font-size:0.62rem;color:var(--text-dim)" title="${idadeTitle}">📝 manual${idadeTxt}</span>`;
+  };
 
   // visa infinite
   const visaTotalEl = $('visaTotal');
-  if(visaTotalEl) visaTotalEl.innerHTML = fmt(R.cartaoInfinite.total) + badgeOrigem('cartaoInfiniteTotalOrigem');
+  if(visaTotalEl) visaTotalEl.innerHTML = fmt(R.cartaoInfinite.total) + badgeOrigem('cartaoInfiniteTotalOrigem', 'cartaoInfiniteTotalData');
   t('visaPessoal', fmt(R.cartaoInfinite.total - R.visaDetalhe.corp));
   t('visaLRW', fmt(R.visaDetalhe.wallace));
   t('visaLRV', fmt(R.visaDetalhe.vanessa));
@@ -52,7 +71,7 @@ function hydrateVisaMB(){
   t('visaLRNaoReconciliado', fmt(R.visaDetalhe.naoReconciliado)); // V135: residuo soma-livros x fatura-real, documentado (P1)
   // mastercard black
   const mbTotalEl = $('mbTotal');
-  if(mbTotalEl) mbTotalEl.innerHTML = fmt(R.cartaoMB.total) + badgeOrigem('cartaoMBTotalOrigem');
+  if(mbTotalEl) mbTotalEl.innerHTML = fmt(R.cartaoMB.total) + badgeOrigem('cartaoMBTotalOrigem', 'cartaoMBTotalData');
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - R.mbDetalhe.corp))); // CORRIGIDO 26/07/2026 (V177): usuario esclareceu que o ciclo fechado deve mostrar o valor CONGELADO do fechamento artificial (R$1.849,31), nao a formula viva recalculada com dados atuais.
   t('mbLRW', fmt(R.mbDetalhe.wallace));
   t('mbLRV', fmt(R.mbDetalhe.vanessa));

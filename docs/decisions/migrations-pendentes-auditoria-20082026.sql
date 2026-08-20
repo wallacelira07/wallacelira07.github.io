@@ -1,0 +1,80 @@
+-- =====================================================================
+-- Migrations pendentes — Auditoria 22 agentes, 20/08/2026
+-- NÃO APLICADO. Arquivo só documenta SQL para o usuário revisar/aplicar
+-- manualmente (ou autorizar aplicação em sessão futura). Nenhum destes
+-- comandos foi rodado contra o Supabase por este agente.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- Achado: domínio Arquitetura / item "V2 Relacional" — wallace_dados (V1)
+-- sem proteção explícita contra escrita acidental futura.
+-- ---------------------------------------------------------------------
+--
+-- INVESTIGAÇÃO (20/08/2026):
+--
+-- 1. Código do repositório (grep em src/**): nenhuma ocorrência de
+--    `.from('wallace_dados')` nem de `.insert(`/`.update(`/`.upsert(`/
+--    `.delete(` associada a wallace_dados em lugar nenhum de src/**.
+--    Todas as ~60 menções ao nome da tabela são comentários históricos
+--    documentando a migração para V2 (ver app.js, vars-mercado-pago.js,
+--    etc.). Confirma: wallace_dados está morta no código do painel.
+--
+-- 2. Banco (Supabase, projeto bakdgacmwlopvrrppwdm), estado real hoje:
+--
+--    a) GRANTs de tabela (information_schema.role_table_grants):
+--       - anon:            SELECT apenas
+--       - authenticated:   SELECT apenas
+--       - postgres:        INSERT/UPDATE/DELETE/SELECT/REFERENCES/TRIGGER/TRUNCATE
+--       - service_role:    INSERT/UPDATE/DELETE/SELECT/REFERENCES/TRIGGER/TRUNCATE
+--       => anon/authenticated NUNCA tiveram INSERT/UPDATE/DELETE
+--          concedido nesta tabela. Não há nada a revogar nesse nível.
+--
+--    b) RLS: relrowsecurity = true (RLS ligada). 4 políticas ativas,
+--       todas com qual/with_check exigindo
+--       `(select auth.role()) = 'service_role'::text`:
+--         - "Leitura via service role"        (SELECT)
+--         - "Escrita via service role (insert)" (INSERT)
+--         - "Escrita via service role (update)" (UPDATE)
+--         - "Escrita via service role (delete)" (DELETE)
+--       Não existe nenhuma policy permissiva para anon/authenticated
+--       em nenhuma operação. Ou seja: mesmo o SELECT que o GRANT de
+--       tabela permite a anon/authenticated é bloqueado na prática
+--       pela RLS, porque nenhuma policy libera esses papéis.
+--
+--    c) Não há trigger nenhum na tabela wallace_dados (pg_trigger,
+--       excluindo triggers internos): resultado vazio.
+--
+--    d) Não há função/RPC no schema public cujo corpo (pg_get_functiondef)
+--       mencione wallace_dados: resultado vazio.
+--
+-- CONCLUSÃO: o achado da auditoria ("sem nenhuma proteção contra escrita
+-- acidental") NÃO procede no estado atual do banco — a tabela já está
+-- protegida em duas camadas independentes (GRANT nunca deu write a
+-- anon/authenticated, e a RLS já restringe todas as 4 operações a
+-- service_role). Nenhum agente que use a chave anon/authenticated
+-- (o caminho normal do painel via PostgREST) consegue gravar nela hoje,
+-- mesmo sem ler o manual. Não force uma correção artificial aqui —
+-- o "erro real de permissão" pedido pela tarefa já existe de fato via RLS.
+--
+-- HARDENING OPCIONAL (defesa em profundidade, não obrigatório):
+-- o GRANT de SELECT a anon/authenticated é hoje inofensivo (a RLS barra
+-- a leitura de qualquer forma), mas é redundante e depende de ninguém
+-- desligar a RLS por engano no futuro (ALTER TABLE ... DISABLE ROW LEVEL
+-- SECURITY). Revogar o SELECT residual remove essa dependência silenciosa
+-- e deixa a intenção explícita em duas camadas em vez de uma. Fica a
+-- critério do usuário aplicar ou não — não é correção de um problema
+-- real, é reforço de um controle que já funciona.
+--
+-- Se o usuário optar por aplicar o hardening opcional:
+
+-- REVOKE SELECT ON TABLE public.wallace_dados FROM anon, authenticated;
+
+-- (INSERT/UPDATE/DELETE de anon/authenticated: já não existem, nada a revogar)
+-- (service_role e postgres: mantidos como estão — service_role precisa
+--  continuar podendo ler/escrever caso algum processo administrativo
+--  ainda dependa dela; postgres é o owner)
+
+-- Verificação pós-aplicação (se decidir aplicar):
+-- SELECT grantee, privilege_type FROM information_schema.role_table_grants
+-- WHERE table_schema = 'public' AND table_name = 'wallace_dados'
+-- ORDER BY grantee, privilege_type;

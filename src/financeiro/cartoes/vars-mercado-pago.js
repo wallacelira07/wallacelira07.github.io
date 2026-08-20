@@ -25,6 +25,11 @@ function criarVarsMercadoPago(){
   // conforme o campo) — nunca só aqui, e nunca em `wallace_dados`. Editar os literais abaixo é só
   // cosmético/documental (fallback se a V2 falhar).
   cartaoInfiniteTotal: 1216.55,          // ATUALIZADO 20/08/2026: valor real da fatura fechada Bradesco (todos os 3 cartões Visa — 4844 Wallace R$1.004,75 + 2773 Wallace R$183,47 + 4845 Vanessa R$24,48 = R$1.216,55 exato). Era R$1.017,89 (só parcelas, incompleto — não incluía Wallace/Vanessa avulsos). Componentes ainda incompletos (ver visaLRWHistorico) — resíduo do Não Reconciliado do Visa reflete isso honestamente em vez de mostrar R$0,00 falso.
+  // NOVO 20/08/2026 (achado de auditoria — indicador de idade da reconciliação manual, ver comentário
+  // completo em app.js na captura de WALLACE_TODOS_INDICADORES_V2): fallback só, mesma data do
+  // comentário "ATUALIZADO 20/08/2026" acima. A fonte real é `indicadores.data_calculo` (Supabase);
+  // este literal só vale se aquela busca falhar nesta carga.
+  cartaoInfiniteTotalData: '2026-08-20',
   // CORRIGIDO 20/08/2026 (usuário mandou a fatura real completa, xlsx do Itaú, 114 lançamentos —
   // reconciliação item a item, ver ESTADO_ATUAL.md bloco 31): o valor anterior (R$6.480,29) era a
   // fatura ABERTA INTEIRA (16/07-17/08) menos o pagamento — mas isso mistura o resíduo do ciclo do
@@ -48,6 +53,9 @@ function criarVarsMercadoPago(){
   // sempre vence" é manual de propósito). Mesmo valor já escrito em `parametros_gerais` (fonte real,
   // este literal é só fallback se a busca falhar).
   cartaoMBTotal: 7042.33,                // ATUALIZADO 20/08/2026: fatura real (xlsx Itaú, 22/07-17/08) somada item a item = R$6.406,10, + 5 compras confirmadas de 18-19/08 (print do app, R$636,23) = R$7.042,33. Reconciliado linha a linha contra `transacoes` (LRW+LRV+caixas temáticas+corp bateram exato, centavo a centavo) — resíduo residual de ~R$33 explicado por IOF embutido (R$18,21, categoria separada "Outros custos" na fatura, nunca linha própria em `transacoes`) + pequenas diferenças de câmbio, não é transação perdida/duplicada.
+  // NOVO 20/08/2026 (mesmo achado de auditoria acima, ver cartaoInfiniteTotalData): fallback só, mesma
+  // data do comentário "ATUALIZADO 20/08/2026" acima. Fonte real é `indicadores.data_calculo`.
+  cartaoMBTotalData: '2026-08-20',
   // REMOVIDO 18/08/2026 (achado de auditoria noturna, autorizado pelo usuário: "código morto...pode
   // eliminar"): mastercardBlackCongelado (1937.18, congelado 22/07/2026) nunca era lido — resíduo da
   // migração pra VARS.CICLO_SNAPSHOTS[cicloAtual].mastercardBlackPessoalCongelado (vars-ciclo-

@@ -8,6 +8,46 @@ Este documento define **como agir**. Regras de negócio (cascata de reembolso, c
 
 ---
 
+## Sumário
+
+- 0. Nível de Confiança da Informação
+- 1. Fonte única da verdade
+  - 1.1 V2 como sistema principal — modo de operação nativo
+  - 1.2 Fase 5 — fechamento do ciclo de gravação
+  - 1.3 Lançamento de compra em cartão de crédito — procedimento correto
+    - 1.3.0 ANTES de qualquer coisa: checar se já é assinatura, recorrência ou parcelamento
+    - 1.3.0b Views LRW/LRV não filtram por bandeira de cartão
+    - 1.3.1 A transação individual é a fonte — o agregado é derivado
+    - 1.3.2 Antes de editar um `indicadores` agregado, checar se outro agente já mexeu
+    - 1.3.3 Limbo (fechamento da fatura × virada do ciclo) sempre pertence ao ciclo da frente
+    - 1.3.4 Nem toda compra de cartão é da Caixa Variável
+    - 1.3.5 Compra no cartão NUNCA reduz o saldo real da caixa
+    - 1.3.6 Reconciliação de "Não Reconciliado" contra fatura real — lições
+    - 1.3.7 `liquidoReal` precisa ser limpo manualmente a cada virada de ciclo
+  - 1.4 Estimador de Salário — `liquidoProjetadoProximoCiclo`
+  - 1.5 Criar uma caixa nova — toda caixa tem que nascer com Livro Razão
+  - 1.6 Compra reembolsável de terceiro
+- 2. Fluxo de lançamento de transações
+- 3. Fluxo de auditoria
+- 4. Fluxo de sincronização (V1 → V2 relacional)
+- 5. Regras obrigatórias antes de encerrar uma sessão
+- 6. Gatilhos automáticos que devem ser verificados
+  - 6.1 Regras obrigatórias para TODOS os agentes (Caixa Variável, PGV)
+- 7. Procedimentos de correção
+  - 7.1 Sincronização git nesta máquina (WLI015) — interferência do Google Drive
+- 8. Procedimentos proibidos
+- 9. Checklist de Início de Sessão
+- 10. Checklist de Encerramento de Sessão
+- 11. Governança Multi-Conta e Bootstrap de Novos Chats
+  - 11.1 Contexto: 3 contas, uma só interage com Claude Chat
+  - 11.2 Fonte canônica — uma verdade, dois pontos de entrada
+  - 11.3 V2 como regra global (reforço)
+  - 11.4 Claude Chat × Claude Code — divisão operacional
+  - 11.5 Bootstrap de novos chats — minimizar risco de assumir V1/Excel
+  - 11.6 Processo de manutenção — evitar divergência futura
+
+---
+
 ## 0. Nível de Confiança da Informação
 
 **Registrado formalmente em 08/08/2026, pedido explícito do usuário — obrigatório para qualquer resposta que cite dado do Sistema Wallace, em qualquer agente.**

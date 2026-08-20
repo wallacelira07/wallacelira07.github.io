@@ -1598,13 +1598,20 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_PIB_HISTORICO_V
 // mesmo fetch) - saldo oficial aprovado pelo usuário contra a fatura real do banco (Mastercard
 // Black, print 11/08/2026), gravado direto na V2. Antes só existiam via wallace_dados (bloqueador
 // confirmado na auditoria) - agora `indicadores` é a fonte, sem residir mais em wallace_dados.
+// NOVO 20/08/2026 (achado de auditoria: cartaoMBTotal/cartaoInfiniteTotal são âncoras 100% manuais
+// — nunca promovidas pela Pluggy, ver PLUGGY_PROMOCAO_TRAVADA em pluggy-reconciliacao.js — mas o
+// card na tela não dava nenhuma pista de HÁ QUANTO TEMPO essa reconciliação manual foi feita. A
+// tabela `indicadores` já trazia `data_calculo` por linha (mesmo select de sempre, ver fetch de
+// WALLACE_TODOS_INDICADORES_V2 no HTML), só não era guardado. Captura simples, só leitura — não
+// muda cartaoMBTotal/cartaoInfiniteTotal nem nenhuma fórmula, só guarda a data ao lado pra
+// hydrateVisaMB() exibir a idade da reconciliação junto do selo "📝 manual" (ver hydrate-visa-mb.js).
 if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_TODOS_INDICADORES_V2) && window.WALLACE_TODOS_INDICADORES_V2.length){
   window.WALLACE_TODOS_INDICADORES_V2.forEach(r => {
     if(r.nome === 'creditoUberBalance') VARS.creditoUberBalance = Number(r.valor);
     else if(r.nome === 'creditoShellBox') VARS.creditoShellBox = Number(r.valor);
     else if(r.nome === 'creditoKmvIpiranga') VARS.creditoKmvIpiranga = Number(r.valor);
     else if(r.nome === 'proLaboreFixo') VARS.proLaboreFixo = Number(r.valor);
-    else if(r.nome === 'cartaoMBTotal') VARS.cartaoMBTotal = Number(r.valor);
+    else if(r.nome === 'cartaoMBTotal'){ VARS.cartaoMBTotal = Number(r.valor); VARS.cartaoMBTotalData = r.data_calculo || null; }
     else if(r.nome === 'mbLRWConfirmado') VARS.mbLRWConfirmado = Number(r.valor);
     else if(r.nome === 'mbLRVConfirmado') VARS.mbLRVConfirmado = Number(r.valor);
     // NOVO 12/08/2026 (revogação da exceção arquitetural formal de 08/08 — usuário decidiu eliminar
@@ -1617,7 +1624,7 @@ if(typeof window !== 'undefined' && Array.isArray(window.WALLACE_TODOS_INDICADOR
     // existe num PDF com data corrompida por OCR (parcela mesclada com data, sem separador) — sem
     // outra fonte legível disponível. O headline (valor que o banco cobra) é real e conferido; o que
     // falta é o detalhamento item-a-item, não o valor agregado.
-    else if(r.nome === 'cartaoInfiniteTotal') VARS.cartaoInfiniteTotal = Number(r.valor);
+    else if(r.nome === 'cartaoInfiniteTotal'){ VARS.cartaoInfiniteTotal = Number(r.valor); VARS.cartaoInfiniteTotalData = r.data_calculo || null; }
   });
 } else if(__literalAntesDoMerge) {
   console.error('Créditos externos V2: window.WALLACE_TODOS_INDICADORES_V2 indisponível — usando o literal de código de vars-operacional.js (não wallace_dados/V1).');
