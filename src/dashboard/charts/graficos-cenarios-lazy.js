@@ -354,6 +354,18 @@ function atualizarGraficosNecessidade(){
     cSuperavit.update();
     if(typeof _renderTabelaSuperavitNormal === 'function') _renderTabelaSuperavitNormal(snLabels, snLiquido, snNecessidade, snDiferenca);
   }
+
+  // CORRIGIDO 20/08/2026 (achado do usuário, print real: tabela/gráfico de Déficit Zero e Piso×Necessidade
+  // Líquida travados em "Carregando dados reais…" pra sempre). Causa raiz PRÉ-EXISTENTE (não introduzida
+  // hoje, só ficou visível com o guard novo de WALLACE_DEFICIT_CAIXAS_PRONTO): esta função nunca cobriu
+  // os gráficos/tabelas de Déficit Zero (cDeficitZero/dzTableBody) nem Piso×Necessidade Líquida
+  // (cPisoSemTrabalharNecLiquida/pnlTableBody) — só Superávit Normal + os 2 pares do Painel/Cenários
+  // (Total Operacional/Necessidade Líquida). Antes disso, esses 2 simplesmente ficavam com o número do
+  // 1º render (errado, sem o ajuste do déficit) congelado pra sempre, sem nenhum aviso — pior que
+  // "Carregando" preso, só que silencioso. Fix real: reaproveita a própria função que já sabe redesenhar
+  // tudo isso do zero (idempotente — já destrói/recria os canvas antes de desenhar), em vez de duplicar
+  // a lógica de cálculo aqui.
+  if(typeof _lazyRenderCenariosDeficitEGraficosSolar === 'function') _lazyRenderCenariosDeficitEGraficosSolar();
 }
 
 // NOVO 10/08/2026 (mesmo achado do usuário, domínio Patrimônio): re-renderiza os 2 gráficos de rosca
