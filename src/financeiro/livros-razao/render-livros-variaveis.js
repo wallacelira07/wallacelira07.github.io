@@ -67,41 +67,47 @@ function renderLivrosVariaveis(){
     }
   }
 
-  // V176: painel PV (reserva do Wallace) - mesma logica do PGV, array proprio (VARS.PV_TRANSACOES)
-  const lrpvsaldoTbody = $('lrpvsaldoTbody');
-  if(lrpvsaldoTbody){
-    if(!VARS.PV_TRANSACOES.length){
-      lrpvsaldoTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
-    } else {
-      lrpvsaldoTbody.innerHTML = VARS.PV_TRANSACOES.map(t=>{
-        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-      }).join('');
+  // CORRIGIDO 19/08/2026 (mesmo bug do bloco CAIXAS_LR_SIMPLES abaixo — ver comentário lá): PV e BD
+  // também estão em ONDA3_LR_MAPA (hydrate-onda3-livro-razao.js), que já as redesenha com Origem +
+  // rodapé correto. Sem essa guarda, esse bloco (sem Origem, chamado de novo por LREI/onda12/etc)
+  // apaga o resultado certo sempre que roda depois da V2.
+  if(!window.__wallaceOnda3LivroRazaoAplicado){
+    // V176: painel PV (reserva do Wallace) - mesma logica do PGV, array proprio (VARS.PV_TRANSACOES)
+    const lrpvsaldoTbody = $('lrpvsaldoTbody');
+    if(lrpvsaldoTbody){
+      if(!VARS.PV_TRANSACOES.length){
+        lrpvsaldoTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+      } else {
+        lrpvsaldoTbody.innerHTML = VARS.PV_TRANSACOES.map(t=>{
+          const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+          return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        }).join('');
+      }
+      const tfPVEl = $('tfPV');
+      if(tfPVEl){
+        const liquido = VARS.PV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
+        tfPVEl.textContent = fmt(Math.round(liquido*100)/100);
+      }
+      const qtdPVEl = $('qtdPV');
+      if(qtdPVEl) qtdPVEl.textContent = VARS.PV_TRANSACOES.length+' lançamento(s)';
     }
-    const tfPVEl = $('tfPV');
-    if(tfPVEl){
-      const liquido = VARS.PV_TRANSACOES.reduce((s,t)=> s + (t.tipo==='Entrada'?t.valor:-t.valor), 0);
-      tfPVEl.textContent = fmt(Math.round(liquido*100)/100);
-    }
-    const qtdPVEl = $('qtdPV');
-    if(qtdPVEl) qtdPVEl.textContent = VARS.PV_TRANSACOES.length+' lançamento(s)';
-  }
 
-  // NOVO 05/08/2026: painel LRBD (Bens Duraveis) - mesma logica do PV
-  const lrbdTbody = $('lrbdTbody');
-  if(lrbdTbody){
-    if(!VARS.BENS_DURAVEIS_TRANSACOES.length){
-      lrbdTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
-    } else {
-      lrbdTbody.innerHTML = VARS.BENS_DURAVEIS_TRANSACOES.map(t=>{
-        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-      }).join('');
+    // NOVO 05/08/2026: painel LRBD (Bens Duraveis) - mesma logica do PV
+    const lrbdTbody = $('lrbdTbody');
+    if(lrbdTbody){
+      if(!VARS.BENS_DURAVEIS_TRANSACOES.length){
+        lrbdTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+      } else {
+        lrbdTbody.innerHTML = VARS.BENS_DURAVEIS_TRANSACOES.map(t=>{
+          const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+          return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        }).join('');
+      }
+      const tfBDEl = $('tfBD');
+      if(tfBDEl) tfBDEl.textContent = fmt(VARS.caixaBensDuraveis);
+      const qtdBDEl = $('qtdBD');
+      if(qtdBDEl) qtdBDEl.textContent = VARS.BENS_DURAVEIS_TRANSACOES.length+' lançamento(s)';
     }
-    const tfBDEl = $('tfBD');
-    if(tfBDEl) tfBDEl.textContent = fmt(VARS.caixaBensDuraveis);
-    const qtdBDEl = $('qtdBD');
-    if(qtdBDEl) qtdBDEl.textContent = VARS.BENS_DURAVEIS_TRANSACOES.length+' lançamento(s)';
   }
 
   // NOVO 05/08/2026 (parte 99, pedido repetido do usuario: "nao esqueça, cada caixa deve ter seu LR").
@@ -121,23 +127,35 @@ function renderLivrosVariaveis(){
     { id:'lrchurrasco', arr:'CHURRASCO_TRANSACOES',             saldo:'caixaChurrasco' },
     { id:'lrmci',       arr:'MASTERCARD_INFINITE_TRANSACOES',   saldo:'caixaMastercardInfinite' }
   ];
-  CAIXAS_LR_SIMPLES.forEach(cfg=>{
-    const tbody = $(cfg.id+'Tbody');
-    if(!tbody) return; // pane ainda nao existe neste HTML (versao antiga em cache) - nao quebra
-    const arr = VARS[cfg.arr] || [];
-    if(!arr.length){
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
-    } else {
-      tbody.innerHTML = arr.map(t=>{
-        const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
-        return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
-      }).join('');
-    }
-    const tfEl = $('tf_'+cfg.id);
-    if(tfEl) tfEl.textContent = fmt(VARS[cfg.saldo]);
-    const qtdEl = $('qtd_'+cfg.id);
-    if(qtdEl) qtdEl.textContent = arr.length+' lançamento(s)';
-  });
+  // CORRIGIDO 19/08/2026 (achado do usuário: Combustível "não muda", coluna Origem some, rodapé volta
+  // pro -R$198,50 antigo mesmo com o fetch V2 confirmado correto no servidor): estas 9 caixas são as
+  // MESMAS 9 que aplicarOnda3LivroRazao() (hydrate-onda3-livro-razao.js) já redesenha com Origem +
+  // rodapé correto (exclui crédito pré-pago tipo "Crédito KMV" da soma). Como vários módulos irmãos
+  // rechamam renderLivrosVariaveis() inteira só pra redesenhar UMA tabela diferente (LREI, LRW/LRV,
+  // LRC-limbo), e todos são fetches assíncronos correndo em paralelo sem ordem garantida, esse bloco
+  // reescrevia por cima o resultado certo sempre que rodava depois da V2 — usando o shape antigo (sem
+  // Origem) e um rodapé nunca recalculado. Uma vez que a V2 já assumiu (flag setada no fim de
+  // aplicarOnda3LivroRazao), este bloco para de tocar nessas 9 tabelas — só a V2 escreve nelas daí em
+  // diante.
+  if(!window.__wallaceOnda3LivroRazaoAplicado){
+    CAIXAS_LR_SIMPLES.forEach(cfg=>{
+      const tbody = $(cfg.id+'Tbody');
+      if(!tbody) return; // pane ainda nao existe neste HTML (versao antiga em cache) - nao quebra
+      const arr = VARS[cfg.arr] || [];
+      if(!arr.length){
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:1.2rem 0">Nenhuma movimentação ainda.</td></tr>';
+      } else {
+        tbody.innerHTML = arr.map(t=>{
+          const cor = t.tipo === 'Entrada' ? 'var(--green)' : 'var(--text-danger)';
+          return `<tr><td class="mono">${t.tx}</td><td class="mono">${t.data}</td><td>${_lrvEscapeHtml(t.nome)}</td><td style="color:${cor}">${t.tipo}</td><td class="r">${fmt(t.valor)}</td></tr>`;
+        }).join('');
+      }
+      const tfEl = $('tf_'+cfg.id);
+      if(tfEl) tfEl.textContent = fmt(VARS[cfg.saldo]);
+      const qtdEl = $('qtd_'+cfg.id);
+      if(qtdEl) qtdEl.textContent = arr.length+' lançamento(s)';
+    });
+  }
 
   const somaLRW = VARS.LRW_TRANSACOES.reduce((s,t)=>s+t.valor,0);
   const somaLRV = VARS.LRV_TRANSACOES.reduce((s,t)=>s+t.valor,0);

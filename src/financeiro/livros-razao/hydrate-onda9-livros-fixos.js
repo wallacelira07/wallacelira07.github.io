@@ -33,8 +33,7 @@ function onda9MarcarIndisponivel(motivo){
   const msg = (cols) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2) — ${(motivo||'').replace(/"/g,'&quot;')}</td></tr>`;
   const lrsEl = $('lrsTbody'); if(lrsEl) lrsEl.innerHTML = msg(5);
   const lrrEl = $('lrrTbody'); if(lrrEl) lrrEl.innerHTML = msg(4);
-  const lrconEl = $('lrconTbody'); if(lrconEl) lrconEl.innerHTML = msg(3);
-  const lrdoaEl = $('lrdoaTbody'); if(lrdoaEl) lrdoaEl.innerHTML = msg(4);
+  const lrdoaEl = $('lrdoaTbody'); if(lrdoaEl) lrdoaEl.innerHTML = msg(5);
 }
 
 function onda9FormatarData(iso){
@@ -102,10 +101,11 @@ async function aplicarOnda9LivrosFixos(){
   }
 
   // Doações (LRDOA)
+  // NOVO 19/08/2026 (pedido do usuário, padronização): Origem fixa "PIX" — doação nunca é cartão.
   const lrdoaTbody = $('lrdoaTbody');
   if(lrdoaTbody && Array.isArray(doacoes)){
     lrdoaTbody.innerHTML = doacoes.map(d =>
-      `<tr><td class="mono">${d.tx}</td><td>${_onda9EscapeHtml(d.descricao)}</td><td>${d.responsavel ? _onda9EscapeHtml(d.responsavel) : '—'}</td><td class="r">${fmt(Number(d.valor))}</td></tr>`
+      `<tr><td class="mono">${d.tx}</td><td>${_onda9EscapeHtml(d.descricao)}</td><td>${d.responsavel ? _onda9EscapeHtml(d.responsavel) : '—'}</td><td style="color:var(--text-dim);font-size:var(--fs-2xs)">🔑 PIX</td><td class="r">${fmt(Number(d.valor))}</td></tr>`
     ).join('');
     const somaLRDOA = Math.round(doacoes.reduce((s,d)=>s+Number(d.valor),0)*100)/100;
     const tfEl = $('tfLRDOACAO'); if(tfEl) tfEl.textContent = fmt(somaLRDOA);

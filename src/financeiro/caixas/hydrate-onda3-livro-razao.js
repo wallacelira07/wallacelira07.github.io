@@ -193,6 +193,17 @@ async function aplicarOnda3LivroRazao(){
   });
   window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO = relatorio;
   console.log('Onda3LivroRazao: relatório completo em window.WALLACE_ONDA3_LIVRO_RAZAO_RELATORIO', relatorio);
+  // NOVO 19/08/2026 (achado do usuário: Combustível "não muda", sempre volta pro -R$198,50 e some a
+  // coluna Origem, mesmo com o fetch V2 confirmado correto): as 9 caixas acima (mesmos tbodyId do
+  // bloco CAIXAS_LR_SIMPLES em render-livros-variaveis.js) são redesenhadas de novo, com o shape V1
+  // antigo (sem Origem, rodapé de VARS.caixaCombustivel nunca recalculado), toda vez que
+  // renderLivrosVariaveis() é rechamada por um módulo irmão (aplicarOnda4Lrei, aplicarOnda3LrwLrv,
+  // aplicarOnda10LrcLimbo, aplicarOnda12CaixasPequenasV2) só pra redesenhar UMA tabela diferente —
+  // como são todos fetches assíncronos correndo em paralelo, não há garantia de que este módulo (V2,
+  // correto) termine por último. Esta flag avisa render-livros-variaveis.js pra não mais tocar nessas
+  // 9 tabelas depois que a V2 já assumiu — a partir daqui, só este módulo (ou uma nova chamada dele)
+  // escreve nelas.
+  window.__wallaceOnda3LivroRazaoAplicado = true;
   // CORRIGIDO 14/08/2026 (auditoria de LRs: achado real — botão "LRBD - Bens Duráveis" ficava preso em
   // "(2)" pra sempre, mesmo a tabela V2 mostrando 6 lançamentos reais). Causa: aplicarOnda3LrwLrv(),
   // aplicarOnda10LrcLimbo() e aplicarOnda12CaixasPequenasV2() já chamam atualizarContadoresAbasLR() no

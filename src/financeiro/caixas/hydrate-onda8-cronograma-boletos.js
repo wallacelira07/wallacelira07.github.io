@@ -30,11 +30,13 @@ function onda8LrbRenderTabela(){
   const lista = VARS.CRONOGRAMA_BOLETOS_FIXOS;
   if(tbody){
     if(!Array.isArray(lista) || !lista.length){
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2)</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-danger)">⚠ Indisponível (V2)</td></tr>';
     } else {
+      // NOVO 19/08/2026 (pedido do usuário: coluna Origem em todos os LRs, "pode por pra ficar
+      // padronizado") — boleto nunca é cartão nem PIX, é o próprio método de pagamento.
       tbody.innerHTML = lista.map(b => {
         const nota = ONDA8_BOLETO_NOTA_POR_TX[b.tx] ? ` <span style="font-size:0.62rem;color:var(--text-dim)">· ${ONDA8_BOLETO_NOTA_POR_TX[b.tx]}</span>` : '';
-        return `<tr><td class="mono">${b.tx}</td><td>${b.nome}${nota}</td><td class="r">${fmt(b.valor)}</td></tr>`;
+        return `<tr><td class="mono">${b.tx}</td><td>${b.nome}${nota}</td><td style="color:var(--text-dim);font-size:var(--fs-2xs)">🧾 Boleto</td><td class="r">${fmt(b.valor)}</td></tr>`;
       }).join('');
     }
   }
