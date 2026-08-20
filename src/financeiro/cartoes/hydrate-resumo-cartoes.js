@@ -72,9 +72,13 @@ function hydrateResumoCartoes(){
   // com a data — hoje a janela real é diferente do texto congelado). Recalcula localmente (mesmo
   // motivo já documentado no topo do arquivo pra totalOpMar27: gerarMesesCiclo mora no módulo lazy,
   // que pode não ter carregado ainda no boot síncrono).
+  // ATUALIZADO 20/08/2026 (junto com a inversão de gerarMesesCiclo()/ciclosDesdeAncoraCiclo() em
+  // graficos-utilitarios.js — mesmo motivo): baseMonth invertido pra rotular pelo mês do SALÁRIO que
+  // financia o ciclo, não pelo mês em que ele fecha — senão esta cópia local ficaria desalinhada de
+  // todo o resto do sistema (ex: mostraria "Ago/26" aqui enquanto as tabelas já mostram "Jul/26").
   const _nomesMesesEvol = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const _hojeEvol = new Date();
-  const _baseMonthEvol = _hojeEvol.getDate() >= 25 ? _hojeEvol.getMonth()+1 : _hojeEvol.getMonth();
+  const _baseMonthEvol = _hojeEvol.getDate() >= 25 ? _hojeEvol.getMonth() : _hojeEvol.getMonth()-1;
   const _dIniEvol = new Date(_hojeEvol.getFullYear(), _baseMonthEvol, 1);
   const _dFimEvol = new Date(_hojeEvol.getFullYear(), _baseMonthEvol+11, 1);
   const _labelIniEvol = _nomesMesesEvol[_dIniEvol.getMonth()]+'/'+String(_dIniEvol.getFullYear()).slice(-2);
