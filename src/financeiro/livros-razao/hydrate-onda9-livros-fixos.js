@@ -90,7 +90,20 @@ async function aplicarOnda9LivrosFixos(){
     lrsTbody.innerHTML = assinaturas.map(a =>
       `<tr><td class="mono">${a.tx}</td><td class="mono">${onda9FormatarData(a.data)}</td><td>${_onda9EscapeHtml(a.nome)}</td>${ORIGEM_LRS_FIXA}<td class="r">${fmt(Number(a.valor))}</td></tr>`
     ).join('');
-    const somaLRS = Math.round(assinaturas.reduce((s,a)=>s+Number(a.valor),0)*100)/100;
+    // CORRIGIDO 20/08/2026 (achado do usuário: Google One é assinatura ANUAL — o total desta lista
+    // somava R$99,99 todo mês, como se fosse cobrança mensal, mesmo bug latente já existindo com o
+    // Registro.br, R$40/ano). Assinatura marcada "anual" no nome só entra na soma no mês em que a
+    // cobrança (`a.data`) realmente cai — nos outros 11 meses ela some do total, mas continua listada
+    // na tabela acima (é uma obrigação real, só não deste mês).
+    const hojeMes = new Date().getMonth();
+    const somaLRS = Math.round(assinaturas.reduce((s,a)=>{
+      const anual = /anual/i.test(a.nome || '');
+      if(anual){
+        const mesCobranca = a.data ? new Date(a.data + 'T00:00:00').getMonth() : null;
+        if(mesCobranca !== hojeMes) return s;
+      }
+      return s + Number(a.valor);
+    },0)*100)/100;
     const tfEl = $('tfLRS'); if(tfEl) tfEl.textContent = fmt(somaLRS);
     const qtdEl = $('qtdLRS'); if(qtdEl) qtdEl.textContent = assinaturas.length + ' assinatura(s) ativa(s)';
   }
