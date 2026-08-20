@@ -114,22 +114,24 @@ function criarRegOperacional(){
       // R$16.048,51). Antes do dia 12 (sem estimativa concreta ainda), cai na media ponderada de 12 meses
       // (REG.cenarioHistorico.mediaPonderada12M) - fallback conservador quando nao ha dado especifico do
       // ciclo. Resolvido em runtime por liquidoMes(i), definida antes do REG (topo do arquivo).
-      // CORRIGIDO 20/08/2026 (achado real do usuário, mesma classe de bug já corrigida hoje em
-      // cronograma_recorrencias/cronograma_assinaturas — "ultima_cobranca_em" — só que aqui ninguém
-      // tinha achado ainda): {0: 16819.56} foi escrito em 25/07/2026, quando o salário recebido em
-      // 24/07 era de fato o "ciclo atual" (índice 0) daquela época. `gerarMesesCiclo(12)`/liquidoMes(i)
-      // SEMPRE tratam índice 0 como "ciclo atual agora", recalculado a cada render — mas este literal
-      // nunca foi limpo depois que o ciclo virou. Resultado (confirmado pelo usuário, print real): em
-      // 20/08/2026, com o ciclo já em Ago/26 (salário só cai 25/08, ainda não recebido), a tabela
-      // "Necessidade × Salário" mostrava R$16.819,56 como líquido "real" deste ciclo — na verdade é o
-      // salário do ciclo ANTERIOR, TX000136, sendo aplicado no ciclo errado. Vazio ({}) é o estado
-      // correto sempre que o salário do ciclo atual ainda não foi confirmado — liquidoMes(0) cai
-      // corretamente no Estimador de Salário (REG.estimador.liquidoProjetadoProximoCiclo) até alguém
-      // preencher aqui de novo no dia em que o próximo salário real (25/08) for confirmado.
-      // ⚠️ RISCO ESTRUTURAL NÃO RESOLVIDO: este objeto ainda precisa ser limpo manualmente a cada
-      // virada de ciclo — não existe rollover automático. Mesma classe de risco que motivou dar
-      // `ultima_cobranca_em` pras recorrências/assinaturas hoje; aqui ainda não tem solução estrutural.
-      liquidoReal: {},
+      // REVERTIDO 20/08/2026 (mesmo dia — eu tinha zerado isso mais cedo hoje, por engano, achando
+      // que era o mesmo bug do "dado que nunca expira". Investigação mais cuidadosa (gerarMesesCiclo(),
+      // graficos-utilitarios.js) provou o contrário: com `hoje.getDate() < 25`, índice 0 SEMPRE
+      // representa o ciclo QUE JÁ ESTÁ RODANDO (25/07→24/08, rotulado "Ago/26" na tela pela maioria dos
+      // dias cair em agosto) — não o próximo pagamento. Esse ciclo já tem salário REAL confirmado
+      // (R$16.819,56, recebido 24/07, TX000136) — {0: 16819.56} estava CORRETO o tempo todo. Confirmado
+      // explicitamente pelo usuário: "[o ciclo] tá rodando com um pagamento" (20/08/2026). O ciclo cujo
+      // salário ainda não foi recebido é o SEGUINTE (25/08→24/09, índice 1) — esse sim usa
+      // REG.estimador.liquidoProjetadoProximoCiclo via liquidoMes(), automaticamente, sem precisar
+      // preencher nada aqui. Lição: 2 pessoas podiam chamar "Agosto" de coisas diferentes (o ciclo que
+      // já roda agora × o próximo pagamento) — o bug real de 19/08 nunca foi neste objeto, foi um outro
+      // card (ver investigação em andamento na Passagem de Turno/ESTADO_ATUAL sobre o card "próximo
+      // ciclo" mostrando a média ponderada em vez do Estimador de Salário).
+      // ⚠️ RISCO ESTRUTURAL REAL, ESTE SIM VÁLIDO: precisa ser atualizado manualmente pro índice 0 do
+      // NOVO ciclo assim que o salário de 25/08 for recebido e confirmado — sem isso, no dia 25/08 este
+      // objeto passa a representar o ciclo ERRADO (o de agora, já encerrado) até alguém trocar pra
+      // {0: <salário de 25/08>}. Sem rollover automático ainda.
+      liquidoReal: {0: 16819.56},
       // CORRIGIDO 10/08/2026 (achado do usuário: tabela "NECESSIDADE (PAGA TUDO)" da aba Cenários
       // não batia com o gráfico "Necessidade líquida" da aba Gráficos): este array era um literal
       // congelado desde V150 (25/07/2026), só o índice 0 era resincronizado — a partir do índice 1

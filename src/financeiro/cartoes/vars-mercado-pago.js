@@ -13,14 +13,17 @@
 function criarVarsMercadoPago(){
   return {
   // Cartoes (comprometido, corporativo Wartsila)
-  // AVISO 04/08/2026 (parte 69): cartaoMBTotal, mbLRWConfirmado, mbLRSConfirmado (e mbLRVConfirmado)
-  // JA EXISTEM como chave de topo em wallace_dados.dados no Supabase - Object.assign(VARS, dr) (ver
-  // "Object.assign(VARS, dr)" mais abaixo no arquivo) SOBRESCREVE o valor escrito aqui, sempre, em
-  // toda carga real de pagina. Editar esses 3 numeros aqui e cosmetico/documental (mantido pra quem
-  // le o arquivo sem acesso ao banco), mas NUNCA e o jeito de atualizar o site de verdade - o
-  // lancamento de compra tem que ir direto no Supabase (UPDATE wallace_dados SET dados = dados ||
-  // jsonb_build_object(...) WHERE id=1), nunca so aqui. Erro cometido nas partes 64/67/68 desta mesma
-  // sessao - 3 compras "lancadas" so no arquivo, sem efeito nenhum no site real, ate o usuario avisar.
+  // CORRIGIDO 20/08/2026 (achado de auditoria — comentário obsoleto e perigoso, apontava pra
+  // mecanismo morto): este aviso dizia pra atualizar cartaoMBTotal/mbLRWConfirmado/mbLRSConfirmado/
+  // mbLRVConfirmado via `UPDATE wallace_dados SET dados = ...` — mas o merge `Object.assign(VARS, dr)`
+  // que lia essa tabela foi REMOVIDO em 12/08/2026 (ver comentário "REMOVIDO 12/08/2026" em app.js) e
+  // `wallace_dados` não é mais lida em lugar nenhum do boot. Seguir esse comentário escreveria numa
+  // tabela morta, sem nenhum efeito no site real. A fonte real hoje é a tabela `indicadores`
+  // (cartaoMBTotal/cartaoInfiniteTotal/mbLRWConfirmado/mbLRVConfirmado, lidos em app.js ~linha 1601-1621)
+  // + `parametros_gerais` (mecanismo genérico, qualquer `nome`/`valor` da tabela vira VARS[nome] no
+  // boot). Atualizar sempre no Supabase, na tabela certa (`indicadores` ou `parametros_gerais`,
+  // conforme o campo) — nunca só aqui, e nunca em `wallace_dados`. Editar os literais abaixo é só
+  // cosmético/documental (fallback se a V2 falhar).
   cartaoInfiniteTotal: 1216.55,          // ATUALIZADO 20/08/2026: valor real da fatura fechada Bradesco (todos os 3 cartões Visa — 4844 Wallace R$1.004,75 + 2773 Wallace R$183,47 + 4845 Vanessa R$24,48 = R$1.216,55 exato). Era R$1.017,89 (só parcelas, incompleto — não incluía Wallace/Vanessa avulsos). Componentes ainda incompletos (ver visaLRWHistorico) — resíduo do Não Reconciliado do Visa reflete isso honestamente em vez de mostrar R$0,00 falso.
   // CORRIGIDO 20/08/2026 (usuário mandou a fatura real completa, xlsx do Itaú, 114 lançamentos —
   // reconciliação item a item, ver ESTADO_ATUAL.md bloco 31): o valor anterior (R$6.480,29) era a
