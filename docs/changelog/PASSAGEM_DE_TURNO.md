@@ -12,6 +12,20 @@ Ordem de carga de scripts conferida em `Sistema_Wallace_Lira_Completo.html`: `hy
 
 Não validado em navegador real com login (mesma limitação de sempre) — próxima sessão deve conferir: trocar de ciclo e checar que a tabela LRPGV continua com Origem preenchida e data com ano depois da troca.
 
+## 💳 20/08/2026 — reconciliação real da fatura Mastercard Black (1371, agosto/2026), pendência prioritária avançou de verdade
+
+Usuário mandou a fatura aberta real (xlsx do Itaú, cartão 1371, ~114 lançamentos 16/07-17/08) pedindo reconciliação item a item contra `transacoes`. 1ª comparação (por `numero_final`) deu resultado alarmante — parecia faltar milhares de reais. Usuário reagiu com razão ("tudo que compramos foi enviado pro sistema, deveria bater 100%"), o que me fez investigar mais a fundo em vez de aceitar o resultado errado.
+
+Achei 3 pontos cegos na comparação: esqueci o cartão "2250" (fatura consolidada via Pluggy, onde boa parte do "faltante" na verdade estava); várias compras da fatura viram múltiplas linhas em `transacoes` (splits entre caixas); e 3 recorrências fixas (Faculdade, Brisanet, Rastreador) têm `cartao_id` NULL de propósito (arquitetura da Origem fixa do LRR, não bug). Depois de corrigir a comparação (script Python, matching por data+valor item a item), o gap real caiu de milhares de reais pra ~R$35 — o usuário estava certo, quase tudo já estava no sistema.
+
+**Corrigido de fato**: 16 transações de 16-19/07 (R$1.005,95) estavam com `cartao_id` do cartão novo (1371) quando a fatura real confirma que na época o ativo ainda era o antigo (2244) — `UPDATE` aplicado.
+
+**Erro cometido e corrigido na hora, com lição registrada**: usuário mostrou prints do app do banco (18-19/08) achando 5 lançamentos faltando — 4 já estavam certos, só faltava mesmo a Amazon Prime (R$19,90). Lancei ela como transação avulsa nova sem checar antes se já existia como assinatura — usuário corrigiu com razão explícita ("isso é uma assinatura, eu já expliquei 1000 vezes"), confirmei que "Amazon Prime" já existia em `cronograma_assinaturas`, revertido. Memória nova salva pra não repetir com nenhum outro agente: sempre checar `cronograma_assinaturas`/`cronograma_recorrencias` antes de inserir qualquer transação nova motivada por item de fatura.
+
+Registro.br (hospedagem do site, R$40, anual) registrado como assinatura nova depois de confirmar (pedido explícito do usuário) que não havia duplicata por valor. 3 cartões novos cadastrados em `cartoes` (8530, 2135, 0317 — apareciam na fatura mas não existiam no cadastro), a pedido explícito do usuário ("atualizar os cartões do sistema, todos os agentes e chat devem conhecer eles").
+
+**Pendência prioritária (Não Reconciliado do MB) avança mas não fecha**: resta atualizar a assinatura Claude/Anthropic pro valor final real da fatura (hoje é estimativa) e recalcular `mbLRNaoReconciliado` no painel — nenhum dos dois foi feito ainda nesta sessão. Detalhe completo em `ESTADO_ATUAL.md` seção -10.
+
 ## 🐛 20/08/2026 — JPEG da seção "Livros Razão" quebrado: causa real achada e corrigida (bug do html2canvas), confirmado em produção
 
 Continuação da mesma sessão longa. Usuário reportou: baixar o JPEG (botão ⬇) de abas como LRC/LRMI/LRCC saía só com a grade de abas, sem a tabela — LRW até LRR normais. Investigação passou por 3 hipóteses erradas antes de achar a causa real, todas documentadas em `ESTADO_ATUAL.md` (seções -5 a -9) pra próxima vez que algo parecido aparecer:
