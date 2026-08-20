@@ -52,9 +52,19 @@ async function aplicarDeficitCaixasSemLrei(){
     );
     // Caixa Variável usa a função dedicada original (mesma que o card ECC já lê), não a genérica por
     // id — mesmo resultado, mesma fonte, sem duplicar a query.
+    // CORRIGIDO 20/08/2026 (achado do usuário: "Falta cobrir" do Simulador Fim de Ciclo mostrava
+    // R$902,15, este relatório mostrava R$814,19 pra MESMA caixa — diferença exata R$87,96).
+    // Causa: hydrate-comprometido-caixa-variavel-v2.js soma o LIMBO_VIRADA_25_07_NAO_DEBITADO
+    // (R$87,96, gasto real de 22-24/07 nunca debitado por causa do gap na virada de ciclo anterior)
+    // em cima do mesmo getComprometidoCaixaVariavelV2() — mas só na cópia que alimenta
+    // REG.caixaVariavel.comprometido (Simulador/outros cards), nunca nesta aqui, que busca o valor
+    // "cru" direto da V2. Resultado: este relatório subestimava o déficit real da Caixa Variável em
+    // R$87,96. Mesmo ajuste pontual replicado aqui (não recorrente — ver comentário original no outro
+    // arquivo, "não repetir em ciclos futuros sem novo achado").
+    const LIMBO_VIRADA_25_07_NAO_DEBITADO = 87.96;
     comprometidoPromises.push(
       WallaceFinanceService.getComprometidoCaixaVariavelV2()
-        .then(v => ({ nome: 'Caixa Variável', valor: Number(v) || 0 }))
+        .then(v => ({ nome: 'Caixa Variável', valor: (Number(v) || 0) + LIMBO_VIRADA_25_07_NAO_DEBITADO }))
         .catch(() => ({ nome: 'Caixa Variável', valor: 0 }))
     );
     [saldos, emprestimos, comprometidos] = await Promise.all([
