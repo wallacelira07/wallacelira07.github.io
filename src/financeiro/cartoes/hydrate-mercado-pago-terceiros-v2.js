@@ -47,7 +47,23 @@ async function aplicarMercadoPagoTerceirosV2(){
     // compra automaticamente, somar de novo duplicaria).
     if(VARS.mercadoPagoFaturaOrigem === 'fallback_erp_pluggy_zerada'){
       VARS.mercadoPagoFatura = Math.round((VARS.mercadoPagoFatura + total) * 100) / 100;
-      if(typeof REG !== 'undefined' && REG) REG.mercadoPago = VARS.mercadoPagoFatura;
+      // CORRIGIDO 19/08/2026 (achado do usuário: "esses valores aparecem em vários lugares, eles
+      // precisam estar ligados, mudou em um ponto central muda tudo, isso é básico") — VARS.mercadoPagoFatura
+      // alimenta PELO MENOS 2 cópias em REG que este módulo não atualizava: REG.mercadoPago (linha
+      // abaixo, já existia) e REG.balanco.obrigacoes.mercadoPago/.total (Card "Obrigações" do Balanço,
+      // recalculado só 1x no boot por recalcularBalanco() — como este módulo roda DEPOIS, ficava com
+      // o valor antigo pra sempre). Corrigido nos 2: patch direto em REG (mesma fórmula exata de
+      // recalcular-balanco.js, nunca duplicando lógica nova) + hydrateBalanco() pra re-renderizar,
+      // mesmo padrão já usado por outros módulos tardios (ver hydrate-onda9-livros-fixos.js,
+      // hydrate-onda8-cronograma-boletos.js).
+      if(typeof REG !== 'undefined' && REG){
+        REG.mercadoPago = VARS.mercadoPagoFatura;
+        if(REG.balanco && REG.balanco.obrigacoes){
+          REG.balanco.obrigacoes.mercadoPago = Math.round((VARS.mercadoPagoFatura - (REG.balanco.corporativoMPDoCiclo||0)) * 100) / 100;
+          REG.balanco.obrigacoes.total = Math.round((REG.balanco.obrigacoes.visa + REG.balanco.obrigacoes.mastercardBlack + REG.balanco.obrigacoes.mercadoPago) * 100) / 100;
+        }
+      }
+      if(typeof hydrateBalanco === 'function') hydrateBalanco();
       const mpFaturaEl = $('mpFatura');
       if(mpFaturaEl){
         mpFaturaEl.innerHTML = fmt(VARS.mercadoPagoFatura) +

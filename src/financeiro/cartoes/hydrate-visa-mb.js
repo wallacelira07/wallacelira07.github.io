@@ -62,10 +62,17 @@ function recalcularEHidratarMbPessoal(){
   D.corp = VARS.mbLRCConfirmado;
   D.wallace = VARS.mbLRWConfirmado;
   D.vanessa = VARS.mbLRVConfirmado;
-  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios) * 100) / 100;
+  // NOVO 19/08/2026 (achado do usuário, print real do site: "Não reconciliado R$1.248,23" — mas
+  // ele deveria ter caído quase a zero, porque esse residuo é exatamente o comprometido das 9
+  // caixas temáticas ligadas ao Mastercard Black — LRCB/LRCH/LRMI/LREM/LRBD/LRMN/LREV/LRSF/LRSE —
+  // que nunca entravam nesta soma. D.caixasTematicas é preenchido por
+  // atualizarCaixasTematicasComprometidoMB() (abaixo), fica 0 até o primeiro fetch terminar.
+  const caixasTematicas = D.caixasTematicas || 0;
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios + caixasTematicas) * 100) / 100;
   D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   t('mbLRC', fmt(D.corp));
+  t('mbLRCaixasTematicas', fmt(caixasTematicas));
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - D.corp)));
   t('mbLRNaoReconciliado', fmt(D.naoReconciliado));
   // Donut "Composição" (seção 10) foi desenhado no boot com o mbDetalhe de então — atualiza junto,
@@ -73,5 +80,37 @@ function recalcularEHidratarMbPessoal(){
   if(window.WALLACE_CHARTS && window.WALLACE_CHARTS.mbComposicao){
     window.WALLACE_CHARTS.mbComposicao.data.datasets[0].data = Object.values(D);
     window.WALLACE_CHARTS.mbComposicao.update();
+  }
+}
+
+// NOVO 19/08/2026 (mesmo achado acima): busca o comprometido (só Mastercard Black) das 9 caixas
+// temáticas que compram no cartão — as mesmas 6 de CAIXAS_TEMATICAS_COMPROMETIDO_V2
+// (hydrate-comprometido-caixas-tematicas-v2.js) + Combustível/Mastercard_Infinite/Seguro
+// Emplacamento, que ficaram de fora daquela lista original. Roda 1x (onDomPronto, ver app.js),
+// soma tudo, guarda em REG.mbDetalhe.caixasTematicas e re-hidrata — não duplica fetch: reaproveita
+// getComprometidoPorCaixaECartoesV2 (mesmo cache/filtro exato de getComprometidoPorCaixaV2, só
+// restrito à família de cartão certa).
+const MB_CAIXAS_TEMATICAS_IDS = {
+  'Caixa Combustível': '782d8722-392a-440d-8b71-4fa7476a5b30',
+  'Caixa Mastercard_Infinite': '748b8612-b854-44e3-8834-542ec7f1ff7c',
+  'Caixa Seguro Emplacamento': '8dcfa73a-1560-4b37-9aac-48a499548d2c',
+  'Caixa Churrasco': 'f18e248e-182b-42ec-9d04-f1bf5cb0a749',
+  'Caixa Bens Duráveis': 'eeaf926e-07df-479c-b0bc-1071410a5298',
+  'Caixa Manutenção': 'df4c44af-3e30-4592-b0b5-5b863ca91591',
+  'Caixa Eventos': 'ecaebc58-8f49-4d85-8ef4-6282ea765c2f',
+  'Caixa Saúde Família': 'd15e8cbe-4443-4ee4-9631-06d8d49058fe',
+  'Emagrecimento': 'd6be6a08-9d7b-4664-9c85-1e367aa620b9',
+};
+const MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47af-affc-761d6b880a88','00098251-b7d1-475c-9ec3-ee5462202082','2bd91561-e1dc-4073-8e8a-b0037b5bb4bf','6cec9fa0-ad3c-4fd1-87e0-52d3e0325b09','7c53205f-d2f1-450b-aea3-10d25b0b9b45','242e0499-a6ff-45b4-a4aa-4579e9b151ec','7b0adfe8-182f-455a-a633-30995fba7e67'];
+async function atualizarCaixasTematicasComprometidoMB(){
+  if(typeof REG === 'undefined' || !REG.mbDetalhe) return;
+  try {
+    const somas = await Promise.all(Object.values(MB_CAIXAS_TEMATICAS_IDS).map(caixaId =>
+      WallaceFinanceService.getComprometidoPorCaixaECartoesV2(caixaId, MB_CARTOES_IDS).catch(() => 0)
+    ));
+    REG.mbDetalhe.caixasTematicas = Math.round(somas.reduce((s,v) => s + (Number(v)||0), 0) * 100) / 100;
+    recalcularEHidratarMbPessoal();
+  } catch(err){
+    console.warn('atualizarCaixasTematicasComprometidoMB: falha ao buscar comprometido das caixas temáticas — Não Reconciliado do MB fica sem esse componente nesta carga.', err);
   }
 }

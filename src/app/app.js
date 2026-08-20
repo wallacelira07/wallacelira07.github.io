@@ -454,6 +454,27 @@ const WallaceFinanceService = {
       return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
     });
   },
+  // NOVO 19/08/2026 (achado do usuário: "Não reconciliado" do Mastercard Black nunca somava o
+  // comprometido das 9 caixas temáticas ligadas a cartão — LRCB/LRCH/LRMI/LREM/LRBD/LRMN/LREV/LRSF/
+  // LRSE nunca entravam na conta de hydrate-visa-mb.js). Mesmo filtro exato de getComprometidoPorCaixaV2,
+  // só que restrito a uma lista específica de cartao_id (família Mastercard Black, ou Visa) — pra não
+  // misturar comprometido de cartões diferentes na mesma soma.
+  async getComprometidoPorCaixaECartoesV2(caixaId, cartaoIds){
+    const chaveCartoes = cartaoIds.slice().sort().join(',');
+    return this._cache.obterOuBuscar('comprometido_caixa_cartoes_v2:' + caixaId + ':' + chaveCartoes, async () => {
+      const caixas = await this.getCaixas();
+      const caixa = caixas.find(c => c.id === caixaId);
+      const cicloInicioEm = caixa && caixa.ciclo_inicio_em;
+      const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
+      const filtroCartoes = `&cartao_id=in.(${cartaoIds.join(',')})`;
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${caixaId}${filtroCartoes}&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da caixa ${caixaId} (cartões filtrados)`);
+      const dado = await resp.json();
+      return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
+    });
+  },
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
   // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
   // detalhada vinha de VARS.LRW_TRANSACOES/LRV_TRANSACOES, array V1 mantido à mão no código, nunca
@@ -2356,6 +2377,9 @@ onDomPronto(aplicarComprometidoCaixaVariavelV2);
 // NOVO 14/08/2026 (decisão do usuário — ver hydrate-comprometido-caixas-tematicas-v2.js): mesmo
 // conceito acima, generalizado pras 6 caixas temáticas que também compram no cartão de crédito.
 onDomPronto(aplicarComprometidoCaixasTematicasV2);
+// NOVO 19/08/2026 (achado do usuário: "Não reconciliado" do Mastercard Black nunca somava as 9
+// caixas temáticas ligadas ao cartão — ver hydrate-visa-mb.js).
+onDomPronto(atualizarCaixasTematicasComprometidoMB);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
 // VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas
@@ -2766,7 +2790,13 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       'Caixa Seguro Emplacamento':{campo:'caixaSeguroEmplacamento', tipo:'ciclo', domId:'balResSeguro'}, 'Caixa Combustível':{campo:'caixaCombustivel', tipo:'ciclo', domId:'balResCombustivel'},
       'Caixa Churrasco':{campo:'caixaChurrasco', tipo:'ciclo', domId:'balResChurrasco'}, 'Caixa Bens Duráveis':{campo:'caixaBensDuraveis', tipo:'ciclo', domId:'balResBensDuraveis'},
       'Escola de Júlio':{campo:'escolaJulioSaldo', tipo:'ciclo', domId:'balResEscola'},
-      'Caixa Mastercard/Infinite':{campo:'caixaMastercardInfinite', tipo:'saldo'},
+      // CORRIGIDO 19/08/2026 (achado durante a limpeza de V1: a chave aqui usava barra
+      // "Mastercard/Infinite", mas o nome real da caixa no banco é com underscore
+      // "Caixa Mastercard_Infinite" — confirmado por SQL direto em `caixas`. Com o nome errado, o
+      // find() abaixo NUNCA achava a caixa em resumoV2.caixas, então esta entrada inteira sempre
+      // caía no early-return silencioso e nunca promovia nada — bug pré-existente, não só a trava de
+      // tolerância recém-removida).
+      'Caixa Mastercard_Infinite':{campo:'caixaMastercardInfinite', tipo:'saldo'},
       'PIX Vanessa':{campo:'caixaPixVanessa', tipo:'saldo', domId:'balResPixVanessa'}, 'Conta Suavização (CC-304)':{campo:'contaSuavizacao', tipo:'saldo', domId:'balResSuavizacao'},
       // ADICIONADA 06/08/2026 (parte 143): PIX Geral Vanessa existe como caixa propria na V2 (nao
       // sabia disso ate agora - so tinha PIX Vanessa/PV mapeada). Formula V1 e mais complexa (subtrai
@@ -2782,18 +2812,19 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       const sV1 = VARS[cfg.campo];
       const sV2 = cfg.tipo === 'ciclo' ? cxV2.saldo_real_ciclo_atual : cxV2.saldo;
       const d = Math.round(Math.abs(sV1 - sV2)*100)/100;
+      // CORRIGIDO 19/08/2026 (achado/pedido do usuário: "elimine tudo absolutamente tudo que esteja
+      // assim" — só V2 existe, comparação vira log-only, nunca mais bloqueia o que é exibido, mesmo
+      // espírito do bloco 28). d>0.05 continua logado (diagnóstico útil, acusa se V1/V2 desalinharem
+      // de um jeito inesperado), mas não decide mais SE promove — promoverCampoV2SeConfiavel roda
+      // sempre que houver domId, incondicional.
       if(d > 0.05 && CAIXAS_EXPLICADAS_V1_V2[nomeV2]){
         console.info(`ℹ️ Auditoria V1↔V2: ${nomeV2} diverge (explicado) - V1=R$${sV1} vs V2=R$${sV2} (diff R$${d}). Motivo: ${CAIXAS_EXPLICADAS_V1_V2[nomeV2]}`);
         explicadasV1V2.push(`${nomeV2}: V1=R$${sV1} vs V2=R$${sV2} (diff R$${d}) — ${CAIXAS_EXPLICADAS_V1_V2[nomeV2]}`);
       } else if(d > 0.05){
         console.warn(`⚠️ Auditoria V1↔V2: ${nomeV2} diverge - V1=R$${sV1} vs V2=R$${sV2} (diff R$${d}).`);
         divergenciasV1V2.push(`${nomeV2}: V1=R$${sV1} vs V2=R$${sV2} (diff R$${d})`);
-      } else if(cfg.domId && typeof promoverCampoV2SeConfiavel === 'function'){
-        // NOVO 06/08/2026 (parte 138): mesma promocao com trava de seguranca das partes 136-137,
-        // aplicada agora nas 12 linhas de texto simples da secao "Gestao das Reservas" (sem barra de
-        // progresso, mesmo perfil de risco baixo ja validado). So promove quando ja confirmado batendo
-        // (d<=0.05 aqui, mais rigoroso que os 5.00 do Balanco principal, porque estes valores sao
-        // tipicamente menores - centenas, nao dezenas de milhares).
+      }
+      if(cfg.domId && typeof promoverCampoV2SeConfiavel === 'function'){
         promoverCampoV2SeConfiavel(cfg.domId, sV2, 0.06);
       }
       // NOVO 06/08/2026 (parte 139): so estas 4 caixas tem o trio saldo+%+barra dinamico confirmado -
@@ -2813,7 +2844,7 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         'Caixa Seguro Emplacamento': {idSaldo:'cxSeguroSaldo',  idPct:null,           idBarra:'cxSeguroBar',  meta:5100},
         'Conta Suavização (CC-304)': {idSaldo:'cxSuavizSaldo',  idPct:null,           idBarra:'cxSuavizBar',  meta:12000}
       };
-      if(CARDS_COM_BARRA[nomeV2] && d <= 0.05){
+      if(CARDS_COM_BARRA[nomeV2]){
         const cb = CARDS_COM_BARRA[nomeV2];
         promoverCaixaComBarraSeConfiavel(cb.idSaldo, cb.idPct, cb.idBarra, sV2, cb.meta, 0.06);
       }
@@ -2822,10 +2853,10 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
       // NOVO 06/08/2026 (parte 141): 2 campos extra na secao "Reservas de Pagamento" (texto simples,
       // mesmos valores ja confirmados no mapa - Caixa Variavel e Mastercard/Infinite aparecem aqui
       // TAMBEM, alem de onde ja foram promovidos antes).
-      if(nomeV2 === 'Caixa Variável' && d <= 0.05) promoverCampoV2SeConfiavel('balOpCaixaVariavel', sV2, 0.06);
-      if(nomeV2 === 'Caixa Mastercard/Infinite' && d <= 0.05) promoverCampoV2SeConfiavel('balOpMastercardInfinite', sV2, 0.06);
-      if(nomeV2 === 'PIX Geral Vanessa' && d <= 0.05){ promoverCampoV2SeConfiavel('balOpPixVanessa', sV2, 0.06); promoverCampoV2SeConfiavel('cxPgvSaldo', sV2, 0.06); }
-      if(nomeV2 === 'Caixa Lance' && d <= 0.05) promoverCampoV2SeConfiavel('patLance', sV2, 0.06);
+      if(nomeV2 === 'Caixa Variável') promoverCampoV2SeConfiavel('balOpCaixaVariavel', sV2, 0.06);
+      if(nomeV2 === 'Caixa Mastercard_Infinite') promoverCampoV2SeConfiavel('balOpMastercardInfinite', sV2, 0.06);
+      if(nomeV2 === 'PIX Geral Vanessa'){ promoverCampoV2SeConfiavel('balOpPixVanessa', sV2, 0.06); promoverCampoV2SeConfiavel('cxPgvSaldo', sV2, 0.06); }
+      if(nomeV2 === 'Caixa Lance') promoverCampoV2SeConfiavel('patLance', sV2, 0.06);
     });
     // APOSENTADO 09/08/2026 (mesma remoção do botão "💰 V2", ver comentário acima): este bloco
     // anexava as divergências V1↔V2 dentro do painel de debug (`painelV2Caixas`, agora removido).
@@ -2838,53 +2869,46 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // e so leitura adicional, nao mexe no calculo V1 existente). Zero fetch extra (resumoV2 ja veio).
     const elPatV2 = document.getElementById('balPatrimonioLiquidoV2');
     if(elPatV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.liquido != null){
-      // CORRIGIDO 13/08/2026 (achado de auditoria: texto continha jargao tecnico "V2 (Supabase
-      // relacional)" exposto na tela pro usuario final - trocado por texto neutro; o detalhe tecnico
-      // continua disponivel no atributo title, definido em promoverCampoV2SeConfiavel).
-      // CORRIGIDO 14/08/2026 (achado de auditoria): o selo "✓ confirmado" era escrito de forma
-      // incondicional, mesmo quando a trava de seguranca (5 reais de tolerancia, mesma usada por
-      // promoverCampoV2SeConfiavel logo abaixo) rejeitava o valor por divergir demais do V1 - ex:
-      // bug de rpc_dashboard_resumo() que zerava 12 dos 13 itens de patrimonio (liquido caia pra
-      // R$100mil) ainda assim aparecia na tela como "✓ confirmado: R$ 100.000,00". Agora o selo só
-      // aparece quando o mesmo criterio de confianca de promoverCampoV2SeConfiavel é satisfeito.
-      const elPatV1Ref = document.getElementById('balPatrimonioLiquido');
-      const vAtualPatV1 = elPatV1Ref ? parseFloat(elPatV1Ref.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.')) : NaN;
-      const patrimonioV2Confiavel = !isNaN(vAtualPatV1) && Math.abs(vAtualPatV1 - resumoV2.patrimonio_resumo.liquido) < 5;
-      elPatV2.textContent = patrimonioV2Confiavel
-        ? `✓ confirmado: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})}`
-        : `V2: R$ ${Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2})} (não confere com V1 - não promovido)`;
-      // PROMOVIDO 06/08/2026 (parte 136, refatorado parte 137 pra usar promoverCampoV2SeConfiavel -
-      // funcao com hoisting, definida mais abaixo neste mesmo bloco, ja disponivel aqui). Patrimonio
-      // Liquido foi o primeiro campo promovido a fonte EXIBIDA (trava de seguranca <R$5 de diferenca).
-      promoverCampoV2SeConfiavel('balPatrimonioLiquido', resumoV2.patrimonio_resumo.liquido, 5);
-      // CORRIGIDO 13/08/2026 (achado de auditoria: promocao nao propagava pro id irmao da secao 09,
-      // mesmo conceito hidratado por hydrate-balanco.js - podiam divergir apos a promocao acima).
-      promoverCampoV2SeConfiavel('bal4qPatrimonio', resumoV2.patrimonio_resumo.liquido, 5);
+      // CORRIGIDO 19/08/2026 (achado do usuário: "por que tem essas referências a V1? Já tínhamos
+      // sepultado V1, só pode existir V2 em operação") — este bloco ainda tinha uma trava de <R$5 de
+      // tolerância contra o V1 pra decidir se promovia o Patrimônio Líquido; mesmo domínio que ficou
+      // de fora da limpeza do bloco 28 (aquela só cobriu promocoes-financeengine.js). Mesmo padrão
+      // aplicado agora: V2 é sempre exibido, incondicional — nunca mais preso a bater com V1.
+      const elPatEl = document.getElementById('balPatrimonioLiquido');
+      const liquidoV2Fmt = Number(resumoV2.patrimonio_resumo.liquido).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      if(elPatEl) elPatEl.textContent = 'R$ ' + liquidoV2Fmt;
+      const bal4qEl = document.getElementById('bal4qPatrimonio');
+      if(bal4qEl) bal4qEl.textContent = 'R$ ' + liquidoV2Fmt;
+      elPatV2.textContent = `Fonte: V2 (Supabase relacional) — R$ ${liquidoV2Fmt}`;
     }
     // NOVO 06/08/2026 (parte 137): extraida a logica de "promover com trava de seguranca" da parte 136
     // pra uma funcao reutilizavel - evita reescrever o mesmo bloco de comparacao 3x (Liquido, Ativo,
     // Passivo), reduz chance de um dos 3 ficar com a trava diferente por descuido de copy-paste.
-    function promoverCampoV2SeConfiavel(idElementoPrincipal, valorV2, tolerancia){
+    // CORRIGIDO 19/08/2026 (achado/pedido do usuário: "por que tem referências a V1? Já sepultamos
+    // V1, elimine tudo absolutamente tudo que esteja assim" — mesmo espírito do bloco 28, que já
+    // tinha feito isso em promocoes-financeengine.js, mas este comparador paralelo em app.js tinha
+    // ficado de fora daquela varredura). Nome da função mantido (evita reescrever todas as chamadas
+    // abaixo) mas a trava de tolerância foi removida — V2 é escrito sempre, incondicional. O
+    // parâmetro `tolerancia` continua recebido só pra não quebrar as chamadas existentes; não é mais
+    // usado pra decidir nada.
+    function promoverCampoV2SeConfiavel(idElementoPrincipal, valorV2, _toleranciaIgnorada){
       const el = document.getElementById(idElementoPrincipal);
       if(!el || valorV2 == null) return;
-      const vAtual = parseFloat(el.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));
-      if(!isNaN(vAtual) && Math.abs(vAtual - valorV2) < (tolerancia||5)){
-        el.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
-        el.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
-      }
+      el.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      el.title = 'Fonte: V2 (Supabase relacional)';
     }
     // NOVO 06/08/2026 (parte 139): variante pros cards de caixa com barra de progresso (saldo+%+barra,
     // os 3 amarrados no mesmo numero) - so promove os 4 cards confirmados com o trio completo e
     // dinamico (Boletos, PIX Vanessa, Manutencao, Escola de Julio). As outras caixas com barra tem
     // problema PRE-EXISTENTE (barra estatica, nunca atualizada por JS - achado nesta sessao, nao
     // corrigido de proposito, fora do escopo desta promocao V2).
-    function promoverCaixaComBarraSeConfiavel(idSaldo, idPct, idBarra, valorV2, meta, tolerancia){
+    // CORRIGIDO 19/08/2026 (mesmo achado/pedido do usuário acima): trava de tolerância removida — V2
+    // sempre escrito, incondicional.
+    function promoverCaixaComBarraSeConfiavel(idSaldo, idPct, idBarra, valorV2, meta, _toleranciaIgnorada){
       const elSaldo = document.getElementById(idSaldo);
       if(!elSaldo || valorV2 == null) return;
-      const vAtual = parseFloat(elSaldo.textContent.replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));
-      if(isNaN(vAtual) || Math.abs(vAtual - valorV2) >= (tolerancia||0.06)) return;
       elSaldo.textContent = 'R$ ' + Number(valorV2).toLocaleString('pt-BR',{minimumFractionDigits:2});
-      elSaldo.title = 'Fonte: Arquitetura V2 (Supabase relacional) - confirmado batendo com o cálculo V1 nesta sessão';
+      elSaldo.title = 'Fonte: V2 (Supabase relacional)';
       if(meta > 0){
         const pct = Math.max(0, Math.min(100, Math.round((valorV2/meta)*1000)/10));
         const elPct = document.getElementById(idPct);
@@ -2896,18 +2920,25 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
     // AMPLIADO parte 121/137: nota complementar + promocao (mesma trava de seguranca da parte 136)
     // pros 2 totais que compoem o liquido - ajuda a ver ONDE a divergencia mora (ativo ou passivo) se
     // o total acima um dia nao bater, em vez de so saber que "algo" diverge.
+    // CORRIGIDO 19/08/2026 (mesmo achado/pedido do usuário do bloco do Patrimônio Líquido acima):
+    // Ativo/Passivo também tinham trava de <R$5 contra V1 — removida, V2 sempre exibido.
     const elAtivoV2 = document.getElementById('balAtivosTotalV2');
     if(elAtivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_ativo != null){
-      elAtivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_ativo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-      promoverCampoV2SeConfiavel('balAtivosTotal', resumoV2.patrimonio_resumo.total_ativo, 5);
+      const ativoFmt = Number(resumoV2.patrimonio_resumo.total_ativo).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      elAtivoV2.textContent = `Fonte: V2 (Supabase relacional) — R$ ${ativoFmt}`;
+      const elAtivoEl = document.getElementById('balAtivosTotal');
+      if(elAtivoEl) elAtivoEl.textContent = 'R$ ' + ativoFmt;
     }
     const elPassivoV2 = document.getElementById('balPassivosTotalV2');
     if(elPassivoV2 && resumoV2.patrimonio_resumo && resumoV2.patrimonio_resumo.total_passivo != null){
-      elPassivoV2.textContent = `V2: R$ ${Number(resumoV2.patrimonio_resumo.total_passivo).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-      promoverCampoV2SeConfiavel('balPassivosTotal', resumoV2.patrimonio_resumo.total_passivo, 5);
-      // CORRIGIDO 13/08/2026 (achado de auditoria: id irmao 'balPassivosTotal2' da secao 04, mesmo
-      // REG.balanco.passivos.total, nunca era promovido junto - podiam divergir ate R$5 apos a promocao acima).
-      promoverCampoV2SeConfiavel('balPassivosTotal2', resumoV2.patrimonio_resumo.total_passivo, 5);
+      const passivoFmt = Number(resumoV2.patrimonio_resumo.total_passivo).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      elPassivoV2.textContent = `Fonte: V2 (Supabase relacional) — R$ ${passivoFmt}`;
+      const elPassivoEl = document.getElementById('balPassivosTotal');
+      if(elPassivoEl) elPassivoEl.textContent = 'R$ ' + passivoFmt;
+      // id irmão 'balPassivosTotal2' da seção 04, mesmo REG.balanco.passivos.total (ver comentário
+      // antigo de 13/08/2026 — continua valendo, só a fonte agora é incondicional).
+      const elPassivoEl2 = document.getElementById('balPassivosTotal2');
+      if(elPassivoEl2) elPassivoEl2.textContent = 'R$ ' + passivoFmt;
     }
 
     // REMOVIDO 12/08/2026 (pedido do usuário, achado real): esta comparação alimentava o selo

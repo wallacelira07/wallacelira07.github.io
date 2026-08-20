@@ -830,6 +830,11 @@
       <div class="row"><span class="k">Recorrências (LRR-MB)</span><span class="v" id="mbLRR">R$ 0,00</span></div>
       <div class="row"><span class="k">Consórcios (LRCON-MB)</span><span class="v" id="mbLRCON">R$ 0,00</span></div>
       <div class="row"><span class="k">Corporativo (LRC-MB)</span><span class="v" id="mbLRC">R$ 0,00</span></div>
+      <!-- NOVO 19/08/2026 (pedido do usuário: "tem que sempre contar no total comprometido tudo que é
+           registrado nesses livros... LRBD, LRMN, LREV, LRSF, LRSE, LRCB, LRCH, LREM, LRMI" — esses 9
+           livros de caixa temática nunca entravam na conta de Não Reconciliado, mesmo tendo compra
+           real no Mastercard Black. Ver recalcularEHidratarMbPessoal() em hydrate-visa-mb.js. -->
+      <div class="row"><span class="k">Caixas temáticas <span style="color:var(--text-dim);font-weight:400">(LRCB+LRCH+LRMI+LREM+LRBD+LRMN+LREV+LRSF+LRSE-MB)</span></span><span class="v" id="mbLRCaixasTematicas">R$ 0,00</span></div>
       <div class="row"><span class="k">Não reconciliado <span style="color:var(--text-dim);font-weight:400">(soma dos livros × fatura real)</span></span><span class="v" id="mbLRNaoReconciliado">R$ 0,00</span></div>
     </div>
     <div class="card card-composicao-centrada">

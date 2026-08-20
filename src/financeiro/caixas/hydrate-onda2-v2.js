@@ -160,7 +160,13 @@ async function aplicarOnda2V2(){
     const valorV2 = Math.round(Number(caixaV2.v2_saldo_calculado) * 100) / 100;
     const diverge = valorV1 === null || Math.abs(valorV1 - valorV2) > TOLERANCIA_CENTAVOS;
     const diferenca = valorV1 !== null ? Math.round((valorV1 - valorV2)*100)/100 : null;
-    const podeExibirV2 = idHtml && (!diverge || aceitarDivergenciaConhecida) && valorV1 !== null;
+    // CORRIGIDO 19/08/2026 (achado do usuário: Combustível/outras caixas "aceitarDivergenciaConhecida"
+    // ainda mostravam o V1 antigo na tela): a condição exigia `valorV1 !== null` mesmo pros itens com
+    // aceitarDivergenciaConhecida=true — se a leitura de V1 falhasse/desse null (ou o V1 fosse um
+    // resíduo velho), a flag "sempre mostra V2" era ignorada e o card ficava preso no V1. Fixo: item
+    // com aceitarDivergenciaConhecida=true mostra V2 incondicionalmente (é exatamente o que a flag
+    // diz); os demais continuam exigindo bater com V1 (regra antiga, intocada).
+    const podeExibirV2 = idHtml && (aceitarDivergenciaConhecida || (!diverge && valorV1 !== null));
 
     if(diverge){
       const motivo = aceitarDivergenciaConhecida

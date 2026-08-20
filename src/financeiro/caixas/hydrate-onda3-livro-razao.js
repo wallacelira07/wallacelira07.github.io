@@ -135,12 +135,22 @@ async function aplicarOnda3LivroRazao(){
       return;
     }
     tbody.innerHTML = linhas.map(onda3LinhaTransacao).join('');
-    const soma = Math.round(linhas.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
+    // CORRIGIDO 19/08/2026 (achado do usuário, Caixa Combustível: "só tenho saldo positivo, nunca
+    // tirei dinheiro dela" — rodapé mostrava -R$198,50): a soma somava TODA transação como
+    // entrada/saída de caixa, inclusive as 2 saídas "Crédito KMV" (afeta_saldo_real=false,
+    // cartao_id=null — consumo de crédito pré-pago do posto, controlado à parte em
+    // beneficios_creditos, nunca tira dinheiro real desta caixa nem vira dívida de cartão). Igual à
+    // fórmula de saldo real (vw_saldo_v2_por_caixa, "só afeta_saldo_real=false EXCLUI"), essas linhas
+    // não entram na soma — continuam aparecendo na tabela pra auditoria, só não pesam no total. Compra
+    // de CARTÃO com afeta_saldo_real=false continua entrando (é o "Disponível Real" já documentado
+    // abaixo, comportamento intencional, não mudou).
+    const linhasParaSoma = linhas.filter(t => !(t.afeta_saldo_real === false && !t.cartao_id));
+    const soma = Math.round(linhasParaSoma.reduce((s,t) => s + (t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor)), 0) * 100) / 100;
     const tfEl = $(tfId);
     if(tfEl) tfEl.textContent = fmt(soma);
     // NOVO 14/08/2026 (auditoria de rótulo, ver onda3AtualizarNotaDisponivelReal acima): soma acima
-    // continua somando TODAS as transações confirmadas (fórmula inalterada) — só rotula quando pelo
-    // menos uma delas é compra de cartão ainda não paga (cartao_id preenchido + afeta_saldo_real=false).
+    // já não conta mais crédito pré-pago (correção de 19/08/2026 logo acima) — só rotula quando pelo
+    // menos uma linha é compra de cartão ainda não paga (cartao_id preenchido + afeta_saldo_real=false).
     const temComprometidoNoCartao = linhas.some(t => t.cartao_id && t.afeta_saldo_real === false);
     onda3AtualizarNotaDisponivelReal(tfEl, temComprometidoNoCartao);
     const qtdEl = $(qtdId);
