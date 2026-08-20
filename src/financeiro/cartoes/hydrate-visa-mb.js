@@ -62,16 +62,20 @@ function recalcularEHidratarMbPessoal(){
   D.corp = VARS.mbLRCConfirmado;
   D.wallace = VARS.mbLRWConfirmado;
   D.vanessa = VARS.mbLRVConfirmado;
-  // REVERTIDO 19/08/2026 (mesma sessão, poucos minutos depois): a tentativa de somar as 9 caixas
-  // temáticas no Não Reconciliado (comentário original abaixo) PIOROU o resultado ao vivo — o
-  // usuário testou no painel real e "Não Reconciliado" foi de +R$1.248,23 pra -R$1.617,62 (achado
-  // com evidência real, não suposição). Confirmei que vw_transacoes_cartao_variavel_por_pessoa (LRW/
-  // LRV) é escopada só pra Caixa Variável, então não é dupla-contagem óbvia ali — a causa raiz real
-  // ainda não foi encontrada (pode ser fatura R$6.480,29 sendo só do cartão 1371 sozinho, não a
-  // família 1371+4628 consolidada; pode ser outra coisa). D.caixasTematicas continua calculado e
-  // exibido (linha "Caixas temáticas" na tela) só como DADO INFORMATIVO — não entra mais na soma que
-  // decide Não Reconciliado, até a causa raiz ser confirmada de verdade (não adivinhada de novo).
-  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios) * 100) / 100;
+  // RETOMADO 20/08/2026 (achado do usuário, com evidência real de novo — mesma disciplina da 1ª
+  // tentativa 19/08, que piorou de +1.248 pra -1.617 e foi revertida): naquela época a âncora
+  // (`cartaoMBTotal`) e os componentes de `somaPartes` tinham vários problemas reais não descobertos
+  // ainda — âncora misturando ciclo do cartão anterior com o novo, âncora desatualizada (só ia até
+  // 17/08), 3 dupla-contagens reais (Digna/Pax Domini/Mega religados sem checar cronograma_*),
+  // recorrências contando mesmo sem ter cobrado de novo este ciclo. Depois de corrigir tudo isso
+  // (ver ESTADO_ATUAL.md seções -10 a -14), a mesma soma que antes dava overshoot de -R$1.617
+  // recalculada à mão deu só ~-R$521 — perto o bastante de bater pra valer a pena testar ao vivo de
+  // novo. D.caixasTematicas (`atualizarCaixasTematicasComprometidoMB()`, mesmo arquivo) agora entra
+  // na soma — usuário confirmou item a item que as 12 transações que compõem esse valor são reais e
+  // batem com a fatura (nenhuma dupla-contagem nova encontrada). `|| 0` porque essa busca é async e
+  // separada — se ainda não chegou quando esta função roda, soma 0 em vez de `undefined`, mesmo
+  // padrão já usado na exibição da linha "Caixas temáticas" logo abaixo.
+  const somaPartes = Math.round((D.wallace + D.vanessa + D.parcelas + D.assinaturas + D.recorrencias + D.consorcios + (D.caixasTematicas || 0)) * 100) / 100;
   D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   t('mbLRC', fmt(D.corp));
