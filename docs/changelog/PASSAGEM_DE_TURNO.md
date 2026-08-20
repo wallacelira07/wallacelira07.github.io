@@ -2,6 +2,16 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🏷️ 19/08/2026 (bloco 30, agente dedicado P0) — LRPGV_TRANSACOES corrigida: mesma reversão silencial pro V1 do bug LRW/LRV/LRC-limbo
+
+Continuação direta do bloco "-4" abaixo (LRW/LRV/LRC-limbo revertiam pro V1 a cada troca de ciclo), que já tinha deixado documentado como risco residual não corrigido: `LRPGV_TRANSACOES` (Livro Razão "PIX Geral Vanessa") sofria exatamente o mesmo bug — `LRPGV_TRANSACOES_CICLO_ATUAL` (`app.js`, dentro de `aplicarCicloAoVARS()`, linha ~1910) capturada uma única vez na carga do script, antes de qualquer fetch V2 terminar, sobrescrevendo silenciosamente `VARS.LRPGV_TRANSACOES` com o literal V1 (sem `cartaoId` → Origem some, data sem ano) toda vez que o usuário troca de ciclo e volta pro atual.
+
+Corrigido em `trocarCiclo()` (`src/financeiro/cenarios/ciclo-selecao.js`), dentro do MESMO bloco `if(_snapCicloSelecionado && !_snapCicloSelecionado.fechado){...}` que já tratava LRW/LRV/LRC-limbo: adicionada a chamada `if(typeof aplicarOnda3LivroRazao === 'function') aplicarOnda3LivroRazao();` — mesma função que já popula `VARS.LRPGV_TRANSACOES` corretamente com V2 no boot (`hydrate-onda3-livro-razao.js`), idempotente e fire-and-forget, sem side effect destrutivo. Efeito colateral desejado: as outras 12 caixas temáticas do `ONDA3_LR_MAPA` também passam a se re-hidratar a cada troca de ciclo, não só no boot. Comportamento de ciclo fechado (fotografia congelada do snapshot V174) não foi tocado — a chamada só roda quando o ciclo selecionado não é fechado, mesma guarda dos blocos irmãos.
+
+Ordem de carga de scripts conferida em `Sistema_Wallace_Lira_Completo.html`: `hydrate-onda3-livro-razao.js` (linha ~2502) carrega antes de `ciclo-selecao.js` (linha ~2542) no mesmo array `__carregarScriptsParalelo`, e `aplicarOnda3LivroRazao` é `function` global (não `const`) — mesma garantia já documentada no cabeçalho de `ciclo-selecao.js` pra `aplicarOnda3LrwLrv`/`aplicarOnda10LrcLimbo`.
+
+Não validado em navegador real com login (mesma limitação de sempre) — próxima sessão deve conferir: trocar de ciclo e checar que a tabela LRPGV continua com Origem preenchida e data com ano depois da troca.
+
 ## 🏷️ 19/08/2026 (bloco 30) — confirmação ao vivo do fix "Combustível não muda" + LRCC (Créditos e Cupons) criado
 
 Continuação direta do bloco 29 abaixo, mesmo dia. Usuário testou em produção com login real e mandou print confirmando que o fix da race condition funcionou: Caixa Combustível com Origem preenchida e rodapé certo. **Pendência 0b do bloco 29, resolvida.**

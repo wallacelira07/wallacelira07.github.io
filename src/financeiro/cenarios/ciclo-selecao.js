@@ -40,6 +40,13 @@ function trocarCiclo(cicloKey){
   if(_snapCicloSelecionado && !_snapCicloSelecionado.fechado){
     if(typeof aplicarOnda3LrwLrv === 'function') aplicarOnda3LrwLrv();
     if(typeof aplicarOnda10LrcLimbo === 'function') aplicarOnda10LrcLimbo();
+    // NOVO 19/08/2026 (mesmo bug, achado irmão: LRPGV_TRANSACOES via a mesma reversão pro literal V1
+    // pela mesma causa raiz — LRPGV_TRANSACOES_CICLO_ATUAL em app.js/aplicarCicloAoVARS capturada uma
+    // vez no boot). Quem repopula VARS.LRPGV_TRANSACOES com V2 é aplicarOnda3LivroRazao() (hydrate-
+    // onda3-livro-razao.js) — de brinde, essa mesma chamada também re-hidrata as outras 12 caixas
+    // temáticas do ONDA3_LR_MAPA, mantendo-as sempre atualizadas após troca de ciclo (antes só rodavam
+    // no boot).
+    if(typeof aplicarOnda3LivroRazao === 'function') aplicarOnda3LivroRazao();
   }
 }
 
