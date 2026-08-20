@@ -78,3 +78,70 @@
 -- SELECT grantee, privilege_type FROM information_schema.role_table_grants
 -- WHERE table_schema = 'public' AND table_name = 'wallace_dados'
 -- ORDER BY grantee, privilege_type;
+
+-- =====================================================================
+-- Achado: domínio Segurança/Supabase — medidor_tuya_consumo_diario sem PK
+-- (regenerado 20/08/2026 — perdido por race condition entre 3 agentes
+-- escrevendo neste mesmo arquivo em paralelo na 1ª rodada; investigação
+-- original preservada, só reescrevendo o SQL)
+-- =====================================================================
+--
+-- Confirmado via pg_constraint: a tabela já tem
+-- `medidor_tuya_consumo_diario_data_casa_key UNIQUE (data, casa)`, e o
+-- trigger que a alimenta já faz INSERT ... ON CONFLICT (data, casa) — ou
+-- seja, o código já trata (data, casa) como identidade da linha. Não faz
+-- sentido criar uma coluna `id` surrogate sem uso; a correção é só
+-- promover a UNIQUE existente a PRIMARY KEY.
+
+-- ALTER TABLE public.medidor_tuya_consumo_diario
+--   DROP CONSTRAINT medidor_tuya_consumo_diario_data_casa_key,
+--   ADD PRIMARY KEY (data, casa);
+
+-- =====================================================================
+-- Achado: domínio Segurança — registrar_erro_cliente sem rate limit
+-- (regenerado 20/08/2026, mesmo motivo do bloco acima)
+-- =====================================================================
+--
+-- RPC SECURITY DEFINER, EXECUTE liberado pra anon (precisa registrar erro
+-- antes do login) — confirmado via pg_get_functiondef, hoje aceita
+-- qualquer volume de INSERT sem limite algum. Tabela erros_cliente hoje
+-- só tem: id, ocorrido_em, mensagem, stack, contexto (sem coluna de
+-- origem/IP). Adiciona origem_ip (capturado no SERVIDOR via
+-- current_setting('request.headers', true), nunca confiando em valor
+-- vindo do corpo da chamada) e um teto de 20 registros/5min por origem,
+-- descartando silenciosamente acima disso (best-effort, mesmo critério já
+-- usado no resto da observabilidade — não lança exceção pro cliente).
+
+-- ALTER TABLE public.erros_cliente ADD COLUMN IF NOT EXISTS origem_ip text;
+--
+-- CREATE OR REPLACE FUNCTION public.registrar_erro_cliente(
+--   p_mensagem text, p_stack text DEFAULT NULL, p_contexto jsonb DEFAULT NULL
+-- )
+-- RETURNS void
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path TO 'public'
+-- AS $function$
+-- declare
+--   v_ip text;
+--   v_recentes int;
+-- begin
+--   v_ip := coalesce(
+--     (current_setting('request.headers', true)::json ->> 'x-forwarded-for'),
+--     'desconhecido'
+--   );
+--   select count(*) into v_recentes
+--   from public.erros_cliente
+--   where origem_ip = v_ip and ocorrido_em > now() - interval '5 minutes';
+--   if v_recentes >= 20 then
+--     return; -- descarta silenciosamente, sem exceção pro cliente
+--   end if;
+--   insert into public.erros_cliente (mensagem, stack, contexto, origem_ip)
+--   values (left(p_mensagem, 2000), left(coalesce(p_stack, ''), 4000), p_contexto, v_ip);
+-- end;
+-- $function$;
+
+-- Verificação pós-aplicação (se decidir aplicar):
+-- SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+-- WHERE conrelid = 'medidor_tuya_consumo_diario'::regclass;
+-- SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'registrar_erro_cliente';
