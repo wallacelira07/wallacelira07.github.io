@@ -794,7 +794,13 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         const d = dzDeficit[i];
         ctx.fillStyle = d<0 ? '#e2554f' : '#34c98a';
         const label = (d<0?'−':'+')+fmt0(Math.abs(d));
-        ctx.fillText(label, bar.x, d>=0 ? bar.y - 8 : bar.y + 16);
+        // CORRIGIDO 20/08/2026 (achado do usuário, print real: rótulo "-4.982" da barra mais negativa
+        // ficava em cima do rótulo "Ago/26" do eixo X). bar.y+16 empurrava o texto pra fora da área do
+        // gráfico sempre que a barra era grande o suficiente pra base dela já estar perto do fundo do
+        // canvas — sem limite, o rótulo saía da área de plot e sobrepunha os ticks abaixo. Agora
+        // travado em chartArea.bottom-4, nunca ultrapassa o fundo real do gráfico.
+        const yPos = d>=0 ? bar.y - 8 : Math.min(bar.y + 16, chart.chartArea.bottom - 4);
+        ctx.fillText(label, bar.x, yPos);
       });
       ctx.restore();
     }
@@ -964,7 +970,7 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
       datasets:[{data:dzDeficit,
         backgroundColor: dzDeficit.map(v=>v<0?'#e2554f':'#34c98a'),
         borderRadius:4, barPercentage:0.72, categoryPercentage:0.82}]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:16}},
       plugins:{legend:{display:false},tooltip:{callbacks:{
         label:c=>{const i=c.dataIndex; return ['Piso mínimo líquido garantido (base+30%+5%+creche−descontos): '+fmt(dzLiquido),'Total Operacional: '+fmt(dzPiso[i]),(dzDeficit[i]<0?'Não cobre: ':'Cobre com sobra: ')+fmt(Math.abs(dzDeficit[i]))];}
       }}},
