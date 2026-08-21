@@ -623,6 +623,29 @@
       min-height:2.75rem;
     }
   }
+  /* NOVO 21/08/2026 (pedido do usuário: separar Ativas/Em Risco/Vencidas/Exercidas na seção
+     "Carteira de opções" em abas próprias). Classes DISTINTAS de .tab/.pane de propósito — showLR()
+     usa querySelectorAll('.tab')/('.pane') GLOBAL (todo o documento), então reusar as mesmas classes
+     faria clicar numa aba de Livro Razão fechar as abas de Opções sem querer (e vice-versa). Visual
+     idêntico a .tab/.pane, só copiado sob nome próprio — ver showOpcoesTab() em ui-navegacao-basica.js. */
+  .opcoes-tabs{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem}
+  .opcoes-tab{
+    background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text-mid);font-size:var(--fs-2xs);font-weight:600;
+    padding:0.6rem 0.9rem;border-radius:var(--radius-xl);cursor:pointer;
+    white-space:normal;line-height:1.3;text-align:center;
+  }
+  .opcoes-tab:hover{border-color:rgba(76,142,242,0.5);color:var(--text)}
+  .opcoes-tab:focus-visible{outline:none;border-color:var(--accent);box-shadow:var(--shadow-focus-accent-lg)}
+  .opcoes-tab.active{
+    background:linear-gradient(135deg, rgba(76,142,242,0.22), rgba(76,142,242,0.10));
+    color:var(--accent);border-color:var(--accent);
+    box-shadow:var(--shadow-focus-accent);
+    font-weight:700;
+  }
+  .opcoes-pane{display:none}
+  .opcoes-pane.active{display:block; margin-top:0.6rem; animation:v300FadeInPane 0.25s ease}
+
   .pane{display:none}
   /* CORRIGIDO 19/08/2026 (achado do usuário via print: chip da última linha de .tabs — que vira 2
      linhas de texto quando o rótulo é longo, ex. "LRCC - Créditos e Cupons" — ficava visualmente

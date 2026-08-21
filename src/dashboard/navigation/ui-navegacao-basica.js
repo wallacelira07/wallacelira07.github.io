@@ -176,6 +176,17 @@ function showLR(id, btn){
   btn.classList.add('active');
 }
 
+// NOVO 21/08/2026 (pedido do usuário: abas próprias pra "Carteira de opções" — Ativas/Em Risco/
+// Vencidas/Exercidas). Classes .opcoes-tab/.opcoes-pane DISTINTAS de .tab/.pane de propósito — ver
+// comentário no CSS (styles.css). Sempre troca (nunca fecha tudo ao clicar de novo, diferente de
+// showLR()) — não faz sentido a seção inteira ficar sem nenhuma aba ativa aqui.
+function showOpcoesTab(id, btn){
+  document.querySelectorAll('.opcoes-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.opcoes-tab').forEach(t=>t.classList.remove('active'));
+  $(id).classList.add('active');
+  btn.classList.add('active');
+}
+
 // NOVO 14/08/2026 (pedido do usuário: "coloque animação ao clicar nos cards, informações relevantes
 // e movimento no click" — diagrama "Fluxo de energia" na aba Solar). Toggle genérico: abre/fecha o
 // painel de detalhe (`${idCard}Detalhe`) logo abaixo do card clicado, mesmo padrão accordion do

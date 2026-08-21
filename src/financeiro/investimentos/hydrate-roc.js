@@ -7,42 +7,60 @@
 function hydrateROC(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
-  // NOVO 21/08/2026 (achado real do usuário — ver comentário completo em calcularAvisosOpcoesRisco(),
-  // opcoes-roc.js). Renderiza em 2 lugares: dentro da seção 16 (Carteira de opções) e um resumo no
-  // topo da Home (mesmo padrão visual de homeAvisoDeficit/callout danger), pra não depender do
-  // usuário lembrar de abrir a aba certa pra ver o risco.
+  // AMPLIADO 21/08/2026 (motor de alerta em camadas, pedido do usuário — ver
+  // calcularNivelRiscoOpcao()/calcularAvisosOpcoesRisco() em opcoes-roc.js pro critério completo dos
+  // 4 níveis). Renderiza em 3 lugares: banner no topo da Home + banner na própria seção 16 (só tier
+  // >=2, "Risco alto" pra cima — não afogar o usuário com 🟡 toda hora fora da aba dedicada) e a aba
+  // "Em Risco" da seção 16 (opcoesRiscoDetalhe, TODOS os tiers, 1-4 — visão completa).
   {
     const avisos = typeof calcularAvisosOpcoesRisco === 'function' ? calcularAvisosOpcoesRisco() : [];
     const montarLinha = a => {
       const prazoTxt = a.diasParaVencer < 0
-        ? `venceu há ${Math.abs(a.diasParaVencer)} dia(s) (${a.vencimento}) — confirme com a corretora se foi exercida`
+        ? `venceu há ${Math.abs(a.diasParaVencer)} dia(s) (${a.vencimento})${a.itm ? ' — confirme com a corretora se foi exercida' : ''}`
         : a.diasParaVencer === 0 ? `vence HOJE (${a.vencimento})` : `vence em ${a.diasParaVencer} dia(s) (${a.vencimento})`;
-      // NOVO 21/08/2026 (pedido do usuário, calculadora de recuperação pós-exercício): 2 caminhos
-      // mecânicos SE for exercida, sem recomendar qual escolher (não sou consultor de investimentos).
-      // Caminho A (vender e realizar): já é exatamente resultadoLiquidoSeExercido, reaproveitado.
-      // Caminho B (manter as ações e vender covered call): não temos cotação de calls integrada
-      // (brapi free não cobre chain de opções fora do PETR4, ver comentário em aplicarCotacoesOpcoesV2)
-      // — mostra a FÓRMULA (preço de equilíbrio atual, e como cada R$ de prêmio novo o reduz), pro
-      // usuário aplicar com a cotação real de calls que ele vir na própria corretora.
-      const caminhoB = `Caminho B — manter as ${a.qtd} ações e vender covered call: seu preço de equilíbrio hoje é ${fmt(a.precoEquilibrio)} (o que você "pagou" de fato, já descontado o prêmio da put). `
-        + `Cada R$1,00 de prêmio recebido numa call nova reduz esse equilíbrio em R$${(1/a.qtd).toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})} por ação vendida coberta — confira o prêmio real de calls com strike perto de ${fmt(a.precoEquilibrio)} na sua corretora antes de decidir.`;
-      const caminhoA = `Caminho A — vender as ações agora e realizar: resultado líquido ${fmt(a.resultadoLiquidoSeExercido)} (mesmo número do resultado líquido acima).`;
-      return `<div style="margin-bottom:0.6rem"><strong>${a.ativo} PUT (${a.ticker})</strong> ${prazoTxt} — ITM: cotação ${fmt(a.cotacaoAtual)} abaixo do strike ${fmt(a.strike)}.<br>`
-        + `Se exercida: você compra ${a.qtd} ações a ${fmt(a.strike)} (${fmt(a.capitalNecessario)}), valendo ${fmt(a.valorMercadoAcoes)} no mercado agora (${fmt(-a.perdaNoPapel)} no papel). `
-        + `Prêmio já recebido: ${fmt(a.premio)}. Resultado líquido se exercido: <strong style="color:${a.resultadoLiquidoSeExercido<0?'var(--red)':'var(--green)'}">${fmt(a.resultadoLiquidoSeExercido)}</strong>. `
-        + `Preço de equilíbrio: ${fmt(a.precoEquilibrio)}.<br>`
-        + `<span style="font-size:0.72rem;color:var(--text-dim)">${caminhoA}<br>${caminhoB}</span></div>`;
+      const statusTxt = a.itm
+        ? `ITM: cotação ${fmt(a.cotacaoAtual)} abaixo do strike ${fmt(a.strike)} (${a.distanciaPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}%)`
+        : `OTM, mas só ${a.distanciaPct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% acima do strike — pode virar ITM até o vencimento`;
+      let miolo = '';
+      if(a.itm){
+        // NOVO 21/08/2026 (pedido do usuário, calculadora de recuperação pós-exercício): 2 caminhos
+        // mecânicos SE for exercida, sem recomendar qual escolher (não sou consultor de investimentos).
+        // Caminho A (vender e realizar): já é exatamente resultadoLiquidoSeExercido, reaproveitado.
+        // Caminho B (manter as ações e vender covered call): não temos cotação de calls integrada
+        // (brapi free não cobre chain de opções fora do PETR4, ver comentário em aplicarCotacoesOpcoesV2)
+        // — mostra a FÓRMULA (preço de equilíbrio atual, e como cada R$ de prêmio novo o reduz), pro
+        // usuário aplicar com a cotação real de calls que ele vir na própria corretora.
+        const caminhoB = `Caminho B — manter as ${a.qtd} ações e vender covered call: seu preço de equilíbrio hoje é ${fmt(a.precoEquilibrio)} (o que você "pagou" de fato, já descontado o prêmio da put). `
+          + `Cada R$1,00 de prêmio recebido numa call nova reduz esse equilíbrio em R$${(1/a.qtd).toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})} por ação vendida coberta — confira o prêmio real de calls com strike perto de ${fmt(a.precoEquilibrio)} na sua corretora antes de decidir.`;
+        const caminhoA = `Caminho A — vender as ações agora e realizar: resultado líquido ${fmt(a.resultadoLiquidoSeExercido)} (mesmo número do resultado líquido acima).`;
+        miolo = `Se exercida: você compra ${a.qtd} ações a ${fmt(a.strike)} (${fmt(a.capitalNecessario)}), valendo ${fmt(a.valorMercadoAcoes)} no mercado agora (${fmt(-a.perdaNoPapel)} no papel). `
+          + `Prêmio já recebido: ${fmt(a.premio)}. Resultado líquido se exercido: <strong style="color:${a.resultadoLiquidoSeExercido<0?'var(--red)':'var(--green)'}">${fmt(a.resultadoLiquidoSeExercido)}</strong>. `
+          + `Preço de equilíbrio: ${fmt(a.precoEquilibrio)}.<br>`
+          + `<span style="font-size:0.72rem;color:var(--text-dim)">${caminhoA}<br>${caminhoB}</span>`;
+      } else {
+        miolo = `<span style="font-size:0.72rem;color:var(--text-dim)">Prêmio já recebido: ${fmt(a.premio)}. Ainda não está em risco de exercício — só perto o suficiente do strike pra acompanhar de perto.</span>`;
+      }
+      return `<div style="margin-bottom:0.7rem"><strong>${a.nivel.emoji} ${a.nivel.label}</strong> — <strong>${a.ativo} PUT (${a.ticker})</strong> ${prazoTxt}<br>${statusTxt}.<br>${miolo}</div>`;
     };
-    const html = avisos.length
-      ? `<div style="font-weight:700;margin-bottom:0.5rem">⚠️ ${avisos.length} posição(ões) em risco de exercício</div>` + avisos.map(montarLinha).join('')
+    const avisosUrgentes = avisos.filter(a => a.nivel.tier >= 2);
+    const htmlBanner = avisosUrgentes.length
+      ? `<div style="font-weight:700;margin-bottom:0.5rem">⚠️ ${avisosUrgentes.length} posição(ões) em risco alto de exercício</div>` + avisosUrgentes.map(montarLinha).join('')
         + `<div style="font-size:var(--fs-2xs);color:var(--text-dim)">Isso é matemática mecânica da posição, não recomendação — decida com sua corretora/assessor.</div>`
       : '';
     ['opcoesAvisoITM','homeAvisoOpcoesITM'].forEach(id => {
       const el = $(id);
       if(!el) return;
-      if(html){ el.innerHTML = html; el.style.display = ''; }
+      if(htmlBanner){ el.innerHTML = htmlBanner; el.style.display = ''; }
       else { el.style.display = 'none'; }
     });
+    const contagemEl = $('opcoesRiscoContagem');
+    if(contagemEl) contagemEl.textContent = avisos.length ? `(${avisos.length})` : '';
+    const detalheEl = $('opcoesRiscoDetalhe');
+    if(detalheEl){
+      detalheEl.innerHTML = avisos.length
+        ? avisos.map(montarLinha).join('')
+        : `<div style="color:var(--text-dim);padding:1rem 0;text-align:center">Nenhuma posição em risco no momento.</div>`;
+    }
   }
 
   // NOVO 31/07/2026 (V216): card de Opções reconstruído - derivado de VARS.opcoesVendidasDetalhe,
@@ -198,8 +216,18 @@ function hydrateROC(){
         const corStatus = otm ? 'var(--green)' : 'var(--red)';
         const statusTxt = otm ? 'OTM' : 'ITM';
         const sinalPct = distanciaPct >= 0 ? '+' : '';
+        // NOVO 21/08/2026 (motor de alerta em camadas): emoji do nível de risco também na tabela
+        // principal, não só no banner/aba "Em Risco" — mesma função/critério, ver opcoes-roc.js.
+        let nivelBadge = '';
+        if(typeof calcularNivelRiscoOpcao === 'function' && o.vencimento){
+          const [dvv,mvv,avv] = o.vencimento.split('/').map(Number);
+          const hojeNivel = new Date(); hojeNivel.setHours(0,0,0,0);
+          const diasNivel = Math.round((new Date(avv,mvv-1,dvv) - hojeNivel) / 86400000);
+          const nivel = calcularNivelRiscoOpcao(Math.abs(distanciaPct), diasNivel, !otm);
+          if(nivel) nivelBadge = ` <span title="${nivel.label}">${nivel.emoji}</span>`;
+        }
         linha1 = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-        linha2 = `<span style="color:${corStatus};font-weight:600">${statusTxt}</span> <span style="color:var(--text-dim);font-size:0.68rem">(${sinalPct}${distanciaPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%)</span>`;
+        linha2 = `<span style="color:${corStatus};font-weight:600">${statusTxt}</span>${nivelBadge} <span style="color:var(--text-dim);font-size:0.68rem">(${sinalPct}${distanciaPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%)</span>`;
       } else if(cot && o.precoExercicio === null){
         linha1 = `R$ ${cot.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
         linha2 = `<span style="color:var(--text-dim);font-size:0.68rem">(vencida)</span>`;

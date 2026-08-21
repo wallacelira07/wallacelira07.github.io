@@ -36,11 +36,34 @@ function aplicarStatusVencidoEValorMercadoOpcoes(){
 // hydrateROC() (não daqui — precisa de VARS.ACOES_COTACOES já populado pela Onda de cotações do
 // app.js, que roda DEPOIS deste módulo na ordem de carga síncrona).
 //
-// Critério de alerta: posição ITM (cotação da ação < strike da put vendida) E a até 2 dias do
-// vencimento OU já vencida sem confirmação de exercício (diasParaVencer negativo cobre esse caso
-// automaticamente, mesmo cálculo, sem `if` separado). Não é conselho de investimento — só a
-// matemática mecânica do que acontece SE for exercido, pra decisão informada (com o usuário/corretora,
-// não comigo).
+// AMPLIADO 21/08/2026 (pedido do usuário, motor de alerta em camadas — "o sistema NÃO pode mostrar
+// uma operação como normal quando houver risco elevado"): substitui o alerta binário (ITM/não-ITM
+// dentro de 2 dias) por 4 níveis objetivos, calculados por REGRA (dias restantes + distância % do
+// strike) — nunca "probabilidade" inventada. Critério, documentado aqui pra nunca precisar abrir o
+// código pra saber o que cada nível significa:
+//   ⚫ Praticamente certo — ITM E o dia do vencimento já passou (diasParaVencer < 0), aguardando só
+//                          confirmação da B3/corretora — o pregão do dia de vencimento já fechou.
+//   🔴 Provável        — ITM E vence hoje ou em até 2 dias (inclui o próprio dia do vencimento —
+//                          ainda dá tempo do pregão fechar diferente, não é "certo" ainda).
+//   🟠 Risco alto       — ITM E vence em até 7 dias.
+//   🟡 Atenção          — ITM mas vence depois de 7 dias (ainda pode reverter) OU OTM mas a menos de
+//                          3% do strike E vence em até 7 dias (pode virar ITM antes do vencimento).
+// Sem nível = sem risco relevante (OTM confortável, ou ITM só nominal mas com folga grande de tempo).
+function calcularNivelRiscoOpcao(distanciaPct, diasParaVencer, itm){
+  if(itm){
+    if(diasParaVencer < 0) return { tier: 4, emoji: '⚫', label: 'Exercício praticamente certo', cor: '#333' };
+    if(diasParaVencer <= 2) return { tier: 3, emoji: '🔴', label: 'Exercício provável', cor: 'var(--red)' };
+    if(diasParaVencer <= 7) return { tier: 2, emoji: '🟠', label: 'Risco alto de exercício', cor: '#f2994a' };
+    return { tier: 1, emoji: '🟡', label: 'Atenção — ITM, mas ainda longe do vencimento', cor: '#eab54f' };
+  }
+  if(diasParaVencer <= 7 && distanciaPct <= 3) return { tier: 1, emoji: '🟡', label: 'Atenção — perto do strike', cor: '#eab54f' };
+  return null;
+}
+
+// Não é conselho de investimento — só a matemática mecânica do que acontece SE for exercido, pra
+// decisão informada (com o usuário/corretora, não comigo). Chamada de hydrateROC() (não daqui —
+// precisa de VARS.ACOES_COTACOES já populado pela Onda de cotações do app.js, que roda DEPOIS deste
+// módulo na ordem de carga síncrona).
 function calcularAvisosOpcoesRisco(){
   const hojeOpcoes = new Date(); hojeOpcoes.setHours(0,0,0,0);
   const cotacoes = VARS.ACOES_COTACOES || {};
@@ -51,23 +74,31 @@ function calcularAvisosOpcoesRisco(){
     const cot = cotacoes[o.ativo];
     if(!cot || cot.preco == null) return;
     const itm = cot.preco < o.precoExercicio; // PUT vendida: ITM quando cotação < strike
-    if(!itm) return;
+    const distanciaPct = Math.abs((cot.preco - o.precoExercicio) / o.precoExercicio * 100);
     const dataVenc = parseVencimentoBR(o.vencimento);
     const diasParaVencer = Math.round((dataVenc - hojeOpcoes) / 86400000);
-    if(diasParaVencer > 2) return; // ainda longe do vencimento, sem urgência
+    const nivel = calcularNivelRiscoOpcao(distanciaPct, diasParaVencer, itm);
+    if(!nivel) return;
     const qtd = Math.abs(o.quantidade);
-    const capitalNecessario = Math.round(qtd * o.precoExercicio * 100) / 100;
-    const valorMercadoAcoes = Math.round(qtd * cot.preco * 100) / 100;
-    const perdaNoPapel = Math.round((capitalNecessario - valorMercadoAcoes) * 100) / 100;
     const premio = o.premioRecebido || 0;
-    const resultadoLiquidoSeExercido = Math.round((premio - perdaNoPapel) * 100) / 100;
-    const precoEquilibrio = Math.round((o.precoExercicio - premio / qtd) * 100) / 100;
+    let capitalNecessario = null, valorMercadoAcoes = null, perdaNoPapel = null, resultadoLiquidoSeExercido = null, precoEquilibrio = null;
+    if(itm){
+      // Matemática de exercício só faz sentido pra posição ITM — pra tier 🟡 OTM "perto do strike"
+      // seria hipotético (a opção NÃO está em risco de exercício agora, só perto o suficiente pra
+      // acompanhar), não misturar os 2 casos no mesmo número.
+      capitalNecessario = Math.round(qtd * o.precoExercicio * 100) / 100;
+      valorMercadoAcoes = Math.round(qtd * cot.preco * 100) / 100;
+      perdaNoPapel = Math.round((capitalNecessario - valorMercadoAcoes) * 100) / 100;
+      resultadoLiquidoSeExercido = Math.round((premio - perdaNoPapel) * 100) / 100;
+      precoEquilibrio = Math.round((o.precoExercicio - premio / qtd) * 100) / 100;
+    }
     avisos.push({
-      ativo: o.ativo, ticker: o.ticker, diasParaVencer, vencimento: o.vencimento,
-      strike: o.precoExercicio, cotacaoAtual: cot.preco, qtd,
-      capitalNecessario, valorMercadoAcoes, perdaNoPapel, premio, resultadoLiquidoSeExercido, precoEquilibrio,
+      ativo: o.ativo, ticker: o.ticker, diasParaVencer, vencimento: o.vencimento, itm, distanciaPct, nivel,
+      strike: o.precoExercicio, cotacaoAtual: cot.preco, qtd, premio,
+      capitalNecessario, valorMercadoAcoes, perdaNoPapel, resultadoLiquidoSeExercido, precoEquilibrio,
     });
   });
+  avisos.sort((a,b) => b.nivel.tier - a.nivel.tier || a.diasParaVencer - b.diasParaVencer);
   return avisos;
 }
 
