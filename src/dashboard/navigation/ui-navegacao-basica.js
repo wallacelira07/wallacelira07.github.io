@@ -187,27 +187,13 @@ function showOpcoesTab(id, btn){
   btn.classList.add('active');
 }
 
-// NOVO 21/08/2026 (pedido do usuário, correção de rumo: "transfira o que você fez das opções para
-// uma aba dedicada, foi esse meu pedido" — as .opcoes-tab da Fase 2 não eram uma aba dedicada de
-// verdade, só abas dentro do mesmo scroll do resto do painel). Este sistema não tem páginas/rotas
-// separadas — é 1 página rolável só, com seções numeradas. "Aba dedicada" aqui vira um modo tela
-// cheia: #secaoOpcoesWrap sai do fluxo normal (position:fixed, ver styles.css) e cobre a viewport
-// inteira, com scroll próprio, até o usuário clicar "Voltar ao Painel". A seção continua no lugar
-// normal da rolagem quando não está em tela cheia — ninguém perde o acesso de sempre.
-function abrirCockpitOpcoes(){
-  const el = $('secaoOpcoesWrap');
-  if(!el) return;
-  el.classList.add('opcoes-fullscreen');
-  document.body.style.overflow = 'hidden'; // trava o scroll do painel por trás
-  el.scrollTop = 0;
-}
-function fecharCockpitOpcoes(){
-  const el = $('secaoOpcoesWrap');
-  if(!el) return;
-  el.classList.remove('opcoes-fullscreen');
-  document.body.style.overflow = '';
-  el.scrollIntoView({block:'start'}); // volta o painel de fundo pra onde a seção 16 está de verdade
-}
+// REVERTIDO 21/08/2026 (correção de rumo — ver comentário no topo do master-pane #opcoes no HTML):
+// a 1ª tentativa de "aba dedicada" foi um modo tela cheia via position:fixed (abrirCockpitOpcoes()/
+// fecharCockpitOpcoes()), porque eu achei que o site não tinha sistema de páginas de topo. Errado —
+// existe .master-tabs/.master-pane + showMaster()/irParaPrimeiraSecao() (função já definida logo
+// abaixo), o mesmo mecanismo usado por Painel/Gráficos/Solar/etc. A seção de opções virou seu
+// próprio master-pane de verdade — as 2 funções deste hack foram removidas, sem substituto
+// necessário (irParaPrimeiraSecao('opcoes') já faz o trabalho).
 
 // NOVO 14/08/2026 (pedido do usuário: "coloque animação ao clicar nos cards, informações relevantes
 // e movimento no click" — diagrama "Fluxo de energia" na aba Solar). Toggle genérico: abre/fecha o

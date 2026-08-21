@@ -241,13 +241,14 @@
        de propósito — risco financeiro real tem prioridade sobre qualquer outro card. -->
   <div id="homeAvisoOpcoesITM" class="callout danger" style="display:none;margin-bottom:1.5rem"></div>
 
-  <!-- NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" pro cockpit de opções). Entrada
-       única de acesso ao modo tela cheia — ver abrirCockpitOpcoes()/ui-navegacao-basica.js. -->
-  <button type="button" onclick="abrirCockpitOpcoes()" class="card" style="margin-bottom:1.5rem;width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;gap:0.9rem;border:1px solid var(--border)">
+  <!-- NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" pro cockpit de opções — atalho
+       na Home pra mesma aba de topo "🎯 Opções", mesmo padrão de irParaPrimeiraSecao() das outras
+       abas). -->
+  <button type="button" onclick="irParaPrimeiraSecao('opcoes')" class="card" style="margin-bottom:1.5rem;width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;gap:0.9rem;border:1px solid var(--border)">
     <div style="font-size:1.6rem">🎯</div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:var(--fs-md)">Cockpit de Opções</div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Posições ativas, alertas de exercício, calculadora de recuperação, dividendos e dashboard executivo — em tela cheia</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Posições ativas, alertas de exercício, calculadora de recuperação, dividendos e dashboard executivo</div>
     </div>
     <div style="color:var(--text-dim);font-size:1.2rem">→</div>
   </button>
@@ -377,6 +378,10 @@
     <button type="button" class="master-tab" data-pane="balancov2" onclick="irParaPrimeiraSecao('balancov2')">🏛️ Balanço</button>
     <button type="button" class="master-tab" data-pane="wwi" onclick="irParaPrimeiraSecao('wwi')">🧠 Wealth Intelligence</button>
     <button type="button" class="master-tab" data-pane="emagrecimento" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️ Emagrecimento</button>
+    <!-- NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" pro cockpit de opções — mesmo
+         padrão das outras abas, showMaster()/irParaPrimeiraSecao(), inclui automaticamente na busca
+         global). -->
+    <button type="button" class="master-tab" data-pane="opcoes" onclick="irParaPrimeiraSecao('opcoes')">🎯 Opções</button>
     <!-- ADICIONADO 15/08/2026 (achado de UX da auditoria de 43 especialistas: formulário de
          lançamento manual só existe dentro do card da Inbox Financeira, que fica bem abaixo na
          aba Painel — exigia rolar por muitas seções pra chegar lá). Atalho fixo na mesma barra
@@ -966,17 +971,161 @@
     <div class="row"><span class="k">Excedente acima da meta</span><span class="v" style="color:var(--green)" id="metaInvExcedente">—</span></div>
   </div>
 
-  <!-- 16 -->
-  <!-- NOVO 21/08/2026 (achado do usuário: "transfira o que você fez das opções para uma aba dedicada,
-       foi esse meu pedido" — as abas .opcoes-tab/.opcoes-pane da Fase 2 ficavam dentro do mesmo scroll
-       longo do resto do painel, não eram uma aba de verdade separada). Este painel NÃO tem sistema de
-       páginas/rotas — é uma única página rolável com seções numeradas (não achei nenhum mecanismo
-       existente de "aba de topo" pra reaproveitar). Solução: #secaoOpcoesWrap continua no lugar normal
-       da rolagem (ninguém perde acesso scrollando), mas ganha um modo "tela cheia" via
-       abrirCockpitOpcoes() (position:fixed, cobre a página inteira, com botão "Voltar ao Painel") —
-       ver CSS .opcoes-fullscreen (styles.css) e as 2 funções em ui-navegacao-basica.js. -->
-  <div id="secaoOpcoesWrap">
-  <button type="button" class="opcoes-voltar-painel" onclick="fecharCockpitOpcoes()">← Voltar ao Painel</button>
+  <!-- LIMPO 01/08/2026 (varredura de alinhamento): bloco morto ja estava escondido (display:none)
+  desde a V216 (31/07/2026), so ocupando espaco no arquivo sem nunca aparecer na tela. Removido
+  de vez em vez de deixar comentado - a versao ativa (grid-2 + tabela acima) ja cobre tudo isso,
+  conectada a VARS.opcoesVendidasDetalhe. -->
+
+  <!-- 17 -->
+  <div class="section-num"><span class="n">17</span><h2>Operações P2P</h2></div>
+  <div class="card">
+    <div class="grid-4">
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600" id="p2pCreditosRestantes">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
+      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
+    </div>
+    <div class="v" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
+  </div>
+
+  <!-- 18 -->
+  <div class="section-num"><span class="n">18</span><h2>Reembolsos Wärtsilä</h2></div>
+  <!-- REORGANIZADA 12/08/2026 (pedido do usuário: "letras e espaçamentos brigando por espaço") —
+       rótulos das 7 linhas da cascata eram frases longas com explicação embutida (ex: "4. MP pessoal
+       (o que você deve na fatura)", "7. Sobra disponível (= Cobertura Garantida)"), competindo com o
+       valor em R$ pelo mesmo espaço de linha (.row é flex, .v não quebra — .k espremia). Encurtados
+       pro essencial; a explicação completa vira title="" (tooltip nativo no hover/toque longo), sem
+       perder informação nenhuma. Números 1-4 (destinos que consomem o reembolso) e 5-7 (resultado da
+       conta) ganham leve recuo visual pra marcar a hierarquia cascata → resultado sem precisar de
+       texto extra na tela. -->
+  <div class="card">
+    <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)" id="reembRecebidos">—</span></div>
+    <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600" id="reembAReceber">—</span></div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k" style="font-weight:700">Total do ciclo</span><span class="v" style="font-weight:700" id="reembCicloTotal">—</span></div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Recebidos = Total do ciclo − A receber (sobe conforme reembolsos são confirmados). A receber é a última solicitação pendente, ainda sem data de pagamento.</div>
+
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-top:0.8rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
+    <div style="padding-left:0.7rem;border-left:2px solid var(--border);margin-top:0.4rem">
+      <div class="row" style="padding:0.35rem 0"><span class="k">1. Fatura Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
+      <div class="row" style="padding:0.35rem 0"><span class="k">2. Corp. Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
+      <div class="row" style="padding:0.35rem 0"><span class="k">3. Corp. cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
+      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="O que você mesmo deve na fatura do Mercado Pago, depois da parte corporativa (linha 2)" style="font-weight:700">4. MP pessoal</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
+    </div>
+    <div style="padding-left:0.7rem;border-left:2px solid var(--green);margin-top:0.5rem">
+      <div class="row" style="padding:0.35rem 0"><span class="k" title="Tudo que sobra do reembolso depois das linhas 1-4" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
+      <!-- NOVA 12/08/2026 (pedido do usuário): "Manejo/Movimentação" — quanto da Sobra Total (linha 5)
+           já foi usado ou reservado pelo usuário pra outra coisa este ciclo, fora da cascata. Manual
+           (VARS.reembolsoManejo, hydrate-reembolsos.js), zerado por padrão. Abate da sobra ANTES dela
+           virar Cobertura Garantida — mantém a Necessidade Líquida automática (linha 7) mas dá controle
+           explícito sobre o que já foi de fato tirado da sobra. -->
+      <div class="row" style="padding:0.35rem 0"><span class="k" title="Quanto da Sobra Total (linha 5) você já confirmou ter usado ou reservado pra outra coisa este ciclo">6. Manejo/Movimentação</span><span class="v" style="color:var(--amber)" id="reembManejo">—</span></div>
+      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="Linha 5 − linha 6 = o que de fato abate a Necessidade Total, vira Necessidade Líquida (Cobertura Garantida)" style="font-weight:700">7. Sobra disponível</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraDisponivel">—</span></div>
+    </div>
+    <div class="v" id="legLinha4vs5MP" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.5rem">—</div>
+  </div>
+
+  <!-- 19 -->
+  <div class="section-num"><span class="n">19</span><h2>Indicadores e evolução da necessidade</h2></div>
+  <div class="grid-3" style="margin-bottom:1rem">
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total operacional (próximo ciclo)</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:var(--fs-label);color:var(--text-dim)">Compromissos fixos do PRÓXIMO ciclo (o que ainda não começou): boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:var(--fs-label);color:var(--text-dim)">—</div></div>
+    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Necessidade total (bruta) — próximo ciclo</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:var(--fs-label);color:var(--text-dim)">Total operacional + orçamento operacional do PRÓXIMO ciclo. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
+  </div>
+  <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Necessidade líquida do salário (dia 25)</div>
+      <span class="badge bg">Já garantido: R$ <span class="v" id="s20Garantido">—</span></span>
+    </div>
+    <div class="v" style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
+    <div class="v" id="legNecessidadeBrutaLiquida" style="font-size:var(--fs-2xs);color:var(--text-dim)">—</div>
+  </div>
+  <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;gap:0.5rem;flex-wrap:wrap">
+      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Necessidade líquida do salário — próximos ciclos</div>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+        <span class="badge bg v" id="quedaProximoCicloNL">Deste → próx. ciclo: —</span>
+        <span class="badge bg v" id="quedaTotalNL">Queda total: —</span>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
+    <div class="v" id="legSimulacaoMesAMes" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Evolução do Total Operacional conforme parcelas encerram</div>
+      <span class="badge bg v" id="alivioBadgeMar27">—</span>
+    </div>
+    <div class="chart-box"><canvas id="cEvol"></canvas></div>
+    <div class="v" id="legTotalOperacionalDefinicao" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
+  </div>
+
+  <!-- 20 -->
+  <div class="section-num"><span class="n">20</span><h2>Resumo executivo</h2></div>
+  <div class="card">
+    <div class="row"><span class="k" style="font-weight:600">Patrimônio Líquido</span><span class="v" style="font-size:var(--fs-lg);font-weight:700" id="r21Patrimonio">—</span></div>
+    <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span class="v" id="r21MetaMilhaoPct">—</span>%</span></div>
+    <div class="row"><span class="k">Modo operacional</span><span class="badge bg" id="r21ModoOp">—</span></div>
+    <div class="row"><span class="k">Visa Infinite</span><span class="v" id="r21Visa">—</span></div>
+    <div class="row"><span class="k">Mastercard Black</span><span class="v" id="r21MB">—</span></div>
+    <div class="row"><span class="k">Fatura Mercado Pago</span><span class="v" id="r21MP">—</span></div>
+    <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="r21Wartsila">—</span></div>
+    <div class="row"><span class="k">ECC</span><span class="v" id="r21ECC">—</span></div>
+    <div class="row"><span class="k">Total operacional</span><span class="v" id="r21TotalOp">—</span></div>
+    <div class="row"><span class="k">Total op. em <span id="labelUltimoCicloEvolucao2">—</span></span><span class="v" style="color:var(--green)" id="r21TotalOpMar27">—</span></div>
+    <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba v" id="r21ProjetoCasa">—</span></div>
+    <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba v" id="r21ConsorcioCasa">—</span></div>
+    <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba v" id="r21EscolaJulio">—</span></div>
+    <div class="row"><span class="k">Meta investimento</span><span class="badge bg v" id="r21MetaInvest">—</span></div>
+    <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge bg" id="balLreiAtivos">—</span></div>
+  </div>
+
+  <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
+
+  <!-- 21 -->
+  <!-- V400 (03/08/2026) Etapa 1 - Inbox Financeira: componente central do projeto de automacao de
+       captura (brief V400). Continua/nao filtrada por ciclo (mesma classe de LREI/boletos). Comeca
+       vazia - nenhuma automacao de captura (Pluggy/Email/Telegram/OCR/Corretoras) existe ainda,
+       populavel via inboxAdicionarItem() no console/app.js ate essas automacoes chegarem em etapas
+       futuras. Aprovar/Rejeitar so muda o status aqui dentro - nunca lanca automaticamente no livro
+       razao (ver app.js, funcao inboxAprovar). -->
+  <div class="section-num"><span class="n">21</span><h2>📥 Inbox Financeira</h2></div>
+  <div class="card">
+    <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
+         mais do que ajuda" — decisão: remover o atalho global flutuante, deixar só nos lugares que já
+         fazem sentido). Formulário "＋ Lançar" (lancar_transacao_manual, V2) migrado do dock flutuante
+         fixo (visível em cima de qualquer aba, sempre) pra este slot dentro da Inbox Financeira — é
+         onde já existe o mesmo tipo de ação (revisar/confirmar um lançamento). Populado por
+         app.js (mesmo código/lógica de sempre, só o alvo de injeção mudou). -->
+    <div id="lancarTxSlot" style="margin-bottom:0.8rem"></div>
+    <!-- DESATIVADO 15/08/2026 (pedido explícito do usuário: "desative o inbox, isso só gera
+         duplicidade" — itens já resolvidos/explicados reapareciam na fila, sem memória do que já
+         tinha sido decidido). Escondido da tela, não deletado: a sincronização Pluggy/Mercado Pago
+         (aplicarOnda6MercadoPago/pluggy-reconciliacao.js) continua rodando por baixo, porque outras
+         telas (ex. renderMercadoPagoDashboard) ainda leem VARS.INBOX_FINANCEIRA — só a exibição/
+         interação com a fila (resumo + tabela + aprovar/rejeitar) foi tirada da vista do usuário.
+         Reverter: remover este comentário/display:none. -->
+    <div style="display:none">
+      <div class="v" id="inboxFinanceiraResumo" style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
+      <div style="overflow-x:auto">
+        <table id="inboxFinanceiraTable"><thead><tr><th scope="col">ID</th><th scope="col">Origem</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th><th scope="col">Data</th><th scope="col" class="r">Confiança</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="opcoes" class="master-pane">
+  <!-- NOVO 21/08/2026 (correção de rumo, pedido do usuário: "transfira o que você fez das
+       opções para uma aba dedicada, foi esse meu pedido" — 1ª tentativa foi um hack de
+       tela cheia (position:fixed) porque eu achei que o site não tinha sistema de
+       páginas/abas de topo. Errado — existe sim: .master-tabs/.master-pane + showMaster()/
+       irParaPrimeiraSecao() (ver ui-navegacao-basica.js), o MESMO mecanismo usado por
+       Painel/Gráficos/Solar/Cenários/Balanço/WWI/Emagrecimento. Rebuild: a seção "Carteira
+       de opções" virou o seu PRÓPRIO master-pane de verdade, com aba própria na barra
+       fixa do topo — e a busca global (construirIndiceBuscaGlobal(), dashboard-navegacao.js)
+       já indexa automaticamente QUALQUER .master-pane/.section-num novo, sem nenhum código
+       extra — resolve de graça o pedido "a pesquisa tem que funcionar em tudo dessa aba
+       nova". Hack de tela cheia removido (CSS/JS revertidos em commit separado). -->
   <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
   <div class="card">
     <!-- NOVO 21/08/2026 (Fase 4 do cockpit de opções, pedido do usuário: "Dashboard executivo" —
@@ -1119,149 +1268,6 @@
     </div>
 
     <div class="v" id="legOpcoesReconstruido" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
-  </div>
-  </div><!-- /secaoOpcoesWrap -->
-
-  <!-- LIMPO 01/08/2026 (varredura de alinhamento): bloco morto ja estava escondido (display:none)
-  desde a V216 (31/07/2026), so ocupando espaco no arquivo sem nunca aparecer na tela. Removido
-  de vez em vez de deixar comentado - a versao ativa (grid-2 + tabela acima) ja cobre tudo isso,
-  conectada a VARS.opcoesVendidasDetalhe. -->
-
-  <!-- 17 -->
-  <div class="section-num"><span class="n">17</span><h2>Operações P2P</h2></div>
-  <div class="card">
-    <div class="grid-4">
-      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Capital total</div><div class="v" style="font-weight:600" id="p2pCapitalTotal">—</div></div>
-      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Créditos restantes</div><div style="font-weight:600" id="p2pCreditosRestantes">—</div></div>
-      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Saldo investido</div><div class="v" style="font-weight:600" id="p2pSaldoInvestido">—</div></div>
-      <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Lucro realizado</div><div class="v" style="font-weight:600;color:var(--green)" id="p2pLucroRealizado">—</div></div>
-    </div>
-    <div class="v" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem" id="p2pDetalhe">—</div>
-  </div>
-
-  <!-- 18 -->
-  <div class="section-num"><span class="n">18</span><h2>Reembolsos Wärtsilä</h2></div>
-  <!-- REORGANIZADA 12/08/2026 (pedido do usuário: "letras e espaçamentos brigando por espaço") —
-       rótulos das 7 linhas da cascata eram frases longas com explicação embutida (ex: "4. MP pessoal
-       (o que você deve na fatura)", "7. Sobra disponível (= Cobertura Garantida)"), competindo com o
-       valor em R$ pelo mesmo espaço de linha (.row é flex, .v não quebra — .k espremia). Encurtados
-       pro essencial; a explicação completa vira title="" (tooltip nativo no hover/toque longo), sem
-       perder informação nenhuma. Números 1-4 (destinos que consomem o reembolso) e 5-7 (resultado da
-       conta) ganham leve recuo visual pra marcar a hierarquia cascata → resultado sem precisar de
-       texto extra na tela. -->
-  <div class="card">
-    <div class="row"><span class="k">Recebidos no ciclo</span><span class="v" style="color:var(--green)" id="reembRecebidos">—</span></div>
-    <div class="row"><span class="k" style="font-weight:600">A receber</span><span class="v" style="font-weight:600" id="reembAReceber">—</span></div>
-    <div class="row" style="border-top:1px solid var(--border);margin-top:0.4rem;padding-top:0.4rem"><span class="k" style="font-weight:700">Total do ciclo</span><span class="v" style="font-weight:700" id="reembCicloTotal">—</span></div>
-    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem">Recebidos = Total do ciclo − A receber (sobe conforme reembolsos são confirmados). A receber é a última solicitação pendente, ainda sem data de pagamento.</div>
-
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);margin-top:0.8rem;font-weight:600">Cascata de destino (sempre nesta ordem):</div>
-    <div style="padding-left:0.7rem;border-left:2px solid var(--border);margin-top:0.4rem">
-      <div class="row" style="padding:0.35rem 0"><span class="k">1. Fatura Wärtsilä</span><span class="v" style="color:var(--red)" id="reembPagaWartsila">—</span></div>
-      <div class="row" style="padding:0.35rem 0"><span class="k">2. Corp. Mercado Pago</span><span class="v" style="color:var(--red)" id="reembPagaMP">—</span></div>
-      <div class="row" style="padding:0.35rem 0"><span class="k">3. Corp. cartão (Infinite/MB)</span><span class="v" style="color:var(--red)" id="reembPagaCartao">—</span></div>
-      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="O que você mesmo deve na fatura do Mercado Pago, depois da parte corporativa (linha 2)" style="font-weight:700">4. MP pessoal</span><span class="v" style="font-weight:700;color:var(--red)" id="reembMPPessoal">—</span></div>
-    </div>
-    <div style="padding-left:0.7rem;border-left:2px solid var(--green);margin-top:0.5rem">
-      <div class="row" style="padding:0.35rem 0"><span class="k" title="Tudo que sobra do reembolso depois das linhas 1-4" style="font-weight:700">5. Sobra total</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraPessoal">—</span></div>
-      <!-- NOVA 12/08/2026 (pedido do usuário): "Manejo/Movimentação" — quanto da Sobra Total (linha 5)
-           já foi usado ou reservado pelo usuário pra outra coisa este ciclo, fora da cascata. Manual
-           (VARS.reembolsoManejo, hydrate-reembolsos.js), zerado por padrão. Abate da sobra ANTES dela
-           virar Cobertura Garantida — mantém a Necessidade Líquida automática (linha 7) mas dá controle
-           explícito sobre o que já foi de fato tirado da sobra. -->
-      <div class="row" style="padding:0.35rem 0"><span class="k" title="Quanto da Sobra Total (linha 5) você já confirmou ter usado ou reservado pra outra coisa este ciclo">6. Manejo/Movimentação</span><span class="v" style="color:var(--amber)" id="reembManejo">—</span></div>
-      <div class="row" style="padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.2rem"><span class="k" title="Linha 5 − linha 6 = o que de fato abate a Necessidade Total, vira Necessidade Líquida (Cobertura Garantida)" style="font-weight:700">7. Sobra disponível</span><span class="v" style="font-weight:700;color:var(--green)" id="reembSobraDisponivel">—</span></div>
-    </div>
-    <div class="v" id="legLinha4vs5MP" style="font-size:var(--fs-label);color:var(--text-dim);margin-top:0.5rem">—</div>
-  </div>
-
-  <!-- 19 -->
-  <div class="section-num"><span class="n">19</span><h2>Indicadores e evolução da necessidade</h2></div>
-  <div class="grid-3" style="margin-bottom:1rem">
-    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total operacional (próximo ciclo)</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20TotalOp">—</div><div style="font-size:var(--fs-label);color:var(--text-dim)">Compromissos fixos do PRÓXIMO ciclo (o que ainda não começou): boletos + parcelamentos Visa + assinaturas + recorrências + consórcios + aportes das caixas patrimoniais.</div></div>
-    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Orçamento operacional</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20Orcamento">—</div><div class="v" id="legOrcamentoOperacionalComposicao" style="font-size:var(--fs-label);color:var(--text-dim)">—</div></div>
-    <div class="card"><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Necessidade total (bruta) — próximo ciclo</div><div class="v" style="font-weight:700;font-size:var(--fs-xl);margin-bottom:0.4rem" id="s20NecBruta">—</div><div style="font-size:var(--fs-label);color:var(--text-dim)">Total operacional + orçamento operacional do PRÓXIMO ciclo. Pior cenário — assume nenhuma fatura provisionada. Veja a "líquida" abaixo para o valor real.</div></div>
-  </div>
-  <div class="card" style="border-left:3px solid var(--green);margin-bottom:1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Necessidade líquida do salário (dia 25)</div>
-      <span class="badge bg">Já garantido: R$ <span class="v" id="s20Garantido">—</span></span>
-    </div>
-    <div class="v" style="font-weight:700;font-size:1.4rem;margin-bottom:0.4rem" id="s20NecLiquida">—</div>
-    <div class="v" id="legNecessidadeBrutaLiquida" style="font-size:var(--fs-2xs);color:var(--text-dim)">—</div>
-  </div>
-  <div class="card" style="border-left:3px solid var(--accent);margin-bottom:1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;gap:0.5rem;flex-wrap:wrap">
-      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Necessidade líquida do salário — próximos ciclos</div>
-      <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-        <span class="badge bg v" id="quedaProximoCicloNL">Deste → próx. ciclo: —</span>
-        <span class="badge bg v" id="quedaTotalNL">Queda total: —</span>
-      </div>
-    </div>
-    <div class="chart-box"><canvas id="cNecessidadeLiquida"></canvas></div>
-    <div class="v" id="legSimulacaoMesAMes" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
-  </div>
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div style="font-size:var(--fs-xs);color:var(--text-mid)">Evolução do Total Operacional conforme parcelas encerram</div>
-      <span class="badge bg v" id="alivioBadgeMar27">—</span>
-    </div>
-    <div class="chart-box"><canvas id="cEvol"></canvas></div>
-    <div class="v" id="legTotalOperacionalDefinicao" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
-  </div>
-
-  <!-- 20 -->
-  <div class="section-num"><span class="n">20</span><h2>Resumo executivo</h2></div>
-  <div class="card">
-    <div class="row"><span class="k" style="font-weight:600">Patrimônio Líquido</span><span class="v" style="font-size:var(--fs-lg);font-weight:700" id="r21Patrimonio">—</span></div>
-    <div class="row"><span class="k">Meta do Milhão</span><span class="badge bb"><span class="v" id="r21MetaMilhaoPct">—</span>%</span></div>
-    <div class="row"><span class="k">Modo operacional</span><span class="badge bg" id="r21ModoOp">—</span></div>
-    <div class="row"><span class="k">Visa Infinite</span><span class="v" id="r21Visa">—</span></div>
-    <div class="row"><span class="k">Mastercard Black</span><span class="v" id="r21MB">—</span></div>
-    <div class="row"><span class="k">Fatura Mercado Pago</span><span class="v" id="r21MP">—</span></div>
-    <div class="row"><span class="k">Fatura Wärtsilä</span><span class="v" id="r21Wartsila">—</span></div>
-    <div class="row"><span class="k">ECC</span><span class="v" id="r21ECC">—</span></div>
-    <div class="row"><span class="k">Total operacional</span><span class="v" id="r21TotalOp">—</span></div>
-    <div class="row"><span class="k">Total op. em <span id="labelUltimoCicloEvolucao2">—</span></span><span class="v" style="color:var(--green)" id="r21TotalOpMar27">—</span></div>
-    <div class="row"><span class="k">Projeto Casa Nova</span><span class="badge ba v" id="r21ProjetoCasa">—</span></div>
-    <div class="row"><span class="k">Consórcio Casa Nova</span><span class="badge ba v" id="r21ConsorcioCasa">—</span></div>
-    <div class="row"><span class="k">Escola de Júlio</span><span class="badge ba v" id="r21EscolaJulio">—</span></div>
-    <div class="row"><span class="k">Meta investimento</span><span class="badge bg v" id="r21MetaInvest">—</span></div>
-    <div class="row"><span class="k">Empréstimos internos ativos</span><span class="badge bg" id="balLreiAtivos">—</span></div>
-  </div>
-
-  <!-- V146: callout ECC/salario-25 removido (ciclo fechado, ja distribuido). -->
-
-  <!-- 21 -->
-  <!-- V400 (03/08/2026) Etapa 1 - Inbox Financeira: componente central do projeto de automacao de
-       captura (brief V400). Continua/nao filtrada por ciclo (mesma classe de LREI/boletos). Comeca
-       vazia - nenhuma automacao de captura (Pluggy/Email/Telegram/OCR/Corretoras) existe ainda,
-       populavel via inboxAdicionarItem() no console/app.js ate essas automacoes chegarem em etapas
-       futuras. Aprovar/Rejeitar so muda o status aqui dentro - nunca lanca automaticamente no livro
-       razao (ver app.js, funcao inboxAprovar). -->
-  <div class="section-num"><span class="n">21</span><h2>📥 Inbox Financeira</h2></div>
-  <div class="card">
-    <!-- CORRIGIDO 10/08/2026 (pedido do usuário: "o botão de lançar não combina com nada, atrapalha
-         mais do que ajuda" — decisão: remover o atalho global flutuante, deixar só nos lugares que já
-         fazem sentido). Formulário "＋ Lançar" (lancar_transacao_manual, V2) migrado do dock flutuante
-         fixo (visível em cima de qualquer aba, sempre) pra este slot dentro da Inbox Financeira — é
-         onde já existe o mesmo tipo de ação (revisar/confirmar um lançamento). Populado por
-         app.js (mesmo código/lógica de sempre, só o alvo de injeção mudou). -->
-    <div id="lancarTxSlot" style="margin-bottom:0.8rem"></div>
-    <!-- DESATIVADO 15/08/2026 (pedido explícito do usuário: "desative o inbox, isso só gera
-         duplicidade" — itens já resolvidos/explicados reapareciam na fila, sem memória do que já
-         tinha sido decidido). Escondido da tela, não deletado: a sincronização Pluggy/Mercado Pago
-         (aplicarOnda6MercadoPago/pluggy-reconciliacao.js) continua rodando por baixo, porque outras
-         telas (ex. renderMercadoPagoDashboard) ainda leem VARS.INBOX_FINANCEIRA — só a exibição/
-         interação com a fila (resumo + tabela + aprovar/rejeitar) foi tirada da vista do usuário.
-         Reverter: remover este comentário/display:none. -->
-    <div style="display:none">
-      <div class="v" id="inboxFinanceiraResumo" style="font-size:var(--fs-2xs);color:var(--text-mid);margin-bottom:0.5rem;font-weight:600">—</div>
-      <div style="overflow-x:auto">
-        <table id="inboxFinanceiraTable"><thead><tr><th scope="col">ID</th><th scope="col">Origem</th><th scope="col">Descrição</th><th scope="col" class="r">Valor</th><th scope="col">Data</th><th scope="col" class="r">Confiança</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead><tbody id="inboxFinanceiraTbody">
-        </tbody></table>
-      </div>
-    </div>
   </div>
   </div>
 
