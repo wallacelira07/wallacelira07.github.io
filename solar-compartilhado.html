@@ -859,6 +859,14 @@ async function carregar(){
       <div class="chart-wrap"><canvas id="cCreditoVsMedidorWallace"></canvas></div>
     </div>
 
+    <!-- NOVO 20/08/2026 (pedido do usuário) — versão dia a dia, replicada do painel privado. Ver
+         montarGraficoCreditoVsMedidorDiarioCompartilhado() logo abaixo pro método (aproximado). -->
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Crédito × medidor Tuya — apartamento (dia a dia)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Últimos 7 dias. Crédito do dia é uma aproximação (geração bruta da usina × seu rateio) — não é o crédito oficial por ciclo, que usa o saldo líquido real das leituras 03/103 (manuais, não diárias).</div>
+      <div class="chart-wrap"><canvas id="cCreditoVsMedidorDiarioWallace"></canvas></div>
+    </div>
+
     <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa
          juntas) — mesmo card de sempre, só a posição mudou. Dado vem de
          dados.medidorTuyaWellidaUltima (RPC). Medidor dela é modelo bidirecional
@@ -934,6 +942,13 @@ async function carregar(){
       <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Crédito × medidor Tuya — Wellida (mês a mês)</div>
       <div class="stat-sub" style="margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya da Wellida. Meses sem leitura do medidor ainda ficam sem barra vermelha.</div>
       <div class="chart-wrap"><canvas id="cCreditoVsMedidorWellida"></canvas></div>
+    </div>
+
+    <!-- NOVO 20/08/2026 (pedido do usuário) — card gêmeo dia a dia do Wallace acima. -->
+    <div class="card">
+      <div class="stat-lbl" style="margin-bottom:0.8rem">📊 Crédito × medidor Tuya — Wellida (dia a dia)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">Últimos 7 dias. Crédito do dia é uma aproximação (geração bruta da usina × rateio da Wellida) — não é o crédito oficial por ciclo.</div>
+      <div class="chart-wrap"><canvas id="cCreditoVsMedidorDiarioWellida"></canvas></div>
     </div>
 
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
@@ -1180,6 +1195,49 @@ async function carregar(){
     }
     montarGraficoCreditoVsMedidorCompartilhado('cCreditoVsMedidorWallace', creditoWallacePorIdx, consumoTuyaWallaceAlinhado, '#34c98a');
     montarGraficoCreditoVsMedidorCompartilhado('cCreditoVsMedidorWellida', creditoIrmaPorIdx, consumoTuyaWellidaAlinhado, '#14b8a6');
+
+    // NOVO 20/08/2026 (pedido do usuário, replicado do painel privado): versão dia a dia — mesma
+    // simplificação documentada lá (crédito do dia = geração bruta × rateio, aproximado, não o
+    // crédito oficial por ciclo que usa saldo líquido real das leituras 03/103 manuais).
+    function montarGraficoCreditoVsMedidorDiarioCompartilhado(canvasId, rateio, consumoDiarioTuya, corCredito){
+      const el = document.getElementById(canvasId);
+      if(!el) return;
+      const JANELA_DIAS = 7;
+      const geracaoPorData = {};
+      (geracaoDiaria||[]).forEach(r => { geracaoPorData[r.data] = r.kwh; });
+      const consumoPorData = {};
+      (consumoDiarioTuya||[]).forEach(r => { if(r.kwhConsumido != null) consumoPorData[r.data] = Number(r.kwhConsumido); });
+      const datas = Array.from(new Set([...Object.keys(geracaoPorData), ...Object.keys(consumoPorData)])).sort().slice(-JANELA_DIAS);
+      if(!datas.length) return;
+      const labels = datas.map(d => d.slice(8,10)+'/'+d.slice(5,7));
+      const creditoDiario = datas.map(d => geracaoPorData[d] != null ? Math.round(geracaoPorData[d]*rateio*100)/100 : null);
+      const consumoAlinhado = datas.map(d => consumoPorData[d] != null ? consumoPorData[d] : null);
+      const __chartExistente = Chart.getChart(el); if (__chartExistente) __chartExistente.destroy();
+      new Chart(el, {
+        type: 'bar',
+        data: { labels, datasets: [
+          { label:'Crédito do dia (aprox.)', data: creditoDiario, backgroundColor: corCredito, borderRadius:3 },
+          { label:'Consumo real (medidor Tuya)', data: consumoAlinhado, backgroundColor:'#e2554f', borderRadius:3 },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 18 } },
+          plugins: {
+            legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} },
+            tooltip: { callbacks: { label: c => c.raw==null ? c.dataset.label+': sem leitura ainda' : c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh' } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9.5 } }, categoryPercentage:0.9, barPercentage:0.35 },
+            y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
+          },
+        },
+        plugins: [barValuePluginInteiro],
+      });
+    }
+    const rateioWallaceDiario = ciclo && ciclo.rateio_wallace_pct != null ? Number(ciclo.rateio_wallace_pct) : 0.71;
+    const rateioIrmaDiario = ciclo && ciclo.rateio_irma_pct != null ? Number(ciclo.rateio_irma_pct) : 0.29;
+    montarGraficoCreditoVsMedidorDiarioCompartilhado('cCreditoVsMedidorDiarioWallace', rateioWallaceDiario, dados.medidorTuyaConsumoDiario, '#34c98a');
+    montarGraficoCreditoVsMedidorDiarioCompartilhado('cCreditoVsMedidorDiarioWellida', rateioIrmaDiario, dados.medidorTuyaWellidaConsumoDiario, '#14b8a6');
   }
   const legRateioEl = document.getElementById('legRateioSolarCompartilhado');
   if(legRateioEl){

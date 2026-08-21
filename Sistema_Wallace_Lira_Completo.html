@@ -1619,6 +1619,16 @@
       <div class="chart-box tall"><canvas id="cCreditoVsMedidorWallace"></canvas></div>
     </div>
 
+    <!-- NOVO 20/08/2026 (pedido do usuário): versão dia a dia do gráfico acima — ver
+         montarGraficoCreditoVsMedidorDiario() em graficos-cenarios-lazy.js pro método (crédito do dia
+         = geração bruta × rateio, aproximado — não é o crédito oficial por ciclo, que usa saldo
+         líquido real das leituras 03/103, manuais/esporádicas demais pra granularidade diária). -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Crédito × medidor Tuya — apartamento (dia a dia)</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">Últimos 7 dias. Crédito do dia é uma APROXIMAÇÃO (geração bruta da usina × seu rateio) — não é o crédito oficial por ciclo (esse usa o saldo líquido real das leituras 03/103, que são manuais, não diárias). Pode superestimar um pouco, já que não desconta o autoconsumo direto da Casa da Mãe.</div>
+      <div class="chart-box tall"><canvas id="cCreditoVsMedidorDiarioWallace"></canvas></div>
+    </div>
+
     <!-- MOVIDO 18/08/2026 (pedido do usuário: ordem certa é telemetria+comparação de cada casa juntas,
          não as 2 telemetrias primeiro depois as 2 comparações) — mesmo card de sempre, só a posição
          mudou. Mesmo card/campos/ids (prefixo medTuyaWellida), mesma função generalizada
@@ -1669,6 +1679,13 @@
       <div style="font-weight:600;margin-bottom:0.4rem">📊 Crédito × medidor Tuya — Wellida (mês a mês)</div>
       <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">Crédito gerado (mesma série do gráfico "Rateio Solar" acima) vs. consumo real medido pelo medidor Tuya da Wellida — não a fatura Energisa. Meses sem leitura do medidor ainda ficam sem barra vermelha.</div>
       <div class="chart-box tall"><canvas id="cCreditoVsMedidorWellida"></canvas></div>
+    </div>
+
+    <!-- NOVO 20/08/2026 (pedido do usuário) — card gêmeo do dia a dia do Wallace acima, ver comentário lá. -->
+    <div class="card" style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:0.4rem">📊 Crédito × medidor Tuya — Wellida (dia a dia)</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-mid);margin-bottom:0.6rem">Últimos 7 dias. Crédito do dia é uma APROXIMAÇÃO (geração bruta da usina × rateio da Wellida) — não é o crédito oficial por ciclo. Pode superestimar um pouco.</div>
+      <div class="chart-box tall"><canvas id="cCreditoVsMedidorDiarioWellida"></canvas></div>
     </div>
 
     <!-- estimativa de fatura residual pos-solar, mesmo com creditos cobrindo 100% do consumo. Regra

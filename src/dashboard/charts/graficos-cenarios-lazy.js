@@ -2338,6 +2338,53 @@ async function _lazyRenderSolarSecao(){
   montarGraficoCreditoVsMedidor('cCreditoVsMedidorWallace', creditoMensalWallace, consumoTuyaWallaceAlinhado, '#34c98a');
   montarGraficoCreditoVsMedidor('cCreditoVsMedidorWellida', creditoMensalIrma, consumoTuyaWellidaAlinhado, '#14b8a6');
 
+  // NOVO 20/08/2026 (pedido do usuário: "quero um gráfico com o valor do crédito que me cabe no dia
+  // em comparação com esse consumo do medidor... um para mim e um para minha irmã"): versão DIA A DIA
+  // dos 2 gráficos acima (que são mês a mês/ciclo a ciclo). SIMPLIFICAÇÃO DELIBERADA, documentada:
+  // "crédito do dia" aqui = geração BRUTA do dia (VARS.SOLAR_GERACAO_DIARIA, robô SAJ, automático)
+  // × rateio (VARS.solarRateioWallace/Irma) — diferente do crédito "oficial" usado no resto do
+  // sistema (gráfico Rateio Solar, cards "Consumo real × crédito"), que usa o SALDO LÍQUIDO real
+  // (exportado−importado, códigos 03/103) sobre o crédito acumulado. Não dá pra replicar o método
+  // oficial em granularidade diária porque as leituras 03/103 são manuais/esporádicas, não diárias
+  // automáticas — só a geração bruta tem robô rodando todo dia. Ou seja: este gráfico tende a
+  // SUPERESTIMAR levemente o crédito real (não desconta o autoconsumo direto da Casa da Mãe, que
+  // acontece durante o dia antes de virar excedente exportado) — é uma referência diária aproximada,
+  // não substitui o crédito oficial por ciclo mostrado nos gráficos/cards acima.
+  function montarGraficoCreditoVsMedidorDiario(canvasId, rateio, consumoDiarioTuya, corCredito){
+    const el = $(canvasId);
+    if(!el) return;
+    const JANELA_DIAS = 7;
+    const geracaoPorData = {};
+    (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r => { geracaoPorData[r.data] = r.kwh; });
+    const consumoPorData = {};
+    (consumoDiarioTuya||[]).forEach(r => { if(r.kwh_consumido != null) consumoPorData[r.data] = Number(r.kwh_consumido); });
+    const datas = Array.from(new Set([...Object.keys(geracaoPorData), ...Object.keys(consumoPorData)])).sort().slice(-JANELA_DIAS);
+    if(!datas.length) return;
+    const labels = datas.map(d => d.slice(8,10)+'/'+d.slice(5,7));
+    const creditoDiario = datas.map(d => geracaoPorData[d] != null ? Math.round(geracaoPorData[d]*rateio*100)/100 : null);
+    const consumoAlinhado = datas.map(d => consumoPorData[d] != null ? consumoPorData[d] : null);
+    observeAndRenderChart(el, () => { const __chartExistente = Chart.getChart(el); if (__chartExistente) __chartExistente.destroy(); return new Chart(el, {
+      type:'bar',
+      plugins:[solarBarLabelPlugin],
+      data:{labels,
+        datasets:[
+          {label:'Crédito do dia (aprox.)', data:creditoDiario, backgroundColor:corCredito, borderRadius:3},
+          {label:'Consumo real (medidor Tuya)', data:consumoAlinhado, backgroundColor:'#e2554f', borderRadius:3}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:30,bottom:8}},
+        plugins:{legend:legendStd2,tooltip:{callbacks:{
+          label:c=>{
+            if(c.raw===null) return c.dataset.label+': sem leitura ainda';
+            return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
+          }
+        }}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
+          y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
+    }); });
+  }
+  montarGraficoCreditoVsMedidorDiario('cCreditoVsMedidorDiarioWallace', VARS.solarRateioWallace, window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, '#34c98a');
+  montarGraficoCreditoVsMedidorDiario('cCreditoVsMedidorDiarioWellida', VARS.solarRateioIrma, window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2, '#14b8a6');
+
   // NOVO 17/08/2026 (pedido do usuário: "crie um gráfico que mostre o comparativo entre o gerado e o
   // consumido", refinado 4x na mesma sessão: 1º "só meu apartamento... algo como o gráfico de
   // rateio", 2º "eu não pedi pra cruzar o consumo da fatura com o medidor, pedi pra cruzar o medidor
