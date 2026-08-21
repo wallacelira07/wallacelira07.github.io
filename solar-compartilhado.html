@@ -994,12 +994,20 @@ async function carregar(){
     // NOVO 17/08/2026 (pedido do usuário: "coloque essa legenda no compartilhado também" — mesmo
     // texto/números em destaque vermelho do painel privado, legGeracaoPorDia em
     // graficos-cenarios-lazy.js, calculado aqui com os mesmos `ultimos`/CONSUMO_MEDIO_3_CASAS_KWH).
+    // CORRIGIDO 21/08/2026 (achado do usuário: "esquema de cores do compartilhamento está faltando"
+    // — o painel privado ganhou uma melhoria em 19/08/2026 (cor da média de geração compara contra o
+    // consumo: verde/âmbar/vermelho) que nunca foi replicada aqui, então a média de geração continuava
+    // sempre vermelha mesmo quando o texto já dizia "barra verde" — corrigido pra usar a mesma lógica.
     const legGeracaoEl = document.getElementById('legGeracaoDiariaCompartilhado');
     if(legGeracaoEl){
       const valoresReais = ultimos.map(r=>r.kwh).filter(v=>typeof v==='number');
       const mediaGeracaoReal = valoresReais.length ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/valoresReais.length)*100)/100 : null;
+      const corMediaGeracao = (mediaGeracaoReal == null) ? 'var(--red)'
+        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH + 2 ? 'var(--green)'
+        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH ? 'var(--amber)'
+        : 'var(--red)';
       legGeracaoEl.innerHTML = valoresReais.length
-        ? valoresReais.length+' dia(s) com geração real (barra verde), média de <strong style="color:var(--red)">'+fmtKwh(mediaGeracaoReal)+'/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas = <strong style="color:var(--red)">'+fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)+'/dia</strong>.'
+        ? valoresReais.length+' dia(s) com geração real (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+fmtKwh(mediaGeracaoReal)+'/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas = <strong style="color:var(--red)">'+fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)+'/dia</strong>.'
         : 'Ainda sem geração diária real suficiente pra calcular a média.';
     }
   }
