@@ -28,7 +28,7 @@ Achado ao investigar antes de codar: `cronograma_consorcios` tem as 2 linhas (`T
 ## Pendências reais (ação do usuário, fora do meu alcance)
 
 1. **Nenhuma credencial nova** — reaproveita os Secrets já cadastrados (`GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN`/`SUPABASE_URL`/`SUPABASE_KEY`).
-2. Criar tarefa dedicada no cron-job.org (mesmo padrão dos outros robôs — URL da API do GitHub `workflow_dispatch` pro workflow `atualizar_consorcio_porto.yml`), rodando 1x por mês ou a cada poucos dias (o robô é idempotente).
+2. **Nenhuma tarefa nova no cron-job.org** (pedido do usuário: "não pode usar o mesmo?") — o passo `python3 scripts/sync/atualizar_consorcio_porto.py` foi encaixado dentro do workflow `atualizar_boletos_medintech.yml`, que já roda 1x/dia às 12h via a tarefa existente do cron-job.org ("Atualizar Faturas Energia (Energisa) e Água/Gás (Medintech) - 12hs"). Zero configuração nova. `atualizar_consorcio_porto.yml` continua existindo separado só pra permitir rodar/testar o robô do consórcio sozinho pela aba Actions, se precisar.
 3. **Assunto do e-mail automático ainda não confirmado**: os 2 PDFs usados pra validar este parser vieram de um encaminhamento manual do usuário, não de um e-mail automático visto diretamente. A busca hoje é só por remetente + anexo (mais frouxa), compensada pela identificação por Grupo+Cota antes de aceitar qualquer valor. Revisitar se um dia o remetente automático real for diferente do usado aqui.
 4. Depois de confirmar rodando sozinho por um tempo: adicionar `consorcio_porto` em `SAUDE_JOBS_LIMIARES` (`hydrate-saude-operacional.js`), mesmo cuidado documentado pros outros robôs novos — evita alarme falso "nunca rodou" antes do 1º sucesso real.
 

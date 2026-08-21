@@ -100,7 +100,7 @@ Isso não substitui a seção 2 (fluxo de lançamento) nem a seção 1 (fonte qu
 | Domínio | Estruturas V2 | Observação |
 |---|---|---|
 | Compras / transações | `transacoes` (+ `cartao_id`, `usuario_id`, `afeta_saldo_real`) | Lançamento definitivo via `lancar_transacao_manual()` quando o domínio já for V2-exclusivo (seção 2) |
-| Caixas | `caixas` (+ `ciclo_inicio_em`), `vw_saldo_v2_por_caixa` | Nunca editar saldo direto — sempre via `transacoes` (regra 2.4). Caixas operacionais somam só transações com `data >= caixas.ciclo_inicio_em` (NULL = caixa cumulativa, sem reset) — **atualizar essa coluna a cada virada de ciclo real** (quando o aporte mensal do novo ciclo é lançado), senão o ciclo novo some com o antigo. |
+| Caixas | `caixas` (+ `ciclo_inicio_em`), `vw_saldo_v2_por_caixa` | Nunca editar saldo direto — sempre via `transacoes` (regra 2.4). Caixas operacionais somam só transações com `data >= caixas.ciclo_inicio_em` (NULL = caixa cumulativa, sem reset) — **atualizar essa coluna a cada virada de ciclo real** (quando o aporte mensal do novo ciclo é lançado), senão o ciclo novo some com o antigo. **Aporte mensal real de cada caixa: `parametros_gerais.RESUMO_APORTES_MENSAIS_CAIXAS` (JSON, 20/08/2026) — NUNCA `caixas.teto_mensal`, que é limite de gasto, não aporte (os dois já foram confundidos, achado real 20/08/2026).** |
 | Patrimônio | `patrimonio`, `financiamentos` | Exceção: Caixa Lance ainda V1 |
 | Cartões | `cartoes` | Mapa de titularidade (Mastercard Black/Visa) migrado Wave B1 |
 | Livros Razão | `transacoes` filtradas por caixa/pessoa; `vw_compromisso_cartao_por_pessoa` (LRW/LRV) | LRR/LRS/LRC ainda não têm array V1 migrado — não assumir que existe |

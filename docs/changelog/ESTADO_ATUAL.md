@@ -39,6 +39,12 @@ Usuário pediu re-auditoria depois das correções de hoje. Achados principais: 
 
 Não mexido de propósito: `cronograma_consorcios`/assinaturas/recorrências continuam exigindo confirmação manual contra fatura real pra `ultima_cobranca_em` — não é lacuna, é a mesma regra "fatura real sempre vence" já estabelecida hoje, automatizar isso seria voltar a assumir sem confirmar.
 
+## 13. Referência rápida: aportes mensais das caixas + SOP do usuário (20/08/2026)
+
+Se o usuário perguntar "o que eu preciso fazer esse mês" ou "quanto é o aporte de tal caixa" — não recalcular do zero nem chutar. 2 fontes:
+- **`parametros_gerais.RESUMO_APORTES_MENSAIS_CAIXAS`** (Supabase, JSON) — aporte mensal REAL por caixa, confirmado com o usuário 20/08/2026. **Nunca usar `caixas.teto_mensal` como proxy** — é o limite de gasto, não o aporte (erro real cometido e corrigido nesta sessão).
+- **`G:\My Drive\Livro Razão\Rotina mensal\ROTINA_MENSAL_SOP.md`** (fora deste repo) — checklist completo do que o usuário ainda manda manualmente todo mês vs. o que já é automático. Também referenciado no `CLAUDE.md` (item 5 da leitura obrigatória).
+
 ## 12. Novo robô: extratos de consórcio Porto via Gmail (20/08/2026)
 
 Usuário pediu robô pra ler extrato de consórcio do e-mail — reaproveitou 100% da infraestrutura Gmail já validada (Medintech/Energisa), nenhuma credencial nova. `scripts/sync/atualizar_consorcio_porto.py` + `.github/workflows/atualizar_consorcio_porto.yml`, documentado em `docs/decisions/AUTOMACAO_CONSORCIO_PORTO_GMAIL.md`. Testado contra 2 PDFs reais (remetente `comunicacao@novidades.portobank.com.br`) — achou e corrigiu na hora uma defasagem real: Carro (Grupo AF316/Cota 0346-00) estava R$501,32 em `cronograma_boletos_fixos.TXCON000001`, valor real da última parcela é R$501,15. Casa Nova (Grupo I0464/Cota 0012-00, TXCON000002) já estava correta. **Pendência real do usuário**: criar a tarefa no cron-job.org pra rodar sozinho (mesma pendência que já existe pro robô da Medintech/Energisa) — até lá, o script existe mas não dispara automaticamente.

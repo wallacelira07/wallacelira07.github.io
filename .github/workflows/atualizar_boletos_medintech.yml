@@ -1,4 +1,4 @@
-name: Atualizar Faturas de Consumo (Água/Gás/Energia via Gmail)
+name: Atualizar Faturas Energia/Água/Gás/Consórcio (via Gmail)
 
 # NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa) — ver scripts/sync/atualizar_boletos_medintech.py.
 # Nome de exibição atualizado (arquivo/nome interno continuam iguais, cron-job.org não precisa
@@ -8,6 +8,12 @@ name: Atualizar Faturas de Consumo (Água/Gás/Energia via Gmail)
 # de propósito — confirmado (achado de 03/08/2026, ver atualizar_geracao_saj.yml) que o schedule do
 # GitHub Actions nunca dispara sozinho neste repositório; precisa de tarefa dedicada no
 # cron-job.org chamando a API do GitHub (workflow_dispatch), mesmo mecanismo dos outros jobs.
+# AMPLIADO 20/08/2026 (pedido do usuário: "não pode usar o mesmo?", em vez de criar uma tarefa nova
+# no cron-job.org pro robô de consórcio Porto): passo extra rodando
+# scripts/sync/atualizar_consorcio_porto.py dentro do MESMO workflow — reaproveita a tarefa de
+# cron-job.org já existente ("Atualizar Faturas Energia (Energisa) e Água/Gás (Medintech) - 12hs",
+# roda 1x/dia às 12h), zero configuração nova pro usuário. atualizar_consorcio_porto.yml continua existindo
+# à parte só pra permitir rodar/testar o robô do consórcio sozinho pela aba Actions, se precisar.
 on:
   workflow_dispatch: {}
   workflow_call: {}
@@ -26,7 +32,7 @@ jobs:
           python-version: '3.11'
       - name: Instalar dependências
         run: pip install pdfplumber
-      - name: Rodar atualização
+      - name: Rodar atualização (Água/Gás/Energia)
         env:
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
@@ -34,3 +40,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 scripts/sync/atualizar_boletos_medintech.py
+      - name: Rodar atualização (Consórcio Porto)
+        if: always()
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_consorcio_porto.py
