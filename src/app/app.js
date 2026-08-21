@@ -545,6 +545,23 @@ const WallaceFinanceService = {
       }
     });
   },
+  // NOVO 21/08/2026 (pedido do usuário: "as caixas são centro de custo, devem funcionar como um" —
+  // padrão único de Saldo/Comprometido no cartão/Disponível real pra TODAS as caixas, sem lista fixa
+  // de ids). Achado que motivou: Caixa Wärtsilä (R$635,22) e Caixa Mercado Pago (R$355,82) tinham
+  // dívida de cartão real que não aparecia em lugar nenhum da tela, porque o bloco "Comprometido"
+  // só existia pras 6+9 caixas hardcoded em CAIXAS_TEMATICAS_COMPROMETIDO_V2/MB_CAIXAS_TEMATICAS_IDS.
+  // Lê vw_comprometido_cartao_por_caixa (view nova, migração vw_comprometido_cartao_por_caixa) — só
+  // as caixas com comprometido>0 (a maioria não compra no cartão, não precisa aparecer na resposta).
+  async getComprometidoCartaoTodasCaixasV2(){
+    return this._cache.obterOuBuscar('comprometido_cartao_todas_caixas_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/vw_comprometido_cartao_por_caixa?select=caixa_nome,comprometido_cartao&comprometido_cartao=gt.0`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar vw_comprometido_cartao_por_caixa`);
+      const dado = await resp.json();
+      return dado.map(r => ({ caixaNome: r.caixa_nome, comprometido: Math.round(Number(r.comprometido_cartao) * 100) / 100 }));
+    });
+  },
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
   // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
   // detalhada vinha de VARS.LRW_TRANSACOES/LRV_TRANSACOES, array V1 mantido à mão no código, nunca
@@ -2506,9 +2523,11 @@ onDomPronto(aplicarDeficitCaixasSemLrei);
 // escreve os mesmos campos de REG.operacional) - pode rodar em qualquer ordem relativa a ela. Ver
 // hydrate-comprometido-caixa-variavel-v2.js.
 onDomPronto(aplicarComprometidoCaixaVariavelV2);
-// NOVO 14/08/2026 (decisão do usuário — ver hydrate-comprometido-caixas-tematicas-v2.js): mesmo
-// conceito acima, generalizado pras 6 caixas temáticas que também compram no cartão de crédito.
-onDomPronto(aplicarComprometidoCaixasTematicasV2);
+// SUBSTITUÍDO 21/08/2026 (pedido do usuário: "as caixas são centro de custo, devem funcionar como
+// um" — achado que motivou: Wärtsilä/Mercado Pago tinham comprometido real invisível na tela
+// porque só existiam 6 caixas hardcoded aqui). aplicarComprometidoCaixasTematicasV2() (lista fixa)
+// removida — hydrate-comprometido-generico-todas-caixas.js cobre TODAS as caixas automaticamente.
+onDomPronto(aplicarComprometidoGenericoTodasCaixas);
 // NOVO 19/08/2026 (achado do usuário: "Não reconciliado" do Mastercard Black nunca somava as 9
 // caixas temáticas ligadas ao cartão — ver hydrate-visa-mb.js).
 onDomPronto(atualizarCaixasTematicasComprometidoMB);

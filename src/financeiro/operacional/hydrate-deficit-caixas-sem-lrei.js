@@ -51,17 +51,16 @@
 // nunca trava esperando pra sempre).
 window.WALLACE_DEFICIT_CAIXAS_PRONTO = false;
 async function aplicarDeficitCaixasSemLrei(){
-  let saldos, emprestimos, comprometidos;
+  let saldos, emprestimos, comprometidoGenerico, comprometidoVariavel, comprometidos;
   try {
-    // CAIXAS_TEMATICAS_COMPROMETIDO_V2 vem de hydrate-comprometido-caixas-tematicas-v2.js (mesmo
-    // arquivo carregado antes deste no boot, ver app.js) — reaproveita a lista, não duplica os 6 ids.
-    const comprometidoPromises = CAIXAS_TEMATICAS_COMPROMETIDO_V2.map(cfg =>
-      WallaceFinanceService.getComprometidoPorCaixaV2(cfg.id)
-        .then(v => ({ nome: cfg.nome, valor: Number(v) || 0 }))
-        .catch(() => ({ nome: cfg.nome, valor: 0 })) // uma caixa falhando não derruba as outras
-    );
-    // Caixa Variável usa a função dedicada original (mesma que o card ECC já lê), não a genérica por
-    // id — mesmo resultado, mesma fonte, sem duplicar a query.
+    // SUBSTITUÍDO 21/08/2026 (pedido do usuário: "as caixas são centro de custo, devem funcionar
+    // como um" — CAIXAS_TEMATICAS_COMPROMETIDO_V2/hydrate-comprometido-caixas-tematicas-v2.js foi
+    // removido, só cobria 6 caixas hardcoded). getComprometidoCartaoTodasCaixasV2() (app.js, lê
+    // vw_comprometido_cartao_por_caixa) devolve TODAS as caixas com comprometido>0 numa única
+    // chamada — de quebra, corrige um buraco que já existia aqui também (Wärtsilä/Mercado Pago
+    // nunca entravam nesta soma, mesmo tendo comprometido real).
+    // Caixa Variável continua vindo da função dedicada original (mesma que o card ECC já lê) — não
+    // da view genérica — por causa do ajuste pontual LIMBO_VIRADA_25_07 abaixo.
     // CORRIGIDO 20/08/2026 (achado do usuário: "Falta cobrir" do Simulador Fim de Ciclo mostrava
     // R$902,15, este relatório mostrava R$814,19 pra MESMA caixa — diferença exata R$87,96).
     // Causa: hydrate-comprometido-caixa-variavel-v2.js soma o LIMBO_VIRADA_25_07_NAO_DEBITADO
@@ -72,16 +71,16 @@ async function aplicarDeficitCaixasSemLrei(){
     // R$87,96. Mesmo ajuste pontual replicado aqui (não recorrente — ver comentário original no outro
     // arquivo, "não repetir em ciclos futuros sem novo achado").
     const LIMBO_VIRADA_25_07_NAO_DEBITADO = 87.96;
-    comprometidoPromises.push(
-      WallaceFinanceService.getComprometidoCaixaVariavelV2()
-        .then(v => ({ nome: 'Caixa Variável', valor: (Number(v) || 0) + LIMBO_VIRADA_25_07_NAO_DEBITADO }))
-        .catch(() => ({ nome: 'Caixa Variável', valor: 0 }))
-    );
-    [saldos, emprestimos, comprometidos] = await Promise.all([
+    [saldos, emprestimos, comprometidoGenerico, comprometidoVariavel] = await Promise.all([
       WallaceFinanceService.getSaldosPorCaixa(),
       WallaceFinanceService.getEmprestimosInternosV2(),
-      Promise.all(comprometidoPromises),
+      WallaceFinanceService.getComprometidoCartaoTodasCaixasV2().catch(() => []),
+      WallaceFinanceService.getComprometidoCaixaVariavelV2().catch(() => 0),
     ]);
+    comprometidos = comprometidoGenerico
+      .filter(c => c.caixaNome !== 'Caixa Variável') // Variável entra abaixo, com o ajuste LIMBO
+      .map(c => ({ nome: c.caixaNome, valor: c.comprometido }));
+    comprometidos.push({ nome: 'Caixa Variável', valor: (Number(comprometidoVariavel) || 0) + LIMBO_VIRADA_25_07_NAO_DEBITADO });
   } catch(err){
     console.error('DeficitCaixasSemLrei: falha ao buscar saldo/LREI/comprometido da V2 — ajuste NÃO aplicado nesta rodada (Necessidade Total Bruta fica sem o risco de caixas negativas/estouradas no cartão).', err);
     window.WALLACE_DEFICIT_CAIXAS_RELATORIO = { status: 'erro_v2', erro: String(err) };

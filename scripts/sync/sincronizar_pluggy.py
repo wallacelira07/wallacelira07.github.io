@@ -78,6 +78,13 @@ PLUGGY_BASE = "https://api.pluggy.ai"
 # reembolso/reserva acontece no Mercado Pago) - mapa nome da reserva (como a Pluggy descreve, ex.
 # "Dinheiro reservado Caixa Churrasco") -> caixa_id real do ERP (tabela public.caixas). Confirmado
 # um por um com o usuario em 13/08/2026.
+#
+# AMPLIADO 21/08/2026 (achado real: caixinha "Emagrecimento" duplicou com lancamento manual porque
+# so 8 das 18 caixinhas reais do usuario (2 contas MP - wallace.termica@gmail.com +
+# wallace.servidor@gmail.com) estavam mapeadas aqui - as outras 10 nunca eram capturadas pelo robo,
+# entao qualquer repasse/reserva manual pra elas nunca tinha chance de ser reconhecido como
+# duplicata pela automacao). Usuario listou as 18 caixinhas reais com saldo ao vivo do app; nomes
+# abaixo conferidos contra o texto exato ja visto em pluggy_transacoes.descricao (nao inventados).
 CAIXA_PLUGGY_MAPA = {
     "caixa churrasco": "f18e248e-182b-42ec-9d04-f1bf5cb0a749",
     "caixa lance": "ff0cd9af-c5a9-4a9b-8cdd-c379e167275e",
@@ -89,6 +96,24 @@ CAIXA_PLUGGY_MAPA = {
     "emagrecimento": "d6be6a08-9d7b-4664-9c85-1e367aa620b9",
     "bens duráveis": "eeaf926e-07df-479c-b0bc-1071410a5298",
     "bens duraveis": "eeaf926e-07df-479c-b0bc-1071410a5298",
+    # NOVOS 21/08/2026 - as 10 caixinhas reais que faltavam (ver comentario acima):
+    "aniversário de júlio": "ffa94985-902c-4e8a-bd31-0a15a054a403",
+    "aniversario de julio": "ffa94985-902c-4e8a-bd31-0a15a054a403",
+    "caixa de pix vanessa": "6c6546fa-5b83-4db6-aa33-ac1bf35370d9",
+    "caixa eventos e viagens": "ecaebc58-8f49-4d85-8ef4-6282ea765c2f",
+    "caixa manutenção": "df4c44af-3e30-4592-b0b5-5b863ca91591",
+    "caixa manutencao": "df4c44af-3e30-4592-b0b5-5b863ca91591",
+    "combustível ⛽️": "782d8722-392a-440d-8b71-4fa7476a5b30",
+    "combustivel": "782d8722-392a-440d-8b71-4fa7476a5b30",
+    "custos variáveis": "8522e256-2039-4c11-bd28-69738bfcf5b8",
+    "custos variaveis": "8522e256-2039-4c11-bd28-69738bfcf5b8",
+    "escola de júlio": "3a1e6765-79d9-42bf-8bc0-c93f9c2b77e4",
+    "escola de julio": "3a1e6765-79d9-42bf-8bc0-c93f9c2b77e4",
+    "saúde família": "d15e8cbe-4443-4ee4-9631-06d8d49058fe",
+    "saude familia": "d15e8cbe-4443-4ee4-9631-06d8d49058fe",
+    "seguro e emplacamento": "8dcfa73a-1560-4b37-9aac-48a499548d2c",
+    "fundo de suavização": "11d78cf2-b492-42c3-accc-6b1713ccaa1a",
+    "fundo de suavizacao": "11d78cf2-b492-42c3-accc-6b1713ccaa1a",
 }
 
 # So processa movimentacoes de reserva DEPOIS deste corte - tudo antes disso ja foi lancado
@@ -526,7 +551,13 @@ def extrair_reservas_pluggy(resultado: dict) -> list[dict]:
                 else:
                     continue
 
-                caixa_id = CAIXA_PLUGGY_MAPA.get(nome_caixa.lower())
+                # CORRIGIDO 21/08/2026 (achado real: "Dinheiro reservado  Caixa de Boletos fixos" -
+                # a Pluggy as vezes manda 2 espacos entre "reservado"/"retirado" e o nome da
+                # caixinha, ex. confirmado em pluggy_transacoes.descricao real). " ".join(.split())
+                # colapsa qualquer sequencia de espacos em 1 antes de comparar - sem isso essa
+                # variante nunca batia no mapa, mesma caixinha ficava com movimentacao ignorada.
+                nome_caixa_normalizado = " ".join(nome_caixa.split())
+                caixa_id = CAIXA_PLUGGY_MAPA.get(nome_caixa_normalizado.lower())
                 if not caixa_id:
                     print(f"[reservas] AVISO: caixa \"{nome_caixa}\" nao mapeada em CAIXA_PLUGGY_MAPA - "
                           f"movimentacao ignorada (tx {t.get('id')}), precisa adicionar no mapa.")
