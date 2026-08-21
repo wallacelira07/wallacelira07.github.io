@@ -646,6 +646,25 @@
   .opcoes-pane{display:none}
   .opcoes-pane.active{display:block; margin-top:0.6rem; animation:v300FadeInPane 0.25s ease}
 
+  /* NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" de verdade, não só abas dentro do
+     scroll — este painel não tem sistema de páginas/rotas, então "aba dedicada" aqui é um modo tela
+     cheia: #secaoOpcoesWrap sai do fluxo normal via position:fixed, cobre a viewport inteira, por
+     cima de tudo (z-index alto), com scroll próprio. Ver abrirCockpitOpcoes()/fecharCockpitOpcoes()
+     em ui-navegacao-basica.js. */
+  #secaoOpcoesWrap.opcoes-fullscreen{
+    position:fixed; inset:0; z-index:9999;
+    background:var(--bg); overflow-y:auto;
+    padding:1.2rem 1.2rem 3rem;
+  }
+  .opcoes-voltar-painel{
+    display:none; /* só aparece em modo tela cheia, ver regra abaixo */
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    font-size:var(--fs-xs); font-weight:600; padding:0.55rem 1rem;
+    border-radius:var(--radius-xl); cursor:pointer; margin-bottom:1rem;
+  }
+  .opcoes-voltar-painel:hover{border-color:var(--accent); color:var(--accent)}
+  #secaoOpcoesWrap.opcoes-fullscreen .opcoes-voltar-painel{display:inline-block}
+
   .pane{display:none}
   /* CORRIGIDO 19/08/2026 (achado do usuário via print: chip da última linha de .tabs — que vira 2
      linhas de texto quando o rótulo é longo, ex. "LRCC - Créditos e Cupons" — ficava visualmente

@@ -241,6 +241,17 @@
        de propósito — risco financeiro real tem prioridade sobre qualquer outro card. -->
   <div id="homeAvisoOpcoesITM" class="callout danger" style="display:none;margin-bottom:1.5rem"></div>
 
+  <!-- NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" pro cockpit de opções). Entrada
+       única de acesso ao modo tela cheia — ver abrirCockpitOpcoes()/ui-navegacao-basica.js. -->
+  <button type="button" onclick="abrirCockpitOpcoes()" class="card" style="margin-bottom:1.5rem;width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;gap:0.9rem;border:1px solid var(--border)">
+    <div style="font-size:1.6rem">🎯</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:var(--fs-md)">Cockpit de Opções</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Posições ativas, alertas de exercício, calculadora de recuperação, dividendos e dashboard executivo — em tela cheia</div>
+    </div>
+    <div style="color:var(--text-dim);font-size:1.2rem">→</div>
+  </button>
+
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-header-icon">
       <div class="chi-ico">🔮</div>
@@ -956,6 +967,16 @@
   </div>
 
   <!-- 16 -->
+  <!-- NOVO 21/08/2026 (achado do usuário: "transfira o que você fez das opções para uma aba dedicada,
+       foi esse meu pedido" — as abas .opcoes-tab/.opcoes-pane da Fase 2 ficavam dentro do mesmo scroll
+       longo do resto do painel, não eram uma aba de verdade separada). Este painel NÃO tem sistema de
+       páginas/rotas — é uma única página rolável com seções numeradas (não achei nenhum mecanismo
+       existente de "aba de topo" pra reaproveitar). Solução: #secaoOpcoesWrap continua no lugar normal
+       da rolagem (ninguém perde acesso scrollando), mas ganha um modo "tela cheia" via
+       abrirCockpitOpcoes() (position:fixed, cobre a página inteira, com botão "Voltar ao Painel") —
+       ver CSS .opcoes-fullscreen (styles.css) e as 2 funções em ui-navegacao-basica.js. -->
+  <div id="secaoOpcoesWrap">
+  <button type="button" class="opcoes-voltar-painel" onclick="fecharCockpitOpcoes()">← Voltar ao Painel</button>
   <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
   <div class="card">
     <!-- NOVO 21/08/2026 (Fase 4 do cockpit de opções, pedido do usuário: "Dashboard executivo" —
@@ -1099,6 +1120,7 @@
 
     <div class="v" id="legOpcoesReconstruido" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
+  </div><!-- /secaoOpcoesWrap -->
 
   <!-- LIMPO 01/08/2026 (varredura de alinhamento): bloco morto ja estava escondido (display:none)
   desde a V216 (31/07/2026), so ocupando espaco no arquivo sem nunca aparecer na tela. Removido
