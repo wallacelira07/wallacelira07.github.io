@@ -138,13 +138,65 @@ async function aplicarPrevisaoGeracaoSolar(){
       return;
     }
 
+    const previsoes = linhas.map(x => ({ ...x, pred: Math.max(0, modelo.a + modelo.b * x.irr) }));
     const tbody = $('previsaoSolarTabela');
     if(tbody){
-      tbody.innerHTML = linhas.map(x => {
-        const pred = Math.max(0, modelo.a + modelo.b * x.irr);
+      tbody.innerHTML = previsoes.map(x => {
         const [,mm,dd] = x.data.split('-');
-        return `<tr><td style="padding:0.25rem 0">${dd}/${mm}</td><td>${x.irr.toLocaleString('pt-BR',{maximumFractionDigits:1})} MJ/m²</td><td>${pred.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh</td></tr>`;
+        return `<tr><td style="padding:0.25rem 0">${dd}/${mm}</td><td>${x.irr.toLocaleString('pt-BR',{maximumFractionDigits:1})} MJ/m²</td><td>${x.pred.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh</td></tr>`;
       }).join('');
+    }
+    // NOVO 21/08/2026 (pedido do usuário: "gostei do gráfico no compartilhamento, deixe igual no
+    // site") — mesmo gráfico já validado em solar-compartilhado.html (barras de irradiância prevista
+    // + geração estimada, valores acima). Plugin de valor local (não reaproveita solarBarLabelPlugin
+    // de graficos-cenarios-lazy.js — arquivo separado, escopo diferente, sem acesso àquela const).
+    const canvasRadiacao = $('cPrevisaoRadiacao');
+    if(canvasRadiacao && window.Chart){
+      const __barValuePluginPrevisao = {
+        id: 'barValuePluginPrevisao',
+        afterDatasetsDraw(chart){
+          const { ctx } = chart;
+          ctx.save();
+          ctx.fillStyle = '#e8e6df';
+          ctx.font = "600 9.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          chart.data.datasets.forEach((ds, di) => {
+            const meta = chart.getDatasetMeta(di);
+            if(meta.hidden) return;
+            meta.data.forEach((bar, i) => {
+              const v = ds.data[i];
+              if(v==null) return;
+              ctx.fillText(Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
+            });
+          });
+          ctx.restore();
+        }
+      };
+      const __chartPrevisaoExistente = Chart.getChart(canvasRadiacao); if(__chartPrevisaoExistente) __chartPrevisaoExistente.destroy();
+      new Chart(canvasRadiacao, {
+        type: 'bar',
+        data: {
+          labels: previsoes.map(x => { const [,mm,dd] = x.data.split('-'); return dd+'/'+mm; }),
+          datasets: [
+            { label: 'Irradiância prevista (MJ/m²)', data: previsoes.map(x => Math.round(x.irr*10)/10), backgroundColor: '#eda100', borderRadius: 3 },
+            { label: 'Geração estimada (kWh)', data: previsoes.map(x => Math.round(x.pred*10)/10), backgroundColor: '#34c98a', borderRadius: 3 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 18 } },
+          plugins: {
+            legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} },
+            tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
+            y: { grid: { color: '#2a2d31' }, ticks: { font: { size: 9.5 } } },
+          },
+        },
+        plugins: [__barValuePluginPrevisao],
+      });
     }
 
     const elDiag = $('previsaoSolarDiagnostico');

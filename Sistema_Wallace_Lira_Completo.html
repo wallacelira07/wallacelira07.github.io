@@ -1719,6 +1719,10 @@
           que a leitura real dele existir.
         </div>
         <div id="previsaoSolarDiagnostico" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">—</div>
+        <!-- NOVO 21/08/2026 (pedido do usuário: "gostei do gráfico no compartilhamento, deixe igual
+             no site") — mesmo gráfico já validado em solar-compartilhado.html, ver
+             aplicarPrevisaoGeracaoSolar() em previsao-geracao-solar.js pra montagem. -->
+        <div class="chart-box tall"><canvas id="cPrevisaoRadiacao"></canvas></div>
         <div style="overflow-x:auto">
           <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
             <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border-strong)"><th scope="col" style="padding:0.3rem 0">Dia</th><th scope="col">Irradiância prevista</th><th scope="col">Geração estimada</th></tr></thead>
