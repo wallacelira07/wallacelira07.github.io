@@ -4,6 +4,8 @@
 
 Última reescrita: 20/08/2026, sessão longa (bloco 32) — reconciliação completa dos 2 cartões, caça a bugs estruturais de "dado que nunca expira sozinho", e revisão profunda da fórmula de Necessidade Bruta/Líquida. Resumo executivo abaixo; detalhe completo nas seções seguintes.
 
+**Continuada em 21/08/2026** (mesmo dia, sem reescrita completa): batch RPCs de performance, dedup estrutural da Inbox Financeira (boletos fixos + ID único da Pluggy), correção de 2 conexões Pluggy duplicadas do Mercado Pago + descoberta de uma 3ª conta real nunca conectada, indicador "déficit real" renomeado pra "Déficit Zero" (pedido do usuário). Ver seção 17.
+
 ## 0. Resumo executivo da sessão de 20/08/2026
 
 1. **Mastercard Black — "Não Reconciliado" fechado em R$0,00 exato** (seção 1). 4 causas reais achadas e corrigidas: Tokio Marine duplicado (era parcela do Visa, não recorrência nova), H57Store sem dono, assinaturas somando sem checar ciclo (mesmo bug já corrigido em recorrências, nunca replicado), IOF de compra internacional sem linha própria.
@@ -38,6 +40,22 @@ Usuário pediu re-auditoria depois das correções de hoje. Achados principais: 
 5. **Bug real de busca achado no processo**: procurar `TXP000025` trocava de aba certo (LRP) mas não destacava nenhuma linha, sem explicação — causa: `render-parcelamentos.js` só desenha linhas com `status==='ATIVO'`, itens quitados nunca entram no DOM. Corrigido: `irParaTransacaoNoLivro()` (`dashboard-navegacao.js`) agora detecta isso ANTES de tentar navegar e devolve um motivo; `headerSearchNavegar()` (`index.html`) mostra essa mensagem em vez de fechar o dropdown em silêncio.
 
 Não mexido de propósito: `cronograma_consorcios`/assinaturas/recorrências continuam exigindo confirmação manual contra fatura real pra `ultima_cobranca_em` — não é lacuna, é a mesma regra "fatura real sempre vence" já estabelecida hoje, automatizar isso seria voltar a assumir sem confirmar.
+
+## 17. Batch RPCs de performance, dedup estrutural da Inbox, e 2ª conta Pluggy do Mercado Pago (21/08/2026, tarde)
+
+**Continuação da mesma sessão de 21/08** — usuário mandou HAR real do boot (230 requisições) pra medir performance de verdade.
+
+1. **26 round-trips → 2 chamadas batch.** HAR revelou 2 loops "1 request por caixa" que já rodavam em `Promise.all` (não sequenciais) mas ainda pagavam round-trip individual: "Comprometido no cartão" (6 caixas temáticas + 9 caixas Mastercard Black, `getComprometidoPorCaixaV2`/`getComprometidoPorCaixaECartoesV2`) e a reconciliação das 10 caixas pequenas (`promocoes-financeengine.js`). Criadas `rpc_comprometido_caixas_batch(p_caixa_ids, p_cartao_ids)` e `rpc_saldo_ciclo_caixas_batch(p_caixa_ids, p_data_inicio)` — mesma fórmula exata, testada com dado real batendo idêntico ao caminho antigo, fallback automático se a RPC falhar. Também achada e rejeitada (não é bug de código) 1 duplicata exata de query no HAR — só existe 1 ponto de disparo no HTML, provável artefato da extensão Blackbox instalada no navegador do usuário.
+
+2. **Duplicação real na Inbox Financeira — causa raiz em 2 partes, ambas corrigidas.** Usuário reportou "14 pendentes" e questionou a utilidade da Inbox ("só gera duplicação"). Casos reais: Porto Consórcio (R$501,15/R$1.449,45, migrado pra boleto em dinheiro 11/08) e FIES Vanessa (R$245) apareciam como pendente mesmo já sendo compromisso 100% conhecido.
+   - **Causa 1**: dedup da Inbox só comparava contra `transacoes` — um boleto fixo pago em dinheiro nunca gera linha lá com esse valor. Corrigido: `cronograma_boletos_fixos`/`cronograma_consorcios` (ativo=true) agora entram no Set de dedup (`getValoresRecorrentesFixosAtivosV2`).
+   - **Causa 2, estrutural**: `transacoes.pluggy_tx_id` existia na tabela (43/439 linhas) mas `lancar_transacao_manual()` nunca recebia/gravava esse id — todo lançamento aprovado via Inbox virava um registro "cego", dedup dependia só de valor exato (colide). Corrigido: `lancar_transacao_manual` ganhou `p_pluggy_tx_id` (migração `lancar_transacao_manual_pluggy_tx_id` + `drop_old_lancar_transacao_manual_overload` — CREATE OR REPLACE com parâmetro novo cria um 2º overload em vez de substituir, tinha que dropar o antigo manualmente); `inboxAprovar()` agora carrega o id real da transação Pluggy pro formulário "+ Lançar" (só quando origem = `'Pluggy-Transação'`, nunca os alertas genéricos de cartão); `reconciliarTransacoesPluggy()` pula por ID exato antes até do dedup por valor.
+
+3. **2 conexões Pluggy duplicadas do Mercado Pago identificadas e corrigidas.** Confirmado via SQL: mesma conta (número 8574022051-6, cartão final 7642) sendo lida por 2 `item_id` diferentes — uma travada desde 11/08 (órfã, nem aparecia mais no dashboard do Pluggy), outra ativa. **Achado adicional real**: o usuário tem uma 3ª conta Mercado Pago genuinamente diferente ("servidor", 6426567142-2, só 5 transações) que nunca tinha sido conectada ao robô. `PLUGGY_ITEM_IDS` (secret do GitHub, não legível por mim) foi recriado do zero pelo usuário com as 5 conexões reais atuais (Itaú, Necton, Bradesco, MP principal, MP servidor) — sync manual disparado depois, voltou "5 conexões, 0 erros". As transações da conta nova são só movimentação interna própria (já cobertas pelo filtro de ruído existente, não geram Inbox pendente).
+
+4. **Terminologia**: usuário pediu pra chamar o indicador "Necessidade Líquida − R$8.109,74 (Não trabalha)" de **"Déficit Zero"** daqui pra frente (nome do próprio gráfico já existente no painel, `cDeficitZero`) — não usar mais "déficit real" nas respostas.
+
+5. **Auditoria de aportes das caixas temáticas vs. teto** (pedido pendente desde mais cedo): nenhuma sobra relevante encontrada. Emagrecimento apareceu a 173% do teto (R$848,31 de saldo vs R$490) — **primeira leitura estava ERRADA**, corrigida na hora pelo usuário: esse saldo é só os aportes recebidos, as 2 compras reais no cartão (Raia Drogasil R$590 + Ozivy R$278,89 = R$868,89, `afeta_saldo_real=false`) não abatem o saldo da caixa, ficam em "Comprometido no cartão" à parte — descontando isso o disponível real é **-R$20,58**, não há sobra nenhuma. Nenhuma ação tomada — não tinha dinheiro real ocioso pra redirecionar.
 
 ## 16. 3 pendências fechadas (21/08/2026): déficit checado, CI conferido, metas atualizada
 
