@@ -470,12 +470,41 @@ async function aplicarPrevisaoGeracaoSolarCompartilhado(registros){
     if(!linhas.length) return;
 
     const tbody = document.getElementById('previsaoSolarTabelaCompartilhado');
+    const previsoes = linhas.map(x => ({ ...x, pred: Math.max(0, modelo.a + modelo.b * x.irr) }));
     if(tbody){
-      tbody.innerHTML = linhas.map(x => {
-        const pred = Math.max(0, modelo.a + modelo.b * x.irr);
+      tbody.innerHTML = previsoes.map(x => {
         const [,mm,dd] = x.data.split('-');
-        return `<tr><td style="padding:0.25rem 0">${dd}/${mm}</td><td>${x.irr.toLocaleString('pt-BR',{maximumFractionDigits:1})} MJ/m²</td><td>${pred.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh</td></tr>`;
+        return `<tr><td style="padding:0.25rem 0">${dd}/${mm}</td><td>${x.irr.toLocaleString('pt-BR',{maximumFractionDigits:1})} MJ/m²</td><td>${x.pred.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh</td></tr>`;
       }).join('');
+    }
+    // NOVO 21/08/2026 (pedido do usuário: "pedi para por o gráfico de radiação no compartilhamento"
+    // — a tabela sozinha não era o que foi pedido, faltava o gráfico de verdade).
+    const canvasRadiacao = document.getElementById('cPrevisaoRadiacaoCompartilhado');
+    if(canvasRadiacao && window.Chart){
+      const __chartExistente = Chart.getChart(canvasRadiacao); if (__chartExistente) __chartExistente.destroy();
+      new Chart(canvasRadiacao, {
+        type: 'bar',
+        data: {
+          labels: previsoes.map(x => { const [,mm,dd] = x.data.split('-'); return dd+'/'+mm; }),
+          datasets: [
+            { label: 'Irradiância prevista (MJ/m²)', data: previsoes.map(x => Math.round(x.irr*10)/10), backgroundColor: '#eda100', borderRadius: 3 },
+            { label: 'Geração estimada (kWh)', data: previsoes.map(x => Math.round(x.pred*10)/10), backgroundColor: '#34c98a', borderRadius: 3 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 18 } },
+          plugins: {
+            legend: { position:'bottom', labels:{boxWidth:8, padding:10, font:{size:9.5}} },
+            tooltip: { callbacks: { label: c => c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
+            y: { grid: { color: '#2a2d31' }, ticks: { font: { size: 9.5 } } },
+          },
+        },
+        plugins: [barValuePlugin],
+      });
     }
     const elDiag = document.getElementById('previsaoSolarDiagnosticoCompartilhado');
     if(elDiag){
@@ -1044,6 +1073,7 @@ async function carregar(){
       <div class="stat-lbl" style="margin-bottom:0.6rem">🔮 Previsão de geração (próximos dias)</div>
       <div class="stat-sub" style="margin-bottom:0.6rem"><strong>Isto é uma PROJEÇÃO baseada em previsão do tempo, não dado real</strong> — usa a previsão de irradiância solar dos próximos dias (Open-Meteo) e um modelo de calibração simples (regressão linear) treinado com a geração REAL da usina (robô SAJ). Nunca substitui a geração real — o dia some desta lista assim que a leitura real dele existir.</div>
       <div id="previsaoSolarDiagnosticoCompartilhado" style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.8rem">—</div>
+      <div class="chart-wrap" style="margin-bottom:0.8rem"><canvas id="cPrevisaoRadiacaoCompartilhado"></canvas></div>
       <div style="overflow-x:auto">
         <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
           <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border)"><th style="padding:0.3rem 0">Dia</th><th>Irradiância prevista</th><th>Geração estimada</th></tr></thead>
