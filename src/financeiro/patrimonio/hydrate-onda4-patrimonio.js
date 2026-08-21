@@ -145,7 +145,11 @@ async function aplicarOnda4Patrimonio(){
     const elAssembleia = $('consorcioAssembleia');
     if(elAssembleia){
       const dataAssembleia = new Date(Number(ano), Number(mes)-1, Number(dia));
-      elAssembleia.innerHTML = dataAssembleia < new Date()
+      // CORRIGIDO 21/08/2026 (mesmo achado/fix de hydrate-metas.js — achado real do usuário: assembleia
+      // marcada pra HOJE às 15h já aparecia "já passou" a partir da meia-noite, sem a reunião ter
+      // acontecido ainda). Comparação por DIA (zera a hora de "hoje"), não por instante exato.
+      const hojeSemHora = new Date(); hojeSemHora.setHours(0,0,0,0);
+      elAssembleia.innerHTML = dataAssembleia < hojeSemHora
         ? dataBR + ' <span style="color:var(--red)">⚠️ já passou — data desatualizada, confirmar com a administradora</span>'
         : dataBR;
     }

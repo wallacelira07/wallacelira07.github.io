@@ -25,7 +25,12 @@ function hydrateMetas(){
   if(consorcioAssembleiaEl){
     const [d,m,a] = VARS.consorcioCasaProximaAssembleia.split('/').map(Number);
     const dataAssembleia = new Date(a, m-1, d);
-    const hoje2 = new Date();
+    // CORRIGIDO 21/08/2026 (achado real do usuário: assembleia marcada pra HOJE às 15h já aparecia
+    // "já passou" a partir da meia-noite) — dataAssembleia é sempre meia-noite do dia (sem hora real
+    // da assembleia, o extrato não informa isso), comparar contra `new Date()` (agora, com hora) fazia
+    // o dia inteiro da assembleia contar como "passado" antes mesmo dela acontecer. Zera a hora de
+    // "hoje" também — vira comparação por DIA, não por instante, "já passou" só a partir do dia seguinte.
+    const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
     if(dataAssembleia < hoje2){
       consorcioAssembleiaEl.innerHTML = VARS.consorcioCasaProximaAssembleia + ' <span style="color:var(--red)">⚠️ já passou — data desatualizada, confirmar com a administradora</span>';
     } else {
