@@ -8,6 +8,7 @@ Este arquivo é carregado automaticamente em toda sessão do Claude Code neste r
 2. [`docs/changelog/ESTADO_ATUAL.md`](docs/changelog/ESTADO_ATUAL.md) — estado real da sessão anterior, reescrito do zero a cada corte.
 3. [`docs/changelog/PASSAGEM_DE_TURNO.md`](docs/changelog/PASSAGEM_DE_TURNO.md) — histórico narrativo (bloco mais recente = topo).
 4. [`POLITICAS_INTERNAS_SISTEMA_WALLACE.md`](../Cópia%20de%20backup/POLITICAS_INTERNAS_SISTEMA_WALLACE.md) (fora deste repo, ver caminho no `MANUAL_OPERACIONAL_AGENTES.md`) — regras de negócio (cascata de reembolso, caixas, ciclo financeiro).
+5. [`ROTINA_MENSAL_SOP.md`](../Rotina%20mensal/ROTINA_MENSAL_SOP.md) (fora deste repo) — documento **pro usuário**, não pro agente: o que ele ainda precisa mandar manualmente todo mês (faturas, Energisa, FGTS, etc.), o que já é automático, e os fechamentos reais dos 3 cartões (Visa dia 19, Mastercard dia 22, Mercado Pago dia 29/paga 04). Se o usuário perguntar "o que eu preciso fazer" ou similar, a resposta vem daqui — não inventar nem confiar em memória de sessões antigas, ler o arquivo.
 
 ## As 3 regras que mais já causaram retrabalho quando ignoradas
 

@@ -1,0 +1,33 @@
+name: Atualizar Extratos de Consórcio (Porto Seguro via Gmail)
+
+# NOVO 20/08/2026 — ver scripts/sync/atualizar_consorcio_porto.py. Mesmo padrão dos outros robôs
+# deste sistema (atualizar_boletos_medintech.yml): workflow independente, disparado por
+# workflow_dispatch via cron-job.org (mesmo achado de 03/08/2026 — "schedule" do GitHub Actions
+# nunca dispara sozinho neste repositório), sem entrar na cadeia do executar_tudo.yml (mesmo
+# tratamento já dado ao robô de boletos_medintech, que também roda solto).
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+concurrency:
+  group: atualizar-consorcio-porto
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependências
+        run: pip install pdfplumber
+      - name: Rodar atualização
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_consorcio_porto.py
