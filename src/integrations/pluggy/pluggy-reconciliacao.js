@@ -373,14 +373,18 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
   // essa promessa ANTES de getPluggyContasV2()/getPluggyTriagemV2(), em paralelo, e repassa aqui via
   // `promessaContexto` — se chamada sem o parâmetro, dispara na hora do jeito antigo.
   const valoresConhecidos = new Set();
-  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, resCicloAtualInicio] =
+  const [resValoresConhecidos, resValoresRecorrentesFixos, resPluggyTxIdsConhecidos, resValoresCombinados, palavrasChaveAssinaturas, resCicloAtualInicio] =
     await (promessaContexto || dispararContextoDedupeInbox('reconciliarTransacoesPluggy'));
   if(resCicloAtualInicio){
     const dataCicloAtual = new Date(resCicloAtualInicio + 'T00:00:00');
     if(dataCicloAtual > dataCorte) dataCorte = dataCicloAtual;
   }
   if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
+  if(resValoresRecorrentesFixos) resValoresRecorrentesFixos.forEach(v => valoresConhecidos.add(v));
   if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
+  // NOVO 21/08/2026: Set de pluggy_tx_id já lançados (transacoes.pluggy_tx_id) — dedup por ID exato,
+  // checado ANTES do dedup por valor no loop abaixo (ver comentário lá).
+  const pluggyTxIdsConhecidos = new Set(resPluggyTxIdsConhecidos || []);
 
   // NOVO 04/08/2026 (parte 60, pedido do usuario apos ver 106 pendentes na Inbox): padroes de
   // descricao que NUNCA sao compra/gasto real do dia a dia - sao movimentacao interna entre as
@@ -462,6 +466,14 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
         if(t.data && new Date(t.data) < dataCorte){ resultado.ignoradasPorData++; continue; }
         const valorAbs = Math.round(Math.abs(t.valor)*100)/100;
         if(valorAbs < valorMinimo) continue;
+        // NOVO 21/08/2026 (pedido do usuário: dedup por ID único, mais forte que por valor): se essa
+        // transação da Pluggy já foi lançada antes (via "✔ Aprovar" → Salvar, ver lancar_transacao_
+        // manual/transacoes.pluggy_tx_id), pula direto — não depende de o valor bater exato, cobre o
+        // caso raro de o usuário editar o valor no form antes de salvar.
+        if(t.id && pluggyTxIdsConhecidos.has(t.id)){
+          resultado.ignoradasPorIdJaLancado = (resultado.ignoradasPorIdJaLancado||0)+1;
+          continue;
+        }
         if(pareceRuidoInterno(t.descricao)){ resultado.ignoradasPorRuido = (resultado.ignoradasPorRuido||0)+1; continue; }
         // NOVO 10/08/2026: mesmo tratamento do valor exato acima — se bate um estabelecimento já
         // confirmado como assinatura (por palavra-chave, não valor), também não entra como
@@ -507,7 +519,7 @@ async function reconciliarTransacoesPluggy(valorMinimo, janelaDias, promessaCont
     });
   }));
 
-  console.log('reconciliarTransacoesPluggy:', resultado.semDados ? 'sem transacoes_recentes ainda (aguardando script externo corrigido rodar)' : `${resultado.suspeitas.length} transação(ões) suspeita(s), ${resultado.ignoradasPorData} ignorada(s) por serem fora da janela recente, ${resultado.ignoradasPorRuido||0} ignorada(s) por serem movimentação interna/resumo de fatura`);
+  console.log('reconciliarTransacoesPluggy:', resultado.semDados ? 'sem transacoes_recentes ainda (aguardando script externo corrigido rodar)' : `${resultado.suspeitas.length} transação(ões) suspeita(s), ${resultado.ignoradasPorData} ignorada(s) por serem fora da janela recente, ${resultado.ignoradasPorRuido||0} ignorada(s) por serem movimentação interna/resumo de fatura, ${resultado.ignoradasPorIdJaLancado||0} ignorada(s) por já ter pluggy_tx_id lançado`);
   renderInboxFinanceira(); // parte 54: 1 render só no final, nao mais 1 por transação (ver silencioso:true acima)
   return resultado;
 }

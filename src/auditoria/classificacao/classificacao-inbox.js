@@ -158,6 +158,20 @@ function dispararContextoDedupeInbox(origemLog){
       console.error(`${origemLog}: falha ao buscar valores confirmados da V2 — checagem de duplicidade DESATIVADA nesta rodada (itens ainda entram na Inbox, sem o aviso de possível duplicidade).`, err);
       return null;
     }),
+    // NOVO 21/08/2026 (achado real: Porto Consórcio migrado pra boleto pago em dinheiro aparecia
+    // como "pendente" — valor certo existia em cronograma_boletos_fixos/cronograma_consorcios, só
+    // nunca era comparado). Mesmo Set de valoresConhecidos, mesma tolerância (igualdade exata).
+    WallaceFinanceService.getValoresRecorrentesFixosAtivosV2().catch(err => {
+      console.error(`${origemLog}: falha ao buscar boletos fixos/consórcios ativos — checagem de duplicidade contra compromisso conhecido DESATIVADA nesta rodada.`, err);
+      return null;
+    }),
+    // NOVO 21/08/2026 (pedido do usuário: dedup por ID único): pluggy_tx_id já gravado em transacoes
+    // (ver getPluggyTxIdsConhecidosV2, app.js) — reconciliarTransacoesPluggy() usa direto (não passa
+    // pelo Set de valoresConhecidos, é comparação por id, não por valor).
+    WallaceFinanceService.getPluggyTxIdsConhecidosV2().catch(err => {
+      console.error(`${origemLog}: falha ao buscar pluggy_tx_id conhecidos — dedup por ID DESATIVADO nesta rodada (dedup por valor continua ativo).`, err);
+      return null;
+    }),
     // CORRIGIDO 09/08/2026 (achado do usuário: R$551,01 "Mercado Livre" era a mesma compra já
     // lançada, desmembrada em 3 partes — valor exato nunca bateria). Soma de combinações da mesma
     // caixa fecha essa classe de falso-negativo. Mesmo tratamento de falha silenciosa.
@@ -203,9 +217,10 @@ async function sincronizarMercadoPagoParaInbox(promessaContexto){
   // essa promessa ANTES do fetch dos eventos, em paralelo, e repassa aqui via `promessaContexto`.
   // Se chamada sem o parâmetro (uso avulso/futuro), dispara na hora do jeito antigo — nunca quebra.
   const valoresConhecidos = new Set();
-  const [resValoresConhecidos, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] =
+  const [resValoresConhecidos, resValoresRecorrentesFixos, /* resPluggyTxIdsConhecidos (não usado aqui — MP não tem pluggy_tx_id) */, resValoresCombinados, palavrasChaveAssinaturas, cicloAtualInicio] =
     await (promessaContexto || dispararContextoDedupeInbox('sincronizarMercadoPagoParaInbox'));
   if(resValoresConhecidos) resValoresConhecidos.forEach(v => valoresConhecidos.add(v));
+  if(resValoresRecorrentesFixos) resValoresRecorrentesFixos.forEach(v => valoresConhecidos.add(v));
   if(resValoresCombinados) resValoresCombinados.forEach(v => valoresConhecidos.add(v));
   const jaImportados = new Set(VARS.INBOX_FINANCEIRA.map(it=>it.idExterno).filter(Boolean));
   let ignoradosPorCicloAntigo = 0, ignoradosPorDuplicidade = 0;

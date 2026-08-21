@@ -373,6 +373,43 @@ const WallaceFinanceService = {
       return dado.map(r => Math.round(Math.abs(Number(r.valor_combinado))*100)/100);
     });
   },
+  // NOVO 21/08/2026 (achado real, pedido do usuário: "não vejo uso prático dessa Inbox, só gera
+  // duplicação" — caso concreto: Porto Consórcio Carro/Casa Nova, migrados do Mastercard Black pra
+  // boleto pago em dinheiro (11/08/2026, ver cronograma_boletos_fixos), chegaram como "pendente" na
+  // Inbox mesmo já sendo um compromisso 100% conhecido/esperado). getValoresConhecidosV2() só olha
+  // `transacoes` — um boleto fixo pago em dinheiro nunca cria linha lá com esse valor, então nunca
+  // batia no dedup. cronograma_boletos_fixos/cronograma_consorcios (ativo=true) tinham o valor certo
+  // o tempo todo, só nunca entravam no Set de dedup da Inbox. Mesmo tratamento de falha silenciosa
+  // dos outros dedups desta lista.
+  async getValoresRecorrentesFixosAtivosV2(){
+    return this._cache.obterOuBuscar('valores_recorrentes_fixos_ativos_v2', async () => {
+      const [respBoletos, respConsorcios] = await Promise.all([
+        fetch(`${this._url}/rest/v1/cronograma_boletos_fixos?select=valor&ativo=eq.true`, { headers: this._headers() }),
+        fetch(`${this._url}/rest/v1/cronograma_consorcios?select=valor&ativo=eq.true`, { headers: this._headers() }),
+      ]);
+      if(!respBoletos.ok) throw new Error(`WallaceFinanceService: erro ${respBoletos.status} ao buscar cronograma_boletos_fixos`);
+      if(!respConsorcios.ok) throw new Error(`WallaceFinanceService: erro ${respConsorcios.status} ao buscar cronograma_consorcios`);
+      const [boletos, consorcios] = await Promise.all([respBoletos.json(), respConsorcios.json()]);
+      return [...boletos, ...consorcios].map(r => Math.round(Math.abs(Number(r.valor))*100)/100);
+    });
+  },
+  // NOVO 21/08/2026 (pedido do usuário: "a Inbox precisa ter acesso aos lançamentos já existentes...
+  // algum ID único, verifique o que torna cada compra única dos dois lados"): transacoes.pluggy_tx_id
+  // (gravado agora por lancar_transacao_manual quando o lançamento vem de "✔ Aprovar" um item
+  // 'Pluggy-Transação', ver inboxAprovar) é o id de verdade da transação na Pluggy — dedup por ESSE
+  // id nunca colide por valor (ex: Porto Consórcio R$1.449,45 vs. qualquer outra transação do mesmo
+  // valor seriam indistinguíveis só por valor). Usado por reconciliarTransacoesPluggy() pra pular de
+  // vez uma transação já lançada, antes até do dedup por valor.
+  async getPluggyTxIdsConhecidosV2(){
+    return this._cache.obterOuBuscar('pluggy_tx_ids_conhecidos_v2', async () => {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=pluggy_tx_id&pluggy_tx_id=not.is.null`, {
+        headers: this._headers()
+      });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar pluggy_tx_id conhecidos`);
+      const dado = await resp.json();
+      return dado.map(r => r.pluggy_tx_id);
+    });
+  },
   // NOVO 09/08/2026 (achado do usuário: "Comprometido" da Caixa Variável estava inflado, misturando
   // compras que JÁ têm caixa própria - ex: TX000228, carne pro Churrasco, entrou tanto no saldo da
   // Caixa Churrasco quanto no comprometido da Variável, um double-count real). Regra correta
@@ -2649,7 +2686,12 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         <button id="ltxSalvar" class="wallace-btn-primary">Salvar</button>
         <div id="ltxMsg" style="margin-top:0.4rem;font-size:0.72rem"></div>`;
       btnLancar.onclick = () => {
-        form.style.display = form.style.display !== 'block' ? 'block' : 'none';
+        const abrindo = form.style.display !== 'block';
+        form.style.display = abrindo ? 'block' : 'none';
+        // NOVO 21/08/2026: abrir "+ Lançar" direto (não via "✔ Aprovar" da Inbox) é lançamento
+        // genuinamente manual — limpa qualquer idExternoPluggy que tenha sobrado de uma aprovação
+        // anterior, senão o próximo Salvar gravaria um elo pluggy_tx_id errado.
+        if(abrindo) form.dataset.idExternoPluggy = '';
       };
       // CORRIGIDO 10/08/2026: injeta dentro de #lancarTxSlot (card Inbox Financeira) em vez do dock
       // flutuante removido — se o slot ainda não existir por algum motivo (HTML em cache antigo,
@@ -2801,15 +2843,24 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         const tokenAuth = obterTokenAuthSupabase();
         if(!tokenAuth){ msg.textContent = 'Sessão expirada — recarregue a página e faça login de novo antes de lançar.'; msg.style.color = '#e2554f'; return; }
         msg.textContent = 'Salvando...'; msg.style.color = '#c8d4e3';
+        // NOVO 21/08/2026 (pedido do usuário: dedup por ID único, não só por valor): quando este
+        // "+ Lançar" foi aberto via "✔ Aprovar" de um item 'Pluggy-Transação' da Inbox (ver
+        // inboxAprovar, inbox-financeira.js), o id da transação real fica em
+        // form.dataset.idExternoPluggy ("pluggy-tx-<uuid>") — extrai o uuid puro e grava em
+        // transacoes.pluggy_tx_id, fechando o elo que reconciliarTransacoesPluggy() usa pra nunca
+        // mais mostrar essa mesma transação como pendente.
+        const idExternoPluggy = form.dataset.idExternoPluggy || '';
+        const pluggyTxId = idExternoPluggy.startsWith('pluggy-tx-') ? idExternoPluggy.slice('pluggy-tx-'.length) : null;
         try {
           for(const l of lancamentos){
             const r = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/lancar_transacao_manual', {
               method: 'POST',
               headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', 'Authorization':'Bearer '+tokenAuth },
-              body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:l.valor, p_tipo:tipo, p_caixa_id:l.caixaId, p_usuario_id:usuarioId, p_categoria_id:categoriaId })
+              body: JSON.stringify({ p_data:data, p_descricao:descricao, p_valor:l.valor, p_tipo:tipo, p_caixa_id:l.caixaId, p_usuario_id:usuarioId, p_categoria_id:categoriaId, p_pluggy_tx_id:pluggyTxId })
             });
             if(!r.ok){ const err = await r.text(); msg.textContent = `Erro (parte já lançada antes desta pode ter sido gravada): ${err}`; msg.style.color = '#e2554f'; return; }
           }
+          form.dataset.idExternoPluggy = ''; // consumido — próximo Salvar não reusa por engano
           msg.textContent = 'Lançado — atualizando painel...';
           document.getElementById('ltxDescricao').value = ''; document.getElementById('ltxValor').value = '';
           document.getElementById('ltxSplitRows').innerHTML = '';

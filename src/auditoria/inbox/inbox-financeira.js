@@ -186,6 +186,16 @@ function inboxAprovar(id){
     if(elValor) elValor.value = Math.abs(item.valor||0);
     const elTipo = document.getElementById('ltxTipo');
     if(elTipo) elTipo.value = (item.valor||0) < 0 ? 'saida' : 'entrada';
+    // NOVO 21/08/2026 (pedido do usuário: "compatibilizar a Inbox com o sistema pra evitar
+    // duplicação... algum ID único"): carrega o id externo (Pluggy) no próprio form, pro handler de
+    // Salvar (app.js) gravar o elo em transacoes.pluggy_tx_id — só quando a origem é
+    // 'Pluggy-Transação' (1 item = 1 transação real de extrato, idExterno="pluggy-tx-<uuid>", ver
+    // reconciliarTransacoesPluggy). A origem genérica 'Pluggy' (alertas de cartão: mapa/desatualizada/
+    // divergência, ver gerarIdExternoPluggy) NÃO tem 1:1 com uma linha de pluggy_transacoes — gravar
+    // esse id como pluggy_tx_id apontaria pra uma transação que não existe. Mercado Pago fica de fora
+    // por ora (id em formato diferente, sem coluna própria — não inventa encaixe).
+    const ehTransacaoPluggy = item.origem === 'Pluggy-Transação';
+    formEl.dataset.idExternoPluggy = (ehTransacaoPluggy && item.idExterno) ? item.idExterno : '';
     formEl.scrollIntoView({behavior:'smooth', block:'center'});
   }
 }
