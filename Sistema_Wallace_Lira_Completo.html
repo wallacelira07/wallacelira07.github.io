@@ -1016,6 +1016,7 @@
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneRisco', this)">Em Risco <span id="opcoesRiscoContagem"></span></button>
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneVencidas', this)">Vencidas (aguardando confirmação)</button>
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneExercidas', this)">Exercícios Confirmados</button>
+      <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneCarteira', this)">Carteira de Ações Recebidas</button>
     </div>
 
     <div id="opcoesPaneAtivas" class="opcoes-pane active">
@@ -1061,6 +1062,17 @@
         </div>
         <div class="v" id="legOpcoesExercidas" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.4rem"></div>
       </div>
+    </div>
+
+    <!-- NOVO 21/08/2026 (Fase 3 do cockpit de opções, pedido do usuário: "Carteira de Ações Recebidas
+         — toda ação recebida por exercício deve entrar nela"). DERIVADA de VARS.opcoesVendidasDetalhe
+         (filtro o.exercida=true) — sem tabela nova de "posição", pra não duplicar dado que já existe
+         (mesma lição aplicada 2x nesta sessão: tx_legado/cronograma_boletos_fixos). Cotação atual e
+         dividendos vêm de fontes já existentes (VARS.ACOES_COTACOES / dividendos_acoes). Ver
+         aplicarCarteiraAcoesExercidas()/hydrate-roc.js. "Situação" mostra fato objetivo (acima/abaixo
+         do custo), nunca recomendação — não sou consultor de investimentos. -->
+    <div id="opcoesPaneCarteira" class="opcoes-pane">
+      <div id="carteiraAcoesExercidasConteudo"></div>
     </div>
 
     <div class="v" id="legOpcoesReconstruido" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>

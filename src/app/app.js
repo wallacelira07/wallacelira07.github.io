@@ -1175,6 +1175,18 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 21/08/2026 ("Carteira de Ações Recebidas", ações que entram na carteira quando uma PUT
+  // vendida é exercida — Fase 3 do cockpit de opções). Tabela `dividendos_acoes`, alimentada por
+  // scripts/sync/atualizar_dividendos.py (brapi.dev ?dividends=true, testado 21/08/2026 — grátis,
+  // sem token). Retorna todos os eventos de um ticker, mais recente primeiro.
+  async getDividendosAcao(ticker){
+    return this._cache.obterOuBuscar(`dividendos_acoes_${ticker}`, async () => {
+      const url = `${this._url}/rest/v1/dividendos_acoes?ticker=eq.${ticker}&select=tipo,valor,data_pagamento,data_com,aprovado_em&order=data_pagamento.desc`;
+      const resp = await fetch(url, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar dividendos_acoes`);
+      return await resp.json();
+    });
+  },
   // NOVO 16/08/2026 (aba Emagrecimento, pedido do usuário: "adicione campos para receber medição de
   // pressão e leitura de glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo
   // padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert feito
@@ -2613,6 +2625,9 @@ onDomPronto(aplicarCotacoesOpcoesV2);
 // NOVO 21/08/2026: gráfico de tendência do preço (entrada → vencimento) por posição ativa, pedido
 // do usuário. Ver aplicarTendenciaOpcoes()/hydrate-roc.js.
 onDomPronto(aplicarTendenciaOpcoes);
+// NOVO 21/08/2026 (Fase 3 do cockpit de opções): aba "Carteira de Ações Recebidas", derivada das
+// opções exercidas + dividendos_acoes. Ver aplicarCarteiraAcoesExercidas()/hydrate-roc.js.
+onDomPronto(aplicarCarteiraAcoesExercidas);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.

@@ -513,3 +513,71 @@ async function aplicarTendenciaOpcoes(){
     });
   }
 }
+
+// NOVO 21/08/2026 (Fase 3 do cockpit de opções, pedido do usuário: "Carteira de Ações Recebidas —
+// toda ação recebida por exercício deve entrar nela"). DERIVADA de VARS.opcoesVendidasDetalhe
+// (filtro o.exercida=true) — sem tabela nova de posição, pra não duplicar dado que já existe (mesma
+// lição já aplicada 2x nesta sessão). Preço médio = soma ponderada dos strikes das opções exercidas
+// desse ativo (só faz sentido agrupar por ativo — 2 exercícios do mesmo PETR4 em datas diferentes
+// viram 1 posição consolidada, como aconteceria na conta real da corretora). "Situação" mostra fato
+// objetivo (cotação acima/abaixo do custo médio), nunca recomendação — não sou consultor de
+// investimentos, ver ressalva no rodapé da própria tabela.
+async function aplicarCarteiraAcoesExercidas(){
+  const container = $('carteiraAcoesExercidasConteudo');
+  if(!container) return;
+  const exercidas = (VARS.opcoesVendidasDetalhe || []).filter(o => o.exercida && o.precoExercicio != null);
+  if(!exercidas.length){
+    container.innerHTML = '<div style="color:var(--text-dim);padding:1rem 0;text-align:center">Nenhuma ação recebida por exercício ainda.</div>';
+    return;
+  }
+  const porAtivo = {};
+  exercidas.forEach(o => {
+    const qtd = Math.abs(o.quantidade);
+    if(!porAtivo[o.ativo]) porAtivo[o.ativo] = { ativo: o.ativo, qtdTotal: 0, custoTotal: 0 };
+    porAtivo[o.ativo].qtdTotal += qtd;
+    porAtivo[o.ativo].custoTotal += qtd * o.precoExercicio;
+  });
+  const cotacoes = VARS.ACOES_COTACOES || {};
+  const hojeD = new Date(); hojeD.setHours(0,0,0,0);
+  const umAnoAtras = new Date(hojeD); umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+  const linhasHtml = [];
+  for(const p of Object.values(porAtivo)){
+    const qtd = p.qtdTotal;
+    const precoMedio = Math.round(p.custoTotal / qtd * 100) / 100;
+    const cot = cotacoes[p.ativo];
+    const cotacaoAtual = cot && cot.preco != null ? Number(cot.preco) : null;
+    const lucroPrejuizo = cotacaoAtual != null ? Math.round((cotacaoAtual - precoMedio) * qtd * 100) / 100 : null;
+    let dividendos = [];
+    try { dividendos = await WallaceFinanceService.getDividendosAcao(p.ativo); } catch(err){ console.error('CarteiraAcoesExercidas: falha ao buscar dividendos de', p.ativo, err); }
+    const comData = s => s ? new Date(s+'T00:00:00') : null;
+    const futuros = (dividendos||[]).filter(d => comData(d.data_pagamento) && comData(d.data_pagamento) >= hojeD).sort((a,b) => comData(a.data_pagamento) - comData(b.data_pagamento));
+    const proximo = futuros[0] || null;
+    const ultimos12m = (dividendos||[]).filter(d => { const dt = comData(d.data_pagamento); return dt && dt >= umAnoAtras && dt <= hojeD; });
+    const somaDividendos12m = ultimos12m.reduce((s,d) => s + Number(d.valor), 0);
+    const dy = cotacaoAtual ? Math.round(somaDividendos12m / cotacaoAtual * 10000) / 100 : null;
+    const situacao = cotacaoAtual != null
+      ? (cotacaoAtual >= precoMedio
+        ? `<span style="color:var(--green)">Acima do custo (+${((cotacaoAtual/precoMedio-1)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%)</span>`
+        : `<span style="color:var(--red)">Abaixo do custo (${((cotacaoAtual/precoMedio-1)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%)</span>`)
+      : '—';
+    linhasHtml.push(`<tr>
+      <td>${p.ativo}</td>
+      <td class="r">${qtd}un</td>
+      <td class="r">${fmt(precoMedio)}</td>
+      <td class="r">${cotacaoAtual != null ? fmt(cotacaoAtual) : '—'}</td>
+      <td class="r" style="color:${lucroPrejuizo>0?'var(--green)':lucroPrejuizo<0?'var(--red)':'inherit'}">${lucroPrejuizo != null ? fmt(lucroPrejuizo) : '—'}</td>
+      <td class="r">${dy != null ? dy.toLocaleString('pt-BR',{minimumFractionDigits:2})+'%' : '—'}</td>
+      <td class="r">${proximo ? fmt(Number(proximo.valor))+' ('+proximo.tipo+')' : '—'}</td>
+      <td>${proximo && proximo.data_com ? comData(proximo.data_com).toLocaleDateString('pt-BR') : '—'}</td>
+      <td>${proximo && proximo.data_pagamento ? comData(proximo.data_pagamento).toLocaleDateString('pt-BR') : '—'}</td>
+      <td>${situacao}</td>
+    </tr>`);
+  }
+  container.innerHTML = `<div style="overflow-x:auto"><table><thead><tr>`
+    + `<th scope="col">Ativo</th><th scope="col" class="r">Qtd</th><th scope="col" class="r">Preço médio</th>`
+    + `<th scope="col" class="r">Cotação atual</th><th scope="col" class="r">Lucro/Prejuízo</th>`
+    + `<th scope="col" class="r">Dividend Yield (12m)</th><th scope="col" class="r">Próximo dividendo</th>`
+    + `<th scope="col">Data COM</th><th scope="col">Data pagamento</th><th scope="col">Situação</th>`
+    + `</tr></thead><tbody>${linhasHtml.join('')}</tbody></table></div>`
+    + `<div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">Preço médio = soma ponderada dos strikes das opções exercidas desse ativo. "Situação" é só a comparação objetiva entre cotação e custo — não é recomendação de venda/compra.</div>`;
+}
