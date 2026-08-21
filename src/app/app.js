@@ -420,6 +420,18 @@ const WallaceFinanceService = {
   // Ver hydrate-comprometido-caixa-variavel-v2.js. Id fixo da Caixa Variável (singleton, estável -
   // mesmo padrão de outros ids fixos já hardcoded no projeto, ex: CARTAO_PLUGGY_MAPA).
   CAIXA_VARIAVEL_ID_V2: '8522e256-2039-4c11-bd28-69738bfcf5b8',
+  // NOVO 21/08/2026 (pedido direto do usuário: "custo corporativo não deve jamais ser somado a
+  // minha necessidade" — achado real: Caixa Variável tinha R$296,62 de compra categoria
+  // "Reembolsável Corporativo"/"Reembolsável - Terceiros" contada como Comprometido no cartão,
+  // dinheiro que a empresa/terceiro reembolsa, nunca risco pessoal de verdade). Filtro PostgREST
+  // pronto, reusado em getComprometidoCaixaVariavelV2/getComprometidoPorCaixaV2/
+  // getComprometidoPorCaixaECartoesV2 — qualquer soma de "Comprometido no cartão" tem que excluir
+  // essas 2 categorias.
+  // CUIDADO: `categoria_id=not.in.(...)` sozinho excluiria também toda linha com categoria_id NULL
+  // (semântica SQL de NOT IN com NULL) — a maioria das transações não tem categoria, isso zeraria
+  // o comprometido quase inteiro. `or=(categoria_id.is.null,categoria_id.not.in.(...))` inclui de
+  // volta as linhas sem categoria, exclui só as 2 categorias de reembolso de verdade.
+  FILTRO_EXCLUI_REEMBOLSAVEL_V2: '&or=(categoria_id.is.null,categoria_id.not.in.(1cc9db18-aec4-4cf1-962d-4d9a36f44f70,e928229a-b984-4232-89d9-aadf6b17fe19))',
   // CORRIGIDO 11/08/2026 (achado do usuário: "ontem eu tinha 450 de crédito, como agora virou 350
   // de débito" — salto real de ~R$800 num dia só): esta consulta somava TODAS as compras de cartão
   // já classificadas como Caixa Variável, sem filtro de data — incluindo 54 transações desde
@@ -443,7 +455,7 @@ const WallaceFinanceService = {
       // Assinaturas (cronograma_assinaturas/mbLRSConfirmado, componente separado de Necessidade Total)
       // ao mesmo tempo, mesma classe de bug já documentada do caso TX000228/Churrasco. Marcadas
       // ja_orcado_assinaturas=true (ver migração), excluídas daqui pra não contar 2x.
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}`, {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=valor&caixa_id=eq.${this.CAIXA_VARIAVEL_ID_V2}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}${this.FILTRO_EXCLUI_REEMBOLSAVEL_V2}`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar comprometido da Caixa Variável`);
@@ -470,7 +482,7 @@ const WallaceFinanceService = {
       const caixa = caixas.find(c => c.id === caixaId);
       const cicloInicioEm = caixa && caixa.ciclo_inicio_em;
       const filtroData = cicloInicioEm ? `&data=gte.${cicloInicioEm}` : '';
-      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}&order=data.asc`, {
+      const resp = await fetch(`${this._url}/rest/v1/transacoes?select=data,descricao,valor&caixa_id=eq.${caixaId}&cartao_id=not.is.null&status=eq.confirmado&tipo=eq.saida&afeta_saldo_real=eq.false&ja_orcado_assinaturas=eq.false${filtroData}${this.FILTRO_EXCLUI_REEMBOLSAVEL_V2}&order=data.asc`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar detalhe do comprometido da caixa ${caixaId}`);

@@ -21,9 +21,15 @@
 // mecanismo PRÓPRIO e mais completo pra "dinheiro já destinado a sair" (hydrate-wartsila-caixas-
 // textos.js: R.faturaWartsila/R.wartsilaCaixa.excedente; hydrate-caixas.js: META_COMPUTADAS_
 // CAIXAS_RESERVA['Caixa Mercado Pago']=REG.mercadoPago) — o bloco genérico deste arquivo somaria
-// a MESMA dívida de novo. As outras caixas (Bens Duráveis, Emagrecimento, Churrasco, Caixa
-// Variável) não têm equivalente, continuam recebendo o bloco normalmente.
-const CAIXAS_COM_FATURA_PROPRIA = new Set(['Caixa Wartsila', 'Caixa Mercado Pago']);
+// a MESMA dívida de novo.
+// AMPLIADO 21/08/2026 (mesmo achado, mesma sessão): Caixa Variável também tem seção PRÓPRIA
+// dedicada ("Controle Caixa Variável", section 06 — hydrate-comprometido-caixa-variavel-v2.js,
+// R$2.810,16 confirmado correto pelo usuário, inclui o ajuste LIMBO_VIRADA_25_07 que a view
+// genérica não replica) — ela também aparece em #caixasExtraGrid (caixa_tipo=operacional, fora da
+// lista CAIXAS_JA_COBERTAS_ESTATICAMENTE), mesmo risco de dupla contagem se não excluída aqui.
+// As outras caixas (Bens Duráveis, Emagrecimento, Churrasco) não têm equivalente, continuam
+// recebendo o bloco normalmente.
+const CAIXAS_COM_FATURA_PROPRIA = new Set(['Caixa Wartsila', 'Caixa Mercado Pago', 'Caixa Variável']);
 
 const MAPA_CAIXA_NOME_SALDO_ID = {
   'Caixa Boletos': 'cxBoletosSaldo',
