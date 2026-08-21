@@ -958,6 +958,25 @@
   <!-- 16 -->
   <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
   <div class="card">
+    <!-- NOVO 21/08/2026 (Fase 4 do cockpit de opções, pedido do usuário: "Dashboard executivo" —
+         junta números que já existiam espalhados pelo resto da seção numa visão única no topo. Todos
+         os campos são REAPROVEITADOS de VARS.rocCarteira/opcoesVendidasDetalhe já calculados — só
+         "Prêmios do mês", "Taxa de sucesso" e "Taxa de exercício" são cálculo novo, ver
+         aplicarDashboardExecutivoOpcoes()/hydrate-roc.js. -->
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.7rem">Dashboard Executivo</div>
+    <div class="grid-3" style="margin-bottom:0.6rem">
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Capital comprometido</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="dashOpCapitalComprometido">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Prêmios recebidos (total)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg);color:var(--green)" id="dashOpPremiosTotal">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Prêmios do mês</div><div class="v" style="font-weight:600;font-size:var(--fs-lg);color:var(--green)" id="dashOpPremiosMes">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Retorno mensal</div><div class="v" style="font-weight:600" id="dashOpRetornoMensal">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Taxa CDI equivalente</div><div class="v" style="font-weight:600" id="dashOpTaxaCDI">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Rentabilidade total (histórico)</div><div class="v" style="font-weight:600" id="dashOpRentabilidadeTotal">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Exercícios recebidos</div><div class="v" style="font-weight:600" id="dashOpExercicios">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Taxa de sucesso das PUTs</div><div class="v" style="font-weight:600;color:var(--green)" id="dashOpTaxaSucesso">—</div></div>
+      <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Taxa de exercício</div><div class="v" style="font-weight:600" id="dashOpTaxaExercicio">—</div></div>
+    </div>
+    <div class="v" id="legDashOpExecutivo" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.9rem">—</div>
+
     <!-- NOVO 21/08/2026 (achado real do usuário: ITM não avisava proativamente) — ver
          calcularAvisosOpcoesRisco()/hydrateROC(). -->
     <div id="opcoesAvisoITM" class="callout danger" style="display:none;margin-bottom:1rem"></div>

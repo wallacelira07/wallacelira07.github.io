@@ -7,6 +7,49 @@
 function hydrateROC(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
+  // NOVO 21/08/2026 (Fase 4 do cockpit de opções, "Dashboard Executivo" — junta números que já
+  // existiam espalhados pela seção numa visão única no topo). A maioria REAPROVEITA VARS.rocCarteira/
+  // opcoesVendidasDetalhe (nenhum cálculo novo, só exibição consolidada) — só 3 métricas são cálculo
+  // novo: Prêmios do mês, Taxa de sucesso, Taxa de exercício.
+  {
+    const rc = VARS.rocCarteira || {};
+    t('dashOpCapitalComprometido', fmt(rc.capitalTravado || 0));
+    t('dashOpPremiosTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0)));
+    t('dashOpRetornoMensal', rc.rentabilidadeMensal != null ? (rc.rentabilidadeMensal*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' : '—');
+    t('dashOpTaxaCDI', rc.comparacaoCDI != null ? rc.comparacaoCDI.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'x CDI' : '—');
+    // Rentabilidade total = soma de resultadoHistorico (campo já existente por posição, "prêmio
+    // líquido menos o que foi de fato perdido/ganho até agora" — ver origem do dado em vars-roc.js).
+    t('dashOpRentabilidadeTotal', fmt(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.resultadoHistorico||0),0)));
+
+    // NOVO — Prêmios do mês: soma premioRecebido só das operações cuja nota de corretagem é do mês
+    // corrente (mesmo regex de extração de data já usado em aplicarTendenciaOpcoes()).
+    const agora = new Date();
+    const premiosMes = VARS.opcoesVendidasDetalhe.reduce((s,o) => {
+      const m = /\((\d{2})\/(\d{2})\/(\d{4})\)/.exec(o.notaCorretagem || '');
+      if(!m) return s;
+      const mesNota = Number(m[2]) - 1, anoNota = Number(m[3]);
+      if(mesNota === agora.getMonth() && anoNota === agora.getFullYear()) return s + (o.premioRecebido || 0);
+      return s;
+    }, 0);
+    t('dashOpPremiosMes', fmt(premiosMes));
+
+    // NOVO — Exercícios recebidos / Taxa de sucesso / Taxa de exercício: "encerrada" = o.vencida true
+    // (cobre ENCERRADA + vencimento já passado, mesma fonte de aplicarStatusVencidoEValorMercadoOpcoes()
+    // em opcoes-roc.js) — sucesso = encerrada sem confirmação de exercício ("virou pó").
+    const encerradas = VARS.opcoesVendidasDetalhe.filter(o => o.vencida);
+    const exercidas = encerradas.filter(o => o.exercida);
+    t('dashOpExercicios', String(exercidas.length));
+    t('dashOpTaxaSucesso', encerradas.length ? (((encerradas.length-exercidas.length)/encerradas.length)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%' : '—');
+    t('dashOpTaxaExercicio', encerradas.length ? ((exercidas.length/encerradas.length)*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%' : '—');
+
+    const legDashEl = $('legDashOpExecutivo');
+    if(legDashEl){
+      legDashEl.textContent = encerradas.length
+        ? `${encerradas.length} operação(ões) encerrada(s) no total (${exercidas.length} exercida(s), ${encerradas.length-exercidas.length} virou(aram) pó). "Recuperações concluídas" ainda não é uma métrica rastreável — a Carteira de Ações Recebidas não tem mecanismo de "venda"/encerramento ainda, fica pra quando o primeiro caso real acontecer.`
+        : 'Nenhuma operação encerrada ainda — taxas de sucesso/exercício ficam disponíveis a partir da 1ª posição vencida.';
+    }
+  }
+
   // AMPLIADO 21/08/2026 (motor de alerta em camadas, pedido do usuário — ver
   // calcularNivelRiscoOpcao()/calcularAvisosOpcoesRisco() em opcoes-roc.js pro critério completo dos
   // 4 níveis). Renderiza em 3 lugares: banner no topo da Home + banner na própria seção 16 (só tier
