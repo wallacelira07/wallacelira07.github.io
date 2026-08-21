@@ -15,7 +15,12 @@ const parseVencimentoBR = str => { const [d,m,a] = str.split('/').map(Number); r
 // reaproveitado depois na tabela da secao 17 (nunca duplicado) - o registro em si NAO e apagado do
 // array (P6, rastreabilidade), so sai da soma/da lista de posicoes ativas exibida.
 function aplicarStatusVencidoEValorMercadoOpcoes(){
-  const hojeOpcoes = new Date();
+  // CORRIGIDO 21/08/2026 (achado real do usuário: PETR4/ITUB4 PUT vencendo HOJE já saíam de "ativas"
+  // antes das 23:59h do próprio dia de vencimento) — parseVencimentoBR() é sempre meia-noite do dia,
+  // comparar contra `new Date()` (agora, com hora) fazia a opção "vencer" a partir da meia-noite do
+  // dia do vencimento, não do fim dele. Zera a hora de "hoje" — vira comparação por DIA, "vencida" só
+  // a partir do dia SEGUINTE ao vencimento (mesmo padrão já corrigido pra "assembleia já passou").
+  const hojeOpcoes = new Date(); hojeOpcoes.setHours(0,0,0,0);
   VARS.opcoesVendidasDetalhe.forEach(o => {
     if(o.statusPosicao === 'ENCERRADA') o.vencida = true;
     else if(o.statusPosicao === 'ATIVA') o.vencida = false;
