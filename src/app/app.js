@@ -612,15 +612,15 @@ const WallaceFinanceService = {
   },
   // NOVO 14/08/2026 (consolidação de boot do painel — pedido do orquestrador: hydrate-onda12-
   // caixas-pequenas-v2.js fazia 5 round-trips HTTP separados a getTransacoesComposicaoSaldoCaixa,
-  // um por caixa pequena). Chama a RPC nova rpc_composicao_saldo_caixas_batch(p_nomes) — desenhada
-  // em supabase/migrations/20260814000000_rpc_composicao_saldo_caixas_batch.sql, AINDA NÃO APLICADA
-  // em produção — que devolve a composição das N caixas numa única chamada, chaveada por nome, no
-  // MESMO shape que getTransacoesComposicaoSaldoCaixa() já devolve por caixa ({caixaId,
-  // cicloInicioEm, linhas}). Enquanto a migration não for aplicada (RPC inexistente -> Postgrest
-  // devolve 404), cai automaticamente pro fallback de 5 chamadas individuais (mesmo comportamento de
-  // hoje) — mesmo padrão try/catch-com-fallback já usado no domínio Solar/Cotações/PIB (ver
-  // hydrate-clima-solar.js), só que ali o fallback é "sem dado" e aqui é "método antigo continua
-  // funcionando".
+  // um por caixa pequena). Chama a RPC rpc_composicao_saldo_caixas_batch(p_nomes) — desenhada em
+  // supabase/migrations/20260814000000_rpc_composicao_saldo_caixas_batch.sql — que devolve a
+  // composição das N caixas numa única chamada, chaveada por nome, no MESMO shape que
+  // getTransacoesComposicaoSaldoCaixa() já devolve por caixa ({caixaId, cicloInicioEm, linhas}).
+  // APLICADA EM PRODUÇÃO 21/08/2026 (achado numa auditoria de performance: a migration existia desde
+  // 14/08 mas nunca tinha sido aplicada, o sistema sempre caía no fallback de 5 chamadas — testada
+  // com dado real, shape confirmado idêntico). O fallback de 5 chamadas individuais abaixo continua
+  // existindo por segurança (mesmo padrão try/catch-com-fallback já usado no domínio Solar/Cotações/
+  // PIB, ver hydrate-clima-solar.js), mas não deveria mais disparar em uso normal.
   async getComposicaoCaixasBatch(nomesCaixa){
     const chaveCache = 'composicao_saldo_batch:' + nomesCaixa.slice().sort().join(',');
     return this._cache.obterOuBuscar(chaveCache, async () => {

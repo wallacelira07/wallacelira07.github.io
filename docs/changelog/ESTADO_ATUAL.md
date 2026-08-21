@@ -39,6 +39,12 @@ Usuário pediu re-auditoria depois das correções de hoje. Achados principais: 
 
 Não mexido de propósito: `cronograma_consorcios`/assinaturas/recorrências continuam exigindo confirmação manual contra fatura real pra `ultima_cobranca_em` — não é lacuna, é a mesma regra "fatura real sempre vence" já estabelecida hoje, automatizar isso seria voltar a assumir sem confirmar.
 
+## 15. Auditoria de performance (21/08/2026)
+
+Advisor de performance do Supabase rodado — banco pequeno (uso pessoal), quase tudo INFO/irrelevante (índices nunca usados, poucas linhas). 3 chaves estrangeiras sem índice corrigidas (`caixas_aportes_mensais`, `pluggy_investimentos`, `pluggy_saldos_reservados`).
+
+**Achado real e maior**: `rpc_composicao_saldo_caixas_batch()` — função desenhada em 14/08/2026 pra consolidar 5 round-trips HTTP (uma por "caixa pequena": Lance, Bens Duráveis, Churrasco, PIX Vanessa, Mastercard Infinite) numa única chamada — **nunca tinha sido aplicada em produção**. O cliente (`WallaceFinanceService.getComposicaoCaixasBatch`) já tinha fallback automático e sempre caiu nele, sem erro visível, desde 14/08. Aplicada agora, testada com dado real (shape idêntico ao esperado) — o boot do painel deve ficar sensivelmente mais rápido na seção "Caixas Pequenas".
+
 ## 14. Banco documentado (61 tabelas) + morte da última leitura V1 do Patrimônio (21/08/2026)
 
 Usuário pediu documentação completa do schema (10 agentes) + confirmou meta real do projeto: "melhor sistema pessoal possível", não produto comercial (uma 2ª auditoria de 10 agentes sobre prontidão comercial rodou em paralelo, nota 1,9/10 — arquivada como referência histórica, não é mais objetivo ativo).
