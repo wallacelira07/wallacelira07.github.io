@@ -15,6 +15,16 @@
 // tooltip-composicao-caixa.js já mantém separadamente (MAPA_CAIXA_ID_CARD lá, escopo de IIFE — não
 // dá pra importar, replicada aqui). Qualquer caixa fora dessa lista é procurada por texto dentro de
 // #caixasExtraGrid (mesmo padrão de preencherCaixasOperacionaisExtra/hydrate-caixas.js).
+// CORRIGIDO 21/08/2026 (achado do usuário, print real: card da Caixa Wärtsilä mostrando
+// "Comprometido R$635,22 / Disponível real R$4.423,42" AO LADO de "Fatura R$5.056,95 · 100%
+// coberto · excedente R$1,69" — dupla contagem real). Caixa Wärtsilä e Caixa Mercado Pago já têm
+// mecanismo PRÓPRIO e mais completo pra "dinheiro já destinado a sair" (hydrate-wartsila-caixas-
+// textos.js: R.faturaWartsila/R.wartsilaCaixa.excedente; hydrate-caixas.js: META_COMPUTADAS_
+// CAIXAS_RESERVA['Caixa Mercado Pago']=REG.mercadoPago) — o bloco genérico deste arquivo somaria
+// a MESMA dívida de novo. As outras caixas (Bens Duráveis, Emagrecimento, Churrasco, Caixa
+// Variável) não têm equivalente, continuam recebendo o bloco normalmente.
+const CAIXAS_COM_FATURA_PROPRIA = new Set(['Caixa Wartsila', 'Caixa Mercado Pago']);
+
 const MAPA_CAIXA_NOME_SALDO_ID = {
   'Caixa Boletos': 'cxBoletosSaldo',
   'PIX Vanessa': 'cxPixSaldo',
@@ -76,6 +86,7 @@ async function aplicarComprometidoGenericoTodasCaixas(tentativasRestantes){
   let pendentesPorDom = 0;
   let aplicadas = 0;
   comprometidos.forEach(({caixaNome, comprometido}) => {
+    if(CAIXAS_COM_FATURA_PROPRIA.has(caixaNome)) return; // já mostrado via mecanismo próprio, ver comentário acima
     const saldoAtual = mapaSaldo[caixaNome];
     if(saldoAtual === undefined) return; // caixa sem vw_saldo_v2_por_caixa correspondente — nao arrisca renderizar com dado incompleto
     const card = _localizarCardCaixaGenerico(caixaNome);

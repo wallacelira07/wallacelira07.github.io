@@ -77,8 +77,14 @@ async function aplicarDeficitCaixasSemLrei(){
       WallaceFinanceService.getComprometidoCartaoTodasCaixasV2().catch(() => []),
       WallaceFinanceService.getComprometidoCaixaVariavelV2().catch(() => 0),
     ]);
+    // CORRIGIDO 21/08/2026 (achado do usuário no card da Caixa Wärtsilä: comprometido genérico
+    // dobrava a mesma dívida que R.faturaWartsila/R.mercadoPago já cobrem via mecanismo próprio —
+    // ver mesma exclusão em hydrate-comprometido-generico-todas-caixas.js). Sem impacto no valor
+    // final HOJE (as 2 têm saldo suficiente, contribuição já era 0), mas evita a mesma dupla
+    // contagem se o saldo delas cair abaixo do comprometido no futuro.
+    const CAIXAS_COM_FATURA_PROPRIA = new Set(['Caixa Wartsila', 'Caixa Mercado Pago']);
     comprometidos = comprometidoGenerico
-      .filter(c => c.caixaNome !== 'Caixa Variável') // Variável entra abaixo, com o ajuste LIMBO
+      .filter(c => c.caixaNome !== 'Caixa Variável' && !CAIXAS_COM_FATURA_PROPRIA.has(c.caixaNome))
       .map(c => ({ nome: c.caixaNome, valor: c.comprometido }));
     comprometidos.push({ nome: 'Caixa Variável', valor: (Number(comprometidoVariavel) || 0) + LIMBO_VIRADA_25_07_NAO_DEBITADO });
   } catch(err){
