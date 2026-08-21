@@ -17,10 +17,21 @@ function hydrateROC(){
       const prazoTxt = a.diasParaVencer < 0
         ? `venceu há ${Math.abs(a.diasParaVencer)} dia(s) (${a.vencimento}) — confirme com a corretora se foi exercida`
         : a.diasParaVencer === 0 ? `vence HOJE (${a.vencimento})` : `vence em ${a.diasParaVencer} dia(s) (${a.vencimento})`;
+      // NOVO 21/08/2026 (pedido do usuário, calculadora de recuperação pós-exercício): 2 caminhos
+      // mecânicos SE for exercida, sem recomendar qual escolher (não sou consultor de investimentos).
+      // Caminho A (vender e realizar): já é exatamente resultadoLiquidoSeExercido, reaproveitado.
+      // Caminho B (manter as ações e vender covered call): não temos cotação de calls integrada
+      // (brapi free não cobre chain de opções fora do PETR4, ver comentário em aplicarCotacoesOpcoesV2)
+      // — mostra a FÓRMULA (preço de equilíbrio atual, e como cada R$ de prêmio novo o reduz), pro
+      // usuário aplicar com a cotação real de calls que ele vir na própria corretora.
+      const caminhoB = `Caminho B — manter as ${a.qtd} ações e vender covered call: seu preço de equilíbrio hoje é ${fmt(a.precoEquilibrio)} (o que você "pagou" de fato, já descontado o prêmio da put). `
+        + `Cada R$1,00 de prêmio recebido numa call nova reduz esse equilíbrio em R$${(1/a.qtd).toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})} por ação vendida coberta — confira o prêmio real de calls com strike perto de ${fmt(a.precoEquilibrio)} na sua corretora antes de decidir.`;
+      const caminhoA = `Caminho A — vender as ações agora e realizar: resultado líquido ${fmt(a.resultadoLiquidoSeExercido)} (mesmo número do resultado líquido acima).`;
       return `<div style="margin-bottom:0.6rem"><strong>${a.ativo} PUT (${a.ticker})</strong> ${prazoTxt} — ITM: cotação ${fmt(a.cotacaoAtual)} abaixo do strike ${fmt(a.strike)}.<br>`
         + `Se exercida: você compra ${a.qtd} ações a ${fmt(a.strike)} (${fmt(a.capitalNecessario)}), valendo ${fmt(a.valorMercadoAcoes)} no mercado agora (${fmt(-a.perdaNoPapel)} no papel). `
         + `Prêmio já recebido: ${fmt(a.premio)}. Resultado líquido se exercido: <strong style="color:${a.resultadoLiquidoSeExercido<0?'var(--red)':'var(--green)'}">${fmt(a.resultadoLiquidoSeExercido)}</strong>. `
-        + `Preço de equilíbrio: ${fmt(a.precoEquilibrio)}.</div>`;
+        + `Preço de equilíbrio: ${fmt(a.precoEquilibrio)}.<br>`
+        + `<span style="font-size:0.72rem;color:var(--text-dim)">${caminhoA}<br>${caminhoB}</span></div>`;
     };
     const html = avisos.length
       ? `<div style="font-weight:700;margin-bottom:0.5rem">⚠️ ${avisos.length} posição(ões) em risco de exercício</div>` + avisos.map(montarLinha).join('')
@@ -222,7 +233,19 @@ function hydrateROC(){
       // (aplicarCotacoesOpcoesV2(), só PETR4) em vez do literal manual de vars-roc.js — sem isso, não
       // dava pra distinguir na tela um preço automatizado de um esperando nota de corretagem nova.
       const marcaAoVivo = o._cotacaoAoVivo ? ` <span title="Preço ao vivo (brapi.dev) — atualizado ${o._cotacaoAoVivoEm ? new Date(o._cotacaoAoVivoEm).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}" style="font-size:0.6rem">🔄</span>` : '';
-      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.vencimento||'-'}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}${marcaAoVivo}</td><td class="r v">${rocHtml}</td></tr>`;
+
+      // NOVO 21/08/2026 (pedido do usuario: contagem regressiva visivel em toda posicao ativa, nao so
+      // nas em risco -- mesma comparacao por DIA ja usada em calcularAvisosOpcoesRisco()/opcoes-roc.js).
+      let vencimentoHtml = o.vencimento || '-';
+      if(o.vencimento){
+        const [dv,mv,av] = o.vencimento.split('/').map(Number);
+        const hojeCountdown = new Date(); hojeCountdown.setHours(0,0,0,0);
+        const dias = Math.round((new Date(av,mv-1,dv) - hojeCountdown) / 86400000);
+        const corDias = dias <= 2 ? 'var(--red)' : (dias <= 7 ? '#eab54f' : 'var(--text-dim)');
+        const diasTxt = dias < 0 ? ('venceu ha ' + Math.abs(dias) + 'd') : dias === 0 ? 'vence hoje' : (dias + 'd');
+        vencimentoHtml = o.vencimento + '<br><span style="color:' + corDias + ';font-size:0.68rem;font-weight:600">' + diasTxt + '</span>';
+      }
+      return `<tr><td>${o.ativo} PUT</td><td>${o.ticker}</td><td class="r">${Math.abs(o.quantidade)}un</td><td class="r">${o.precoExercicio===null ? '—' : o.precoExercicio.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${vencimentoHtml}</td><td class="r v">${acaoAgoraHtml}</td><td class="r">${o.premioBruto===undefined ? '—' : fmt(o.premioBruto)}</td><td class="r">${custoTxt}</td><td class="r" style="color:var(--green);font-weight:600">${o.premioRecebido===null ? '<span style="color:var(--text-dim);font-style:italic">pendente</span>' : fmt(o.premioRecebido)}</td><td class="r" style="color:${corMercado}">${fmt(o.valorMercado)}${marcaAoVivo}</td><td class="r v">${rocHtml}</td></tr>`;
     }).join('');
     }
     // NOVO 08/08/2026 (badge de frescor + legendas dinâmicas, pedido do usuário): troca o horário
@@ -404,4 +427,61 @@ async function aplicarCotacoesOpcoesV2(){
   }
   window.WALLACE_COTACOES_OPCOES_RELATORIO = { status: 'ok', atualizados, cotacoes };
   console.log('CotacoesOpcoesV2: preço ao vivo aplicado —', atualizados, 'série(s) atualizada(s). Relatório em window.WALLACE_COTACOES_OPCOES_RELATORIO', window.WALLACE_COTACOES_OPCOES_RELATORIO);
+}
+
+// NOVO 21/08/2026 (pedido do usuário: "gráfico pra analisar as tendências das ações das opções,
+// deve registrar o valor do dia que entrei na opção e ir montando a tendência de subida ou descida
+// em direção ao vencimento"). Lê `cotacoes_acoes_historico` (nova, 1 linha por ticker/dia — ver
+// migração 21/08/2026 e getCotacoesAcoesHistorico() em app.js) desde a data da nota de corretagem
+// (campo o.notaCorretagem, formato "NNNNN (DD/MM/AAAA)") até o vencimento. Um gráfico por posição
+// ATIVA (não por ticker — 2 opções do mesmo ticker em datas diferentes teriam períodos diferentes).
+// Linha do preço + linha pontilhada do strike, pra ver visualmente se a tendência aproxima ou afasta
+// do strike. Chamado via onDomPronto() (app.js) — roda depois do boot síncrono, quando
+// VARS.opcoesVendidasDetalhe já existe e hydrateROC() já rodou pelo menos uma vez.
+async function aplicarTendenciaOpcoes(){
+  const container = $('opcoesTendenciaContainer');
+  if(!container) return;
+  const ativas = (VARS.opcoesVendidasDetalhe || []).filter(o => !o.vencida && o.precoExercicio != null && o.notaCorretagem && o.vencimento);
+  if(!ativas.length){ container.innerHTML = ''; return; }
+
+  container.innerHTML = `<div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.6rem">Tendência do preço (entrada → vencimento)</div>`
+    + ativas.map(o => `<div style="margin-bottom:1.2rem"><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.3rem">${o.ativo} PUT (${o.ticker}) — strike ${fmt(o.precoExercicio)} · vencimento ${o.vencimento}</div><div style="height:170px"><canvas id="tendencia_${o.ticker}"></canvas></div></div>`).join('');
+
+  for(const o of ativas){
+    const m = /\((\d{2})\/(\d{2})\/(\d{4})\)/.exec(o.notaCorretagem);
+    if(!m){ console.warn('TendenciaOpcoes: notaCorretagem sem data reconhecível pra', o.ativo, o.notaCorretagem); continue; }
+    const entradaIso = `${m[3]}-${m[2]}-${m[1]}`;
+    const [dv,mv,av] = o.vencimento.split('/');
+    const vencimentoIso = `${av}-${mv}-${dv}`;
+    let historico;
+    try {
+      historico = await WallaceFinanceService.getCotacoesAcoesHistorico(o.ativo, entradaIso, vencimentoIso);
+    } catch(err){
+      console.error('TendenciaOpcoes: falha ao buscar histórico de', o.ativo, err);
+      continue;
+    }
+    if(!Array.isArray(historico) || !historico.length) continue;
+    const canvas = $(`tendencia_${o.ticker}`);
+    if(!canvas || typeof Chart === 'undefined') continue;
+    const labels = historico.map(h => { const [,mo,d] = h.data.split('-'); return `${d}/${mo}`; });
+    const precos = historico.map(h => Number(h.preco_fechamento));
+    const strikeLine = historico.map(() => o.precoExercicio);
+    const existente = Chart.getChart(canvas);
+    if(existente) existente.destroy();
+    new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'Cotação', data: precos, borderColor: '#4c8ef2', backgroundColor: 'rgba(76,142,242,0.10)', fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
+        { label: 'Strike', data: strikeLine, borderColor: '#ef5b56', borderDash: [6,4], pointRadius: 0, borderWidth: 1.5 },
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}` } } },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
+          y: { ticks: { font: { size: 9 }, callback: v => 'R$'+v } },
+        },
+      },
+    });
+  }
 }

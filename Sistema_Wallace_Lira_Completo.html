@@ -1003,6 +1003,11 @@
       <div class="v" id="legRocCarteira" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.7rem">—</div>
     </div>
 
+    <!-- NOVO 21/08/2026 (pedido do usuário: "gráfico pra analisar as tendências das ações das opções,
+         deve registrar o valor do dia que entrei na opção e ir montando a tendência de subida ou
+         descida em direção ao vencimento"). Ver aplicarTendenciaOpcoes()/hydrate-roc.js. -->
+    <div id="opcoesTendenciaContainer" style="margin-bottom:0.9rem"></div>
+
     <div style="overflow-x:auto">
     <table><thead><tr><th scope="col">Ativo</th><th scope="col">Ticker</th><th scope="col" class="r">Qtd</th><th scope="col" class="r">Strike</th><th scope="col">Vencimento</th><th scope="col" class="r">Ação agora</th><th scope="col" class="r">Prêmio bruto</th><th scope="col" class="r">Custos</th><th scope="col" class="r">Prêmio líquido</th><th scope="col" class="r">Valor de mercado</th><th scope="col" class="r">Rentabilidade (mensal)</th></tr></thead><tbody id="opcoesTbody">
     </tbody></table>

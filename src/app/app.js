@@ -1163,6 +1163,18 @@ const WallaceFinanceService = {
       return await resp.json();
     });
   },
+  // NOVO 21/08/2026 (gráfico de tendência da carteira de opções, pedido do usuário: "registrar o
+  // valor do dia que entrei na opção e ir montando a tendência de subida/descida em direção ao
+  // vencimento"). Tabela `cotacoes_acoes_historico` (1 linha por ticker/dia, nunca sobrescreve —
+  // diferente de `cotacoes_acoes`, que só guarda o preço mais recente). desde/ate em 'YYYY-MM-DD'.
+  async getCotacoesAcoesHistorico(ticker, desde, ate){
+    return this._cache.obterOuBuscar(`cotacoes_acoes_historico_${ticker}_${desde}_${ate}`, async () => {
+      const url = `${this._url}/rest/v1/cotacoes_acoes_historico?ticker=eq.${ticker}&data=gte.${desde}&data=lte.${ate}&select=data,preco_fechamento&order=data.asc`;
+      const resp = await fetch(url, { headers: this._headers() });
+      if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cotacoes_acoes_historico`);
+      return await resp.json();
+    });
+  },
   // NOVO 16/08/2026 (aba Emagrecimento, pedido do usuário: "adicione campos para receber medição de
   // pressão e leitura de glicose, tipo igual do peso com gráfico"). Tabela `pressao_arterial` (mesmo
   // padrão de `pesagens`: 1 linha por data, RLS só leitura pra login Firebase válido, insert feito
@@ -2598,6 +2610,9 @@ onDomPronto(aplicarMercadoPagoTerceirosV2);
 // NOVO 17/08/2026: card ROC/opções — preço ao vivo (só séries de PETR4, ver comentário na função)
 // sobreposto ao literal manual de vars-roc.js. Ver hydrate-roc.js.
 onDomPronto(aplicarCotacoesOpcoesV2);
+// NOVO 21/08/2026: gráfico de tendência do preço (entrada → vencimento) por posição ativa, pedido
+// do usuário. Ver aplicarTendenciaOpcoes()/hydrate-roc.js.
+onDomPronto(aplicarTendenciaOpcoes);
 // MIGRADO 08/08/2026 (Onda 6): sincronizarMercadoPagoParaInbox() (V1, lia VARS.MERCADOPAGO_EVENTOS de
 // wallace_dados) substituída por aplicarOnda6MercadoPago(), que busca a tabela mercadopago_eventos (V2)
 // e reaproveita a mesma função de sincronização inalterada, só com dado novo. Ver hydrate-onda6-mercadopago.js.
