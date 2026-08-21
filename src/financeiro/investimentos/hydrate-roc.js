@@ -7,6 +7,33 @@
 function hydrateROC(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
+  // NOVO 21/08/2026 (achado real do usuário — ver comentário completo em calcularAvisosOpcoesRisco(),
+  // opcoes-roc.js). Renderiza em 2 lugares: dentro da seção 16 (Carteira de opções) e um resumo no
+  // topo da Home (mesmo padrão visual de homeAvisoDeficit/callout danger), pra não depender do
+  // usuário lembrar de abrir a aba certa pra ver o risco.
+  {
+    const avisos = typeof calcularAvisosOpcoesRisco === 'function' ? calcularAvisosOpcoesRisco() : [];
+    const montarLinha = a => {
+      const prazoTxt = a.diasParaVencer < 0
+        ? `venceu há ${Math.abs(a.diasParaVencer)} dia(s) (${a.vencimento}) — confirme com a corretora se foi exercida`
+        : a.diasParaVencer === 0 ? `vence HOJE (${a.vencimento})` : `vence em ${a.diasParaVencer} dia(s) (${a.vencimento})`;
+      return `<div style="margin-bottom:0.6rem"><strong>${a.ativo} PUT (${a.ticker})</strong> ${prazoTxt} — ITM: cotação ${fmt(a.cotacaoAtual)} abaixo do strike ${fmt(a.strike)}.<br>`
+        + `Se exercida: você compra ${a.qtd} ações a ${fmt(a.strike)} (${fmt(a.capitalNecessario)}), valendo ${fmt(a.valorMercadoAcoes)} no mercado agora (${fmt(-a.perdaNoPapel)} no papel). `
+        + `Prêmio já recebido: ${fmt(a.premio)}. Resultado líquido se exercido: <strong style="color:${a.resultadoLiquidoSeExercido<0?'var(--red)':'var(--green)'}">${fmt(a.resultadoLiquidoSeExercido)}</strong>. `
+        + `Preço de equilíbrio: ${fmt(a.precoEquilibrio)}.</div>`;
+    };
+    const html = avisos.length
+      ? `<div style="font-weight:700;margin-bottom:0.5rem">⚠️ ${avisos.length} posição(ões) em risco de exercício</div>` + avisos.map(montarLinha).join('')
+        + `<div style="font-size:var(--fs-2xs);color:var(--text-dim)">Isso é matemática mecânica da posição, não recomendação — decida com sua corretora/assessor.</div>`
+      : '';
+    ['opcoesAvisoITM','homeAvisoOpcoesITM'].forEach(id => {
+      const el = $(id);
+      if(!el) return;
+      if(html){ el.innerHTML = html; el.style.display = ''; }
+      else { el.style.display = 'none'; }
+    });
+  }
+
   // NOVO 31/07/2026 (V216): card de Opções reconstruído - derivado de VARS.opcoesVendidasDetalhe,
   // nunca mais tabela fixa no HTML.
   t('opcoesValorMercado', fmt(VARS.opcoesVendidasValorMercado));

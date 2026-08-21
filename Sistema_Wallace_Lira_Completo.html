@@ -235,6 +235,12 @@
     </div>
   </div>
 
+  <!-- NOVO 21/08/2026 (achado real do usuário: opção ITM prestes a vencer não avisava proativamente
+       em lugar nenhum — só aparecia se o usuário abrisse a aba "Carteira de opções" e reparasse na
+       coluna certa. Ver calcularAvisosOpcoesRisco()/hydrateROC(). Primeiro elemento visível da Home,
+       de propósito — risco financeiro real tem prioridade sobre qualquer outro card. -->
+  <div id="homeAvisoOpcoesITM" class="callout danger" style="display:none;margin-bottom:1.5rem"></div>
+
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-header-icon">
       <div class="chi-ico">🔮</div>
@@ -952,6 +958,9 @@
   <!-- 16 -->
   <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
   <div class="card">
+    <!-- NOVO 21/08/2026 (achado real do usuário: ITM não avisava proativamente) — ver
+         calcularAvisosOpcoesRisco()/hydrateROC(). -->
+    <div id="opcoesAvisoITM" class="callout danger" style="display:none;margin-bottom:1rem"></div>
     <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">Apenas monitoramento — sem impacto em caixas. Valor de mercado ≠ lucro/prejuízo realizado (ver nota abaixo).</div>
     <div class="grid-2" style="margin-bottom:0.7rem">
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Valor de mercado (posições ativas)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="opcoesValorMercado">—</div></div>

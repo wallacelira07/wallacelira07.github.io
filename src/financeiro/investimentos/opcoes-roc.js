@@ -29,6 +29,48 @@ function aplicarStatusVencidoEValorMercadoOpcoes(){
   VARS.opcoesVendidasValorMercado = Math.round(VARS.opcoesVendidasDetalhe.filter(o=>!o.vencida).reduce((s,o)=>s+o.valorMercado,0)*100)/100;
 }
 
+// NOVO 21/08/2026 (achado real do usuário: ITUB4 PUT foi pra ITM no dia do vencimento — a tabela da
+// seção 16 já mostrava "ITM" corretamente na coluna "Ação agora", mas era preciso abrir o painel e
+// reparar nessa coluna especificamente pra notar. Nenhum aviso proativo existia — "por isso tem a
+// cotação ao vivo das ações [...] você tem que me avisar", pedido explícito do usuário). Chamada de
+// hydrateROC() (não daqui — precisa de VARS.ACOES_COTACOES já populado pela Onda de cotações do
+// app.js, que roda DEPOIS deste módulo na ordem de carga síncrona).
+//
+// Critério de alerta: posição ITM (cotação da ação < strike da put vendida) E a até 2 dias do
+// vencimento OU já vencida sem confirmação de exercício (diasParaVencer negativo cobre esse caso
+// automaticamente, mesmo cálculo, sem `if` separado). Não é conselho de investimento — só a
+// matemática mecânica do que acontece SE for exercido, pra decisão informada (com o usuário/corretora,
+// não comigo).
+function calcularAvisosOpcoesRisco(){
+  const hojeOpcoes = new Date(); hojeOpcoes.setHours(0,0,0,0);
+  const cotacoes = VARS.ACOES_COTACOES || {};
+  const avisos = [];
+  VARS.opcoesVendidasDetalhe.forEach(o => {
+    if(o.statusPosicao === 'ENCERRADA') return;
+    if(o.precoExercicio == null || !o.vencimento) return;
+    const cot = cotacoes[o.ativo];
+    if(!cot || cot.preco == null) return;
+    const itm = cot.preco < o.precoExercicio; // PUT vendida: ITM quando cotação < strike
+    if(!itm) return;
+    const dataVenc = parseVencimentoBR(o.vencimento);
+    const diasParaVencer = Math.round((dataVenc - hojeOpcoes) / 86400000);
+    if(diasParaVencer > 2) return; // ainda longe do vencimento, sem urgência
+    const qtd = Math.abs(o.quantidade);
+    const capitalNecessario = Math.round(qtd * o.precoExercicio * 100) / 100;
+    const valorMercadoAcoes = Math.round(qtd * cot.preco * 100) / 100;
+    const perdaNoPapel = Math.round((capitalNecessario - valorMercadoAcoes) * 100) / 100;
+    const premio = o.premioRecebido || 0;
+    const resultadoLiquidoSeExercido = Math.round((premio - perdaNoPapel) * 100) / 100;
+    const precoEquilibrio = Math.round((o.precoExercicio - premio / qtd) * 100) / 100;
+    avisos.push({
+      ativo: o.ativo, ticker: o.ticker, diasParaVencer, vencimento: o.vencimento,
+      strike: o.precoExercicio, cotacaoAtual: cot.preco, qtd,
+      capitalNecessario, valorMercadoAcoes, perdaNoPapel, premio, resultadoLiquidoSeExercido, precoEquilibrio,
+    });
+  });
+  return avisos;
+}
+
 // NOVO 03/08/2026 (Módulo 17 - Rentabilidade da Operação/ROC): mede o retorno do prêmio líquido sobre
 // o capital comprometido (strike x 100 x contratos) - não mede lucro capturado, mede rentabilidade
 // sobre o dinheiro travado, pra comparar com CDI/renda fixa. Roda em cima de VARS.opcoesVendidasDetalhe,
