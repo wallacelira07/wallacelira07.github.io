@@ -2,6 +2,28 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🎯 21/08/2026 (bloco 33, à noite) — Cockpit de opções em 4 fases (a partir de um susto real: ITUB4 PUT foi pra ITM no dia do vencimento sem nenhum aviso), 2 tx_legado duplicados corrigidos, robô do consórcio Porto arrumado, e 4 vazamentos "V2 nunca resincronizado" achados no domínio Patrimônio
+
+Continuação da mesma sessão longa de 21/08 (blocos 16-18 já documentados). O gatilho de tudo: o usuário mandou um extrato mostrando ITUB4 PUT com strike R$41,82 e cotação R$38,51 (ITM, 7,9% dentro do dinheiro) no dia do próprio vencimento — e o sistema não tinha avisado nada, "se eu não tivesse visto, tinha perdido". Isso virou o trabalho principal da noite, mas antes disso teve uma sequência de achados menores que valem registro:
+
+**Robô do consórcio Porto Seguro**: extraí do PDF real (texto bruto, modo debug) os campos `percentual_pago`/`valor_quitacao`, mas a 1ª tentativa gravou em colunas novas de `cronograma_boletos_fixos` — revertido na hora ao descobrir que `financiamentos` (join com `patrimonio`) já existe e já alimenta os cards "Consórcio auto"/"Consórcio Casa Nova". Corrigido pro lugar certo. No processo, achei que o card "Consórcio Casa Nova" nunca tinha sido ligado à V2 (o irmão "Consórcio auto" sim) — e pedi ao usuário permissão pra caçar a mesma classe de bug no resto do domínio Patrimônio. Achado: mais 3 vazamentos reais (badge do Resumo Executivo, barras do gráfico "Metas", `balPgblFgtsSoma`) — todos corrigidos, mais uma mitigação estrutural (Onda 4 agora resincroniza TODOS os `VARS.pat*` na fonte).
+
+**Planilha antiga `Transacoes_Pendentes_Restantes_Cruzada.xlsx`**: as 84 transações já estavam todas no banco (boa notícia), mas achei 2 `tx_legado` reutilizados por engano em sessões passadas (`TX000208`, `TXMP000009`) — cada um apontando pra 2 eventos reais diferentes. Confirmei que não eram dinheiro duplicado (os 2 lados de cada par são `saida`, não um par espelhado saída/entrada) e reatribuí códigos novos sequenciais.
+
+**2 bugs reais de "vence antes da hora"**: o usuário reclamou que uma assembleia marcada pra HOJE às 15h já aparecia como "já passou" — e horas depois, a mesma coisa com uma opção vencendo no próprio dia. Mesma causa nas 2: comparar uma data sem hora (sempre meia-noite) contra `new Date()` (agora, com hora) faz qualquer coisa "vencer" a partir da meia-noite do próprio dia, não do fim dele. Corrigido nos 2 lugares com o mesmo padrão (zera a hora de "hoje" antes de comparar).
+
+**O cockpit de opções em si**, pedido como "PRIORIDADE MÁXIMA" depois do susto do ITUB4 — uma lista de 12 itens bem ambiciosa (probabilidade histórica de recuperação, "agente especialista", "identificar venda ruim/excelente"). Tive que ser direto sobre limite: não sou consultor de investimentos licenciado, não posso dar recomendação, e com só ~3 meses de histórico de preço eu geraria uma "probabilidade" falso-precisa se tentasse. Propus 4 fases focadas só no que é engenharia de verdade, e construí:
+1. Contagem regressiva + calculadora de recuperação (2 caminhos, sem recomendar qual) + histórico de preço (tabela nova, backfill via brapi) + gráfico de tendência.
+2. Motor de alerta em 4 níveis por regra objetiva (dias + distância%, nunca probabilidade) + reorganização em abas próprias.
+3. Aba "Carteira de Ações Recebidas" (derivada, sem tabela nova de posição) + robô de dividendos novo (achei que o parâmetro certo da brapi é `?dividends=true`, não `?modules=dividends`, que é pago).
+4. Dashboard Executivo consolidando 9 métricas.
+
+Usei agentes em paralelo em vários pontos — pesquisa de fonte de dividendo, criação do robô de sincronização (arquivos novos, sem risco de conflito), auditoria adversarial do código construído (achou 2 supostos bugs que na conferência manual eram comentário impreciso, não bug funcional — corrigidos os comentários), e por último pesquisa se existe API da B3/corretora pra puxar a carteira automaticamente (resposta: não existe de graça pra pessoa física; a rota mais realista seria ler a nota de corretagem por e-mail, mesmo padrão dos robôs de boleto — não implementado, fica como sugestão pro usuário decidir).
+
+**Pendências reais**: nada validado em navegador de verdade (sem login neste ambiente, limitação de sempre); cron externo dos dividendos configurado pelo usuário (12h) mas não testado; parsing de nota de corretagem via Gmail é viável mas não construído, depende do usuário topar.
+
+**Documentação**: `ESTADO_ATUAL.md` atualizado (seção 19 nova, cabeçalho com a 2ª continuação do dia), este bloco adicionado. Tudo commitado e publicado ao longo da noite, múltiplos pushes, `git status` limpo.
+
 ## 💳 20/08/2026 (bloco 32) — Reconciliação total dos 2 cartões (R$0,00 exato nos dois), Pluggy travada, e a Necessidade Bruta ficou R$1.245,34 mais alta por causa de uma legenda desatualizada
 
 Sessão longa, prioridade 0 pedida pelo usuário logo no início: fechar de vez o "Não Reconciliado" do Mastercard Black, que já vinha de sessões anteriores. Terminou virando uma auditoria bem mais ampla — 2 cartões reconciliados a zero, 2 bugs de UX corrigidos, 3 bugs estruturais achados por 3 agentes em paralelo, e uma revisão da fórmula de Necessidade que corrigiu um número que estava errado há 4 dias sem ninguém perceber.
