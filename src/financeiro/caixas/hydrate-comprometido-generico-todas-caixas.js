@@ -64,7 +64,11 @@ function _renderizarBlocoComprometidoGenerico(card, comprometido, saldoAtual){
   const disponivelReal = Math.round((saldoAtual - comprometido) * 100) / 100;
   const bloco = document.createElement('div');
   bloco.className = 'comprometido-generico';
-  bloco.style.cssText = 'margin-top:0.35rem;padding-top:0.35rem;border-top:1px dashed var(--border);font-size:var(--fs-2xs)';
+  // NOVO 21/08/2026 (tentativa de correção do print/JPEG quebrado na seção "Todas as Caixas",
+  // achado do usuário: html2canvas tem histórico documentado de falhar em bordas tracejadas —
+  // troca `dashed` por `solid` (mesmo efeito visual de divisória, sem o padrão pontilhado que
+  // exige um canvas de padrão à parte pra renderizar). Se não resolver, reverter é seguro/trivial.
+  bloco.style.cssText = 'margin-top:0.35rem;padding-top:0.35rem;border-top:1px solid var(--border);font-size:var(--fs-2xs)';
   bloco.innerHTML =
     '<div style="color:var(--amber)">(&minus;) Comprometido no cart&atilde;o: ' + fmt(comprometido) + '</div>' +
     '<div style="color:' + (disponivelReal < 0 ? 'var(--red)' : 'var(--green)') + ';font-weight:600">(=) Dispon&iacute;vel real: ' + fmt(disponivelReal) + '</div>';
