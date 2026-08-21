@@ -39,6 +39,13 @@ Usuário pediu re-auditoria depois das correções de hoje. Achados principais: 
 
 Não mexido de propósito: `cronograma_consorcios`/assinaturas/recorrências continuam exigindo confirmação manual contra fatura real pra `ultima_cobranca_em` — não é lacuna, é a mesma regra "fatura real sempre vence" já estabelecida hoje, automatizar isso seria voltar a assumir sem confirmar.
 
+## 16. 3 pendências fechadas (21/08/2026): déficit checado, CI conferido, metas atualizada
+
+1. **Déficit real hoje**: Necessidade Líquida R$12.988,34 − R$8.109,74 ("Não trabalha") = **R$4.878,60**. Só checagem, nenhuma ação nova.
+2. **CI sem proteção de branch — decisão consciente**: perguntado ao usuário se queria migrar pra fluxo de Pull Request (única forma real de bloquear push com CI quebrado) — escolheu manter push direto na `main`. Responsabilidade de conferir o resultado do CI depois de tocar arquivo testado fica comigo (memória `feedback_conferir_ci_apos_push`). Conferido nesta sessão: 2 falhas reais de `testes_unitarios.yml` em 20/08 (mesmo bug do Fio B já corrigido mais cedo no mesmo dia) — última execução (21/08) verde, nada pendente.
+3. **`caixas.teto_mensal` de Emagrecimento corrigido**: estava R$278,89 (resíduo de antes do valor da caneta Ozivy fechar em R$490/mês), travando o card em 100% com o saldo real já 3x maior. Corrigido pra R$490 — essa caixa é de GASTO recorrente, não de acumulação, então o teto certo é o próprio aporte mensal, não um múltiplo (padrão descoberto: a maioria das outras caixas usa teto ≈ 12× aporte, meta de 1 ano de reserva — Emagrecimento é a exceção real).
+4. **`metas.valor_atual` (Meta do Milhão) corrigido**: estava R$120.314,26, real é **R$117.913,40** — mesma causa raiz do achado `caixaLance`/V1 (a tabela órfã nunca recebeu o valor atualizado). Sem automação escrevendo aqui — vai ficar desatualizada nomente com o tempo, atualizar manualmente se for consultada de novo.
+
 ## 15. Auditoria de performance (21/08/2026)
 
 Advisor de performance do Supabase rodado — banco pequeno (uso pessoal), quase tudo INFO/irrelevante (índices nunca usados, poucas linhas). 3 chaves estrangeiras sem índice corrigidas (`caixas_aportes_mensais`, `pluggy_investimentos`, `pluggy_saldos_reservados`).
