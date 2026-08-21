@@ -2398,6 +2398,18 @@ function hydrate(){
   hydrateCaixas();
   preencherCaixasOperacionaisExtra(); // NOVO 13/08/2026: completa a seção 05 com as caixas que não têm card estático (ver hydrate-caixas.js)
   aplicarMetasV2CaixasEstaticas(); // NOVO 13/08/2026: metas dos 12 cards estáticos passam a vir de caixas.teto_mensal (V2), não mais fixas no JS
+  // CORRIGIDO 21/08/2026 (achado do usuário, print real: Caixa Churrasco/Emagrecimento sem o bloco
+  // "Comprometido/Disponível real" depois de um tempo de uso, mas Bens Duráveis (card estático)
+  // continuava mostrando certo). Causa raiz: hydrate() é reentrante (roda de novo a cada troca de
+  // aba com dados >5min, ver dashboard-navegacao.js) e preencherCaixasOperacionaisExtra() acima
+  // RECRIA o innerHTML inteiro de #caixasExtraGrid a cada chamada — isso apaga o bloco que
+  // aplicarComprometidoGenericoTodasCaixas() tinha injetado nos cards dinâmicos. Os 12 cards
+  // estáticos nunca têm o nó recriado (hydrateCaixas() só troca textContent), por isso continuavam
+  // certos. Antes, aplicarComprometidoGenericoTodasCaixas() só rodava 1x via onDomPronto no boot
+  // (ver mais abaixo, chamada removida) — agora roda aqui dentro, toda vez que hydrate() reidrata,
+  // igual ao padrão já usado por aplicarMetasV2CaixasEstaticas() acima. A própria função já é seguro
+  // reentrar (remove o bloco existente antes de recriar, ver _renderizarBlocoComprometidoGenerico).
+  aplicarComprometidoGenericoTodasCaixas();
 
   medirOnda('aplicarOnda3Suavizacao', aplicarOnda3Suavizacao)(); // NOVO 08/08/2026 (Onda 3, Prioridade 4 — Metas): sobrescreve o card Fundo de Suavização Salarial com V2 (vw_saldo_v2_por_caixa) — roda depois de hydrateCaixas() (V1) de propósito, só sobrescreve em caso de sucesso e zero divergência.
 
@@ -2539,7 +2551,10 @@ onDomPronto(aplicarComprometidoCaixaVariavelV2);
 // um" — achado que motivou: Wärtsilä/Mercado Pago tinham comprometido real invisível na tela
 // porque só existiam 6 caixas hardcoded aqui). aplicarComprometidoCaixasTematicasV2() (lista fixa)
 // removida — hydrate-comprometido-generico-todas-caixas.js cobre TODAS as caixas automaticamente.
-onDomPronto(aplicarComprometidoGenericoTodasCaixas);
+// onDomPronto(aplicarComprometidoGenericoTodasCaixas) daqui foi REMOVIDO 21/08/2026 (mesma sessão,
+// bug real achado: caixas dinâmicas paravam de mostrar o bloco depois de um tempo de uso porque
+// só rodava 1x no boot, e preencherCaixasOperacionaisExtra() recria #caixasExtraGrid toda vez que
+// hydrate() reidrata — ver comentário completo dentro de hydrate(), onde a chamada agora vive).
 // NOVO 19/08/2026 (achado do usuário: "Não reconciliado" do Mastercard Black nunca somava as 9
 // caixas temáticas ligadas ao cartão — ver hydrate-visa-mb.js).
 onDomPronto(atualizarCaixasTematicasComprometidoMB);
