@@ -39,6 +39,17 @@ Usuário pediu re-auditoria depois das correções de hoje. Achados principais: 
 
 Não mexido de propósito: `cronograma_consorcios`/assinaturas/recorrências continuam exigindo confirmação manual contra fatura real pra `ultima_cobranca_em` — não é lacuna, é a mesma regra "fatura real sempre vence" já estabelecida hoje, automatizar isso seria voltar a assumir sem confirmar.
 
+## 14. Banco documentado (61 tabelas) + morte da última leitura V1 do Patrimônio (21/08/2026)
+
+Usuário pediu documentação completa do schema (10 agentes) + confirmou meta real do projeto: "melhor sistema pessoal possível", não produto comercial (uma 2ª auditoria de 10 agentes sobre prontidão comercial rodou em paralelo, nota 1,9/10 — arquivada como referência histórica, não é mais objetivo ativo).
+
+**Todas as 61 tabelas base têm `COMMENT ON TABLE`/`COMMENT ON COLUMN`** agora — qualquer sessão futura consulta `information_schema`/`obj_description()` antes de assumir o significado de um campo. Achados reais que valem lembrar:
+- `reembolsos` (tabela órfã) estava congelada mostrando R$7.022,76 "pendente" do Wärtsilä, já recebido há tempos — **corrigido** (`valor_recebido=7022.76, status=quitado`).
+- `caixas_aportes_mensais`, `metas`, `indicadores`, `pluggy_webhook_eventos` são tabelas mortas/write-only — não confundir com fonte viva.
+- `cronograma_consorcios` efetivamente morta (`ativo=false` nas 2 linhas) — fonte real dos consórcios é `cronograma_boletos_fixos`.
+
+**Última leitura V1 do domínio Patrimônio eliminada** (pedido explícito, prioridade 0: "V1 deve ser assassinada e enterrada"): `caixaLance` em `hydrate-onda4-patrimonio.js` lia `REG.patrimonioDetalhe.caixaLance` (V1, `vars-caixas.js`) — a divergência que justificava essa exceção tinha crescido de R$4,37 (documentada) pra **R$139,31** (V1 nunca acompanhou lançamentos reais recentes: Wärtsilä, LREI0005). `hydrate-onda3-caixalance.js` já mostrava o valor V2 certo na tela; agora `hydrate-onda4-patrimonio.js` lê a mesma fonte (`vw_saldo_v2_por_caixa`). Patrimônio total, Meta do Milhão e o gráfico de composição passam a refletir o valor real.
+
 ## 13. Referência rápida: aportes mensais das caixas + SOP do usuário (20/08/2026)
 
 Se o usuário perguntar "o que eu preciso fazer esse mês" ou "quanto é o aporte de tal caixa" — não recalcular do zero nem chutar. 2 fontes:
