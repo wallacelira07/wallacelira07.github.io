@@ -5,11 +5,15 @@
 // coincidência). Fallback pra V1 só acontece em erro técnico (fetch falhou/tabela vazia), nunca
 // por causa de diferença de valor — não há mais "aceitarDivergenciaConhecida" aqui.
 //
-// Exceção deliberada: `caixaLance` continua vindo do V1 (REG.patrimonioDetalhe.caixaLance) — é a
-// pendência já registrada (divergência de R$4,37, causa não confirmada, ver
-// hydrate-onda3-caixalance.js) e o usuário pediu explicitamente pra não reabrir essa discussão.
-// Assim que a causa for confirmada e o módulo da Onda 3 passar a exibir V2, basta trocar a linha
-// marcada abaixo pra ler o mesmo valor.
+// CORRIGIDO 21/08/2026 (pedido direto do usuário, prioridade 0: "V1 deve ser assassinada e
+// enterrada" — achado pela auditoria de documentação do banco: a divergência que justificava manter
+// `caixaLance` em V1 tinha crescido de R$4,37 (quando documentada) pra R$139,31, porque o array V1
+// em vars-caixas.js (CAIXA_LANCE_TRANSACOES) nunca foi atualizado com os lançamentos reais mais
+// recentes — Wärtsilä, LREI0005, etc. — enquanto `hydrate-onda3-caixalance.js` já mostrava o valor
+// V2 real na tela o tempo todo (aceitarDivergenciaConhecida:true). Ou seja: a Caixa Lance já não
+// vinha do V1 na prática, só o total do Patrimônio (aqui) ainda vinha — inconsistência interna, não
+// mais uma exceção deliberada válida. Agora lê o mesmo `vw_saldo_v2_por_caixa` que a Onda 3 usa
+// (mesmo cache, `obterOuBuscar`, sem fetch duplicado).
 //
 // Rollback: comentar a chamada aplicarOnda4Patrimonio() em app.js — os ids voltam a mostrar só o
 // que hydratePatrimonio() (V1) já escreveu antes.
@@ -50,8 +54,22 @@ async function aplicarOnda4Patrimonio(){
 
   const num = v => v === null || v === undefined ? null : Number(v);
   const reserva = num(p.reserva), btg = num(p.btg_necton), nectonCC = num(p.necton_conta_corrente);
-  const caixaLance = REG.patrimonioDetalhe.caixaLance; // EXCEÇÃO DELIBERADA — ver comentário no topo do arquivo
   const v1Total = Math.round(REG.patrimonio.total * 100) / 100; // capturado ANTES de sobrescrever REG.patrimonio.total abaixo
+
+  // CORRIGIDO 21/08/2026 — ver comentário no topo do arquivo. Mesma fonte/cache que
+  // hydrate-onda3-caixalance.js já usa pra exibir a Caixa Lance na tela.
+  let caixaLance = REG.patrimonioDetalhe.caixaLance; // fallback só se o fetch V2 abaixo falhar
+  try {
+    const saldosV2 = await WallaceFinanceService.getSaldosPorCaixa();
+    const caixaLanceV2 = Array.isArray(saldosV2) ? saldosV2.find(c => c.caixa_nome === 'Caixa Lance') : null;
+    if(caixaLanceV2 && caixaLanceV2.v2_saldo_calculado != null){
+      caixaLance = Math.round(Number(caixaLanceV2.v2_saldo_calculado) * 100) / 100;
+    } else {
+      console.warn('Onda4Patrimonio: "Caixa Lance" ausente/sem saldo em vw_saldo_v2_por_caixa — usando V1 como fallback.');
+    }
+  } catch(err){
+    console.warn('Onda4Patrimonio: falha ao buscar vw_saldo_v2_por_caixa pra Caixa Lance — usando V1 como fallback.', err);
+  }
 
   const total = Math.round((reserva + btg + caixaLance + nectonCC) * 100) / 100;
   const metaMilhao = REG.patrimonio.metaMilhao; // 1.000.000, constante — mesmo valor do V1, não é dado a migrar

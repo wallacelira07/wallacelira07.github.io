@@ -12,6 +12,13 @@
 // (R$20,00/0,44%) como medição atual sem reconferir vw_reconciliacao_v1_v2. Não afeta o que o
 // usuário vê (aceitarDivergenciaConhecida:true já exibe o saldo V2 correto na tela).
 //
+// CORRIGIDO 21/08/2026 (pedido direto do usuário, prioridade 0 — "V1 deve ser assassinada e
+// enterrada"): a divergência V1×V2 cresceu de R$4,37/R$20,00 (quando documentada) pra R$139,31,
+// porque o array V1 (CAIXA_LANCE_TRANSACOES em vars-caixas.js) nunca acompanhava os lançamentos
+// reais novos. hydrate-onda4-patrimonio.js (Patrimônio total) foi a última leitura que ainda
+// dependia de V1 pra este valor — agora lê o mesmo V2 daqui. Este módulo (Onda 3) continua servindo
+// como log de comparação/divergência V1×V2, útil pra detectar drift futuro.
+//
 // Rollback: comentar a chamada aplicarOnda3CaixaLance() em app.js.
 
 const ONDA3_CAIXALANCE_MAPA = [
@@ -50,7 +57,7 @@ async function aplicarOnda3CaixaLance(){
     if(diverge){
       const motivo = aceitarDivergenciaConhecida
         ? 'divergência conhecida e documentada — exibindo V2 mesmo assim.'
-        : 'causa indeterminada/baixa confiança (parcialmente explicada por AJUSTE-06-08 não sincronizado, resíduo R$4,37 sem causa confirmada) — mantendo V1.';
+        : 'causa indeterminada/baixa confiança — mantendo V1.';
       console.warn(`Onda3CaixaLance [${idHtml}]: V1=${valorV1!==null?fmt(valorV1):'?'} × V2=${fmt(valorV2)} — DIVERGE${diferenca!==null?' R$'+Math.abs(diferenca).toFixed(2):''}. ${motivo}`);
     } else {
       console.log(`Onda3CaixaLance [${idHtml}]: V1×V2 batem (${fmt(valorV2)}).`);
