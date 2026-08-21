@@ -39,8 +39,14 @@ const path = require('path');
 
 const SRC_ROOT = path.join(__dirname, '..', '..', 'src');
 
+// CORRIGIDO 20/08/2026 (achado de auditoria de acompanhamento: `typeof hydrate === 'function'`,
+// SEM sufixo depois do prefixo — ex.: `hydrate` puro, não `hydrateAlgumaCoisa` — era pulado pelo
+// regex porque `[A-Z0-9_]` exigia um caractere IMEDIATAMENTE depois do prefixo. `hydrate` está
+// exposto corretamente hoje (app.js:2282), mas o teste não tinha cobertura mecânica nenhuma sobre
+// ele. Trocado o caractere obrigatório por lookahead opcional — casa tanto o prefixo sozinho
+// quanto qualquer coisa que continue com maiúscula/dígito/underscore.
 const CONVENCAO_NOME_FUNCAO_GLOBAL =
-  /^_{0,2}(hydrate|aplicar|atualizar|recalcular|render|renderizar|auditoria|show|obter|promover|calcular|construir|gerar|init|anexar|renovar)[A-Z0-9_]/;
+  /^_{0,2}(hydrate|aplicar|atualizar|recalcular|render|renderizar|auditoria|show|obter|promover|calcular|construir|gerar|init|anexar|renovar)(?:[A-Z0-9_]|$)/;
 
 function listarArquivosJs(dir) {
   const resultado = [];
