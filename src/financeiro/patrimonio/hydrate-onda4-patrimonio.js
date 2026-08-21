@@ -32,7 +32,7 @@
 // CORRIGIDO 13/08/2026 (achado de auditoria: comentário desatualizado dizia que balAtivosTotal/
 // balPatrimonioLiquido ficavam "de fora de propósito" da promoção V2 — na verdade SÃO promovidos,
 // só que por outro pipeline (promoverCampoV2SeConfiavel em app.js), não por este módulo da Onda 4).
-const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto','ccnCartaCredito','ccnParcela','ccnPagoPct','ccnQuitacao'];
+const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto','ccnCartaCredito','ccnParcela','ccnPagoPct','ccnQuitacao','r21ConsorcioCasa','balPgblFgtsSoma'];
 
 async function aplicarOnda4Patrimonio(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
@@ -170,6 +170,7 @@ async function aplicarOnda4Patrimonio(){
   // comentário no topo do arquivo). vw_patrimonio_v2 já expunha consorcio_casa_carta_credito/
   // consorcio_casa_parcela/consorcio_casa_pago_pct/consorcio_casa_quitacao (mesma FASE de join com
   // financiamentos que já alimenta consorcioAuto/consorcioAutoPct/parcelaAuto acima) — só não estava ligado.
+  const consorcioAutoCartaCredito = num(p.consorcio_auto_carta_credito);
   const ccnCartaCredito = num(p.consorcio_casa_carta_credito), ccnParcela = num(p.consorcio_casa_parcela);
   const ccnPagoPct = num(p.consorcio_casa_pago_pct), ccnQuitacao = num(p.consorcio_casa_quitacao);
   if(ccnPagoPct != null){
@@ -179,6 +180,39 @@ async function aplicarOnda4Patrimonio(){
     t('ccnQuitacao', fmt(ccnQuitacao)+' ('+(Math.round((100-ccnPagoPct)*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%)');
     { const el=$('ccnBar'); if(el) el.style.width = ccnPagoPct+'%'; }
   }
+  // ACHADO 21/08/2026, adicional ao card acima (achado por auditoria dedicada, "caçar a mesma classe
+  // de bug"): 3 outros consumidores do MESMO dado ficavam presos no valor V1 mesmo depois do card
+  // ficar certo — REG.consorcioCasaNova (nunca resincronizado, alimenta o badge r21ConsorcioCasa do
+  // Resumo Executivo e o tooltip do gráfico "Metas"), e REG.metasPatrimoniais.casaNovaPct/autoPct
+  // (nunca resincronizados NUNCA, desde a criação — alimentam a ALTURA das barras "Casa Nova"/
+  // "Consórcio Auto" do mesmo gráfico "Metas", não só o tooltip; só milhaoPct já era resincronizado).
+  // Fecha os 2 de uma vez, mesmo padrão do resto do arquivo: atualiza REG + reescreve o id do DOM
+  // direto (hydrateMetas() já rodou síncrono antes desta função, não dá pra só re-chamá-la sem redesenhar
+  // o resto da seção 12/13 também).
+  if(ccnPagoPct != null){
+    REG.consorcioCasaNova = {
+      cartaCredito: ccnCartaCredito, parcela: ccnParcela, pagoPct: ccnPagoPct,
+      quitacaoValor: ccnQuitacao, quitacaoPct: Math.round((100-ccnPagoPct)*100)/100
+    };
+    REG.metasPatrimoniais.casaNovaPct = ccnPagoPct;
+    t('r21ConsorcioCasa', ccnPagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+  }
+  if(consorcioAutoPct != null) REG.metasPatrimoniais.autoPct = consorcioAutoPct;
+  // Mesmo achado, campos que o gráfico "Metas" lê direto de VARS em vez de REG (tooltip "Carta
+  // R$X, saldo devedor R$Y" do Consórcio Auto, graficos-cenarios-lazy.js) — sobrescreve VARS na
+  // fonte, mesma técnica já usada em outros pontos do sistema (ex: liquidoProjetadoProximoCiclo) pra
+  // qualquer leitor futuro de VARS.consorcioAutoCartaCredito também parar de ver o literal congelado.
+  if(consorcioAutoCartaCredito != null) VARS.consorcioAutoCartaCredito = consorcioAutoCartaCredito;
+  if(consorcioAutoPct != null) VARS.consorcioAutoPagoPct = consorcioAutoPct;
+  if(finCasa != null) VARS.passivoFinanciamentoCasa = finCasa;
+  if(consorcioAuto != null) VARS.passivoConsorcioAuto = consorcioAuto;
+  if(prestacao != null) VARS.prestacaoFinanciamentoCasa = prestacao;
+  if(meses != null) VARS.mesesRestantesFinanciamentoCasa = meses;
+  if(parcelaAuto != null) VARS.parcelaConsorcioAuto = parcelaAuto;
+  if(ccnCartaCredito != null) VARS.consorcioCasaCartaCredito = ccnCartaCredito;
+  if(ccnParcela != null) VARS.consorcioCasaParcela = ccnParcela;
+  if(ccnPagoPct != null) VARS.consorcioCasaPagoPct = ccnPagoPct;
+  if(ccnQuitacao != null) VARS.consorcioCasaQuitacao = ccnQuitacao;
 
   // NOVO 15/08/2026 (achado de auditoria + pedido do usuário "corrija os dois" — mesma classe de bug
   // do LRW/LRV corrigido nesta sessão): REG.balanco.passivos.financiamentoCasa/consorcioAutoContemplado
@@ -203,6 +237,24 @@ async function aplicarOnda4Patrimonio(){
     bf.total = num(p.fisico_total) != null ? num(p.fisico_total) : r2(bf.casa+bf.apartamento+bf.jazigo+bf.solar+bf.carro);
     REG.balanco.pgbl = num(p.pgbl);
     REG.balanco.fgts = num(p.fgts);
+    // ACHADO 21/08/2026 (mesma auditoria do consórcio Casa Nova acima) — VARS.patCasa/patApartamento/
+    // patJazigo/patSolar/patCarro/patPgbl/patFgts continuavam sendo a cópia estática de
+    // parametros_gerais do boot, nunca sobrescritos aqui apesar de REG.balanco.fisico/pgbl/fgts (linhas
+    // acima) já lerem V2 ao vivo — mesmo risco do caso consorcioAutoCartaCredito: qualquer código que
+    // leia VARS.pat* direto (existente ou futuro) via um caminho não coberto pelos ids desta função
+    // continuaria vendo o literal congelado. balPgblFgtsSoma (hydrate-roc.js) é o caso concreto já
+    // confirmado: soma VARS.patPgbl+VARS.patFgts, roda ANTES desta função (dentro de hydrateMetas(),
+    // síncrono) — sobrescrever VARS aqui não é suficiente sozinho, precisa também redigitar o id.
+    if(bf.casa != null) VARS.patCasa = bf.casa;
+    if(bf.apartamento != null) VARS.patApartamento = bf.apartamento;
+    if(bf.jazigo != null) VARS.patJazigo = bf.jazigo;
+    if(bf.solar != null) VARS.patSolar = bf.solar;
+    if(bf.carro != null) VARS.patCarro = bf.carro;
+    if(REG.balanco.pgbl != null) VARS.patPgbl = REG.balanco.pgbl;
+    if(REG.balanco.fgts != null) VARS.patFgts = REG.balanco.fgts;
+    if(REG.balanco.pgbl != null && REG.balanco.fgts != null){
+      t('balPgblFgtsSoma', fmt(REG.balanco.pgbl + REG.balanco.fgts));
+    }
     const bfin = REG.balanco.financeiro;
     bfin.consorcioCasaPago = num(p.consorcio_casa_pago);
     bfin.total = r2(bfin.reserva + bfin.btg + bfin.nectonContaCorrente + bfin.consorcioCasaPago);
