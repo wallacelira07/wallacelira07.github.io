@@ -1975,11 +1975,20 @@
         }
         function headerSearchNavegar(tipo, idx){
             const iframe = document.getElementById('mainIframe');
+            let resultado = null;
             if(iframe && iframe.contentWindow && typeof iframe.contentWindow.buscaGlobalNavegar === 'function'){
-                try { iframe.contentWindow.buscaGlobalNavegar(tipo, idx); } catch(e){ console.error('headerSearchNavegar: falha ao navegar no painel', e); }
+                try { resultado = iframe.contentWindow.buscaGlobalNavegar(tipo, idx); } catch(e){ console.error('headerSearchNavegar: falha ao navegar no painel', e); }
             }
             const wrap = document.getElementById('headerSearchResultados');
             const input = document.getElementById('headerSearchInput');
+            // NOVO 20/08/2026 (achado do usuário: clicar num resultado já quitado/concluído trocava de
+            // aba mas não destacava nada, sem explicação — irParaTransacaoNoLivro agora devolve
+            // {ok:false, motivo} nesse caso; mostra o motivo em vez de só fechar o dropdown em silêncio.
+            if(resultado && resultado.ok === false && wrap){
+                wrap.innerHTML = `<div class="header-search-vazio">${resultado.motivo}</div>`;
+                wrap.style.display = 'block';
+                return;
+            }
             if(wrap) wrap.style.display = 'none';
             if(input) input.value = '';
         }

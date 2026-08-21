@@ -323,6 +323,15 @@ const LIVRO_PARA_TAB_LR = {
 };
 
 function irParaTransacaoNoLivro(t, livro){
+  // NOVO 20/08/2026 (achado do usuário: buscar TXP000025 — parcela já quitada — trocava de aba certo
+  // (LRP) mas não destacava nenhuma linha, sem explicação nenhuma; parecia bug de navegação, mas na
+  // verdade render-parcelamentos.js só desenha linhas com status==='ATIVO' — quitadas nunca entram no
+  // DOM, então scrollIntoView/destaque nunca tinham chance de achar a linha). Avisa ANTES de tentar
+  // navegar, em vez de falhar silenciosamente — devolve o motivo pro chamador (buscaGlobalNavegar)
+  // mostrar pro usuário.
+  if(t && t.status && t.status !== 'ATIVO'){
+    return { ok: false, motivo: `Este item já está quitado/concluído — não aparece na lista de itens ativos de ${livro.replace('_TRANSACOES','')}.` };
+  }
   showMaster('painel');
   // CORRIGIDO 05/08/2026 (achado do usuário: busca só achava TX do ciclo atual - TX de ciclos
   // antigos existe na linha (tr com display:none, o filtro de ciclo so esconde via CSS) mas
@@ -529,7 +538,7 @@ function buscaGlobalNavegar(tipo, idx){
     if(item) irParaSecaoBusca(item);
   } else {
     const it = _buscaGlobalUltimoResultado.transacoes[idx];
-    if(it) irParaTransacaoNoLivro(it.registro, it.livro);
+    if(it) return irParaTransacaoNoLivro(it.registro, it.livro);
   }
 }
 window.buscaGlobalDados = buscaGlobalDados;
