@@ -32,7 +32,7 @@
 // CORRIGIDO 13/08/2026 (achado de auditoria: comentário desatualizado dizia que balAtivosTotal/
 // balPatrimonioLiquido ficavam "de fora de propósito" da promoção V2 — na verdade SÃO promovidos,
 // só que por outro pipeline (promoverCampoV2SeConfiavel em app.js), não por este módulo da Onda 4).
-const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto'];
+const ONDA4_PATRIMONIO_IDS = ['patTotal','patReserva','patBtg','patEscola','patAcumulado','patFalta','patPctBadge','ppFinanciamentoCasa','ppFinanciamentoDetalhe','ppConsorcioAuto','ppConsorcioAutoPct','ppConsorcioAutoParcela','bfinReserva','bfinBTG','bfinNectonCC','bpFinanciamentoCasa','bpConsorcioAuto','ccnCartaCredito','ccnParcela','ccnPagoPct','ccnQuitacao'];
 
 async function aplicarOnda4Patrimonio(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
@@ -162,6 +162,23 @@ async function aplicarOnda4Patrimonio(){
   // Duplicatas na seção "Balanço Patrimonial" (mesmo achado documentado acima, no topo do arquivo)
   t('bpFinanciamentoCasa', fmt(finCasa));
   t('bpConsorcioAuto', fmt(consorcioAuto));
+
+  // NOVO 21/08/2026 (achado ao reconciliar o robô do consórcio Porto): diferente do card "Consórcio
+  // auto" acima, o card "Consórcio Casa Nova" (seção 12, ids ccn*) NUNCA foi conectado à V2 — hydrateMetas()
+  // (V1, síncrono, roda antes desta função) escrevia direto de VARS.consorcioCasa* e nada aqui
+  // resincronizava depois, mesma classe de bug já corrigida pro resto do domínio Patrimônio (ver
+  // comentário no topo do arquivo). vw_patrimonio_v2 já expunha consorcio_casa_carta_credito/
+  // consorcio_casa_parcela/consorcio_casa_pago_pct/consorcio_casa_quitacao (mesma FASE de join com
+  // financiamentos que já alimenta consorcioAuto/consorcioAutoPct/parcelaAuto acima) — só não estava ligado.
+  const ccnCartaCredito = num(p.consorcio_casa_carta_credito), ccnParcela = num(p.consorcio_casa_parcela);
+  const ccnPagoPct = num(p.consorcio_casa_pago_pct), ccnQuitacao = num(p.consorcio_casa_quitacao);
+  if(ccnPagoPct != null){
+    t('ccnCartaCredito', fmt(ccnCartaCredito));
+    t('ccnParcela', fmt(ccnParcela));
+    t('ccnPagoPct', ccnPagoPct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%');
+    t('ccnQuitacao', fmt(ccnQuitacao)+' ('+(Math.round((100-ccnPagoPct)*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%)');
+    { const el=$('ccnBar'); if(el) el.style.width = ccnPagoPct+'%'; }
+  }
 
   // NOVO 15/08/2026 (achado de auditoria + pedido do usuário "corrija os dois" — mesma classe de bug
   // do LRW/LRV corrigido nesta sessão): REG.balanco.passivos.financiamentoCasa/consorcioAutoContemplado

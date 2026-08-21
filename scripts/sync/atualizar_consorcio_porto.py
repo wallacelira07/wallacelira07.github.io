@@ -19,28 +19,37 @@ A fonte real é e-mail com PDF "Extrato do Consorciado" anexado:
 
 IDENTIFICAÇÃO DE QUAL CONSÓRCIO É QUAL — por Grupo+Cota (únicos por contrato, nunca mudam), não
 por "Bem"/nome do produto (ambíguo, "IMOVEL"/"AUTOMOVEL" não diz qual consórcio específico é):
-  - Grupo I0464 / Cota 0012-00 -> TXCON000002 (Casa Nova) — confirmado em PDF real 20/08/2026
-    (Valor Contrib. Mensal R$1.449,45, bate com o valor já cadastrado em cronograma_boletos_fixos).
-  - Grupo AF316 / Cota 0346-00 -> TXCON000001 (Carro) — confirmado em PDF real 20/08/2026 (última
-    parcela paga, nº 023, R$501,15 — o valor cadastrado estava desatualizado em R$501,32, evidência
-    de que o valor da parcela muda mês a mês por correção/reajuste, exatamente o tipo de drift que
-    este robô resolve).
+  - Grupo I0464 / Cota 0012-00 -> TXCON000002 (Casa Nova) / patrimonio.subtipo='consorcio_casa_pago'
+    — confirmado em PDF real 20/08/2026 (Valor Contrib. Mensal R$1.449,45, bate com o valor já
+    cadastrado em cronograma_boletos_fixos).
+  - Grupo AF316 / Cota 0346-00 -> TXCON000001 (Carro) / patrimonio.subtipo='consorcio_auto' —
+    confirmado em PDF real 20/08/2026 (última parcela paga, nº 023, R$501,15 — o valor cadastrado
+    estava desatualizado em R$501,32, evidência de que o valor da parcela muda mês a mês por
+    correção/reajuste, exatamente o tipo de drift que este robô resolve).
 
-CAMPOS EXTRAÍDOS (confirmados nos 2 PDFs reais, 21/08/2026 — ver DEBUG_TEXTO_PDF abaixo):
+CAMPOS EXTRAÍDOS (confirmados nos 2 PDFs reais, 21/08/2026):
   - valor: última linha "RECBTO. PARCELA" da Conta Corrente (parcela ATUAL, não o "Valor Contrib.
     Mensal" do plano original — mesmo conceito que cronograma_boletos_fixos.valor já representa pros
     outros boletos fixos).
   - percentual_pago: linha "TOTAL ... 100,0000 Ideal Devido" da seção "Percentuais Contribuição
     Mensal".
-  - contemplada: presença do bloco "Contemplação" no extrato (ausente = ainda não contemplada).
-  - valor_quitacao: "Liquido à Pagar" da mesma seção, só existe quando contemplada=true.
+  - valor_quitacao: 2º valor da linha "TOTAL ... TOTAL <valor> ..." da seção "Valores/Percentuais
+    a Pagar" — total ainda devido do plano inteiro (Fundo Comum + Fundo de Reserva + Taxa Adm).
+    NÃO confundir com "Liquido à Pagar" do bloco "Contemplação" (esse é só o saldo do BEM
+    contemplado, sempre R$0,00 quando pago por lance — conceito diferente, não usado aqui).
 
-DESTINO: cronograma_boletos_fixos (TXCON000001/TXCON000002), NÃO cronograma_consorcios — achado
-real ao investigar: cronograma_consorcios tem as 2 linhas com ativo=false (tabela desativada desde
-que os consórcios migraram do Mastercard Black pra pagamento em dinheiro em 11/08/2026, ver
-render-parcelamentos.js/hydrate-onda9-livros-fixos.js) e um valor não mais lido pelo painel em
-lugar nenhum. cronograma_boletos_fixos é a fonte viva hoje (mesmos tx_legado TXCON000001/000002,
-reaproveitados na migração pra não perder o histórico do código).
+DESTINO — 2 tabelas diferentes, cada uma com seu dono:
+  - valor -> cronograma_boletos_fixos (TXCON000001/TXCON000002) — é o que efetivamente sai da Caixa
+    Boletos todo mês. NÃO cronograma_consorcios: essa tabela tem as 2 linhas com ativo=false
+    (desativada desde que os consórcios migraram do Mastercard Black pra pagamento em dinheiro em
+    11/08/2026) e não é mais lida pelo painel em lugar nenhum.
+  - percentual_pago/valor_quitacao -> financiamentos (join por patrimonio_id com
+    patrimonio.subtipo='consorcio_auto'/'consorcio_casa_pago') — é o que os cards "Consórcio auto"/
+    "Consórcio Casa Nova" (vw_patrimonio_v2) exibem. ACHADO REAL 21/08/2026: uma tentativa anterior
+    nesta mesma sessão gravou esses 2 campos em cronograma_boletos_fixos (colunas novas,
+    percentual_pago/contemplada/valor_quitacao) sem notar que financiamentos já existia e já
+    alimentava a tela — revertido (colunas dropadas) antes de publicar, pra não duplicar a mesma
+    informação em 2 lugares (mesma classe de bug já documentada no manual, seção 1.3.2).
 
 Autenticação: mesma de atualizar_boletos_medintech.py (GMAIL_CLIENT_ID/SECRET/REFRESH_TOKEN,
 SUPABASE_URL/KEY, já cadastrados nos Secrets do GitHub — reaproveitados, nenhum secret novo).
@@ -61,6 +70,12 @@ from urllib.error import HTTPError, URLError
 _GRUPO_COTA_PARA_TX = {
     ("I0464", "0012-00"): "TXCON000002",  # Casa Nova
     ("AF316", "0346-00"): "TXCON000001",  # Carro
+}
+
+# Grupo+Cota -> patrimonio.subtipo, pra achar a linha certa em financiamentos (join por patrimonio_id).
+_GRUPO_COTA_PARA_SUBTIPO = {
+    ("I0464", "0012-00"): "consorcio_casa_pago",
+    ("AF316", "0346-00"): "consorcio_auto",
 }
 
 _GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -125,15 +140,24 @@ def _extrair_percentual_pago(texto_pdf: str) -> float | None:
     return _texto_para_valor(m.group(1)) if m else None
 
 
-def _extrair_contemplacao(texto_pdf: str) -> tuple[bool, float | None]:
-    """(contemplada, valor_quitacao). Contemplada = extrato tem o bloco "Contemplação" (confirmado:
-    presente na Cota AF316/Carro, ausente na I0464/Casa Nova — ainda não contemplada). Valor de
-    quitação = "Liquido à Pagar" da mesma seção, só existe quando contemplada."""
-    contemplada = bool(re.search(r"Dt\.\s*Contempla[çc][ãa]o:", texto_pdf))
-    if not contemplada:
-        return False, None
-    m = re.search(r"Liquido\s*[àa]\s*Pagar:\s*([\d.,]+)", texto_pdf)
-    return True, (_texto_para_valor(m.group(1)) if m else None)
+def _extrair_contemplada(texto_pdf: str) -> bool:
+    """Só informativo (log) — extrato tem o bloco "Contemplação" (confirmado: presente na Cota
+    AF316/Carro, ausente na I0464/Casa Nova). Não persistido: não existe coluna "contemplada" em
+    nenhuma tabela hoje, e os badges "Contemplada com o bem"/"Não contemplada" na tela são texto
+    fixo no HTML, já corretos pros 2 consórcios atuais — criar uma coluna nova só pra isso é
+    prematuro sem um 3º consórcio real pra justificar automatizar."""
+    return bool(re.search(r"Dt\.\s*Contempla[çc][ãa]o:", texto_pdf))
+
+
+def _extrair_valor_quitacao(texto_pdf: str) -> float | None:
+    """2º valor da linha "TOTAL <pago R$> <pago %> TOTAL <a pagar R$> <a pagar %>" da seção
+    "Valores/Percentuais Pagos" × "a Pagar" — total ainda devido do plano inteiro (Fundo Comum +
+    Fundo de Reserva + Taxa de Administração). Confirmado nos 2 PDFs reais (Carro R$18.504,34 /
+    Casa Nova R$549.151,95). NÃO é o mesmo campo que "Liquido à Pagar" do bloco "Contemplação"
+    (esse é só o saldo do BEM contemplado — R$0,00 pra um consórcio pago por lance, conceito
+    diferente do "valor de quitação do plano" que a tela mostra)."""
+    m = re.search(r"TOTAL\s+[\d.,]+\s+[\d,]+\s+TOTAL\s+([\d.,]+)\s+[\d,]+", texto_pdf)
+    return _texto_para_valor(m.group(1)) if m else None
 
 
 def _baixar_texto_pdf(dados_pdf_base64: bytes) -> str:
@@ -151,8 +175,10 @@ def _anexo_pdf_do_email(msg: dict) -> str | None:
 
 
 def buscar_extratos_consorcio(access_token: str) -> dict:
-    """Retorna {tx: {valor, percentual_pago, contemplada, valor_quitacao}} pros consórcios
-    encontrados nos últimos 10 dias — mesma janela dos outros robôs de e-mail deste sistema."""
+    """Retorna {subtipo: {tx, valor, percentual_pago, valor_quitacao}} pros consórcios encontrados
+    nos últimos 10 dias — mesma janela dos outros robôs de e-mail deste sistema. Chave é o subtipo
+    (não o tx) porque valor vai pra cronograma_boletos_fixos e percentual_pago/valor_quitacao vão
+    pra financiamentos — 2 destinos, 1 registro por consórcio."""
     resultado: dict = {}
     busca = _gmail_get(
         "/messages?q=" + "from:comunicacao@novidades.portobank.com.br has:attachment newer_than:10d".replace(" ", "%20"),
@@ -172,17 +198,19 @@ def buscar_extratos_consorcio(access_token: str) -> dict:
             print(f"AVISO: PDF de '{assunto}' não confirma Grupo+Cota conhecido — pulando, nada é inventado.", file=sys.stderr)
             continue
         tx = _GRUPO_COTA_PARA_TX[grupo_cota]
+        subtipo = _GRUPO_COTA_PARA_SUBTIPO[grupo_cota]
         valor = _extrair_valor_contribuicao_mensal(texto)
         if valor is None:
             print(f"AVISO: não consegui extrair valor da parcela mais recente do PDF de '{assunto}' ({tx}) — pulando.", file=sys.stderr)
             continue
         percentual_pago = _extrair_percentual_pago(texto)
-        contemplada, valor_quitacao = _extrair_contemplacao(texto)
-        if tx not in resultado:  # Gmail retorna mais recente primeiro — não sobrescreve com e-mail mais antigo
-            resultado[tx] = {
+        valor_quitacao = _extrair_valor_quitacao(texto)
+        contemplada = _extrair_contemplada(texto)  # só log, ver docstring de _extrair_contemplada
+        if subtipo not in resultado:  # Gmail retorna mais recente primeiro — não sobrescreve com e-mail mais antigo
+            resultado[subtipo] = {
+                "tx": tx,
                 "valor": valor,
                 "percentual_pago": percentual_pago,
-                "contemplada": contemplada,
                 "valor_quitacao": valor_quitacao,
             }
             print(
@@ -193,51 +221,83 @@ def buscar_extratos_consorcio(access_token: str) -> dict:
     return resultado
 
 
-def obter_valores_atuais(supabase_url: str, supabase_key: str) -> dict:
+def _supabase_get(supabase_url: str, supabase_key: str, path: str) -> list:
     headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
-    txs = ",".join(_GRUPO_COTA_PARA_TX.values())
-    url = (
-        f"{supabase_url}/rest/v1/cronograma_boletos_fixos?tx=in.({txs})"
-        "&select=tx,valor,percentual_pago,contemplada,valor_quitacao"
-    )
-    req = Request(url, headers=headers)
+    req = Request(f"{supabase_url}/rest/v1/{path}", headers=headers)
     with urlopen(req, timeout=20) as resp:
-        linhas = json.loads(resp.read().decode("utf-8"))
-    return {
-        l["tx"]: {
-            "valor": float(l["valor"]),
-            "percentual_pago": float(l["percentual_pago"]) if l["percentual_pago"] is not None else None,
-            "contemplada": l["contemplada"],
-            "valor_quitacao": float(l["valor_quitacao"]) if l["valor_quitacao"] is not None else None,
-        }
-        for l in linhas
-    }
+        return json.loads(resp.read().decode("utf-8"))
 
 
-def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, dados: dict) -> None:
+def _supabase_patch(supabase_url: str, supabase_key: str, path: str, corpo: dict) -> str:
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
-    url = f"{supabase_url}/rest/v1/cronograma_boletos_fixos?tx=eq.{tx}"
-    body = json.dumps({
-        "valor": dados["valor"],
-        "percentual_pago": dados["percentual_pago"],
-        "contemplada": dados["contemplada"],
-        "valor_quitacao": dados["valor_quitacao"],
-    }).encode("utf-8")
-    req = Request(url, data=body, headers=headers, method="PATCH")
+    body = json.dumps(corpo).encode("utf-8")
+    req = Request(f"{supabase_url}/rest/v1/{path}", data=body, headers=headers, method="PATCH")
     try:
         with urlopen(req, timeout=20) as resp:
-            resultado = resp.read().decode("utf-8")
+            return resp.read().decode("utf-8")
     except HTTPError as e:
-        corpo = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {e.code} ao atualizar {tx}: {corpo}") from e
+        raise RuntimeError(f"HTTP {e.code} ao atualizar {path}: {e.read().decode('utf-8', errors='replace')}") from e
     except URLError as e:
-        raise RuntimeError(f"Falha de rede ao atualizar {tx}: {e}") from e
-    print(f"Supabase atualizado ({tx}): {resultado}")
+        raise RuntimeError(f"Falha de rede ao atualizar {path}: {e}") from e
+
+
+def obter_valores_atuais(supabase_url: str, supabase_key: str) -> dict:
+    """{subtipo: {tx, valor, percentual_pago, valor_quitacao, financiamento_id}} — junta
+    cronograma_boletos_fixos (valor, por tx) com financiamentos via patrimonio_id (percentual_pago/
+    valor_quitacao, por patrimonio.subtipo). 3 fetches simples e diretos (sem embed do PostgREST,
+    pra não depender de comportamento de filtro em recurso aninhado que varia por versão)."""
+    txs = ",".join(_GRUPO_COTA_PARA_TX.values())
+    linhas_boletos = _supabase_get(
+        supabase_url, supabase_key, f"cronograma_boletos_fixos?tx=in.({txs})&select=tx,valor"
+    )
+    valor_por_tx = {l["tx"]: float(l["valor"]) for l in linhas_boletos}
+
+    subtipos = ",".join(_GRUPO_COTA_PARA_SUBTIPO.values())
+    linhas_pat = _supabase_get(
+        supabase_url, supabase_key, f"patrimonio?subtipo=in.({subtipos})&select=id,subtipo"
+    )
+    patrimonio_id_por_subtipo = {l["subtipo"]: l["id"] for l in linhas_pat}
+
+    patrimonio_ids = ",".join(patrimonio_id_por_subtipo.values())
+    linhas_fin = _supabase_get(
+        supabase_url, supabase_key,
+        f"financiamentos?patrimonio_id=in.({patrimonio_ids})&select=id,patrimonio_id,percentual_pago,valor_quitacao",
+    )
+    fin_por_patrimonio_id = {
+        l["patrimonio_id"]: {
+            "financiamento_id": l["id"],
+            "percentual_pago": float(l["percentual_pago"]) if l["percentual_pago"] is not None else None,
+            "valor_quitacao": float(l["valor_quitacao"]) if l["valor_quitacao"] is not None else None,
+        }
+        for l in linhas_fin
+    }
+
+    resultado = {}
+    for grupo_cota, tx in _GRUPO_COTA_PARA_TX.items():
+        subtipo = _GRUPO_COTA_PARA_SUBTIPO[grupo_cota]
+        patrimonio_id = patrimonio_id_por_subtipo.get(subtipo)
+        fin = fin_por_patrimonio_id.get(patrimonio_id) if patrimonio_id else None
+        if tx not in valor_por_tx or fin is None:
+            continue
+        resultado[subtipo] = {"tx": tx, "valor": valor_por_tx[tx], **fin}
+    return resultado
+
+
+def atualizar_supabase(supabase_url: str, supabase_key: str, subtipo: str, dados_novos: dict, financiamento_id: str) -> None:
+    r1 = _supabase_patch(
+        supabase_url, supabase_key, f"cronograma_boletos_fixos?tx=eq.{dados_novos['tx']}",
+        {"valor": dados_novos["valor"]},
+    )
+    r2 = _supabase_patch(
+        supabase_url, supabase_key, f"financiamentos?id=eq.{financiamento_id}",
+        {"percentual_pago": dados_novos["percentual_pago"], "valor_quitacao": dados_novos["valor_quitacao"]},
+    )
+    print(f"Supabase atualizado ({subtipo}) — cronograma_boletos_fixos: {r1} | financiamentos: {r2}")
 
 
 def main() -> int:
@@ -272,20 +332,21 @@ def main() -> int:
             return abs(a - b) >= 0.005
 
         atuais = obter_valores_atuais(supabase_url, supabase_key)
-        for tx, dados_novos in encontrados.items():
-            dados_atuais = atuais.get(tx)
+        for subtipo, dados_novos in encontrados.items():
+            dados_atuais = atuais.get(subtipo)
+            if dados_atuais is None:
+                print(f"AVISO: '{subtipo}' não encontrado em cronograma_boletos_fixos/financiamentos — pulando (nada a atualizar às cegas).", file=sys.stderr)
+                continue
             mudou = (
-                dados_atuais is None
-                or _numero_mudou(dados_atuais["valor"], dados_novos["valor"])
-                or dados_atuais["contemplada"] != dados_novos["contemplada"]
+                _numero_mudou(dados_atuais["valor"], dados_novos["valor"])
                 or _numero_mudou(dados_atuais["percentual_pago"], dados_novos["percentual_pago"])
                 or _numero_mudou(dados_atuais["valor_quitacao"], dados_novos["valor_quitacao"])
             )
             if not mudou:
-                print(f"{tx}: já está atualizado — nada a fazer.")
+                print(f"{dados_novos['tx']} ({subtipo}): já está atualizado — nada a fazer.")
                 continue
-            print(f"{tx}: {dados_atuais} -> {dados_novos}")
-            atualizar_supabase(supabase_url, supabase_key, tx, dados_novos)
+            print(f"{dados_novos['tx']} ({subtipo}): {dados_atuais} -> {dados_novos}")
+            atualizar_supabase(supabase_url, supabase_key, subtipo, dados_novos, dados_atuais["financiamento_id"])
 
         print("Concluído com sucesso.")
         return 0
