@@ -6,12 +6,7 @@ name: Atualizar Extratos de Consórcio (Porto Seguro via Gmail)
 # nunca dispara sozinho neste repositório), sem entrar na cadeia do executar_tudo.yml (mesmo
 # tratamento já dado ao robô de boletos_medintech, que também roda solto).
 on:
-  workflow_dispatch:
-    inputs:
-      debug_texto_pdf:
-        description: "1 = imprime o texto bruto extraído do PDF no log (debug temporário, ver atualizar_consorcio_porto.py)"
-        required: false
-        default: "0"
+  workflow_dispatch: {}
   workflow_call: {}
 concurrency:
   group: atualizar-consorcio-porto
@@ -35,5 +30,4 @@ jobs:
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          DEBUG_TEXTO_PDF: ${{ inputs.debug_texto_pdf || '0' }}
         run: python3 scripts/sync/atualizar_consorcio_porto.py

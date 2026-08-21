@@ -26,9 +26,14 @@ por "Bem"/nome do produto (ambíguo, "IMOVEL"/"AUTOMOVEL" não diz qual consórc
     de que o valor da parcela muda mês a mês por correção/reajuste, exatamente o tipo de drift que
     este robô resolve).
 
-CAMPO EXTRAÍDO: "Valor Contrib. Mensal" (rótulo sempre presente e claramente identificado no
-extrato, confirmado nos 2 PDFs reais) — é o valor da parcela ATUAL, o mesmo conceito que
-cronograma_boletos_fixos.valor já representa pros outros boletos fixos.
+CAMPOS EXTRAÍDOS (confirmados nos 2 PDFs reais, 21/08/2026 — ver DEBUG_TEXTO_PDF abaixo):
+  - valor: última linha "RECBTO. PARCELA" da Conta Corrente (parcela ATUAL, não o "Valor Contrib.
+    Mensal" do plano original — mesmo conceito que cronograma_boletos_fixos.valor já representa pros
+    outros boletos fixos).
+  - percentual_pago: linha "TOTAL ... 100,0000 Ideal Devido" da seção "Percentuais Contribuição
+    Mensal".
+  - contemplada: presença do bloco "Contemplação" no extrato (ausente = ainda não contemplada).
+  - valor_quitacao: "Liquido à Pagar" da mesma seção, só existe quando contemplada=true.
 
 DESTINO: cronograma_boletos_fixos (TXCON000001/TXCON000002), NÃO cronograma_consorcios — achado
 real ao investigar: cronograma_consorcios tem as 2 linhas com ativo=false (tabela desativada desde
@@ -111,6 +116,26 @@ def _extrair_valor_contribuicao_mensal(texto_pdf: str) -> float | None:
     return _texto_para_valor(linhas_parcela[0][0])
 
 
+def _extrair_percentual_pago(texto_pdf: str) -> float | None:
+    """Linha "TOTAL <pago> <pendente> <a cobrar> 100,0000 Ideal Devido:" da seção "Percentuais
+    Contribuição Mensal" — confirmado nos 2 PDFs reais (Carro 75,8576 / Casa Nova 0,6285). O sufixo
+    "Ideal Devido" na mesma linha distingue esta TOTAL das outras 2 que aparecem mais abaixo no
+    extrato (uma em R$, outra rotulada "TOTAIS")."""
+    m = re.search(r"TOTAL\s+([\d,]+)\s+[\d,]+\s+[\d,]+\s+100,0000\s+Ideal Devido", texto_pdf)
+    return _texto_para_valor(m.group(1)) if m else None
+
+
+def _extrair_contemplacao(texto_pdf: str) -> tuple[bool, float | None]:
+    """(contemplada, valor_quitacao). Contemplada = extrato tem o bloco "Contemplação" (confirmado:
+    presente na Cota AF316/Carro, ausente na I0464/Casa Nova — ainda não contemplada). Valor de
+    quitação = "Liquido à Pagar" da mesma seção, só existe quando contemplada."""
+    contemplada = bool(re.search(r"Dt\.\s*Contempla[çc][ãa]o:", texto_pdf))
+    if not contemplada:
+        return False, None
+    m = re.search(r"Liquido\s*[àa]\s*Pagar:\s*([\d.,]+)", texto_pdf)
+    return True, (_texto_para_valor(m.group(1)) if m else None)
+
+
 def _baixar_texto_pdf(dados_pdf_base64: bytes) -> str:
     import io
     import pdfplumber
@@ -126,8 +151,8 @@ def _anexo_pdf_do_email(msg: dict) -> str | None:
 
 
 def buscar_extratos_consorcio(access_token: str) -> dict:
-    """Retorna {tx: valor} pros consórcios encontrados nos últimos 10 dias — mesma janela dos
-    outros robôs de e-mail deste sistema."""
+    """Retorna {tx: {valor, percentual_pago, contemplada, valor_quitacao}} pros consórcios
+    encontrados nos últimos 10 dias — mesma janela dos outros robôs de e-mail deste sistema."""
     resultado: dict = {}
     busca = _gmail_get(
         "/messages?q=" + "from:comunicacao@novidades.portobank.com.br has:attachment newer_than:10d".replace(" ", "%20"),
@@ -142,10 +167,6 @@ def buscar_extratos_consorcio(access_token: str) -> dict:
             continue
         anexo = _gmail_get(f"/messages/{item['id']}/attachments/{anexo_id}", access_token)
         texto = _baixar_texto_pdf(base64.urlsafe_b64decode(anexo["data"]))
-        if os.environ.get("DEBUG_TEXTO_PDF") == "1":
-            print(f"----- TEXTO BRUTO DO PDF ({assunto}) -----", file=sys.stderr)
-            print(texto, file=sys.stderr)
-            print("----- FIM TEXTO BRUTO -----", file=sys.stderr)
         grupo_cota = _extrair_grupo_cota(texto)
         if grupo_cota is None or grupo_cota not in _GRUPO_COTA_PARA_TX:
             print(f"AVISO: PDF de '{assunto}' não confirma Grupo+Cota conhecido — pulando, nada é inventado.", file=sys.stderr)
@@ -155,23 +176,45 @@ def buscar_extratos_consorcio(access_token: str) -> dict:
         if valor is None:
             print(f"AVISO: não consegui extrair valor da parcela mais recente do PDF de '{assunto}' ({tx}) — pulando.", file=sys.stderr)
             continue
+        percentual_pago = _extrair_percentual_pago(texto)
+        contemplada, valor_quitacao = _extrair_contemplacao(texto)
         if tx not in resultado:  # Gmail retorna mais recente primeiro — não sobrescreve com e-mail mais antigo
-            resultado[tx] = valor
-            print(f"{tx} (Grupo {grupo_cota[0]}, Cota {grupo_cota[1]}): R$ {valor:.2f} — extraído de '{assunto}'")
+            resultado[tx] = {
+                "valor": valor,
+                "percentual_pago": percentual_pago,
+                "contemplada": contemplada,
+                "valor_quitacao": valor_quitacao,
+            }
+            print(
+                f"{tx} (Grupo {grupo_cota[0]}, Cota {grupo_cota[1]}): R$ {valor:.2f}, "
+                f"% pago={percentual_pago}, contemplada={contemplada}, quitação={valor_quitacao} "
+                f"— extraído de '{assunto}'"
+            )
     return resultado
 
 
 def obter_valores_atuais(supabase_url: str, supabase_key: str) -> dict:
     headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
     txs = ",".join(_GRUPO_COTA_PARA_TX.values())
-    url = f"{supabase_url}/rest/v1/cronograma_boletos_fixos?tx=in.({txs})&select=tx,valor"
+    url = (
+        f"{supabase_url}/rest/v1/cronograma_boletos_fixos?tx=in.({txs})"
+        "&select=tx,valor,percentual_pago,contemplada,valor_quitacao"
+    )
     req = Request(url, headers=headers)
     with urlopen(req, timeout=20) as resp:
         linhas = json.loads(resp.read().decode("utf-8"))
-    return {l["tx"]: float(l["valor"]) for l in linhas}
+    return {
+        l["tx"]: {
+            "valor": float(l["valor"]),
+            "percentual_pago": float(l["percentual_pago"]) if l["percentual_pago"] is not None else None,
+            "contemplada": l["contemplada"],
+            "valor_quitacao": float(l["valor_quitacao"]) if l["valor_quitacao"] is not None else None,
+        }
+        for l in linhas
+    }
 
 
-def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, valor: float) -> None:
+def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, dados: dict) -> None:
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
@@ -179,7 +222,12 @@ def atualizar_supabase(supabase_url: str, supabase_key: str, tx: str, valor: flo
         "Prefer": "return=representation",
     }
     url = f"{supabase_url}/rest/v1/cronograma_boletos_fixos?tx=eq.{tx}"
-    body = json.dumps({"valor": valor}).encode("utf-8")
+    body = json.dumps({
+        "valor": dados["valor"],
+        "percentual_pago": dados["percentual_pago"],
+        "contemplada": dados["contemplada"],
+        "valor_quitacao": dados["valor_quitacao"],
+    }).encode("utf-8")
     req = Request(url, data=body, headers=headers, method="PATCH")
     try:
         with urlopen(req, timeout=20) as resp:
@@ -218,14 +266,26 @@ def main() -> int:
             print("Nenhum extrato novo encontrado neste período — nada a atualizar.")
             return 0
 
+        def _numero_mudou(a: float | None, b: float | None) -> bool:
+            if a is None or b is None:
+                return a != b
+            return abs(a - b) >= 0.005
+
         atuais = obter_valores_atuais(supabase_url, supabase_key)
-        for tx, valor_novo in encontrados.items():
-            valor_atual = atuais.get(tx)
-            if valor_atual is not None and abs(valor_atual - valor_novo) < 0.005:
-                print(f"{tx}: valor já está atualizado (R$ {valor_atual:.2f}) — nada a fazer.")
+        for tx, dados_novos in encontrados.items():
+            dados_atuais = atuais.get(tx)
+            mudou = (
+                dados_atuais is None
+                or _numero_mudou(dados_atuais["valor"], dados_novos["valor"])
+                or dados_atuais["contemplada"] != dados_novos["contemplada"]
+                or _numero_mudou(dados_atuais["percentual_pago"], dados_novos["percentual_pago"])
+                or _numero_mudou(dados_atuais["valor_quitacao"], dados_novos["valor_quitacao"])
+            )
+            if not mudou:
+                print(f"{tx}: já está atualizado — nada a fazer.")
                 continue
-            print(f"{tx}: R$ {valor_atual if valor_atual is not None else '—'} -> R$ {valor_novo:.2f}")
-            atualizar_supabase(supabase_url, supabase_key, tx, valor_novo)
+            print(f"{tx}: {dados_atuais} -> {dados_novos}")
+            atualizar_supabase(supabase_url, supabase_key, tx, dados_novos)
 
         print("Concluído com sucesso.")
         return 0
