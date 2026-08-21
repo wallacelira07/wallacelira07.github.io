@@ -475,6 +475,39 @@ const WallaceFinanceService = {
       return Math.round(dado.reduce((s,r) => s + Number(r.valor), 0) * 100) / 100;
     });
   },
+  // NOVO 21/08/2026 (achado de auditoria de performance via HAR real do usuário): as duas funções
+  // acima disparam 1 request por caixa (16 round-trips confirmados no boot, 6 de
+  // hydrate-comprometido-caixas-tematicas-v2.js + 9 de hydrate-visa-mb.js, mesmo já rodando em
+  // Promise.all). rpc_comprometido_caixas_batch (mesma fórmula exata, migração
+  // 20260821_rpc_comprometido_caixas_batch) devolve todas numa única chamada. Fallback pro caminho
+  // individual (Promise.all de getComprometidoPorCaixaV2/getComprometidoPorCaixaECartoesV2) se a
+  // RPC falhar — mesmo padrão try/catch-com-fallback já usado em getComposicaoCaixasBatch().
+  async getComprometidoCaixasBatch(caixaIds, cartaoIds){
+    const chaveCartoes = cartaoIds ? cartaoIds.slice().sort().join(',') : '__generico__';
+    const chaveCache = 'comprometido_caixas_batch:' + caixaIds.slice().sort().join(',') + ':' + chaveCartoes;
+    return this._cache.obterOuBuscar(chaveCache, async () => {
+      try {
+        const body = { p_caixa_ids: caixaIds };
+        if(cartaoIds) body.p_cartao_ids = cartaoIds;
+        const resp = await fetch(`${this._url}/rest/v1/rpc/rpc_comprometido_caixas_batch`, {
+          method: 'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, this._headers()),
+          body: JSON.stringify(body)
+        });
+        if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao chamar rpc_comprometido_caixas_batch`);
+        const dado = await resp.json();
+        if(!dado || typeof dado !== 'object' || Array.isArray(dado)) throw new Error('WallaceFinanceService: rpc_comprometido_caixas_batch devolveu formato inesperado');
+        const faltando = caixaIds.filter(id => !(id in dado));
+        if(faltando.length) throw new Error(`WallaceFinanceService: rpc_comprometido_caixas_batch nao devolveu "${faltando.join(', ')}"`);
+        return caixaIds.map(id => Math.round(Number(dado[id]) * 100) / 100);
+      } catch(errRpc){
+        console.warn('WallaceFinanceService: rpc_comprometido_caixas_batch indisponível — usando fallback individual por caixa.', errRpc);
+        return Promise.all(caixaIds.map(id =>
+          cartaoIds ? this.getComprometidoPorCaixaECartoesV2(id, cartaoIds) : this.getComprometidoPorCaixaV2(id)
+        ));
+      }
+    });
+  },
   // NOVO 11/08/2026 (achado do usuário, print real: lista detalhada de LRW/LRV — 19/16 lançamentos,
   // R$1.318,19/R$376,64 — não batia com o card resumido mbLRW/mbLRV, R$972,98/R$245,84): a lista
   // detalhada vinha de VARS.LRW_TRANSACOES/LRV_TRANSACOES, array V1 mantido à mão no código, nunca

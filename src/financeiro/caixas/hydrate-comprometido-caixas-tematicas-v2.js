@@ -56,9 +56,11 @@ async function aplicarComprometidoCaixasTematicasV2(tentativasRestantes){
   let saldos, comprometidos;
   try {
     const idsOrdenados = CAIXAS_TEMATICAS_COMPROMETIDO_V2.map(c => c.id);
+    // CORRIGIDO 21/08/2026 (auditoria de performance): 6 requests individuais → 1 chamada batch
+    // (rpc_comprometido_caixas_batch, ver app.js), mesmo resultado, mesma ordem dos ids.
     [saldos, comprometidos] = await Promise.all([
       WallaceFinanceService.getSaldosPorCaixa(),
-      Promise.all(idsOrdenados.map(id => WallaceFinanceService.getComprometidoPorCaixaV2(id))),
+      WallaceFinanceService.getComprometidoCaixasBatch(idsOrdenados),
     ]);
   } catch(err){
     console.error('ComprometidoCaixasTematicasV2: falha ao buscar saldo/comprometido das caixas temáticas.', err);

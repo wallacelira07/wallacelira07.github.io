@@ -166,9 +166,9 @@ const MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47
 async function atualizarCaixasTematicasComprometidoMB(){
   if(typeof REG === 'undefined' || !REG.mbDetalhe) return;
   try {
-    const somas = await Promise.all(Object.values(MB_CAIXAS_TEMATICAS_IDS).map(caixaId =>
-      WallaceFinanceService.getComprometidoPorCaixaECartoesV2(caixaId, MB_CARTOES_IDS).catch(() => 0)
-    ));
+    // CORRIGIDO 21/08/2026 (auditoria de performance): 9 requests individuais → 1 chamada batch
+    // (rpc_comprometido_caixas_batch, ver app.js), mesma soma final.
+    const somas = await WallaceFinanceService.getComprometidoCaixasBatch(Object.values(MB_CAIXAS_TEMATICAS_IDS), MB_CARTOES_IDS);
     REG.mbDetalhe.caixasTematicas = Math.round(somas.reduce((s,v) => s + (Number(v)||0), 0) * 100) / 100;
     recalcularEHidratarMbPessoal();
   } catch(err){

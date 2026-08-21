@@ -210,22 +210,49 @@ function registrarValidacaoFase(fase, aprovado, motivo){
     // aqui. As 10 buscas de transação são todas independentes entre si (caixas diferentes) —
     // Promise.all dispara todas juntas; o processamento (cálculo/comparação/log) continua
     // sequencial depois, porque é síncrono e rápido (não é rede).
+    // CORRIGIDO 21/08/2026 (2ª rodada, auditoria de performance via HAR real do usuário): as 10
+    // buscas paralelas ainda pagavam 10 round-trips de rede — rpc_saldo_ciclo_caixas_batch (migração
+    // 20260821_rpc_saldo_ciclo_caixas_batch) devolve {entradas,saidas} de todas numa única chamada.
+    // A fórmula de saldo (WallaceFinanceEngine.calcularSaldoCaixa) não muda — recebe 2 linhas
+    // sintéticas (Entrada=soma das entradas, Saída=soma das saídas) em vez da lista crua de
+    // transações, resultado matematicamente idêntico (a função só soma entrada e subtrai saída).
+    // Fallback pro caminho antigo (1 request por caixa) se a RPC falhar.
     const _authHeaderPromocao = { apikey: _key, Authorization: `Bearer ${(typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || _key}` };
-    const buscasTx = await Promise.all(CAIXAS_PROMOCAO.map(async (cfg) => {
-      const caixa = caixasV2.find(c => c.nome === cfg.nomeV2);
-      if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); return null; }
-      try {
-        const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
-          headers: _authHeaderPromocao
-        });
-        if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); return null; }
-        const transacoes = await respTx.json();
+    let buscasTx;
+    try {
+      const idsOrdenados = CAIXAS_PROMOCAO.map(cfg => (caixasV2.find(c => c.nome === cfg.nomeV2) || {}).id).filter(Boolean);
+      const respBatch = await fetch(`${_url}/rest/v1/rpc/rpc_saldo_ciclo_caixas_batch`, {
+        method: 'POST',
+        headers: Object.assign({'Content-Type':'application/json'}, _authHeaderPromocao),
+        body: JSON.stringify({ p_caixa_ids: idsOrdenados, p_data_inicio: CICLO_ATUAL_INICIO })
+      });
+      if (!respBatch.ok) throw new Error(`erro ${respBatch.status} ao chamar rpc_saldo_ciclo_caixas_batch`);
+      const somas = await respBatch.json();
+      buscasTx = CAIXAS_PROMOCAO.map(cfg => {
+        const caixa = caixasV2.find(c => c.nome === cfg.nomeV2);
+        if (!caixa || !somas[caixa.id]) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2/RPC — pulada.`); return null; }
+        const { entradas, saidas } = somas[caixa.id];
+        const transacoes = [{ tipo: 'entrada', valor: Number(entradas || 0) }, { tipo: 'saida', valor: Number(saidas || 0) }];
         return { cfg, caixa, transacoes };
-      } catch(err) {
-        console.warn(`[FASE 2F] falha de rede buscando transações de "${cfg.nomeV2}" — pulada.`, err);
-        return null;
-      }
-    }));
+      });
+    } catch(errBatch) {
+      console.warn('[FASE 2F] rpc_saldo_ciclo_caixas_batch indisponível — usando fallback de 1 request por caixa.', errBatch);
+      buscasTx = await Promise.all(CAIXAS_PROMOCAO.map(async (cfg) => {
+        const caixa = caixasV2.find(c => c.nome === cfg.nomeV2);
+        if (!caixa) { console.warn(`[FASE 2F] "${cfg.nomeV2}" não encontrada no V2 — pulada.`); return null; }
+        try {
+          const respTx = await fetch(`${_url}/rest/v1/transacoes?select=tipo,valor&caixa_id=eq.${caixa.id}&status=eq.confirmado&data=gte.${CICLO_ATUAL_INICIO}`, {
+            headers: _authHeaderPromocao
+          });
+          if (!respTx.ok) { console.warn(`[FASE 2F] erro ${respTx.status} buscando transações de "${cfg.nomeV2}" — pulada.`); return null; }
+          const transacoes = await respTx.json();
+          return { cfg, caixa, transacoes };
+        } catch(err) {
+          console.warn(`[FASE 2F] falha de rede buscando transações de "${cfg.nomeV2}" — pulada.`, err);
+          return null;
+        }
+      }));
+    }
 
     const relatorio = [];
     for (const item of buscasTx) {
