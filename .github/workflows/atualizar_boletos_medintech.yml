@@ -1,4 +1,4 @@
-name: Atualizar Faturas Energia/Água/Gás/Consórcio (via Gmail)
+name: Atualizar Faturas Energia/Água/Gás/Consórcio/Condomínio (via Gmail)
 
 # NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa) — ver scripts/sync/atualizar_boletos_medintech.py.
 # Nome de exibição atualizado (arquivo/nome interno continuam iguais, cron-job.org não precisa
@@ -14,6 +14,13 @@ name: Atualizar Faturas Energia/Água/Gás/Consórcio (via Gmail)
 # cron-job.org já existente ("Atualizar Faturas Energia (Energisa) e Água/Gás (Medintech) - 12hs",
 # roda 1x/dia às 12h), zero configuração nova pro usuário. atualizar_consorcio_porto.yml continua existindo
 # à parte só pra permitir rodar/testar o robô do consórcio sozinho pela aba Actions, se precisar.
+# AMPLIADO 20/08/2026 (mesmo dia, mesmo pedido) — passo extra rodando
+# scripts/sync/atualizar_boleto_condominio.py: e-mail da administradora (Condomob, "Nova Mais") traz
+# o valor no corpo do e-mail, texto plano, sem PDF. Achado real na validação: o e-mail mostra o
+# valor NOMINAL, sem o desconto de pontualidade (R$10,00 fixo, confirmado pelo usuário) — o script
+# já desconta antes de gravar (ver docs/decisions/AUTOMACAO_CONDOMINIO_GMAIL.md). O usuário também
+# reconfigurou esta tarefa no cron-job.org pra rodar 4x/dia (0h/8h/14h/20h) em vez de 1x/dia —
+# todos os passos deste job se beneficiam da frequência maior automaticamente.
 on:
   workflow_dispatch: {}
   workflow_call: {}
@@ -49,3 +56,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 scripts/sync/atualizar_consorcio_porto.py
+      - name: Rodar atualização (Condomínio Bellagio)
+        if: always()
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_boleto_condominio.py
