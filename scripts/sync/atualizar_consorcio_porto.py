@@ -142,6 +142,10 @@ def buscar_extratos_consorcio(access_token: str) -> dict:
             continue
         anexo = _gmail_get(f"/messages/{item['id']}/attachments/{anexo_id}", access_token)
         texto = _baixar_texto_pdf(base64.urlsafe_b64decode(anexo["data"]))
+        if os.environ.get("DEBUG_TEXTO_PDF") == "1":
+            print(f"----- TEXTO BRUTO DO PDF ({assunto}) -----", file=sys.stderr)
+            print(texto, file=sys.stderr)
+            print("----- FIM TEXTO BRUTO -----", file=sys.stderr)
         grupo_cota = _extrair_grupo_cota(texto)
         if grupo_cota is None or grupo_cota not in _GRUPO_COTA_PARA_TX:
             print(f"AVISO: PDF de '{assunto}' não confirma Grupo+Cota conhecido — pulando, nada é inventado.", file=sys.stderr)
