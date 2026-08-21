@@ -505,7 +505,13 @@ async function aplicarCotacoesOpcoesV2(){
 // em direção ao vencimento"). Lê `cotacoes_acoes_historico` (nova, 1 linha por ticker/dia — ver
 // migração 21/08/2026 e getCotacoesAcoesHistorico() em app.js) desde a data da nota de corretagem
 // (campo o.notaCorretagem, formato "NNNNN (DD/MM/AAAA)") até o vencimento. Um gráfico por posição
-// ATIVA (não por ticker — 2 opções do mesmo ticker em datas diferentes teriam períodos diferentes).
+// ATIVA (não por ativo-base — 2 opções do mesmo ativo, ex. 2 puts de ITUB4 com vencimentos
+// diferentes, teriam períodos diferentes). CORRIGIDO 21/08/2026 (achado de auditoria: esta linha
+// dizia "não por ticker", palavra errada — confundiu o agente de auditoria, que leu "ticker" aqui
+// como se fosse o.ticker, o código da OPÇÃO específica, quando na verdade queria dizer o.ativo, o
+// papel-base ITUB4/PETR4). O id do canvas já usa `tendencia_${o.ticker}` (não `${o.ativo}`) — cada
+// série de opção tem código único na B3 (ex: ITUBT424 ≠ ITUBS425), então 2 puts do mesmo ativo NUNCA
+// colidem de id, mesmo antes desta correção de comentário. Não era bug funcional, só imprecisão de texto.
 // Linha do preço + linha pontilhada do strike, pra ver visualmente se a tendência aproxima ou afasta
 // do strike. Chamado via onDomPronto() (app.js) — roda depois do boot síncrono, quando
 // VARS.opcoesVendidasDetalhe já existe e hydrateROC() já rodou pelo menos uma vez.

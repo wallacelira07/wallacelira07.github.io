@@ -961,8 +961,11 @@
     <!-- NOVO 21/08/2026 (Fase 4 do cockpit de opções, pedido do usuário: "Dashboard executivo" —
          junta números que já existiam espalhados pelo resto da seção numa visão única no topo. Todos
          os campos são REAPROVEITADOS de VARS.rocCarteira/opcoesVendidasDetalhe já calculados — só
-         "Prêmios do mês", "Taxa de sucesso" e "Taxa de exercício" são cálculo novo, ver
-         aplicarDashboardExecutivoOpcoes()/hydrate-roc.js. -->
+         "Prêmios do mês", "Taxa de sucesso" e "Taxa de exercício" são cálculo novo. CORRIGIDO
+         21/08/2026 (achado de auditoria: comentário citava uma função aplicarDashboardExecutivoOpcoes()
+         que nunca foi criada como função própria — o cálculo roda INLINE no início de hydrateROC(),
+         hydrate-roc.js, não numa função separada. Confirmado rodando de verdade, não é bug funcional,
+         só o comentário estava impreciso). -->
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.7rem">Dashboard Executivo</div>
     <div class="grid-3" style="margin-bottom:0.6rem">
       <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Capital comprometido</div><div class="v" style="font-weight:600;font-size:var(--fs-lg)" id="dashOpCapitalComprometido">—</div></div>
