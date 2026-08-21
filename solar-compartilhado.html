@@ -403,6 +403,91 @@ async function carregarClima(){
 }
 carregarClima();
 
+// NOVO 21/08/2026 (pedido do usuário: "coloque esse gráfico no compartilhamento") — mesma projeção
+// do painel privado (previsao-geracao-solar.js, aplicarPrevisaoGeracaoSolar()), reimplementada aqui
+// self-contained (essa página não carrega os módulos do painel privado) lendo `geracaoDiaria` já
+// devolvido pela RPC em vez de VARS.SOLAR_GERACAO_DIARIA. Mesmo modelo, mesmas coordenadas, mesma
+// regra de nunca mostrar número sem calibração suficiente — ver o arquivo original pro raciocínio
+// completo por trás de cada decisão (não duplicado em comentário aqui pra não desalinhar os dois se
+// um for editado e o outro não).
+const PREVISAO_SOLAR_MIN_DIAS_CALIBRACAO_COMP = 7;
+const PREVISAO_SOLAR_DIAS_FORECAST_COMP = 7;
+function __previsaoSolarRegressaoLinearComp(xs, ys){
+  const n = xs.length;
+  const mx = xs.reduce((s,v)=>s+v,0)/n;
+  const my = ys.reduce((s,v)=>s+v,0)/n;
+  const sxy = xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0);
+  const sxx = xs.reduce((s,x)=>s+(x-mx)**2,0);
+  const syy = ys.reduce((s,y)=>s+(y-my)**2,0);
+  if(sxx === 0) return null;
+  const b = sxy/sxx;
+  const a = my - b*mx;
+  const r2 = syy === 0 ? 0 : (sxy*sxy)/(sxx*syy);
+  const preds = xs.map(x => a + b*x);
+  const residuos = ys.map((y,i) => y - preds[i]);
+  const mae = residuos.reduce((s,r) => s + Math.abs(r), 0) / n;
+  return { a, b, r2, mae, n };
+}
+async function aplicarPrevisaoGeracaoSolarCompartilhado(registros){
+  const elBloco = document.getElementById('previsaoSolarBlocoCompartilhado');
+  if(!elBloco) return;
+  try {
+    if(!Array.isArray(registros) || !registros.length) return;
+    const hojeStr = new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10);
+    const diasCompletos = registros.filter(r => r.data !== hojeStr && typeof r.kwh === 'number' && r.kwh > 0);
+    if(diasCompletos.length < PREVISAO_SOLAR_MIN_DIAS_CALIBRACAO_COMP) return;
+
+    const lat = -7.215406, lon = -35.856661;
+    const maisAntigo = diasCompletos.reduce((min,r) => r.data < min ? r.data : min, diasCompletos[0].data);
+    const diasDesdeMaisAntigo = Math.round((new Date(hojeStr) - new Date(maisAntigo)) / 86400000);
+    const pastDays = Math.min(92, Math.max(PREVISAO_SOLAR_MIN_DIAS_CALIBRACAO_COMP, diasDesdeMaisAntigo + 2));
+    const forecastDays = PREVISAO_SOLAR_DIAS_FORECAST_COMP + 1;
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=shortwave_radiation_sum&past_days=${pastDays}&forecast_days=${forecastDays}&timezone=America%2FSao_Paulo`;
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error(`Open-Meteo respondeu ${resp.status}`);
+    const dado = await resp.json();
+    const diario = dado.daily;
+    if(!diario || !Array.isArray(diario.time) || !Array.isArray(diario.shortwave_radiation_sum)) throw new Error('resposta sem daily.shortwave_radiation_sum');
+
+    const irradianciaPorData = {};
+    diario.time.forEach((d,i) => { irradianciaPorData[d] = diario.shortwave_radiation_sum[i]; });
+
+    const treinoXs = [], treinoYs = [];
+    diasCompletos.forEach(r => {
+      const irr = irradianciaPorData[r.data];
+      if(typeof irr === 'number'){ treinoXs.push(irr); treinoYs.push(r.kwh); }
+    });
+    if(treinoXs.length < PREVISAO_SOLAR_MIN_DIAS_CALIBRACAO_COMP) return;
+
+    const modelo = __previsaoSolarRegressaoLinearComp(treinoXs, treinoYs);
+    if(!modelo || modelo.b <= 0) return;
+
+    const linhas = diario.time
+      .map((d,i) => ({ data: d, irr: diario.shortwave_radiation_sum[i] }))
+      .filter(x => x.data > hojeStr)
+      .slice(0, PREVISAO_SOLAR_DIAS_FORECAST_COMP);
+    if(!linhas.length) return;
+
+    const tbody = document.getElementById('previsaoSolarTabelaCompartilhado');
+    if(tbody){
+      tbody.innerHTML = linhas.map(x => {
+        const pred = Math.max(0, modelo.a + modelo.b * x.irr);
+        const [,mm,dd] = x.data.split('-');
+        return `<tr><td style="padding:0.25rem 0">${dd}/${mm}</td><td>${x.irr.toLocaleString('pt-BR',{maximumFractionDigits:1})} MJ/m²</td><td>${pred.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh</td></tr>`;
+      }).join('');
+    }
+    const elDiag = document.getElementById('previsaoSolarDiagnosticoCompartilhado');
+    if(elDiag){
+      const confiancaTxt = modelo.r2 >= 0.6 ? 'boa' : (modelo.r2 >= 0.3 ? 'moderada' : 'baixa');
+      elDiag.textContent = `Calibrado com ${modelo.n} dia(s) reais de geração (robô SAJ) × irradiância histórica da mesma data · R² = ${modelo.r2.toFixed(2)} (correlação ${confiancaTxt}) · erro médio ±${modelo.mae.toLocaleString('pt-BR',{maximumFractionDigits:1})} kWh/dia.`;
+    }
+    elBloco.style.display = 'block';
+  } catch(err){
+    console.warn('aplicarPrevisaoGeracaoSolarCompartilhado: falha ao calibrar/buscar previsão — bloco fica oculto.', err);
+  }
+}
+
 async function carregar(){
   const token = new URLSearchParams(location.search).get('token');
   if(!token){ renderErro('link invalido'); return; }
@@ -951,6 +1036,22 @@ async function carregar(){
       <div class="chart-wrap"><canvas id="cCreditoVsMedidorDiarioWellida"></canvas></div>
     </div>
 
+    <!-- NOVO 21/08/2026 (pedido do usuário: "coloque esse gráfico no compartilhamento" — mesma
+         projeção do painel privado, ver previsaoSolarBloco em Sistema_Wallace_Lira_Completo.html /
+         previsao-geracao-solar.js pro método completo). Oculto até o JS calibrar com sucesso, mesmo
+         padrão "nunca mostra número inventado" do resto da página. -->
+    <div id="previsaoSolarBlocoCompartilhado" style="display:none" class="card">
+      <div class="stat-lbl" style="margin-bottom:0.6rem">🔮 Previsão de geração (próximos dias)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem"><strong>Isto é uma PROJEÇÃO baseada em previsão do tempo, não dado real</strong> — usa a previsão de irradiância solar dos próximos dias (Open-Meteo) e um modelo de calibração simples (regressão linear) treinado com a geração REAL da usina (robô SAJ). Nunca substitui a geração real — o dia some desta lista assim que a leitura real dele existir.</div>
+      <div id="previsaoSolarDiagnosticoCompartilhado" style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.8rem">—</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
+          <thead><tr style="text-align:left;color:var(--text-mid);border-bottom:1px solid var(--border)"><th style="padding:0.3rem 0">Dia</th><th>Irradiância prevista</th><th>Geração estimada</th></tr></thead>
+          <tbody id="previsaoSolarTabelaCompartilhado"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
 
@@ -1247,6 +1348,7 @@ async function carregar(){
     montarGraficoCreditoVsMedidorDiarioCompartilhado('cCreditoVsMedidorDiarioWallace', rateioWallaceDiario, dados.medidorTuyaConsumoDiario, '#34c98a');
     montarGraficoCreditoVsMedidorDiarioCompartilhado('cCreditoVsMedidorDiarioWellida', rateioIrmaDiario, dados.medidorTuyaWellidaConsumoDiario, '#14b8a6');
   }
+  aplicarPrevisaoGeracaoSolarCompartilhado(geracaoDiaria);
   const legRateioEl = document.getElementById('legRateioSolarCompartilhado');
   if(legRateioEl){
     const mesesComLeitura = creditoWallacePorIdx.filter(v=>v!=null).length;
