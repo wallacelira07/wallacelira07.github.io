@@ -247,6 +247,10 @@
     <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
     <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('wwi')">🧠<span>Wealth Intelligence</span></button>
     <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️<span>Emagrecimento</span></button>
+    <!-- CORRIGIDO 22/08/2026 (pedido do usuário: "cockpit deve ser uma aba como Emagrecimento, Painel
+         e não algo separado") — era um card próprio, largura cheia, embaixo desta grade (desde
+         21/08/2026); virou botão igual aos outros 7, mesmo padrão irParaPrimeiraSecao('opcoes'). -->
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('opcoes')">🎯<span>Opções</span></button>
   </div>
 
   <!-- NOVO 21/08/2026 (achado real do usuário: opção ITM prestes a vencer não avisava proativamente
@@ -254,18 +258,6 @@
        coluna certa. Ver calcularAvisosOpcoesRisco()/hydrateROC(). Primeiro elemento visível da Home,
        de propósito — risco financeiro real tem prioridade sobre qualquer outro card. -->
   <div id="homeAvisoOpcoesITM" class="callout danger" style="display:none;margin-bottom:1.5rem"></div>
-
-  <!-- NOVO 21/08/2026 (pedido do usuário: "aba totalmente dedicada" pro cockpit de opções — atalho
-       na Home pra mesma aba de topo "🎯 Opções", mesmo padrão de irParaPrimeiraSecao() das outras
-       abas). -->
-  <button type="button" onclick="irParaPrimeiraSecao('opcoes')" class="card" style="margin-bottom:1.5rem;width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;gap:0.9rem;border:1px solid var(--border)">
-    <div style="font-size:1.6rem">🎯</div>
-    <div style="flex:1">
-      <div style="font-weight:700;font-size:var(--fs-md)">Cockpit de Opções</div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim)">Posições ativas, alertas de exercício, calculadora de recuperação, dividendos e dashboard executivo</div>
-    </div>
-    <div style="color:var(--text-dim);font-size:1.2rem">→</div>
-  </button>
 
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-header-icon">
