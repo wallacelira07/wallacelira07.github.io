@@ -878,8 +878,12 @@
       <!-- NOVO 19/08/2026 (pedido do usuário), REVERTIDO da soma no mesmo dia (piorou o Não
            Reconciliado ao vivo, causa raiz ainda não confirmada — ver comentário em
            recalcularEHidratarMbPessoal(), hydrate-visa-mb.js). Fica só como dado informativo por
-           enquanto, estilo idêntico às linhas acima (era maior/desalinhado antes). -->
-      <div class="row"><span class="k">Caixas temáticas (9 caixas)</span><span class="v" id="mbLRCaixasTematicas" title="Combustível+Churrasco+Mastercard_Infinite+Emagrecimento+Bens Duráveis+Manutenção+Eventos+Saúde Família+Seguro Emplacamento — já somado no Não Reconciliado abaixo desde 20/08/2026.">R$ 0,00</span></div>
+           enquanto, estilo idêntico às linhas acima (era maior/desalinhado antes).
+           EXPANDIDO 22/08/2026 (pedido do usuário: "quero a lista completa" em vez de 1 linha só com
+           "9 caixas" resumidas) — vira container preenchido por JS com 1 .row por caixa temática,
+           mesmo estilo visual das linhas acima. Ver atualizarCaixasTematicasComprometidoMB(),
+           hydrate-visa-mb.js. -->
+      <div id="mbLRCaixasTematicasLista"></div>
       <!-- NOVO 20/08/2026 (achado da reconciliação item a item contra a fatura real do MB): IOF de
            compra internacional nunca vira linha em `transacoes`, mas é gasto real cobrado no cartão
            (a fatura categoriza como "Outros custos", separado de "Compras") — sem essa linha o Não

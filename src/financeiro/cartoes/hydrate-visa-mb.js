@@ -127,7 +127,6 @@ function recalcularEHidratarMbPessoal(){
   D.naoReconciliado = Math.round((R.cartaoMB.total - D.corp - somaPartes) * 100) / 100;
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
   t('mbLRC', fmt(D.corp));
-  t('mbLRCaixasTematicas', fmt(D.caixasTematicas || 0));
   t('mbLRIOF', fmt(D.iof));
   t('mbPessoal', fmt(VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].fechado ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].mastercardBlackPessoalCongelado : (R.cartaoMB.total - D.corp)));
   t('mbLRNaoReconciliado', fmt(D.naoReconciliado));
@@ -168,10 +167,30 @@ async function atualizarCaixasTematicasComprometidoMB(){
   try {
     // CORRIGIDO 21/08/2026 (auditoria de performance): 9 requests individuais → 1 chamada batch
     // (rpc_comprometido_caixas_batch, ver app.js), mesma soma final.
+    const nomes = Object.keys(MB_CAIXAS_TEMATICAS_IDS);
     const somas = await WallaceFinanceService.getComprometidoCaixasBatch(Object.values(MB_CAIXAS_TEMATICAS_IDS), MB_CARTOES_IDS);
     REG.mbDetalhe.caixasTematicas = Math.round(somas.reduce((s,v) => s + (Number(v)||0), 0) * 100) / 100;
+    // NOVO 22/08/2026 (pedido do usuário: "quero a lista completa" em vez de 1 linha só resumida) —
+    // guarda o valor de CADA caixa (não só a soma) pra renderizarCaixasTematicasMBLista() desenhar
+    // 1 .row por caixa. somas[i] corresponde a nomes[i] (Object.values/Object.keys preservam a mesma
+    // ordem de inserção do objeto MB_CAIXAS_TEMATICAS_IDS).
+    REG.mbDetalhe.caixasTematicasPorCaixa = nomes.map((nome,i) => ({nome, valor: Math.round((Number(somas[i])||0)*100)/100}));
+    renderizarCaixasTematicasMBLista();
     recalcularEHidratarMbPessoal();
   } catch(err){
     console.warn('atualizarCaixasTematicasComprometidoMB: falha ao buscar comprometido das caixas temáticas — Não Reconciliado do MB fica sem esse componente nesta carga.', err);
   }
+}
+// NOVO 22/08/2026 (pedido do usuário, print real do card Mastercard Black: "ao invés de ter 'caixas
+// temáticas 9' quero a lista completa" — desenha 1 .row por caixa, mesmo estilo visual das linhas
+// fixas do card, ordenado do maior comprometido pro menor (caixas com R$0,00 aparecem por último,
+// ainda visíveis — "lista completa" inclui as zeradas, não só as que têm valor).
+function renderizarCaixasTematicasMBLista(){
+  const container = $('mbLRCaixasTematicasLista');
+  const lista = REG.mbDetalhe && REG.mbDetalhe.caixasTematicasPorCaixa;
+  if(!container || !lista) return;
+  const ordenada = lista.slice().sort((a,b) => b.valor - a.valor);
+  container.innerHTML = ordenada.map(item =>
+    '<div class="row"><span class="k">'+item.nome+'</span><span class="v">'+fmt(item.valor)+'</span></div>'
+  ).join('');
 }
