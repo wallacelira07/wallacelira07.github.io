@@ -38,22 +38,24 @@
 Checklist rápido pra qualquer agente novo — não repetir investigação já feita, só confirmar se ainda vale.
 
 **Aguardando ação/confirmação do usuário (não é trabalho de agente):**
-- [ ] Criar tarefa no cron-job.org pro robô do Consórcio Porto (`atualizar_consorcio_porto.py`) — código pronto, só falta o disparo automático.
-- [ ] Confirmar se cron-job.org do robô de dividendos (`atualizar_dividendos.py`, 12h) está disparando de verdade — nunca testado (seção 19).
-- [ ] Reverter `saudeEmagrecimentoAporte` de 0 pra 490.00 (`parametros_gerais` + `vars-operacional.js`) quando o ciclo 25/09→24/10 abrir — pausado por só 1 ciclo (seção 9).
+- [x] ~~Criar tarefa no cron-job.org pro robô do Consórcio Porto~~ e ~~pro robô de dividendos~~ — **confirmado pelo usuário 22/08/2026: já criadas faz tempo, as duas.** Não é mais pendência.
+- [ ] Reverter `saudeEmagrecimentoAporte` de 0 pra 490.00 (`parametros_gerais` + `vars-operacional.js`) quando o ciclo 25/09→24/10 abrir — pausado por só 1 ciclo (seção 9). **Confirmado pelo usuário 22/08/2026 que continua válido/pendente** (ciclo ainda não abriu) — não executar agora, só na virada.
 
-**Aguardando validação visual (sem navegador logado neste ambiente):**
-- [ ] Fix do `liquidoReal` (bloco 38, hoje) — conferir que nenhum card mudou de valor.
-- [ ] Carrossel `.master-tabs` — fix defensivo aplicado (commit `c4dcdf3`), causa raiz nunca confirmada.
-- [ ] Cockpit de opções inteiro (4 fases, bloco 19) + fixes de data (assembleia/opção vencendo) — nunca visto em navegador real.
+**Validação visual — confirmada pelo usuário 22/08/2026** (ele testou ao vivo, sem precisar de mim em navegador):
+- [x] Fix do `liquidoReal` (bloco 38) — confirmado, nenhum card mudou de valor.
+- [x] Cockpit de opções + fixes de data (assembleia/opção vencendo) — confirmado.
+- [x] **Carrossel `.master-tabs` — 3 bugs reais achados e corrigidos, validados AO VIVO no site publicado (login real, via injeção de script no DevTools, não só leitura de código).**
+  1. **Setas sumiam em toda aba além da ativa no boot** (o "Opções não aparece" que o usuário reportou por print — na verdade eram as setas `‹ ›`, não o texto "Opções"). Causa: `atualizarSetasMasterTabs()` só rodava no load/scroll/resize da própria barra, nunca ao trocar de aba — se o overflow só passava a existir DEPOIS da troca, a seta ficava presa em `display:none`. Fix: `WallaceBus.on('abaAlterada', ...)` chama `atualizarSetasMasterTabs()` a cada troca.
+  2. **Passo de rolagem trocado**: usuário pediu avançar **uma aba por vez** (alinhada à borda esquerda) em vez de ~70% da largura por clique, com o loop mantido nas pontas.
+  3. **2 bugs de trava achados testando o item 2 ao vivo** (script injetado direto no site real, 15 cliques seguidos em cada direção): quando o `offsetLeft` de uma aba é maior que o scroll máximo possível (comum nas últimas abas de uma barra com pouco overflow), várias abas clampavam pro MESMO `scrollLeft`, e calcular "aba atual" só pela posição de scroll ficava ambíguo — o carrossel travava sem nunca progredir nem dar a volta, nas duas direções. Corrigido com um índice de estado (`idxCarrossel`) que incrementa/decrementa direto a cada clique, resincronizando com a posição real do scroll só quando ela não está numa ponta ambígua.
+  Validação final: 15 cliques seguidos em cada direção passaram pelas 9 abas em sequência perfeita, sem repetir/travar, dando a volta nas duas pontas. **Commitado e publicado** (ver `PASSAGEM_DE_TURNO.md` bloco 39).
 
 **Risco estrutural conhecido, sem solução ainda (baixa prioridade, valor pequeno):**
 - [ ] `mbIOFConfirmado` — literal manual, atualizar a cada fatura MB nova reconciliada (~R$18-40/mês).
 - [ ] `PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` (avanço automático já existe via `pg_cron` — ver acima) mas **auditoria item a item contra extrato real** só foi feita pra Korpos; risco de outras parcelas desatualizadas continua.
 - [ ] Rendimento das caixinhas Pluggy não chega (`pluggy_saldos_reservados` zerada) — provável limitação do conector sandbox `MeuPluggy`, não é bug nosso.
 
-**Trabalho pesquisado, não construído — perguntar ao usuário antes de começar:**
-- [ ] Parsing automático de nota de corretagem (BTG/Necton) via Gmail pra alimentar `vars-roc.js` sozinho — viável, mesmo padrão dos robôs de boleto, não implementado.
+**Descartado (22/08/2026)**: parsing automático de nota de corretagem (BTG/Necton) via Gmail — premissa errada. **Usuário esclareceu: não recebe nota de corretagem por e-mail, precisa entrar no app do banco/corretora pra ver.** Sem e-mail, não tem o que o robô leia (mesmo padrão dos robôs de boleto depende de anexo/corpo de e-mail existir) — a única forma de automatizar seria uma API oficial da corretora, já pesquisado e confirmado inexistente pra pessoa física (ver bloco 19, seção "Pesquisa: existe API..."). **Carteira de opções continua 100% manual em `vars-roc.js`, sem solução de automação viável hoje.**
 
 **Crescimento natural, sem ação necessária, só mencionar se relevante:**
 - `regras_lancamento_estabelecimento` tem só 3 linhas — cresce sozinha conforme o histórico de compras.

@@ -626,28 +626,68 @@ function atualizarSetasMasterTabs(){
 //      alterna a classe `master-tabs--centralizada` — se isso disparar por engano com scroll ainda
 //      em andamento, justify-content:center brigaria com o scroll suave em curso (mesmo bug clássico
 //      de flexbox documentado no CSS). Scroll instantâneo elimina essa janela de tempo inteira.
+// REESCRITO 22/08/2026 (pedido explícito do usuário, depois de testar ao vivo: "eu quero que ao
+// clicar na seta a aba vai andando para frente até começar a retornar para o final novamente, como
+// um anel" — a versão anterior rolava ~70% da largura visível por clique, podia parar no meio de uma
+// aba; o pedido é passo de UMA aba por clique, sempre alinhada à borda esquerda da barra, com o loop
+// mantido nas duas pontas).
+// CORRIGIDO 22/08/2026, 2ª rodada (2 bugs reais achados testando AO VIVO no site publicado, via
+// injeção de script no DevTools — não só leitura de código): a 1ª versão calculava "aba atual" só
+// pela posição de scroll (`indiceAtual()` sem estado próprio) — funcionava bem no meio da barra, mas
+// TRAVAVA nas pontas: quando o `offsetLeft` de uma aba é MAIOR que o scroll máximo possível (comum
+// nas últimas 2-3 abas de uma barra com pouco overflow — não sobra espaço pra alinhá-las exatamente
+// à borda esquerda), várias abas diferentes ficam TODAS clampadas pro mesmo `scrollLeft` máximo —
+// nesse ponto, ler a posição de volta não diferencia mais "estou na aba 6" de "estou na aba 8", então
+// clicar "próxima"/"anterior" repetidamente ficava preso recalculando o mesmo alvo pra sempre, sem
+// nunca progredir nem dar a volta. Fix: `idxCarrossel` guarda o índice como ESTADO (não mais derivado
+// só da posição) — incrementa/decrementa direto a cada clique, e resincroniza com o scroll real (pra
+// continuar funcionando se o usuário rolar manualmente com o dedo/roda do mouse) só quando a posição
+// NÃO está grudada numa das pontas (onde a leitura seria ambígua, como explicado acima).
 function habilitarSetasMasterTabs(){
   const tabs = document.querySelector('.master-tabs');
   const prev = $('masterTabsPrev');
   const next = $('masterTabsNext');
   if(!tabs || !prev || !next) return;
-  const folga = 4;
+  const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
+  let idxCarrossel = 0;
+
+  function botoes(){
+    return Array.from(tabs.querySelectorAll('.master-tab'));
+  }
+  function maxScroll(){
+    return Math.max(0, tabs.scrollWidth - tabs.clientWidth);
+  }
+  function sincronizarComScroll(lista){
+    const max = maxScroll();
+    if(tabs.scrollLeft <= folga){ idxCarrossel = 0; return; }
+    if(tabs.scrollLeft >= max - folga){ return; } // ambíguo (várias abas clampam no mesmo ponto) - mantém o último índice rastreado
+    let idx = 0;
+    for(let i=0;i<lista.length;i++){
+      if(lista[i].offsetLeft <= tabs.scrollLeft + folga) idx = i; else break;
+    }
+    idxCarrossel = idx;
+  }
+  function irParaAba(i, lista){
+    const alvo = Math.min(Math.max(lista[i].offsetLeft, 0), maxScroll());
+    tabs.scrollTo({left: alvo, behavior:'auto'});
+  }
+
   prev.addEventListener('click', (e) => {
     e.preventDefault();
-    if(tabs.scrollLeft <= folga){
-      tabs.scrollTo({left: tabs.scrollWidth, behavior:'auto'}); // já no início - dá a volta pro fim
-    } else {
-      tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'auto'});
-    }
+    const lista = botoes();
+    if(!lista.length) return;
+    sincronizarComScroll(lista);
+    idxCarrossel = idxCarrossel <= 0 ? lista.length - 1 : idxCarrossel - 1; // no início - dá a volta pro fim
+    irParaAba(idxCarrossel, lista);
     prev.blur();
   });
   next.addEventListener('click', (e) => {
     e.preventDefault();
-    if(tabs.scrollLeft >= tabs.scrollWidth - tabs.clientWidth - folga){
-      tabs.scrollTo({left: 0, behavior:'auto'}); // já no fim - dá a volta pro início
-    } else {
-      tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'auto'});
-    }
+    const lista = botoes();
+    if(!lista.length) return;
+    sincronizarComScroll(lista);
+    idxCarrossel = idxCarrossel >= lista.length - 1 ? 0 : idxCarrossel + 1; // no fim - dá a volta pro início
+    irParaAba(idxCarrossel, lista);
     next.blur();
   });
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
@@ -655,6 +695,18 @@ function habilitarSetasMasterTabs(){
   atualizarSetasMasterTabs();
   window.addEventListener('load', atualizarSetasMasterTabs, {once:true});
 }
+// CORRIGIDO 22/08/2026 (achado do usuário, testado ao vivo com print real: "nas abas dentro de todas
+// menos Painel, Opções não aparece" — na verdade AS SETAS não apareciam em nenhuma aba além da que
+// estava ativa no carregamento inicial. Causa raiz confirmada via DevTools ao vivo: `temOverflow`
+// media `true` de verdade (scrollWidth 820 > clientWidth 518 na aba Opções), mas `prev.style.display`
+// continuava `'none'` — `atualizarSetasMasterTabs()` só é chamada no load/scroll/resize da PRÓPRIA
+// barra, nunca ao trocar de aba. Se a barra só passa a ter overflow DEPOIS da troca (aba mais larga
+// que a que estava ativa no boot), a seta fica presa no estado herdado da aba anterior. `WallaceBus`
+// já emite `'abaAlterada'` a cada troca (`showMaster()`, `ui-navegacao-basica.js`) — só faltava esta
+// função escutar. `requestAnimationFrame` garante que o layout da aba nova já comitou antes de medir.
+WallaceBus.on('abaAlterada', () => {
+  requestAnimationFrame(atualizarSetasMasterTabs);
+});
 
 // Wiring (movido de app.js junto com as funções, mesma ordem relativa de antes) — onDomPronto já
 // trata "DOM já pronto" chamando na hora, então o efeito prático é idêntico, só roda alguns
