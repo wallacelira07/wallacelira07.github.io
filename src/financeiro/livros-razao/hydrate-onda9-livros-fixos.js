@@ -52,25 +52,34 @@ function onda9FormatarData(iso){
 // recorrência só conta no Não Reconciliado se já cobrou de verdade dentro deste ciclo — achado real:
 // Faculdade Engenharia cobrada 17/07, próxima só 11/09, mas contava em TODO ciclo entre essas datas
 // porque a soma antiga não sabia diferenciar "ativa" de "já cobrou este ciclo").
-// CORRIGIDO 22/08/2026 (achado do usuário, print real: "Não reconciliado" pulou de ~R$15 pra
-// R$1.243,17 hoje, "não existe compra que não foi lançada" — bateu exatamente no dia 22, quando
-// este bug tinha que aparecer). Off-by-one real: "fecha dia 22" significa que a fatura ainda em
-// aberto (a que cartaoMBTotal reflete, crescendo dia a dia até fechar) INCLUI o próprio dia 22 —
-// o ciclo novo só começa dia 23. `dia >= 22` fazia o código achar, já na manhã do dia 22, que o
-// ciclo novo tinha começado HOJE — zerando (via jaCobrouNesteCicloGenerico) toda assinatura/
-// recorrência que já tinha cobrado ESTE MÊS (a esmagadora maioria, cobrada entre o dia 1 e 21),
-// enquanto cartaoMBTotal continuava contando a fatura do ciclo que só fecha à noite desse mesmo
-// dia 22. `dia > 22` corrige: no dia 22 em si, ainda usa o dia 22 do mês ANTERIOR como início do
-// ciclo (o ciclo que está fechando agora), só vira o mês no dia 23.
+// CORRIGIDO 22/08/2026, 2ª rodada (achado do usuário, print real: "Não reconciliado" pulou de
+// ~R$15 pra R$1.243,17 hoje — correção da 1ª rodada, feita com o dia de fechamento errado (22),
+// foi revertida pela explicação real do usuário): o ciclo de compras do cartão é "dia 25 até dia
+// 24 do mês seguinte" (confirmado pelo usuário) — o fechamento acontece dia 22 (2 dias ANTES do
+// fim nominal do ciclo, confirmado por e-mail real recebido hoje de madrugada), e dia 22-24 é um
+// "período de limbo": compras feitas nesses 3 dias já pertencem ao PRÓXIMO ciclo (tag "Limbo"),
+// não à fatura que acabou de fechar — só no dia 25 o ciclo novo abre oficialmente. Por isso o
+// início de ciclo usado aqui é sempre dia 25 (não 22), E qualquer cobrança datada dentro do
+// próprio período de limbo (22-24) é excluída da soma da fatura que fechou — ver
+// mbDataEstaEmLimbo() logo abaixo, usada em jaCobrouNesteCicloGenerico.
 function mbCicloAtualInicio(){
   const hoje = new Date();
   const ano = hoje.getFullYear();
   const mes = hoje.getMonth(); // 0-indexed
   const dia = hoje.getDate();
-  const anoRef = dia > 22 ? ano : (mes === 0 ? ano - 1 : ano);
-  const mesRef = dia > 22 ? mes : (mes === 0 ? 11 : mes - 1);
+  const anoRef = dia >= 25 ? ano : (mes === 0 ? ano - 1 : ano);
+  const mesRef = dia >= 25 ? mes : (mes === 0 ? 11 : mes - 1);
   const mesStr = String(mesRef + 1).padStart(2, '0');
-  return `${anoRef}-${mesStr}-22`;
+  return `${anoRef}-${mesStr}-25`;
+}
+// Período de limbo do Mastercard Black: dia do fechamento (22) até a véspera da abertura oficial
+// do próximo ciclo (24) — compras nesses 3 dias não entram na fatura que acabou de fechar (ela já
+// fechou), mas também ainda não têm ciclo novo "oficial" pra entrar de verdade; ficam com a tag
+// "Limbo" até o dia 25. `dataIso` no formato 'AAAA-MM-DD'.
+function mbDataEstaEmLimbo(dataIso){
+  if(!dataIso) return false;
+  const dia = Number(dataIso.slice(8, 10));
+  return dia >= 22 && dia <= 24;
 }
 
 async function aplicarOnda9LivrosFixos(){
@@ -186,7 +195,10 @@ async function aplicarOnda9LivrosFixos(){
   // NOVO 20/08/2026 (achado da reconciliação item a item contra a fatura real do MB, 22/07-19/08):
   // igual à recorrências, calculado uma vez só e reaproveitado pelos 2 blocos abaixo.
   const cicloInicioAssinaturasRecorrencias = mbCicloAtualInicio();
-  const jaCobrouNesteCicloGenerico = x => x.ultima_cobranca_em && x.ultima_cobranca_em >= cicloInicioAssinaturasRecorrencias;
+  // AMPLIADO 22/08/2026: além de estar dentro do ciclo (>= dia 25 anterior), a cobrança não pode
+  // ter caído no período de limbo (22-24) do MÊS ATUAL — essas já são do próximo ciclo, não desta
+  // fatura que fechou. Ver mbDataEstaEmLimbo()/mbCicloAtualInicio() acima.
+  const jaCobrouNesteCicloGenerico = x => x.ultima_cobranca_em && x.ultima_cobranca_em >= cicloInicioAssinaturasRecorrencias && !mbDataEstaEmLimbo(x.ultima_cobranca_em);
   if(Array.isArray(assinaturas)){
     // CORRIGIDO 20/08/2026 (achado real: mbLRSConfirmado somava 100% das 13 assinaturas ativas
     // incondicionalmente, mesmo padrão de bug já corrigido pra recorrências hoje mais cedo — 3 delas
