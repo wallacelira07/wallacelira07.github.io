@@ -575,12 +575,17 @@ async function aplicarTendenciaOpcoes(){
 // disponíveis. Chamada 1x no boot (aba "Tendências" do cockpit) + de novo a cada troca no <select>.
 async function aplicarTendenciaTickerLivre(){
   const select = $('tendenciaTickerLivreSelect');
+  const periodoSelect = $('tendenciaTickerLivrePeriodoSelect');
   const canvas = $('cTendenciaTickerLivre');
   const legEl = $('legTendenciaTickerLivre');
+  const badgeEl = $('tendenciaTickerLivreBadge');
   if(!select || !canvas || typeof Chart === 'undefined') return;
   const ticker = select.value;
+  // AMPLIADO 22/08/2026 (pedido do usuário: "com opção de período" — antes fixo em 90 dias, sem
+  // seletor). periodoSelect pode não existir ainda em cache antigo do navegador (fallback 90).
+  const dias = periodoSelect ? Number(periodoSelect.value) : 90;
   const hoje = new Date();
-  const desde = new Date(hoje); desde.setDate(desde.getDate() - 90);
+  const desde = new Date(hoje); desde.setDate(desde.getDate() - dias);
   const fmtIso = d => d.toISOString().slice(0,10);
   let historico;
   try {
@@ -592,6 +597,7 @@ async function aplicarTendenciaTickerLivre(){
   }
   if(!Array.isArray(historico) || !historico.length){
     if(legEl) legEl.textContent = 'Ainda sem histórico de cotações pra '+ticker+' (o robô só acompanha esse ticker a partir do dia em que foi adicionado).';
+    if(badgeEl) badgeEl.style.display = 'none';
     const existenteVazio = Chart.getChart(canvas); if(existenteVazio) existenteVazio.destroy();
     return;
   }
@@ -615,7 +621,84 @@ async function aplicarTendenciaTickerLivre(){
   });
   const primeiro = precos[0], ultimo = precos[precos.length-1];
   const variacaoPct = primeiro ? Math.round(((ultimo-primeiro)/primeiro)*1000)/10 : null;
+  // NOVO 22/08/2026 (pedido do usuário: "o gráfico deve indicar a tendência de queda ou subida do
+  // ativo" — antes só dava pra saber lendo o texto pequeno da legenda). Badge visual ▲/▼ + variação
+  // %, mesma paleta verde/vermelho já usada no resto do painel (.badge.bg/.badge.br).
+  if(badgeEl){
+    if(variacaoPct != null){
+      badgeEl.style.display = 'inline-flex';
+      badgeEl.className = 'badge ' + (variacaoPct >= 0 ? 'bg' : 'br');
+      badgeEl.textContent = (variacaoPct >= 0 ? '▲ +' : '▼ ') + variacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  }
   if(legEl) legEl.textContent = historico.length+' dia(s) de histórico, '+fmtIso(desde).split('-').reverse().join('/')+' → hoje'+(variacaoPct!=null ? ' — variação de '+fmt(primeiro)+' para '+fmt(ultimo)+' ('+(variacaoPct>=0?'+':'')+variacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%)' : '')+'. Histórico puro (sem projeção) — não é conselho de investimento.';
+}
+
+// NOVO 22/08/2026 (pedido do usuário: "quero essa aba profissional, tem que ter tudo para me ajudar
+// a decidir as operações que vou fazer" — antes de vender uma PUT nova, o usuário precisa comparar
+// MOMENTUM entre os 10 ativos acompanhados de uma vez, não só olhar 1 de cada vez no gráfico de
+// tendência livre). Mesma fonte de dado (cotacoes_acoes_historico via getCotacoesAcoesHistorico) —
+// busca ~32 dias de histórico de cada ticker, calcula variação % dos últimos 7 e 30 dias, ordena por
+// variação de 30 dias (maior alta primeiro). Clicar numa linha abre o gráfico daquele ativo na aba
+// Tendências (mostrarTendenciaTickerLivre logo abaixo) — liga o radar ao gráfico já existente em vez
+// de duplicar visualização.
+const TICKERS_RADAR_OPCOES = ['PETR4','ITUB4','VALE3','MGLU3','ITSA4','BBDC4','BBAS3','WEGE3','ABEV3','B3SA3'];
+async function aplicarRadarAtivosOpcoes(){
+  const container = $('radarAtivosOpcoesContainer');
+  if(!container || typeof WallaceFinanceService === 'undefined') return;
+  const hoje = new Date();
+  const desde = new Date(hoje); desde.setDate(desde.getDate() - 32);
+  const fmtIso = d => d.toISOString().slice(0,10);
+  const resultados = await Promise.all(TICKERS_RADAR_OPCOES.map(async ticker => {
+    let historico;
+    try {
+      historico = await WallaceFinanceService.getCotacoesAcoesHistorico(ticker, fmtIso(desde), fmtIso(hoje));
+    } catch(err){
+      console.error('RadarAtivosOpcoes: falha ao buscar', ticker, err);
+      return { ticker, semDado: true };
+    }
+    if(!Array.isArray(historico) || !historico.length) return { ticker, semDado: true };
+    const porData = {};
+    historico.forEach(h => { porData[h.data] = Number(h.preco_fechamento); });
+    const datasOrdenadas = Object.keys(porData).sort();
+    const ultimaData = datasOrdenadas[datasOrdenadas.length - 1];
+    const precoAtual = porData[ultimaData];
+    const variacaoDesde = diasAtras => {
+      const alvo = new Date(ultimaData); alvo.setDate(alvo.getDate() - diasAtras);
+      const alvoIso = fmtIso(alvo);
+      const dataBase = datasOrdenadas.filter(d => d <= alvoIso).pop();
+      if(!dataBase) return null;
+      const precoBase = porData[dataBase];
+      return precoBase ? Math.round(((precoAtual - precoBase) / precoBase) * 1000) / 10 : null;
+    };
+    return { ticker, precoAtual, var7d: variacaoDesde(7), var30d: variacaoDesde(30) };
+  }));
+  const validos = resultados.filter(r => !r.semDado);
+  if(!validos.length){
+    container.innerHTML = '<div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Ainda sem histórico de cotações suficiente pra montar o radar.</div>';
+    return;
+  }
+  validos.sort((a,b) => (b.var30d ?? -999) - (a.var30d ?? -999));
+  const badgeVariacao = v => v == null
+    ? '<span style="color:var(--text-dim)">—</span>'
+    : `<span style="color:${v>=0?'var(--green)':'var(--red)'};font-weight:600">${v>=0?'▲ +':'▼ '}${Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span>`;
+  container.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th scope="col">Ativo</th><th scope="col" class="r">Preço atual</th><th scope="col" class="r">Variação 7d</th><th scope="col" class="r">Variação 30d</th></tr></thead><tbody>`
+    + validos.map(r => `<tr style="cursor:pointer" onclick="mostrarTendenciaTickerLivre('${r.ticker}')" title="Ver gráfico de ${r.ticker} na aba Tendências"><td>${r.ticker}</td><td class="r">${fmt(r.precoAtual)}</td><td class="r">${badgeVariacao(r.var7d)}</td><td class="r">${badgeVariacao(r.var30d)}</td></tr>`).join('')
+    + `</tbody></table></div><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">Ordenado por variação de 30 dias. Clique numa linha pra ver o gráfico completo na aba Tendências. Histórico puro (sem projeção) — não é conselho de investimento.</div>`;
+}
+
+// Ponte radar → gráfico de tendência livre: troca o ticker selecionado, muda pra aba "Tendências" do
+// cockpit (dentro do card Posições) e rola até lá — reaproveita o gráfico já existente em vez de
+// duplicar, ver aplicarRadarAtivosOpcoes() acima.
+function mostrarTendenciaTickerLivre(ticker){
+  const select = $('tendenciaTickerLivreSelect');
+  if(select){ select.value = ticker; aplicarTendenciaTickerLivre(); }
+  const botaoAba = document.querySelector('.opcoes-tab[onclick*="opcoesPaneTendencias"]');
+  if(botaoAba && typeof showOpcoesTab === 'function') showOpcoesTab('opcoesPaneTendencias', botaoAba);
+  const alvo = $('opcoesPaneTendencias');
+  if(alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções, pedido do usuário: "Carteira de Ações Recebidas —

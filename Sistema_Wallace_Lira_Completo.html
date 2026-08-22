@@ -1118,7 +1118,11 @@
        já indexa automaticamente QUALQUER .master-pane/.section-num novo, sem nenhum código
        extra — resolve de graça o pedido "a pesquisa tem que funcionar em tudo dessa aba
        nova". Hack de tela cheia removido (CSS/JS revertidos em commit separado). -->
-  <div class="section-num"><span class="n">16</span><h2>Carteira de opções</h2></div>
+  <!-- CORRIGIDO 22/08/2026 (achado do usuário: "esse menu tem que ser o 01" — esta seção virou seu
+       próprio master-pane em 21/08/2026 (comentário acima), mas o número ficou herdado da posição
+       antiga dentro do Balanço (16). Cada master-pane numera suas seções do zero (ver "Gráficos" logo
+       abaixo, que também começa em 01) — não existe um contador global entre abas. -->
+  <div class="section-num"><span class="n">01</span><h2>Carteira de opções</h2></div>
   <div class="card">
     <!-- NOVO 21/08/2026 (Fase 4 do cockpit de opções, pedido do usuário: "Dashboard executivo" —
          junta números que já existiam espalhados pelo resto da seção numa visão única no topo. Todos
@@ -1140,8 +1144,22 @@
       <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Taxa de sucesso das PUTs</div><div class="v" style="font-weight:600;color:var(--green)" id="dashOpTaxaSucesso">—</div></div>
       <div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">Taxa de exercício</div><div class="v" style="font-weight:600" id="dashOpTaxaExercicio">—</div></div>
     </div>
-    <div class="v" id="legDashOpExecutivo" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.9rem">—</div>
+    <div class="v" id="legDashOpExecutivo" style="font-size:var(--fs-2xs);color:var(--text-dim)">—</div>
+  </div>
 
+  <!-- CORRIGIDO 22/08/2026 (achado do usuário: "organize melhor essa aba, tá tudo um cima do outro" —
+       Dashboard Executivo, este bloco de risco/valor de mercado, o card ROC, o gráfico de Tendência e
+       as abas de posições viviam todos dentro de UM ÚNICO .card gigante, sem nenhuma borda/separação
+       visual entre eles. Cada bloco lógico agora é seu próprio .card, mesmo padrão do resto do site
+       (ex. seção 09 Visa Infinite acima, com .card separados por bloco). -->
+  <div class="card" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.7rem">
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Monitoramento de risco</div>
+      <!-- NOVO 22/08/2026 (pedido do usuário: "coloque os botões para baixar na aba opção" — só o
+           card ROC tinha botão de download; o auto-injetado do topo da seção só cobre o 1º card
+           (Dashboard Executivo) desde que virou vários .card separados, ver comentário acima). -->
+      <button type="button" class="btn-print-secao" data-print-titulo="monitoramento-risco-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Monitoramento de risco como JPEG">⬇</button>
+    </div>
     <!-- NOVO 21/08/2026 (achado real do usuário: ITM não avisava proativamente) — ver
          calcularAvisosOpcoesRisco()/hydrateROC(). -->
     <div id="opcoesAvisoITM" class="callout danger" style="display:none;margin-bottom:1rem"></div>
@@ -1152,6 +1170,7 @@
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total em custos (corretagem/taxas)</div><div class="v" style="font-weight:600;font-size:var(--fs-lg);color:var(--red)" id="opcoesCustosTotal">—</div></div>
       <div><div style="font-size:var(--fs-2xs);color:var(--text-mid)">Total líquido recebido</div><div class="v" style="font-weight:600;font-size:var(--fs-lg);color:var(--green)" id="opcoesPremioTotal">—</div></div>
     </div>
+  </div>
 
     <!-- Módulo 17 (03/08/2026, layout revisado a pedido do usuário): Rentabilidade da Operação (ROC) -
          consolidado da carteira. Antes era um grid plano de 7 campos sem hierarquia nem status. Agora:
@@ -1191,11 +1210,42 @@
       <div class="v" id="legRocCarteira" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.7rem">—</div>
     </div>
 
+    <!-- NOVO 22/08/2026 (pedido do usuário: "quero essa aba profissional, tem que ter tudo para me
+         ajudar a decidir as operações que vou fazer" — antes de vender uma PUT nova, o usuário
+         precisa comparar MOMENTUM entre os 10 ativos acompanhados (não só olhar 1 de cada vez no
+         seletor da aba Tendências). Radar = tabela comparativa, ordenada por variação de 30 dias,
+         mesma fonte de dado (cotacoes_acoes_historico) já usada pelo gráfico de tendência livre.
+         Clicar numa linha abre o gráfico daquele ativo na aba Tendências (ver
+         mostrarTendenciaTickerLivre()/hydrate-roc.js). -->
+  <div class="card" id="opcoesRadarCard" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Radar de ativos acompanhados</div>
+      <button type="button" class="btn-print-secao" data-print-titulo="radar-ativos-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Radar de ativos como JPEG">⬇</button>
+    </div>
+    <div id="radarAtivosOpcoesContainer"><div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Carregando…</div></div>
+  </div>
+
     <!-- NOVO 21/08/2026 (pedido do usuário: "gráfico pra analisar as tendências das ações das opções,
          deve registrar o valor do dia que entrei na opção e ir montando a tendência de subida ou
-         descida em direção ao vencimento"). Ver aplicarTendenciaOpcoes()/hydrate-roc.js. -->
-    <div id="opcoesTendenciaContainer" style="margin-bottom:0.9rem"></div>
+         descida em direção ao vencimento"). Ver aplicarTendenciaOpcoes()/hydrate-roc.js.
+         CORRIGIDO 22/08/2026 (achado do usuário: "organize melhor essa aba") — ganhou .card próprio,
+         igual aos blocos vizinhos (fica vazio/sem borda quando não há posição ativa com nota de
+         corretagem registrada, ver aplicarTendenciaOpcoes: container.innerHTML='' nesse caso). -->
+  <div class="card" id="opcoesTendenciaCard" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Tendência das posições ativas</div>
+      <button type="button" class="btn-print-secao" data-print-titulo="tendencia-precos-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Tendência como JPEG">⬇</button>
+    </div>
+    <div id="opcoesTendenciaContainer"></div>
+  </div>
 
+  <!-- CORRIGIDO 22/08/2026 (achado do usuário: "organize melhor essa aba, tá tudo um cima do outro") —
+       as abas Ativas/Em Risco/Vencidas/Exercidas/Carteira/Tendências e suas tabelas ganharam .card
+       próprio, separado do ROC e do gráfico de Tendência acima. -->
+  <div class="card" style="margin-top:1rem">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:0.3rem">
+      <button type="button" class="btn-print-secao" data-print-titulo="posicoes-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Posições como JPEG">⬇</button>
+    </div>
     <!-- NOVO 21/08/2026 (pedido do usuário: separar claramente Ativas/Em Risco/Vencidas/Exercidas em
          abas próprias, "cockpit" de opções). Classes .opcoes-tab/.opcoes-pane — ver
          showOpcoesTab()/ui-navegacao-basica.js e comentário no CSS pra saber por que não são .tab/.pane. -->
@@ -1270,20 +1320,35 @@
          tickers que o robô já acompanha diariamente, ver aplicarTendenciaTickerLivre()/hydrate-roc.js
          e scripts/sync/atualizar_cotacoes_acoes.py). -->
     <div id="opcoesPaneTendencias" class="opcoes-pane">
+      <!-- AMPLIADO 22/08/2026 (pedido do usuário: "quero essa aba profissional, tem que ter tudo
+           para me ajudar a decidir as operações que vou fazer" — ganhou seletor de período (antes
+           fixo em 90 dias) e um badge de tendência (▲/▼ + variação %, cor verde/vermelha), pra não
+           precisar ler o texto pequeno da legenda pra saber se o ativo está subindo ou caindo. Ver
+           aplicarTendenciaTickerLivre()/hydrate-roc.js. -->
       <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;flex-wrap:wrap">
         <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Tendência de qualquer ação acompanhada</div>
-        <select id="tendenciaTickerLivreSelect" style="margin-left:auto;font-size:var(--fs-xs);background:var(--bg-2,#1a1c1f);color:var(--text-1);border:1px solid var(--border);border-radius:6px;padding:0.25rem 0.5rem">
-          <option value="PETR4">PETR4</option>
-          <option value="ITUB4">ITUB4</option>
-          <option value="VALE3">VALE3</option>
-          <option value="MGLU3">MGLU3</option>
-          <option value="ITSA4">ITSA4</option>
-          <option value="BBDC4">BBDC4</option>
-          <option value="BBAS3">BBAS3</option>
-          <option value="WEGE3">WEGE3</option>
-          <option value="ABEV3">ABEV3</option>
-          <option value="B3SA3">B3SA3</option>
-        </select>
+        <span class="badge" id="tendenciaTickerLivreBadge" style="display:none"></span>
+        <div style="margin-left:auto;display:flex;gap:0.4rem">
+          <select id="tendenciaTickerLivrePeriodoSelect" style="font-size:var(--fs-xs);background:var(--bg-2,#1a1c1f);color:var(--text-1);border:1px solid var(--border);border-radius:6px;padding:0.25rem 0.5rem">
+            <option value="30">1 mês</option>
+            <option value="90" selected>3 meses</option>
+            <option value="180">6 meses</option>
+            <option value="365">1 ano</option>
+            <option value="730">2 anos</option>
+          </select>
+          <select id="tendenciaTickerLivreSelect" style="font-size:var(--fs-xs);background:var(--bg-2,#1a1c1f);color:var(--text-1);border:1px solid var(--border);border-radius:6px;padding:0.25rem 0.5rem">
+            <option value="PETR4">PETR4</option>
+            <option value="ITUB4">ITUB4</option>
+            <option value="VALE3">VALE3</option>
+            <option value="MGLU3">MGLU3</option>
+            <option value="ITSA4">ITSA4</option>
+            <option value="BBDC4">BBDC4</option>
+            <option value="BBAS3">BBAS3</option>
+            <option value="WEGE3">WEGE3</option>
+            <option value="ABEV3">ABEV3</option>
+            <option value="B3SA3">B3SA3</option>
+          </select>
+        </div>
       </div>
       <div style="height:190px"><canvas id="cTendenciaTickerLivre"></canvas></div>
       <div id="legTendenciaTickerLivre" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem"></div>

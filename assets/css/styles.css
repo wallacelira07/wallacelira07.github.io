@@ -270,6 +270,13 @@
     padding-right:calc(0.45rem + 20px);
   }
   .master-tabs::-webkit-scrollbar{display:none}
+  /* NOVO 22/08/2026 (pedido do usuário: "centralize os botões" — print real mostrando os botões
+     grudados à esquerda com um vão vazio grande antes da seta "próxima" quando cabem todos na tela).
+     justify-content:center só quando NÃO há overflow (classe alternada por JS em
+     atualizarSetasMasterTabs, dashboard-navegacao.js) — centralizar SEMPRE quebraria a rolagem em
+     telas estreitas (bug clássico do flexbox: com justify-content:center + overflow-x:auto, o
+     conteúdo que "sobra" à esquerda do centro fica inacessível, scrollLeft não vai negativo). */
+  .master-tabs.master-tabs--centralizada{justify-content:center}
   /* NOVO 12/08/2026 (pedido do usuário, print real do celular circulando esta barra: "toma muito
      espaço fixo, tem que recolher ao rolar como o Gmail/Android faz"). .master-tabs só aparece
      DENTRO das abas (Painel/Gráficos/Energia Solar/Cenários/Balanço — nunca na Home, que usa

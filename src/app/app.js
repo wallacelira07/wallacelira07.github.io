@@ -2632,7 +2632,13 @@ onDomPronto(() => {
   aplicarTendenciaTickerLivre();
   const select = $('tendenciaTickerLivreSelect');
   if(select) select.addEventListener('change', aplicarTendenciaTickerLivre);
+  // NOVO 22/08/2026 (pedido do usuário: seletor de período do gráfico de tendência livre)
+  const periodoSelect = $('tendenciaTickerLivrePeriodoSelect');
+  if(periodoSelect) periodoSelect.addEventListener('change', aplicarTendenciaTickerLivre);
 });
+// NOVO 22/08/2026 (pedido do usuário: "aba profissional pra decidir operações" — radar comparativo
+// dos 10 ativos acompanhados, ver aplicarRadarAtivosOpcoes()/hydrate-roc.js).
+onDomPronto(aplicarRadarAtivosOpcoes);
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções): aba "Carteira de Ações Recebidas", derivada das
 // opções exercidas + dividendos_acoes. Ver aplicarCarteiraAcoesExercidas()/hydrate-roc.js.
 onDomPronto(aplicarCarteiraAcoesExercidas);

@@ -107,6 +107,39 @@ function calcularSaldoLiquidoProjetado(creditoLiquidoUltimaLeitura, dataUltimaLe
   return { saldo, diasComDadoReal, diasProjetados: diasDesdeLeitura - diasComDadoReal };
 }
 
+// Geração acumulada projetada até HOJE, mesmo quando a leitura mais recente ainda não teve
+// geracaoAcumulada preenchida pelo robô SAJ (achado real 22/08/2026: "o inversor manda dado há
+// dias, não tem um buffer com esses dados?" — o usuário tem razão, a versão anterior só olhava a
+// leitura mais recente e mostrava "dados insuficientes" mesmo tendo dias de geração diária real
+// disponível). Acha a leitura mais recente que TEM geracaoAcumulada real, e projeta pra frente com
+// o mesmo método de calcularSaldoLiquidoProjetado (kWh real do robô SAJ dia a dia quando existe,
+// média histórica só nos dias sem dado). `leituras` = array de leituras da casa geradora (mais
+// recente primeiro ou não, ordena sozinha); `dataAtivacaoISO` = VARS.solarDataAtivacao/
+// SOLAR_DATA_ATIVACAO. Retorna null só se NENHUMA leitura no histórico tem geracaoAcumulada ainda
+// (medidor genuinamente recém-instalado).
+function projetarGeracaoAcumuladaHoje(leituras, geracaoDiaria, dataAtivacaoISO){
+  const ordenadas = (leituras||[]).filter(l => l && l.data).slice().sort((a,b) => a.data < b.data ? 1 : -1);
+  const base = ordenadas.find(l => l.geracaoAcumulada != null);
+  if(!base) return null;
+  const dataBase = new Date(base.data);
+  const hoje = new Date();
+  const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+  const diasDesdeBase = Math.max(0, Math.round((hojeSoData - dataBase) / 86400000));
+  if(diasDesdeBase <= 0) return { geracaoAcumulada: Number(base.geracaoAcumulada), dataBase: base.data, projetado: false };
+  const diasDesdeAtivacaoBase = Math.max(1, Math.round((dataBase - new Date(dataAtivacaoISO)) / 86400000));
+  const geracaoMediaDiaria = Number(base.geracaoAcumulada) / diasDesdeAtivacaoBase;
+  const diariosPorDataMap = {};
+  (geracaoDiaria||[]).forEach(r => { diariosPorDataMap[r.data] = Number(r.kwh); });
+  let geracaoEstimadaTotalPeriodo = 0;
+  for(let d = 1; d <= diasDesdeBase; d++){
+    const dataDoDia = new Date(dataBase);
+    dataDoDia.setDate(dataDoDia.getDate() + d);
+    const chaveISO = dataDoDia.toISOString().slice(0,10);
+    geracaoEstimadaTotalPeriodo += (diariosPorDataMap[chaveISO] != null) ? diariosPorDataMap[chaveISO] : geracaoMediaDiaria;
+  }
+  return { geracaoAcumulada: Math.round((Number(base.geracaoAcumulada) + geracaoEstimadaTotalPeriodo) * 100) / 100, dataBase: base.data, projetado: true };
+}
+
 function mediaConsumoDiarioTuyaRecente(diario, fallback){
   const pegarKwh = r => r.kwh_consumido != null ? Number(r.kwh_consumido) : (r.kwhConsumido != null ? Number(r.kwhConsumido) : null);
   const validos = (diario||[])

@@ -590,8 +590,16 @@ function atualizarSetasMasterTabs(){
   if(!tabs || !prev || !next) return;
   const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
   const temOverflow = tabs.scrollWidth > tabs.clientWidth + folga;
-  prev.style.display = (temOverflow && tabs.scrollLeft > folga) ? 'flex' : 'none';
-  next.style.display = (temOverflow && tabs.scrollLeft < (tabs.scrollWidth - tabs.clientWidth - folga)) ? 'flex' : 'none';
+  // CORRIGIDO 22/08/2026 (achado do usuário: "faça o carrocel como pedi, giro infinito" — as setas
+  // sumiam sozinhas em cada ponta, contradizendo a ideia de "carrossel infinito": se clicar em
+  // "próxima" no fim já dá a volta pro início (ver habilitarSetasMasterTabs abaixo), a seta "próxima"
+  // NUNCA deveria sumir nessa ponta, senão o usuário fica sem o botão bem na hora de dar a volta.
+  // Ambas as setas agora só dependem de "existe overflow", nunca da posição atual do scroll.
+  prev.style.display = temOverflow ? 'flex' : 'none';
+  next.style.display = temOverflow ? 'flex' : 'none';
+  // NOVO 22/08/2026 (pedido do usuário: "centralize os botões") — sem overflow (cabe tudo na tela),
+  // centraliza os botões em vez de deixá-los grudados à esquerda com vão vazio à direita.
+  tabs.classList.toggle('master-tabs--centralizada', !temOverflow);
 }
 // CORRIGIDO 22/08/2026 (pedido do usuário: "cadê o botão pra rodar o carrocel de abas?" — as setas
 // existiam mas não apareciam: atualizarSetasMasterTabs() só rodava 1x, síncrono, no exato instante

@@ -702,7 +702,19 @@ async function carregar(){
 
   const importadoAcum = ultima ? ultima.leitura03 : null;
   const exportadoAcum = ultima ? ultima.leitura103 : null;
-  const geracaoAcum = ultima ? ultima.geracaoAcumulada : null;
+  // CORRIGIDO 22/08/2026 (achado do usuário: "esses dados deveria ter porque faz dias que o
+  // inversor manda dados, não tem um buffer com esses dados?" — mesmo gap do painel privado, ver
+  // graficos-cenarios-lazy.js. Ver projetarGeracaoAcumuladaHoje()/calculos-solares-compartilhados.js).
+  let geracaoAcum = ultima ? ultima.geracaoAcumulada : null;
+  let geracaoAcumProjetada = false, geracaoAcumDataBase = null;
+  if((geracaoAcum === null || geracaoAcum === undefined) && ultima){
+    const projecaoGeracao = projetarGeracaoAcumuladaHoje(leituras, geracaoDiaria, SOLAR_DATA_ATIVACAO);
+    if(projecaoGeracao){
+      geracaoAcum = projecaoGeracao.geracaoAcumulada;
+      geracaoAcumProjetada = projecaoGeracao.projetado;
+      geracaoAcumDataBase = projecaoGeracao.dataBase;
+    }
+  }
   const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
   const saldoLiquidoAcum = (importadoAcum!=null && exportadoAcum!=null) ? Math.round((exportadoAcum - importadoAcum)*100)/100 : null;
 
@@ -905,7 +917,7 @@ async function carregar(){
     <div class="card">
       <div class="grid">
         <div><div class="stat-lbl">Geração hoje</div><div class="stat-val" style="color:var(--amber)">${geracaoHojeReg ? fmtKwh(geracaoHojeReg.kwh) : '—'}</div><div class="stat-sub">${geracaoHojeReg ? fmtData(geracaoHojeReg.data) : 'aguardando leitura do robô'}</div></div>
-        <div><div class="stat-lbl">Geração acumulada</div><div class="stat-val" style="color:var(--amber)">${temGeracao ? fmtKwh(geracaoAcum) : '—'}</div><div class="stat-sub">${temGeracao ? '' : 'aguardando leitura do inversor'}</div></div>
+        <div><div class="stat-lbl">Geração acumulada</div><div class="stat-val" style="color:var(--amber)">${temGeracao ? fmtKwh(geracaoAcum) : '—'}</div><div class="stat-sub">${temGeracao ? (geracaoAcumProjetada && geracaoAcumDataBase ? 'estimado a partir de '+geracaoAcumDataBase.split('-').reverse().join('/') : '') : 'aguardando leitura do inversor'}</div></div>
         <div><div class="stat-lbl">Autoconsumo</div><div class="stat-val" style="color:var(--green)">${consumoDiretoConfiavel ? fmtPct(autoconsumoPct) : '—'}</div><div class="stat-sub">${consumoDiretoConfiavel ? fmtKwh(consumoDiretoAcum)+' direto das placas' : (temGeracao ? 'leitura do medidor desatualizada há '+diasDescompassoAtual+' dias' : 'dados insuficientes')}</div></div>
         <div><div class="stat-lbl">Dependência da rede</div><div class="stat-val" style="color:var(--blue)">${consumoDiretoConfiavel ? fmtPct(dependenciaPct) : '—'}</div><div class="stat-sub">${importadoAcum!=null ? fmtKwh(importadoAcum)+' importados' : ''}</div></div>
         <div><div class="stat-lbl">Exportação da geração</div><div class="stat-val" style="color:var(--purple)">${consumoDiretoConfiavel ? fmtPct(exportacaoDaGeracaoPct) : '—'}</div><div class="stat-sub">${exportadoAcum!=null ? fmtKwh(exportadoAcum)+' exportados' : ''}</div></div>
@@ -1330,9 +1342,9 @@ async function carregar(){
       const detalhe = d.residual_validado !== undefined
         ? (d.residual_validado_fonte || 'Validado contra fatura real com compensação próxima de 100%')
         : `Disponibilidade ${fmt(formula.custoDisponibilidade)} + Fio B ${fmt(formula.fioBValor)} + Iluminação ${fmt(formula.iluminacaoValor)} + Encargos ${fmt(formula.encargosValor)} (estimativa por %, não validada contra fatura próxima de 100% ainda)`;
-      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwh(consumoKwh)})</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
+      return `<tr><td>${u.nome}</td><td class="r" style="text-align:center">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwh(consumoKwh)})</span></td><td class="r" style="text-align:center;color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="text-align:center;color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
     }).join('');
-    residualTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="padding:0.4rem 0.6rem">Fatura base (pré-solar)</th><th class="r" style="padding:0.4rem 0.6rem">Residual estimado/mês</th><th class="r" style="padding:0.4rem 0.6rem">Economia estimada</th></tr></thead><tbody>${linhasResidual}</tbody></table>`;
+    residualTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Fatura base (pré-solar)</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Residual estimado/mês</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Economia estimada</th></tr></thead><tbody>${linhasResidual}</tbody></table>`;
   }
 
   // NOVO 22/08/2026 (pedido do usuário: "esse campo tem que aparecer no compartilhando") — cópia
@@ -1365,13 +1377,18 @@ async function carregar(){
         return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">ainda sem fatura de ${chaveMesAtual} capturada pelo robô</td></tr>`;
       }
       const { semSolar, economiaReal, economiaRealPct } = eco;
-      return `<tr><td>${u.nome}</td><td class="r">${fmt(semSolar)}</td><td class="r" style="color:var(--green)">${fmt(valorMesAtual)}</td><td class="r" style="color:var(--accent)">${fmt(economiaReal)} (${economiaRealPct}%)</td></tr>`;
+      return `<tr><td>${u.nome}</td><td class="r" style="text-align:center">${fmt(semSolar)}</td><td class="r" style="text-align:center;color:var(--green)">${fmt(valorMesAtual)}</td><td class="r" style="text-align:center;color:var(--accent)">${fmt(economiaReal)} (${economiaRealPct}%)</td></tr>`;
     }).join('');
-    economiaRealTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="padding:0.4rem 0.6rem">Sem solar (estimado)</th><th class="r" style="padding:0.4rem 0.6rem">Com solar (real)</th><th class="r" style="padding:0.4rem 0.6rem">Economia real</th></tr></thead><tbody>${linhasEconomiaCompartilhado}</tbody></table>`;
+    economiaRealTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Sem solar (estimado)</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Com solar (real)</th><th class="r" style="text-align:center;padding:0.4rem 0.6rem">Economia real</th></tr></thead><tbody>${linhasEconomiaCompartilhado}</tbody></table>`;
   }
 
   const creditoWallacePorIdx = new Array(12).fill(null);
   const creditoIrmaPorIdx = new Array(12).fill(null);
+  // NOVO 22/08/2026 (pedido do usuário: "coloque aquela indicação de ciclo atual igual o site" —
+  // marcador "▼ ciclo atual" que já existe no gráfico Rateio Solar do painel privado, ver
+  // solarBarLabelPlugin/idxCicloAbertoAlinhado em graficos-cenarios-lazy.js). Hoisted pra fora do
+  // if abaixo porque o plugin do gráfico (mais adiante neste script) precisa ler esse índice.
+  let idxCicloAbertoRateio = null;
   ciclosFechados.forEach(c => {
     if(!c.dataFim) return;
     const idx = idxMesRateio(c.dataFim);
@@ -1393,6 +1410,7 @@ async function carregar(){
     const idxAberto = idxMesRateio(new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10));
     if(fluxo2.wallace) creditoWallacePorIdx[idxAberto] = fluxo2.wallace.creditoAtual;
     if(fluxo2.wellida) creditoIrmaPorIdx[idxAberto] = fluxo2.wellida.creditoAtual;
+    idxCicloAbertoRateio = idxAberto;
   }
 
   // CORRIGIDO 18/08/2026 (achado do usuário: números sobre as barras com 1 casa decimal — "321,0" —
@@ -1419,6 +1437,18 @@ async function carregar(){
           ctx.fillText(Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
         });
       });
+      // NOVO 22/08/2026 (pedido do usuário: "coloque aquela indicação de ciclo atual igual o site")
+      // — mesmo marcador de texto do painel privado (solarBarLabelPlugin), acima da coluna do mês do
+      // ciclo GD aberto. idxCicloAbertoRateio vem de cicloSolarAberto (dado real do banco), então já
+      // é automático: quando o ciclo fecha e outro abre, o índice muda sozinho no próximo carregamento.
+      if(idxCicloAbertoRateio != null && idxCicloAbertoRateio >= 0 && chart.scales && chart.scales.x){
+        const xPos = chart.scales.x.getPixelForValue(idxCicloAbertoRateio);
+        if(typeof xPos === 'number' && !isNaN(xPos)){
+          ctx.font = "700 8px -apple-system, 'Segoe UI', Roboto, sans-serif";
+          ctx.fillStyle = '#34c98a';
+          ctx.fillText('▼ ciclo atual', xPos, chart.chartArea.top - 8);
+        }
+      }
       ctx.restore();
     }
   };

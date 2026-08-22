@@ -2,6 +2,24 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 🎯 22/08/2026 (bloco 35) — Continuação do bloco 34: buffer de geração acumulada projetado, marcador de ciclo atual no compartilhado, e reorganização completa da aba Opções em cards separados com radar de ativos
+
+Continuação direta do bloco 34 (mesmo dia, mesma sessão). O usuário fez uma rajada de correções de UI enquanto eu trabalhava (respondidas em tempo real, sem parar o fluxo) e depois pediu explicitamente pra resolver a pendência solar e "implementar o que eu acho mais útil" na aba Opções.
+
+**Geração acumulada com fallback via buffer diário** (achado do usuário: "faz dias que o inversor manda dados, não tem um buffer com esses dados?"): antes, "Geração acumulada"/"Autoconsumo"/"Dependência da rede"/"Exportação"/"Economia estimada" ficavam em branco sempre que a LEITURA MAIS RECENTE ainda não tinha `geracao_acumulada` preenchida pelo robô SAJ (roda de manhã) — mesmo já existindo dias de geração diária real no buffer (`SOLAR_GERACAO_DIARIA`/`geracaoDiaria`). Nova função `projetarGeracaoAcumuladaHoje()` em `src/solar/calculos-solares-compartilhados.js`: acha a leitura mais recente que TEM o campo preenchido e projeta pra hoje (dado real do robô dia a dia quando existe, média histórica só nos dias sem dado — mesma técnica já usada em `calcularSaldoLiquidoProjetado`). Ligada nas 2 páginas (`graficos-cenarios-lazy.js` e `solar-compartilhado.html`); quando o valor é projeção, o card mostra "(estimado a partir da leitura de DD/MM)" — nunca finge que é leitura confirmada.
+
+**Marcador "▼ ciclo atual" replicado no compartilhado**: o gráfico Rateio Solar do painel privado já tinha esse marcador (bloco 34); o compartilhado não. Copiado o mesmo desenho (`ctx.fillText` no `afterDatasetsDraw` do plugin de valores da barra), usando o índice do ciclo aberto que a página já calculava (`idxAberto`, agora hoisted pra `idxCicloAbertoRateio`).
+
+**Aba Opções reorganizada em 5 cards separados** (achado do usuário: "esse menu tem que ser o 01" + "tá tudo um cima do outro"): a seção inteira (Dashboard Executivo, monitoramento de risco, ROC, gráfico de tendência, tabelas de posições) vivia dentro de UM `.card` gigante sem nenhuma borda entre os blocos, e a numeração ainda carregava o "16" de quando era só uma seção do Balanço. Corrigido: numeração virou "01" (cada master-pane numera do zero), e o conteúdo virou 5 `.card` distintos (Dashboard Executivo / Monitoramento de risco / Rentabilidade ROC / Radar de ativos / Tendência / Posições — 6 no total contando o radar novo), cada um com botão de download JPEG próprio.
+
+**"Radar de ativos acompanhados" — novo, pedido aberto do usuário ("aba profissional pra decidir operações")**: tabela comparativa dos 10 tickers que o robô já acompanha diariamente (mesma fonte `cotacoes_acoes_historico`), com variação % de 7 e 30 dias, ordenada por momentum. Clicar numa linha abre o gráfico de tendência daquele ativo (reaproveita o gráfico livre já existente, não duplica). No próprio gráfico de tendência: seletor de período (1 mês a 2 anos, antes fixo em 90 dias) e badge visual ▲/▼ com a variação %.
+
+**Carrossel de abas (barra fixa do topo) corrigido**: as setas prev/next dependiam da posição do scroll pra aparecer/sumir, o que contradizia o giro infinito pedido no bloco 34 — a seta "próxima" sumia bem na hora de dar a volta. Agora as duas setas só dependem de "existe overflow", nunca da posição atual. Botões centralizam quando cabem todos na tela (antes ficavam grudados à esquerda com vão vazio).
+
+**Feedback direto do usuário registrado em memória** (não no código): exigiu resposta em português 3x no mesmo dia — salvo como preferência permanente pra sessões futuras (qualquer projeto, não só este).
+
+**Pendências reais**: nada validado em navegador de verdade (sem login neste ambiente, limitação de sempre) — em especial o Radar de ativos (10 chamadas de rede em paralelo, nunca testado ao vivo) e o marcador do compartilhado. A visão maior de "aba profissional" ficou só parcialmente atendida (radar + período + badge); o usuário não detalhou mais nada específico além disso.
+
 ## ☀️ 22/08/2026 (bloco 34) — Auditoria do residual solar até achar a taxa real, unificação painel×compartilhado, robô do Itaú, e uma sequência de bugs que eu mesmo introduzi e corrigi na mesma sessão
 
 Sessão maratona, começou continuando pendências de fechamento de ciclo/rounding do bloco 33 e virou uma reengenharia real de várias partes do domínio solar.

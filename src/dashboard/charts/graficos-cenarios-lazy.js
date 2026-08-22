@@ -1784,7 +1784,26 @@ async function _lazyRenderSolarSecao(){
     const importadoAcum = ultimaSolar.leitura03;
     const exportadoAcum = ultimaSolar.leitura103;
     const saldoLiquidoAcum = ultimaSolar.creditoLiquido;
-    const geracaoAcum = ultimaSolar.geracaoAcumulada; // null ate o usuario informar a leitura real do inversor
+    // CORRIGIDO 22/08/2026 (achado do usuário: "esses dados deveria ter porque faz dias que o
+    // inversor manda dados, não tem um buffer com esses dados?" — antes, geracaoAcumulada==null na
+    // leitura mais recente (robô SAJ ainda não rodou hoje) fazia Geração acumulada/Autoconsumo/
+    // Dependência da rede/Economia estimada mostrarem "dados insuficientes" mesmo tendo dias de
+    // geração diária real disponíveis no buffer VARS.SOLAR_GERACAO_DIARIA. Ver
+    // projetarGeracaoAcumuladaHoje()/calculos-solares-compartilhados.js — acha a leitura mais
+    // recente que TEM geracaoAcumulada real e projeta pra hoje com dado diário real quando existe.
+    let geracaoAcum = ultimaSolar.geracaoAcumulada;
+    let geracaoAcumProjetada = false, geracaoAcumDataBase = null;
+    let diasDesdeAtivacaoGeracao = ultimaSolar.dias;
+    if(geracaoAcum === null || geracaoAcum === undefined){
+      const projecaoGeracao = projetarGeracaoAcumuladaHoje(solarL, VARS.SOLAR_GERACAO_DIARIA, VARS.solarDataAtivacao);
+      if(projecaoGeracao){
+        geracaoAcum = projecaoGeracao.geracaoAcumulada;
+        geracaoAcumProjetada = projecaoGeracao.projetado;
+        geracaoAcumDataBase = projecaoGeracao.dataBase;
+        const hojeSoDataGeracao = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()));
+        diasDesdeAtivacaoGeracao = Math.max(1, Math.round((hojeSoDataGeracao - new Date(VARS.solarDataAtivacao)) / 86400000));
+      }
+    }
     const temGeracao = geracaoAcum !== null && geracaoAcum !== undefined;
     // NOVO 01/08/2026 (V259, achado do usuário): geracaoAcumulada agora e atualizada sozinha todo dia
     // pelo robo da SAJ, mas leitura03/leitura103 (medidor Energisa) so mudam quando o usuario manda
@@ -1875,7 +1894,10 @@ async function _lazyRenderSolarSecao(){
     const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
     const dataUltimaLeitura = new Date(ultimaSolar.data);
     const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
-    const diasDesdeAtivacao = ultimaSolar.dias; // dias desde 21/07/2026 ate a ultima leitura
+    // CORRIGIDO 22/08/2026: quando geracaoAcum vem da projeção acima (buffer diário, não da leitura
+    // mais recente), diasDesdeAtivacaoGeracao já foi recalculado pra "dias desde ativação até HOJE"
+    // (não até a última leitura) — manter os dois em sintonia evita inflar geracaoMediaDiaria.
+    const diasDesdeAtivacao = diasDesdeAtivacaoGeracao; // dias desde 21/07/2026 ate a ultima leitura (ou ate hoje, se projetado)
     const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? geracaoAcum / diasDesdeAtivacao : 0;
     const consumoMedioMensalMae = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
     const consumoMedioDiarioMae = consumoMedioMensalMae / 30;
@@ -1927,7 +1949,13 @@ async function _lazyRenderSolarSecao(){
     }
     const DESATUALIZADO = `Leitura do medidor desatualizada há ${diasDescompassoAtual} dias — manda uma foto nova pra recalcular.`;
     const consumoMsg = temGeracao ? (consumoDiretoConfiavel ? null : DESATUALIZADO) : INSUFICIENTE;
-    setUG('ugGeracaoAcumulada', temGeracao ? geracaoAcum+' kWh' : INSUFICIENTE);
+    // NOVO 22/08/2026: quando o valor vem da projeção (buffer diário, não da leitura mais recente),
+    // avisa de onde partiu — transparência de "isso é estimativa, não leitura confirmada do robô
+    // ainda" (mesmo princípio já usado no card "📊 Estimativa pra hoje" logo acima).
+    const sufixoProjecao = geracaoAcumProjetada && geracaoAcumDataBase
+      ? ' (estimado a partir da leitura de '+geracaoAcumDataBase.split('-').reverse().join('/')+')'
+      : '';
+    setUG('ugGeracaoAcumulada', temGeracao ? geracaoAcum+' kWh'+sufixoProjecao : INSUFICIENTE);
     setUG('ugConsumoDireto', consumoDiretoConfiavel ? consumoDiretoAcum+' kWh' : consumoMsg);
     setUG('ugConsumoTotalCasa', consumoDiretoConfiavel ? consumoTotalCasa+' kWh' : consumoMsg);
     setUG('ugAutoconsumoPct', consumoDiretoConfiavel ? autoconsumoPct+'%' : consumoMsg);
