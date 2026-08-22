@@ -767,11 +767,18 @@ function habilitarSetasMasterTabs(){
   // total sobre a duração (o `scrollTo({behavior:'smooth'})` nativo do navegador tem duração/curva
   // fixas, fora do nosso controle, e varia de navegador pra navegador). `_scrollAnimId` garante que um
   // clique novo no meio de uma animação em voo cancela a anterior de forma limpa. Duração escala com a
-  // distância real percorrida (~0,55ms por px, piso 260ms/teto 650ms) — um passo comum continua rápido
-  // (~320ms), mas o trecho maior até o clone (parte do giro completo) demora visivelmente mais.
+  // distância real percorrida — um passo comum continua rápido (~320ms), mas o trecho maior até o
+  // clone (parte do giro completo) demora visivelmente mais, pra não parecer um pulo abrupto no
+  // instante do pouso.
+  // AUMENTADO 22/08/2026 (achado do usuário, testado ao vivo: o giro funcionou, mas "ficou muito
+  // rápido pra pular da aba final pra primeira, parece um pulo" — o teto de 650ms deixava o trecho até
+  // o clone rápido demais, o pouso instantâneo no final ficava perceptível por contraste. Teto subiu
+  // pra 950ms e a taxa por pixel aumentou (~0,55 → ~0,75ms/px) - o trecho do giro fica visivelmente
+  // mais devagar/gradual, o pouso no clone fica menos chamativo por não vir logo depois de um
+  // movimento rápido. Passo comum (piso 260ms) não muda - só o trecho longo do giro fica mais lento.
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
   function duracaoPelaDistancia(deltaAbs){
-    return Math.min(650, Math.max(260, 260 + deltaAbs * 0.55));
+    return Math.min(950, Math.max(260, 260 + deltaAbs * 0.75));
   }
   function animarScrollPara(alvo, aoAssentar){
     const inicio = tabs.scrollLeft;
