@@ -567,7 +567,7 @@ async function aplicarTendenciaOpcoes(){
     const strikeLine = historico.map(() => o.precoExercicio);
     const existente = Chart.getChart(canvas);
     if(existente) existente.destroy();
-    new Chart(canvas, {
+    const chartTendencia = new Chart(canvas, {
       type: 'line',
       data: { labels, datasets: [
         { label: 'Cotação', data: precos, borderColor: '#4c8ef2', backgroundColor: 'rgba(76,142,242,0.10)', fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
@@ -582,6 +582,16 @@ async function aplicarTendenciaOpcoes(){
         },
       },
     });
+    // CORRIGIDO 22/08/2026 (achado do usuário, print real: linha vermelha "sem controle" vazando
+    // por baixo do card ROC) — este gráfico é criado no boot (onDomPronto(aplicarTendenciaOpcoes),
+    // app.js), incondicional, ANTES de qualquer clique de aba; se a aba Opções não for a ativa no
+    // momento do boot, o canvas nasce dentro de um .master-pane com display:none — Chart.js mede
+    // largura/altura zero nesse instante e o canvas fica com buffer interno errado, vazando visual
+    // ao ser exibido depois. O resize automático que já existe em showMaster() (Chart.instances,
+    // ver ui-navegacao-basica.js) roda ANTES deste gráfico existir de verdade (aplicarTendenciaOpcoes
+    // é assíncrono, espera fetch) — nunca alcança esta instância. resize() explícito aqui, 1 frame
+    // depois de criado, corrige a medição mesmo que o canvas ainda esteja escondido nesse instante.
+    requestAnimationFrame(() => { try { chartTendencia.resize(); } catch(e){} });
     const badgeEl = $(`tendenciaBadge_${o.ticker}`);
     if(badgeEl){
       const primeiro = precos[0], ultimo = precos[precos.length-1];

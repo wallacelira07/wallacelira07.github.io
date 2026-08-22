@@ -1210,6 +1210,20 @@
       <div class="v" id="legRocCarteira" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.7rem">—</div>
     </div>
 
+    <!-- CORRIGIDO 22/08/2026 (achado do usuário: "esse gráfico tem que ficar posicionado em um lugar
+         melhor, entre esses menus" — movido pra logo depois do ROC, antes do Radar de ativos.
+         NOVO 21/08/2026 (pedido do usuário: "gráfico pra analisar as tendências das ações das opções,
+         deve registrar o valor do dia que entrei na opção e ir montando a tendência de subida ou
+         descida em direção ao vencimento"). Ver aplicarTendenciaOpcoes()/hydrate-roc.js. Ganhou .card
+         próprio (fica vazio/escondido quando não há posição ativa, ver aplicarTendenciaOpcoes). -->
+  <div class="card" id="opcoesTendenciaCard" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Tendência das posições ativas</div>
+      <button type="button" class="btn-print-secao" data-print-titulo="tendencia-precos-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Tendência como JPEG">⬇</button>
+    </div>
+    <div id="opcoesTendenciaContainer"></div>
+  </div>
+
     <!-- NOVO 22/08/2026 (pedido do usuário: "quero essa aba profissional, tem que ter tudo para me
          ajudar a decidir as operações que vou fazer" — antes de vender uma PUT nova, o usuário
          precisa comparar MOMENTUM entre os 10 ativos acompanhados (não só olhar 1 de cada vez no
@@ -1223,20 +1237,6 @@
       <button type="button" class="btn-print-secao" data-print-titulo="radar-ativos-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Radar de ativos como JPEG">⬇</button>
     </div>
     <div id="radarAtivosOpcoesContainer"><div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Carregando…</div></div>
-  </div>
-
-    <!-- NOVO 21/08/2026 (pedido do usuário: "gráfico pra analisar as tendências das ações das opções,
-         deve registrar o valor do dia que entrei na opção e ir montando a tendência de subida ou
-         descida em direção ao vencimento"). Ver aplicarTendenciaOpcoes()/hydrate-roc.js.
-         CORRIGIDO 22/08/2026 (achado do usuário: "organize melhor essa aba") — ganhou .card próprio,
-         igual aos blocos vizinhos (fica vazio/sem borda quando não há posição ativa com nota de
-         corretagem registrada, ver aplicarTendenciaOpcoes: container.innerHTML='' nesse caso). -->
-  <div class="card" id="opcoesTendenciaCard" style="margin-top:1rem">
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
-      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Tendência das posições ativas</div>
-      <button type="button" class="btn-print-secao" data-print-titulo="tendencia-precos-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Tendência como JPEG">⬇</button>
-    </div>
-    <div id="opcoesTendenciaContainer"></div>
   </div>
 
   <!-- CORRIGIDO 22/08/2026 (achado do usuário: "organize melhor essa aba, tá tudo um cima do outro") —
