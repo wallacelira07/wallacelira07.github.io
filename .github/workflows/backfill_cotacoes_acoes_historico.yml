@@ -1,0 +1,24 @@
+name: Backfill Histórico de Cotações (ITSA4/BBDC4/BBAS3/WEGE3/ABEV3/B3SA3)
+# NOVO 22/08/2026 (pedido do usuário): script PONTUAL, não recorrente — só
+# workflow_dispatch (disparo manual), nunca schedule/workflow_call. Preenche o
+# histórico real (brapi.dev) dos 6 tickers que exigem BRAPI_TOKEN e ainda não
+# tinham dado suficiente pro gráfico de tendência da aba Opções. Seguro rodar
+# mais de uma vez (RPC idempotente, ON CONFLICT DO UPDATE).
+on:
+  workflow_dispatch: {}
+jobs:
+  backfill-cotacoes-historico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rodar script de backfill
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+        run: python3 scripts/sync/backfill_cotacoes_acoes_historico.py
