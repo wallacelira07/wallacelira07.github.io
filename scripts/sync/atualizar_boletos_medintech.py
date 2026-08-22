@@ -206,6 +206,43 @@ def _extrair_consumo_energisa(texto_pdf: str) -> tuple[float, int] | None:
     return consumo, int(m_dias.group(1))
 
 
+def _extrair_composicao_percentual_energisa(texto_pdf: str) -> dict | None:
+    """Composição percentual real da fatura (Distribuição/Energia/Transmissão/Encargos/Impostos),
+    extraída da tabela 'Valor (R$) / %' que a Energisa PB imprime perto do rodapé de toda fatura
+    (achada e validada 21/08/2026 contra o PDF real do Wallace, ago/26 — os 5 percentuais bateram
+    exatos com Total=100,00%). Usada pro cálculo de "residual pós-solar" (Fio B/Encargos), que até
+    aqui rodava com um percentual DIGITADO À MÃO uma vez, nunca conferido contra a fatura real —
+    achado real: o valor de Impostos digitado (22%) estava quase METADE do real (42,75%).
+    SÓ retorna algo se achar os 5 campos — nunca mistura real com chute (mesmo princípio de "nada é
+    inventado" já usado no resto do robô). Iluminação não entra aqui: é a linha separada CONTRIB ILUM
+    PUBLICA, capturada em R$ exato por _extrair_cosip_energisa (nunca uma fatia percentual)."""
+    campos = {
+        "distribuicao": r"Servi[çc]o de distribui[çc][ãa]o\s+[\d.,]+\s+([\d.,]+)",
+        "energia": r"Compra de energia\s+[\d.,]+\s+([\d.,]+)",
+        "transmissao": r"Servi[çc]o de transmiss[ãa]o\s+[\d.,]+\s+([\d.,]+)",
+        "encargos": r"Encargos setoriais\s+[\d.,]+\s+([\d.,]+)",
+        "impostos": r"Impostos diretos e encargos\s+[\d.,]+\s+([\d.,]+)",
+    }
+    resultado = {}
+    for chave, padrao in campos.items():
+        m = re.search(padrao, texto_pdf)
+        if not m:
+            return None
+        valor = _texto_para_valor(m.group(1))
+        if valor is None:
+            return None
+        resultado[chave] = valor
+    resultado["iluminacao"] = 0
+    return resultado
+
+
+def _extrair_cosip_energisa(texto_pdf: str) -> float | None:
+    """CONTRIB ILUM PUBLICA — valor exato em R$, nunca compensado por crédito solar (lei), usado
+    direto (não estimado por %) na fórmula de residual pós-solar quando presente."""
+    m = re.search(r"CONTRIB\s+ILUM\s+PUBLICA\s+([\d.,]+)", texto_pdf)
+    return _texto_para_valor(m.group(1)) if m else None
+
+
 def _anexo_pdf_do_email(msg: dict) -> str | None:
     for parte in msg["payload"].get("parts", []) or []:
         if (parte.get("filename") or "").lower().endswith(".pdf"):
@@ -291,6 +328,18 @@ def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consu
             print(f"Consumo solar ({casa}): {consumo[0]:.2f} kWh / {consumo[1]} dias — extraído de '{assunto}'")
         if valor is not None and consumo is not None:
             resultado_composicao[casa] = {"valor": valor, "consumo_kwh": consumo[0], "dias": consumo[1]}
+            # NOVO 22/08/2026 (achado real no PDF do Wallace ago/26: a composição percentual digitada
+            # à mão tinha Impostos em 22% quando o real da fatura é 42,75% — quase o dobro). Só entra
+            # no resultado se achar TODOS os campos + o COSIP em R$ exato — nunca atualiza com dado
+            # parcial/chutado.
+            composicao_pct = _extrair_composicao_percentual_energisa(texto)
+            if composicao_pct is not None:
+                resultado_composicao[casa]["composicao_pct"] = composicao_pct
+                print(f"Composição tarifária ({casa}): {composicao_pct} — extraído de '{assunto}'")
+            cosip = _extrair_cosip_energisa(texto)
+            if cosip is not None:
+                resultado_composicao[casa]["cosip_valor_real"] = cosip
+                print(f"COSIP/Iluminação Pública ({casa}): R$ {cosip:.2f} — extraído de '{assunto}'")
 
 
 def buscar_faturas_do_mes(access_token: str) -> tuple[dict, dict, dict]:
@@ -474,6 +523,20 @@ def main() -> int:
                     bloco["fonte"] = f"Fatura Energisa real (automático via robô, atualizar_boletos_medintech.py) — {chave_mes}"
                     mudou_composicao = True
                     print(f"ENERGISA_TARIFA_COMPOSICAO ({casa}): {campo_valor} = R$ {dados['valor']:.2f}, {campo_consumo} = {dados['consumo_kwh']:.2f} kWh")
+
+                # NOVO 22/08/2026 (achado real: composicao_pct/cosip_valor_real eram digitados uma vez
+                # à mão e nunca mais conferidos — ver docstring de _extrair_composicao_percentual_energisa).
+                # Checado à parte do valor/consumo acima porque pode mudar mesmo num mês em que a
+                # fatura já bateu (ex.: 1ª vez que o robô consegue extrair esses campos pra essa casa).
+                if dados.get("composicao_pct") is not None and bloco.get("composicao_pct") != dados["composicao_pct"]:
+                    bloco["composicao_pct"] = dados["composicao_pct"]
+                    bloco["fonte"] = f"Fatura Energisa real (automático via robô, atualizar_boletos_medintech.py) — {chave_mes}"
+                    mudou_composicao = True
+                    print(f"ENERGISA_TARIFA_COMPOSICAO ({casa}): composicao_pct atualizado = {dados['composicao_pct']}")
+                if dados.get("cosip_valor_real") is not None and bloco.get("cosip_valor_real") != dados["cosip_valor_real"]:
+                    bloco["cosip_valor_real"] = dados["cosip_valor_real"]
+                    mudou_composicao = True
+                    print(f"ENERGISA_TARIFA_COMPOSICAO ({casa}): cosip_valor_real atualizado = R$ {dados['cosip_valor_real']:.2f}")
 
                 if casa == "wallace":
                     mes_label = _mes_abrev_capitalizado_atual()
