@@ -84,6 +84,18 @@ async function aplicarOnda4Investimentos(){
   aplicarStatusVencidoEValorMercadoOpcoes();
   calcularROCOpcoes();
   hydrateROC();
+  // CORRIGIDO 22/08/2026 (achado do usuário, print real: PETRT379 — venceu 21/08 — continuava
+  // aparecendo em "Tendência das posições ativas" mesmo depois de recarregar a página). Causa
+  // real: aplicarTendenciaOpcoes() (hydrate-roc.js) é chamada por um onDomPronto() PRÓPRIO, síncrono,
+  // que lê VARS.opcoesVendidasDetalhe ANTES desta função (assíncrona, espera fetch da V2) terminar
+  // de SUBSTITUIR o array — nesse instante VARS.opcoesVendidasDetalhe ainda é o literal V1 de
+  // vars-roc.js, que tem `statusPosicao:'ATIVA'` hardcoded pra PETRT379 (nunca atualizado à mão) —
+  // isso força o.vencida=false na função V1 (aplicarStatusVencidoEValorMercadoOpcoes, opcoes-roc.js),
+  // ignorando a data real de vencimento. Sempre corre essa corrida, não é intermitente. Mesma classe
+  // de bug do Radar/Pesquisa de Mercado corrigida mais cedo hoje (dado lido cedo demais) — a correção
+  // aqui é rechamar aplicarTendenciaOpcoes() DEPOIS que VARS já tem o dado final da V2 (vencida
+  // corretamente calculado por data, sem o statusPosicao V1 stale no caminho).
+  if(typeof aplicarTendenciaOpcoes === 'function') aplicarTendenciaOpcoes();
 
   const v2Total = Math.round(VARS.opcoesVendidasDetalhe.reduce((s,o)=>s+(o.premioRecebido||0),0)*100)/100;
   const diverge = Math.abs(v1TotalAntes - v2Total) > 0.01;

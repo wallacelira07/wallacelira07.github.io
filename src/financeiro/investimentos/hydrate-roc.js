@@ -4,6 +4,33 @@
 // hydrate() (em app.js), no mesmo ponto exato da sequência original. Não usa REG nenhuma vez, só
 // VARS/$/t/fmt/setBadge (já existem quando hydrate() roda). Nenhuma fórmula, id de DOM ou
 // comportamento visual foi alterado — só o arquivo que hospeda o código.
+// NOVO 22/08/2026 (pedido do usuário: "quero uma régua móvel nos gráficos" — linha vertical que
+// acompanha o cursor, mostrando o ponto exato onde o mouse está, padrão de terminal de trading).
+// Plugin genérico do Chart.js, reaproveitado em qualquer gráfico de linha temporal deste módulo —
+// desenha uma linha pontilhada na posição X do ponto ativo (chart.tooltip._active), do topo ao
+// fundo da área do gráfico. Precisa de `interaction:{mode:'index',intersect:false}` no chart pra
+// ativar em qualquer X do eixo (os gráficos daqui usam pointRadius:0, não dá pra "acertar" o ponto
+// exato passando o mouse perto — precisa ativar por proximidade no eixo X, não por interseção).
+const reguaMovelPlugin = {
+  id: 'reguaMovelPlugin',
+  afterDraw(chart){
+    const ativo = chart.tooltip && chart.tooltip._active;
+    if(!ativo || !ativo.length) return;
+    const { ctx, chartArea } = chart;
+    if(!chartArea) return;
+    const x = ativo[0].element.x;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.setLineDash([4,4]);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
 function hydrateROC(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
@@ -575,12 +602,14 @@ async function aplicarTendenciaOpcoes(){
       ]},
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}` } } },
         scales: {
           x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
           y: { ticks: { font: { size: 9 }, callback: v => 'R$'+v } },
         },
       },
+      plugins: [reguaMovelPlugin],
     });
     // CORRIGIDO 22/08/2026 (achado do usuário, print real: linha vermelha "sem controle" vazando
     // por baixo do card ROC) — este gráfico é criado no boot (onDomPronto(aplicarTendenciaOpcoes),
@@ -661,12 +690,14 @@ async function aplicarTendenciaTickerLivre(){
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) } } },
       scales: {
         x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
         y: { ticks: { font: { size: 9 }, callback: v => 'R$'+v } },
       },
     },
+    plugins: [reguaMovelPlugin],
   });
   const primeiro = precos[0], ultimo = precos[precos.length-1];
   const variacaoPct = primeiro ? Math.round(((ultimo-primeiro)/primeiro)*1000)/10 : null;
