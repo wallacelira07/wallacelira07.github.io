@@ -2585,6 +2585,9 @@ onDomPronto(aplicarComprometidoCaixaVariavelV2);
 // NOVO 19/08/2026 (achado do usuário: "Não reconciliado" do Mastercard Black nunca somava as 9
 // caixas temáticas ligadas ao cartão — ver hydrate-visa-mb.js).
 onDomPronto(atualizarCaixasTematicasComprometidoMB);
+// NOVO 22/08/2026 (pedido do usuário: "faça no Visa também" — mesma lista de caixas temáticas
+// comprometidas, agora também no card Visa Infinite, ver hydrate-visa-mb.js).
+onDomPronto(atualizarCaixasTematicasComprometidoVisa);
 onDomPronto(renderInboxFinanceira); // V400 Etapa 1: gera a tabela da Inbox Financeira (continua, nao filtrada por ciclo)
 // MIGRADO 08/08/2026 (Onda 7): reconciliarPluggy()/reconciliarTransacoesPluggy() (V1, liam
 // VARS.PLUGGY_CONTAS de wallace_dados) substituídos por aplicarOnda7Pluggy(), que busca as tabelas

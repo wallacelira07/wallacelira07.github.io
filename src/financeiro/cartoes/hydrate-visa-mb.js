@@ -156,41 +156,74 @@ const MB_CAIXAS_TEMATICAS_IDS = {
   'Caixa Saúde Família': 'd15e8cbe-4443-4ee4-9631-06d8d49058fe',
   'Emagrecimento': 'd6be6a08-9d7b-4664-9c85-1e367aa620b9',
 };
+// NOVO 22/08/2026 (pedido do usuário, print anotado: quer a sigla do Livro Razão — mesmo padrão
+// "LRW-MB"/"LRV-MB"/"LRP-MB" já usado nas 3 linhas fixas do card — ao lado de cada caixa temática da
+// lista expandida também). Sigla = a mesma já cadastrada nos botões de aba do Livro Razão
+// (Sistema_Wallace_Lira_Completo.html, ex. `LRBD - Bens Duráveis`), só o prefixo antes do " - ".
+const CAIXAS_TEMATICAS_SIGLA = {
+  'Caixa Combustível': 'LRCB',
+  'Caixa Mastercard_Infinite': 'LRMI',
+  'Caixa Seguro Emplacamento': 'LRSE',
+  'Caixa Churrasco': 'LRCH',
+  'Caixa Bens Duráveis': 'LRBD',
+  'Caixa Manutenção': 'LRMN',
+  'Caixa Eventos': 'LREV',
+  'Caixa Saúde Família': 'LRSF',
+  'Emagrecimento': 'LREM',
+};
 // ATUALIZADO 20/08/2026 (achado da investigação "Não Reconciliado" definitiva): faltavam 3 cartões MB
 // cadastrados em 10/08 (0317, 2135, 8530) — cadastro em `cartoes` foi feito naquela sessão, mas essa
 // lista literal, usada em TODO cálculo de "quem é MB" (aqui e em hydrate-onda3-lrwlrv.js), nunca foi
 // atualizada. TX000274 (Anthropic real, cartão 8530) ficava invisível pra qualquer filtro por família
 // de cartão até este fix — não é só cosmético, causava R$116,52 de subcontagem real no Não Reconciliado.
 const MB_CARTOES_IDS = ['7b981bf6-80eb-473b-8cf5-91a75c4d0cd3','5774ffd5-fa19-47af-affc-761d6b880a88','00098251-b7d1-475c-9ec3-ee5462202082','2bd91561-e1dc-4073-8e8a-b0037b5bb4bf','6cec9fa0-ad3c-4fd1-87e0-52d3e0325b09','7c53205f-d2f1-450b-aea3-10d25b0b9b45','242e0499-a6ff-45b4-a4aa-4579e9b151ec','7b0adfe8-182f-455a-a633-30995fba7e67','02803dbe-0dd1-4720-a6a0-56e1037fe854','cdb6c357-6630-46f6-984f-608973d521f8','1d6d3284-95d5-44f0-bff5-5684f9068e76'];
+// NOVO 22/08/2026 (pedido do usuário: "faça no Visa também" — mesma lista completa de caixas
+// temáticas comprometidas, agora também no card Visa Infinite. 2 cartões reais da família "Visa
+// Infinite Bradesco" (mapa de cartões do manual): 4844 (Wallace, aposentado — só liquidação do que já
+// existia) e 4845 (Vanessa, ativo). Exclui de propósito: 9187 (Azul Itaú, bloqueado/sem uso) e 8739
+// (Visa Mercado Pago — família de cartão DIFERENTE, mesmo tendo "Visa" no nome/bandeira).
+const VISA_CARTOES_IDS = ['1016c84c-6744-4dc7-8e80-ed77a5606114','2a18486b-0ccb-4007-a247-03fa4085c43a'];
+
+// NOVO 22/08/2026 (pedido do usuário, print anotado: quer a sigla do Livro Razão — mesmo padrão
+// "LRW-MB"/"LRV-MB"/"LRP-MB" já usado nas 3 linhas fixas do card — ao lado de cada caixa temática da
+// lista expandida). Função genérica: busca o comprometido das 9 caixas temáticas pra QUALQUER família
+// de cartão (MB ou Visa, via `cartaoIds`), guarda o detalhe por caixa em `reg[chaveDetalhe]` e desenha
+// a lista no container certo — usada pelas 2 funções específicas abaixo, sem duplicar a lógica.
+async function atualizarERenderizarCaixasTematicasPorCartao(reg, chaveDetalhe, cartaoIds, containerId){
+  if(typeof REG === 'undefined' || !reg) return null;
+  // CORRIGIDO 21/08/2026 (auditoria de performance): 9 requests individuais → 1 chamada batch
+  // (rpc_comprometido_caixas_batch, ver app.js), mesma soma final.
+  const nomes = Object.keys(MB_CAIXAS_TEMATICAS_IDS);
+  const somas = await WallaceFinanceService.getComprometidoCaixasBatch(Object.values(MB_CAIXAS_TEMATICAS_IDS), cartaoIds);
+  const total = Math.round(somas.reduce((s,v) => s + (Number(v)||0), 0) * 100) / 100;
+  const porCaixa = nomes.map((nome,i) => ({nome, sigla: CAIXAS_TEMATICAS_SIGLA[nome], valor: Math.round((Number(somas[i])||0)*100)/100}));
+  reg[chaveDetalhe] = total;
+  reg[chaveDetalhe + 'PorCaixa'] = porCaixa;
+  const container = $(containerId);
+  if(container){
+    const ordenada = porCaixa.slice().sort((a,b) => b.valor - a.valor);
+    container.innerHTML = ordenada.map(item =>
+      '<div class="row"><span class="k">'+item.nome+' <span style="color:var(--text-dim);font-weight:400">('+item.sigla+')</span></span><span class="v">'+fmt(item.valor)+'</span></div>'
+    ).join('');
+  }
+  return total;
+}
+
 async function atualizarCaixasTematicasComprometidoMB(){
   if(typeof REG === 'undefined' || !REG.mbDetalhe) return;
   try {
-    // CORRIGIDO 21/08/2026 (auditoria de performance): 9 requests individuais → 1 chamada batch
-    // (rpc_comprometido_caixas_batch, ver app.js), mesma soma final.
-    const nomes = Object.keys(MB_CAIXAS_TEMATICAS_IDS);
-    const somas = await WallaceFinanceService.getComprometidoCaixasBatch(Object.values(MB_CAIXAS_TEMATICAS_IDS), MB_CARTOES_IDS);
-    REG.mbDetalhe.caixasTematicas = Math.round(somas.reduce((s,v) => s + (Number(v)||0), 0) * 100) / 100;
-    // NOVO 22/08/2026 (pedido do usuário: "quero a lista completa" em vez de 1 linha só resumida) —
-    // guarda o valor de CADA caixa (não só a soma) pra renderizarCaixasTematicasMBLista() desenhar
-    // 1 .row por caixa. somas[i] corresponde a nomes[i] (Object.values/Object.keys preservam a mesma
-    // ordem de inserção do objeto MB_CAIXAS_TEMATICAS_IDS).
-    REG.mbDetalhe.caixasTematicasPorCaixa = nomes.map((nome,i) => ({nome, valor: Math.round((Number(somas[i])||0)*100)/100}));
-    renderizarCaixasTematicasMBLista();
+    await atualizarERenderizarCaixasTematicasPorCartao(REG.mbDetalhe, 'caixasTematicas', MB_CARTOES_IDS, 'mbLRCaixasTematicasLista');
     recalcularEHidratarMbPessoal();
   } catch(err){
     console.warn('atualizarCaixasTematicasComprometidoMB: falha ao buscar comprometido das caixas temáticas — Não Reconciliado do MB fica sem esse componente nesta carga.', err);
   }
 }
-// NOVO 22/08/2026 (pedido do usuário, print real do card Mastercard Black: "ao invés de ter 'caixas
-// temáticas 9' quero a lista completa" — desenha 1 .row por caixa, mesmo estilo visual das linhas
-// fixas do card, ordenado do maior comprometido pro menor (caixas com R$0,00 aparecem por último,
-// ainda visíveis — "lista completa" inclui as zeradas, não só as que têm valor).
-function renderizarCaixasTematicasMBLista(){
-  const container = $('mbLRCaixasTematicasLista');
-  const lista = REG.mbDetalhe && REG.mbDetalhe.caixasTematicasPorCaixa;
-  if(!container || !lista) return;
-  const ordenada = lista.slice().sort((a,b) => b.valor - a.valor);
-  container.innerHTML = ordenada.map(item =>
-    '<div class="row"><span class="k">'+item.nome+'</span><span class="v">'+fmt(item.valor)+'</span></div>'
-  ).join('');
+
+async function atualizarCaixasTematicasComprometidoVisa(){
+  if(typeof REG === 'undefined' || !REG.visaDetalhe) return;
+  try {
+    await atualizarERenderizarCaixasTematicasPorCartao(REG.visaDetalhe, 'caixasTematicas', VISA_CARTOES_IDS, 'visaLRCaixasTematicasLista');
+  } catch(err){
+    console.warn('atualizarCaixasTematicasComprometidoVisa: falha ao buscar comprometido das caixas temáticas no Visa.', err);
+  }
 }
