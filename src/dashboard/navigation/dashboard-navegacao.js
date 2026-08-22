@@ -583,13 +583,23 @@ function habilitarRolagemHorizontalMasterTabsNoMouse(){
 // lado individualmente some quando já rolou até aquela ponta (não faz sentido "voltar" se já está no
 // início). Mesmo elemento serve em qualquer largura de tela, inclusive mobile (harmless: quem já rola
 // com o dedo só ganha um atalho extra, não muda o gesto de toque).
+// CORRIGIDO 22/08/2026, 8ª rodada (giro completo via clones, ver habilitarSetasMasterTabs abaixo):
+// `tabs.scrollWidth` sozinho não serve mais pra medir overflow — os clones nas 2 pontas (que existem
+// só pra dar espaço de "continuar rolando" durante o giro) inflam o scrollWidth mesmo quando o
+// conteúdo REAL cabe inteiro na tela. Mede só a largura das abas reais (`:not(.master-tab--clone)`).
+function medirLarguraRealTabs(tabs){
+  const reais = tabs.querySelectorAll('.master-tab:not(.master-tab--clone)');
+  if(!reais.length) return 0;
+  const primeiro = reais[0], ultimo = reais[reais.length - 1];
+  return (ultimo.offsetLeft + ultimo.offsetWidth) - primeiro.offsetLeft;
+}
 function atualizarSetasMasterTabs(){
   const tabs = document.querySelector('.master-tabs');
   const prev = $('masterTabsPrev');
   const next = $('masterTabsNext');
   if(!tabs || !prev || !next) return;
   const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
-  const temOverflow = tabs.scrollWidth > tabs.clientWidth + folga;
+  const temOverflow = medirLarguraRealTabs(tabs) > tabs.clientWidth + folga;
   // CORRIGIDO 22/08/2026 (achado do usuário: "faça o carrocel como pedi, giro infinito" — as setas
   // sumiam sozinhas em cada ponta, contradizendo a ideia de "carrossel infinito": se clicar em
   // "próxima" no fim já dá a volta pro início (ver habilitarSetasMasterTabs abaixo), a seta "próxima"
@@ -643,6 +653,20 @@ function atualizarSetasMasterTabs(){
 // só da posição) — incrementa/decrementa direto a cada clique, e resincroniza com o scroll real (pra
 // continuar funcionando se o usuário rolar manualmente com o dedo/roda do mouse) só quando a posição
 // NÃO está grudada numa das pontas (onde a leitura seria ambígua, como explicado acima).
+// CORRIGIDO 22/08/2026, 8ª rodada (pedido explícito do usuário depois de testar as rodadas 6/7: "tem
+// dar o giro completo" — mesmo com a duração escalando por distância, animar a volta como um scroll
+// PRA TRÁS de "fim" até "início" nunca parece um giro de verdade, porque literalmente inverte a
+// direção do movimento — um carrossel de verdade continua girando na MESMA direção até fechar a
+// volta). Solução: truque clássico de "loop infinito" via clones — duplica visualmente as primeiras
+// abas depois da última real (`data-clone-pos="fim"`) e as últimas abas antes da primeira real
+// (`data-clone-pos="inicio"`), o suficiente pra cobrir 1 largura de tela inteira em cada ponta. Ao
+// clicar "próxima" na última parada, a barra CONTINUA rolando pra frente até o clone da 1ª aba
+// (pixel-idêntico à aba real) — e só DEPOIS da animação assentar, um ajuste instantâneo (sem
+// transição, um único frame) subtrai a largura real total do `scrollLeft`, pousando exatamente na
+// aba real 0 sem nenhuma diferença visual (o clone e o real são idênticos). Mesmo mecanismo espelhado
+// pra "anterior" na 1ª parada, usando os clones do início. O resultado: o scroll NUNCA inverte de
+// direção durante o giro, só continua e "teleporta" de forma imperceptível no instante exato em que
+// clone e real são visualmente indistinguíveis.
 function habilitarSetasMasterTabs(){
   const tabs = document.querySelector('.master-tabs');
   const prev = $('masterTabsPrev');
@@ -653,26 +677,66 @@ function habilitarSetasMasterTabs(){
   let _scrollAnimId = 0; // token da animação em voo - clique novo invalida a anterior, sem disputa
   let animandoAgora = false; // true enquanto animarScrollPara() está em voo - ver sincronizarComScroll()
 
-  function botoes(){
-    return Array.from(tabs.querySelectorAll('.master-tab'));
+  function reais(){
+    return Array.from(tabs.querySelectorAll('.master-tab:not(.master-tab--clone)'));
   }
-  function maxScroll(){
-    return Math.max(0, tabs.scrollWidth - tabs.clientWidth);
+  // Clona abas reais nas 2 pontas da barra pra dar espaço de "continuar rolando" sem inverter direção
+  // — largura de clone em cada ponta cobre pelo menos 1 tela inteira, cíclico se a barra tiver menos
+  // abas que cabem numa tela (usa `i % lista.length` pra poder repetir a sequência mais de uma vez).
+  // Idempotente (remove clones antigos primeiro) — chamado de novo em `resize` porque a largura da
+  // tela (e portanto quantos clones cabem) pode mudar.
+  function configurarClones(){
+    tabs.querySelectorAll('.master-tab--clone').forEach(el => el.remove());
+    const lista = reais();
+    if(!lista.length) return;
+    // Sem overflow real (cabe tudo na tela) não tem carrossel nenhum pra fazer - clones só existem
+    // pra dar espaço de rolagem durante o giro, adicioná-los aqui só inflaria o scrollWidth à toa e
+    // quebraria a centralização de `.master-tabs--centralizada` (ver atualizarSetasMasterTabs).
+    if(medirLarguraRealTabs(tabs) <= tabs.clientWidth + folga){ tabs.scrollLeft = 0; return; }
+    const viewport = tabs.clientWidth;
+    let larguraFim = 0, i = 0;
+    while(larguraFim < viewport && i < lista.length * 3){
+      const original = lista[i % lista.length];
+      const clone = original.cloneNode(true);
+      clone.classList.add('master-tab--clone');
+      clone.dataset.clonePos = 'fim';
+      clone.setAttribute('aria-hidden', 'true');
+      clone.setAttribute('tabindex', '-1');
+      tabs.insertBefore(clone, next);
+      larguraFim += original.offsetWidth + 8;
+      i++;
+    }
+    const primeiroReal = lista[0];
+    let referencia = primeiroReal, larguraInicio = 0, j = lista.length - 1, contador = 0;
+    while(larguraInicio < viewport && contador < lista.length * 3){
+      const idx = ((j % lista.length) + lista.length) % lista.length;
+      const original = lista[idx];
+      const clone = original.cloneNode(true);
+      clone.classList.add('master-tab--clone');
+      clone.dataset.clonePos = 'inicio';
+      clone.setAttribute('aria-hidden', 'true');
+      clone.setAttribute('tabindex', '-1');
+      tabs.insertBefore(clone, referencia); // sempre antes da referência anterior - mantém ordem certa
+      referencia = clone;
+      larguraInicio += original.offsetWidth + 8;
+      j--; contador++;
+    }
+    // posição inicial tem que começar na 1ª aba REAL (depois dos clones prependados no início), nunca
+    // em scrollLeft=0 (que agora mostraria os clones do "fim" duplicados, não o Painel de verdade).
+    tabs.scrollLeft = primeiroReal.offsetLeft;
   }
   // CORRIGIDO 22/08/2026, 5ª rodada (achado real do usuário: "na última aba trava e fico clicando e
   // não anda, aí se eu cliquei 4 vezes, tenho que clicar 4 vezes no outro lado pra normalizar").
-  // Causa: o índice de estado (rodada anterior) resolveu o TRAVAMENTO permanente, mas não o problema
-  // de fundo — quando várias abas do final (offsetLeft > scroll máximo possível) todas clampam pra
-  // EXATAMENTE a mesma posição de rolagem, cada uma delas ainda consumia 1 clique próprio pra
-  // "avançar" o índice, mesmo sem NENHUMA mudança visual na tela (a posição já não pode ir mais longe
-  // pra direita). Do ponto de vista do usuário, isso parece travado — 3-4 cliques sem efeito nenhum
-  // antes do loop finalmente dar a volta. Fix de fundo: em vez de 1 "parada" por aba, calcula quantas
-  // paradas VISUALMENTE DISTINTAS existem de verdade — todas as abas que cabem exatas (0..
-  // ultimoAlcancavel) mais UMA parada extra "fim" (só se sobrar conteúdo depois da última que cabe),
-  // que mostra a rolagem no máximo possível. Cada clique agora sempre produz uma posição diferente da
-  // anterior, e o loop completo tem exatamente o mesmo número de cliques nas 2 direções.
+  // Causa: quando várias abas do final (offsetLeft > scroll máximo possível) todas clampam pra
+  // EXATAMENTE a mesma posição de rolagem, cada uma consumia 1 clique próprio pra "avançar" o índice,
+  // sem NENHUMA mudança visual. Fix de fundo: em vez de 1 "parada" por aba, calcula quantas paradas
+  // VISUALMENTE DISTINTAS existem de verdade — todas as abas reais que cabem exatas (0..
+  // ultimoAlcancavel) mais UMA parada extra "fim" (só se sobrar conteúdo depois da última que cabe).
+  // `max` aqui considera só o conteúdo REAL (último real + sua largura − largura da tela), nunca os
+  // clones — eles são só decoração de transição, não paradas de navegação de verdade.
   function calcularParadas(lista){
-    const max = maxScroll();
+    const ultimoReal = lista[lista.length - 1];
+    const max = Math.max(0, (ultimoReal.offsetLeft + ultimoReal.offsetWidth) - tabs.clientWidth);
     let ultimoAlcancavel = 0;
     for(let i=0;i<lista.length;i++){
       if(lista[i].offsetLeft <= max) ultimoAlcancavel = i; else break;
@@ -685,18 +749,11 @@ function habilitarSetasMasterTabs(){
     return p <= info.ultimoAlcancavel ? lista[p].offsetLeft : info.max; // parada "fim" - mostra a cauda que não cabe alinhada
   }
   function sincronizarComScroll(lista, info){
-    // CORRIGIDO 22/08/2026, 7ª rodada (achado real do usuário: "ele vai até o final e retorna duas
-    // abas, vai até o final e se eu clicar pra fazer o giro ele retorna duas abas pra trás"). Causa:
-    // clicar de novo ENQUANTO a animação anterior ainda está em voo (mais provável agora que a volta
-    // completa dura até 650ms, rodada 6) fazia esta função ler `tabs.scrollLeft` no MEIO do trajeto —
-    // uma posição de trânsito que não corresponde a nenhuma parada de verdade — e recalcular um índice
-    // errado a partir dela (ex.: no meio do caminho de volta pro início, lia como se já estivesse numa
-    // aba do meio, 2 paradas atrás de onde o usuário via a barra indo). Fix: enquanto uma animação
-    // está em voo (`animandoAgora`), confia 100% no `idxCarrossel` já rastreado (a fonte de verdade de
-    // "pra onde estamos indo"), sem tentar reler a posição física ainda em trânsito — só volta a ler a
-    // posição real quando não há animação rodando (ex.: usuário rolou a barra manualmente).
+    // Enquanto uma animação está em voo, confia 100% no `idxCarrossel` já rastreado — ler
+    // `tabs.scrollLeft` no meio de um trajeto (inclusive dentro da zona de clone) não corresponde a
+    // nenhuma parada de verdade e produzia leituras erradas (achado real, rodada 7).
     if(animandoAgora) return;
-    if(tabs.scrollLeft <= folga){ idxCarrossel = 0; return; }
+    if(tabs.scrollLeft <= lista[0].offsetLeft + folga){ idxCarrossel = 0; return; }
     if(tabs.scrollLeft >= info.max - folga){ idxCarrossel = info.numParadas - 1; return; } // na parada "fim"
     let idx = 0;
     for(let i=0;i<=info.ultimoAlcancavel;i++){
@@ -704,29 +761,21 @@ function habilitarSetasMasterTabs(){
     }
     idxCarrossel = idx;
   }
-  // CORRIGIDO 22/08/2026, 4ª rodada (pedido do usuário, depois do fix pra 'smooth': "suavise mais o
-  // carrossel, deixe bonito" — o `scrollTo({behavior:'smooth'})` nativo do navegador tem duração/curva
-  // fixas, fora do nosso controle, e varia de navegador pra navegador). Animação própria via
-  // `requestAnimationFrame` com easing ease-in-out cúbico (acelera suave, desacelera suave, sem
-  // repique) — mesma técnica de qualquer carrossel comercial. `_scrollAnimId` garante que um clique
-  // novo no meio de uma animação em voo cancela a anterior de forma limpa (lê a posição REAL atual
-  // como novo ponto de partida, não a de onde a animação anterior ia terminar) — testado ao vivo com
-  // cliques rápidos em sequência, sem disputa entre 2 loops de rAF escrevendo scrollLeft ao mesmo tempo.
+  // Animação própria via `requestAnimationFrame` com easing ease-in-out cúbico (acelera suave,
+  // desacelera suave, sem repique) — mesma técnica de qualquer carrossel comercial, e dá controle
+  // total sobre a duração (o `scrollTo({behavior:'smooth'})` nativo do navegador tem duração/curva
+  // fixas, fora do nosso controle, e varia de navegador pra navegador). `_scrollAnimId` garante que um
+  // clique novo no meio de uma animação em voo cancela a anterior de forma limpa. Duração escala com a
+  // distância real percorrida (~0,55ms por px, piso 260ms/teto 650ms) — um passo comum continua rápido
+  // (~320ms), mas o trecho maior até o clone (parte do giro completo) demora visivelmente mais.
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
-  // CORRIGIDO 22/08/2026, 6ª rodada (achado do usuário: "carrocel ficou ruim, ele vai até o fim e
-  // pula para Painel, não faz um giro" — duração FIXA de 380ms fazia a volta completa (~750px, do fim
-  // pro início) percorrer a MESMA distância de um passo comum (~130px, 1 aba) na mesma velocidade
-  // aparente, isto é, bem mais rápido em px/ms — parecia um teleporte em vez de um giro contínuo).
-  // Duração agora escala com a distância real percorrida (~0,55ms por px, entre um piso de 260ms e um
-  // teto de 650ms) — um passo comum continua rápido e crocante (~320ms), mas a volta completa (maior
-  // distância) demora visivelmente mais, dando a sensação de girar até voltar ao início, não pular.
   function duracaoPelaDistancia(deltaAbs){
     return Math.min(650, Math.max(260, 260 + deltaAbs * 0.55));
   }
-  function animarScrollPara(alvo){
+  function animarScrollPara(alvo, aoAssentar){
     const inicio = tabs.scrollLeft;
     const delta = alvo - inicio;
-    if(Math.abs(delta) < 1) return;
+    if(Math.abs(delta) < 1){ if(aoAssentar) aoAssentar(); return; }
     const meuId = ++_scrollAnimId;
     animandoAgora = true;
     const duracaoMs = duracaoPelaDistancia(Math.abs(delta));
@@ -736,34 +785,59 @@ function habilitarSetasMasterTabs(){
       const t = Math.min(1, (agora - t0) / duracaoMs);
       tabs.scrollLeft = inicio + delta * easeInOutCubic(t);
       if(t < 1) requestAnimationFrame(passo);
-      else animandoAgora = false; // assentou - sincronizarComScroll() volta a poder ler a posição real
+      else { animandoAgora = false; if(aoAssentar) aoAssentar(); }
     }
     requestAnimationFrame(passo);
   }
   prev.addEventListener('click', (e) => {
     e.preventDefault();
-    const lista = botoes();
+    const lista = reais();
     if(!lista.length) return;
     const info = calcularParadas(lista);
     sincronizarComScroll(lista, info);
-    idxCarrossel = idxCarrossel <= 0 ? info.numParadas - 1 : idxCarrossel - 1; // no início - dá a volta pro fim
-    animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
+    if(idxCarrossel <= 0){
+      // GIRO pra trás: continua rolando pra trás até o clone da última aba real (prependado antes do
+      // início), depois pousa instantaneamente na aba real equivalente - nunca inverte a direção.
+      const clonesInicio = Array.from(tabs.querySelectorAll('.master-tab--clone[data-clone-pos="inicio"]'));
+      const cloneAdjacente = clonesInicio[clonesInicio.length - 1]; // o mais próximo da 1ª aba real
+      const ultimoReal = lista[lista.length - 1];
+      const larguraLoop = ultimoReal.offsetLeft - cloneAdjacente.offsetLeft;
+      animarScrollPara(cloneAdjacente.offsetLeft, () => {
+        tabs.scrollLeft += larguraLoop; // pouso instantâneo, imperceptível (clone == real em pixel)
+        idxCarrossel = info.numParadas - 1;
+      });
+    } else {
+      idxCarrossel--;
+      animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
+    }
     prev.blur();
   });
   next.addEventListener('click', (e) => {
     e.preventDefault();
-    const lista = botoes();
+    const lista = reais();
     if(!lista.length) return;
     const info = calcularParadas(lista);
     sincronizarComScroll(lista, info);
-    idxCarrossel = idxCarrossel >= info.numParadas - 1 ? 0 : idxCarrossel + 1; // no fim - dá a volta pro início
-    animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
+    if(idxCarrossel >= info.numParadas - 1){
+      // GIRO pra frente: continua rolando pra frente até o clone da 1ª aba real (apendado depois do
+      // fim), depois pousa instantaneamente na aba real equivalente - nunca inverte a direção.
+      const cloneAdjacente = tabs.querySelector('.master-tab--clone[data-clone-pos="fim"]'); // o mais próximo do fim
+      const larguraLoop = cloneAdjacente.offsetLeft - lista[0].offsetLeft;
+      animarScrollPara(cloneAdjacente.offsetLeft, () => {
+        tabs.scrollLeft -= larguraLoop; // pouso instantâneo, imperceptível (clone == real em pixel)
+        idxCarrossel = 0;
+      });
+    } else {
+      idxCarrossel++;
+      animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
+    }
     next.blur();
   });
+  configurarClones();
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
-  window.addEventListener('resize', atualizarSetasMasterTabs, {passive:true});
+  window.addEventListener('resize', () => { configurarClones(); atualizarSetasMasterTabs(); }, {passive:true});
   atualizarSetasMasterTabs();
-  window.addEventListener('load', atualizarSetasMasterTabs, {once:true});
+  window.addEventListener('load', () => { configurarClones(); atualizarSetasMasterTabs(); }, {once:true});
 }
 // CORRIGIDO 22/08/2026 (achado do usuário, testado ao vivo com print real: "nas abas dentro de todas
 // menos Painel, Opções não aparece" — na verdade AS SETAS não apareciam em nenhuma aba além da que
