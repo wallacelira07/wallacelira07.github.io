@@ -135,6 +135,111 @@ function _pesquisaMercadoRenderSnapshot(pacote){
   `;
 }
 
+// NOVO 22/08/2026 (pedido do usuário: "quero uma camada adicional de interpretação DESCRITIVA do
+// estado atual do mercado... não é previsão, é a tradução dos indicadores pra linguagem
+// compreensível"). Cada rótulo abaixo é a MESMA informação que já está nos números, só reescrita em
+// palavras — nunca usa tempo futuro ("vai", "deve", "tende a"), sempre presente/passado ("está",
+// "permanece", "mostrou"). Limites numéricos (ex. "força moderada" = 1-3% de distância entre EMAs)
+// são escolhas objetivas declaradas aqui, não calibradas por backtest pra acertar previsão nenhuma.
+function _pesquisaMercadoCalcularEstadoAtual(pacote){
+  const u = arr => ultimoValorValido(arr);
+  const precoAtual = u(pacote.fechamentos);
+  const ema9 = u(pacote.ema9), ema21 = u(pacote.ema21), ema50 = u(pacote.ema50);
+  const rsi = u(pacote.rsi);
+  const macdHist = u(pacote.macd.histogram);
+  const atr = u(pacote.atr);
+  const volRel = u(pacote.volumeRelativo);
+
+  // Tendência: mesmo critério de alinhamento das EMAs já mostrado no snapshot numérico.
+  let tendencia = 'Indefinida (dados insuficientes)';
+  if(ema9 != null && ema21 != null && ema50 != null){
+    if(ema9 > ema21 && ema21 > ema50) tendencia = 'Alta';
+    else if(ema9 < ema21 && ema21 < ema50) tendencia = 'Baixa';
+    else tendencia = 'Lateral / sem alinhamento definido';
+  }
+
+  // Força da tendência: distância entre EMA9 e EMA50, em % do preço — quanto maior o "leque" entre
+  // as médias, mais forte o movimento atual (fato geométrico, não previsão de continuidade).
+  let forca = 'dados insuficientes';
+  if(ema9 != null && ema50 != null && precoAtual){
+    const distPct = Math.abs(ema9 - ema50) / precoAtual * 100;
+    forca = distPct < 1 ? 'Fraca' : (distPct < 3 ? 'Moderada' : 'Forte');
+  }
+
+  // Momentum: RSI acima/abaixo de 50 E histograma do MACD positivo/negativo — "Positivo"/"Negativo"
+  // só quando os dois concordam; "Misto" quando divergem (nenhum dos dois "vence" o outro aqui).
+  let momentum = 'dados insuficientes';
+  if(rsi != null && macdHist != null){
+    const rsiPositivo = rsi > 50, macdPositivo = macdHist > 0;
+    if(rsiPositivo && macdPositivo) momentum = 'Positivo';
+    else if(!rsiPositivo && !macdPositivo) momentum = 'Negativo';
+    else momentum = 'Misto (RSI e MACD divergem)';
+  }
+
+  // Volatilidade: percentil do ATR atual dentro do PRÓPRIO histórico do ativo (mesma lógica de
+  // detectarCompressaoExpansaoVolatilidade, recalculada aqui só pro último ponto).
+  let volatilidade = 'dados insuficientes';
+  const atrValidos = pacote.atr.filter(v => v != null);
+  if(atr != null && atrValidos.length >= 5){
+    const ordenados = atrValidos.slice().sort((a,b)=>a-b);
+    const percentil = ordenados.filter(v => v <= atr).length / ordenados.length;
+    volatilidade = percentil <= 0.3 ? 'Baixa (perto do menor ATR do histórico do ativo)' : (percentil >= 0.7 ? 'Alta (perto do maior ATR do histórico do ativo)' : 'Média');
+  }
+
+  // Volume: relativo à média móvel de 20 dias do próprio ativo.
+  let volume = 'dados insuficientes';
+  if(volRel != null){
+    volume = volRel > 1.2 ? 'Acima da média' : (volRel < 0.8 ? 'Abaixo da média' : 'Neutro (perto da média)');
+  }
+
+  // Estrutura de mercado: último evento BOS/CHOCH detectado no histórico — puramente o que já
+  // aconteceu, nunca "vai romper" ou qualquer coisa no futuro.
+  const eventosEstrutura = pacote.eventos.filter(e => e.tipo.startsWith('bos_') || e.tipo.startsWith('choch_'));
+  const ultimoEventoEstrutura = eventosEstrutura.length ? eventosEstrutura[eventosEstrutura.length - 1] : null;
+  let estrutura = 'Sem evento de estrutura (BOS/CHOCH) registrado ainda no histórico disponível';
+  if(ultimoEventoEstrutura){
+    const mapa = { bos_alta: 'Último evento: continuação de alta (BOS)', bos_baixa: 'Último evento: continuação de baixa (BOS)', choch_alta: 'Último evento: possível mudança pra alta (CHOCH)', choch_baixa: 'Último evento: possível mudança pra baixa (CHOCH)' };
+    estrutura = `${mapa[ultimoEventoEstrutura.tipo]}, em ${_pesquisaMercadoFmtData(ultimoEventoEstrutura.data)}`;
+  }
+
+  // Resumo em prosa — só concatena os mesmos fatos acima em frases, tempo presente/passado.
+  const partes = [];
+  if(tendencia === 'Alta') partes.push('O ativo está posicionado acima das principais médias móveis, com as médias mais curtas acima das mais longas.');
+  else if(tendencia === 'Baixa') partes.push('O ativo está posicionado abaixo das principais médias móveis, com as médias mais curtas abaixo das mais longas.');
+  else partes.push('As médias móveis do ativo não estão alinhadas numa direção única no momento.');
+  if(momentum === 'Positivo') partes.push('O RSI está acima de 50 e o histograma do MACD é positivo — momentum de curto prazo positivo pelos dois critérios.');
+  else if(momentum === 'Negativo') partes.push('O RSI está abaixo de 50 e o histograma do MACD é negativo — momentum de curto prazo negativo pelos dois critérios.');
+  else if(momentum === 'Misto (RSI e MACD divergem)') partes.push('RSI e MACD não concordam entre si no momento (momentum misto).');
+  if(volatilidade.startsWith('Alta')) partes.push('A volatilidade atual (ATR) está entre as mais altas do histórico do próprio ativo.');
+  else if(volatilidade.startsWith('Baixa')) partes.push('A volatilidade atual (ATR) está entre as mais baixas do histórico do próprio ativo.');
+  partes.push(volume === 'Acima da média' ? 'O volume negociado está acima da média dos últimos 20 dias.' : (volume === 'Abaixo da média' ? 'O volume negociado está abaixo da média dos últimos 20 dias.' : 'O volume negociado está próximo da média dos últimos 20 dias.'));
+  partes.push(ultimoEventoEstrutura ? `Em estrutura de mercado, o evento mais recente registrado foi: ${mapaEstruturaTexto(ultimoEventoEstrutura.tipo)}.` : 'Nenhum evento de estrutura de mercado (BOS/CHOCH) foi detectado ainda no histórico disponível.');
+  const resumo = partes.join(' ');
+
+  return { tendencia, forca, momentum, volatilidade, volume, estrutura, resumo };
+}
+function mapaEstruturaTexto(tipo){
+  return { bos_alta: 'continuação de alta', bos_baixa: 'continuação de baixa', choch_alta: 'possível mudança de estrutura pra alta', choch_baixa: 'possível mudança de estrutura pra baixa' }[tipo] || tipo;
+}
+
+function _pesquisaMercadoRenderEstadoAtual(pacote){
+  const e = _pesquisaMercadoCalcularEstadoAtual(pacote);
+  const corTendencia = e.tendencia === 'Alta' ? 'var(--green)' : (e.tendencia === 'Baixa' ? 'var(--red)' : 'var(--text-mid)');
+  const item = (rotulo, valor, cor) => `<div><div style="font-size:var(--fs-label);color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em">${rotulo}</div><div class="v" style="font-weight:600${cor?';color:'+cor:''}">${valor}</div></div>`;
+  return `
+    <div class="grid-3" style="margin-bottom:0.7rem">
+      ${item('Tendência', e.tendencia, corTendencia)}
+      ${item('Força da tendência', e.forca)}
+      ${item('Momentum', e.momentum, e.momentum==='Positivo'?'var(--green)':(e.momentum==='Negativo'?'var(--red)':undefined))}
+      ${item('Volatilidade', e.volatilidade.split(' (')[0])}
+      ${item('Volume', e.volume)}
+      ${item('Estrutura de mercado', e.estrutura)}
+    </div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);line-height:1.5;margin-bottom:0.3rem">${e.resumo}</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Tradução em palavras dos mesmos indicadores mostrados abaixo em número — descreve o estado atual, não prevê o que vem depois.</div>
+  `;
+}
+
 function _pesquisaMercadoRenderEventos(pacote){
   const ultimos = pacote.eventos.slice(-15).reverse();
   if(!ultimos.length){
@@ -176,25 +281,182 @@ function _pesquisaMercadoRenderEstatisticas(pacote){
     + '<div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem;font-style:italic">Distribuição de retornos JÁ OBSERVADOS depois de ocorrências passadas deste evento — histórico puro, não é previsão de que o próximo movimento se repita.</div>';
 }
 
-// Heatmaps + comparador: 1 pacote leve (só indicadores, sem eventos/estatística — caro demais pra
-// rodar em 10 tickers de uma vez) por ticker acompanhado.
+// Heatmaps + comparador + rankings/filtros: 1 pacote leve por ticker acompanhado. AMPLIADO
+// 22/08/2026 (pedido do usuário: "mesa de observação totalmente transparente", 8 rankings + 9
+// filtros de métrica única, sem combinar nada num score) — inclui distância da EMA200, variação de
+// 5/20 dias, inclinação de EMA21/EMA50, e detecção leve de eventos recentes (compressão/expansão de
+// volatilidade, BOS/CHOCH) pra alimentar os filtros. Tudo calculado sobre os mesmos candles já
+// buscados (sem fetch extra), custo é só matemática local.
 function _pesquisaMercadoCalcularResumoLeve(candles){
   if(!candles.length) return null;
   const fechamentos = candles.map(c => c.fechamento);
-  const ema9 = ultimoValorValido(calcularEMA(fechamentos, 9));
-  const ema21 = ultimoValorValido(calcularEMA(fechamentos, 21));
-  const ema50 = ultimoValorValido(calcularEMA(fechamentos, 50));
+  const n = candles.length;
+  const ema9Arr = calcularEMA(fechamentos, 9);
+  const ema21Arr = calcularEMA(fechamentos, 21);
+  const ema50Arr = calcularEMA(fechamentos, 50);
+  const ema200Arr = calcularEMA(fechamentos, 200);
+  const ema9 = ultimoValorValido(ema9Arr);
+  const ema21 = ultimoValorValido(ema21Arr);
+  const ema50 = ultimoValorValido(ema50Arr);
+  const ema200 = ultimoValorValido(ema200Arr);
   const rsi = ultimoValorValido(calcularRSI(fechamentos, 14));
-  const atr = ultimoValorValido(calcularATR(candles, 14));
+  const atrArr = calcularATR(candles, 14);
+  const atr = ultimoValorValido(atrArr);
   const volumeRelativo = ultimoValorValido(calcularVolumeRelativo(candles, 20));
-  const precoAtual = fechamentos[fechamentos.length - 1];
+  const precoAtual = fechamentos[n - 1];
   const atrPct = (atr != null && precoAtual) ? (atr / precoAtual) * 100 : null;
   let alinhamento = 'neutro';
   if(ema9 != null && ema21 != null && ema50 != null){
     if(ema9 > ema21 && ema21 > ema50) alinhamento = 'alta';
     else if(ema9 < ema21 && ema21 < ema50) alinhamento = 'baixa';
   }
-  return { precoAtual, ema9, ema21, ema50, rsi, atrPct, volumeRelativo, alinhamento };
+  const primeiro = fechamentos[0];
+  const variacaoJanelaPct = primeiro ? Math.round(((precoAtual - primeiro) / primeiro) * 1000) / 10 : null;
+
+  const distanciaEMA200Pct = (ema200 != null && precoAtual) ? Math.round(((precoAtual - ema200) / ema200) * 1000) / 10 : null;
+
+  const variacaoNDias = (dias) => {
+    if(n <= dias) return null;
+    const base = fechamentos[n - 1 - dias];
+    return base ? Math.round(((precoAtual - base) / base) * 1000) / 10 : null;
+  };
+  const variacao5d = variacaoNDias(5);
+  const variacao20d = variacaoNDias(20);
+
+  // Inclinação = variação % da própria EMA nos últimos 5 candles — quão rápido a média está se
+  // deslocando, não o preço. Objetivo e comparável entre ativos.
+  const inclinacaoEMA = (arr, dias = 5) => {
+    if(arr.length <= dias) return null;
+    const atual = arr[arr.length - 1], antigo = arr[arr.length - 1 - dias];
+    if(atual == null || antigo == null || antigo === 0) return null;
+    return Math.round(((atual - antigo) / Math.abs(antigo)) * 1000) / 10;
+  };
+  const inclinacaoEMA21 = inclinacaoEMA(ema21Arr);
+  const inclinacaoEMA50 = inclinacaoEMA(ema50Arr);
+
+  // Eventos recentes (últimos 5 pregões) pra alimentar os filtros — mesma detecção de
+  // eventos-mercado.js, só olhando se o evento mais recente caiu na janela recente.
+  const eventosVol = detectarCompressaoExpansaoVolatilidade(atrArr, candles, 60);
+  const ultimoEventoVol = eventosVol.length ? eventosVol[eventosVol.length - 1] : null;
+  const expansaoVolatilidadeRecente = !!(ultimoEventoVol && ultimoEventoVol.tipo === 'expansao_volatilidade' && ultimoEventoVol.index >= n - 5);
+  const compressaoVolatilidadeRecente = !!(ultimoEventoVol && ultimoEventoVol.tipo === 'compressao_volatilidade' && ultimoEventoVol.index >= n - 5);
+  const eventosEstrutura = detectarEstruturaMercado(candles, 5);
+  const bosRecente = eventosEstrutura.some(e => e.tipo.startsWith('bos_') && e.index >= n - 5);
+  const chochRecente = eventosEstrutura.some(e => e.tipo.startsWith('choch_') && e.index >= n - 5);
+
+  return { precoAtual, ema9, ema21, ema50, ema200, rsi, atrPct, volumeRelativo, alinhamento, variacaoJanelaPct,
+    distanciaEMA200Pct, variacao5d, variacao20d, inclinacaoEMA21, inclinacaoEMA50,
+    expansaoVolatilidadeRecente, compressaoVolatilidadeRecente, bosRecente, chochRecente };
+}
+
+// NOVO 22/08/2026 (pedido do usuário: "quero filtros"). Cada filtro é 1 predicado objetivo,
+// aplicado sozinho — nunca combinado com outro filtro/métrica pra formar uma "pontuação".
+const _PESQUISA_MERCADO_FILTROS = [
+  { rotulo: 'RSI acima de 60', teste: r => r.rsi != null && r.rsi > 60 },
+  { rotulo: 'RSI abaixo de 40', teste: r => r.rsi != null && r.rsi < 40 },
+  { rotulo: 'Acima da EMA200', teste: r => r.distanciaEMA200Pct != null && r.distanciaEMA200Pct > 0 },
+  { rotulo: 'Abaixo da EMA200', teste: r => r.distanciaEMA200Pct != null && r.distanciaEMA200Pct < 0 },
+  { rotulo: 'Volume acima de 1,5x a média', teste: r => r.volumeRelativo != null && r.volumeRelativo > 1.5 },
+  { rotulo: 'Expansão de volatilidade recente', teste: r => r.expansaoVolatilidadeRecente },
+  { rotulo: 'Compressão de volatilidade recente', teste: r => r.compressaoVolatilidadeRecente },
+  { rotulo: 'BOS recente (últimos 5 pregões)', teste: r => r.bosRecente },
+  { rotulo: 'CHOCH recente (últimos 5 pregões)', teste: r => r.chochRecente },
+];
+function _pesquisaMercadoRenderFiltros(resumosPorTicker){
+  const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
+  const blocos = _PESQUISA_MERCADO_FILTROS.map(f => {
+    const encontrados = validos.filter(t => f.teste(resumosPorTicker[t]));
+    return `<div style="background:var(--surface-2,rgba(255,255,255,0.03));border-radius:6px;padding:0.6rem"><div style="font-size:var(--fs-label);color:var(--text-dim);margin-bottom:0.3rem">${f.rotulo}</div><div style="font-size:var(--fs-xs);font-weight:600">${encontrados.length ? encontrados.join(', ') : '<span style="color:var(--text-dim);font-style:italic;font-weight:400">nenhum ativo</span>'}</div></div>`;
+  }).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.6rem;margin-bottom:1rem">${blocos}</div>`;
+}
+
+// NOVO 22/08/2026 (pedido do usuário: "dashboard executivo que destaque automaticamente os
+// extremos de cada métrica" — top 3 de CADA métrica isolada, sem combinar nada). Reaproveita a
+// mesma lista de rankings de _pesquisaMercadoRenderRankings, só que aqui mostra top-3 lado a lado
+// em vez da tabela completa.
+const _PESQUISA_MERCADO_METRICAS_DESTAQUE = [
+  { rotulo: 'Maior RSI', chave: 'rsi', sufixo: '' },
+  { rotulo: 'Maior volume relativo', chave: 'volumeRelativo', sufixo: 'x' },
+  { rotulo: 'Maior variação 5d', chave: 'variacao5d', sufixo: '%' },
+  { rotulo: 'Maior variação 20d', chave: 'variacao20d', sufixo: '%' },
+  { rotulo: 'Maior ATR % do preço', chave: 'atrPct', sufixo: '%' },
+  { rotulo: 'Maior inclinação EMA21', chave: 'inclinacaoEMA21', sufixo: '%' },
+  { rotulo: 'Maior inclinação EMA50', chave: 'inclinacaoEMA50', sufixo: '%' },
+  { rotulo: 'Maior distância da EMA200', chave: 'distanciaEMA200Pct', sufixo: '%' },
+];
+function _pesquisaMercadoRenderDestaques(resumosPorTicker){
+  const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
+  const blocos = _PESQUISA_MERCADO_METRICAS_DESTAQUE.map(m => {
+    const top3 = validos
+      .filter(t => resumosPorTicker[t][m.chave] != null)
+      .slice()
+      .sort((a,b) => resumosPorTicker[b][m.chave] - resumosPorTicker[a][m.chave])
+      .slice(0, 3);
+    const lista = top3.length
+      ? top3.map((t,i) => `<div>${i+1}. ${t} <span style="color:var(--text-dim)">(${resumosPorTicker[t][m.chave]>=0?'+':''}${_pesquisaMercadoFmtNum(resumosPorTicker[t][m.chave])}${m.sufixo})</span></div>`).join('')
+      : '<div style="color:var(--text-dim);font-style:italic">dados insuficientes</div>';
+    return `<div style="background:var(--surface-2,rgba(255,255,255,0.03));border-radius:6px;padding:0.6rem"><div style="font-size:var(--fs-label);color:var(--text-dim);margin-bottom:0.3rem;text-transform:uppercase">${m.rotulo}</div><div style="font-size:var(--fs-xs)">${lista}</div></div>`;
+  }).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.6rem;margin-bottom:1rem">${blocos}</div>`;
+}
+
+// NOVO 22/08/2026 (pedido do usuário: "quais ativos estão mais fortes/mais fracos" — SEM combinar
+// indicadores diferentes num score único, que seria sinal disfarçado. Cada ranking abaixo ordena
+// pela mesma métrica objetiva, JÁ mostrada crua no comparador — só reagrupada por ordem, uma
+// métrica de cada vez, nunca combinada com outra).
+function _pesquisaMercadoRenderRankings(resumosPorTicker){
+  const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
+  const tabelaRanking = (rotuloMetrica, chave, sufixo, decrescente) => {
+    const linhas = validos
+      .filter(t => resumosPorTicker[t][chave] != null)
+      .slice()
+      .sort((a,b) => decrescente ? resumosPorTicker[b][chave]-resumosPorTicker[a][chave] : resumosPorTicker[a][chave]-resumosPorTicker[b][chave]);
+    if(!linhas.length) return `<div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Sem dado suficiente pra "${rotuloMetrica}" ainda.</div>`;
+    return '<div style="overflow-x:auto"><table><thead><tr><th scope="col">#</th><th scope="col">Ativo</th><th scope="col" class="r">'+rotuloMetrica+'</th></tr></thead><tbody>'
+      + linhas.map((t,i) => `<tr><td>${i+1}º</td><td>${t}</td><td class="r">${resumosPorTicker[t][chave]>=0&&sufixo==='%'?'+':''}${_pesquisaMercadoFmtNum(resumosPorTicker[t][chave])}${sufixo}</td></tr>`).join('')
+      + '</tbody></table></div>';
+  };
+  // AMPLIADO 22/08/2026 (pedido do usuário: "mesa de observação totalmente transparente" — 8
+  // rankings, um por métrica isolada, nunca combinados). rotulo/chave/sufixo espelham
+  // _PESQUISA_MERCADO_METRICAS_DESTAQUE (mesma fonte de verdade dos "destaques" no topo do card).
+  const RANKINGS = [
+    ['RSI', 'rsi', ''],
+    ['Volume relativo', 'volumeRelativo', 'x'],
+    ['Distância da EMA200', 'distanciaEMA200Pct', '%'],
+    ['Variação 5 dias', 'variacao5d', '%'],
+    ['Variação 20 dias', 'variacao20d', '%'],
+    ['ATR % do preço', 'atrPct', '%'],
+    ['Inclinação EMA21 (5d)', 'inclinacaoEMA21', '%'],
+    ['Inclinação EMA50 (5d)', 'inclinacaoEMA50', '%'],
+  ];
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:0.5rem">
+      ${RANKINGS.map(([rotulo, chave, sufixo]) => `<div><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.4rem">Ordenado por ${rotulo} (maior primeiro)</div>${tabelaRanking(rotulo, chave, sufixo, true)}</div>`).join('')}
+    </div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Cada ranking usa 1 métrica objetiva isolada, nunca combinada com outra — não existe "força geral" ou score único neste sistema (ver nota do card).</div>
+  `;
+}
+
+// Heatmap de momentum — zona do RSI (terminologia padrão: sobrevendido/neutro/sobrecomprado),
+// mesma leitura que já aparece no ranking acima, só visual. Não combina com MACD nem outro
+// indicador (heatmap de tendência, acima, já cobre o alinhamento das EMAs separadamente).
+function _pesquisaMercadoRenderHeatmapMomentum(resumosPorTicker){
+  const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
+  const zonaRSI = rsi => {
+    if(rsi == null) return { rotulo: 'dados insuf.', cor: 'rgba(255,255,255,0.05)' };
+    if(rsi < 30) return { rotulo: 'sobrevendido', cor: 'rgba(76,142,242,0.28)' };
+    if(rsi < 45) return { rotulo: 'fraco', cor: 'rgba(76,142,242,0.12)' };
+    if(rsi <= 55) return { rotulo: 'neutro', cor: 'rgba(255,255,255,0.05)' };
+    if(rsi <= 70) return { rotulo: 'forte', cor: 'rgba(53,209,153,0.15)' };
+    return { rotulo: 'sobrecomprado', cor: 'rgba(53,209,153,0.28)' };
+  };
+  const celulas = validos.map(t => {
+    const r = resumosPorTicker[t];
+    const z = zonaRSI(r.rsi);
+    return `<div style="background:${z.cor};border-radius:6px;padding:0.5rem;text-align:center"><div style="font-weight:600;font-size:var(--fs-xs)">${t}</div><div style="font-size:var(--fs-label);color:var(--text-mid)">RSI ${r.rsi!=null?_pesquisaMercadoFmtNum(r.rsi):'—'}</div><div style="font-size:var(--fs-label);color:var(--text-dim)">${z.rotulo}</div></div>`;
+  }).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${celulas}</div>`;
 }
 
 function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
@@ -238,8 +500,16 @@ function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
     + '</tbody></table></div>';
 
   return `
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Destaques automáticos (top 3 por métrica, isolados — nunca combinados)</div>
+    ${_pesquisaMercadoRenderDestaques(resumosPorTicker)}
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Filtros por métrica</div>
+    ${_pesquisaMercadoRenderFiltros(resumosPorTicker)}
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Rankings por métrica isolada</div>
+    ${_pesquisaMercadoRenderRankings(resumosPorTicker)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Heatmap de tendência (alinhamento de EMAs, hoje)</div>
     <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapTendencia}</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de momentum (zona do RSI, hoje)</div>
+    ${_pesquisaMercadoRenderHeatmapMomentum(resumosPorTicker)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volatilidade (ATR % do preço, comparado entre os 10 hoje)</div>
     <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapVolatilidade}</div>
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volume (relativo à média de 20 dias, hoje)</div>
@@ -301,7 +571,9 @@ async function aplicarPesquisaMercado(){
   }
 
   container.innerHTML = `
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Indicadores — ${tickerSelecionado} (${candlesSelecionado.length} pregões de histórico)</div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Estado atual — ${tickerSelecionado} (${candlesSelecionado.length} pregões de histórico)</div>
+    ${_pesquisaMercadoRenderEstadoAtual(pacote)}
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Indicadores em número</div>
     ${_pesquisaMercadoRenderSnapshot(pacote)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Eventos detectados (últimos 15)</div>
     ${_pesquisaMercadoRenderEventos(pacote)}
