@@ -123,15 +123,23 @@ function criarRegOperacional(){
       // explicitamente pelo usuário: "[o ciclo] tá rodando com um pagamento" (20/08/2026). O ciclo cujo
       // salário ainda não foi recebido é o SEGUINTE (25/08→24/09, índice 1) — esse sim usa
       // REG.estimador.liquidoProjetadoProximoCiclo via liquidoMes(), automaticamente, sem precisar
-      // preencher nada aqui. Lição: 2 pessoas podiam chamar "Agosto" de coisas diferentes (o ciclo que
-      // já roda agora × o próximo pagamento) — o bug real de 19/08 nunca foi neste objeto, foi um outro
-      // card (ver investigação em andamento na Passagem de Turno/ESTADO_ATUAL sobre o card "próximo
-      // ciclo" mostrando a média ponderada em vez do Estimador de Salário).
-      // ⚠️ RISCO ESTRUTURAL REAL, ESTE SIM VÁLIDO: precisa ser atualizado manualmente pro índice 0 do
-      // NOVO ciclo assim que o salário de 25/08 for recebido e confirmado — sem isso, no dia 25/08 este
-      // objeto passa a representar o ciclo ERRADO (o de agora, já encerrado) até alguém trocar pra
-      // {0: <salário de 25/08>}. Sem rollover automático ainda.
-      liquidoReal: {0: 16819.56},
+      // preencher nada aqui.
+      // CORRIGIDO 22/08/2026 (o "risco estrutural real" documentado abaixo até 20/08 — literal
+      // {0: 16819.56} precisava ser trocado manualmente a cada virada de ciclo, senão passava a
+      // representar o ciclo ERRADO no dia 25 até alguém lembrar de editar código): o valor agora é
+      // LIDO AO VIVO de `VARS.CICLO_SNAPSHOTS[VARS.cicloAtual].salario` — que já é a MESMA coluna V2
+      // (`ciclos_financeiros_snapshots.salario`) confirmada em produção com o valor idêntico (16819.56
+      // pro ciclo_key '2026-07'). Como `VARS.cicloAtual` é sempre a chave do ciclo com `fechado=false`
+      // (aplicarCicloAoVARS), quando o ciclo virar em 25/08 este índice 0 aponta sozinho pra linha nova
+      // ('2026-08'), que nasce com `salario=null` (fechar_ciclo_financeiro só grava label/período na
+      // abertura) — liquidoMes(0) cai automaticamente no fallback/projeção em vez de mostrar o salário
+      // do ciclo antigo. Confirmar o salário novo passa a ser uma edição de DADO (`UPDATE
+      // ciclos_financeiros_snapshots SET salario = X WHERE ciclo_key = 'YYYY-MM'`), nunca mais deploy
+      // de código — mesma regra já valia pra qualquer outra constante financeira (seção 22 do manual).
+      liquidoReal: (() => {
+        const snap = (VARS.CICLO_SNAPSHOTS && VARS.cicloAtual) ? VARS.CICLO_SNAPSHOTS[VARS.cicloAtual] : null;
+        return (snap && snap.salario != null) ? {0: snap.salario} : {};
+      })(),
       // CORRIGIDO 10/08/2026 (achado do usuário: tabela "NECESSIDADE (PAGA TUDO)" da aba Cenários
       // não batia com o gráfico "Necessidade líquida" da aba Gráficos): este array era um literal
       // congelado desde V150 (25/07/2026), só o índice 0 era resincronizado — a partir do índice 1
