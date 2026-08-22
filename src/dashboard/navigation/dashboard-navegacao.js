@@ -191,6 +191,44 @@ function construirIndiceBuscaGlobal(){
       conteudo = conteudo.nextElementSibling;
     }
   });
+  // NOVO 22/08/2026 (achado do usuario: "corrija a pesquisa, tem que pegar tudo que ta no site" -
+  // buscar "Simulador Fim de Ciclo", "Verificacoes de Negocio", "Cotacoes de acoes" etc. dava "Nada
+  // encontrado" mesmo sendo texto real na tela). Causa: os 4 cards no topo da aba Painel (Simulador
+  // Fim de Ciclo, Necessidade x Salario, Verificacoes de Negocio, Saude Operacional) usam um
+  // cabecalho proprio (.chi-title dentro de .card-header-icon) e ficam ANTES do primeiro
+  // .section-num do pane - o loop acima so indexa conteudo que e irmao-seguinte de algum
+  // .section-num, entao esses 4 cards e tudo dentro deles (as ~9 linhas .row .k de "Saude
+  // Operacional"/"Verificacoes de Negocio", como "Cotacoes de acoes", "Medidor de energia (Tuya)"
+  // etc.) ficavam inteiramente fora do indice, titulo e conteudo. Mesmo tratamento ja usado no loop
+  // de secao: titulo vira entrada propria, e cada padrao de rotulo ja suportado (.row .k, cor
+  // text-mid, summary, negrito 600) dentro do card e indexado.
+  document.querySelectorAll('.chi-title').forEach(chiEl => {
+    const card = chiEl.closest('.card');
+    const paneEl = chiEl.closest('.master-pane');
+    if(!card || !paneEl) return;
+    const tituloCard = chiEl.textContent.trim();
+    const paneId = paneEl.id;
+    indice.push({texto: tituloCard.toLowerCase(), rotulo: tituloCard, paneId, alvo: card});
+    card.querySelectorAll('.row .k').forEach(kEl => {
+      const rotulo = kEl.textContent.trim();
+      if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloCard, paneId, alvo: card});
+    });
+    card.querySelectorAll('[style*="color:var(--text-mid)"]').forEach(labelEl => {
+      const rotulo = labelEl.textContent.trim();
+      const cardAlvo = labelEl.closest('.card') || labelEl;
+      if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloCard, paneId, alvo: cardAlvo});
+    });
+    card.querySelectorAll('summary').forEach(sumEl => {
+      const rotulo = sumEl.textContent.trim();
+      const detalhesAlvo = sumEl.closest('details') || sumEl;
+      if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloCard, paneId, alvo: detalhesAlvo});
+    });
+    card.querySelectorAll('.card > div:first-child[style*="font-weight:600"]').forEach(tituloEl => {
+      const rotulo = tituloEl.textContent.trim();
+      const cardAlvo = tituloEl.closest('.card') || tituloEl;
+      if(rotulo) indice.push({texto: rotulo.toLowerCase(), rotulo: rotulo + ' — ' + tituloCard, paneId, alvo: cardAlvo});
+    });
+  });
   // NOVO 09/08/2026 (pedido do usuario: "coloque so as siglas tambem na pesquisa") - ate aqui, a
   // sigla de uma aba do Livro Razao (ex: "LRB") so aparecia no indice via construirIndiceTransacoesBusca,
   // e so quando o array daquele livro tinha pelo menos 1 transacao com tx+valor validos. Livro vazio ou
