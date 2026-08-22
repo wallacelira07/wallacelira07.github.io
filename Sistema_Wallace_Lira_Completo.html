@@ -235,6 +235,20 @@
     </div>
   </div>
 
+  <!-- CORRIGIDO 22/08/2026 (pedido do usuário: "mova a barra de abas para abaixo da caixa com
+       'dashboard'") — movida de baixo do Simulador Fim de Ciclo (posição desde 11/08/2026, 2ª
+       rodada) pra logo após a caixa Dashboard (título + KPIs), antes de qualquer outro card da Home.
+       Sticky continua valendo (ver CSS), só mudou a posição de repouso na página. -->
+  <div class="home-nav-grid">
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('painel')">📊<span>Painel</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('graficos')">📈<span>Gráficos</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('solar')">☀️<span>Energia Solar</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('cenarios')">🛡️<span>Cenários</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('wwi')">🧠<span>Wealth Intelligence</span></button>
+    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️<span>Emagrecimento</span></button>
+  </div>
+
   <!-- NOVO 21/08/2026 (achado real do usuário: opção ITM prestes a vencer não avisava proativamente
        em lugar nenhum — só aparecia se o usuário abrisse a aba "Carteira de opções" e reparasse na
        coluna certa. Ver calcularAvisosOpcoesRisco()/hydrateROC(). Primeiro elemento visível da Home,
@@ -299,20 +313,6 @@
     </div>
     <div class="v" id="legHomeSobraReal" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">—</div>
     <div class="v" id="homeAvisoDeficit" style="font-size:var(--fs-2xs);color:var(--amber);margin-top:0.4rem;display:none">—</div>
-  </div>
-
-  <!-- CORRIGIDO 11/08/2026, 2ª rodada (pedido do usuário: "coloque as abas abaixo do simulador fim
-       de ciclo" — 1ª rodada tinha colocado logo abaixo dos cards de resumo, ainda acima do
-       Simulador). Sticky continua valendo (ver CSS), só mudou a posição de repouso no topo da
-       página. -->
-  <div class="home-nav-grid">
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('painel')">📊<span>Painel</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('graficos')">📈<span>Gráficos</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('solar')">☀️<span>Energia Solar</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('cenarios')">🛡️<span>Cenários</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('balancov2')">🏛️<span>Balanço</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('wwi')">🧠<span>Wealth Intelligence</span></button>
-    <button type="button" class="home-nav-btn" onclick="irParaPrimeiraSecao('emagrecimento')">⚖️<span>Emagrecimento</span></button>
   </div>
 
   <!-- V145 (25/07/2026) + CORRIGIDO 10/08/2026 4ª rodada (usuário: "eu quero que o único lugar que
@@ -1209,6 +1209,7 @@
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneVencidas', this)">Vencidas (aguardando confirmação)</button>
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneExercidas', this)">Exercícios Confirmados</button>
       <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneCarteira', this)">Carteira de Ações Recebidas</button>
+      <button class="opcoes-tab" onclick="showOpcoesTab('opcoesPaneTendencias', this)">Tendências</button>
     </div>
 
     <div id="opcoesPaneAtivas" class="opcoes-pane active">
@@ -1265,6 +1266,31 @@
          do custo), nunca recomendação — não sou consultor de investimentos. -->
     <div id="opcoesPaneCarteira" class="opcoes-pane">
       <div id="carteiraAcoesExercidasConteudo"></div>
+    </div>
+
+    <!-- NOVO 22/08/2026 (pedido do usuário: "como mudo a ação desse gráfico? preciso poder mudar para
+         a ação que eu quizer", depois "remova isso e coloque junto com as abas" — o gráfico de
+         tendência do topo só mostra ações com opção ATIVA aberta; este é livre, qualquer um dos 10
+         tickers que o robô já acompanha diariamente, ver aplicarTendenciaTickerLivre()/hydrate-roc.js
+         e scripts/sync/atualizar_cotacoes_acoes.py). -->
+    <div id="opcoesPaneTendencias" class="opcoes-pane">
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;flex-wrap:wrap">
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Tendência de qualquer ação acompanhada</div>
+        <select id="tendenciaTickerLivreSelect" style="margin-left:auto;font-size:var(--fs-xs);background:var(--bg-2,#1a1c1f);color:var(--text-1);border:1px solid var(--border);border-radius:6px;padding:0.25rem 0.5rem">
+          <option value="PETR4">PETR4</option>
+          <option value="ITUB4">ITUB4</option>
+          <option value="VALE3">VALE3</option>
+          <option value="MGLU3">MGLU3</option>
+          <option value="ITSA4">ITSA4</option>
+          <option value="BBDC4">BBDC4</option>
+          <option value="BBAS3">BBAS3</option>
+          <option value="WEGE3">WEGE3</option>
+          <option value="ABEV3">ABEV3</option>
+          <option value="B3SA3">B3SA3</option>
+        </select>
+      </div>
+      <div style="height:190px"><canvas id="cTendenciaTickerLivre"></canvas></div>
+      <div id="legTendenciaTickerLivre" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem"></div>
     </div>
 
     <div class="v" id="legOpcoesReconstruido" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>

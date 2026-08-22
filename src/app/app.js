@@ -2625,6 +2625,14 @@ onDomPronto(aplicarCotacoesOpcoesV2);
 // NOVO 21/08/2026: gráfico de tendência do preço (entrada → vencimento) por posição ativa, pedido
 // do usuário. Ver aplicarTendenciaOpcoes()/hydrate-roc.js.
 onDomPronto(aplicarTendenciaOpcoes);
+// NOVO 22/08/2026 (pedido do usuário: "preciso poder mudar para a ação que eu quizer" — aba
+// "Tendências" do cockpit de opções, seletor livre entre os 10 tickers que o robô já acompanha
+// diariamente). Ver aplicarTendenciaTickerLivre()/hydrate-roc.js.
+onDomPronto(() => {
+  aplicarTendenciaTickerLivre();
+  const select = $('tendenciaTickerLivreSelect');
+  if(select) select.addEventListener('change', aplicarTendenciaTickerLivre);
+});
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções): aba "Carteira de Ações Recebidas", derivada das
 // opções exercidas + dividendos_acoes. Ver aplicarCarteiraAcoesExercidas()/hydrate-roc.js.
 onDomPronto(aplicarCarteiraAcoesExercidas);

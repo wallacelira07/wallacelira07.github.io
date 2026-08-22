@@ -567,6 +567,57 @@ async function aplicarTendenciaOpcoes(){
   }
 }
 
+// NOVO 22/08/2026 (pedido do usuário: "como mudo a ação desse gráfico? preciso poder mudar para a
+// ação que eu quizer" — aplicarTendenciaOpcoes() acima só mostra ações com opção ATIVA aberta; esta
+// função é livre, qualquer um dos 10 tickers que scripts/sync/atualizar_cotacoes_acoes.py já grava
+// diariamente em cotacoes_acoes_historico (mesma fonte, WallaceFinanceService.getCotacoesAcoesHistorico).
+// Sem strike (não está ligada a nenhuma opção específica) — só a série de preço dos últimos ~90 dias
+// disponíveis. Chamada 1x no boot (aba "Tendências" do cockpit) + de novo a cada troca no <select>.
+async function aplicarTendenciaTickerLivre(){
+  const select = $('tendenciaTickerLivreSelect');
+  const canvas = $('cTendenciaTickerLivre');
+  const legEl = $('legTendenciaTickerLivre');
+  if(!select || !canvas || typeof Chart === 'undefined') return;
+  const ticker = select.value;
+  const hoje = new Date();
+  const desde = new Date(hoje); desde.setDate(desde.getDate() - 90);
+  const fmtIso = d => d.toISOString().slice(0,10);
+  let historico;
+  try {
+    historico = await WallaceFinanceService.getCotacoesAcoesHistorico(ticker, fmtIso(desde), fmtIso(hoje));
+  } catch(err){
+    console.error('TendenciaTickerLivre: falha ao buscar histórico de', ticker, err);
+    if(legEl) legEl.textContent = 'Não consegui buscar o histórico de '+ticker+' agora.';
+    return;
+  }
+  if(!Array.isArray(historico) || !historico.length){
+    if(legEl) legEl.textContent = 'Ainda sem histórico de cotações pra '+ticker+' (o robô só acompanha esse ticker a partir do dia em que foi adicionado).';
+    const existenteVazio = Chart.getChart(canvas); if(existenteVazio) existenteVazio.destroy();
+    return;
+  }
+  const labels = historico.map(h => { const [,mo,d] = h.data.split('-'); return `${d}/${mo}`; });
+  const precos = historico.map(h => Number(h.preco_fechamento));
+  const existente = Chart.getChart(canvas);
+  if(existente) existente.destroy();
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: ticker, data: precos, borderColor: '#4c8ef2', backgroundColor: 'rgba(76,142,242,0.10)', fill: true, tension: 0.15, pointRadius: 0, borderWidth: 2 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) } } },
+      scales: {
+        x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
+        y: { ticks: { font: { size: 9 }, callback: v => 'R$'+v } },
+      },
+    },
+  });
+  const primeiro = precos[0], ultimo = precos[precos.length-1];
+  const variacaoPct = primeiro ? Math.round(((ultimo-primeiro)/primeiro)*1000)/10 : null;
+  if(legEl) legEl.textContent = historico.length+' dia(s) de histórico, '+fmtIso(desde).split('-').reverse().join('/')+' → hoje'+(variacaoPct!=null ? ' — variação de '+fmt(primeiro)+' para '+fmt(ultimo)+' ('+(variacaoPct>=0?'+':'')+variacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%)' : '')+'. Histórico puro (sem projeção) — não é conselho de investimento.';
+}
+
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções, pedido do usuário: "Carteira de Ações Recebidas —
 // toda ação recebida por exercício deve entrar nela"). DERIVADA de VARS.opcoesVendidasDetalhe
 // (filtro o.exercida=true) — sem tabela nova de posição, pra não duplicar dado que já existe (mesma
