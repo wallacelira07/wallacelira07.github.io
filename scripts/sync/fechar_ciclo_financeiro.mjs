@@ -75,19 +75,27 @@ async function main(){
     const frame = await iframeEl.contentFrame();
     if(!frame) throw new Error('iframe #mainIframe sem contentFrame (login falhou ou layout mudou)');
 
-    console.log('fechar_ciclo_financeiro: login OK, aguardando boot completo do painel (window.REG)...');
+    console.log('fechar_ciclo_financeiro: login OK, aguardando boot completo do painel (REG/VARS)...');
     await frame.waitForFunction(
       () => typeof performance !== 'undefined' && performance.getEntriesByName('wallace-boot-complete').length > 0,
       null,
       { timeout: BOOT_TIMEOUT_MS, polling: 500 }
     );
 
-    // Lê o retrato vivo direto de window.REG/VARS do painel real — nenhuma fórmula reimplementada
-    // aqui, só remapeamento de nomes (mesmo mapeamento que aplicarCicloAoVARS usa na direção
-    // inversa — ver app.js linhas ~1866-1917 e ~1988-1999).
+    // Lê o retrato vivo direto de REG/VARS do painel real — nenhuma fórmula reimplementada aqui, só
+    // remapeamento de nomes (mesmo mapeamento que aplicarCicloAoVARS usa na direção inversa — ver
+    // app.js linhas ~1866-1917 e ~1988-1999).
+    // CORRIGIDO 22/08/2026 (achado real via 1º teste DRY_RUN do usuário — exatamente por isso o
+    // teste existe): app.js declara `const REG = {}`/`const VARS = {}` no nível superior do script
+    // clássico (linhas 1548/2165) — em JS de navegador, `const`/`let` no topo de um <script> NUNCA
+    // vira propriedade de `window` (diferente de `var`/função, que viram), mesmo sendo genuinamente
+    // global e acessível por nome direto de qualquer outro script/eval na mesma página. `window.REG`
+    // sempre foi `undefined`, então o boot sempre "completava" de verdade mas essa checagem sempre
+    // falhava — o robô nunca tinha sido testado de ponta a ponta antes de agora, por isso não tinha
+    // sido pego. Corrigido referenciando REG/VARS como identificador global direto, não via window.
     const snapshot = await frame.evaluate(() => {
-      const R = window.REG, V = window.VARS;
-      if(!R || !V) throw new Error('window.REG/VARS não existem — boot não completou de verdade');
+      const R = REG, V = VARS;
+      if(!R || !V) throw new Error('REG/VARS não existem — boot não completou de verdade');
       const cv = R.caixaVariavel || {};
       const op = R.operacional || {};
       return {
