@@ -301,6 +301,20 @@ Se `salarioBaseFixoMensal` mudar (reajuste salarial confirmado pelo usuário), a
 
 ---
 
+## 1.4b Pagamento mensal dos 9 boletos fixos (TXB000001-009) — decisão 21/08/2026: linha nova por mês, nunca reciclar
+
+**Achado real 21/08/2026**: até esta data, cada um dos 9 boletos fixos (`TXB000001` a `TXB000009`, tabela `cronograma_boletos_fixos`) tinha **1 única linha em `transacoes`**, reaproveitada/sobrescrita (`data`/`valor` atualizados) a cada novo ciclo — possível porque `UNIQUE(tx_legado, caixa_id)` permite isso sem erro. Efeito colateral real: o pagamento de julho de `TXB000006` (Van de Júlio) foi apagado sem querer quando o ciclo virou pra agosto — sem registro separado de cada mês, contradizendo P6 (nunca apagar dado real) e a regra geral "tx_legado nunca reutilizado" (seção 1.1).
+
+**Decisão do usuário, perguntado formalmente**: escolheu **linha nova por mês** (não manter a reciclagem). Corrigido retroativamente o caso já identificado: `TXB000006` restaurado pro valor de julho (via `audit_log`, que ainda tinha o valor anterior), pagamento de agosto virou `TX000377` (próximo sequencial), tx_legado próprio.
+
+**Procedimento correto daqui pra frente, pra qualquer um dos 9 boletos fixos**:
+1. `cronograma_boletos_fixos` continua sendo a fonte do **valor atual**/dia de vencimento — essa tabela é schedule, não ledger, continua sendo editada em cima (`UPDATE`) a cada reajuste real de valor, isso não mudou.
+2. Quando o boleto for efetivamente pago no ciclo (dia do vencimento chegou, valor confirmado): **`INSERT` uma linha NOVA em `transacoes`** (não `UPDATE` na linha `TXB0000XX` existente) — próximo `tx_legado` sequencial (`TX0003XX`), mesma `caixa_id`/`categoria_id`/`descricao` do padrão já usado.
+3. A linha original `TXB0000XX` fica congelada como registro histórico do ciclo em que foi criada — nunca mais tocada pra virar ciclo novo.
+4. Se algum agente notar uma dessas 9 linhas `TXB0000XX` com `data` mais recente que o esperado (sinal de reciclagem antiga acontecendo de novo por engano), é bug — reportar, não corrigir sozinho sem confirmar (pode já ter perdido o valor anterior, como aconteceu no achado real).
+
+---
+
 ## 1.5 Criar uma caixa nova — toda caixa tem que nascer com Livro Razão (NOVO 12/08/2026)
 
 **Regra permanente do usuário, pedida mais de uma vez** (05/08/2026, comentário "parte 99, pedido repetido do usuario" em `render-livros-variaveis.js`; repetida de novo em 12/08/2026 quando a caixa Emagrecimento nasceu só com card de saldo). Motivo, nas palavras do usuário: **"sempre que houver caixa deve haver um livro, é lá que haverá auditoria"** — pra ele, o Livro Razão não é cosmético, é onde a auditoria lançamento-a-lançamento acontece. Uma caixa só com saldo agregado, sem LR, fica sem rastreabilidade individual mesmo que o número esteja certo.
