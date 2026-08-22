@@ -1789,7 +1789,19 @@
       <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💡 Quanto você ainda vai pagar mesmo com 100% dos créditos</div>
       <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">Pela Lei 14.300/2022, os créditos solares nunca zeram a fatura inteira — <strong>Iluminação Pública e Encargos não são compensados</strong>, mesmo cobrindo 100% do consumo em kWh. Sobre a Distribuição: o Fio B (cobrado a <span id="fioBPctCobranca2026">60</span>% em 2026) é só uma <strong>fatia</strong> dela (~<span id="fioBPctDaDistribuicao">28</span>%) — <span id="fioBFormula">60%×28%</span> = <span id="fioBPctCobrado">16,8</span>% cobrado, <strong><span id="fioBPctCompensado">83,2</span>% da Distribuição continua compensada</strong>. Estimativa abaixo = último valor de fatura pré-solar × % não compensável de cada categoria.</div>
       <div id="residualPosSolarTbody" style="overflow-x:auto">—</div>
-      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real <strong>soma</strong> Taxa Mínima/Custo de Disponibilidade (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Fio B calculado acima + Iluminação Pública + Encargos setoriais — os 4 juntos, não o maior entre eles. Base sempre a fatura pré-solar mais recente disponível (Ago/26 quando existir).</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.6rem">⚠️ Quem tem energia solar nunca paga zero: a fatura real <strong>soma</strong> Taxa Mínima/Custo de Disponibilidade (equivalente a 30 kWh para ligação monofásica ou 50 kWh para bifásica/trifásica) + Fio B calculado acima + Iluminação Pública + Encargos setoriais — os 4 juntos, não o maior entre eles. Base sempre congelada na última fatura pré-solar (Jul/26, confirmada — a partir de Ago/26 já é fatura com desconto solar em toda casa).</div>
+    </div>
+
+    <!-- NOVO 22/08/2026 (pedido do usuário: "preciso ter no site um lugar para ver o quanto eu pagaria
+    sem a energia solar e quanto realmente vou pagar, para ver a economia"). Diferente do card acima
+    (que é um PISO teórico, sempre igual, mesmo com 100% de compensação) — este é a economia REAL do
+    mês corrente: consumo real deste mês × tarifa da última fatura pré-solar (Jul/26) = o que pagaria
+    SEM solar, comparado com a fatura real que o robô já capturou este mês. Ver aplicarEconomiaRealMesAtual()
+    em graficos-cenarios-lazy.js. -->
+    <div class="card" style="border-left:3px solid var(--green);margin-top:1rem">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.4rem">💰 Economia real deste mês (sem solar × com solar)</div>
+      <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.6rem">"Sem solar" = seu consumo real deste mês × a tarifa por kWh da última fatura antes do solar (Jul/26). "Com solar" = a fatura real que o robô capturou este mês.</div>
+      <div id="economiaRealTbody" style="overflow-x:auto">—</div>
     </div>
 
     <!-- NOVO 16/08/2026 (pedido do usuário: previsão de geração pros próximos dias, calibrada com

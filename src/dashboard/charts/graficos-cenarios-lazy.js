@@ -1382,6 +1382,42 @@ async function _lazyRenderSolarSecao(){
       return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)}</td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
     }).join('');
     residualTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Fatura base (pré-solar)</th><th class="r">Residual estimado/mês</th><th class="r">Economia estimada</th></tr></thead><tbody>${linhas}</tbody></table>`;
+
+    // NOVO 22/08/2026 (pedido do usuário: "preciso ter no site um lugar para ver o quanto eu pagaria
+    // sem a energia solar e quanto realmente vou pagar, para ver a economia"). Diferente da tabela
+    // acima (residual = PISO teórico fixo, sempre igual, não muda mês a mês): esta é a economia REAL
+    // deste mês — consumo real que o robô já capturou este mês × tarifa da última fatura pré-solar
+    // (R$/kWh, Jul/26) = estimativa de "sem solar", comparada com a fatura real que o robô também já
+    // capturou este mês ("com solar"). NÃO usa a linha "Total" da tabela de composição da fatura
+    // (achado 22/08/2026, 3 PDFs reais comparados: essa linha é maior que a fatura paga pro Wallace e
+    // pra Wellida, mas bateu EXATAMENTE igual à fatura paga da Mãe no mesmo mês — inconsistente
+    // demais entre as 3 casas pra confiar como "quanto pagaria sem crédito", então não vira número na
+    // tela até isso ficar entendido). Usa só campos já validados nesta mesma função (faturaBase/
+    // consumoKwh acima, mais fatura_<mês>_valor/_consumo_kwh, capturados pelo robô todo mês).
+    const economiaRealTbodyEl = $('economiaRealTbody');
+    if(economiaRealTbodyEl){
+      const MESES_CHAVE_ROBO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+      const agoraChave = new Date();
+      const chaveMesAtual = MESES_CHAVE_ROBO[agoraChave.getMonth()]+String(agoraChave.getFullYear()%100).padStart(2,'0');
+      const linhasEconomia = unidades.map(u => {
+        const d = comp[u.chave];
+        if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
+        const faturaPreSolar = d.fatura_pre_solar_valor;
+        const consumoPreSolar = d.fatura_pre_solar_consumo_kwh;
+        const valorMesAtual = d[`fatura_${chaveMesAtual}_valor`];
+        const consumoMesAtual = d[`fatura_${chaveMesAtual}_consumo_kwh`];
+        if(faturaPreSolar === undefined || !consumoPreSolar || valorMesAtual === undefined || !consumoMesAtual){
+          return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">ainda sem fatura de ${chaveMesAtual} capturada pelo robô</td></tr>`;
+        }
+        const tarifaPreSolar = faturaPreSolar / consumoPreSolar;
+        const semSolar = Math.round(tarifaPreSolar * consumoMesAtual * 100) / 100;
+        const economiaReal = Math.round((semSolar - valorMesAtual) * 100) / 100;
+        const economiaRealPct = semSolar > 0 ? Math.round((economiaReal/semSolar)*1000)/10 : 0;
+        const tituloTarifa = fmtKwhPtBr(consumoMesAtual)+' kWh × R$'+tarifaPreSolar.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})+'/kWh (tarifa da fatura pré-solar, Jul/26)';
+        return `<tr><td>${u.nome}</td><td class="r" title="${tituloTarifa}">${fmt(semSolar)}</td><td class="r" style="color:var(--green)">${fmt(valorMesAtual)}</td><td class="r" style="color:var(--accent)">${fmt(economiaReal)} (${economiaRealPct}%)</td></tr>`;
+      }).join('');
+      economiaRealTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Sem solar (estimado)</th><th class="r">Com solar (real)</th><th class="r">Economia real</th></tr></thead><tbody>${linhasEconomia}</tbody></table>`;
+    }
   }
 
 
