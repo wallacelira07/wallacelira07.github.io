@@ -2,6 +2,43 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## 📋 22/08/2026 (bloco 44) — Fase 1b encerrada formalmente pelo usuário; achada limitação de dados pra homologação multi-ciclo
+
+Usuário aprovou o encerramento técnico do bloco 43 ("Aprovo o encerramento técnico da Fase 1b"), mas exigiu 2 coisas por escrito antes de qualquer próximo passo:
+1. Registrar formalmente que a validação desta sessão foi nível-dado (RPC recalculada na mão contra as tabelas-fonte), **não contra a UI autenticada em execução** — login não estava disponível pro agente. Feito, ver item 13 do resumo executivo do `ESTADO_ATUAL.md`.
+2. Antes de trocar qualquer consumo do JS pela RPC, quer uma **homologação formal RPC × UI real em múltiplos ciclos**, com qualquer divergência documentada. Autorizou só o *planejamento* da migração do frontend agora, não a execução.
+
+**Investigação pro planejamento da homologação — achado real, não assumido**: fui checar se dava pra fazer a homologação histórica sem depender de login (comparando a RPC contra os valores que a própria UI já tinha calculado e salvo quando cada ciclo estava aberto). Achado:
+- O sistema tem **só 2 ciclos no total** em `ciclos_financeiros_snapshots`: `2026-06` (fechado) e `2026-07` (aberto, atual). "Múltiplos ciclos" hoje, na prática, significa no máximo esses 2.
+- `parcelas_historico_ciclo` (criada no bloco 42) só tem histórico do ciclo `2026-07` — foi semeada manualmente hoje mesmo, sem backfill do `2026-06`. `rpc_provmp_por_ciclo('2026-06')` retornaria `NULL` (corretamente, por honestidade — mas significa que o campo `prov_mp` não dá pra homologar no ciclo fechado).
+- As colunas `necessidade_total_bruta`/`necessidade_total_liquida` já salvas em `ciclos_financeiros_snapshots` pro ciclo `2026-07` (R$13.146,21 / R$12.743,10) **não batem** com o que a RPC nova recalcula ao vivo agora (R$14.612,18 / R$13.273,02) — indicando que essas colunas são um snapshot congelado de algum momento passado (provavelmente escrito na abertura do ciclo ou por `fechar_ciclo_financeiro`), não um espelho contínuo da tela. Não confiável como gabarito sem investigar quando/como essas colunas são escritas.
+
+**Conclusão levada ao usuário**: homologação multi-ciclo completa contra a UI real esbarra em 2 limitações reais de dados (poucos ciclos existentes, histórico de parcelas não retroativo) — não é um problema de acesso/login, é escassez de dado histórico de verdade. Decisão de escopo (homologar só o que já é possível vs. esperar mais ciclos vs. outra abordagem) devolvida ao usuário, não decidida unilateralmente pelo agente.
+
+**Decisão do usuário**: homologar agora o ciclo `2026-07` (completo, dado disponível) contra a UI autenticada, campo a campo, com evidências documentadas. Ciclo `2026-06` só entra se houver fonte confiável de reconstrução (não inventar) — caso contrário, marcar explicitamente "não homologável" com o motivo. A partir de agora, cada fechamento de ciclo novo vira 1 rodada extra de homologação (processo contínuo, não atrasa a migração esperando).
+
+**Verificação de backfill do ciclo 2026-06 (parcelas) — resultado: NÃO reconstruível com confiança.** Checado `audit_log` (tabela com rastreamento campo a campo, `valor_anterior`/`valor_novo`/`alterado_em`) por mudanças em `parcelas.numero_parcela` (o campo que `avancar_parcelas_ciclo_mensal()`/`avancar_parcelas_mp_ciclo_mensal()` incrementam a cada virada). Achado: o registro mais antigo de `audit_log` pra tabela `parcelas` é de **19/08/2026** — quase 1 mês DEPOIS da virada do ciclo 2026-06→2026-07 (que aconteceu em 24-25/07/2026). Não existe rastro de auditoria cobrindo essa virada específica; reconstruir o estado das parcelas durante o ciclo 2026-06 seria inventar dado, não reconstruir. **`2026-06` fica formalmente marcado como NÃO HOMOLOGÁVEL** (motivo: sem histórico de parcelas confiável pra esse ciclo) até segunda ordem.
+
+**HOMOLOGAÇÃO RPC × UI AUTENTICADA — ciclo 2026-07 — CONCLUÍDA, zero divergência.** Usuário fez login na sessão (`wallacelira.com.br`). App real roda dentro de um `<iframe>` (`Sistema_Wallace_Lira_Completo.html`), globals `REG`/`VARS` não vazam pro `window` do iframe (não são `var` no escopo top-level do jeito que eu esperava) — validação feita lendo o `textContent` renderizado dos elementos DOM direto (`document.querySelector('iframe').contentDocument.getElementById(...)`), que é inclusive mais fiel a "UI real" do que ler estado JS interno. Comparação campo a campo contra `select * from rpc_necessidade_total_bruta()`:
+
+| campo RPC | valor RPC | elemento DOM | valor UI | bate? |
+|---|---|---|---|---|
+| boletos | 4.433,58 | `pisoBoletos` | R$ 4.433,58 | ✅ |
+| recorrencias | 829,27 | `pisoRecorrencias` | R$ 829,27 | ✅ |
+| assinaturas | 362,77 | `pisoAssinaturas` | R$ 362,77 | ✅ |
+| orcamento_operacional | 3.200,00 | `s20Orcamento` | R$ 3.200,00 | ✅ |
+| deficit_caixas_sem_lrei | 2.472,22 | `homeAvisoDeficit` (texto) | R$ 2.472,22 | ✅ |
+| prov_mp | 403,11 | `reembMPPessoal` | R$ 403,11 | ✅ |
+| cobertura_garantida | 1.339,16 | `reembSobraDisponivel` | R$ 1.339,16 | ✅ |
+| **necessidade_total_bruta** | **14.612,18** | `csNecTotal` (`hydrate-balanco.js`) | R$ 14.612,18 | ✅ |
+| **necessidade_liquida** | **13.273,02** | `chEquilibrio` (aba Cenários) | R$ 13.273,02 | ✅ |
+
+`parcelas`/`consorcios`/`aportes_pat` não re-checados nesta rodada — código idêntico à Fase 1a, já validado exato então, não foram tocados na reescrita do bloco 43.
+
+**Achado à parte, documentado e descartado (não é bug)**: existe um card na Home com rótulo parecido ("Necessidade total (bruta) — **próximo** ciclo", id `s20NecBruta`, R$11.908,16) que é uma métrica DIFERENTE — projeção do ciclo seguinte, pior cenário sem fatura provisionada (`REG.evolucao.necessidadeBruta[1]`, calculada em `recalcular-necessidade.js`), não a necessidade do ciclo atual que a RPC calcula (`REG.operacional.necessidadeTotalBruta`, índice `[0]` da mesma série). Confirmado via leitura de `legNecessidadeBrutaLiquidaEl` no próprio código-fonte antes de comparar — evitou comparar 2 conceitos diferentes achando que era divergência.
+
+**Status final**: ciclo `2026-07` homologado, 0 divergências. Ciclo `2026-06` não-homologável (ver acima). Processo de homologação contínua fica estabelecido: a cada fechamento de ciclo novo, repetir esta mesma checagem campo a campo (tabela acima) contra a UI autenticada daquele momento.
+
 ## ✅ 22/08/2026 (bloco 43) — Fase 1b CONCLUÍDA: Regra 1 (determinismo) aprovada e aplicada, RPC final consolidada
 
 Continuação direta do bloco 42. Usuário aprovou formalmente por escrito a diretriz de determinismo pra janela de recorrências/assinaturas: "A RPC deve ser determinística e baseada exclusivamente no ciclo informado. Não utilizar a data atual do servidor, navegador ou qualquer referência dinâmica de tempo (...) Se houver risco de divergência com os números atuais da tela, apresente antes um comparativo (...) Com essa decisão, pode concluir a Fase 1b, gerar a RPC final consolidada e apresentar evidências de validação".
