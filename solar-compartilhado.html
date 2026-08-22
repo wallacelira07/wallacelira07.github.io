@@ -1229,10 +1229,11 @@ async function carregar(){
   }
 
   // CORRIGIDO 18/08/2026 (achado do usuário: números sobre as barras com 1 casa decimal — "321,0" —
-  // fora do padrão do resto do site, que sempre mostra kWh inteiro nesse gráfico específico —
-  // solarBarLabelPlugin em graficos-cenarios-lazy.js usa minimumFractionDigits:0). Plugin dedicado só
-  // pra este gráfico (o barValuePlugin genérico da página, usado nos outros 2 gráficos, continua com
-  // 1 casa decimal — não mudar sem confirmar que os outros também deveriam mudar).
+  // fora do padrão do resto do site, que sempre mostra kWh inteiro nesse gráfico específico).
+  // CORRIGIDO 22/08/2026 (achado do usuário: "todos os gráficos sem casa decimal" — este plugin era
+  // pra ser exclusivo do gráfico "Rateio Solar" (único caso documentado acima), mas tinha vazado pros
+  // 4 gráficos "Crédito × Medidor Tuya" (mês a mês e dia a dia, Wallace/Wellida) — devolvidos pro
+  // barValuePlugin genérico (1 casa decimal), igual ao painel privado já usa nesses mesmos gráficos.
   const barValuePluginInteiro = {
     id: 'barValuePluginInteiro',
     afterDatasetsDraw(chart){
@@ -1329,7 +1330,7 @@ async function carregar(){
             y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
           },
         },
-        plugins: [barValuePluginInteiro],
+        plugins: [barValuePlugin],
       });
     }
     montarGraficoCreditoVsMedidorCompartilhado('cCreditoVsMedidorWallace', creditoWallacePorIdx, consumoTuyaWallaceAlinhado, '#34c98a');
@@ -1370,7 +1371,7 @@ async function carregar(){
             y: { grid: { color: '#2a2d31' }, ticks: { callback: v => v+' kWh', font: { size: 9.5 } } },
           },
         },
-        plugins: [barValuePluginInteiro],
+        plugins: [barValuePlugin],
       });
     }
     const rateioWallaceDiario = ciclo && ciclo.rateio_wallace_pct != null ? Number(ciclo.rateio_wallace_pct) : 0.71;
