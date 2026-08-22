@@ -218,7 +218,10 @@ async function aplicarMedidorTuya(){
     varCicloBase: 'WALLACE_MEDIDOR_TUYA_CICLO_BASE_V2',
     varConsumoDiario: 'WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2',
     varRelatorio: 'WALLACE_MEDIDOR_TUYA_RELATORIO',
-    diaViradaCiclo: 21,
+    // CORRIGIDO 21/08/2026 (achado do usuário: "corrigir o ciclo porque a leitura foi feita dia 20")
+    // — dia de virada real do ciclo Energisa do apartamento do Wallace é 20, não 21 (valor antigo era
+    // um chute/placeholder, nunca confirmado contra a fatura real).
+    diaViradaCiclo: 20,
     logLabel: 'MedidorTuya',
   });
 }

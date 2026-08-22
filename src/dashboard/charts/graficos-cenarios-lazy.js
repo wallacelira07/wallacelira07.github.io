@@ -1987,7 +1987,10 @@ async function _lazyRenderSolarSecao(){
         const {ctx} = chart;
         ctx.save();
         ctx.textAlign = 'center';
-        ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        // CORRIGIDO 21/08/2026 (pedido do usuário: "retire os arredondamentos... quero ver número
+        // quebrado" — mesmo ajuste do solarBarLabelPlugin acima, fonte reduzida pra caber a casa
+        // decimal sem colidir com o rótulo vizinho).
+        ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
         chart.data.datasets.forEach((ds,di)=>{
           const meta = chart.getDatasetMeta(di);
           meta.data.forEach((bar,i)=>{
@@ -2002,7 +2005,7 @@ async function _lazyRenderSolarSecao(){
             // clara) — ctx.fillStyle=ds.backgroundColor atribuía a função inteira em vez de uma cor,
             // canvas ignora silenciosamente um fillStyle inválido. Resolve a cor por barra.
             ctx.fillStyle = typeof ds.backgroundColor === 'function' ? ds.backgroundColor({dataIndex:i, chart}) : ds.backgroundColor;
-            ctx.fillText(String(Math.round(v)), bar.x, bar.y - 4);
+            ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
           });
         });
         ctx.restore();
@@ -2194,7 +2197,11 @@ async function _lazyRenderSolarSecao(){
       const {ctx} = chart;
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      // CORRIGIDO 21/08/2026 (pedido do usuário: "retire os arredondamentos dos gráficos, quero ver
+      // número quebrado" — 11,6 aparecia arredondado pra 12). Fonte reduzida de 6.5 pra 6px pra
+      // compensar o dígito/vírgula extra da casa decimal sem voltar a colidir com o rótulo da barra
+      // vizinha (mesmo problema já documentado abaixo, resolvido antes tirando a unidade "kWh").
+      ctx.font = "600 6px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar,i)=>{
@@ -2207,7 +2214,7 @@ async function _lazyRenderSolarSecao(){
           // inválido. Resolve a cor por barra (chamando a função quando for função, igual o Chart.js
           // já faz internamente pra pintar a própria barra), nunca mais preso a string fixa.
           ctx.fillStyle = typeof ds.backgroundColor === 'function' ? ds.backgroundColor({dataIndex:i, chart}) : ds.backgroundColor;
-          ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}), bar.x, bar.y - 4);
+          ctx.fillText(v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}), bar.x, bar.y - 4);
         });
       });
       // NOVO 14/08/2026 (pedido do usuário: "quero que coloque sobre o ciclo atual um marcador, tem
