@@ -650,6 +650,7 @@ function habilitarSetasMasterTabs(){
   if(!tabs || !prev || !next) return;
   const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
   let idxCarrossel = 0;
+  let _scrollAnimId = 0; // token da animação em voo - clique novo invalida a anterior, sem disputa
 
   function botoes(){
     return Array.from(tabs.querySelectorAll('.master-tab'));
@@ -667,19 +668,32 @@ function habilitarSetasMasterTabs(){
     }
     idxCarrossel = idx;
   }
+  // CORRIGIDO 22/08/2026, 4ª rodada (pedido do usuário, depois do fix pra 'smooth': "suavise mais o
+  // carrossel, deixe bonito" — o `scrollTo({behavior:'smooth'})` nativo do navegador tem duração/curva
+  // fixas, fora do nosso controle, e varia de navegador pra navegador). Animação própria via
+  // `requestAnimationFrame` com easing ease-in-out cúbico (acelera suave, desacelera suave, sem
+  // repique) — mesma técnica de qualquer carrossel comercial. `_scrollAnimId` garante que um clique
+  // novo no meio de uma animação em voo cancela a anterior de forma limpa (lê a posição REAL atual
+  // como novo ponto de partida, não a de onde a animação anterior ia terminar) — testado ao vivo com
+  // cliques rápidos em sequência, sem disputa entre 2 loops de rAF escrevendo scrollLeft ao mesmo tempo.
+  function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+  function animarScrollPara(alvo, duracaoMs){
+    const meuId = ++_scrollAnimId;
+    const inicio = tabs.scrollLeft;
+    const delta = alvo - inicio;
+    if(Math.abs(delta) < 1) return;
+    const t0 = performance.now();
+    function passo(agora){
+      if(meuId !== _scrollAnimId) return; // uma animação mais nova já assumiu - esta desiste
+      const t = Math.min(1, (agora - t0) / duracaoMs);
+      tabs.scrollLeft = inicio + delta * easeInOutCubic(t);
+      if(t < 1) requestAnimationFrame(passo);
+    }
+    requestAnimationFrame(passo);
+  }
   function irParaAba(i, lista){
-    // CORRIGIDO 22/08/2026, 3ª rodada (pedido do usuário: "quero um carrossel suave, o que está
-    // fazendo é pulando para a aba inicial" — o scroll instantâneo de c4dcdf3 tornava o "dá a volta"
-    // um corte seco, sem transição nenhuma). Voltar pra 'smooth' aqui é seguro apesar do motivo
-    // original de ter trocado pra 'auto' (evitar competir com atualizarSetasMasterTabs() alternando
-    // .master-tabs--centralizada em cada evento de 'scroll' durante a animação): agora o cálculo do
-    // índice atual não depende mais de ler a posição de scroll em tempo real durante o clique
-    // (idxCarrossel já é estado, ver sincronizarComScroll() acima) — só o toggle de classe roda em
-    // cada 'scroll', que é idempotente (overflow não muda no meio do próprio carrossel). Testado ao
-    // vivo (site publicado, cliques rápidos em sequência com a animação ainda em voo) sem reproduzir
-    // o "pisca" original.
     const alvo = Math.min(Math.max(lista[i].offsetLeft, 0), maxScroll());
-    tabs.scrollTo({left: alvo, behavior:'smooth'});
+    animarScrollPara(alvo, 380);
   }
 
   prev.addEventListener('click', (e) => {
