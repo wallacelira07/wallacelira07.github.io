@@ -567,6 +567,7 @@ function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
     + '</tbody></table></div>';
 
   return `
+    ${_pesquisaMercadoRenderGlossario()}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Resumo executivo — todos os 10 ativos (ordem fixa)</div>
     ${_pesquisaMercadoRenderChecklistTodos(resumosPorTicker)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Destaques automáticos (top 3 por métrica, isolados — nunca combinados)</div>
@@ -589,6 +590,31 @@ function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
 }
 
 let _pesquisaMercadoCacheResumos = null; // memoiza os 10 resumos leves (heatmap/comparador) — só refeito quando a aba é reaberta, não a cada troca de ticker no seletor
+
+// NOVO 22/08/2026 (pedido do usuário: "sou leigo, não entendo desses indicadores, mas quero ter um
+// norte, se não essa página vai ser só um monte de número que não serve"). Diferença que separa
+// isso de recomendação: aqui EXPLICA o que cada termo significa NA TEORIA da análise técnica, de
+// forma genérica — nunca aplica esse significado a nenhum ativo específico "agora" (isso seria
+// interpretação personalizada = recomendação). É glossário, não veredito. Fixo, não muda com dado
+// nenhum — por isso vive fora de qualquer função que recalcula com o ticker selecionado.
+const PESQUISA_MERCADO_GLOSSARIO = [
+  { termo: 'Tendência de Alta / Baixa / Lateral', explicacao: 'Descreve se o preço recente está, em média, subindo, caindo, ou sem direção clara — olhando se as médias móveis mais curtas estão acima, abaixo, ou misturadas com as mais longas. É uma fotografia do que já aconteceu nos últimos dias/semanas, não uma previsão do que vem a seguir.' },
+  { termo: 'Momentum Forte / Moderado / Fraco', explicacao: 'Mede a VELOCIDADE da mudança recente de preço (via RSI/MACD), não a direção. "Forte" significa que o preço se moveu rápido numa direção recentemente; "Fraco" significa movimento lento ou hesitante. Analistas técnicos costumam ver momentum muito forte (RSI muito alto ou muito baixo) como sinal de que o movimento recente foi intenso — não como garantia de que vai continuar ou virar.' },
+  { termo: 'Estrutura Forte / Enfraquecida (BOS / CHOCH)', explicacao: 'BOS (Break of Structure) = o preço confirmou continuar no mesmo padrão de altos e baixos que já vinha fazendo. CHOCH (Change of Character) = o preço rompeu esse padrão na direção contrária, o que costuma ser lido como possível início de uma fase diferente. Os dois são fatos sobre o que já aconteceu no gráfico — não dizem o que vem depois.' },
+  { termo: 'Volatilidade Baixa / Média / Alta', explicacao: 'O quanto o preço tem oscilado (pra cima e pra baixo) recentemente, medido pelo ATR. Volatilidade alta = preço andando bastante em pouco tempo (mais risco de oscilação em qualquer direção); volatilidade baixa = preço mais parado. Não indica se a próxima oscilação será positiva ou negativa, só o TAMANHO esperado da oscilação.' },
+  { termo: 'Liquidez Baixa / Média / Alta', explicacao: 'O quanto desse ativo é negociado por dia, em R$ (comparado aos outros 9 acompanhados). Liquidez alta = mais fácil entrar/sair de uma posição sem que seu próprio pedido mude o preço; liquidez baixa = o oposto, mais risco de "derrapagem" ao negociar volumes maiores.' },
+  { termo: 'RSI sobrecomprado / sobrevendido', explicacao: 'RSI acima de 70 é chamado de "sobrecomprado" na análise técnica tradicional; abaixo de 30, "sobrevendido". São só nomes convencionais pra "subiu/caiu bastante e rápido recentemente" — nem toda alta forte reverte, nem toda queda forte reverte, esses nomes não são garantia de nada.' },
+];
+function _pesquisaMercadoRenderGlossario(){
+  const itens = PESQUISA_MERCADO_GLOSSARIO.map(g => `<div style="margin-bottom:0.6rem"><strong style="color:var(--text-mid)">${g.termo}</strong><div style="color:var(--text-dim);margin-top:0.15rem">${g.explicacao}</div></div>`).join('');
+  return `<details style="margin-bottom:1rem">
+    <summary style="cursor:pointer;font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">📖 O que cada termo significa (glossário, explicação geral — clique pra abrir)</summary>
+    <div style="font-size:var(--fs-2xs);margin-top:0.7rem;line-height:1.5">
+      ${itens}
+      <div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border);color:var(--text-dim);font-style:italic">Isso explica o que os termos SIGNIFICAM na teoria da análise técnica — nunca diz o que fazer com nenhum ativo específico. Juntar esses fatores e decidir uma operação é sempre sua (ou de um assessor de investimentos licenciado, se preferir orientação profissional pra sua situação).</div>
+    </div>
+  </details>`;
+}
 
 async function aplicarPesquisaMercado(){
   const container = $('pesquisaMercadoConteudo');
