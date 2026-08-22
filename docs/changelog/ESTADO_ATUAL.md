@@ -12,6 +12,10 @@
 
 **Continuada mais uma vez em 22/08/2026** (mesmo dia, mesma sessão): "Geração acumulada" ganhou fallback via buffer diário (`projetarGeracaoAcumuladaHoje`, nunca mais em branco só porque o robô SAJ ainda não rodou hoje), marcador "▼ ciclo atual" replicado no gráfico Rateio Solar do compartilhado, e a aba Opções foi reorganizada por completo — numeração corrigida (16→01), conteúdo dividido em 6 `.card` separados, botões de download em cada um, e um "Radar de ativos acompanhados" novo (10 tickers, variação 7d/30d, ordenado por momentum) ligado ao gráfico de tendência livre (que ganhou seletor de período e badge ▲/▼). Ver `PASSAGEM_DE_TURNO.md`, bloco 35.
 
+**Continuada mais uma vez em 22/08/2026** (mesmo dia): painel novo "Pesquisa de mercado" na aba Opções — indicadores técnicos (EMA/RSI/MACD/ATR/Bollinger/OBV/VWAP aproximado/Volume relativo), detecção factual de eventos (cruzamentos/rompimentos/pullback/volatilidade/divergência/BOS/CHOCH) e estatística histórica de retorno pós-evento, heatmaps e comparador entre os 10 ativos — **estritamente sem previsão/sinal/recomendação**, depois de recusar um pedido inicial de "motor de probabilidade direcional" por ser orientação de investimento disfarçada. Banco expandido pra guardar OHLCV completo (não só fechamento). Construído com 2 agentes em paralelo (`analise-tecnica.js`/`eventos-mercado.js`), revisados antes de integrar. Ver `PASSAGEM_DE_TURNO.md`, bloco 36.
+
+**Pendência real**: backfill de OHLCV completo pros 6 tickers que exigem `BRAPI_TOKEN` (ITSA4/BBDC4/BBAS3/WEGE3/ABEV3/B3SA3) precisa rodar de novo — o workflow `backfill_cotacoes_acoes_historico.yml` já rodou 1x antes da atualização pra OHLCV, só capturou fechamento. Idempotente, seguro repetir.
+
 ## 0. Resumo executivo da sessão de 20/08/2026
 
 1. **Mastercard Black — "Não Reconciliado" fechado em R$0,00 exato** (seção 1). 4 causas reais achadas e corrigidas: Tokio Marine duplicado (era parcela do Visa, não recorrência nova), H57Store sem dono, assinaturas somando sem checar ciclo (mesmo bug já corrigido em recorrências, nunca replicado), IOF de compra internacional sem linha própria.
