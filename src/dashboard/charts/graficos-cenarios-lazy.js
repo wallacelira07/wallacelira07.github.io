@@ -1491,12 +1491,10 @@ async function _lazyRenderSolarSecao(){
   //   credito gerado desde a ativacao entra no rotulo "Ago", nada fica em "Jul" (ciclo de julho ja
   //   tinha fechado e a fatura ja foi paga antes da usina existir).
   const CICLO_DIA_LEITURA_GERACAO = 8; // dia oficial de leitura Energisa da Casa da Mae - mesmo ciclo da Wellida
-  function mesFechamentoCiclo(dataStr){
-    const [ano, mes, dia] = dataStr.split('-').map(Number);
-    let m = dia <= CICLO_DIA_LEITURA_GERACAO ? mes : mes + 1;
-    if(m > 12) m = 1;
-    return m; // 1-12, mes em que o ciclo de leitura FECHA (mes que a fatura reflete)
-  }
+  // ESPELHADO 22/08/2026 (pedido do usuário, prioridade 0) — função movida pra
+  // src/solar/calculos-solares-compartilhados.js (mesFechamentoCicloGD), a mesma que
+  // solar-compartilhado.html usa. Nunca mais 2 cópias que podem divergir.
+  const mesFechamentoCiclo = dataStr => mesFechamentoCicloGD(dataStr, CICLO_DIA_LEITURA_GERACAO);
   // NOVO 08/08/2026 (Solar entra na V2 — modelo de ciclos de crédito): busca o ciclo aberto atual
   // (baseline_kwh = ponto de partida do ciclo, 0 até o 1º fechamento real) e o histórico de ciclos já
   // fechados. SOLAR_LEITURAS/SOLAR_LEITURAS_CALC continuam vindo de VARS (já V2-sourced desde o boot,
@@ -2186,19 +2184,11 @@ async function _lazyRenderSolarSecao(){
     // WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 tiver dado de verdade, o mesmo padrão se aplica
     // automaticamente aqui (é só reaproveitar a mesma função abaixo pra ela também).
     await Promise.all([window.__promiseMedidorTuyaConsumoDiarioV2, window.__promiseMedidorTuyaConsumoDiarioWellidaV2].filter(Boolean)).catch(()=>{});
-    // CORRIGIDO 22/08/2026 (achado do usuário: "Wallace 7,96 via medidor Tuya - só deu isso? desconsidere
-    // o primeiro dia de medição que foi baixo porque não mediu o dia inteiro") — o 1º dia de histórico de
-    // qualquer medidor Tuya novo é sempre parcial (instalado no meio do dia, só capta as horas restantes),
-    // puxando a média pra baixo de forma artificial. Ordena por data e descarta o dia mais antigo de
-    // propósito antes de calcular a média, não só um corte pelos últimos 14 (que ainda incluía esse
-    // primeiro dia enquanto o histórico total tiver 14 dias ou menos, como é o caso hoje).
-    function mediaConsumoDiarioTuyaRecente(diario, fallback){
-      const validos = (diario||[]).filter(r => r.kwh_consumido != null).slice().sort((a,b)=> a.data < b.data ? -1 : 1);
-      const semPrimeiroDiaParcial = validos.length > 1 ? validos.slice(1) : validos; // só descarta se sobrar pelo menos 1 dia completo
-      const janela = semPrimeiroDiaParcial.slice(-14); // últimos até 14 dias com leitura completa
-      if(!janela.length) return fallback;
-      return Math.round((janela.reduce((s,r)=>s+Number(r.kwh_consumido),0)/janela.length)*100)/100;
-    }
+    // ESPELHADO 22/08/2026 (pedido do usuário, prioridade 0: "eu quero algo espelhado, mexeu no site
+    // e no compartilhado muda automaticamente") — função movida pra
+    // src/solar/calculos-solares-compartilhados.js (carregada como <script> normal antes deste
+    // arquivo, ver Sistema_Wallace_Lira_Completo.html), a MESMA que solar-compartilhado.html chama.
+    // Nunca mais uma cópia local aqui.
     const wallaceConsumoDiarioReal = mediaConsumoDiarioTuyaRecente(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, VARS.solarConsumoDiarioWallace);
     const consumoMedioDiarioCasas = Math.round((wallaceConsumoDiarioReal + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
     const linhaConsumoMedio = todasDatas.map(()=> consumoMedioDiarioCasas);
@@ -2652,10 +2642,15 @@ async function _lazyRenderSolarSecao(){
   // "hoje" — assim que o ciclo virasse de novo, o card do ciclo já fechado (que não deveria mudar mais
   // nunca) mudaria de meta junto, incorretamente. Fluxo 1 passa `ultimoFechado.data_fim` (trava no mês
   // em que aquele ciclo específico fechou, pra sempre); Fluxo 2 usa o padrão (hoje).
+  // CORRIGIDO 22/08/2026 (achado real: esta função usava `>=` (dia 8 já conta como próximo ciclo),
+  // divergente de mesFechamentoCiclo/offsetCiclosSolar (usam `<=`, dia 8 ainda é o ciclo atual até a
+  // leitura oficial daquele dia realmente fechar) — inconsistência interna, existia só dentro deste
+  // arquivo, achada ao unificar com o compartilhado. Confirmado com o usuário: dia 8 ainda é o ciclo
+  // atual até a leitura fechar de verdade — usa `>` agora, mesma convenção das outras funções.
   function offsetMesesCicloGD(dataRef){
     const hoje = dataRef ? new Date(dataRef+'T00:00:00') : new Date();
     let ano = hoje.getFullYear(), mes = hoje.getMonth()+1; // 1-indexed
-    if(hoje.getDate() >= DIA_CORTE_CICLO_GD){
+    if(hoje.getDate() > DIA_CORTE_CICLO_GD){
       mes += 1;
       if(mes > 12){ mes = 1; ano += 1; }
     }
