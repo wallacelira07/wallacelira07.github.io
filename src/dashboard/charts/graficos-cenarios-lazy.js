@@ -1988,9 +1988,10 @@ async function _lazyRenderSolarSecao(){
         ctx.save();
         ctx.textAlign = 'center';
         // CORRIGIDO 21/08/2026 (pedido do usuário: "retire os arredondamentos... quero ver número
-        // quebrado" — mesmo ajuste do solarBarLabelPlugin acima, fonte reduzida pra caber a casa
-        // decimal sem colidir com o rótulo vizinho).
-        ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
+        // quebrado" — mesmo ajuste do solarBarLabelPlugin acima). 2ª rodada do mesmo dia: fonte volta
+        // pro tamanho original (7.5px) — o espaço extra pro dígito decimal vem do categoryPercentage
+        // do eixo X (0.9→0.97), não de encolher a fonte.
+        ctx.font = "600 7.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
         chart.data.datasets.forEach((ds,di)=>{
           const meta = chart.getDatasetMeta(di);
           meta.data.forEach((bar,i)=>{
@@ -2034,7 +2035,7 @@ async function _lazyRenderSolarSecao(){
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.97,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     }); });
     // NOVO 03/08/2026: aviso automatico dos meses com "Consumo direto" CONGELADO (dessincronia entre
@@ -2198,10 +2199,12 @@ async function _lazyRenderSolarSecao(){
       ctx.save();
       ctx.textAlign = 'center';
       // CORRIGIDO 21/08/2026 (pedido do usuário: "retire os arredondamentos dos gráficos, quero ver
-      // número quebrado" — 11,6 aparecia arredondado pra 12). Fonte reduzida de 6.5 pra 6px pra
-      // compensar o dígito/vírgula extra da casa decimal sem voltar a colidir com o rótulo da barra
-      // vizinha (mesmo problema já documentado abaixo, resolvido antes tirando a unidade "kWh").
-      ctx.font = "600 6px -apple-system, 'Segoe UI', Roboto, sans-serif";
+      // número quebrado" — 11,6 aparecia arredondado pra 12). 2ª rodada do mesmo dia (achado do
+      // usuário: "os valores... ficaram muito pequenos, é melhor aumentar a fonte e espaçar as
+      // barras") — fonte volta pro tamanho original (6.5px) e o espaço entre barras foi aumentado
+      // no categoryPercentage do eixo X (0.9→0.97) em vez de encolher a fonte pra caber o dígito
+      // decimal extra.
+      ctx.font = "600 6.5px -apple-system, 'Segoe UI', Roboto, sans-serif";
       chart.data.datasets.forEach((ds,di)=>{
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar,i)=>{
@@ -2338,7 +2341,7 @@ async function _lazyRenderSolarSecao(){
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.97,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     }); });
   }
@@ -2385,7 +2388,7 @@ async function _lazyRenderSolarSecao(){
             return c.dataset.label+': '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWh';
           }
         }}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.9,barPercentage:0.35},
+        scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},categoryPercentage:0.97,barPercentage:0.35},
           y:{grid:{color:grid2},ticks:{callback:v=>v+' kWh',font:{size:9.5}}}}}
     }); });
   }
@@ -2464,9 +2467,19 @@ async function _lazyRenderSolarSecao(){
         if(elLeg) elLeg.textContent = 'Ainda sem crédito formado neste ciclo pra comparar.';
       }
     } else {
-      if(elLeg) elLeg.textContent = cfg.mensagemSemDado || 'Ainda sem dado suficiente pra comparar — o medidor foi instalado hoje (17/08/2026), precisa de pelo menos 1 dia de leitura dentro do ciclo aberto da GD.';
+      if(elLeg) elLeg.textContent = cfg.mensagemSemDado || 'Ainda sem dado suficiente pra comparar — precisa de pelo menos 1 dia de leitura do medidor dentro do ciclo aberto da GD.';
     }
   }
+
+  // CORRIGIDO 21/08/2026 (achado do usuário: "às vezes estão sumindo os valores desses gráficos, mais
+  // cedo sumiram dos valores em tempo real"): initSolarLazy() só roda 1x por carga de página
+  // (_solarCarregado trava re-execução) — se a aba "Energia Solar" fosse aberta antes das buscas de
+  // window.__promiseMedidorTuyaConsumoDiarioV2/_WellidaV2 (Sistema_Wallace_Lira_Completo.html)
+  // terminarem, window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2 ainda estava null → caía no fallback
+  // "sem dado" pro resto da sessão inteira, mesmo o dado chegando 1s depois (nunca re-renderiza).
+  // Como esta função já é async, espera as 2 buscas (se existirem) antes de ler o resultado — corrige
+  // a corrida sem precisar reestruturar o boot inteiro.
+  await Promise.all([window.__promiseMedidorTuyaConsumoDiarioV2, window.__promiseMedidorTuyaConsumoDiarioWellidaV2].filter(Boolean)).catch(()=>{});
 
   aplicarConsumoRealVsCreditoPorCasa({
     idPrefix: 'consumoApartamento',

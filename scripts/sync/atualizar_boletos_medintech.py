@@ -264,6 +264,13 @@ def _buscar_energisa(access_token: str, resultado_boletos: dict, resultado_consu
         anexo = _gmail_get(f"/messages/{item['id']}/attachments/{anexo_id}", access_token)
         texto = _baixar_texto_pdf(base64.urlsafe_b64decode(anexo["data"]))
         casa = _identificar_casa_energisa(texto)
+        if os.environ.get("DEBUG_ENERGISA_TEXTO_PDF"):
+            # TEMPORÁRIO 21/08/2026 (pedido do usuário: preciso do texto real do PDF pra escrever a
+            # extração da composição percentual — energia/encargos/impostos/iluminação/distribuição —
+            # que hoje é 100% digitada à mão e nunca conferida contra a fatura real). Remover depois
+            # que essa extração for implementada e validada, mesmo padrão já usado (e já removido) no
+            # debug do robô de consórcio Porto.
+            print(f"===== DEBUG PDF ENERGISA ('{assunto}', casa={casa}) =====\n{texto}\n===== FIM DEBUG =====")
         if casa is None:
             print(f"AVISO: PDF de '{assunto}' (Energisa) não confirma UC de nenhuma casa conhecida — pulando.", file=sys.stderr)
             continue
