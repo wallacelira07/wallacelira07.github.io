@@ -33,6 +33,31 @@
 
 **Pendência nova, real, deixada em aberto**: validar em navegador real (login) o fix do `liquidoReal` acima assim que houver acesso — conferir que `estLiquido`/`homeSalarioEsperado`/o card "Necessidade × Salário" continuam mostrando os mesmos valores de antes da mudança (nenhum número deveria mudar hoje, só a fonte de onde vem).
 
+## ✅ LISTA CONSOLIDADA DE PENDÊNCIAS REAIS (atualizada 22/08/2026, fim da sessão do bloco 38)
+
+Checklist rápido pra qualquer agente novo — não repetir investigação já feita, só confirmar se ainda vale.
+
+**Aguardando ação/confirmação do usuário (não é trabalho de agente):**
+- [ ] Criar tarefa no cron-job.org pro robô do Consórcio Porto (`atualizar_consorcio_porto.py`) — código pronto, só falta o disparo automático.
+- [ ] Confirmar se cron-job.org do robô de dividendos (`atualizar_dividendos.py`, 12h) está disparando de verdade — nunca testado (seção 19).
+- [ ] Reverter `saudeEmagrecimentoAporte` de 0 pra 490.00 (`parametros_gerais` + `vars-operacional.js`) quando o ciclo 25/09→24/10 abrir — pausado por só 1 ciclo (seção 9).
+
+**Aguardando validação visual (sem navegador logado neste ambiente):**
+- [ ] Fix do `liquidoReal` (bloco 38, hoje) — conferir que nenhum card mudou de valor.
+- [ ] Carrossel `.master-tabs` — fix defensivo aplicado (commit `c4dcdf3`), causa raiz nunca confirmada.
+- [ ] Cockpit de opções inteiro (4 fases, bloco 19) + fixes de data (assembleia/opção vencendo) — nunca visto em navegador real.
+
+**Risco estrutural conhecido, sem solução ainda (baixa prioridade, valor pequeno):**
+- [ ] `mbIOFConfirmado` — literal manual, atualizar a cada fatura MB nova reconciliada (~R$18-40/mês).
+- [ ] `PARCELAMENTOS_VISA`/`PARCELAMENTOS_MP` (avanço automático já existe via `pg_cron` — ver acima) mas **auditoria item a item contra extrato real** só foi feita pra Korpos; risco de outras parcelas desatualizadas continua.
+- [ ] Rendimento das caixinhas Pluggy não chega (`pluggy_saldos_reservados` zerada) — provável limitação do conector sandbox `MeuPluggy`, não é bug nosso.
+
+**Trabalho pesquisado, não construído — perguntar ao usuário antes de começar:**
+- [ ] Parsing automático de nota de corretagem (BTG/Necton) via Gmail pra alimentar `vars-roc.js` sozinho — viável, mesmo padrão dos robôs de boleto, não implementado.
+
+**Crescimento natural, sem ação necessária, só mencionar se relevante:**
+- `regras_lancamento_estabelecimento` tem só 3 linhas — cresce sozinha conforme o histórico de compras.
+
 ## 0. Resumo executivo da sessão de 20/08/2026
 
 1. **Mastercard Black — "Não Reconciliado" fechado em R$0,00 exato** (seção 1). 4 causas reais achadas e corrigidas: Tokio Marine duplicado (era parcela do Visa, não recorrência nova), H57Store sem dono, assinaturas somando sem checar ciclo (mesmo bug já corrigido em recorrências, nunca replicado), IOF de compra internacional sem linha própria.
