@@ -131,6 +131,12 @@ function showMaster(id){
   if(id === 'opcoes' && typeof aplicarRadarAtivosOpcoes === 'function'){
     aplicarRadarAtivosOpcoes();
   }
+  // NOVO 22/08/2026 (painel "Pesquisa de mercado" — mesmo motivo de ser lazy que o Radar acima:
+  // evitar competir com a cadeia crítica de boot). Ver aplicarPesquisaMercado()/
+  // hydrate-pesquisa-mercado.js.
+  if(id === 'opcoes' && typeof aplicarPesquisaMercado === 'function'){
+    aplicarPesquisaMercado();
+  }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
   // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
   // ainda esta escondida (display:none) no carregamento inicial - o Chart.js nao consegue medir o

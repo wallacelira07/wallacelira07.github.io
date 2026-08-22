@@ -75,7 +75,16 @@ def buscar_historico_ticker(ticker: str, token: str) -> list[dict]:
         if timestamp is None or fechamento is None:
             continue
         data_iso = time.strftime("%Y-%m-%d", time.gmtime(timestamp))
-        pontos.append({"data": data_iso, "preco": fechamento})
+        # NOVO 22/08/2026 (painel de pesquisa de mercado): a mesma resposta já traz OHLCV completo
+        # (open/high/low/volume), sem precisar de outro endpoint — só não estava sendo aproveitado.
+        pontos.append({
+            "data": data_iso,
+            "preco": fechamento,
+            "abertura": p.get("open"),
+            "maxima": p.get("high"),
+            "minima": p.get("low"),
+            "volume": p.get("volume"),
+        })
     return pontos
 
 

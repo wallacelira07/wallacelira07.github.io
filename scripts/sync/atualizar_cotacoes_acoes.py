@@ -67,9 +67,16 @@ def buscar_cotacao_unica(ticker: str, token: str | None) -> dict | None:
         return None
 
     item = results[0]
+    # NOVO 22/08/2026 (painel de pesquisa de mercado — ATR/OBV/Volume relativo precisam de
+    # máxima/mínima/volume): a mesma resposta de cotação atual já traz esses campos do dia
+    # (regularMarketDayHigh/Low/Open/Volume), sem precisar de endpoint novo nem de token extra.
     return {
         "preco": item.get("regularMarketPrice"),
         "variacao": item.get("regularMarketChangePercent"),
+        "abertura": item.get("regularMarketOpen"),
+        "maxima": item.get("regularMarketDayHigh"),
+        "minima": item.get("regularMarketDayLow"),
+        "volume": item.get("regularMarketVolume"),
     }
 
 

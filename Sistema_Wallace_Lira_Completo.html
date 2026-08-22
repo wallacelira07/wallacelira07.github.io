@@ -1356,6 +1356,33 @@
 
     <div class="v" id="legOpcoesReconstruido" style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem">—</div>
   </div>
+
+  <!-- NOVO 22/08/2026 (pedido do usuário: "plataforma de análise quantitativa e observação de
+       mercado... apenas fatos observados e estatísticas históricas, nenhuma conclusão, recomendação,
+       previsão ou sugestão operacional"). Indicadores técnicos + eventos factuais + estatística
+       histórica do que aconteceu depois de cada tipo de evento no passado + heatmaps + comparador
+       entre os 10 ativos acompanhados. Ver aplicarPesquisaMercado()/hydrate-pesquisa-mercado.js —
+       carrega sob demanda ao abrir a aba Opções (mesmo padrão do Radar de ativos), nunca no boot. -->
+  <div class="card" id="opcoesPesquisaMercadoCard" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;flex-wrap:wrap">
+      <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Pesquisa de mercado</div>
+      <button type="button" class="btn-print-secao" data-print-titulo="pesquisa-mercado-opcoes" title="Baixar este card como JPEG" aria-label="Baixar card Pesquisa de mercado como JPEG">⬇</button>
+      <select id="pesquisaMercadoTickerSelect" style="margin-left:auto;font-size:var(--fs-xs);background:var(--bg-2,#1a1c1f);color:var(--text-1);border:1px solid var(--border);border-radius:6px;padding:0.25rem 0.5rem">
+        <option value="PETR4">PETR4</option>
+        <option value="ITUB4">ITUB4</option>
+        <option value="VALE3">VALE3</option>
+        <option value="MGLU3">MGLU3</option>
+        <option value="ITSA4">ITSA4</option>
+        <option value="BBDC4">BBDC4</option>
+        <option value="BBAS3">BBAS3</option>
+        <option value="WEGE3">WEGE3</option>
+        <option value="ABEV3">ABEV3</option>
+        <option value="B3SA3">B3SA3</option>
+      </select>
+    </div>
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">Fatos e estatísticas históricas objetivas — nenhum sinal, recomendação ou previsão. A interpretação é sempre sua.</div>
+    <div id="pesquisaMercadoConteudo"><div style="font-size:var(--fs-2xs);color:var(--text-dim);font-style:italic">Carregando…</div></div>
+  </div>
   </div>
 
   <div id="graficos" class="master-pane">
@@ -2734,6 +2761,11 @@ window.__promiseModulosBase = __carregarScriptsParalelo([
   'src/financeiro/investimentos/opcoes-roc.js',
   'src/dashboard/charts/graficos-utilitarios.js',
   'src/financeiro/investimentos/hydrate-roc.js',
+  // NOVO 22/08/2026 (pesquisa de mercado da aba Opções): funções puras de indicadores técnicos e
+  // detecção de eventos históricos, ver comentário no topo de cada arquivo.
+  'src/financeiro/investimentos/analise-tecnica.js',
+  'src/financeiro/investimentos/eventos-mercado.js',
+  'src/financeiro/investimentos/hydrate-pesquisa-mercado.js',
   'src/financeiro/caixas/hydrate-caixas.js',
   'src/ui/tooltip-composicao-caixa.js',
   'src/financeiro/caixas/hydrate-onda1-v2.js',

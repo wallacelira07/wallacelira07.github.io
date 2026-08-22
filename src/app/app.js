@@ -1169,7 +1169,10 @@ const WallaceFinanceService = {
   // diferente de `cotacoes_acoes`, que só guarda o preço mais recente). desde/ate em 'YYYY-MM-DD'.
   async getCotacoesAcoesHistorico(ticker, desde, ate){
     return this._cache.obterOuBuscar(`cotacoes_acoes_historico_${ticker}_${desde}_${ate}`, async () => {
-      const url = `${this._url}/rest/v1/cotacoes_acoes_historico?ticker=eq.${ticker}&data=gte.${desde}&data=lte.${ate}&select=data,preco_fechamento&order=data.asc`;
+      // AMPLIADO 22/08/2026 (painel de pesquisa de mercado — ATR/OBV/Volume relativo/VWAP
+      // aproximado precisam de abertura/máxima/mínima/volume, não só fechamento; colunas
+      // adicionadas na mesma sessão, ver migração adicionar_ohlcv_cotacoes_acoes_historico).
+      const url = `${this._url}/rest/v1/cotacoes_acoes_historico?ticker=eq.${ticker}&data=gte.${desde}&data=lte.${ate}&select=data,preco_fechamento,preco_abertura,preco_maximo,preco_minimo,volume&order=data.asc`;
       const resp = await fetch(url, { headers: this._headers() });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar cotacoes_acoes_historico`);
       return await resp.json();
@@ -2642,6 +2645,13 @@ onDomPronto(() => {
 // watchdog). aplicarRadarAtivosOpcoes() agora só roda sob demanda, quando o usuário abre a aba
 // Opções (mesmo padrão já usado por Gráficos/Cenários/Solar/WWI — ver showMaster()/
 // ui-navegacao-basica.js), nunca mais no boot síncrono.
+// NOVO 22/08/2026 (painel "Pesquisa de mercado" — troca de ticker no seletor recalcula na hora,
+// mesmo padrão do seletor de tendência livre). Carregamento inicial também é lazy (showMaster/
+// ui-navegacao-basica.js, mesmo motivo do Radar acima), só o listener de troca é registrado aqui.
+onDomPronto(() => {
+  const selectPesquisa = $('pesquisaMercadoTickerSelect');
+  if(selectPesquisa) selectPesquisa.addEventListener('change', () => { if(typeof aplicarPesquisaMercado === 'function') aplicarPesquisaMercado(); });
+});
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções): aba "Carteira de Ações Recebidas", derivada das
 // opções exercidas + dividendos_acoes. Ver aplicarCarteiraAcoesExercidas()/hydrate-roc.js.
 onDomPronto(aplicarCarteiraAcoesExercidas);
