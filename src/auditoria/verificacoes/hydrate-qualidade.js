@@ -162,6 +162,17 @@ function montarAlertasNegocio(){
     alertas.push({icone:nivel.icone, cor:nivel.cor,
       txto:`${inboxPendentes.length} item(ns) pendente(s) na Inbox Financeira — mais antigo há ${diasParado} dia(s) (${maisAntigo.id})`});
   }
+  // NOVO 22/08/2026 (pedido do usuário: "cadê o robô pra ver isso automaticamente?" — a badge
+  // "X/Y categorizadas" no cabeçalho ficava fácil de nunca notar quando caía abaixo de 100%).
+  // Reaproveita a mesma contagem já buscada pra badge (window.WALLACE_TRANSACOES_SEM_CATEGORIA,
+  // definida em app.js/auditoriaCruzadaV1V2) — undefined até essa busca async terminar, então some
+  // deste card até lá (nunca mostra "0" como se já tivesse checado sem checar de verdade).
+  const semCategoria = window.WALLACE_TRANSACOES_SEM_CATEGORIA;
+  if(semCategoria !== undefined){
+    alertas.push(semCategoria === 0
+      ? {icone:'✅', cor:'#34c98a', txto:'Todas as transações categorizadas'}
+      : {icone:'⚠️', cor:'#e8a63a', txto:`${semCategoria} transaç${semCategoria===1?'ão':'ões'} sem categoria — checar Supabase (transacoes.categoria_id is null) ou pedir pro Claude Chat categorizar`});
+  }
   return alertas;
 }
 
