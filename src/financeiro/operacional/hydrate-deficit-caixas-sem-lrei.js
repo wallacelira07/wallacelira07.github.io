@@ -164,6 +164,18 @@ async function aplicarDeficitCaixasSemLrei(){
   // série — mesma classe de bug do hydrateEstimadorSalario logo acima, só que esta função ficou de
   // fora da lista na 1ª rodada.
   if(typeof hydrateSimuladorCiclo === 'function') hydrateSimuladorCiclo();
+  // ADICIONADO 22/08/2026 (achado real do usuário, print comparando "Taxa de Poupança" x "Fluxo
+  // Financeiro do Ciclo" — "acho que esses dados estão misturando os ciclos"). Não era mistura de
+  // ciclo, era a MESMA classe de bug do hydrateEstimadorSalario/hydrateSimuladorCiclo acima:
+  // recalcularIndicadores() (PIB Wallace/Taxa de Poupança/despesaTotalComp) só rodava 1x no boot,
+  // ANTES do déficit de caixas sem LREI terminar de somar em necessidadeTotalBruta — confirmado ao
+  // vivo (REG.pibWallace.despesaTotalComp = R$13.050,81, deveria ser R$14.612,18 = REG.operacional.
+  // necessidadeTotalBruta + consumoNaoRecorrente(0), diferença de R$1.561,37 batendo com o déficit
+  // ainda não somado nesse momento). recalcularIndicadores() nunca tinha sido adicionado a esta lista
+  // de reprocessamento — hydrateIndicadores() (renderização) também precisa rodar de novo, senão o
+  // valor recalculado fica certo em REG mas a tela continua mostrando o número antigo.
+  if(typeof recalcularIndicadores === 'function') recalcularIndicadores();
+  if(typeof hydrateIndicadores === 'function') hydrateIndicadores();
   if(typeof atualizarGraficosNecessidade === 'function') atualizarGraficosNecessidade();
   // CORRIGIDO 10/08/2026: atualizarGraficosNecessidade() mora no módulo lazy (graficos-cenarios-lazy.js)
   // e some quando a aba Gráficos/Cenários nunca foi aberta - atualizarGraficosPainelPrincipal() (sempre
