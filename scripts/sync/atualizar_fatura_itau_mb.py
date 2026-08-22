@@ -7,9 +7,10 @@ Gmail já validado nos outros robôs (Água/Gás/Energia/Consórcio/Condomínio,
 scripts/sync/atualizar_boletos_medintech.py) — busca por e-mail com PDF anexado, extrai o valor real,
 grava no Supabase. Só 2 diferenças reais:
 
-1. O PDF é protegido por senha (Itaú manda sempre criptografado). A senha é os 5 primeiros dígitos do
-   CPF do titular (096.396.684-78 -> "09639"), confirmado 22/08/2026 com o PDF real do usuário — não é
-   segredo por fatura, é sempre a mesma fórmula, então o robô gera sozinho, não precisa de secret novo.
+1. O PDF é protegido por senha (Itaú manda sempre criptografado) — os 5 primeiros dígitos do CPF do
+   titular, confirmado 22/08/2026 com o PDF real do usuário. NÃO guardar o CPF completo em nenhum
+   arquivo deste repositório (é público) — só a senha derivada (5 dígitos) já resolvida, ver
+   `_SENHA_PDF` abaixo.
 2. O valor atualizado é `indicadores.cartaoMBTotal` (tabela `indicadores`, não `parametros_gerais` —
    ver docs/MANUAL_OPERACIONAL_AGENTES.md seção sobre a duplicação eliminada em 21/08/2026: a fonte
    real hoje é só `indicadores`). Essa âncora está na lista `PLUGGY_PROMOCAO_TRAVADA`
@@ -36,8 +37,11 @@ _GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 # Cartão físico "MB" (Mastercard Black), Itaú Personnalité, final 1371 — confirmado no PDF real
 # 22/08/2026 ("Cartão 5234.XXXX.XXXX.1371 MASTERCARD BLACK").
-_CPF_TITULAR = "09639668478"  # só dígitos — usado pra derivar a senha do PDF, nunca logado/impresso
-_SENHA_PDF = _CPF_TITULAR[:5]
+# CORRIGIDO 22/08/2026 (achado real: este repositório é PÚBLICO — guardar o CPF completo aqui, mesmo
+# só pra derivar 5 dígitos, expunha o documento inteiro no histórico do Git pra qualquer pessoa. A
+# senha em si (5 dígitos) é o suficiente pra esta automação funcionar, sem precisar do CPF completo
+# no código-fonte.
+_SENHA_PDF = "09639"
 _CARTAO_FINAL_ESPERADO = "1371"
 
 
