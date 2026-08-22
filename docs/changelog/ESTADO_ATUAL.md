@@ -2,6 +2,8 @@
 
 **Reescrito do zero em 22/08/2026** (sessão longa, blocos 38-40 do `PASSAGEM_DE_TURNO.md`). Se algo aqui contradiz `PASSAGEM_DE_TURNO.md`, este arquivo vence para o estado geral; a Passagem de Turno vence para o histórico passo a passo. Detalhe completo de qualquer item abaixo está lá, buscar pelo número do bloco citado.
 
+**🔴 HANDOFF 22/08/2026, fim de sessão (bloco 46) — usuário trocou de agente, leia a seção "PRIORIDADE 0" logo abaixo antes de qualquer coisa.**
+
 ## 0. Resumo executivo — o que mudou hoje (22/08/2026)
 
 1. **`liquidoReal` corrigido de vez** — risco estrutural documentado desde 20/08 (precisava edição manual de código a cada virada de ciclo) eliminado. Agora lê ao vivo de `ciclos_financeiros_snapshots.salario`, uma coluna V2 que já existia mas nunca estava conectada. Confirmar salário de ciclo novo virou `UPDATE` no banco, não deploy. Ver bloco 38.
@@ -20,14 +22,23 @@
 
 **Passagem de turno anterior recuperada**: a sessão de hoje começou identificando que a sessão logo antes tinha sido cortada pelo limite de crédito depois de um commit de código, sem atualizar este arquivo — documentado retroativamente no início do bloco 38. Lição registrada: escrever a passagem de turno ANTES do último commit quando o crédito está acabando, não depois.
 
-## ✅ LISTA CONSOLIDADA DE PENDÊNCIAS REAIS (atualizada 22/08/2026, fim do bloco 42)
+## 🔴 PRIORIDADE 0 — pendências do handoff (bloco 46, fim de sessão 22/08/2026)
+
+1. **Código morto / funções legadas não removidas.** O usuário pediu explicitamente pra eliminar código morto na Sub-fase B — não deu tempo de fazer essa varredura. Ver bloco 46 pra escopo (o que pode ter ficado órfão depois de `aplicar-rpc-necessidade.js` substituir o cálculo local como fonte oficial).
+2. **Botão ✏️ "Manejo/Movimentação" (`editarReembolsoManejo()`) não testado fisicamente** nesta sub-fase (abre `prompt()` nativo, automação não interage com segurança). Caminho de código é idêntico ao já testado (reprocessamento), mas falta o clique real.
+3. **1 divergência SSOT de Patrimônio observada** durante teste manual de troca de ciclo (`Reserva+BTG+CaixaLance+NectonCC ≠ patrimonio.total`) — reload limpo resolveu sozinho (confirmado "Sistema Íntegro" de novo), provavelmente efeito colateral do teste artificial (troca de ciclo 2x rápido via console, não replicável por clique humano normal). Não é do domínio Necessidade/RPC. Se reaparecer sem intervenção, investigar.
+4. **Falta documento dedicado de arquitetura final pós-migração** (RPC-oficial × JS-fallback × JS-não-migrado) — hoje só existe em comentários de código + blocos de changelog, não um documento único e permanente.
+5. **RPC (`rpc_necessidade_total_bruta`) já é fonte oficial em produção** (Sub-fase B implantada e validada: boot, reprocessamento, troca de ciclo aberto↔fechado — todos OK). Shadow mode continua ativo, acumulando evidência a cada uso real do site. Próximo marco natural: fechamento do ciclo atual (~24-25/09/2026).
+
+## ✅ LISTA CONSOLIDADA DE PENDÊNCIAS REAIS (atualizada 22/08/2026, fim do bloco 42 — ver PRIORIDADE 0 acima pro estado mais recente da migração)
 
 **Migração financeira — próximo passo concreto:**
 - [x] Fase 1b encerrada pelo usuário (22/08/2026) — `rpc_necessidade_total_bruta` reescrita, determinística (Regra 1), validada. Ver item 10-13 do resumo executivo.
 - [x] Homologação RPC × UI autenticada, ciclo `2026-07` — 9 campos, 0 divergências. Ciclo `2026-06` marcado não-homologável (motivo documentado, bloco 44). Processo de homologação contínua estabelecido pra cada fechamento de ciclo futuro.
 - [x] Plano de migração do frontend escrito — `docs/decisions/PLANO_MIGRACAO_FRONTEND_CONSUMO_RPC.md`.
-- [x] **Sub-fase A implantada e validada em produção (22/08/2026, bloco 45)**: tabela `rpc_homologacao_necessidade_log` + RPC `registrar_homologacao_necessidade` (Supabase) + `shadow-homologacao-necessidade.js` (novo, chamado no fim de `recalcularNecessidade()`). Testado ao vivo na sessão autenticada real: boot (13/13 campos batendo) e reprocessamento (3 chamadas rápidas → debounce colapsa em 1 gravação, 0 divergência). Não muda nada visível pro usuário — só loga/grava evidência em paralelo.
-- [ ] **Sub-fase B (corte real, RPC vira fonte oficial) — NÃO iniciada, aguardando mais ciclos.** Critério do próprio usuário (plano aprovado): múltiplos ciclos sem divergência antes do corte definitivo. Hoje só 1 ciclo (`2026-07`, aberto) tem evidência completa. Próximo gatilho natural: fechamento do ciclo atual (~24-25/09/2026) — mesmo evento que já aciona nova rodada de homologação manual (bloco 44).
+- [x] Sub-fase A (chamada-sombra) implantada e validada — depois evoluída/substituída pela Sub-fase B no mesmo dia (usuário decidiu não esperar mais ciclos, ver justificativa no bloco 46).
+- [x] **Sub-fase B implantada e validada em produção (22/08/2026, bloco 46)**: `rpc_necessidade_total_bruta` é a fonte oficial de `totalOperacional`/`necessidadeTotalBruta`/`coberturaGarantida`/`necessidadeLiquida` (arquivo `aplicar-rpc-necessidade.js`, substitui a fórmula JS local como valor FINAL exibido — a fórmula JS continua no código só como fallback síncrono imediato, nunca removida de propósito). Testado ao vivo: boot, reprocessamento, troca de ciclo aberto↔fechado (guard protege snapshot congelado corretamente). Shadow mode (log de homologação) continua ativo.
+- [ ] **PRIORIDADE 0 (ver seção no topo do arquivo)**: código morto não removido, teste físico de edição pendente, documento de arquitetura final pendente.
 - [ ] Fase 2+ da migração (boletos/consórcios/aportes_pat/orçamento/déficit LREI ainda leem estado ao vivo, não por ciclo; Balanço, Patrimônio, Evolução 12 meses) — só planejada em `docs/decisions/PLANO_MIGRACAO_CALCULOS_FINANCEIROS_SUPABASE.md`, nada implementado ainda.
 
 **Aguardando ação do usuário (não é trabalho de agente):**
