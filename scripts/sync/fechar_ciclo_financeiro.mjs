@@ -38,17 +38,26 @@ const BOOT_TIMEOUT_MS = 90_000;
 
 const MESES_ABREV_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
+// CORRIGIDO 22/08/2026 (achado real no 1º teste DRY_RUN completo do usuário: o log imprimiu
+// "fechando 2026-07 → abrindo 2026-08 (Ago/26 (25/07–24/08) — ABERTO)" — a data entre parênteses
+// (25/07–24/08) é IDÊNTICA à do ciclo que está FECHANDO ("Jul/26 (25/07–24/08)" no banco), não a do
+// ciclo novo, que devia ser 25/08–24/09. Causa: `label`/`periodo` usavam `mes` (mês do ciclo
+// ANTIGO) como início do período novo, em vez de `proxMes` (mês do ciclo NOVO) — reproduzia a data
+// que está fechando em vez de calcular a próxima. Corrigido: início do período novo = proxMes, fim
+// = mês seguinte a proxMes (com rollover de ano se proxMes=12, igual já feito pra novoKey acima).
 function proximoCiclo(cicloAtualKey){
   // cicloAtualKey = 'YYYY-MM' do ciclo que está fechando agora (ex: '2026-07', vira '2026-08').
   const [ano, mes] = cicloAtualKey.split('-').map(Number);
   const proxMes = mes === 12 ? 1 : mes + 1;
   const proxAno = mes === 12 ? ano + 1 : ano;
   const novoKey = `${proxAno}-${String(proxMes).padStart(2,'0')}`;
+  const fimMes = proxMes === 12 ? 1 : proxMes + 1;
+  const fimAno = proxMes === 12 ? proxAno + 1 : proxAno;
   // Mesmo formato de label/periodo já usado nos snapshots existentes (ver vars-ciclo-snapshots.js):
   // "Mmm/AA (25/MM–24/MM) — ABERTO", período "25/MM/AAAA a 24/MM/AAAA" (dia 25→24, ciclo financeiro).
   const dd = n => String(n).padStart(2,'0');
-  const label = `${MESES_ABREV_PT[proxMes-1]}/${String(proxAno).slice(2)} (25/${dd(mes)}–24/${dd(proxMes)}) — ABERTO`;
-  const periodo = `25/${dd(mes)}/${ano} a 24/${dd(proxMes)}/${proxAno}`;
+  const label = `${MESES_ABREV_PT[proxMes-1]}/${String(proxAno).slice(2)} (25/${dd(proxMes)}–24/${dd(fimMes)}) — ABERTO`;
+  const periodo = `25/${dd(proxMes)}/${proxAno} a 24/${dd(fimMes)}/${fimAno}`;
   return { novoKey, label, periodo };
 }
 
