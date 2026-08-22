@@ -436,7 +436,9 @@ Exemplo de referência (feito certo): caixa Emagrecimento, 12/08/2026 — commit
 4. Confirmar que a quantidade inserida bate exato com o previsto no dry-run.
 5. Rodar de novo (`false`) uma segunda vez — tem que retornar 0 inserções (prova de idempotência, protegida por `UNIQUE(tx_legado, caixa_id)`).
 
-A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v2_caixa_mapa` (hoje `LRW_TRANSACOES`/`LRV_TRANSACOES`) e `tx_legado` com pendência formal de governança (`TX000208`, `TX000203-206` — ver seção 7). Não é preciso filtrar manualmente.
+A função já exclui automaticamente: livros sem mapeamento confiável em `v1_v2_caixa_mapa` e `tx_legado` com pendência formal de governança (`TX000208`, `TX000203-206` — ver seção 7). Não é preciso filtrar manualmente.
+
+**ATUALIZADO 22/08/2026 (correção de documentação — texto acima citava LRW/LRV como excluídos, isso ficou desatualizado):** LRW/LRV **não são mais V1 manual** desde 15/08/2026 — `aplicarOnda3LrwLrv()` (`src/financeiro/cartoes/hydrate-onda3-lrwlrv.js`) recalcula `VARS.LRW_TRANSACOES`/`LRV_TRANSACOES` a cada carga direto da view `vw_transacoes_cartao_variavel_por_pessoa` (V2 relacional), e `mbLRWConfirmado`/`mbLRVConfirmado` são somados a partir dessa mesma lista — nunca mais um array editado à mão. Não precisam de `sincronizar_v1_v2()` porque não existe mais dado V1 pra sincronizar: a lista já É a V2. Confirmado 22/08/2026 via amostragem: 4 `tx_legado` do antigo array literal (TX000159, TX000196, TX000201, TX000132) já existem como linhas reais em `transacoes`, todas com `usuario_id` = Wallace, `caixa_id` = Caixa Variável, `cartao_id` num cartão Mastercard Black.
 
 ---
 
