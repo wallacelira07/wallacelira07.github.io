@@ -2134,7 +2134,23 @@ async function _lazyRenderSolarSecao(){
     // Irma (casa da irma, ainda com valor antigo sem fatura conferida) e Mae (casa geradora, fatura
     // real confirmada nesta sessao). Nao existe "3a casa desconhecida" - eram sempre essas 3, so a
     // atribuicao da fatura da mae tinha ido pra variavel errada (Irma) na rodada anterior.
-    const consumoMedioDiarioCasas = Math.round((VARS.solarConsumoDiarioWallace + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
+    // NOVO 22/08/2026 (pedido do usuário: "pode usar o meu do medidor Tuya e somar com a estimativa
+    // da minha mãe e irmã, aí quando os medidores delas forem entrando no sistema você para de usar
+    // [a estimativa]"): Wallace já tem medidor Tuya real (window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2,
+    // agregado por dia via trigger no Postgres) — usa a média dos últimos dias com leitura real em vez
+    // do literal fixo de vars-energia-solar.js (10,00 kWh/dia, de 1 fatura antiga, nunca atualiza
+    // sozinho). Mãe/Wellida continuam no literal/energia_solar_consumo_referencia (fatura real, mas
+    // estático) até cada uma ganhar seu próprio medidor Tuya — na hora que a var
+    // WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 tiver dado de verdade, o mesmo padrão se aplica
+    // automaticamente aqui (é só reaproveitar a mesma função abaixo pra ela também).
+    await Promise.all([window.__promiseMedidorTuyaConsumoDiarioV2, window.__promiseMedidorTuyaConsumoDiarioWellidaV2].filter(Boolean)).catch(()=>{});
+    function mediaConsumoDiarioTuyaRecente(diario, fallback){
+      const validos = (diario||[]).filter(r => r.kwh_consumido != null).slice(-14); // últimos até 14 dias com leitura
+      if(!validos.length) return fallback;
+      return Math.round((validos.reduce((s,r)=>s+Number(r.kwh_consumido),0)/validos.length)*100)/100;
+    }
+    const wallaceConsumoDiarioReal = mediaConsumoDiarioTuyaRecente(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, VARS.solarConsumoDiarioWallace);
+    const consumoMedioDiarioCasas = Math.round((wallaceConsumoDiarioReal + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
     const linhaConsumoMedio = todasDatas.map(()=> consumoMedioDiarioCasas);
     // CORRIGIDO 07/08/2026 (pedido do usuário: "mude essa linha de indicação, ela tem que começar no
     // início do gráfico e ir até o final e eu acho ela feia, melhore a aparência"): como dataset `line`
@@ -2227,8 +2243,15 @@ async function _lazyRenderSolarSecao(){
         : mediaGeracaoReal > consumoMedioDiarioCasas + 2 ? 'var(--green)'
         : mediaGeracaoReal > consumoMedioDiarioCasas ? 'var(--amber)'
         : 'var(--red)';
+      // CORRIGIDO 22/08/2026 (pedido do usuário: "esses dados devem vir dos medidores, como o meu já
+      // tá funcionando, pode já colocar, aí quando os outros entrarem em operação você coloca") — o
+      // texto tinha "Wallace 10,00" cravado, mesmo depois do wallaceConsumoDiarioReal (calculado acima
+      // a partir do medidor Tuya real) já ter passado a valer no cálculo. Frase agora reflete a fonte
+      // real de cada casa — Wallace por medidor Tuya (média móvel), irmã/mãe por fatura (ainda sem
+      // medidor instalado).
+      const fonteWallaceTxt = wallaceConsumoDiarioReal !== VARS.solarConsumoDiarioWallace ? 'medidor Tuya' : 'fatura';
       legGeracaoPorDiaEl.innerHTML = qtdReal
-        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas, todas com fatura Energisa real confirmada (Wallace 10,00 + irmã 3,73 + mãe/geradora 7,38 = <strong style="color:var(--red)">'+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>).'
+        ? qtdReal+' dia(s) com geração real do robô SAJ (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+mediaGeracaoReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas (Wallace '+wallaceConsumoDiarioReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' via '+fonteWallaceTxt+' + irmã '+VARS.solarConsumoDiarioIrma.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' via fatura + mãe/geradora '+VARS.solarConsumoDiarioMae.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' via fatura = <strong style="color:var(--red)">'+consumoMedioDiarioCasas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWh/dia</strong>).'
         : 'Ainda sem geração diária real do robô SAJ (barra verde aparece a partir da próxima execução, 09h/17h).';
     }
   }
@@ -2733,7 +2756,22 @@ async function _lazyRenderSolarSecao(){
         // sempre no mês certo, mesmo depois que o próximo ciclo virar e META_WALLACE/META_WELLIDA
         // (que seguem "hoje") já tiverem avançado pro mês seguinte.
         const offsetFechado = Math.max(0, Math.min(11, offsetMesesCicloGD(ultimoFechado.data_fim)));
-        const metaWallaceFechado = kwhAnoAnterior[offsetFechado];
+        // NOVO 22/08/2026 (pedido do usuário: "esses dados devem vir dos medidores, como o meu já tá
+        // funcionando, pode já colocar, aí quando os outros entrarem em operação você coloca") — Meta
+        // do Wallace passa a usar a SOMA real do medidor Tuya na janela exata do ciclo fechado
+        // (data_inicio→data_fim), quando o medidor tiver dado pra TODOS os dias dessa janela (nunca
+        // mistura real com estimativa dentro do mesmo número). Hoje (22/08) o medidor só tem dado a
+        // partir de 17/08 — não cobre o ciclo mais recente (21/07→07/08), então cai no histórico do
+        // ano passado como sempre caiu; passa a valer sozinho a partir do próximo ciclo que fechar
+        // (~08/09), sem precisar tocar aqui de novo.
+        function consumoRealTuyaNaJanela(diario, dataInicio, dataFim){
+          if(!Array.isArray(diario) || !dataInicio || !dataFim) return null;
+          const porData = {}; diario.forEach(r => { if(r.kwh_consumido != null) porData[r.data] = Number(r.kwh_consumido); });
+          const dias = []; for(let d=new Date(dataInicio); d<=new Date(dataFim); d.setDate(d.getDate()+1)) dias.push(d.toISOString().slice(0,10));
+          if(!dias.every(iso => porData[iso] != null)) return null; // janela incompleta - nunca mistura real com chute
+          return Math.round(dias.reduce((s,iso)=>s+porData[iso],0)*100)/100;
+        }
+        const metaWallaceFechado = consumoRealTuyaNaJanela(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, ultimoFechado.data_inicio, ultimoFechado.data_fim) ?? kwhAnoAnterior[offsetFechado];
         const metaWellidaFechado = consumoMensalIrma[offsetFechado];
         renderFluxo1Fechado('fechWallace', metaWallaceFechado, Number(ultimoFechado.credito_wallace_kwh), fmtDataBr(ultimoFechado.data_fim));
         renderFluxo1Fechado('fechWellida', metaWellidaFechado, Number(ultimoFechado.credito_irma_kwh), fmtDataBr(ultimoFechado.data_fim));
