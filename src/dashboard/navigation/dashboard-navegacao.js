@@ -701,11 +701,22 @@ function habilitarSetasMasterTabs(){
   // como novo ponto de partida, não a de onde a animação anterior ia terminar) — testado ao vivo com
   // cliques rápidos em sequência, sem disputa entre 2 loops de rAF escrevendo scrollLeft ao mesmo tempo.
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
-  function animarScrollPara(alvo, duracaoMs){
+  // CORRIGIDO 22/08/2026, 6ª rodada (achado do usuário: "carrocel ficou ruim, ele vai até o fim e
+  // pula para Painel, não faz um giro" — duração FIXA de 380ms fazia a volta completa (~750px, do fim
+  // pro início) percorrer a MESMA distância de um passo comum (~130px, 1 aba) na mesma velocidade
+  // aparente, isto é, bem mais rápido em px/ms — parecia um teleporte em vez de um giro contínuo).
+  // Duração agora escala com a distância real percorrida (~0,55ms por px, entre um piso de 260ms e um
+  // teto de 650ms) — um passo comum continua rápido e crocante (~320ms), mas a volta completa (maior
+  // distância) demora visivelmente mais, dando a sensação de girar até voltar ao início, não pular.
+  function duracaoPelaDistancia(deltaAbs){
+    return Math.min(650, Math.max(260, 260 + deltaAbs * 0.55));
+  }
+  function animarScrollPara(alvo){
     const meuId = ++_scrollAnimId;
     const inicio = tabs.scrollLeft;
     const delta = alvo - inicio;
     if(Math.abs(delta) < 1) return;
+    const duracaoMs = duracaoPelaDistancia(Math.abs(delta));
     const t0 = performance.now();
     function passo(agora){
       if(meuId !== _scrollAnimId) return; // uma animação mais nova já assumiu - esta desiste
@@ -722,7 +733,7 @@ function habilitarSetasMasterTabs(){
     const info = calcularParadas(lista);
     sincronizarComScroll(lista, info);
     idxCarrossel = idxCarrossel <= 0 ? info.numParadas - 1 : idxCarrossel - 1; // no início - dá a volta pro fim
-    animarScrollPara(alvoDaParada(idxCarrossel, lista, info), 380);
+    animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
     prev.blur();
   });
   next.addEventListener('click', (e) => {
@@ -732,7 +743,7 @@ function habilitarSetasMasterTabs(){
     const info = calcularParadas(lista);
     sincronizarComScroll(lista, info);
     idxCarrossel = idxCarrossel >= info.numParadas - 1 ? 0 : idxCarrossel + 1; // no fim - dá a volta pro início
-    animarScrollPara(alvoDaParada(idxCarrossel, lista, info), 380);
+    animarScrollPara(alvoDaParada(idxCarrossel, lista, info));
     next.blur();
   });
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
