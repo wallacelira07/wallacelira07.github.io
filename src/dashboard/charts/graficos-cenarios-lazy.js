@@ -1424,12 +1424,12 @@ async function _lazyRenderSolarSecao(){
       const detalhe = d.residual_validado !== undefined
         ? (d.residual_validado_fonte || 'Validado contra fatura real com compensação próxima de 100%')
         : `Disponibilidade ${fmt(custoDisponibilidade)} + Fio B ${fmt(fioBValor)} + Iluminação ${fmt(iluminacaoValor)} + Encargos ${fmt(encargosValor)} (estimativa por %, não validada contra fatura próxima de 100% ainda)`;
-      // NOVO 22/08/2026 (pedido do usuário: "coloque quantos kWh são, não só o valor") — cada coluna
-      // em R$ ganha o equivalente em kWh entre parênteses, usando a mesma tarifaReal (R$/kWh) já
-      // calculada acima pra esta unidade.
-      const residualKwh = Math.round((residual/tarifaReal)*10)/10;
-      const economiaKwh = Math.round((economia/tarifaReal)*10)/10;
-      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwhPtBr(consumoKwh)} kWh)</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)} <span style="color:var(--text-dim)">(${fmtKwhPtBr(residualKwh)} kWh)</span></td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%) <span style="color:var(--text-dim)">(${fmtKwhPtBr(economiaKwh)} kWh)</span></td></tr>`;
+      // REVERTIDO 22/08/2026 (achado do usuário: "não entendo, o residual está cobrando uma
+      // quantidade em kWh?" — o residual é uma mistura de taxas FIXAS (COSIP, Disponibilidade) +
+      // Fio B + Encargos, não uma quantidade de energia consumida; dividir por tarifa só pra exibir
+      // um kWh ali não tem significado físico real e confunde. kWh volta a aparecer só na "Fatura
+      // base", que é a única coluna onde kWh é um número real e medido.
+      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwhPtBr(consumoKwh)} kWh)</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
     }).join('');
     residualTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Fatura base (pré-solar)</th><th class="r">Residual estimado/mês</th><th class="r">Economia estimada</th></tr></thead><tbody>${linhas}</tbody></table>`;
 
