@@ -12,14 +12,23 @@
 6. **Cards Mastercard Black e Visa Infinite**: lista completa de caixas temáticas comprometidas (era 1 linha resumida "9 caixas"), com a sigla do Livro Razão em cada linha (LRBD, LREM, etc). Visa ganhou a mesma lista pela primeira vez.
 7. **2 gráficos irmãos corrigidos** (`psDataLabelPlugin`/`pnlDataLabelPlugin`, aba Cenários) — rótulo de barra muito negativa colava no eixo X, mesmo bug já corrigido em `dzDataLabelPlugin` em 20/08, nunca propagado.
 8. **Achado de negócio, não é código**: `Caixa Wartsila` e `Caixa Mercado Pago` nunca devem ser oferecidas como destino de uma compra nova no cartão — são pagadoras de fatura de um cartão específico, não caixas de orçamento genéricas. Já documentado no manual (seção 1.3.4) e no `CUSTOM_INSTRUCTIONS_SISTEMA_WALLACE.md`.
+9. **2 bugs financeiros reais achados e corrigidos** (usuário: "isso é dinheiro, não pode ter erro"): `rpc_dashboard_resumo().caixas[].saldo` somava compra no cartão como se reduzisse saldo real (corrigido, filtra `afeta_saldo_real=true`); `recalcularIndicadores()` (Taxa de Poupança) ficou preso desatualizado depois do déficit assíncrono resolver (adicionado à lista de reprocessamento). Ver bloco 41.
+10. **Migração financeira pra Supabase iniciada, por fases** (decisão do usuário após os bugs do item 9). Fase 1a (`rpc_necessidade_total_bruta`) implementada e validada exata contra o site ao vivo. Fase 1b (PIB Wallace/Taxa de Poupança) investigada a fundo (workflow de 5 agentes, sem inventar fórmula) — achou 2 bugs reais extras (`reembolso_wartsila_ciclo` não filtrava por ciclo; `parcelas` sem histórico por ciclo) e implementou os 3 pré-requisitos que faltavam: ajuste R$87,96 virou parâmetro auditável, histórico determinístico de `provMP` (`parcelas_historico_ciclo` + `rpc_provmp_por_ciclo`), e `reembolsoManejo` virou campo editável de verdade (era literal morto). Falta só 1 decisão (teto da janela de recorrências) pra fechar a RPC final. Ver blocos 41-42.
+11. **IMPORTANTE**: as RPCs novas (`rpc_necessidade_total_bruta`, `rpc_provmp_por_ciclo`) existem no Supabase e batem exato com os valores ao vivo, mas **o site ainda não foi trocado pra consumi-las** — o JS continua calculando localmente (já com os bugs do item 9 corrigidos). Trocar o consumo é um passo futuro, não feito ainda.
 
 **Passagem de turno anterior recuperada**: a sessão de hoje começou identificando que a sessão logo antes tinha sido cortada pelo limite de crédito depois de um commit de código, sem atualizar este arquivo — documentado retroativamente no início do bloco 38. Lição registrada: escrever a passagem de turno ANTES do último commit quando o crédito está acabando, não depois.
 
-## ✅ LISTA CONSOLIDADA DE PENDÊNCIAS REAIS (atualizada 22/08/2026, fim do bloco 40)
+## ✅ LISTA CONSOLIDADA DE PENDÊNCIAS REAIS (atualizada 22/08/2026, fim do bloco 42)
+
+**Migração financeira — próximo passo concreto:**
+- [ ] Decidir a pergunta D.1 (teto superior da janela de recorrências/assinaturas confirmadas — replicar sem teto como hoje, ou adicionar teto nominal de fim de ciclo) e escrever `rpc_pib_wallace_indicadores` combinando `rpc_necessidade_total_bruta` + `rpc_provmp_por_ciclo` + `coberturaGarantida` corrigido + a janela de data.
+- [ ] Depois de validado, trocar o consumo no site (JS) pelas RPCs novas — hoje elas existem no banco mas o site ainda calcula tudo localmente.
+- [ ] Fase 2+ da migração (déficit LREI, Balanço, Patrimônio, Evolução 12 meses) — só planejada em `docs/decisions/PLANO_MIGRACAO_CALCULOS_FINANCEIROS_SUPABASE.md`, nada implementado ainda.
 
 **Aguardando ação do usuário (não é trabalho de agente):**
 - [ ] Reverter `saudeEmagrecimentoAporte` de 0 pra 490.00 (`parametros_gerais` + `vars-operacional.js`) quando o ciclo 25/09→24/10 abrir — pausado por só 1 ciclo (não fazer antes disso).
 - [ ] Rendimento das caixinhas Mercado Pago (`hasReservedBalance=True` mas dado vazio) — achado aponta pra bug do lado da Pluggy; só resolve contatando o suporte deles, se o usuário achar que vale a pena.
+- [ ] Revogar `parametros_gerais.AJUSTES_PONTUAIS_LIMBO_CICLO` (R$87,96) quando o ciclo 2026-07 fechar (25/08) — não é permanente, ver campo `revogar_quando` no próprio registro.
 
 **Confirmado resolvido/fechado hoje (não reabrir sem pista nova):**
 - [x] `liquidoReal` — corrigido de vez, lê ao vivo do banco.
@@ -30,6 +39,10 @@
 - [x] Parsing de nota de corretagem via Gmail — descartado, usuário não recebe nota por e-mail (premissa errada).
 - [x] Categorização `TX000378` — feita, categoria P2P.
 - [x] Cron-job.org (Consórcio Porto + robô de dividendos) — já estavam criados, confirmado pelo usuário.
+- [x] `rpc_dashboard_resumo().caixas[].saldo` contando compra de cartão como redução de saldo — corrigido.
+- [x] Taxa de Poupança/`despesaTotalComp` dessincronizada — corrigido (adicionado à lista de reprocessamento).
+- [x] `reembolso_wartsila_ciclo` sempre pegando o ciclo mais recente em vez do exibido — corrigido.
+- [x] `reembolsoManejo` sem mecanismo de edição real — corrigido, campo editável agora.
 
 **Risco estrutural conhecido, sem solução (baixa prioridade, valor pequeno):**
 - [ ] `mbIOFConfirmado` — literal manual, atualizar a cada fatura MB nova reconciliada (~R$18-40/mês).
