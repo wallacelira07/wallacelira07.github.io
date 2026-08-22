@@ -886,6 +886,16 @@ async function carregar(){
       <div class="stat-sub" id="legRateioSolarCompartilhado" style="margin-top:0.6rem"></div>
     </div>
 
+    <!-- NOVO 22/08/2026 (pedido do usuário: "esse campo tem que aparecer no compartilhando" — mesmo
+         card "💰 Economia real deste mês" do painel privado, graficos-cenarios-lazy.js. Preenchido
+         via montarEconomiaRealMesCompartilhado() logo abaixo, usando dados.energisaTarifaComposicao
+         (RPC consultar_solar_compartilhado, ampliada nesta sessão). -->
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="stat-lbl" style="margin-bottom:0.4rem">💰 Economia real deste mês (sem solar × com solar)</div>
+      <div class="stat-sub" style="margin-bottom:0.6rem">"Sem solar" = consumo real deste mês × tarifa da última fatura antes do solar (Jul/26). "Com solar" = fatura real capturada este mês.</div>
+      <div id="economiaRealTbodyCompartilhado" style="overflow-x:auto">—</div>
+    </div>
+
     ${ciclosFechados.length ? `<div class="card">
       <div class="stat-lbl" style="margin-bottom:0.8rem">📁 Histórico de ciclos fechados</div>
       <div class="stat-sub" style="margin-bottom:0.6rem">Cada ciclo fecha quando uma leitura é confirmada como oficial da Energisa — o crédito daquele período fica congelado, e um novo ciclo abre automaticamente.</div>
@@ -1195,13 +1205,58 @@ async function carregar(){
   // Arrays de referência (consumo histórico real, Jul-primeiro na fonte) realinhados pro mesmo
   // esquema Ago-primeiro dos rótulos acima — mesmo truque de lookup por nome de mês já usado no
   // painel privado (kwhWallacePorMes/kwhIrmaPorMes), imune a qual mês vira a 1ª coluna.
+  // NOVO 22/08/2026 (pedido do usuário: "todos dados devem ser atualizados pela fatura... todos os
+  // gráficos, tanto no site como no compartilhamento" — mesmo padrão já aplicado no painel privado,
+  // graficos-cenarios-lazy.js/consumoRealFaturaPorIndice). O robô já grava o consumo real de cada mês
+  // em ENERGISA_TARIFA_COMPOSICAO[casa].fatura_<mêsano>_consumo_kwh; esta página agora recebe esse
+  // objeto via consultar_solar_compartilhado (campo dados.energisaTarifaComposicao) e prioriza o
+  // valor real sobre o histórico fixo, mês a mês.
+  const MESES_ABREV_PT_ROBO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const ANO_ATIVACAO_SOLAR = Number(SOLAR_DATA_ATIVACAO.split('-')[0]);
+  function consumoRealFaturaPorIndice(casaChave, i){
+    const d = (dados.energisaTarifaComposicao||{})[casaChave];
+    if(!d) return null;
+    const mesNum = ((6 + i) % 12) + 1; // indice0='Jul' -> mes 7
+    const ano = ANO_ATIVACAO_SOLAR + (i >= 6 ? 1 : 0);
+    const chave = MESES_ABREV_PT_ROBO[mesNum-1] + String(ano % 100).padStart(2,'0');
+    const v = d['fatura_'+chave+'_consumo_kwh'];
+    return v != null ? Number(v) : null;
+  }
   const KWH_WALLACE_POR_NOME_MES = {}, KWH_IRMA_POR_NOME_MES = {};
   ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'].forEach((nome,i) => {
-    KWH_WALLACE_POR_NOME_MES[nome] = KWH_ANO_ANTERIOR_WALLACE[i];
-    KWH_IRMA_POR_NOME_MES[nome] = CONSUMO_MENSAL_IRMA[i];
+    KWH_WALLACE_POR_NOME_MES[nome] = consumoRealFaturaPorIndice('wallace', i) ?? KWH_ANO_ANTERIOR_WALLACE[i];
+    KWH_IRMA_POR_NOME_MES[nome] = consumoRealFaturaPorIndice('wellida', i) ?? CONSUMO_MENSAL_IRMA[i];
   });
   const consumoEsperadoWallaceAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_WALLACE_POR_NOME_MES[nome]);
   const consumoEsperadoIrmaAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_IRMA_POR_NOME_MES[nome]);
+
+  // NOVO 22/08/2026 (pedido do usuário: "esse campo tem que aparecer no compartilhando") — cópia
+  // deliberada de "Economia real deste mês" do painel privado (graficos-cenarios-lazy.js), mesma
+  // fórmula: consumo real deste mês × tarifa da fatura pré-solar (Jul/26) = "sem solar"; fatura real
+  // do mês = "com solar".
+  const economiaRealTbodyCompartilhadoEl = document.getElementById('economiaRealTbodyCompartilhado');
+  if(economiaRealTbodyCompartilhadoEl){
+    const agoraChave = new Date();
+    const chaveMesAtual = MESES_ABREV_PT_ROBO[agoraChave.getMonth()]+String(agoraChave.getFullYear()%100).padStart(2,'0');
+    const unidadesEconomia = [ {chave:'wallace', nome:'Apartamento (Wallace)'}, {chave:'wellida', nome:'Casa da Wellida'} ];
+    const linhasEconomiaCompartilhado = unidadesEconomia.map(u => {
+      const d = (dados.energisaTarifaComposicao||{})[u.chave];
+      if(!d) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
+      const faturaPreSolar = d.fatura_pre_solar_valor;
+      const consumoPreSolar = d.fatura_pre_solar_consumo_kwh;
+      const valorMesAtual = d['fatura_'+chaveMesAtual+'_valor'];
+      const consumoMesAtual = d['fatura_'+chaveMesAtual+'_consumo_kwh'];
+      if(faturaPreSolar === undefined || !consumoPreSolar || valorMesAtual === undefined || !consumoMesAtual){
+        return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">ainda sem fatura de ${chaveMesAtual} capturada pelo robô</td></tr>`;
+      }
+      const tarifaPreSolar = faturaPreSolar / consumoPreSolar;
+      const semSolar = Math.round(tarifaPreSolar * consumoMesAtual * 100) / 100;
+      const economiaReal = Math.round((semSolar - valorMesAtual) * 100) / 100;
+      const economiaRealPct = semSolar > 0 ? Math.round((economiaReal/semSolar)*1000)/10 : 0;
+      return `<tr><td>${u.nome}</td><td class="r">${fmt(semSolar)}</td><td class="r" style="color:var(--green)">${fmt(valorMesAtual)}</td><td class="r" style="color:var(--accent)">${fmt(economiaReal)} (${economiaRealPct}%)</td></tr>`;
+    }).join('');
+    economiaRealTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="padding:0.4rem 0.6rem">Sem solar (estimado)</th><th class="r" style="padding:0.4rem 0.6rem">Com solar (real)</th><th class="r" style="padding:0.4rem 0.6rem">Economia real</th></tr></thead><tbody>${linhasEconomiaCompartilhado}</tbody></table>`;
+  }
 
   const creditoWallacePorIdx = new Array(12).fill(null);
   const creditoIrmaPorIdx = new Array(12).fill(null);

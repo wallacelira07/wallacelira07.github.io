@@ -7,6 +7,10 @@
 function hydrateROC(){
   const t = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
 
+  // NOVO 22/08/2026 (pedido do usuário: exercício automático quando vencida+ITM — ver opcoes-roc.js)
+  // — precisa rodar ANTES do Dashboard Executivo/tabs usarem o.exercida/o.statusPosicao logo abaixo.
+  aplicarAutoExercicioOpcoesVencidas();
+
   // NOVO 21/08/2026 (Fase 4 do cockpit de opções, "Dashboard Executivo" — junta números que já
   // existiam espalhados pela seção numa visão única no topo). A maioria REAPROVEITA VARS.rocCarteira/
   // opcoesVendidasDetalhe (nenhum cálculo novo, só exibição consolidada) — só 3 métricas são cálculo

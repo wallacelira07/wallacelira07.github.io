@@ -60,6 +60,31 @@ function calcularNivelRiscoOpcao(distanciaPct, diasParaVencer, itm){
   return null;
 }
 
+// NOVO 22/08/2026 (pedido do usuário: "isso deve ser automático, está vencida e o valor abaixo do
+// strike" — mudança de política vs. a decisão de 03/08 documentada acima de `exercida` (que exigia
+// confirmação manual via extrato da B3). Auto-exercício só quando os 2 fatos são inequívocos e já
+// vêm de fonte real: (1) o dia do vencimento já passou (o.vencida, calculado em
+// aplicarStatusVencidoEValorMercadoOpcoes) e (2) a cotação ao vivo (VARS.ACOES_COTACOES) está ITM em
+// relação ao strike — put vendida some/vira compra automática quando o preço fecha abaixo do strike.
+// Nunca desmarca uma posição já resolvida manualmente (exercida=true OU statusPosicao='ENCERRADA'
+// já setados antes) — só PREENCHE a lacuna quando ainda está em aberto/indefinida. Chamada do topo
+// de hydrateROC() (não daqui — precisa de VARS.ACOES_COTACOES já populado pela Onda de cotações do
+// app.js, que roda DEPOIS deste módulo na ordem de carga síncrona).
+function aplicarAutoExercicioOpcoesVencidas(){
+  const cotacoes = VARS.ACOES_COTACOES || {};
+  VARS.opcoesVendidasDetalhe.forEach(o => {
+    if(o.statusPosicao === 'ENCERRADA' || o.exercida) return; // já resolvida (manual ou auto anterior)
+    if(!o.vencida) return;
+    if(o.tipo !== 'Put vendida' || o.precoExercicio == null) return; // só sabemos a direção ITM pra put vendida hoje
+    const cot = cotacoes[o.ativo];
+    if(!cot || cot.preco == null) return;
+    if(cot.preco < o.precoExercicio){
+      o.exercida = true;
+      o.statusPosicao = 'ENCERRADA';
+    }
+  });
+}
+
 // Não é conselho de investimento — só a matemática mecânica do que acontece SE for exercido, pra
 // decisão informada (com o usuário/corretora, não comigo). Chamada de hydrateROC() (não daqui —
 // precisa de VARS.ACOES_COTACOES já populado pela Onda de cotações do app.js, que roda DEPOIS deste

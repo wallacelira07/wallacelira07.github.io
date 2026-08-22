@@ -1136,7 +1136,28 @@ async function _lazyRenderSolarSecao(){
   // Mai/26: interpolado entre Abr/26 e Jun/26 (nao ha leitura direta) - marcado com *.
   // Jun/26: real, confirmado na fatura Energisa.
   const mesesPares = ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai*','Jun'];
-  const kwhAnoAnterior = [321,262,279,297,405,265,211,273,330,343,323,304];
+  // NOVO 22/08/2026 (pedido do usuário: "todos dados devem ser atualizados pela fatura, isso deve
+  // ser feito pelo robô sempre que pegar uma fatura nova, tanto minha [quanto] da minha irmã e minha
+  // mãe... todos os gráficos, tanto no site como no compartilhamento") — kwhAnoAnterior/
+  // VARS.solarConsumoIrmaAnoAnterior eram arrays históricos 100% fixos, nunca recalculados. O robô
+  // (atualizar_boletos_medintech.py) já grava o consumo real de cada mês em
+  // VARS.ENERGISA_TARIFA_COMPOSICAO[casa].fatura_<mêsano>_consumo_kwh toda vez que processa uma
+  // fatura nova — corrigido na origem (aqui), então TODO gráfico que reaproveita este array (Economia
+  // antes×depois E Rateio Solar, ambos abaixo) herda o dado real automaticamente, sem precisar
+  // corrigir cada gráfico em separado. Mês sem fatura real ainda cai no histórico (nunca mistura
+  // chute com real no mesmo número, só troca por mês inteiro quando o robô capturar aquele mês).
+  const MESES_ABREV_PT_ROBO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const ANO_ATIVACAO_SOLAR = Number(VARS.solarDataAtivacao.split('-')[0]);
+  function consumoRealFaturaPorIndice(casaChave, i){
+    const d = (VARS.ENERGISA_TARIFA_COMPOSICAO||{})[casaChave];
+    if(!d) return null;
+    const mesNum = ((6 + i) % 12) + 1; // indice0='Jul' -> mes 7
+    const ano = ANO_ATIVACAO_SOLAR + (i >= 6 ? 1 : 0);
+    const chave = MESES_ABREV_PT_ROBO[mesNum-1] + String(ano % 100).padStart(2,'0');
+    const v = d['fatura_'+chave+'_consumo_kwh'];
+    return v != null ? Number(v) : null;
+  }
+  const kwhAnoAnterior = [321,262,279,297,405,265,211,273,330,343,323,304].map((v,i) => consumoRealFaturaPorIndice('apartamento_wallace', i) ?? v);
   // NOVO 03/08/2026 (pedido do usuário: gráfico 09 "deve andar pra frente automático... o deslocamento
   // na 00h do dia 1 de cada mês" - diferente dos gráficos 10/11, que usam o ciclo de leitura dia 8,
   // este aqui usa o MÊS CALENDÁRIO puro, por decisão explícita do usuário). Âncora = mês de ativação
@@ -1389,7 +1410,12 @@ async function _lazyRenderSolarSecao(){
       const detalhe = d.residual_validado !== undefined
         ? (d.residual_validado_fonte || 'Validado contra fatura real com compensação próxima de 100%')
         : `Disponibilidade ${fmt(custoDisponibilidade)} + Fio B ${fmt(fioBValor)} + Iluminação ${fmt(iluminacaoValor)} + Encargos ${fmt(encargosValor)} (estimativa por %, não validada contra fatura próxima de 100% ainda)`;
-      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)}</td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
+      // NOVO 22/08/2026 (pedido do usuário: "coloque quantos kWh são, não só o valor") — cada coluna
+      // em R$ ganha o equivalente em kWh entre parênteses, usando a mesma tarifaReal (R$/kWh) já
+      // calculada acima pra esta unidade.
+      const residualKwh = Math.round((residual/tarifaReal)*10)/10;
+      const economiaKwh = Math.round((economia/tarifaReal)*10)/10;
+      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwhPtBr(consumoKwh)} kWh)</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)} <span style="color:var(--text-dim)">(${fmtKwhPtBr(residualKwh)} kWh)</span></td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%) <span style="color:var(--text-dim)">(${fmtKwhPtBr(economiaKwh)} kWh)</span></td></tr>`;
     }).join('');
     residualTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Fatura base (pré-solar)</th><th class="r">Residual estimado/mês</th><th class="r">Economia estimada</th></tr></thead><tbody>${linhas}</tbody></table>`;
 
@@ -1659,8 +1685,11 @@ async function _lazyRenderSolarSecao(){
     saldoLiquidoMensal[idx] = Number(c.credito_liquido_kwh);
   });
 
-  const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09)
-  const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior; // consumo REAL dos ultimos 12 meses (fatura Energisa), mesma logica do kwhAnoAnterior do Wallace
+  const consumoMensalWallace = kwhAnoAnterior; // consumo real dos ultimos 12 meses (mesma base da secao 09) - já prioriza fatura real, ver consumoRealFaturaPorIndice acima
+  // CORRIGIDO 22/08/2026 (mesmo padrão do kwhAnoAnterior acima): VARS.solarConsumoIrmaAnoAnterior
+  // também prioriza o consumo real capturado pelo robô mês a mês, caindo no histórico só quando o
+  // robô ainda não pegou a fatura daquele mês.
+  const consumoMensalIrma = VARS.solarConsumoIrmaAnoAnterior.map((v,i) => consumoRealFaturaPorIndice('casa_wellida', i) ?? v);
 
   // CORRIGIDO 11/08/2026 (achado do usuário, print real: gráfico "Rateio Solar" mostrando Ago=321/74
   // quando deveria ser Ago=262/70): consumoMensalWallace/consumoMensalIrma (kwhAnoAnterior/
