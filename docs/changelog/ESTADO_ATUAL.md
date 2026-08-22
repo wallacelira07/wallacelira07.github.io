@@ -25,7 +25,9 @@
 **Migração financeira — próximo passo concreto:**
 - [x] Fase 1b encerrada pelo usuário (22/08/2026) — `rpc_necessidade_total_bruta` reescrita, determinística (Regra 1), validada. Ver item 10-13 do resumo executivo.
 - [x] Homologação RPC × UI autenticada, ciclo `2026-07` — 9 campos, 0 divergências. Ciclo `2026-06` marcado não-homologável (motivo documentado, bloco 44). Processo de homologação contínua estabelecido pra cada fechamento de ciclo futuro.
-- [ ] **Próximo passo autorizado pelo usuário: PLANEJAR (não implementar ainda) a migração do frontend pra consumir a RPC.** Trocar o consumo real no JS continua explicitamente proibido até essa homologação acumular mais ciclos e o plano ser aprovado.
+- [x] Plano de migração do frontend escrito — `docs/decisions/PLANO_MIGRACAO_FRONTEND_CONSUMO_RPC.md`. Achado real no planejamento: `recalcularNecessidade()` é síncrona, chamada em cascata no boot + todo reprocessamento; RPC é assíncrona — trocar direto quebraria a cadeia (mesma classe de bug que motivou a migração toda). Estratégia proposta: 2 sub-fases (A: chamada-sombra fire-and-forget só logando divergência, sem mudar o que a tela mostra; B: corte real, só depois de mais ciclos homologados). **Nenhuma das duas implementada ainda** — aguardando autorização do usuário item por item.
+- [ ] Implementar Sub-fase A (chamada-sombra) — aguardando autorização.
+- [ ] Trocar o consumo real (Sub-fase B) — bloqueado até homologação acumular mais ciclos (só 1 ciclo homologável hoje) e aprovação explícita.
 - [ ] Fase 2+ da migração (boletos/consórcios/aportes_pat/orçamento/déficit LREI ainda leem estado ao vivo, não por ciclo; Balanço, Patrimônio, Evolução 12 meses) — só planejada em `docs/decisions/PLANO_MIGRACAO_CALCULOS_FINANCEIROS_SUPABASE.md`, nada implementado ainda.
 
 **Aguardando ação do usuário (não é trabalho de agente):**
