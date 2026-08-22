@@ -344,9 +344,17 @@ function _pesquisaMercadoCalcularResumoLeve(candles){
   const bosRecente = eventosEstrutura.some(e => e.tipo.startsWith('bos_') && e.index >= n - 5);
   const chochRecente = eventosEstrutura.some(e => e.tipo.startsWith('choch_') && e.index >= n - 5);
 
+  // NOVO 22/08/2026 (pedido do usuário: rótulo de "Liquidez") — proxy objetivo: valor médio
+  // negociado por pregão nos últimos 20 dias (volume × preço), o mesmo conceito que corretoras usam
+  // pra estimar o quão fácil é entrar/sair de uma posição sem mover o preço. Comparado por tercil
+  // ENTRE os 10 ativos acompanhados (mesmo padrão dos heatmaps de volatilidade/volume).
+  const volumesRecentes = candles.slice(-20).map(c => c.volume).filter(v => v != null);
+  const volumeMedio20d = volumesRecentes.length ? volumesRecentes.reduce((s,v)=>s+v,0)/volumesRecentes.length : null;
+  const liquidezMediaRS = (volumeMedio20d != null && precoAtual) ? volumeMedio20d * precoAtual : null;
+
   return { precoAtual, ema9, ema21, ema50, ema200, rsi, atrPct, volumeRelativo, alinhamento, variacaoJanelaPct,
     distanciaEMA200Pct, variacao5d, variacao20d, inclinacaoEMA21, inclinacaoEMA50,
-    expansaoVolatilidadeRecente, compressaoVolatilidadeRecente, bosRecente, chochRecente };
+    expansaoVolatilidadeRecente, compressaoVolatilidadeRecente, bosRecente, chochRecente, liquidezMediaRS };
 }
 
 // NOVO 22/08/2026 (pedido do usuário: "quero filtros"). Cada filtro é 1 predicado objetivo,
@@ -459,6 +467,65 @@ function _pesquisaMercadoRenderHeatmapMomentum(resumosPorTicker){
   return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${celulas}</div>`;
 }
 
+// NOVO 22/08/2026 (pedido do usuário: "resumo executivo em linguagem simples" + rótulos Tendência/
+// Momentum/Estrutura/Volatilidade/Liquidez PRA CADA UM dos 10 ativos, com "por que está sendo
+// destacado" — depois de recusar explicitamente um sistema que ORDENA/DESTACA ativos por
+// quantidade de características observadas (isso é contagem = score combinado disfarçado, mesmo
+// mecanismo já recusado 3x nesta sessão sob nomes diferentes). Esta tabela mostra os MESMOS fatos
+// pra TODOS os 10, SEMPRE na mesma ordem (a de PESQUISA_MERCADO_TICKERS, nunca reordenada por
+// quantas características cada um "bateu") — quem soma/compara é o usuário, olhando a tabela, não
+// o sistema. Reaproveita _pesquisaMercadoCalcularEstadoAtual quando existe o pacote completo (só o
+// ticker selecionado tem isso); pros outros 9, usa só o resumo leve (sem eventos/estatística).
+function _pesquisaMercadoRotulosDoResumoLeve(r, liquidezTercis){
+  const tendencia = r.alinhamento === 'alta' ? 'Alta' : (r.alinhamento === 'baixa' ? 'Baixa' : 'Lateral');
+  let momentum = 'dados insuficientes';
+  if(r.rsi != null){
+    const dist = Math.abs(r.rsi - 50);
+    const forte = dist >= 20; // RSI <=30 ou >=70
+    const moderado = dist >= 10; // RSI <=40 ou >=60
+    momentum = forte ? (r.rsi > 50 ? 'Forte (positivo)' : 'Forte (negativo)') : (moderado ? (r.rsi > 50 ? 'Moderado (positivo)' : 'Moderado (negativo)') : 'Fraco');
+  }
+  let estrutura = 'Sem evento recente';
+  if(r.chochRecente) estrutura = 'Enfraquecida (CHOCH recente)';
+  else if(r.bosRecente) estrutura = 'Forte (BOS recente na direção da tendência)';
+  let volatilidade = 'dados insuficientes';
+  if(r.expansaoVolatilidadeRecente) volatilidade = 'Alta (expansão recente)';
+  else if(r.compressaoVolatilidadeRecente) volatilidade = 'Baixa (compressão recente)';
+  else if(r.atrPct != null) volatilidade = 'Média';
+  let liquidez = 'dados insuficientes';
+  if(r.liquidezMediaRS != null && liquidezTercis){
+    const pos = liquidezTercis.filter(v => v <= r.liquidezMediaRS).length / liquidezTercis.length;
+    liquidez = pos <= 0.33 ? 'Baixa (entre os 10 acompanhados)' : (pos >= 0.67 ? 'Alta (entre os 10 acompanhados)' : 'Média (entre os 10 acompanhados)');
+  }
+  const porque = [];
+  porque.push(`tendência ${tendencia.toLowerCase()} (alinhamento das médias móveis)`);
+  porque.push(`momentum ${momentum.toLowerCase()} (RSI ${r.rsi!=null?_pesquisaMercadoFmtNum(r.rsi):'—'})`);
+  if(r.bosRecente || r.chochRecente) porque.push(`estrutura ${estrutura.toLowerCase()}`);
+  if(r.expansaoVolatilidadeRecente || r.compressaoVolatilidadeRecente) porque.push(`volatilidade ${volatilidade.toLowerCase()}`);
+  porque.push(`liquidez ${liquidez.toLowerCase()}`);
+  return { tendencia, momentum, estrutura, volatilidade, liquidez, porque: 'Observado no momento: ' + porque.join('; ') + '.' };
+}
+
+function _pesquisaMercadoRenderChecklistTodos(resumosPorTicker){
+  const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
+  const liquidezTercis = validos.map(t => resumosPorTicker[t].liquidezMediaRS).filter(v => v != null).sort((a,b)=>a-b);
+  const corTendencia = t => t === 'Alta' ? 'var(--green)' : (t === 'Baixa' ? 'var(--red)' : 'var(--text-mid)');
+  const linhas = validos.map(t => {
+    const rot = _pesquisaMercadoRotulosDoResumoLeve(resumosPorTicker[t], liquidezTercis);
+    return `<tr>
+      <td style="font-weight:600">${t}</td>
+      <td style="color:${corTendencia(rot.tendencia)}">${rot.tendencia}</td>
+      <td>${rot.momentum}</td>
+      <td>${rot.estrutura}</td>
+      <td>${rot.volatilidade}</td>
+      <td>${rot.liquidez}</td>
+      <td style="font-size:var(--fs-label);color:var(--text-dim);max-width:280px">${rot.porque}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto"><table><thead><tr><th scope="col">Ativo</th><th scope="col">Tendência</th><th scope="col">Momentum</th><th scope="col">Estrutura</th><th scope="col">Volatilidade</th><th scope="col">Liquidez</th><th scope="col">Por que está sendo mostrado</th></tr></thead><tbody>${linhas}</tbody></table></div>`
+    + '<div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-top:0.5rem;font-style:italic">Ordem fixa (nunca reordenada pela quantidade de características de cada ativo) — a comparação entre eles é sua, não do sistema. Nenhum destes rótulos combina indicadores diferentes num resultado único.</div>';
+}
+
 function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
   const validos = PESQUISA_MERCADO_TICKERS.filter(t => resumosPorTicker[t]);
   if(!validos.length) return '';
@@ -500,6 +567,8 @@ function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
     + '</tbody></table></div>';
 
   return `
+    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Resumo executivo — todos os 10 ativos (ordem fixa)</div>
+    ${_pesquisaMercadoRenderChecklistTodos(resumosPorTicker)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Destaques automáticos (top 3 por métrica, isolados — nunca combinados)</div>
     ${_pesquisaMercadoRenderDestaques(resumosPorTicker)}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Filtros por métrica</div>
