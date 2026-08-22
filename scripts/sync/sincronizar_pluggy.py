@@ -355,12 +355,16 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
                 # /investments (onde eu procurei antes, errado) nem aqui.
                 bank_data = c.get("bankData") or {}
                 reservas = bank_data.get("reservedBalances") or []
+                has_reserved = bank_data.get("hasReservedBalance")
                 # Confirmado 13/08/2026: a listagem (GET /accounts?itemId=X) as vezes nao traz
                 # reservedBalances mesmo quando existe - fallback pro detalhe da conta cobre isso.
                 if c.get("type") == "BANK" and not reservas:
                     try:
                         detalhe = buscar_conta_detalhe(api_key, c["id"])
-                        reservas = (detalhe.get("bankData") or {}).get("reservedBalances") or []
+                        detalhe_bank = detalhe.get("bankData") or {}
+                        reservas = detalhe_bank.get("reservedBalances") or []
+                        if has_reserved is None:
+                            has_reserved = detalhe_bank.get("hasReservedBalance")
                     except RuntimeError:
                         pass
                 if reservas:
@@ -373,6 +377,15 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
                         }
                         for r in reservas
                     ]
+                elif c.get("type") == "BANK":
+                    # INSTRUMENTADO 22/08/2026 (mesmo motivo do fatura_mes_atual_erro acima:
+                    # pluggy_saldos_reservados está zerada há semanas, suspeita documentada era
+                    # "limitação do conector sandbox MeuPluggy", nunca confirmada com dado real).
+                    # `hasReservedBalance` é o campo que a doc oficial da Pluggy usa pra dizer se a
+                    # instituição de fato tem esse dado pra expor - False/None aqui PROVA a suspeita
+                    # (limitação da instituição/conector, não bug nosso); True com lista vazia
+                    # apontaria pra bug real do nosso lado (dado existe mas não veio).
+                    conta_info["saldos_reservados_diagnostico"] = f"hasReservedBalance={has_reserved!r}, reservedBalances vazio nas 2 tentativas (listagem + detalhe da conta)"
 
                 if c.get("type") == "CREDIT":
                     conta_info["saldo_significado"] = "limite total usado (não é a fatura do mês)"
@@ -380,6 +393,17 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
                     conta_info["limite_total"] = cd.get("creditLimit")
                     conta_info["limite_disponivel"] = cd.get("availableCreditLimit")
                     conta_info["fatura_vencimento_atual"] = cd.get("balanceDueDate")
+                    # INSTRUMENTADO 22/08/2026 (achado real: fatura_mes_atual NUNCA chega pra
+                    # "PERSONNALITE MULT BLACK PTS" - Mastercard Black -, enquanto Visa Infinite tem
+                    # dado normal; transacoes (compras) chegam nas duas. O erro de /bills, se houver,
+                    # SEMPRE ficava só no log do GitHub Actions - nunca gravado no Supabase, entao
+                    # nenhuma sessao anterior conseguia diagnosticar de fato, só suspeitar. Agora
+                    # `fatura_mes_atual_erro`/diagnostico chega ate `pluggy_contas.fatura_diagnostico`
+                    # (ver atualizar_pluggy_contas() no Supabase) - a próxima sincronizacao real revela
+                    # se é excecao (permissao/produto nao suportado) ou resposta vazia sem erro (== a
+                    # instituicao nao expoe fatura pra este produto, mesmo padrao ja confirmado pra
+                    # reservedBalances na doc oficial da Pluggy: "only present... if the institution
+                    # exposes the data").
                     try:
                         faturas = listar_faturas(api_key, c["id"])
                         if faturas:
@@ -390,8 +414,10 @@ def sincronizar(client_id: str, client_secret: str, item_ids: list[str],
                                 "vencimento": fatura_atual.get("dueDate"),
                                 "pagamento_minimo": fatura_atual.get("minimumPaymentAmount"),
                             }
+                        else:
+                            conta_info["fatura_mes_atual_erro"] = "GET /bills respondeu OK mas sem nenhuma fatura (lista vazia) - provável limitação do conector pra este produto, não erro de rede/permissão"
                     except RuntimeError as e:
-                        conta_info["fatura_mes_atual_erro"] = str(e)
+                        conta_info["fatura_mes_atual_erro"] = f"GET /bills falhou: {e}"
 
                 try:
                     transacoes = listar_transacoes(api_key, c["id"])
