@@ -8,6 +8,8 @@
 
 **Continuada mais uma vez em 21/08/2026** (mesmo dia, à noite): 2 `tx_legado` duplicados corrigidos, 2 bugs de comparação de data (assembleia/opção "vencendo antes da hora"), robô do consórcio Porto corrigido pra escrever no lugar certo (+ achado de 4 vazamentos "V2 nunca resincronizado" no domínio Patrimônio, todos corrigidos), tabela de referência de estabelecimento pra acelerar lançamento no Chat, e **cockpit completo de opções em 4 fases** (alertas em 4 níveis, calculadora de recuperação, gráfico de tendência, Carteira de Ações Recebidas, robô de dividendos, Dashboard Executivo). Ver seção 19.
 
+**Continuada em 22/08/2026** (nova sessão): auditoria do residual solar até achar a taxa real (via comparação cruzada com fatura quase-100%-compensada da Casa da Mãe), robô Energisa ganhou extração real da composição tarifária (achado: % do Wallace estava errada, digitada à mão), novo robô do Mastercard Black/Itaú, e **unificação estrutural painel×compartilhado** (`src/solar/calculos-solares-compartilhados.js` — fórmulas de medidor Tuya, virada de ciclo, economia real, residual e saldo projetado agora existem uma vez só, usadas pelas 2 páginas). Ver `PASSAGEM_DE_TURNO.md`, bloco 34, pro relato completo (inclui uma sequência de bugs que eu mesmo introduzi e corrigi na mesma sessão, vale ler pra não repetir o padrão).
+
 ## 0. Resumo executivo da sessão de 20/08/2026
 
 1. **Mastercard Black — "Não Reconciliado" fechado em R$0,00 exato** (seção 1). 4 causas reais achadas e corrigidas: Tokio Marine duplicado (era parcela do Visa, não recorrência nova), H57Store sem dono, assinaturas somando sem checar ciclo (mesmo bug já corrigido em recorrências, nunca replicado), IOF de compra internacional sem linha própria.
