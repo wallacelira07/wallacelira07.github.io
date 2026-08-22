@@ -2,6 +2,28 @@ PASSAGEM DE TURNO — Sistema Wallace Lira
 
 Sessão: 06-07/08/2026, via Claude Code, direto em `G:\My Drive\Livro Razão\Site` (diretiva permanente: sem zip, sem cópias paralelas, sem versões alternativas — alterar sempre os arquivos reais do projeto).
 
+## ✅ 22/08/2026 (bloco 43) — Fase 1b CONCLUÍDA: Regra 1 (determinismo) aprovada e aplicada, RPC final consolidada
+
+Continuação direta do bloco 42. Usuário aprovou formalmente por escrito a diretriz de determinismo pra janela de recorrências/assinaturas: "A RPC deve ser determinística e baseada exclusivamente no ciclo informado. Não utilizar a data atual do servidor, navegador ou qualquer referência dinâmica de tempo (...) Se houver risco de divergência com os números atuais da tela, apresente antes um comparativo (...) Com essa decisão, pode concluir a Fase 1b, gerar a RPC final consolidada e apresentar evidências de validação".
+
+**Passo 1 — comparativo antes de mexer (exigido pelo usuário)**: rodei a fórmula antiga (sem teto, baseada em `fn_mb_ciclo_atual_inicio()`) contra a fórmula nova (com teto, baseada só no ciclo) direto no banco. Resultado: idênticas hoje — recorrências R$829,27 nos dois, 0 linhas excluídas pelo teto; assinaturas idênticas entre si (só divergem de um gabarito capturado horas antes por deriva natural do tempo — dado mudando durante a sessão longa, não é bug). Zero risco de divergência confirmado antes de qualquer alteração.
+
+**Passo 2 — auditoria da RPC já em produção (Fase 1a) contra a Regra 1 recém-aprovada**: reli `rpc_necessidade_total_bruta` inteira (`pg_get_functiondef`) e achei 3 violações que passaram despercebidas quando foi escrita, antes da regra existir:
+1. Janela de recorrências/assinaturas usava `fn_mb_ciclo_atual_inicio()` — confirmei que essa função lê `current_date` internamente, exatamente o padrão "a partir de agora" que a diretriz proíbe.
+2. Reembolso Wärtsilä ainda fazia `order by ciclo_referencia desc limit 1` — o mesmo bug de não-determinismo já corrigido no JS no bloco 42, mas nunca propagado pra esta RPC.
+3. `reembolso_manejo` continuava hardcoded em `0`, não lia a coluna editável criada no bloco 42.
+Achado extra: `prov_mp` lia direto de `vw_parcelamentos_v2` (estado ao vivo), não do histórico determinístico (`rpc_provmp_por_ciclo`) criado no mesmo bloco 42 — inconsistente com o resto do trabalho já feito.
+
+**Passo 3 — decisão: corrigir a mesma RPC, não criar uma segunda por cima.** Reescrita `rpc_necessidade_total_bruta` (migration `corrige_determinismo_rpc_necessidade_total_bruta`): janela de recorrências/assinaturas agora calculada só a partir de `p_ciclo` (`(p_ciclo||'-25')::date` até dia 24 do mês seguinte — confirmado o formato via `ciclos_financeiros_snapshots.periodo`), reembolso filtrado por `ciclo_referencia = p_ciclo`, `reembolso_manejo` lido da coluna real, `prov_mp` chamando `rpc_provmp_por_ciclo(p_ciclo)`. **Limitação documentada no próprio código-fonte da função (comentário), não escondida**: boletos, consórcios, aportes_pat, orçamento e déficit-caixas-sem-LREI ainda leem estado ao vivo (essas tabelas/parâmetros não têm histórico por ciclo — isso é Fase 2+, fora do escopo de hoje) — por isso o guard que rejeita `p_ciclo` diferente do ciclo aberto foi mantido conscientemente: calcular pra um ciclo fechado hoje ia misturar campos históricos de verdade com campos ao vivo, de forma enganosa.
+
+**Passo 4 — validação final**: chamei `rpc_necessidade_total_bruta()` e conferi cada campo que mudou contra a fonte direta no banco (login ao vivo no site não estava disponível nesta sessão pra comparação via UI — validação feita nível-dado, replicando exatamente a mesma fórmula que o JS usa):
+- `prov_mp = 403.11` — idêntico ao `rpc_provmp_por_ciclo('2026-07')` já validado no bloco 42.
+- `recorrencias = 829.27` — idêntico ao comparativo sem-teto/com-teto do Passo 1.
+- `cobertura_garantida = 1339.16` — recalculado na mão a partir de `reembolso_wartsila_ciclo` (`7362.76 - 5056.95 - 266.23 - 297.31 - 403.11`) = 1339.16, exato. `reembolso_manejo=0` no banco confirma que ler a coluna real não mudou nada (usuário ainda não editou esse valor) — sem regressão.
+- Demais campos (boletos, consórcios, aportes_pat, orçamento, déficit) não foram tocados — mesmo código da Fase 1a, já validado exato então.
+
+**Fase 1b está concluída.** Próximo passo, explicitamente NÃO iniciado (decisão do usuário de manter separado): trocar o consumo do site (JS) pela RPC nova. Isso fica pra uma próxima decisão explícita.
+
 ## 🏗️ 22/08/2026 (bloco 42) — Fase 1b da migração financeira: investigação + 3 dos 4 bloqueios resolvidos
 
 Continuação do bloco 41 (usuário: "isso é dinheiro, não pode ter erro" → migração completa pra Supabase, por fases). Workflow de 5 agentes investigou (sem inventar fórmula) os 4 pontos que travavam a Fase 1b (PIB Wallace/Taxa de Poupança) — relatório completo em `docs/decisions/INVESTIGACAO_PROVMP_COBERTURAGARANTIDA_LIMBO.md`. Usuário respondeu as 4 perguntas, resolvido nesta sessão:
