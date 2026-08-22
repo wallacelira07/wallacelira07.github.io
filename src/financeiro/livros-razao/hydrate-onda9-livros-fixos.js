@@ -52,13 +52,23 @@ function onda9FormatarData(iso){
 // recorrência só conta no Não Reconciliado se já cobrou de verdade dentro deste ciclo — achado real:
 // Faculdade Engenharia cobrada 17/07, próxima só 11/09, mas contava em TODO ciclo entre essas datas
 // porque a soma antiga não sabia diferenciar "ativa" de "já cobrou este ciclo").
+// CORRIGIDO 22/08/2026 (achado do usuário, print real: "Não reconciliado" pulou de ~R$15 pra
+// R$1.243,17 hoje, "não existe compra que não foi lançada" — bateu exatamente no dia 22, quando
+// este bug tinha que aparecer). Off-by-one real: "fecha dia 22" significa que a fatura ainda em
+// aberto (a que cartaoMBTotal reflete, crescendo dia a dia até fechar) INCLUI o próprio dia 22 —
+// o ciclo novo só começa dia 23. `dia >= 22` fazia o código achar, já na manhã do dia 22, que o
+// ciclo novo tinha começado HOJE — zerando (via jaCobrouNesteCicloGenerico) toda assinatura/
+// recorrência que já tinha cobrado ESTE MÊS (a esmagadora maioria, cobrada entre o dia 1 e 21),
+// enquanto cartaoMBTotal continuava contando a fatura do ciclo que só fecha à noite desse mesmo
+// dia 22. `dia > 22` corrige: no dia 22 em si, ainda usa o dia 22 do mês ANTERIOR como início do
+// ciclo (o ciclo que está fechando agora), só vira o mês no dia 23.
 function mbCicloAtualInicio(){
   const hoje = new Date();
   const ano = hoje.getFullYear();
   const mes = hoje.getMonth(); // 0-indexed
   const dia = hoje.getDate();
-  const anoRef = dia >= 22 ? ano : (mes === 0 ? ano - 1 : ano);
-  const mesRef = dia >= 22 ? mes : (mes === 0 ? 11 : mes - 1);
+  const anoRef = dia > 22 ? ano : (mes === 0 ? ano - 1 : ano);
+  const mesRef = dia > 22 ? mes : (mes === 0 ? 11 : mes - 1);
   const mesStr = String(mesRef + 1).padStart(2, '0');
   return `${anoRef}-${mesStr}-22`;
 }
