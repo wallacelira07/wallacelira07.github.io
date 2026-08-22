@@ -80,6 +80,18 @@ async function aplicarOnda4Patrimonio(){
   // depois do card principal (patTotal) já mostrar V2.
   REG.patrimonio.total = total;
   REG.patrimonio.metaMilhaoPct = metaMilhaoPct;
+  // NOVO 22/08/2026 (pedido do usuário: "metas.valor_atual — desenvolva automação" — a tabela
+  // órfã `metas` (tipo='milhao') nunca era escrita por nada, ficava desatualizada até alguém
+  // corrigir manualmente). Grava o total recém-calculado de volta na tabela a cada carga, mesmo
+  // padrão fire-and-forget já usado nesta Onda (getCartoesMapa em hydrate-onda3-lrwlrv.js) — nunca
+  // bloqueia a renderização, só loga se falhar. RPC exige login válido (ver atualizar_meta_valor_atual).
+  if(v1Total !== total){
+    fetch(`${WallaceFinanceService._url}/rest/v1/rpc/atualizar_meta_valor_atual`, {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, WallaceFinanceService._headers()),
+      body: JSON.stringify({ p_tipo: 'milhao', p_valor_atual: total }),
+    }).catch(err => console.warn('Onda4Patrimonio: falha ao gravar metas.valor_atual (não afeta a tela, só a tabela informativa).', err));
+  }
   // CORRIGIDO 10/08/2026 (achado do usuário: "gráficos iguais devem refletir exatamente a mesma
   // fonte"): REG.patrimonioDetalhe nunca era atualizado aqui — os textos abaixo (patReserva/patBtg/
   // patEscola) já mostravam V2, mas o gráfico de rosca cPatrim/g_cPatrim (Object.values(REG.
