@@ -908,7 +908,11 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         const d = psDeficit[i];
         ctx.fillStyle = d<0 ? '#e2554f' : '#34c98a';
         const label = (d<0?'−':'+')+fmt0(Math.abs(d));
-        ctx.fillText(label, bar.x, d>=0 ? bar.y - 8 : bar.y + 16);
+        // CORRIGIDO 22/08/2026 (mesma defesa aplicada em dzDataLabelPlugin/pnlDataLabelPlugin, achado
+        // do usuário num gráfico irmão — aqui os valores são constantes por mês hoje, mas nada impede
+        // a barra de ficar alta o bastante pra colar no rótulo do eixo X se a constante mudar).
+        const yPos = d>=0 ? bar.y - 8 : Math.min(bar.y + 16, chart.chartArea.bottom - 4);
+        ctx.fillText(label, bar.x, yPos);
       });
       ctx.restore();
     }
@@ -991,7 +995,14 @@ async function _lazyRenderCenariosDeficitEGraficosSolar(){
         const d = pnlDeficit[i];
         ctx.fillStyle = d<0 ? '#e2554f' : '#34c98a';
         const label = (d<0?'−':'+')+fmt0(Math.abs(d));
-        ctx.fillText(label, bar.x, d>=0 ? bar.y - 8 : bar.y + 16);
+        // CORRIGIDO 22/08/2026 (achado do usuário, print real: rótulo da barra mais negativa
+        // ("-5.914", Jul/26) ficava colado no rótulo do eixo X — mesmo bug já corrigido em
+        // dzDataLabelPlugin em 20/08/2026, nunca propagado pra este gráfico irmão. bar.y+16 empurrava
+        // o texto pra fora da área do gráfico sempre que a barra era grande o suficiente pra base dela
+        // já estar perto do fundo do canvas. Travado em chartArea.bottom-4, nunca ultrapassa o fundo
+        // real do gráfico.
+        const yPos = d>=0 ? bar.y - 8 : Math.min(bar.y + 16, chart.chartArea.bottom - 4);
+        ctx.fillText(label, bar.x, yPos);
       });
       ctx.restore();
     }
