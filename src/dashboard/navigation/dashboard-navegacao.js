@@ -676,6 +676,7 @@ function habilitarSetasMasterTabs(){
   let idxCarrossel = 0;
   let _scrollAnimId = 0; // token da animação em voo - clique novo invalida a anterior, sem disputa
   let animandoAgora = false; // true enquanto animarScrollPara() está em voo - ver sincronizarComScroll()
+  let travadoDuranteGiro = false; // true só durante a transição pro clone - ver comentário nos handlers de clique
 
   function reais(){
     return Array.from(tabs.querySelectorAll('.master-tab:not(.master-tab--clone)'));
@@ -789,8 +790,22 @@ function habilitarSetasMasterTabs(){
     }
     requestAnimationFrame(passo);
   }
+  // CORRIGIDO 22/08/2026, 10ª rodada (achado real do usuário: vídeo mostrando a barra "travada" bem
+  // no fim, cliques sem efeito nenhum — investigado com cliques rápidos e IRREGULARES via script,
+  // imitando o ritmo real de um clique humano, não o espaçamento uniforme dos testes anteriores).
+  // Causa: `_scrollAnimId` cancela e reinicia a animação do giro a cada clique novo — se os cliques
+  // chegam mais rápido que a duração da transição até o clone (até 650ms), a animação NUNCA termina
+  // de verdade, o callback que faz o pouso instantâneo (`aoAssentar`) nunca dispara, e `idxCarrossel`
+  // fica preso pra sempre no valor da última parada — cada clique novo recalcula o MESMO alvo (o
+  // clone), sem nunca avançar. Passos normais (fora do giro) não sofrem disso, porque o alvo em si já
+  // muda a cada clique (índice incrementado antes de animar), só a transição específica do giro
+  // precisa da animação assentar pra saber onde "pousar" de verdade. Fix cirúrgico: `travadoDuranteGiro`
+  // ignora cliques novos só durante essa transição específica (no máximo ~650ms) — garante que o giro
+  // sempre completa e o índice sempre avança, sem travar a barra indefinidamente. Passos comuns
+  // continuam 100% responsivos/cancela-e-reinicia como antes.
   prev.addEventListener('click', (e) => {
     e.preventDefault();
+    if(travadoDuranteGiro) return;
     const lista = reais();
     if(!lista.length) return;
     const info = calcularParadas(lista);
@@ -802,9 +817,11 @@ function habilitarSetasMasterTabs(){
       const cloneAdjacente = clonesInicio[clonesInicio.length - 1]; // o mais próximo da 1ª aba real
       const ultimoReal = lista[lista.length - 1];
       const larguraLoop = ultimoReal.offsetLeft - cloneAdjacente.offsetLeft;
+      travadoDuranteGiro = true;
       animarScrollPara(cloneAdjacente.offsetLeft, () => {
         tabs.scrollLeft += larguraLoop; // pouso instantâneo, imperceptível (clone == real em pixel)
         idxCarrossel = info.numParadas - 1;
+        travadoDuranteGiro = false;
       });
     } else {
       idxCarrossel--;
@@ -814,6 +831,7 @@ function habilitarSetasMasterTabs(){
   });
   next.addEventListener('click', (e) => {
     e.preventDefault();
+    if(travadoDuranteGiro) return;
     const lista = reais();
     if(!lista.length) return;
     const info = calcularParadas(lista);
@@ -823,9 +841,11 @@ function habilitarSetasMasterTabs(){
       // fim), depois pousa instantaneamente na aba real equivalente - nunca inverte a direção.
       const cloneAdjacente = tabs.querySelector('.master-tab--clone[data-clone-pos="fim"]'); // o mais próximo do fim
       const larguraLoop = cloneAdjacente.offsetLeft - lista[0].offsetLeft;
+      travadoDuranteGiro = true;
       animarScrollPara(cloneAdjacente.offsetLeft, () => {
         tabs.scrollLeft -= larguraLoop; // pouso instantâneo, imperceptível (clone == real em pixel)
         idxCarrossel = 0;
+        travadoDuranteGiro = false;
       });
     } else {
       idxCarrossel++;
