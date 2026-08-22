@@ -881,15 +881,21 @@ const WallaceFinanceService = {
   },
   // NOVO 08/08/2026 (Onda 4, domínio 4 — Cascata Wärtsilá): quebra por perna do ciclo mais recente
   // (reembolso_wartsila_ciclo) — não existia tabela nenhuma com essa granularidade antes.
-  async getReembolsoWartsilaCicloV2(){
-    // CORRIGIDO 08/08/2026 (bug estrutural real, achado ao investigar Patrimonio/CDI travando):
-    // o cache guardava o ARRAY bruto (`dado`), mas a funcao retorna o objeto desembrulhado
-    // (`dado[0]`) - na 1a chamada funcionava (retornava certo antes de cachear errado), mas a
-    // partir da 2a chamada pro mesmo dado (cache hit), devolvia o ARRAY em vez do objeto, e
-    // qualquer `.campo` lido nesse "objeto" virava undefined -> NaN silencioso rio abaixo. Cache
-    // e retorno agora sempre guardam/devolvem o MESMO valor.
-    return this._cache.obterOuBuscar('reembolso_wartsila_ciclo', async () => {
-      const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&order=ciclo_referencia.desc&limit=1`, {
+  // CORRIGIDO 22/08/2026 (achado real durante a investigação da migração pra Fase 1b — Supabase MCP,
+  // não visível no site até então porque só existia 1 linha na tabela): `order=ciclo_referencia.desc
+  // &limit=1` sempre pega a linha MAIS RECENTE do banco, nunca filtra pelo ciclo que está sendo
+  // exibido/calculado (`VARS.cicloAtual`) — funcionava por coincidência enquanto só havia 1 ciclo na
+  // tabela, mas quebraria silenciosamente assim que a virada de ciclo (dia 25) inserir a 2ª linha:
+  // coberturaGarantida passaria a usar o reembolso do ciclo NOVO mesmo enquanto a tela ainda mostra
+  // o ciclo velho fechando, ou vice-versa dependendo da ordem de eventos. Filtra explicitamente por
+  // `ciclo_referencia=eq.<cicloAtual>` agora — determinístico, nunca "o que calhar de ser o mais
+  // recente". `cicloAtual` default pro VARS já populado no boot (mesmo padrão de outras funções desta
+  // classe que já recebem cicloAtual explícito).
+  async getReembolsoWartsilaCicloV2(cicloAtual){
+    const ciclo = cicloAtual || (typeof VARS !== 'undefined' && VARS.cicloAtual);
+    if(!ciclo) throw new Error('WallaceFinanceService: getReembolsoWartsilaCicloV2 chamado sem cicloAtual disponível (VARS ainda não populado?)');
+    return this._cache.obterOuBuscar('reembolso_wartsila_ciclo:' + ciclo, async () => {
+      const resp = await fetch(`${this._url}/rest/v1/reembolso_wartsila_ciclo?select=*&ciclo_referencia=eq.${encodeURIComponent(ciclo)}&limit=1`, {
         headers: this._headers()
       });
       if(!resp.ok) throw new Error(`WallaceFinanceService: erro ${resp.status} ao buscar reembolso_wartsila_ciclo`);
