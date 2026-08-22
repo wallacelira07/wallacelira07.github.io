@@ -72,6 +72,41 @@ function calcularEconomiaRealMes(faturaPreSolar, consumoPreSolar, valorMesAtual,
   return { tarifaPreSolar, semSolar, economiaReal, economiaRealPct };
 }
 
+// Saldo líquido de crédito solar projetado até HOJE, a partir da última leitura manual (03/103).
+// Sem projeção possível (leitura já é de hoje, ou geracaoAcumulada ainda não chegou — robô SAJ só
+// roda de manhã) cai pro crédito líquido cru da última leitura, NUNCA null — ver achado real
+// 22/08/2026 ("não pode perder os dados... nunca pode ocorrer isso", leitura registrada à noite
+// sumia a tela inteira até o robô rodar de manhã). Usada pelas 2 páginas: painel privado
+// (creditoMensalWallace[idxCicloAberto] no gráfico Rateio Solar + VARS._creditoLiquidoProjetadoHoje
+// pra Fluxo 2/Previsão) e compartilhado (fluxo2, mesmo card). `diasDesdeAtivacao` = campo `dias` da
+// leitura mais recente (painel privado) — quantos dias desde a ativação do sistema até aquela
+// leitura, usado só pra calcular a média histórica de geração/dia como fallback quando não há dado
+// diário real do robô SAJ pra um dia específico do período a projetar.
+function calcularSaldoLiquidoProjetado(creditoLiquidoUltimaLeitura, dataUltimaLeituraISO, geracaoAcumulada, diasDesdeAtivacao, geracaoDiariaPorData, consumoMedioDiarioReferencia){
+  const hoje = new Date();
+  const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+  const dataUltimaLeitura = new Date(dataUltimaLeituraISO);
+  const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
+  if(diasDesdeLeitura <= 0 || geracaoAcumulada == null){
+    return { saldo: creditoLiquidoUltimaLeitura, diasComDadoReal: 0, diasProjetados: 0 };
+  }
+  const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? geracaoAcumulada / diasDesdeAtivacao : 0;
+  let geracaoEstimadaTotalPeriodo = 0, diasComDadoReal = 0;
+  for(let d = 1; d <= diasDesdeLeitura; d++){
+    const dataDoDia = new Date(dataUltimaLeitura);
+    dataDoDia.setDate(dataDoDia.getDate() + d);
+    const chaveISO = dataDoDia.toISOString().slice(0,10);
+    if(geracaoDiariaPorData[chaveISO] != null){
+      geracaoEstimadaTotalPeriodo += geracaoDiariaPorData[chaveISO];
+      diasComDadoReal++;
+    } else {
+      geracaoEstimadaTotalPeriodo += geracaoMediaDiaria;
+    }
+  }
+  const saldo = Math.round((creditoLiquidoUltimaLeitura + geracaoEstimadaTotalPeriodo - diasDesdeLeitura * consumoMedioDiarioReferencia) * 100) / 100;
+  return { saldo, diasComDadoReal, diasProjetados: diasDesdeLeitura - diasComDadoReal };
+}
+
 function mediaConsumoDiarioTuyaRecente(diario, fallback){
   const pegarKwh = r => r.kwh_consumido != null ? Number(r.kwh_consumido) : (r.kwhConsumido != null ? Number(r.kwhConsumido) : null);
   const validos = (diario||[])

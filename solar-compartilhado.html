@@ -73,6 +73,11 @@
   h1{font-size:1.15rem;margin:0}
   .sub{font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+  /* NOVO 22/08/2026 (achado do usuário: "alinhe o texto" — tabelas do residual/economia real usam
+     class="r" pra alinhar número à direita, igual ao painel privado (assets/css/styles.css:693/698),
+     mas essa regra nunca tinha sido copiada pra esta página autocontida). */
+  th.r{text-align:right;color:inherit}
+  td.r{text-align:right;font-variant-numeric:tabular-nums;color:inherit}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.8rem}
   .stat-lbl{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em}
   .stat-val{font-size:1.4rem;font-weight:700;margin-top:0.2rem}
@@ -288,37 +293,21 @@ const SOLAR_CONSUMO_MAE_ANO_ANTERIOR = [171,172,174,175,177,168,201,270,242,210,
 // (mesmo array da RPC). Retorna null se não há leitura ou geração acumulada ainda (mesma condição de
 // guarda do painel privado); cai pro crédito líquido cru (sem projeção) se a última leitura já é de
 // hoje (nada a projetar).
-// CORRIGIDO 22/08/2026 (achado real do usuário: leitura registrada às 23h ainda sem geracao_acumulada
-// preenchida pelo robô SAJ fazia "Fluxo 2 — GD atual" sumir inteiro, mostrando "Sem ciclo aberto"
-// pra um ciclo que ESTAVA aberto de verdade — "não pode perder os dados... isso tem que estar no
-// banco de dados... nunca pode ocorrer isso"). Nenhum dado é perdido (a leitura em si sempre fica
-// gravada) — o bug era só a trava exigir geracaoAcumulada mesmo quando ela não faz falta nenhuma:
-// creditoLiquidoUltimaLeitura (linha abaixo) já vem 100% de leitura03/leitura103, sem depender dela.
-// Agora só entra em jogo quando REALMENTE precisa projetar pra frente (leitura de dias atrás, sem
-// geração diária do dia de hoje ainda) — se geracaoAcumulada ainda não chegou, cai pro crédito líquido
-// cru (sem projeção), nunca mais pra null/tela vazia.
+// ESPELHADO 22/08/2026 (prioridade 0 do usuário: "é tudo, absolutamente tudo") — a fórmula em si
+// (com o conserto de 22/08/2026, "não pode perder os dados... nunca pode ocorrer isso": nunca mais
+// retorna null, cai pro crédito líquido cru quando geracaoAcumulada ainda não chegou) mora agora só
+// em src/solar/calculos-solares-compartilhados.js (calcularSaldoLiquidoProjetado), a mesma que o
+// painel privado usa. Esta função vira um wrapper fino, só adapta os campos desta página (ultima.*,
+// data de ativação/consumo médio Mãe locais) pro formato genérico da função compartilhada.
 function calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria){
   if(!ultima) return null;
   const creditoLiquidoUltimaLeitura = Math.round((ultima.leitura103 - ultima.leitura03) * 100) / 100;
-  const hoje = new Date();
-  const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
-  const dataUltimaLeitura = new Date(ultima.data);
-  const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
-  if(diasDesdeLeitura <= 0 || ultima.geracaoAcumulada == null) return creditoLiquidoUltimaLeitura;
-  const diasDesdeAtivacao = Math.round((dataUltimaLeitura - new Date(SOLAR_DATA_ATIVACAO)) / 86400000);
-  const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? ultima.geracaoAcumulada / diasDesdeAtivacao : 0;
+  const diasDesdeAtivacao = Math.round((new Date(ultima.data) - new Date(SOLAR_DATA_ATIVACAO)) / 86400000);
   const consumoMedioMensalMae = SOLAR_CONSUMO_MAE_ANO_ANTERIOR.reduce((s,v)=>s+v,0) / SOLAR_CONSUMO_MAE_ANO_ANTERIOR.length;
   const consumoMedioDiarioMae = consumoMedioMensalMae / 30;
   const diariosPorDataMap = {};
   (geracaoDiaria || []).forEach(r => { diariosPorDataMap[r.data] = Number(r.kwh); });
-  let geracaoEstimadaTotalPeriodo = 0;
-  for(let d = 1; d <= diasDesdeLeitura; d++){
-    const dataDoDia = new Date(dataUltimaLeitura);
-    dataDoDia.setDate(dataDoDia.getDate() + d);
-    const chaveISO = dataDoDia.toISOString().slice(0,10);
-    geracaoEstimadaTotalPeriodo += (diariosPorDataMap[chaveISO] != null) ? diariosPorDataMap[chaveISO] : geracaoMediaDiaria;
-  }
-  return Math.round((creditoLiquidoUltimaLeitura + geracaoEstimadaTotalPeriodo - diasDesdeLeitura * consumoMedioDiarioMae) * 100) / 100;
+  return calcularSaldoLiquidoProjetado(creditoLiquidoUltimaLeitura, ultima.data, ultima.geracaoAcumulada, diasDesdeAtivacao, diariosPorDataMap, consumoMedioDiarioMae).saldo;
 }
 
 // Cópia deliberada (mesmo padrão da tarifa acima) de src/solar/vars-energia-solar.js — consumo médio
@@ -532,6 +521,74 @@ async function aplicarPrevisaoGeracaoSolarCompartilhado(registros){
   } catch(err){
     console.warn('aplicarPrevisaoGeracaoSolarCompartilhado: falha ao calibrar/buscar previsão — bloco fica oculto.', err);
   }
+}
+
+// NOVO 22/08/2026 (pedido do usuário: "adicione botões para baixar iguais ao site") — versão
+// simplificada de baixarSecaoComoJPEG()/inicializarBotoesPrintSecao() (painel privado,
+// src/dashboard/widgets/ui-componentes-visuais.js): 1 botão "⬇" por .card, html2canvas carregado sob
+// demanda (mesma CDN), nome do arquivo derivado do título do card (.stat-lbl, primeiro encontrado).
+var _promiseHtml2CanvasCompartilhado = null;
+function carregarHtml2CanvasSobDemandaCompartilhado(){
+  if(typeof html2canvas !== 'undefined') return Promise.resolve();
+  if(_promiseHtml2CanvasCompartilhado) return _promiseHtml2CanvasCompartilhado;
+  _promiseHtml2CanvasCompartilhado = new Promise(function(resolve, reject){
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = function(){ resolve(); };
+    script.onerror = function(){ _promiseHtml2CanvasCompartilhado = null; reject(new Error('falha ao carregar html2canvas')); };
+    document.head.appendChild(script);
+  });
+  return _promiseHtml2CanvasCompartilhado;
+}
+function baixarCardComoJPEGCompartilhado(card, titulo, btnOrigem){
+  if(typeof html2canvas === 'undefined'){
+    btnOrigem.disabled = true; btnOrigem.textContent = '…';
+    carregarHtml2CanvasSobDemandaCompartilhado().then(function(){
+      baixarCardComoJPEGCompartilhado(card, titulo, btnOrigem);
+    }).catch(function(err){
+      console.error('Erro ao carregar html2canvas sob demanda', err);
+      alert('Não consegui carregar a biblioteca de captura. Confira sua conexão e tenta de novo.');
+      btnOrigem.disabled = false; btnOrigem.textContent = '⬇';
+    });
+    return;
+  }
+  btnOrigem.disabled = true; btnOrigem.textContent = '…';
+  var corFundo = getComputedStyle(document.body).backgroundColor || '#0f1113';
+  html2canvas(card, { backgroundColor: corFundo, scale: 2, useCORS: true }).then(function(canvas){
+    var slug = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    var hoje = new Date(Date.now() - 3*3600*1000).toISOString().slice(0, 10);
+    var link = document.createElement('a');
+    link.download = slug + '-' + hoje + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  }).catch(function(err){
+    console.error('Erro ao gerar JPEG do card', err);
+    alert('Não consegui gerar o JPEG. Tenta de novo.');
+  }).finally(function(){
+    btnOrigem.disabled = false; btnOrigem.textContent = '⬇';
+  });
+}
+function inicializarBotoesPrintCompartilhado(){
+  document.querySelectorAll('#app .card').forEach(function(card, i){
+    if(card.querySelector(':scope > .btn-print-compartilhado')) return; // evita duplicar se rodar 2x
+    var tituloEl = card.querySelector('.stat-lbl');
+    var titulo = tituloEl ? tituloEl.textContent.trim() : ('secao-' + (i+1));
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-print-compartilhado';
+    btn.title = 'Baixar este card como JPEG';
+    btn.setAttribute('aria-label', 'Baixar ' + titulo + ' como JPEG');
+    btn.textContent = '⬇';
+    // Ancorado no canto superior direito do próprio .card — não depende de nenhuma estrutura
+    // interna específica, funciona igual em qualquer card da página.
+    btn.style.cssText = 'position:absolute;top:0.7rem;right:0.8rem;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:0.75rem;padding:0.1rem 0.4rem;cursor:pointer;line-height:1.4;z-index:1';
+    if(getComputedStyle(card).position === 'static') card.style.position = 'relative';
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      baixarCardComoJPEGCompartilhado(card, titulo, btn);
+    });
+    card.appendChild(btn);
+  });
 }
 
 async function carregar(){
@@ -1273,7 +1330,7 @@ async function carregar(){
       const detalhe = d.residual_validado !== undefined
         ? (d.residual_validado_fonte || 'Validado contra fatura real com compensação próxima de 100%')
         : `Disponibilidade ${fmt(formula.custoDisponibilidade)} + Fio B ${fmt(formula.fioBValor)} + Iluminação ${fmt(formula.iluminacaoValor)} + Encargos ${fmt(formula.encargosValor)} (estimativa por %, não validada contra fatura próxima de 100% ainda)`;
-      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwh(consumoKwh)} kWh)</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
+      return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)} <span style="color:var(--text-dim)">(${fmtKwh(consumoKwh)})</span></td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
     }).join('');
     residualTbodyCompartilhadoEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem"><thead><tr style="text-align:left;color:var(--text-dim);font-size:0.68rem;text-transform:uppercase"><th style="padding:0.4rem 0.6rem 0.4rem 0">Unidade</th><th class="r" style="padding:0.4rem 0.6rem">Fatura base (pré-solar)</th><th class="r" style="padding:0.4rem 0.6rem">Residual estimado/mês</th><th class="r" style="padding:0.4rem 0.6rem">Economia estimada</th></tr></thead><tbody>${linhasResidual}</tbody></table>`;
   }
@@ -1497,6 +1554,13 @@ async function carregar(){
       ? mesesComLeitura+' de 12 meses já têm leitura de crédito confirmada; os demais ficam sem barra verde até a leitura chegar. Consumo esperado vem do histórico REAL dos últimos 12 meses de cada apartamento (fatura Energisa de cada um, Wallace e Wellida).'
       : 'Ainda sem nenhum ciclo fechado com crédito confirmado — as barras de crédito aparecem aqui assim que o primeiro ciclo fechar.';
   }
+
+  // NOVO 22/08/2026 (pedido do usuário: "adicione botões para baixar iguais ao site" — mesmo botão
+  // "⬇ baixar como JPEG" que todo card do painel privado tem, ver
+  // src/dashboard/widgets/ui-componentes-visuais.js/baixarSecaoComoJPEG(). Versão simplificada aqui
+  // (página autocontida, sem .section-num/.pane pra lidar) — 1 botão por .card, html2canvas
+  // carregado sob demanda no 1º clique, mesma lib/CDN do painel privado.
+  inicializarBotoesPrintCompartilhado();
 
   } catch(errRender){
     console.error('solar-compartilhado: erro ao renderizar', errRender);

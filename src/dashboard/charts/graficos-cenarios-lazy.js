@@ -1727,65 +1727,46 @@ async function _lazyRenderSolarSecao(){
   // (SOLAR_LEITURAS continua 100% real) - so a exibicao desta barra.
   let diasComDadoRealSolar = 0, diasProjetadosSolar = 0;
   let idxCicloAberto = null; // índice (0-11) da barra do ciclo AINDA ABERTO no gráfico Rateio Solar, se houver — usado pra estilizar essa barra diferente das fechadas
-  if(ultimaSolar && ultimaSolar.geracaoAcumulada != null && diasAcumAnterior >= 0){
-    const hojeChart = new Date();
-    const hojeSoDataChart = new Date(Date.UTC(hojeChart.getFullYear(), hojeChart.getMonth(), hojeChart.getDate()));
-    const dataUltimaLeituraChart = new Date(ultimaSolar.data);
-    const diasDesdeLeituraChart = Math.max(0, Math.round((hojeSoDataChart - dataUltimaLeituraChart) / 86400000));
-    if(diasDesdeLeituraChart > 0){
-      const diasDesdeAtivacaoChart = ultimaSolar.dias;
-      const geracaoMediaDiariaChart = diasDesdeAtivacaoChart > 0 ? ultimaSolar.geracaoAcumulada / diasDesdeAtivacaoChart : 0;
-      const consumoMedioMensalMaeChart = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
-      const consumoMedioDiarioMaeChart = consumoMedioMensalMaeChart / 30;
-      // MELHORADO 05/08/2026 (pedido do usuario: "já temos dados diários do SAJ, tenta melhorar
-      // isso" - a estimativa usava só a MEDIA desde a ativacao pra projetar os dias entre a ultima
-      // leitura manual e hoje, mesmo quando o robo SAJ ja tem o dado REAL de alguns desses dias
-      // (SOLAR_GERACAO_DIARIA, gravado 2x/dia desde 03/08). Agora percorre dia a dia o periodo:
-      // usa o kWh REAL do robo quando existe pra aquele dia especifico, e só cai pra media nos dias
-      // sem dado real (ex: antes de 03/08, ou uma falha pontual do robo). Reduz a divergencia entre
-      // esta barra (grafico 10/11) e a Secao 12/13 (Previsao, usa só a ultima leitura confirmada).
-      const diariosPorDataMap = {};
-      (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r => { diariosPorDataMap[r.data] = r.kwh; });
-      let geracaoEstimadaTotalPeriodo = 0;
-      let diasComDadoReal = 0;
-      for(let d=1; d<=diasDesdeLeituraChart; d++){
-        const dataDoDia = new Date(dataUltimaLeituraChart);
-        dataDoDia.setDate(dataDoDia.getDate() + d);
-        const chaveISO = dataDoDia.toISOString().slice(0,10);
-        if(diariosPorDataMap[chaveISO] != null){
-          geracaoEstimadaTotalPeriodo += diariosPorDataMap[chaveISO];
-          diasComDadoReal++;
-        } else {
-          geracaoEstimadaTotalPeriodo += geracaoMediaDiariaChart;
-        }
-      }
-      const saldoTotalEstimadoChart = ultimaSolar.creditoLiquido + geracaoEstimadaTotalPeriodo - diasDesdeLeituraChart * consumoMedioDiarioMaeChart;
-      diasComDadoRealSolar = diasComDadoReal;
-      diasProjetadosSolar = diasDesdeLeituraChart - diasComDadoReal;
-      // NOVO 05/08/2026 (pedido do usuario, 3a vez reportando a mesma divergencia entre este grafico
-      // e a Secao 12/13): antes a Previsao usava so ultimaSolar.creditoLiquido (parado na ultima
-      // leitura manual), enquanto este grafico projetava pra frente - dois numeros diferentes pro
-      // mesmo conceito. Exposto em VARS pra a Previsao reusar a MESMA projecao, um numero so em vez
-      // de dois caminhos de calculo divergentes.
-      VARS._creditoLiquidoProjetadoHoje = saldoTotalEstimadoChart;
-      VARS._diasProjetadosSolar = diasProjetadosSolar;
-      VARS._diasComDadoRealSolar = diasComDadoRealSolar;
+  // ESPELHADO 22/08/2026 (prioridade 0 do usuário) — fórmula movida pra
+  // src/solar/calculos-solares-compartilhados.js (calcularSaldoLiquidoProjetado), a mesma que
+  // solar-compartilhado.html usa. De brinde, ganha o mesmo conserto aplicado lá mais cedo hoje:
+  // antes, geracaoAcumulada==null (leitura registrada fora do horário do robô SAJ) pulava o bloco
+  // INTEIRO — idxCicloAberto nunca era setado, a barra do ciclo aberto no gráfico Rateio Solar
+  // sumia. Agora sempre roda; sem geracaoAcumulada ainda, a função cai pro crédito líquido cru em
+  // vez de esconder a barra.
+  if(ultimaSolar){
+    const diariosPorDataMap = {};
+    (VARS.SOLAR_GERACAO_DIARIA||[]).forEach(r => { diariosPorDataMap[r.data] = r.kwh; });
+    const consumoMedioMensalMaeChart = VARS.solarConsumoMaeAnoAnterior.reduce((s,v)=>s+v,0) / VARS.solarConsumoMaeAnoAnterior.length;
+    const consumoMedioDiarioMaeChart = consumoMedioMensalMaeChart / 30;
+    const { saldo: saldoTotalEstimadoChart, diasComDadoReal, diasProjetados } = calcularSaldoLiquidoProjetado(
+      ultimaSolar.creditoLiquido, ultimaSolar.data, ultimaSolar.geracaoAcumulada, ultimaSolar.dias, diariosPorDataMap, consumoMedioDiarioMaeChart
+    );
+    diasComDadoRealSolar = diasComDadoReal;
+    diasProjetadosSolar = diasProjetados;
+    // NOVO 05/08/2026 (pedido do usuario, 3a vez reportando a mesma divergencia entre este grafico
+    // e a Secao 12/13): antes a Previsao usava so ultimaSolar.creditoLiquido (parado na ultima
+    // leitura manual), enquanto este grafico projetava pra frente - dois numeros diferentes pro
+    // mesmo conceito. Exposto em VARS pra a Previsao reusar a MESMA projecao, um numero so em vez
+    // de dois caminhos de calculo divergentes.
+    VARS._creditoLiquidoProjetadoHoje = saldoTotalEstimadoChart;
+    VARS._diasProjetadosSolar = diasProjetadosSolar;
+    VARS._diasComDadoRealSolar = diasComDadoRealSolar;
 
-      // RESTAURADO 11/08/2026 (pedido explícito do usuário, revertendo a remoção de mais cedo hoje:
-      // "quero que o valor que está sendo gerado vai somando aqui, se não não tem sentido ter esse
-      // gráfico") — mas com o problema original resolvido de outro jeito: o valor ao vivo do ciclo
-      // aberto volta a aparecer na barra, só que agora é claramente distinguível (cor mais clara/
-      // transparente, ver backgroundColor do dataset abaixo) das barras de ciclo REALMENTE fechado —
-      // antes as duas pareciam idênticas, o que fazia parecer que "Set" já tinha fechado. Fórmula
-      // idêntica à da seção 04 (Fluxo 2), mesma fonte (baselineKwh), nunca diverge dela.
-      const mesAtualCalendario = mesFechamentoCiclo(hojeSoDataChart.toISOString().slice(0,10));
-      idxCicloAberto = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12;
-      if(baselineKwh != null){
-        const creditoLiquidoCicloAbertoEstimado = Math.round((saldoTotalEstimadoChart - baselineKwh) * 100) / 100;
-        creditoMensalWallace[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioWallace * 100) / 100;
-        creditoMensalIrma[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioIrma * 100) / 100;
-        temLeituraNoMes[idxCicloAberto] = true;
-      }
+    // RESTAURADO 11/08/2026 (pedido explícito do usuário, revertendo a remoção de mais cedo hoje:
+    // "quero que o valor que está sendo gerado vai somando aqui, se não não tem sentido ter esse
+    // gráfico") — mas com o problema original resolvido de outro jeito: o valor ao vivo do ciclo
+    // aberto volta a aparecer na barra, só que agora é claramente distinguível (cor mais clara/
+    // transparente, ver backgroundColor do dataset abaixo) das barras de ciclo REALMENTE fechado —
+    // antes as duas pareciam idênticas, o que fazia parecer que "Set" já tinha fechado. Fórmula
+    // idêntica à da seção 04 (Fluxo 2), mesma fonte (baselineKwh), nunca diverge dela.
+    const mesAtualCalendario = mesFechamentoCiclo(new Date().toISOString().slice(0,10));
+    idxCicloAberto = (mesAtualCalendario - ANCHOR_SOLAR_MES_CICLO + 12) % 12;
+    if(baselineKwh != null){
+      const creditoLiquidoCicloAbertoEstimado = Math.round((saldoTotalEstimadoChart - baselineKwh) * 100) / 100;
+      creditoMensalWallace[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioWallace * 100) / 100;
+      creditoMensalIrma[idxCicloAberto] = Math.round(creditoLiquidoCicloAbertoEstimado * VARS.solarRateioIrma * 100) / 100;
+      temLeituraNoMes[idxCicloAberto] = true;
     }
   }
 
