@@ -612,25 +612,43 @@ function atualizarSetasMasterTabs(){
 // AMPLIADO (mesmo pedido, "faça estilo carrocel, onde vou passando e volta ao início"): clicar em
 // "próxima" no fim da barra volta pro início (scrollLeft=0) em vez de ficar parado sem fazer nada;
 // clicar em "anterior" no início pula pro fim — looping de verdade, não só ida-e-volta linear.
+// CORRIGIDO 22/08/2026 (achado do usuário: "a barra pisca/pula mas volta pro mesmo lugar" ao
+// clicar nas setas — sintoma de algo revertendo o scroll logo depois de aplicado, não de o clique
+// não registrar). Reescrito de forma defensiva, cobrindo os 3 suspeitos mais prováveis de um
+// scroll "voltar sozinho" sem eu conseguir reproduzir ao vivo neste ambiente (sem login):
+//   1) e.preventDefault() — clique em <button> pode disparar scroll de foco do próprio navegador
+//      (rolar o elemento focado pra dentro da viewport), competindo com o scroll manual.
+//   2) btn.blur() logo após clicar — mesmo motivo, elimina qualquer scroll-into-view de foco que o
+//      navegador dispare depois do clique, já que o botão nunca precisa ficar focado visualmente.
+//   3) behavior:'auto' (instantâneo) em vez de 'smooth' — a versão anterior usava scroll suave, que
+//      fica em voo por ~300-500ms; qualquer outro código que rode `atualizarSetasMasterTabs()`
+//      nesse meio-tempo (ela roda a cada evento 'scroll', inclusive os intermediários da animação)
+//      alterna a classe `master-tabs--centralizada` — se isso disparar por engano com scroll ainda
+//      em andamento, justify-content:center brigaria com o scroll suave em curso (mesmo bug clássico
+//      de flexbox documentado no CSS). Scroll instantâneo elimina essa janela de tempo inteira.
 function habilitarSetasMasterTabs(){
   const tabs = document.querySelector('.master-tabs');
   const prev = $('masterTabsPrev');
   const next = $('masterTabsNext');
   if(!tabs || !prev || !next) return;
   const folga = 4;
-  prev.addEventListener('click', () => {
+  prev.addEventListener('click', (e) => {
+    e.preventDefault();
     if(tabs.scrollLeft <= folga){
-      tabs.scrollTo({left: tabs.scrollWidth, behavior:'smooth'}); // já no início - dá a volta pro fim
+      tabs.scrollTo({left: tabs.scrollWidth, behavior:'auto'}); // já no início - dá a volta pro fim
     } else {
-      tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'smooth'});
+      tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'auto'});
     }
+    prev.blur();
   });
-  next.addEventListener('click', () => {
+  next.addEventListener('click', (e) => {
+    e.preventDefault();
     if(tabs.scrollLeft >= tabs.scrollWidth - tabs.clientWidth - folga){
-      tabs.scrollTo({left: 0, behavior:'smooth'}); // já no fim - dá a volta pro início
+      tabs.scrollTo({left: 0, behavior:'auto'}); // já no fim - dá a volta pro início
     } else {
-      tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'smooth'});
+      tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'auto'});
     }
+    next.blur();
   });
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
   window.addEventListener('resize', atualizarSetasMasterTabs, {passive:true});
