@@ -1233,7 +1233,32 @@ async function _lazyRenderSolarSecao(){
   // buraco. Nunca mais fica vazio, não importa quantos meses passem.
   const kwhPorMesAnterior = {};
   mesesPares.forEach((m,i)=>{ kwhPorMesAnterior[m.replace('*','')] = kwhAnoAnterior[i]; });
+  // NOVO 22/08/2026 (pedido do usuário: "esse gráfico deve ser atualizado com o valor que eu
+  // pagaria sobre a conta sem solar vs o valor pago real com solar") — diferente da tentativa de mais
+  // cedo hoje (revertida por quebrar a Meta do Fluxo 1/2, que lê kwhAnoAnterior direto): aqui é
+  // seguro, porque esta variável (semSolarPorMesR$) é local só deste gráfico, não sobrescreve
+  // kwhAnoAnterior. Quando o robô já capturou o consumo REAL daquele mês (VARS.ENERGISA_TARIFA_
+  // COMPOSICAO.apartamento_wallace.fatura_<mêsano>_consumo_kwh), "sem solar" vira consumo real ×
+  // tarifa pré-solar (mais preciso que o histórico do ano passado); sem isso, cai no histórico como
+  // sempre foi.
+  const MESES_ABREV_PT_ROBO_09 = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const ANO_ATIVACAO_SOLAR_09 = Number(VARS.solarDataAtivacao.split('-')[0]);
+  const tarifaPreSolarWallace = (compApto && compApto.fatura_pre_solar_valor && compApto.fatura_pre_solar_consumo_kwh)
+    ? compApto.fatura_pre_solar_valor / compApto.fatura_pre_solar_consumo_kwh
+    : tarifa;
+  function semSolarRealDoMes(i){
+    if(!compApto) return null;
+    const mesNum = ((6 + i) % 12) + 1; // indice0='Jul' -> mes 7
+    const ano = ANO_ATIVACAO_SOLAR_09 + (i >= 6 ? 1 : 0);
+    const chave = MESES_ABREV_PT_ROBO_09[mesNum-1] + String(ano % 100).padStart(2,'0');
+    const consumoReal = compApto['fatura_'+chave+'_consumo_kwh'];
+    return consumoReal != null ? Math.round(consumoReal * tarifaPreSolarWallace * 100) / 100 : null;
+  }
+  const semSolarPorMes = {};
+  mesesPares.forEach((m,i)=>{ semSolarPorMes[m.replace('*','')] = semSolarRealDoMes(i); });
   const anoAnteriorAlinhado = mesesParesEnergia.map(label=>{
+    const semSolarReal = semSolarPorMes[label];
+    if(semSolarReal != null) return semSolarReal;
     const kwh = kwhPorMesAnterior[label];
     return kwh!=null ? Math.round(kwh*tarifa*100)/100 : null;
   });
@@ -2161,10 +2186,18 @@ async function _lazyRenderSolarSecao(){
     // WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_WELLIDA_V2 tiver dado de verdade, o mesmo padrão se aplica
     // automaticamente aqui (é só reaproveitar a mesma função abaixo pra ela também).
     await Promise.all([window.__promiseMedidorTuyaConsumoDiarioV2, window.__promiseMedidorTuyaConsumoDiarioWellidaV2].filter(Boolean)).catch(()=>{});
+    // CORRIGIDO 22/08/2026 (achado do usuário: "Wallace 7,96 via medidor Tuya - só deu isso? desconsidere
+    // o primeiro dia de medição que foi baixo porque não mediu o dia inteiro") — o 1º dia de histórico de
+    // qualquer medidor Tuya novo é sempre parcial (instalado no meio do dia, só capta as horas restantes),
+    // puxando a média pra baixo de forma artificial. Ordena por data e descarta o dia mais antigo de
+    // propósito antes de calcular a média, não só um corte pelos últimos 14 (que ainda incluía esse
+    // primeiro dia enquanto o histórico total tiver 14 dias ou menos, como é o caso hoje).
     function mediaConsumoDiarioTuyaRecente(diario, fallback){
-      const validos = (diario||[]).filter(r => r.kwh_consumido != null).slice(-14); // últimos até 14 dias com leitura
-      if(!validos.length) return fallback;
-      return Math.round((validos.reduce((s,r)=>s+Number(r.kwh_consumido),0)/validos.length)*100)/100;
+      const validos = (diario||[]).filter(r => r.kwh_consumido != null).slice().sort((a,b)=> a.data < b.data ? -1 : 1);
+      const semPrimeiroDiaParcial = validos.length > 1 ? validos.slice(1) : validos; // só descarta se sobrar pelo menos 1 dia completo
+      const janela = semPrimeiroDiaParcial.slice(-14); // últimos até 14 dias com leitura completa
+      if(!janela.length) return fallback;
+      return Math.round((janela.reduce((s,r)=>s+Number(r.kwh_consumido),0)/janela.length)*100)/100;
     }
     const wallaceConsumoDiarioReal = mediaConsumoDiarioTuyaRecente(window.WALLACE_MEDIDOR_TUYA_CONSUMO_DIARIO_V2, VARS.solarConsumoDiarioWallace);
     const consumoMedioDiarioCasas = Math.round((wallaceConsumoDiarioReal + VARS.solarConsumoDiarioIrma + VARS.solarConsumoDiarioMae) * 100) / 100;
