@@ -188,4 +188,10 @@ function recalcularNecessidade(){
     registrarIndicador('necessidadeTotalBruta', REG.operacional.necessidadeTotalBruta);
     registrarIndicador('necessidadeLiquida', REG.operacional.necessidadeLiquida);
   }
+
+  // NOVO 22/08/2026 — Sub-fase A da migração pra rpc_necessidade_total_bruta (aprovada pelo usuário,
+  // ver docs/decisions/PLANO_MIGRACAO_FRONTEND_CONSUMO_RPC.md). Chamada-sombra: compara o resultado
+  // desta função com a RPC em paralelo, só loga divergência, não muda nada na tela. Ver
+  // shadow-homologacao-necessidade.js.
+  if(typeof agendarShadowHomologacaoNecessidade === 'function') agendarShadowHomologacaoNecessidade();
 }
