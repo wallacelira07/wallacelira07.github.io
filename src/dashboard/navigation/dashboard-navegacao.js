@@ -668,8 +668,18 @@ function habilitarSetasMasterTabs(){
     idxCarrossel = idx;
   }
   function irParaAba(i, lista){
+    // CORRIGIDO 22/08/2026, 3ª rodada (pedido do usuário: "quero um carrossel suave, o que está
+    // fazendo é pulando para a aba inicial" — o scroll instantâneo de c4dcdf3 tornava o "dá a volta"
+    // um corte seco, sem transição nenhuma). Voltar pra 'smooth' aqui é seguro apesar do motivo
+    // original de ter trocado pra 'auto' (evitar competir com atualizarSetasMasterTabs() alternando
+    // .master-tabs--centralizada em cada evento de 'scroll' durante a animação): agora o cálculo do
+    // índice atual não depende mais de ler a posição de scroll em tempo real durante o clique
+    // (idxCarrossel já é estado, ver sincronizarComScroll() acima) — só o toggle de classe roda em
+    // cada 'scroll', que é idempotente (overflow não muda no meio do próprio carrossel). Testado ao
+    // vivo (site publicado, cliques rápidos em sequência com a animação ainda em voo) sem reproduzir
+    // o "pisca" original.
     const alvo = Math.min(Math.max(lista[i].offsetLeft, 0), maxScroll());
-    tabs.scrollTo({left: alvo, behavior:'auto'});
+    tabs.scrollTo({left: alvo, behavior:'smooth'});
   }
 
   prev.addEventListener('click', (e) => {
