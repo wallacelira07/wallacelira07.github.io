@@ -280,14 +280,23 @@ const SOLAR_CONSUMO_MAE_ANO_ANTERIOR = [171,172,174,175,177,168,201,270,242,210,
 // (mesmo array da RPC). Retorna null se não há leitura ou geração acumulada ainda (mesma condição de
 // guarda do painel privado); cai pro crédito líquido cru (sem projeção) se a última leitura já é de
 // hoje (nada a projetar).
+// CORRIGIDO 22/08/2026 (achado real do usuário: leitura registrada às 23h ainda sem geracao_acumulada
+// preenchida pelo robô SAJ fazia "Fluxo 2 — GD atual" sumir inteiro, mostrando "Sem ciclo aberto"
+// pra um ciclo que ESTAVA aberto de verdade — "não pode perder os dados... isso tem que estar no
+// banco de dados... nunca pode ocorrer isso"). Nenhum dado é perdido (a leitura em si sempre fica
+// gravada) — o bug era só a trava exigir geracaoAcumulada mesmo quando ela não faz falta nenhuma:
+// creditoLiquidoUltimaLeitura (linha abaixo) já vem 100% de leitura03/leitura103, sem depender dela.
+// Agora só entra em jogo quando REALMENTE precisa projetar pra frente (leitura de dias atrás, sem
+// geração diária do dia de hoje ainda) — se geracaoAcumulada ainda não chegou, cai pro crédito líquido
+// cru (sem projeção), nunca mais pra null/tela vazia.
 function calcularSaldoLiquidoProjetadoHoje(ultima, geracaoDiaria){
-  if(!ultima || ultima.geracaoAcumulada == null) return null;
+  if(!ultima) return null;
   const creditoLiquidoUltimaLeitura = Math.round((ultima.leitura103 - ultima.leitura03) * 100) / 100;
   const hoje = new Date();
   const hojeSoData = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
   const dataUltimaLeitura = new Date(ultima.data);
   const diasDesdeLeitura = Math.max(0, Math.round((hojeSoData - dataUltimaLeitura) / 86400000));
-  if(diasDesdeLeitura <= 0) return creditoLiquidoUltimaLeitura;
+  if(diasDesdeLeitura <= 0 || ultima.geracaoAcumulada == null) return creditoLiquidoUltimaLeitura;
   const diasDesdeAtivacao = Math.round((dataUltimaLeitura - new Date(SOLAR_DATA_ATIVACAO)) / 86400000);
   const geracaoMediaDiaria = diasDesdeAtivacao > 0 ? ultima.geracaoAcumulada / diasDesdeAtivacao : 0;
   const consumoMedioMensalMae = SOLAR_CONSUMO_MAE_ANO_ANTERIOR.reduce((s,v)=>s+v,0) / SOLAR_CONSUMO_MAE_ANO_ANTERIOR.length;
