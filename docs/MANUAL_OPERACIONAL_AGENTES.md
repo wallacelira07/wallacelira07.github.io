@@ -350,6 +350,24 @@ Exemplo de referência (feito certo): caixa Emagrecimento, 12/08/2026 — commit
 
 ---
 
+## 1.7 Reembolso recebido ANTES do gasto — contas de energia de mãe/Wellida via Mercado Pago (NOVO 22/08/2026)
+
+**O inverso da seção 1.6.** Caso real: mãe e Wellida mandam PIX de reembolso pro Mercado Pago do usuário **antes** dele pagar a conta de luz delas (não depois, como no padrão comum de "compra reembolsável de terceiro"). O robô da Energisa já captura o valor real da fatura de cada uma (`ENERGISA_TARIFA_COMPOSICAO.casa_mae`/`casa_wellida`, `energia_solar_consumo_referencia`) — isso serve como registro/referência do valor esperado, mas **não lança nada sozinho em `transacoes`**.
+
+**Decisão do usuário, perguntado formalmente (22/08/2026)**:
+
+1. **Quando lançar**: os 2 eventos (PIX recebido / fatura paga) são lançados cada um **no dia real em que aconteceu** — nunca esperar o par completo pra registrar. O PIX de reembolso entra na hora que cai, mesmo antes do pagamento da fatura acontecer.
+2. **Estrutura**: **2 transações comuns e independentes**, sem vínculo formal entre elas (nenhuma tabela nova, nenhuma cascata tipo Wärtsilä) — mesmo padrão de qualquer PIX recebido/pago no sistema hoje.
+3. **Categoria**: `Financeiro` — mesma categoria já usada pros outros padrões de movimentação interna/reembolso genérico (`Pluggy:`/`Repasse`/`Recebimento`, regra estrutural de 10/08/2026 já documentada na seção sobre `regras_classificacao`).
+4. **Auto-preenchimento**: **não** — o valor capturado pelo robô da Energisa é só referência/histórico; o lançamento do PIX recebido e do pagamento da fatura continuam manuais (usuário/Claude Chat digita o valor real na hora), sem tentar pré-preencher formulário a partir do robô.
+
+**Mecanismo, na prática**:
+- PIX recebido de mãe/Wellida → `entrada` em `transacoes`, `caixa_id` = a caixa Mercado Pago que recebeu, `categoria_id` = `Financeiro`, descrição menciona de quem veio e que é reembolso de conta de luz.
+- Pagamento da fatura de energia dela → `saida` em `transacoes`, mesma caixa, mesma categoria, descrição menciona qual casa.
+- Os 2 nunca precisam bater exatamente no mesmo dia nem no mesmo valor centavo a centavo — são eventos reais independentes, cada um lançado como aconteceu.
+
+---
+
 ## 2. Fluxo de lançamento de transações
 
 **REGRA NOVA (08/08/2026, mudança de direção arquitetural do usuário): "V2 é a fonte real, V1 é legado" — não perpetuar convivência permanente.** Antes de seguir os passos abaixo, checar a tabela de domínios da seção 1: se o domínio for um dos já migrados (fonte V2 exclusiva), o lançamento vai **direto na tabela V2 correspondente**, e os passos 2-3 abaixo (escrever em `wallace_dados`/`vars-*.js`) **não se aplicam** a esse domínio — só aos domínios ainda listados como V1.
