@@ -522,8 +522,18 @@ async function aplicarCotacoesOpcoesV2(){
 async function aplicarTendenciaOpcoes(){
   const container = $('opcoesTendenciaContainer');
   if(!container) return;
+  // CORRIGIDO 22/08/2026 (pedido do usuário: "quando não tiver ativo em operação esconda o gráfico
+  // como se ele não existisse" — antes só o CONTEÚDO interno ficava vazio, mas o .card inteiro (com
+  // título "Tendência das posições ativas" + botão de download) continuava visível, parecendo um
+  // bloco quebrado/vazio em vez de simplesmente não existir).
+  const cardEl = $('opcoesTendenciaCard');
   const ativas = (VARS.opcoesVendidasDetalhe || []).filter(o => !o.vencida && o.precoExercicio != null && o.notaCorretagem && o.vencimento);
-  if(!ativas.length){ container.innerHTML = ''; return; }
+  if(!ativas.length){
+    container.innerHTML = '';
+    if(cardEl) cardEl.style.display = 'none';
+    return;
+  }
+  if(cardEl) cardEl.style.display = '';
 
   // CORRIGIDO 22/08/2026 (achado do usuário: "esse gráfico ficou sem controle, melhore a função e
   // posição" — desde que este bloco virou card próprio (antes vivia espremido junto de outros
