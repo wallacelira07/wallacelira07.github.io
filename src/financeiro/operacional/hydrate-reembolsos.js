@@ -32,3 +32,46 @@ function hydrateReembolsos(){
   t('metaInvBadge', 'Total investido '+fmt(R.metaInvestimento.investido)+' · '+(R.metaInvestimento.excedente>=0?'Superada +':'Falta ')+fmt(Math.abs(R.metaInvestimento.excedente)));
   t('metaInvBTG', fmt(VARS.aporteBTGPactual + VARS.depositoAtivacaoNecton)); // CORRIGIDO 25/07/2026 (V159): usuario esclareceu que sao a mesma coisa - consolidados em 1 campo so (era duplicado, 2 linhas separadas para o mesmo conceito).
 }
+
+// NOVO 22/08/2026 (pedido do usuário: "quero poder editar isso no futuro" — reembolsoManejo era um
+// literal fixo em VARS, sem nenhum mecanismo real de edição). Prompt simples (mesmo espírito de
+// baixo-atrito das outras edições pontuais deste projeto) — grava via rpc_atualizar_reembolso_manejo
+// (coluna nova `reembolso_manejo` em reembolso_wartsila_ciclo, SECURITY DEFINER com o mesmo guard de
+// auth de fechar_ciclo_financeiro/registrar_leitura_solar_manual) e re-hidrata a cascata inteira na
+// mesma ação, mesmo padrão "clique salva e atualiza o painel junto" já usado no resto do site.
+async function editarReembolsoManejo(){
+  const cicloAtual = typeof VARS !== 'undefined' && VARS.cicloAtual;
+  if(!cicloAtual){ alert('Ciclo atual ainda não carregado — tenta de novo em alguns segundos.'); return; }
+  const atual = (typeof VARS !== 'undefined' && VARS.reembolsoManejo) || 0;
+  const entrada = prompt(`Quanto da Sobra Total do ciclo ${cicloAtual} já foi usado/reservado pra outra coisa (Manejo/Movimentação)?\n\nValor atual: ${fmt(atual)}`, atual.toFixed(2).replace('.', ','));
+  if(entrada === null) return; // cancelou
+  const valor = Number(entrada.replace(/\./g, '').replace(',', '.'));
+  if(!Number.isFinite(valor) || valor < 0){ alert('Valor inválido — precisa ser um número maior ou igual a 0.'); return; }
+  try {
+    const token = (typeof obterTokenAuthSupabase === 'function' ? obterTokenAuthSupabase() : null) || 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg';
+    const resp = await fetch('https://bakdgacmwlopvrrppwdm.supabase.co/rest/v1/rpc/rpc_atualizar_reembolso_manejo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: 'sb_publishable_yxosvu7hHWJvSBfyxi0fRA_X7MDiwfg', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ p_ciclo: cicloAtual, p_valor: valor })
+    });
+    if(!resp.ok){ const texto = await resp.text(); throw new Error(`HTTP ${resp.status}: ${texto}`); }
+    VARS.reembolsoManejo = valor;
+    if(typeof WallaceFinanceService !== 'undefined' && WallaceFinanceService._cache) WallaceFinanceService._cache.deletarPorPrefixo(['reembolso_wartsila_ciclo:']);
+    // coberturaGarantida = max(0, reembolsoSobraPessoal - reembolsoManejo) é calculada em
+    // recalcularNecessidade() (recalcular-necessidade.js), não em recalcularReembolsos() — precisa
+    // das duas, na ordem certa, senão o número novo não se propaga. Mesma lista de reprocessamento
+    // já usada em hydrate-deficit-caixas-sem-lrei.js (mesma classe de "esqueceu de recalcular" caçada
+    // várias vezes nesta sessão) — reaproveitada aqui pelo mesmo motivo.
+    if(typeof recalcularReembolsos === 'function') recalcularReembolsos();
+    if(typeof recalcularNecessidade === 'function') recalcularNecessidade();
+    hydrateReembolsos();
+    if(typeof hydrateResumoExecutivo === 'function') hydrateResumoExecutivo();
+    if(typeof hydrateEstimadorSalario === 'function') hydrateEstimadorSalario();
+    if(typeof hydrateSimuladorCiclo === 'function') hydrateSimuladorCiclo();
+    if(typeof recalcularIndicadores === 'function') recalcularIndicadores();
+    if(typeof hydrateIndicadores === 'function') hydrateIndicadores();
+  } catch(err){
+    console.error('editarReembolsoManejo: falha ao salvar', err);
+    alert('Não consegui salvar — ' + err.message);
+  }
+}

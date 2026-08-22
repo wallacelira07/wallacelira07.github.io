@@ -53,6 +53,12 @@ async function aplicarOnda4Wartsila(){
   REG.operacional.reembolsoPagaMPCorporativo = Number(ciclo.perna_mp_corporativo);
   REG.operacional.reembolsoCicloTotal = Number(ciclo.valor_total_bruto);
   REG.operacional.reembolsosAReceber = Number(ciclo.valor_a_receber);
+  // NOVO 22/08/2026 (pedido do usuário: "quero poder editar isso no futuro" — reembolsoManejo era um
+  // literal fixo em VARS (0), sem nenhum mecanismo real de edição apesar do comentário antigo dizer
+  // "manual"). Coluna nova `reembolso_manejo` em reembolso_wartsila_ciclo (mesma linha do ciclo,
+  // editável via rpc_atualizar_reembolso_manejo — ver botão de edição em hydrate-reembolsos.js)
+  // substitui o literal — `?? 0` cobre o caso de ciclos antigos que ainda não tinham a coluna.
+  VARS.reembolsoManejo = ciclo.reembolso_manejo != null ? Number(ciclo.reembolso_manejo) : 0;
   // REG.totalOpDetalhe.provMP (perna 4) NÃO é tocado — fora do escopo deste domínio, ver comentário acima.
 
   // Reaproveita recalcularReembolsos()/hydrateReembolsos() (V1, inalteradas) — mesmo cálculo, dado novo.
