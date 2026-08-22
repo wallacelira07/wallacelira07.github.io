@@ -245,7 +245,13 @@
   @media (max-width:820px){.cover-metrics{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:480px){.cover-metrics{grid-template-columns:1fr}}
   .master-tabs{
-    display:flex;gap:0.4rem;margin-bottom:1.8rem;
+    display:flex;align-items:center;gap:0.4rem;margin-bottom:1.8rem;
+    /* CORRIGIDO 22/08/2026 (achado do usuário: "as setas não estão no centro, estão muito para
+       cima") — sem align-items explícito, o valor padrão é stretch; mas .master-tabs-nav tem
+       width/height FIXOS (26px), então o flexbox nunca estica esse item — em vez disso, a spec
+       trata um item com tamanho definido sob align-items:stretch como se fosse align-self:
+       flex-start, alinhando-o no TOPO da linha (cuja altura real é ditada pelo padding bem maior
+       de .master-tab). align-items:center corrige pra sempre, sem precisar de align-self por item. */
     background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl);
     padding:0.45rem;box-shadow:0 2px 10px rgba(0,0,0,0.18);
     position:sticky;top:0;z-index:40;
