@@ -776,9 +776,15 @@ function habilitarSetasMasterTabs(){
   // pra 950ms e a taxa por pixel aumentou (~0,55 → ~0,75ms/px) - o trecho do giro fica visivelmente
   // mais devagar/gradual, o pouso no clone fica menos chamativo por não vir logo depois de um
   // movimento rápido. Passo comum (piso 260ms) não muda - só o trecho longo do giro fica mais lento.
+  // AUMENTADO 22/08/2026, 2ª rodada (usuário mandou vídeo real de novo, "ainda tem que ajustar, ela
+  // tá pulando da última aba pra primeira" — análise quadro a quadro do vídeo, sem pular frame nenhum
+  // desta vez, confirmou que o giro NÃO inverte direção e desacelera suave até parar (comportamento
+  // correto) — o "pulo" percebido é a quantidade de conteúdo varrida rápido demais num viewport
+  // estreito, virando desfoque de movimento em vez de leitura gradual). Teto subiu de 950ms pra
+  // 1500ms — bem mais devagar, prioriza legibilidade do movimento sobre agilidade do clique.
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
   function duracaoPelaDistancia(deltaAbs){
-    return Math.min(950, Math.max(260, 260 + deltaAbs * 0.75));
+    return Math.min(1500, Math.max(260, 260 + deltaAbs * 1.1));
   }
   function animarScrollPara(alvo, aoAssentar){
     const inicio = tabs.scrollLeft;
