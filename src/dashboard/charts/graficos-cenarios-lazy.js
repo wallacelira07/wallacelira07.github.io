@@ -1401,16 +1401,13 @@ async function _lazyRenderSolarSecao(){
       const consumoKwh = d.fatura_pre_solar_consumo_kwh || d.consumo_kwh || d.fatura_jul26_consumo_kwh;
       const pct = d.composicao_pct || {};
       if(faturaBase === undefined || !consumoKwh) return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">dados insuficientes</td></tr>`;
-      const tarifaReal = faturaBase / consumoKwh;
-      const custoDisponibilidade = Math.round(u.kwhMinimo * tarifaReal * 100) / 100;
-      const fioBValor = Math.round(faturaBase * (pct.distribuicao||0)/100 * fioBFracaoDaDistribuicao * 100) / 100;
-      // CORRIGIDO 12/08/2026: quando existe cosip_valor_real (extraido da fatura real, linha "CONTRIB
-      // ILUM PUBLICA"), usa o valor exato em vez de estimar por pct.iluminacao - a COSIP e uma linha
-      // separada da fatura, nao uma fatia percentual do consumo, entao um % chutado sempre erra o
-      // valor exato que a lei nunca deixa compensar.
-      const iluminacaoValor = d.cosip_valor_real !== undefined ? d.cosip_valor_real : Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
-      const encargosValor = Math.round(faturaBase * (pct.encargos||0)/100 * 100) / 100;
-      const residualFormula = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+      // ESPELHADO 22/08/2026 (prioridade 0 do usuário) — fórmula movida pra
+      // src/solar/calculos-solares-compartilhados.js (calcularResidualFormula), a mesma que
+      // solar-compartilhado.html usa (quando essa página ganhar este card). Nunca mais 2 cópias que
+      // podem divergir. cosip_valor_real (extraído da fatura real, linha "CONTRIB ILUM PUBLICA")
+      // sempre tem prioridade sobre estimar por pct.iluminacao dentro da função.
+      const { tarifaReal, custoDisponibilidade, fioBValor, iluminacaoValor, encargosValor, residual: residualFormula } =
+        calcularResidualFormula(faturaBase, consumoKwh, pct, d.cosip_valor_real);
       // CORRIGIDO 22/08/2026 (auditoria pedida pelo usuário, achado real: a fórmula acima mistura 2
       // % diferentes que a Energisa divulga com sentidos distintos — a tabela interna do PDF
       // "Distribuição/Energia/Transmissão/Encargos/Impostos" (usada em pct.*, soma 100% de um
@@ -1456,13 +1453,14 @@ async function _lazyRenderSolarSecao(){
         const consumoPreSolar = d.fatura_pre_solar_consumo_kwh;
         const valorMesAtual = d[`fatura_${chaveMesAtual}_valor`];
         const consumoMesAtual = d[`fatura_${chaveMesAtual}_consumo_kwh`];
-        if(faturaPreSolar === undefined || !consumoPreSolar || valorMesAtual === undefined || !consumoMesAtual){
+        // ESPELHADO 22/08/2026 (prioridade 0 do usuário) — fórmula movida pra
+        // src/solar/calculos-solares-compartilhados.js (calcularEconomiaRealMes), a mesma que
+        // solar-compartilhado.html usa. Nunca mais 2 cópias que podem divergir.
+        const eco = calcularEconomiaRealMes(faturaPreSolar, consumoPreSolar, valorMesAtual, consumoMesAtual);
+        if(!eco){
           return `<tr><td>${u.nome}</td><td colspan="3" style="color:var(--text-dim);font-style:italic">ainda sem fatura de ${chaveMesAtual} capturada pelo robô</td></tr>`;
         }
-        const tarifaPreSolar = faturaPreSolar / consumoPreSolar;
-        const semSolar = Math.round(tarifaPreSolar * consumoMesAtual * 100) / 100;
-        const economiaReal = Math.round((semSolar - valorMesAtual) * 100) / 100;
-        const economiaRealPct = semSolar > 0 ? Math.round((economiaReal/semSolar)*1000)/10 : 0;
+        const { tarifaPreSolar, semSolar, economiaReal, economiaRealPct } = eco;
         const tituloTarifa = fmtKwhPtBr(consumoMesAtual)+' kWh × R$'+tarifaPreSolar.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})+'/kWh (tarifa da fatura pré-solar, Jul/26)';
         return `<tr><td>${u.nome}</td><td class="r" title="${tituloTarifa}">${fmt(semSolar)}</td><td class="r" style="color:var(--green)">${fmt(valorMesAtual)}</td><td class="r" style="color:var(--accent)">${fmt(economiaReal)} (${economiaRealPct}%)</td></tr>`;
       }).join('');

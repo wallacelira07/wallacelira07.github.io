@@ -34,6 +34,44 @@ function mesFechamentoCicloGD(dataStr, diaVirada){
   return m;
 }
 
+// Cronograma legal da Lei 14.300/2022 pra cobrança do Fio B sobre créditos de GD (15%/23, 30%/24,
+// 45%/25, 60%/26, 75%/27, 90%/28-29, 100%/30+) — mesmo valor usado nas 2 páginas, cópia deliberada
+// de src/solar/vars-energia-solar.js (FIO_B_COBRANCA_2026_PCT/FIO_B_PCT_DA_DISTRIBUICAO). Atualizar
+// aqui quando o ano virar 2027 (75%) — só este arquivo, nunca mais em 2 lugares.
+const FIO_B_COBRANCA_2026_PCT = 60;
+const FIO_B_PCT_DA_DISTRIBUICAO = 28; // fatia do Fio B dentro da categoria "Distribuição" da fatura
+const CONSUMO_MINIMO_COM_SOLAR_KWH = 30; // ligação monofásica (Wallace/Wellida/Mãe, confirmado pelo usuário)
+
+// Piso da fatura mesmo com 100% dos créditos cobrindo o consumo — Custo de Disponibilidade + Fio B +
+// Iluminação Pública + Encargos setoriais, os 4 componentes que a Lei 14.300 nunca deixa zerar.
+// `pct` = composicao_pct da casa ({distribuicao, iluminacao, encargos, ...}, em %, 0-100).
+// `cosipValorReal` = valor exato da COSIP (linha "CONTRIB ILUM PUBLICA" da fatura), undefined se não
+// tiver — nesse caso estima por pct.iluminacao (menos preciso, só fallback).
+function calcularResidualFormula(faturaBase, consumoKwh, pct, cosipValorReal){
+  const tarifaReal = faturaBase / consumoKwh;
+  const fioBFracaoDaDistribuicao = (FIO_B_COBRANCA_2026_PCT/100) * (FIO_B_PCT_DA_DISTRIBUICAO/100);
+  const custoDisponibilidade = Math.round(CONSUMO_MINIMO_COM_SOLAR_KWH * tarifaReal * 100) / 100;
+  const fioBValor = Math.round(faturaBase * (pct.distribuicao||0)/100 * fioBFracaoDaDistribuicao * 100) / 100;
+  const iluminacaoValor = cosipValorReal !== undefined ? cosipValorReal : Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
+  const encargosValor = Math.round(faturaBase * (pct.encargos||0)/100 * 100) / 100;
+  const residual = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+  return { tarifaReal, custoDisponibilidade, fioBValor, iluminacaoValor, encargosValor, residual };
+}
+
+// "Economia real deste mês": sem solar (consumo real deste mês × tarifa da última fatura pré-solar)
+// vs. com solar (fatura real que o robô já capturou este mês). Usada pelo card "💰 Economia real
+// deste mês" nas 2 páginas (residualTbodyEl/graficos-cenarios-lazy.js e economiaRealTbodyCompartilhado/
+// solar-compartilhado.html) — antes 2 cópias quase idênticas da mesma fórmula. Retorna null se faltar
+// algum dos 4 campos (nunca inventa número parcial).
+function calcularEconomiaRealMes(faturaPreSolar, consumoPreSolar, valorMesAtual, consumoMesAtual){
+  if(faturaPreSolar === undefined || !consumoPreSolar || valorMesAtual === undefined || !consumoMesAtual) return null;
+  const tarifaPreSolar = faturaPreSolar / consumoPreSolar;
+  const semSolar = Math.round(tarifaPreSolar * consumoMesAtual * 100) / 100;
+  const economiaReal = Math.round((semSolar - valorMesAtual) * 100) / 100;
+  const economiaRealPct = semSolar > 0 ? Math.round((economiaReal/semSolar)*1000)/10 : 0;
+  return { tarifaPreSolar, semSolar, economiaReal, economiaRealPct };
+}
+
 function mediaConsumoDiarioTuyaRecente(diario, fallback){
   const pegarKwh = r => r.kwh_consumido != null ? Number(r.kwh_consumido) : (r.kwhConsumido != null ? Number(r.kwhConsumido) : null);
   const validos = (diario||[])
