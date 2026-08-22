@@ -525,8 +525,14 @@ async function aplicarTendenciaOpcoes(){
   const ativas = (VARS.opcoesVendidasDetalhe || []).filter(o => !o.vencida && o.precoExercicio != null && o.notaCorretagem && o.vencimento);
   if(!ativas.length){ container.innerHTML = ''; return; }
 
-  container.innerHTML = `<div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.6rem">Tendência do preço (entrada → vencimento)</div>`
-    + ativas.map(o => `<div style="margin-bottom:1.2rem"><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.3rem">${o.ativo} PUT (${o.ticker}) — strike ${fmt(o.precoExercicio)} · vencimento ${o.vencimento}</div><div style="height:170px"><canvas id="tendencia_${o.ticker}"></canvas></div></div>`).join('');
+  // CORRIGIDO 22/08/2026 (achado do usuário: "esse gráfico ficou sem controle, melhore a função e
+  // posição" — desde que este bloco virou card próprio (antes vivia espremido junto de outros
+  // blocos), 2 problemas ficaram visíveis: (1) título genérico duplicado com o título do próprio
+  // .card (ver opcoesTendenciaCard/Sistema_Wallace_Lira_Completo.html, que já diz "Tendência das
+  // posições ativas") — removido daqui, cada posição já tem seu próprio subtítulo com strike/
+  // vencimento, não precisa de um 3º nível de título; (2) altura de 170px ficava esticada/achatada
+  // numa card full-width — 260px dá proporção melhor pro tamanho real que o gráfico ocupa agora.
+  container.innerHTML = ativas.map(o => `<div style="margin-bottom:1.2rem"><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.3rem">${o.ativo} PUT (${o.ticker}) — strike ${fmt(o.precoExercicio)} · vencimento ${o.vencimento}</div><div style="height:260px"><canvas id="tendencia_${o.ticker}"></canvas></div></div>`).join('');
 
   for(const o of ativas){
     const m = /\((\d{2})\/(\d{2})\/(\d{4})\)/.exec(o.notaCorretagem);
@@ -595,8 +601,19 @@ async function aplicarTendenciaTickerLivre(){
     if(legEl) legEl.textContent = 'Não consegui buscar o histórico de '+ticker+' agora.';
     return;
   }
-  if(!Array.isArray(historico) || !historico.length){
-    if(legEl) legEl.textContent = 'Ainda sem histórico de cotações pra '+ticker+' (o robô só acompanha esse ticker a partir do dia em que foi adicionado).';
+  // CORRIGIDO 22/08/2026 (achado do usuário: "cadê o gráfico e cadê a indicação de tendência" — pra
+  // ITSA4/BBDC4/BBAS3/WEGE3/ABEV3/B3SA3, o robô só começou a registrar 1 ponto (21/08/2026), o
+  // gráfico desenhava uma linha reta sem sentido e o badge mostrava "▲ +0,0%" — tecnicamente
+  // verdadeiro (mesmo dia comparado com ele mesmo) mas enganoso, parecia bug em vez de "ainda não
+  // tem dado suficiente". PETR4/ITUB4/VALE3/MGLU3 já têm ~90 dias reais; os 6 que exigem
+  // BRAPI_TOKEN (não disponível fora do GitHub Actions) só vão acumular histórico dia a dia a
+  // partir de agora — sem inventar backfill que não dá pra confirmar como real.
+  const HISTORICO_MINIMO_PONTOS = 5;
+  if(!Array.isArray(historico) || historico.length < HISTORICO_MINIMO_PONTOS){
+    const nDias = Array.isArray(historico) ? historico.length : 0;
+    if(legEl) legEl.textContent = nDias === 0
+      ? 'Ainda sem histórico de cotações pra '+ticker+' (o robô só acompanha esse ticker a partir do dia em que foi adicionado).'
+      : 'Histórico insuficiente pra '+ticker+' ainda (só '+nDias+' dia(s) coletado(s) — o robô roda diariamente, volta em alguns dias pra ver a tendência formada).';
     if(badgeEl) badgeEl.style.display = 'none';
     const existenteVazio = Chart.getChart(canvas); if(existenteVazio) existenteVazio.destroy();
     return;
