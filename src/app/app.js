@@ -2676,6 +2676,13 @@ onDomPronto(auditoriaAutomatica); // V170: corrigido
         badgeCat.textContent = `🏷️ ${comCategoria}/${total} categorizadas`;
         badgeCat.title = `Arquitetura V2 (Supabase): ${comCategoria} de ${total} transações já têm categoria via regras_classificacao (Fase 3). ${semCategoria} ainda sem categoria (nomes de pessoa sem padrão seguro, na maioria).`;
       }
+      // NOVO 22/08/2026 (pedido do usuário: "cadê o robô pra ver isso automaticamente?" — o badge
+      // ficava só no cabeçalho, fácil de nunca notar quando descia de 100%). Expõe a contagem pro
+      // alerta em "Verificações de Negócio" (montarAlertasNegocio()/hydrate-qualidade.js) e re-chama
+      // hydrateQualidade() pra esse alerta específico aparecer sem precisar recarregar a página de
+      // novo (mesmo padrão já usado pra PGV/PV via WALLACE_ONDA1_V2_RELATORIO/ONDA2).
+      window.WALLACE_TRANSACOES_SEM_CATEGORIA = resumoV2.kpis.transacoes_sem_categoria;
+      if(typeof hydrateQualidade === 'function') hydrateQualidade();
     }
 
     // NOVO parte 107: painel flutuante autocontido mostrando as 18 caixas direto da V2 (Fase 5,

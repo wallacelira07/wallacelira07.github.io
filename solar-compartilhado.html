@@ -1205,27 +1205,17 @@ async function carregar(){
   // Arrays de referência (consumo histórico real, Jul-primeiro na fonte) realinhados pro mesmo
   // esquema Ago-primeiro dos rótulos acima — mesmo truque de lookup por nome de mês já usado no
   // painel privado (kwhWallacePorMes/kwhIrmaPorMes), imune a qual mês vira a 1ª coluna.
-  // NOVO 22/08/2026 (pedido do usuário: "todos dados devem ser atualizados pela fatura... todos os
-  // gráficos, tanto no site como no compartilhamento" — mesmo padrão já aplicado no painel privado,
-  // graficos-cenarios-lazy.js/consumoRealFaturaPorIndice). O robô já grava o consumo real de cada mês
-  // em ENERGISA_TARIFA_COMPOSICAO[casa].fatura_<mêsano>_consumo_kwh; esta página agora recebe esse
-  // objeto via consultar_solar_compartilhado (campo dados.energisaTarifaComposicao) e prioriza o
-  // valor real sobre o histórico fixo, mês a mês.
-  const MESES_ABREV_PT_ROBO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-  const ANO_ATIVACAO_SOLAR = Number(SOLAR_DATA_ATIVACAO.split('-')[0]);
-  function consumoRealFaturaPorIndice(casaChave, i){
-    const d = (dados.energisaTarifaComposicao||{})[casaChave];
-    if(!d) return null;
-    const mesNum = ((6 + i) % 12) + 1; // indice0='Jul' -> mes 7
-    const ano = ANO_ATIVACAO_SOLAR + (i >= 6 ? 1 : 0);
-    const chave = MESES_ABREV_PT_ROBO[mesNum-1] + String(ano % 100).padStart(2,'0');
-    const v = d['fatura_'+chave+'_consumo_kwh'];
-    return v != null ? Number(v) : null;
-  }
+  // REVERTIDO 22/08/2026 (achado real do usuário no painel privado, mesmo array/lógica copiada
+  // aqui: "você colocou 279 tanto no ciclo que acabou hoje como no próximo, mas o próximo ainda não
+  // tem fatura, tem que usar o valor de referência do ano passado" — sobrescrever esses arrays com a
+  // fatura real quebrava a Meta do Fluxo 1/Fluxo 2 no painel privado, que usa o MESMO tipo de array
+  // como referência histórica. Nunca chegou a mudar KWH_ANO_ANTERIOR_WALLACE/CONSUMO_MENSAL_IRMA em
+  // si aqui no compartilhado — só o Rateio Solar (linhas abaixo) usava a versão sobrescrita — mas
+  // revertido por consistência com o painel privado, que é a mesma fonte visual.
   const KWH_WALLACE_POR_NOME_MES = {}, KWH_IRMA_POR_NOME_MES = {};
   ['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'].forEach((nome,i) => {
-    KWH_WALLACE_POR_NOME_MES[nome] = consumoRealFaturaPorIndice('wallace', i) ?? KWH_ANO_ANTERIOR_WALLACE[i];
-    KWH_IRMA_POR_NOME_MES[nome] = consumoRealFaturaPorIndice('wellida', i) ?? CONSUMO_MENSAL_IRMA[i];
+    KWH_WALLACE_POR_NOME_MES[nome] = KWH_ANO_ANTERIOR_WALLACE[i];
+    KWH_IRMA_POR_NOME_MES[nome] = CONSUMO_MENSAL_IRMA[i];
   });
   const consumoEsperadoWallaceAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_WALLACE_POR_NOME_MES[nome]);
   const consumoEsperadoIrmaAlinhado = MESES_ABREV_RATEIO.map(nome => KWH_IRMA_POR_NOME_MES[nome]);
