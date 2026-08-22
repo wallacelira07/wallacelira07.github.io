@@ -651,6 +651,7 @@ function habilitarSetasMasterTabs(){
   const folga = 4; // px de tolerância pra arredondamento de scroll fracionário
   let idxCarrossel = 0;
   let _scrollAnimId = 0; // token da animação em voo - clique novo invalida a anterior, sem disputa
+  let animandoAgora = false; // true enquanto animarScrollPara() está em voo - ver sincronizarComScroll()
 
   function botoes(){
     return Array.from(tabs.querySelectorAll('.master-tab'));
@@ -684,6 +685,17 @@ function habilitarSetasMasterTabs(){
     return p <= info.ultimoAlcancavel ? lista[p].offsetLeft : info.max; // parada "fim" - mostra a cauda que não cabe alinhada
   }
   function sincronizarComScroll(lista, info){
+    // CORRIGIDO 22/08/2026, 7ª rodada (achado real do usuário: "ele vai até o final e retorna duas
+    // abas, vai até o final e se eu clicar pra fazer o giro ele retorna duas abas pra trás"). Causa:
+    // clicar de novo ENQUANTO a animação anterior ainda está em voo (mais provável agora que a volta
+    // completa dura até 650ms, rodada 6) fazia esta função ler `tabs.scrollLeft` no MEIO do trajeto —
+    // uma posição de trânsito que não corresponde a nenhuma parada de verdade — e recalcular um índice
+    // errado a partir dela (ex.: no meio do caminho de volta pro início, lia como se já estivesse numa
+    // aba do meio, 2 paradas atrás de onde o usuário via a barra indo). Fix: enquanto uma animação
+    // está em voo (`animandoAgora`), confia 100% no `idxCarrossel` já rastreado (a fonte de verdade de
+    // "pra onde estamos indo"), sem tentar reler a posição física ainda em trânsito — só volta a ler a
+    // posição real quando não há animação rodando (ex.: usuário rolou a barra manualmente).
+    if(animandoAgora) return;
     if(tabs.scrollLeft <= folga){ idxCarrossel = 0; return; }
     if(tabs.scrollLeft >= info.max - folga){ idxCarrossel = info.numParadas - 1; return; } // na parada "fim"
     let idx = 0;
@@ -712,10 +724,11 @@ function habilitarSetasMasterTabs(){
     return Math.min(650, Math.max(260, 260 + deltaAbs * 0.55));
   }
   function animarScrollPara(alvo){
-    const meuId = ++_scrollAnimId;
     const inicio = tabs.scrollLeft;
     const delta = alvo - inicio;
     if(Math.abs(delta) < 1) return;
+    const meuId = ++_scrollAnimId;
+    animandoAgora = true;
     const duracaoMs = duracaoPelaDistancia(Math.abs(delta));
     const t0 = performance.now();
     function passo(agora){
@@ -723,6 +736,7 @@ function habilitarSetasMasterTabs(){
       const t = Math.min(1, (agora - t0) / duracaoMs);
       tabs.scrollLeft = inicio + delta * easeInOutCubic(t);
       if(t < 1) requestAnimationFrame(passo);
+      else animandoAgora = false; // assentou - sincronizarComScroll() volta a poder ler a posição real
     }
     requestAnimationFrame(passo);
   }
