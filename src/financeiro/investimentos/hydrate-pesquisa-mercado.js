@@ -566,26 +566,37 @@ function _pesquisaMercadoRenderComparadorEHeatmaps(resumosPorTicker){
     + validos.map(t => { const r = resumosPorTicker[t]; return `<tr><td>${t}</td><td class="r">${_pesquisaMercadoFmtNum(r.precoAtual)}</td><td class="r">${_pesquisaMercadoFmtNum(r.ema9)}</td><td class="r">${_pesquisaMercadoFmtNum(r.ema21)}</td><td class="r">${_pesquisaMercadoFmtNum(r.ema50)}</td><td class="r">${_pesquisaMercadoFmtNum(r.rsi)}</td><td class="r">${r.atrPct!=null?_pesquisaMercadoFmtNum(r.atrPct)+'%':'—'}</td><td class="r">${r.volumeRelativo!=null?_pesquisaMercadoFmtNum(r.volumeRelativo)+'x':'—'}</td></tr>`; }).join('')
     + '</tbody></table></div>';
 
+  // CORRIGIDO 22/08/2026 (achado do usuário: "essa aba tá muito poluída de valores que não sei pra
+  // que servem" — 8 rankings + 9 filtros + 4 heatmaps + comparador bruto, tudo despejado de uma vez,
+  // sem hierarquia). Reorganizado em camadas: só o glossário e o resumo executivo (a tabela mais
+  // fácil de ler) ficam sempre visíveis; o resto vira "análise avançada" — 1 único <details>
+  // recolhido por padrão, pra quem já entende de análise técnica e quer ir fundo. Nenhum dado foi
+  // removido, só a ORDEM de exibição e o que aparece de cara.
   return `
     ${_pesquisaMercadoRenderGlossario()}
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Resumo executivo — todos os 10 ativos (ordem fixa)</div>
     ${_pesquisaMercadoRenderChecklistTodos(resumosPorTicker)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Destaques automáticos (top 3 por métrica, isolados — nunca combinados)</div>
-    ${_pesquisaMercadoRenderDestaques(resumosPorTicker)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Filtros por métrica</div>
-    ${_pesquisaMercadoRenderFiltros(resumosPorTicker)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Rankings por métrica isolada</div>
-    ${_pesquisaMercadoRenderRankings(resumosPorTicker)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Heatmap de tendência (alinhamento de EMAs, hoje)</div>
-    <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapTendencia}</div>
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de momentum (zona do RSI, hoje)</div>
-    ${_pesquisaMercadoRenderHeatmapMomentum(resumosPorTicker)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volatilidade (ATR % do preço, comparado entre os 10 hoje)</div>
-    <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapVolatilidade}</div>
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volume (relativo à média de 20 dias, hoje)</div>
-    <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapVolume}</div>
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Comparador entre os 10 ativos acompanhados</div>
-    ${comparador}
+    <details style="margin-top:1rem">
+      <summary style="cursor:pointer;font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">🔍 Análise avançada — destaques, filtros, rankings, heatmaps e números brutos (clique pra abrir)</summary>
+      <div style="margin-top:0.8rem">
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Destaques automáticos (top 3 por métrica, isolados — nunca combinados)</div>
+        ${_pesquisaMercadoRenderDestaques(resumosPorTicker)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Filtros por métrica</div>
+        ${_pesquisaMercadoRenderFiltros(resumosPorTicker)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Rankings por métrica isolada</div>
+        ${_pesquisaMercadoRenderRankings(resumosPorTicker)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Heatmap de tendência (alinhamento de EMAs, hoje)</div>
+        <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapTendencia}</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de momentum (zona do RSI, hoje)</div>
+        ${_pesquisaMercadoRenderHeatmapMomentum(resumosPorTicker)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volatilidade (ATR % do preço, comparado entre os 10 hoje)</div>
+        <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapVolatilidade}</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Heatmap de volume (relativo à média de 20 dias, hoje)</div>
+        <div class="grid-5" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem">${heatmapVolume}</div>
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Comparador entre os 10 ativos acompanhados (números brutos)</div>
+        ${comparador}
+      </div>
+    </details>
   `;
 }
 
@@ -665,15 +676,25 @@ async function aplicarPesquisaMercado(){
     _pesquisaMercadoCacheResumos[tickerSelecionado] = _pesquisaMercadoCalcularResumoLeve(candlesSelecionado);
   }
 
+  // CORRIGIDO 22/08/2026 (achado do usuário: "muito poluída de valores que não sei pra que servem")
+  // — só "Estado atual" (linguagem simples) fica visível de cara pro ativo selecionado; indicador
+  // em número/eventos/estatística viram 2º nível de "ver mais", igual o resto da reorganização
+  // acima em _pesquisaMercadoRenderComparadorEHeatmaps.
   container.innerHTML = `
+    <div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.8rem">Escolha um ativo no seletor acima ↑ pra ver o estado atual dele. A tabela mais abaixo resume os 10 ativos acompanhados de uma vez.</div>
     <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Estado atual — ${tickerSelecionado} (${candlesSelecionado.length} pregões de histórico)</div>
     ${_pesquisaMercadoRenderEstadoAtual(pacote)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Indicadores em número</div>
-    ${_pesquisaMercadoRenderSnapshot(pacote)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Eventos detectados (últimos 15)</div>
-    ${_pesquisaMercadoRenderEventos(pacote)}
-    <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Estatística histórica pós-evento</div>
-    ${_pesquisaMercadoRenderEstatisticas(pacote)}
+    <details style="margin:0.8rem 0 1rem">
+      <summary style="cursor:pointer;font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">🔍 Detalhes técnicos de ${tickerSelecionado} — números, eventos e estatística (clique pra abrir)</summary>
+      <div style="margin-top:0.8rem">
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem">Indicadores em número</div>
+        ${_pesquisaMercadoRenderSnapshot(pacote)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Eventos detectados (últimos 15)</div>
+        ${_pesquisaMercadoRenderEventos(pacote)}
+        <div style="font-size:var(--fs-2xs);color:var(--text-mid);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:1rem 0 0.5rem">Estatística histórica pós-evento</div>
+        ${_pesquisaMercadoRenderEstatisticas(pacote)}
+      </div>
+    </details>
     ${_pesquisaMercadoRenderComparadorEHeatmaps(_pesquisaMercadoCacheResumos)}
   `;
 }
