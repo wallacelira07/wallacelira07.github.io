@@ -2004,17 +2004,47 @@
                 if(input) setTimeout(() => input.focus(), 0);
             }
         }
+        function fecharHeaderSearch(){
+            const wrap = document.getElementById('headerSearchResultados');
+            if(wrap) wrap.style.display = 'none';
+            const searchWrap = document.getElementById('headerSearchWrap');
+            if(searchWrap) searchWrap.classList.remove('mobile-open');
+        }
         onDomPronto2(function(){
             const input = document.getElementById('headerSearchInput');
             if(input) input.addEventListener('input', (e) => headerSearchInput(e.target.value));
             document.addEventListener('click', (e) => {
                 if(!e.target.closest('#headerSearchWrap') && !e.target.closest('#headerSearchToggleBtn')){
-                    const wrap = document.getElementById('headerSearchResultados');
-                    if(wrap) wrap.style.display = 'none';
-                    const searchWrap = document.getElementById('headerSearchWrap');
-                    if(searchWrap) searchWrap.classList.remove('mobile-open');
+                    fecharHeaderSearch();
                 }
             });
+            // NOVO 22/08/2026 (achado do usuário: "quando clicar fora o menu de busca tem que
+            // recolher, ele fica aberto direto") - o listener acima só está no document DO TOPO
+            // (index.html), mas o painel inteiro (Dashboard, cards, tudo abaixo do cabeçalho) roda
+            // dentro do #mainIframe - clique é um evento por-documento, nunca atravessa fronteira de
+            // iframe pro document pai. Na prática, clicar em QUALQUER lugar do painel real (~95% da
+            // tela) nunca disparava o listener acima, então o dropdown só fechava clicando na faixa
+            // do cabeçalho fora da busca (logo, "Esconder valores" etc.) - quase nunca o que o
+            // usuário faz depois de escolher um resultado ou desistir da busca. Mesmo domínio (same-
+            // origin), então dá pra anexar o MESMO fechamento direto no document do iframe também;
+            // como o iframe é recriado a cada loadDashboard() (troca de src), reanexa a cada 'load'.
+            const iframeEl = document.getElementById('mainIframe');
+            const anexarFechamentoNoIframe = () => {
+                const ifr = document.getElementById('mainIframe');
+                if(!ifr || !ifr.contentDocument) return;
+                ifr.contentDocument.addEventListener('click', fecharHeaderSearch);
+            };
+            if(iframeEl) iframeEl.addEventListener('load', anexarFechamentoNoIframe);
+            // MutationObserver porque o iframe é substituído inteiro (createElement novo) toda vez
+            // que loadDashboard() roda, não só o src trocado - um addEventListener('load') preso ao
+            // elemento antigo nunca dispararia de novo no elemento novo.
+            const containerPainel = document.getElementById('dashboardContent');
+            if(containerPainel){
+                new MutationObserver(() => {
+                    const novoIframe = document.getElementById('mainIframe');
+                    if(novoIframe) novoIframe.addEventListener('load', anexarFechamentoNoIframe);
+                }).observe(containerPainel, {childList: true});
+            }
         });
     </script>
 

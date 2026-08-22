@@ -188,6 +188,16 @@ function showLR(id, btn){
   if(jaEstavaAberto) return; // clicou na mesma aba que já estava aberta - só fecha, não reabre
   $(id).classList.add('active');
   btn.classList.add('active');
+  // NOVO 22/08/2026 (achado do usuário testando a busca global: clicar num resultado de Livro Razão
+  // ativava a aba certa por baixo — tabela certa, classe .active certa — mas a faixa de abas (.tabs,
+  // ~25 pills, só ~1 visível por vez, rolagem horizontal) nunca rolava sozinha até a aba recém-ativada.
+  // Resultado: a pill visível continuava sendo a primeira da lista (LRW, offsetLeft 0), enquanto a
+  // tabela abaixo já mostrava os dados do livro certo (ex: LRB) - usuário via "aparece LRW e mostra as
+  // transações do LRB", parecia os dois desincronizados mesmo sem ser. showLR() nunca tinha lógica de
+  // scroll, só troca de classe - faltava sempre, não é regressão de nada. `inline:'nearest'` rola só o
+  // eixo horizontal da faixa de abas; `block:'nearest'` evita mexer no scroll vertical da página, que
+  // já é resolvido à parte por quem chama showLR() (ex: scrollParaSecaoComOffset da busca global).
+  btn.scrollIntoView({inline: 'nearest', block: 'nearest'});
 }
 
 // NOVO 21/08/2026 (pedido do usuário: abas próprias pra "Carteira de opções" — Ativas/Em Risco/
