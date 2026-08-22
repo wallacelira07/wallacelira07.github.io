@@ -658,12 +658,36 @@ function habilitarSetasMasterTabs(){
   function maxScroll(){
     return Math.max(0, tabs.scrollWidth - tabs.clientWidth);
   }
-  function sincronizarComScroll(lista){
+  // CORRIGIDO 22/08/2026, 5ª rodada (achado real do usuário: "na última aba trava e fico clicando e
+  // não anda, aí se eu cliquei 4 vezes, tenho que clicar 4 vezes no outro lado pra normalizar").
+  // Causa: o índice de estado (rodada anterior) resolveu o TRAVAMENTO permanente, mas não o problema
+  // de fundo — quando várias abas do final (offsetLeft > scroll máximo possível) todas clampam pra
+  // EXATAMENTE a mesma posição de rolagem, cada uma delas ainda consumia 1 clique próprio pra
+  // "avançar" o índice, mesmo sem NENHUMA mudança visual na tela (a posição já não pode ir mais longe
+  // pra direita). Do ponto de vista do usuário, isso parece travado — 3-4 cliques sem efeito nenhum
+  // antes do loop finalmente dar a volta. Fix de fundo: em vez de 1 "parada" por aba, calcula quantas
+  // paradas VISUALMENTE DISTINTAS existem de verdade — todas as abas que cabem exatas (0..
+  // ultimoAlcancavel) mais UMA parada extra "fim" (só se sobrar conteúdo depois da última que cabe),
+  // que mostra a rolagem no máximo possível. Cada clique agora sempre produz uma posição diferente da
+  // anterior, e o loop completo tem exatamente o mesmo número de cliques nas 2 direções.
+  function calcularParadas(lista){
     const max = maxScroll();
-    if(tabs.scrollLeft <= folga){ idxCarrossel = 0; return; }
-    if(tabs.scrollLeft >= max - folga){ return; } // ambíguo (várias abas clampam no mesmo ponto) - mantém o último índice rastreado
-    let idx = 0;
+    let ultimoAlcancavel = 0;
     for(let i=0;i<lista.length;i++){
+      if(lista[i].offsetLeft <= max) ultimoAlcancavel = i; else break;
+    }
+    const temSobra = ultimoAlcancavel < lista.length - 1;
+    const numParadas = temSobra ? ultimoAlcancavel + 2 : ultimoAlcancavel + 1;
+    return {max, ultimoAlcancavel, numParadas};
+  }
+  function alvoDaParada(p, lista, info){
+    return p <= info.ultimoAlcancavel ? lista[p].offsetLeft : info.max; // parada "fim" - mostra a cauda que não cabe alinhada
+  }
+  function sincronizarComScroll(lista, info){
+    if(tabs.scrollLeft <= folga){ idxCarrossel = 0; return; }
+    if(tabs.scrollLeft >= info.max - folga){ idxCarrossel = info.numParadas - 1; return; } // na parada "fim"
+    let idx = 0;
+    for(let i=0;i<=info.ultimoAlcancavel;i++){
       if(lista[i].offsetLeft <= tabs.scrollLeft + folga) idx = i; else break;
     }
     idxCarrossel = idx;
@@ -691,27 +715,24 @@ function habilitarSetasMasterTabs(){
     }
     requestAnimationFrame(passo);
   }
-  function irParaAba(i, lista){
-    const alvo = Math.min(Math.max(lista[i].offsetLeft, 0), maxScroll());
-    animarScrollPara(alvo, 380);
-  }
-
   prev.addEventListener('click', (e) => {
     e.preventDefault();
     const lista = botoes();
     if(!lista.length) return;
-    sincronizarComScroll(lista);
-    idxCarrossel = idxCarrossel <= 0 ? lista.length - 1 : idxCarrossel - 1; // no início - dá a volta pro fim
-    irParaAba(idxCarrossel, lista);
+    const info = calcularParadas(lista);
+    sincronizarComScroll(lista, info);
+    idxCarrossel = idxCarrossel <= 0 ? info.numParadas - 1 : idxCarrossel - 1; // no início - dá a volta pro fim
+    animarScrollPara(alvoDaParada(idxCarrossel, lista, info), 380);
     prev.blur();
   });
   next.addEventListener('click', (e) => {
     e.preventDefault();
     const lista = botoes();
     if(!lista.length) return;
-    sincronizarComScroll(lista);
-    idxCarrossel = idxCarrossel >= lista.length - 1 ? 0 : idxCarrossel + 1; // no fim - dá a volta pro início
-    irParaAba(idxCarrossel, lista);
+    const info = calcularParadas(lista);
+    sincronizarComScroll(lista, info);
+    idxCarrossel = idxCarrossel >= info.numParadas - 1 ? 0 : idxCarrossel + 1; // no fim - dá a volta pro início
+    animarScrollPara(alvoDaParada(idxCarrossel, lista, info), 380);
     next.blur();
   });
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
