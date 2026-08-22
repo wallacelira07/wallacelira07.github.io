@@ -1,4 +1,4 @@
-name: Atualizar Faturas Energia/Água/Gás/Consórcio/Condomínio (via Gmail)
+name: Atualizar Faturas Energia/Água/Gás/Consórcio/Condomínio/Itaú MB (via Gmail)
 
 # NOVO 19/08/2026, AMPLIADO 19/08/2026 (Energisa) — ver scripts/sync/atualizar_boletos_medintech.py.
 # Nome de exibição atualizado (arquivo/nome interno continuam iguais, cron-job.org não precisa
@@ -21,6 +21,9 @@ name: Atualizar Faturas Energia/Água/Gás/Consórcio/Condomínio (via Gmail)
 # já desconta antes de gravar (ver docs/decisions/AUTOMACAO_CONDOMINIO_GMAIL.md). O usuário também
 # reconfigurou esta tarefa no cron-job.org pra rodar 4x/dia (0h/8h/14h/20h) em vez de 1x/dia —
 # todos os passos deste job se beneficiam da frequência maior automaticamente.
+# AMPLIADO 22/08/2026 (pedido do usuário: "crie um robô para pegar a fatura do cartão itaú") — passo
+# extra rodando scripts/sync/atualizar_fatura_itau_mb.py, mesma tarefa cron-job.org, zero configuração
+# nova. Ver docstring do script pra detalhes (senha do PDF, cartão específico, coluna atualizada).
 on:
   workflow_dispatch:
     inputs:
@@ -71,3 +74,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python3 scripts/sync/atualizar_boleto_condominio.py
+      - name: Rodar atualização (Fatura Itaú Mastercard Black)
+        if: always()
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/sync/atualizar_fatura_itau_mb.py
