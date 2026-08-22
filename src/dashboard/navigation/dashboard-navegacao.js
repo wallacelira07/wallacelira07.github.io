@@ -593,16 +593,41 @@ function atualizarSetasMasterTabs(){
   prev.style.display = (temOverflow && tabs.scrollLeft > folga) ? 'flex' : 'none';
   next.style.display = (temOverflow && tabs.scrollLeft < (tabs.scrollWidth - tabs.clientWidth - folga)) ? 'flex' : 'none';
 }
+// CORRIGIDO 22/08/2026 (pedido do usuário: "cadê o botão pra rodar o carrocel de abas?" — as setas
+// existiam mas não apareciam: atualizarSetasMasterTabs() só rodava 1x, síncrono, no exato instante
+// de onDomPronto — nesse momento a barra podia ainda não ter o layout final (fonte/emoji/ícone
+// carregando, ou a aba "Opções" nova, adicionada nesta mesma sessão, empurrando a barra pra overflow
+// pela 1ª vez). Sem nenhum recheck depois do primeiro paint, a barra podia ficar "presa" achando que
+// cabia tudo. Agora reconfere de novo logo após o load completo da página (window.load, que só
+// dispara depois de toda fonte/imagem/ícone terminar) — cobre exatamente esse tipo de atraso.
+//
+// AMPLIADO (mesmo pedido, "faça estilo carrocel, onde vou passando e volta ao início"): clicar em
+// "próxima" no fim da barra volta pro início (scrollLeft=0) em vez de ficar parado sem fazer nada;
+// clicar em "anterior" no início pula pro fim — looping de verdade, não só ida-e-volta linear.
 function habilitarSetasMasterTabs(){
   const tabs = document.querySelector('.master-tabs');
   const prev = $('masterTabsPrev');
   const next = $('masterTabsNext');
   if(!tabs || !prev || !next) return;
-  prev.addEventListener('click', () => tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'smooth'}));
-  next.addEventListener('click', () => tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'smooth'}));
+  const folga = 4;
+  prev.addEventListener('click', () => {
+    if(tabs.scrollLeft <= folga){
+      tabs.scrollTo({left: tabs.scrollWidth, behavior:'smooth'}); // já no início - dá a volta pro fim
+    } else {
+      tabs.scrollBy({left: -tabs.clientWidth*0.7, behavior:'smooth'});
+    }
+  });
+  next.addEventListener('click', () => {
+    if(tabs.scrollLeft >= tabs.scrollWidth - tabs.clientWidth - folga){
+      tabs.scrollTo({left: 0, behavior:'smooth'}); // já no fim - dá a volta pro início
+    } else {
+      tabs.scrollBy({left: tabs.clientWidth*0.7, behavior:'smooth'});
+    }
+  });
   tabs.addEventListener('scroll', atualizarSetasMasterTabs, {passive:true});
   window.addEventListener('resize', atualizarSetasMasterTabs, {passive:true});
   atualizarSetasMasterTabs();
+  window.addEventListener('load', atualizarSetasMasterTabs, {once:true});
 }
 
 // Wiring (movido de app.js junto com as funções, mesma ordem relativa de antes) — onDomPronto já
