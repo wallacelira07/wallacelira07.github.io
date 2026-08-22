@@ -532,7 +532,9 @@ async function aplicarTendenciaOpcoes(){
   // posições ativas") — removido daqui, cada posição já tem seu próprio subtítulo com strike/
   // vencimento, não precisa de um 3º nível de título; (2) altura de 170px ficava esticada/achatada
   // numa card full-width — 260px dá proporção melhor pro tamanho real que o gráfico ocupa agora.
-  container.innerHTML = ativas.map(o => `<div style="margin-bottom:1.2rem"><div style="font-size:var(--fs-2xs);color:var(--text-dim);margin-bottom:0.3rem">${o.ativo} PUT (${o.ticker}) — strike ${fmt(o.precoExercicio)} · vencimento ${o.vencimento}</div><div style="height:260px"><canvas id="tendencia_${o.ticker}"></canvas></div></div>`).join('');
+  // NOVO 22/08/2026 (achado do usuário: "onde está a indicação de queda ou subida?" — o gráfico
+  // livre da aba Tendências já tinha o badge ▲/▼, este daqui (1 por posição ativa) ainda não).
+  container.innerHTML = ativas.map(o => `<div style="margin-bottom:1.2rem"><div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem"><span style="font-size:var(--fs-2xs);color:var(--text-dim)">${o.ativo} PUT (${o.ticker}) — strike ${fmt(o.precoExercicio)} · vencimento ${o.vencimento}</span><span class="badge" id="tendenciaBadge_${o.ticker}" style="display:none"></span></div><div style="height:260px"><canvas id="tendencia_${o.ticker}"></canvas></div></div>`).join('');
 
   for(const o of ativas){
     const m = /\((\d{2})\/(\d{2})\/(\d{4})\)/.exec(o.notaCorretagem);
@@ -570,6 +572,16 @@ async function aplicarTendenciaOpcoes(){
         },
       },
     });
+    const badgeEl = $(`tendenciaBadge_${o.ticker}`);
+    if(badgeEl){
+      const primeiro = precos[0], ultimo = precos[precos.length-1];
+      const variacaoPct = primeiro ? Math.round(((ultimo-primeiro)/primeiro)*1000)/10 : null;
+      if(variacaoPct != null){
+        badgeEl.style.display = 'inline-flex';
+        badgeEl.className = 'badge ' + (variacaoPct >= 0 ? 'bg' : 'br');
+        badgeEl.textContent = (variacaoPct >= 0 ? '▲ +' : '▼ ') + variacaoPct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+      }
+    }
   }
 }
 
