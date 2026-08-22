@@ -1375,10 +1375,20 @@ async function _lazyRenderSolarSecao(){
       // valor exato que a lei nunca deixa compensar.
       const iluminacaoValor = d.cosip_valor_real !== undefined ? d.cosip_valor_real : Math.round(faturaBase * (pct.iluminacao||0)/100 * 100) / 100;
       const encargosValor = Math.round(faturaBase * (pct.encargos||0)/100 * 100) / 100;
-      const residual = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+      const residualFormula = Math.round((custoDisponibilidade + fioBValor + iluminacaoValor + encargosValor) * 100) / 100;
+      // CORRIGIDO 22/08/2026 (auditoria pedida pelo usuário, achado real: a fórmula acima mistura 2
+      // % diferentes que a Energisa divulga com sentidos distintos — a tabela interna do PDF
+      // "Distribuição/Energia/Transmissão/Encargos/Impostos" (usada em pct.*, soma 100% de um
+      // subtotal técnico) NÃO é a mesma coisa que a % "Entenda seu consumo" do app oficial, que
+      // decompõe o VALOR FINAL já com crédito aplicado — usar uma pra estimar a outra dá número
+      // errado. Quando existe residual_validado (número cross-validado contra fatura real com
+      // compensação perto de 100%, não mais extrapolado de %), ele tem prioridade sobre a fórmula.
+      const residual = d.residual_validado !== undefined ? d.residual_validado : residualFormula;
       const economia = Math.round((faturaBase - residual) * 100) / 100;
       const economiaPct = Math.round((economia/faturaBase)*1000)/10;
-      const detalhe = `Disponibilidade ${fmt(custoDisponibilidade)} + Fio B ${fmt(fioBValor)} + Iluminação ${fmt(iluminacaoValor)} + Encargos ${fmt(encargosValor)}`;
+      const detalhe = d.residual_validado !== undefined
+        ? (d.residual_validado_fonte || 'Validado contra fatura real com compensação próxima de 100%')
+        : `Disponibilidade ${fmt(custoDisponibilidade)} + Fio B ${fmt(fioBValor)} + Iluminação ${fmt(iluminacaoValor)} + Encargos ${fmt(encargosValor)} (estimativa por %, não validada contra fatura próxima de 100% ainda)`;
       return `<tr><td>${u.nome}</td><td class="r">${fmt(faturaBase)}</td><td class="r" style="color:var(--red)" title="${detalhe}">${fmt(residual)}</td><td class="r" style="color:var(--green)">${fmt(economia)} (${economiaPct}%)</td></tr>`;
     }).join('');
     residualTbodyEl.innerHTML = `<table><thead><tr><th>Unidade</th><th class="r">Fatura base (pré-solar)</th><th class="r">Residual estimado/mês</th><th class="r">Economia estimada</th></tr></thead><tbody>${linhas}</tbody></table>`;
