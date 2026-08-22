@@ -1226,6 +1226,12 @@ async function carregar(){
   // do mês = "com solar".
   const economiaRealTbodyCompartilhadoEl = document.getElementById('economiaRealTbodyCompartilhado');
   if(economiaRealTbodyCompartilhadoEl){
+    // CORRIGIDO 22/08/2026 (achado do usuário, erro real na página: "ReferenceError: MESES_ABREV_PT_ROBO
+    // is not defined") — a constante vivia no bloco de cima (KWH_WALLACE_POR_NOME_MES), removido no
+    // revert de mais cedo hoje (que tirou a sobrescrita por fatura real dali, mas levou junto essa
+    // constante que este trecho, feito antes, também usava). Movida pra cá, escopo local, já que só
+    // este trecho ainda precisa dela.
+    const MESES_ABREV_PT_ROBO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
     const agoraChave = new Date();
     const chaveMesAtual = MESES_ABREV_PT_ROBO[agoraChave.getMonth()]+String(agoraChave.getFullYear()%100).padStart(2,'0');
     const unidadesEconomia = [ {chave:'wallace', nome:'Apartamento (Wallace)'}, {chave:'wellida', nome:'Casa da Wellida'} ];
