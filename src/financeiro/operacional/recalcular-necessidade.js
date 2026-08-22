@@ -189,9 +189,12 @@ function recalcularNecessidade(){
     registrarIndicador('necessidadeLiquida', REG.operacional.necessidadeLiquida);
   }
 
-  // NOVO 22/08/2026 — Sub-fase A da migração pra rpc_necessidade_total_bruta (aprovada pelo usuário,
-  // ver docs/decisions/PLANO_MIGRACAO_FRONTEND_CONSUMO_RPC.md). Chamada-sombra: compara o resultado
-  // desta função com a RPC em paralelo, só loga divergência, não muda nada na tela. Ver
-  // shadow-homologacao-necessidade.js.
-  if(typeof agendarShadowHomologacaoNecessidade === 'function') agendarShadowHomologacaoNecessidade();
+  // NOVO 22/08/2026, EVOLUÍDO PRA SUB-FASE B no mesmo dia — migração pra rpc_necessidade_total_bruta
+  // (aprovada pelo usuário, ver docs/decisions/PLANO_MIGRACAO_FRONTEND_CONSUMO_RPC.md). O valor
+  // calculado acima por esta função é só o valor IMEDIATO/fallback — assim que a RPC responder,
+  // aplicarRpcNecessidade() (aplicar-rpc-necessidade.js) sobrescreve totalOperacional/
+  // necessidadeTotalBruta/coberturaGarantida/necessidadeLiquida com o valor oficial do banco e
+  // reprocessa a cascata de telas. Continua logando a comparação (shadow mode, pedido do usuário pra
+  // manter mesmo depois do corte).
+  if(typeof agendarAplicacaoRpcNecessidade === 'function') agendarAplicacaoRpcNecessidade();
 }
