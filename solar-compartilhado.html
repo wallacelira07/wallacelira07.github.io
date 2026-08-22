@@ -1104,6 +1104,22 @@ async function carregar(){
     <div class="footer-note">Sistema Wallace Lira — página de compartilhamento público, só leitura de dados solares.<br>Nenhum dado financeiro é exposto por este link.</div>
   `;
 
+  // CORRIGIDO 22/08/2026 (achado do usuário: "não tá igual ao site, eram para ser espelho, toda hora
+  // tenho que falar pra corrigir nos dois lugares" — o painel privado ganhou o consumo real do
+  // medidor Tuya do Wallace em vez do literal fixo (10,00 kWh/dia) mais cedo hoje, mas o compartilhado
+  // nunca foi atualizado junto). Mesma fórmula exata (mediaConsumoDiarioTuyaRecente,
+  // graficos-cenarios-lazy.js): média dos últimos até 14 dias com leitura real, descartando o 1º dia
+  // de histórico (sempre parcial). Irmã/Mãe continuam no literal até cada uma ter medidor Tuya.
+  function mediaConsumoDiarioTuyaRecenteCompartilhado(diario, fallback){
+    const validos = (diario||[]).filter(r => r.kwhConsumido != null).slice().sort((a,b)=> a.data < b.data ? -1 : 1);
+    const semPrimeiroDiaParcial = validos.length > 1 ? validos.slice(1) : validos;
+    const janela = semPrimeiroDiaParcial.slice(-14);
+    if(!janela.length) return fallback;
+    return Math.round((janela.reduce((s,r)=>s+Number(r.kwhConsumido),0)/janela.length)*100)/100;
+  }
+  const wallaceConsumoDiarioRealCompartilhado = mediaConsumoDiarioTuyaRecenteCompartilhado(dados.medidorTuyaConsumoDiario, CONSUMO_DIARIO_WALLACE_KWH);
+  const CONSUMO_MEDIO_3_CASAS_KWH_REAL = Math.round((wallaceConsumoDiarioRealCompartilhado + CONSUMO_DIARIO_IRMA_KWH + CONSUMO_DIARIO_MAE_KWH) * 100) / 100;
+
   if(geracaoDiaria.length && window.Chart){
     // CORRIGIDO 14/08/2026 (achado de auditoria mobile: 30 barras + rótulos de data em ~300px úteis
     // de largura ficam ilegíveis). Tela estreita mostra só os últimos 14 dias; desktop mantém 30.
@@ -1124,7 +1140,7 @@ async function carregar(){
           // médio das 3 casas como aparece no meu site") — linha tracejada constante, mesma ideia do
           // painel privado (graficos-cenarios-lazy.js), aqui como dataset 'line' nativo do Chart.js
           // (mixed chart bar+line) por ser mais simples numa página autocontida sem plugin customizado.
-          { type: 'line', label: `Consumo médio das 3 casas (${fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)}/dia)`, data: ultimos.map(()=>CONSUMO_MEDIO_3_CASAS_KWH), borderColor: 'rgba(226,85,79,0.85)', borderDash: [5,4], borderWidth: 2, pointRadius: 0, fill: false },
+          { type: 'line', label: `Consumo médio das 3 casas (${fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH_REAL)}/dia)`, data: ultimos.map(()=>CONSUMO_MEDIO_3_CASAS_KWH_REAL), borderColor: 'rgba(226,85,79,0.85)', borderDash: [5,4], borderWidth: 2, pointRadius: 0, fill: false },
         ],
       },
       options: {
@@ -1153,11 +1169,11 @@ async function carregar(){
       const valoresReais = ultimos.map(r=>r.kwh).filter(v=>typeof v==='number');
       const mediaGeracaoReal = valoresReais.length ? Math.round((valoresReais.reduce((s,v)=>s+v,0)/valoresReais.length)*100)/100 : null;
       const corMediaGeracao = (mediaGeracaoReal == null) ? 'var(--red)'
-        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH + 2 ? 'var(--green)'
-        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH ? 'var(--amber)'
+        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH_REAL + 2 ? 'var(--green)'
+        : mediaGeracaoReal > CONSUMO_MEDIO_3_CASAS_KWH_REAL ? 'var(--amber)'
         : 'var(--red)';
       legGeracaoEl.innerHTML = valoresReais.length
-        ? valoresReais.length+' dia(s) com geração real (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+fmtKwh(mediaGeracaoReal)+'/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas = <strong style="color:var(--red)">'+fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH)+'/dia</strong>.'
+        ? valoresReais.length+' dia(s) com geração real (barra verde), média de <strong style="color:'+corMediaGeracao+'">'+fmtKwh(mediaGeracaoReal)+'/dia</strong>. Linha vermelha tracejada = consumo médio diário somado das 3 casas (Wallace '+fmtKwh(wallaceConsumoDiarioRealCompartilhado)+' via medidor Tuya + irmã '+fmtKwh(CONSUMO_DIARIO_IRMA_KWH)+' + mãe '+fmtKwh(CONSUMO_DIARIO_MAE_KWH)+' via fatura) = <strong style="color:var(--red)">'+fmtKwh(CONSUMO_MEDIO_3_CASAS_KWH_REAL)+'/dia</strong>.'
         : 'Ainda sem geração diária real suficiente pra calcular a média.';
     }
   }
