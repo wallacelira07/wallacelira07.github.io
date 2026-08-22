@@ -2636,9 +2636,12 @@ onDomPronto(() => {
   const periodoSelect = $('tendenciaTickerLivrePeriodoSelect');
   if(periodoSelect) periodoSelect.addEventListener('change', aplicarTendenciaTickerLivre);
 });
-// NOVO 22/08/2026 (pedido do usuário: "aba profissional pra decidir operações" — radar comparativo
-// dos 10 ativos acompanhados, ver aplicarRadarAtivosOpcoes()/hydrate-roc.js).
-onDomPronto(aplicarRadarAtivosOpcoes);
+// CORRIGIDO 22/08/2026 (achado do usuário, painel travando com "demorou demais pra carregar" — 10
+// fetches paralelos ao Supabase disparados incondicionalmente no boot, competindo pela conexão com
+// as dezenas de outras chamadas já em voo na cadeia crítica, empurrou o boot pra além dos 20s do
+// watchdog). aplicarRadarAtivosOpcoes() agora só roda sob demanda, quando o usuário abre a aba
+// Opções (mesmo padrão já usado por Gráficos/Cenários/Solar/WWI — ver showMaster()/
+// ui-navegacao-basica.js), nunca mais no boot síncrono.
 // NOVO 21/08/2026 (Fase 3 do cockpit de opções): aba "Carteira de Ações Recebidas", derivada das
 // opções exercidas + dividendos_acoes. Ver aplicarCarteiraAcoesExercidas()/hydrate-roc.js.
 onDomPronto(aplicarCarteiraAcoesExercidas);

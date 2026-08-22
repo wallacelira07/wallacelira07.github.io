@@ -123,6 +123,14 @@ function showMaster(id){
       console.error('Erro ao carregar módulo WWI sob demanda', err);
     });
   }
+  // NOVO 22/08/2026 (correção de performance: o Radar de Ativos da aba Opções disparava 10 fetches
+  // paralelos ao Supabase incondicionalmente no boot — ver comentário em app.js). hydrate-roc.js já
+  // faz parte do bundle base (carrega antes de app.js, sem "sob demanda" nenhum), só o DISPARO da
+  // função vira lazy — roda de novo toda vez que a aba abre (mesmo padrão do WWI acima), o cache de
+  // 90s da WallaceFinanceService evita rede redundante se o usuário reabrir rápido.
+  if(id === 'opcoes' && typeof aplicarRadarAtivosOpcoes === 'function'){
+    aplicarRadarAtivosOpcoes();
+  }
   // CORRIGIDO 18/07/2026 (V85, bug real reportado pelo usuario: "gráfico do Visa não carregou"):
   // os graficos das paginas Graficos/Cenarios/Balanco sao criados com new Chart() enquanto a pagina
   // ainda esta escondida (display:none) no carregamento inicial - o Chart.js nao consegue medir o
